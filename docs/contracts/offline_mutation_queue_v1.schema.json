@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"construction-pm/offline-mutation-queue-v1.json",
+  "title":"Construction PM Offline Mutation Queue v1",
+  "type":"object",
+  "required":["contract_version","operation","idempotency_key","context","mutation"],
+  "properties":{
+    "contract_version":{"const":"offline-mutation.v1"},
+    "operation":{"type":"string","minLength":1},
+    "idempotency_key":{"type":"string","minLength":1},
+    "context":{"type":"object"},
+    "expected_revision":{"type":["integer","null"],"minimum":1},
+    "attempt":{"type":"integer","minimum":0},
+    "mutation":{"type":"object"}
+  },
+  "additionalProperties":false
+}
