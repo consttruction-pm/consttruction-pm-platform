@@ -78,9 +78,9 @@ def _latest_predecessor_start(
 ) -> datetime:
     if predecessor.calendar_context is None or successor is None:
         raise ValueError("time-aware activities require calendar contexts")
-    lag_ref = predecessor.calendar_context.effective_relationship_lag()
-    # Relationship lag belongs to the successor-side relationship context.
-    lag_ref = predecessor.calendar_context.effective_relationship_lag()
+    # Relationship lag calendar is selected from the successor-side context.
+    if successor is None:
+        raise ValueError("successor is required")
     lag_resolver = registry.resolve(lag_ref)
     if not isinstance(lag_resolver, TimeAwareWorkingTimeResolver):
         raise TypeError("time-aware relationship lag requires a working-time resolver")
