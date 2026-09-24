@@ -123,38 +123,45 @@ class TimeAwareWorkingTimeResolver:
         remaining = units
         for _ in range(3660):
             intervals = self.calendar.intervals_for(cursor.date())
+            progressed = False
             for interval_start, interval_end in reversed(intervals):
                 begin = datetime.combine(cursor.date(), interval_start)
                 end = datetime.combine(cursor.date(), interval_end)
                 if cursor >= end:
                     cursor = end
-                if begin < cursor <= end:
-                    capacity = Decimal(str((cursor - begin).total_seconds())) / Decimal(3600)
-                    if remaining <= capacity:
-                        return cursor - timedelta(seconds=float(remaining * Decimal(3600)))
-                    remaining -= capacity
-                    cursor = begin
-                    break
+                if not (begin < cursor <= end):
+                    continue
+
+                capacity = Decimal(str((cursor - begin).total_seconds())) / Decimal(3600)
+                if remaining <= capacity:
+                    seconds = remaining * Decimal(3600)
+                    return cursor - timedelta(microseconds=int(seconds * Decimal(1_000_000)))
+                remaining -= capacity
+                progressed = True
+                cursor = begin
+
+            # Consume earlier intervals on the same day before moving to the
+            # previous day; this preserves breaks such as 08:00–12:00/13:00–17:00.
             cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
+            if progressed or not intervals:
+                continue
         raise ValueError("working-hour duration exceeds resolver horizon")
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         if finish < start:
             raise ValueError("finish must not precede start")
-        cursor = self.normalize_start(start)
+
         total = Decimal("0")
-        while cursor < finish:
-            intervals = self.calendar.intervals_for(cursor.date())
-            advanced = False
-            for interval_start, interval_end in intervals:
-                begin = datetime.combine(cursor.date(), interval_start)
-                end = datetime.combine(cursor.date(), interval_end)
-                left = max(cursor, begin)
+        cursor_date = start.date()
+        last_date = finish.date()
+        while cursor_date <= last_date:
+            for interval_start, interval_end in self.calendar.intervals_for(cursor_date):
+                begin = datetime.combine(cursor_date, interval_start)
+                end = datetime.combine(cursor_date, interval_end)
+                left = max(start, begin)
                 right = min(finish, end)
                 if right > left:
-                    total += Decimal(str((right - left).total_seconds())) / Decimal(3600)
-                    advanced = True
-            cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min)
-            if cursor > finish and not advanced:
-                break
+                    seconds = Decimal(str((right - left).total_seconds()))
+                    total += seconds / Decimal(3600)
+            cursor_date += timedelta(days=1)
         return total
