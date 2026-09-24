@@ -69,8 +69,8 @@ class OfflineSyncCoordinator:
                 status=result.status,
                 operation=result.operation,
                 revision=result.revision,
-                error_code=None,
-                retryable=None,
+                error_code=result.error_code,
+                retryable=result.retryable,
                 idempotency_key=result.idempotency_key,
             )
             outcome.validate()
