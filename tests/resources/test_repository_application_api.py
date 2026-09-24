@@ -1,0 +1,47 @@
+from decimal import Decimal
+
+import pytest
+
+from construction_pm.resources.api import ResourceAPI
+from construction_pm.resources.application import ResourceApplicationService
+from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
+from construction_pm.resources.repository import InMemoryResourceRepository
+
+
+def make_resource() -> Resource:
+    return Resource(
+        id="R-1", code="LAB-01", name="Labor", resource_type=ResourceType.LABOR,
+        unit="hour", rates=(), calendar_id=None, active=True,
+    )
+
+
+def test_repository_is_deterministic_and_defensive():
+    repo = InMemoryResourceRepository()
+    resource = make_resource()
+    repo.save_resource(resource)
+    assert repo.get_resource("R-1") == resource
+    assert repo.list_resources() == [resource]
+
+
+def test_application_rejects_unknown_resource_assignment():
+    service = ResourceApplicationService(InMemoryResourceRepository())
+    assignment = ResourceAssignment(
+        activity_id="A-1", resource_id="R-X",
+        planned_units=Decimal("2"), actual_units=Decimal("0"),
+    )
+    with pytest.raises(ValueError, match="Unknown resource"):
+        service.assign_resource(assignment)
+
+
+def test_api_keeps_decimal_values_typed_as_strings_at_contract_boundary():
+    service = ResourceApplicationService(InMemoryResourceRepository())
+    api = ResourceAPI(service)
+    dto = api.create_resource(make_resource())
+    assert dto["id"] == "R-1"
+
+    dto = api.create_assignment(ResourceAssignment(
+        activity_id="A-1", resource_id="R-1",
+        planned_units=Decimal("2.50"), actual_units=Decimal("1.25"),
+    ))
+    assert dto["planned_units"] == "2.50"
+    assert dto["remaining_units"] == "1.25"
