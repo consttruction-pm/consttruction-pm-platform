@@ -156,3 +156,5 @@ Status: **100%**
   - Runtime CI remains unverified.
 
 - 33.4.33 Time-Aware Client Integration & Portability Contract: implemented. Portable calculation context now carries time scheduling options and datetime constraints; Web/Desktop/Mobile parity rules are documented; Shared Core remains authoritative. Remaining gates are typed API DTOs, cross-client parity fixtures, offline portability round-trip tests, and final P6 time-aware parity review. Runtime CI remains unverified.
+
+- 33.4.34 Typed Time-Aware API Contract v1: `shared/contracts/time-scheduling.schema.json` defines portable calculation context, activities, relationships, duration/lag units, calendar references, and exact Decimal-like wire representations. Contract regression tests added. Remaining gates: cross-client parity fixtures, offline portability round-trip tests, final P6 time-aware parity review. Runtime CI remains unverified.
