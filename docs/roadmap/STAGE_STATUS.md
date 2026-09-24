@@ -400,6 +400,15 @@ Status: **100% — runtime-verified 2026-09-25**
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 
 
+### Stage 33.4.68 — Shared Client API Sync Transport Boundary
+Status: **implemented — CI verification pending**
+- Added `apps/client-sync/src/api-sync-transport.ts` as the TypeScript bridge from `ClientSyncRunner` to the existing versioned `/api/v1/sync/mutations` application/API boundary.
+- Preserves tenant/project context, expected revision and idempotency key without duplicating business calculations.
+- Maps retryable API errors to `RETRY` and non-retryable API errors to `REJECTED`; validates successful mutation identity.
+- Added transport and runner regression tests.
+- Latest implementation commit: `735559dcda3dfcee7b33e01613185fbd21658e0f`.
+- CI verification is the next gate.
+
 ### Stage 33.4.67 — Shared Offline Mutation Queue Client Gate
 Status: **100% — runtime-verified 2026-09-25**
 - Added the shared TypeScript `apps/client-sync` queue consumed by Desktop and Mobile foundations.
