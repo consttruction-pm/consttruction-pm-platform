@@ -10,6 +10,7 @@
 - نقش نفر اول: Backend / Database Development
 
 ## مسیر شروع
+- `docs/team/COMMON_CALCULATION_LOGIC_AND_LEARNING.md` — مرجع اجباری منطق محاسبات مشترک و خطاهای ثبت‌شده برای یادگیری
 1. README.md
 2. docs/architecture/ARCHITECTURE.md
 3. docs/requirements/PRODUCT_SCOPE.md
