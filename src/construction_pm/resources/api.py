@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+RESOURCE_CONTRACT_VERSION = "resource.v1"
+
 from .application import ResourceApplicationService
 from .errors import ApplicationError
 from .models import Resource, ResourceAssignment
@@ -48,6 +50,8 @@ class ResourceAPI:
             result = self.service.register_resource(resource, idempotency_key=idempotency_key, expected_revision=expected_revision)
             dto = resource_to_dto(result)
             dto["revision"] = self.service.repository.get_resource_revision(self.service.context, result.id)
+            dto["contract_version"] = RESOURCE_CONTRACT_VERSION
+            dto["operation"] = "create_resource"
             return dto
         except ApplicationError as exc:
             return exc.to_dto()
@@ -61,6 +65,8 @@ class ResourceAPI:
             dto["revision"] = self.service.repository.get_assignment_revision(
                 self.service.context, result.activity_id, result.resource_id
             )
+            dto["contract_version"] = RESOURCE_CONTRACT_VERSION
+            dto["operation"] = "create_assignment"
             return dto
         except ApplicationError as exc:
             return exc.to_dto()
