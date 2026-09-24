@@ -171,3 +171,9 @@ Status: **100%**
   - Web/Desktop/Mobile remain consumers of the shared contract; no client scheduling formulas were introduced.
   - Merged in PR #54, merge SHA `148e3ceba218d401d21ffc800d6ce93a0ac07b11`.
   - Runtime CI execution remains unverified.
+
+
+- 33.4.37 CI Regression Execution Gate: CI workflow added at `.github/workflows/ci.yml`.
+  - Runs the full pytest suite on Python 3.11, 3.12 and 3.13 for pushes to main and pull requests targeting main.
+  - Installs the project through the declared `.[test]` extra, so the CI environment follows the repository's packaging contract.
+  - Stage 33.4 remains 99% until an actual workflow run completes successfully and any failures are reviewed.
