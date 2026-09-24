@@ -34,6 +34,7 @@ class JsonHttpSyncTransport:
                 "Idempotency-Key": mutation.idempotency_key,
                 "X-Tenant-Id": mutation.tenant_id,
                 "X-Project-Id": mutation.project_id,
+                "X-Project-Revision": str(mutation.expected_revision),
             },
         )
         return SyncOutcome(
