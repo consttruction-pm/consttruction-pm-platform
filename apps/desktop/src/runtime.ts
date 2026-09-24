@@ -1,3 +1,4 @@
+import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
   type SyncMutation,
@@ -25,6 +26,16 @@ export class DesktopRuntime {
   acknowledgeMutation(mutationId: string): void { this.mutationQueue.acknowledge(mutationId); }
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> { return new ClientSyncRunner(this.mutationQueue, new ApiSyncTransport(api)).runOnce(); }
   presentConflict(mutation: SyncMutation, outcome: SyncOutcome): SyncConflictPresentation | null { return presentSyncConflict(mutation, outcome); }
+  async refreshRevision(api: VersionedSyncRevisionApi): Promise<DesktopProjectState> {
+    const current = this.current();
+    const result = await new ApiRevisionTransport(api).refresh({
+      tenant_id: current.tenant_id,
+      project_id: current.project_id,
+      revision: current.revision,
+    });
+    return this.advanceRevision(result.revision);
+  }
+
   retryStaleRevision(mutationId: string, outcome: SyncOutcome, refreshedRevision: number): SyncMutation {
     if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
       throw new Error("INVALID_STALE_REVISION_RETRY");
