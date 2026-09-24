@@ -24,3 +24,5 @@ from .offline_store_json import JsonFileOfflineMutationStore
 from .http_transport import HttpClient, JsonHttpSyncTransport
 from .server_gateway import IdempotentMutationGateway
 from .server_idempotency import InMemoryServerIdempotencyStore, mutation_fingerprint
+
+from .conflict import ConflictContext, ConflictPresentation
