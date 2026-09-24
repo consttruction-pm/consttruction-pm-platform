@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .offline_mutation import OfflineMutation
-from .server_idempotency import InMemoryServerIdempotencyStore
+from .server_idempotency import InMemoryServerIdempotencyStore, mutation_fingerprint
 from .sync_outcome import SyncDisposition, SyncOutcome
 
 
@@ -18,6 +18,14 @@ class IdempotentMutationGateway:
 
         self.store.remember(mutation, outcome)
         return outcome
+
+    def execute_lazy(self, mutation: OfflineMutation, producer) -> SyncOutcome:
+        existing = self.store.lookup(mutation)
+        if existing is not None:
+            if existing.fingerprint != mutation_fingerprint(mutation):
+                raise ValueError("IDEMPOTENCY_KEY_REUSE")
+            return existing.outcome
+        return self.execute(mutation, producer())
 
     def conflict(self, mutation: OfflineMutation, error_code: str) -> SyncOutcome:
         return self.execute(
