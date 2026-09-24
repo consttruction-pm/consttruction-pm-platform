@@ -1,1 +1,3 @@
 export * from "./client.js";
+export * from "./project-context.js";
+export * from "./error-boundary.js";
