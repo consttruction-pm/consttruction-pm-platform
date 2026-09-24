@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import datetime
 from decimal import Decimal
 from typing import Iterable, Mapping
 
@@ -68,11 +68,7 @@ def _add_signed_lag(
         )
     if lag.value >= 0:
         return resolver.add_working_hours(anchor, lag.value)
-    # A signed lead requires inverse working-hour arithmetic; do not approximate
-    # it with elapsed clock time.
-    raise NotImplementedError(
-        "negative working-hour lag requires inverse working-time arithmetic"
-    )
+    return resolver.subtract_working_hours(anchor, -lag.value)
 
 
 def _add_duration(
@@ -95,10 +91,9 @@ def time_forward_pass(
 ) -> Mapping[str, TimeScheduledActivity]:
     """Earliest-start pass for the explicit working-hour scheduling contract.
 
-    This first integration slice intentionally supports working-hour durations
-    and non-negative working-hour lag. Working-day conversion and negative
-    time-based lead are separate gates because both require explicit inverse
-    calendar semantics rather than elapsed-clock approximations.
+    This integration slice supports working-hour durations and signed
+    working-hour lag. Working-day conversion remains explicit and is not
+    inferred from a fixed hours-per-day assumption.
     """
     activity_list = list(activities)
     activity_map = {a.id: a for a in activity_list}
@@ -180,23 +175,4 @@ def _subtract_duration(
         raise NotImplementedError(
             "working-day duration is not implicitly converted to hours"
         )
-    remaining = duration.value
-    # Inverse arithmetic is deliberately exact over working intervals.
-    cursor = finish
-    for _ in range(3660):
-        intervals = resolver.calendar.intervals_for(cursor.date())
-        for interval_start, interval_end in reversed(intervals):
-            begin = datetime.combine(cursor.date(), interval_start)
-            end = datetime.combine(cursor.date(), interval_end)
-            right = min(cursor, end)
-            if right <= begin:
-                continue
-            capacity = (right - begin).total_seconds() / 3600
-            if remaining <= 0:
-                return cursor
-            if remaining <= capacity:
-                    return right - timedelta(seconds=float(remaining * Decimal(3600)))
-            remaining -= Decimal(str(capacity))
-            cursor = begin
-        cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
-    raise ValueError("working-hour duration exceeds resolver horizon")
+    return resolver.subtract_working_hours(finish, duration.value)
