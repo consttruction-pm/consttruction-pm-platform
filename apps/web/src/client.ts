@@ -1,12 +1,17 @@
 import type { ProjectContext } from "../../../shared/client-contracts/project-context";
-import { isApplicationErrorEnvelope } from "../../../shared/client-contracts/application-error";
+import {
+  type ApplicationErrorCategory,
+  isApplicationErrorEnvelope,
+} from "../../../shared/client-contracts/application-error";
 
 export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
 export type ClientError = {
+  category?: ApplicationErrorCategory;
   code: string;
   retryable: boolean;
-  message_key: string;
+  message?: string;
+  message_key?: string;
   available_actions: string[];
 };
 
@@ -48,9 +53,10 @@ export class FetchApiTransport implements ApiTransport {
       return {
         ok: false,
         error: {
+          category: payload.error.category,
           code: payload.error.code,
           retryable: payload.error.retryable,
-          message_key: payload.error.message,
+          message: payload.error.message,
           available_actions: [],
         },
       };
