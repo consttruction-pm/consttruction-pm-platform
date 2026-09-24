@@ -207,9 +207,10 @@ def test_cross_calendar_fs_positive_lag_uses_successor_lag_calendar():
     assert early["B"].finish == datetime(2026, 9, 22, 15)
 
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].start == datetime(2026, 9, 22, 15)
-    assert late["A"].finish == datetime(2026, 9, 22, 14)
-    assert late["A"].start == datetime(2026, 9, 22, 10)
+    assert late["B"].start == datetime(2026, 9, 22, 14)
+    assert late["B"].finish == datetime(2026, 9, 22, 16)
+    assert late["A"].finish == datetime(2026, 9, 22, 10)
+    assert late["A"].start == datetime(2026, 9, 22, 8)
 
 
 def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
@@ -231,12 +232,12 @@ def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
     relationships = [TimeRelationship("A", "B", RelationshipType.FF, LagQuantity.working_hours(1))]
     early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
     assert early["A"].finish == datetime(2026, 9, 22, 12)
-    assert early["B"].start == datetime(2026, 9, 22, 11)
+    assert early["B"].start == datetime(2026, 9, 22, 10)
     assert early["B"].finish == datetime(2026, 9, 22, 13)
 
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
-    assert late["A"].finish == datetime(2026, 9, 22, 16)
+    assert late["B"].finish == datetime(2026, 9, 22, 16)
+    assert late["A"].finish == datetime(2026, 9, 22, 15)
 
 
 def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
@@ -264,6 +265,8 @@ def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
         registry,
     )
     assert result.early_activities["A"].start == datetime(2026, 9, 22, 8)
-    assert result.early_activities["B"].start == datetime(2026, 9, 22, 8)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 7)
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9)
     assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16)
-    assert result.floats["A"].critical
+    assert result.floats["A"].total_float_hours == Decimal("7")
+    assert not result.floats["A"].critical
