@@ -326,3 +326,56 @@ def test_cross_calendar_activity_constraint_uses_activity_calendar():
     )
     assert early["A"].start == datetime(2026, 9, 22, 10, 30)
     assert early["A"].finish == datetime(2026, 9, 22, 13, 30)
+
+
+def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(4), SchedulingCalendarContext(
+            refs["project"], refs["predecessor"], refs["lag"]
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(2), SchedulingCalendarContext(
+            refs["project"], refs["successor"], refs["lag"]
+        )),
+    ]
+    relationships = [TimeRelationship("A", "B", RelationshipType.SF, LagQuantity.working_hours(-1))]
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
+    assert early["B"].start == datetime(2026, 9, 22, 8)
+    assert early["B"].finish == datetime(2026, 9, 22, 10)
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 17)
+    assert late["A"].start == datetime(2026, 9, 22, 14)
+    assert late["A"].finish == datetime(2026, 9, 22, 18)
+
+
+def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrelated():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), SchedulingCalendarContext(
+            refs["project"], refs["predecessor"], refs["lag"]
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(2), SchedulingCalendarContext(
+            refs["project"], refs["successor"], refs["lag"]
+        )),
+    ]
+    result = time_schedule(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(1))],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry,
+    )
+    assert result.floats["B"].total_float_hours == Decimal("6")
+    assert result.floats["B"].critical is False
