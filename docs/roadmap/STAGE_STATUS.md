@@ -272,3 +272,9 @@ Status: **100%**
   - Preserves stable error code, action semantics and revision context.
   - Client-specific UI remains presentation-only.
   - Added cross-client parity integration tests.
+
+- 33.4.54 End-to-End Conflict Synchronization Flow: implemented.
+  - Added explicit Offline Mutation -> Transport -> Conflict boundary.
+  - Preserves mutation identity, expected revision and idempotency identity.
+  - CONFLICT requires refresh; ACKNOWLEDGED does not.
+  - Added integration tests; production network execution remains a later gate.
