@@ -8,6 +8,9 @@ export type ConflictPresentation = {
   actions: string[];
   message?: string;
   message_key?: string;
+  expected_revision?: number;
+  actual_revision?: number;
+  details?: Record<string, unknown>;
 };
 
 export function presentClientError(error: ClientError): ConflictPresentation {
@@ -18,5 +21,8 @@ export function presentClientError(error: ClientError): ConflictPresentation {
     actions: [...error.available_actions],
     message: error.message,
     message_key: error.message_key,
+    expected_revision: error.expected_revision,
+    actual_revision: error.actual_revision,
+    details: error.details ? { ...error.details } : undefined,
   };
 }
