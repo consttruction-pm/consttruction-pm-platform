@@ -15,3 +15,11 @@ Initial responsibilities:
 - parity with Desktop capabilities
 
 Calculation authority remains in the Shared Domain/Calculation Core.
+
+
+## Executable foundation — Stage 33.4.43
+
+The Web client now has a framework-neutral TypeScript foundation under `src/`.
+It provides a typed API transport that preserves tenant/project/revision context, stable API errors, and optional idempotency keys. It deliberately contains no scheduling, calendar, Progress/EVM, resource/cost, or financial calculation logic; those remain authoritative in the Shared Domain/Calculation Core.
+
+This layer is the integration boundary for the future Web application shell and feature modules.
