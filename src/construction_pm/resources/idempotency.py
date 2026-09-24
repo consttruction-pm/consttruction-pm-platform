@@ -128,29 +128,29 @@ class SQLiteMutationIdempotencyStore:
                         "IDEMPOTENCY_KEY_REUSE",
                         "Idempotency key was already used for a different mutation",
                     )
-                return replay() if replay is not None else mutation()
-
-            self.connection.execute(
-                "INSERT INTO mutation_idempotency "
-                "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    context.tenant_id,
-                    context.company_id,
-                    context.project_id,
-                    operation,
-                    key,
-                    fingerprint,
-                ),
-            )
-            return mutation()
+                result = replay() if replay is not None else mutation()
+            else:
+                self.connection.execute(
+                    "INSERT INTO mutation_idempotency "
+                    "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        context.tenant_id,
+                        context.company_id,
+                        context.project_id,
+                        operation,
+                        key,
+                        fingerprint,
+                    ),
+                )
+                result = mutation()
         except Exception:
             if not was_in_transaction:
                 self.connection.rollback()
             raise
-        else:
-            if not was_in_transaction:
-                self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
+        return result
 
 
 def resource_fingerprint(resource: object) -> str:
