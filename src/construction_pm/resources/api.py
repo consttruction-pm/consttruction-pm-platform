@@ -29,7 +29,7 @@ def assignment_to_dto(assignment: ResourceAssignment) -> dict[str, Any]:
         "resource_id": assignment.resource_id,
         "planned_units": decimal(assignment.planned_units),
         "actual_units": decimal(assignment.actual_units),
-        "remaining_units": decimal(assignment.normalized_remaining_units),
+        "remaining_units": decimal(assignment.normalized_remaining_units()),
         "planned_cost": decimal(assignment.planned_cost),
         "actual_cost": decimal(assignment.actual_cost),
         "remaining_cost": decimal(assignment.remaining_cost),
