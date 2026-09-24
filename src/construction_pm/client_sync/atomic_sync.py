@@ -40,7 +40,12 @@ class AtomicSyncExecutor:
                     },
                 )
             )
+            self._after_outcome(mutation, outcome)
             return outcome
+
+    def _after_outcome(self, mutation: OfflineMutation, outcome: SyncOutcome) -> None:
+        """Hook for additional persistence that must share this transaction."""
+        return None
 
 def _outcome(record: IdempotencyRecord) -> SyncOutcome:
     return SyncOutcome(
