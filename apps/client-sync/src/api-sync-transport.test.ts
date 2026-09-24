@@ -25,7 +25,7 @@ test("api transport preserves context, revision and idempotency key", async () =
           contract_version: "sync-outcome.v1",
           mutation_id: "m1",
           disposition: "acknowledged",
-        } as SyncOutcome,
+        } as SyncOutcome as TResponse,
       };
     },
   };
