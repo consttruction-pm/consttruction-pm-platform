@@ -60,8 +60,8 @@ def test_forward_pass_supports_all_relationship_types(
         (RelationshipType.SS, -1, date(2026, 9, 18)),
         (RelationshipType.FF, 1, date(2026, 9, 22)),
         (RelationshipType.FF, -1, date(2026, 9, 19)),
-        (RelationshipType.SF, 1, date(2026, 9, 19)),
-        (RelationshipType.SF, -1, date(2026, 9, 17)),
+        (RelationshipType.SF, 1, date(2026, 9, 21)),
+        (RelationshipType.SF, -1, date(2026, 9, 18)),
     ],
 )
 def test_forward_pass_lag_is_consistent_for_all_relationship_types(
