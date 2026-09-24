@@ -70,11 +70,12 @@ def backward_pass(
     project_finish: date | None,
     resolver: WorkingTimeResolver,
 ) -> Mapping[str, ScheduledActivity]:
-    """Calculate deterministic latest dates from the project finish.
+    """Calculate latest dates using successor *late* dates.
 
-    The supplied forward schedule is authoritative for early dates. Each
-    activity's latest start is the most restrictive inverse relationship
-    requirement among its successors.
+    Terminal activities are anchored to the project finish. Non-terminal
+    activities are propagated backward from the already-computed late dates of
+    their successors. This is the CPM backward-pass invariant; using early
+    successor dates here would understate available float in branching networks.
     """
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
@@ -87,7 +88,11 @@ def backward_pass(
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
             raise ValueError("relationship references an unknown activity")
 
-    finish = project_finish or max(item.finish for item in forward.values())
+    early_project_finish = max(item.finish for item in forward.values())
+    finish = resolver.normalize_finish(project_finish or early_project_finish)
+    if finish < early_project_finish:
+        raise ValueError("project finish cannot be earlier than the early project finish")
+
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationship_list:
         outgoing[rel.predecessor_id].append(rel)
@@ -98,16 +103,15 @@ def backward_pass(
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
         successors = outgoing[activity_id]
+
         if not successors:
-            late_finish = resolver.normalize_finish(finish)
-            late_start = resolver.subtract_working_duration(
-                late_finish, activity.duration
-            )
+            late_finish = finish
+            late_start = resolver.subtract_working_duration(late_finish, activity.duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
                     rel,
-                    forward[rel.successor_id],
+                    result[rel.successor_id],
                     activity.duration,
                     resolver,
                 )
@@ -242,9 +246,7 @@ def schedule(
     """Run forward pass, backward pass and float/critical-path analysis."""
     activity_list = list(activities)
     relationship_list = list(relationships)
-    early = forward_pass(
-        activity_list, relationship_list, project_start, resolver
-    )
+    early = forward_pass(activity_list, relationship_list, project_start, resolver)
     late = backward_pass(
         activity_list, relationship_list, early, project_finish, resolver
     )
