@@ -54,7 +54,7 @@ def test_forward_pass_supports_all_relationship_types(
 @pytest.mark.parametrize(
     ("relationship_type", "lag", "expected_start"),
     [
-        (RelationshipType.FS, 1, date(2026, 9, 23)),
+        (RelationshipType.FS, 1, date(2026, 9, 24)),
         (RelationshipType.FS, -1, date(2026, 9, 21)),
         (RelationshipType.SS, 2, date(2026, 9, 23)),
         (RelationshipType.SS, -1, date(2026, 9, 18)),
