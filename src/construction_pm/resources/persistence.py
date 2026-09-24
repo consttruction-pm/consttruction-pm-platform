@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Iterator
 
+from .errors import OptimisticLockError
 from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 
 SCHEMA_VERSION = 4
@@ -60,9 +61,6 @@ CREATE TABLE IF NOT EXISTS mutation_idempotency (
 );
 """
 
-
-class OptimisticLockError(RuntimeError):
-    """Raised when a persistence update uses a stale revision."""
 
 
 class SQLiteResourceRepository:
