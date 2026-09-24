@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from .adapter import normalize_stable_error
+
 
 APPLICATION_ERROR_CATEGORIES: Final = frozenset(
     {
@@ -43,20 +45,8 @@ class ClientErrorPresentation:
         return (self.category, self.code)
 
 
-def present_stable_error(payload: object) -> ClientErrorPresentation | None:
-    """Map an ApplicationError envelope without branching on message text."""
-    if not isinstance(payload, dict):
-        return None
-    error = payload.get("error")
-    if not isinstance(error, dict):
-        return None
-    required = {"category", "code", "message", "retryable"}
-    if set(error) != required:
-        return None
-    if not all(isinstance(error[key], str) for key in ("category", "code", "message")):
-        return None
-    if not isinstance(error["retryable"], bool):
-        return None
+def present_normalized_error(error: dict[str, object]) -> ClientErrorPresentation:
+    """Convert an already-normalized stable ApplicationError into UI state."""
     presentation = ClientErrorPresentation(
         category=error["category"],
         code=error["code"],
@@ -65,3 +55,11 @@ def present_stable_error(payload: object) -> ClientErrorPresentation | None:
     )
     presentation.validate()
     return presentation
+
+
+def present_stable_error(payload: object) -> ClientErrorPresentation | None:
+    """Map a transport payload without branching on message text."""
+    error = normalize_stable_error(payload)
+    if error is None:
+        return None
+    return present_normalized_error(error)
