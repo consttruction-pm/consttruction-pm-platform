@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .authorization import AllowAllAuthorizationPolicy, AuthorizationPolicy
 from .context import ProjectContext
 from .errors import (
     ApplicationError,
@@ -31,6 +32,7 @@ class ResourceApplicationService:
     context: ProjectContext
     transaction_manager: TransactionManager
     idempotency_store: MutationIdempotencyStore | None = None
+    authorization_policy: AuthorizationPolicy | None = None
 
     def register_resource(
         self, resource: Resource, idempotency_key: str | None = None
@@ -40,6 +42,9 @@ class ResourceApplicationService:
         except ValueError as exc:
             raise context_error("INVALID_PROJECT_CONTEXT", str(exc)) from exc
         _raise_if_invalid(validate_resource(resource))
+        (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
+            self.context, "register_resource"
+        )
 
         def mutation() -> Resource:
             with self.transaction_manager.transaction():
@@ -64,6 +69,9 @@ class ResourceApplicationService:
         except ValueError as exc:
             raise context_error("INVALID_PROJECT_CONTEXT", str(exc)) from exc
         _raise_if_invalid(validate_assignment(assignment))
+        (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
+            self.context, "assign_resource"
+        )
 
         def mutation() -> ResourceAssignment:
             with self.transaction_manager.transaction():
