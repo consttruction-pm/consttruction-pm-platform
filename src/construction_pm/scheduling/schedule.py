@@ -7,7 +7,12 @@ from typing import Iterable, Mapping
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
-from .constraints import ActivityConstraint, apply_latest_constraint, validate_constraint_window
+from .constraints import (
+    ActivityConstraint,
+    apply_latest_constraint,
+    validate_constraint_set,
+    validate_constraint_window,
+)
 from .forward_pass import ScheduledActivity, _shift_working_date, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
 
@@ -50,12 +55,7 @@ class ScheduleResult:
     mode: ScheduleMode = ScheduleMode.EARLIEST
 
 
-def _inverse_event_shift(
-    successor_event: date,
-    lag: int,
-    resolver: WorkingTimeResolver,
-) -> date:
-    """Latest predecessor event whose lagged event does not exceed successor."""
+def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
     if lag >= 0:
         return resolver.previous_working_day(
             resolver.subtract_working_duration(successor_event, lag)
@@ -65,12 +65,7 @@ def _inverse_event_shift(
     )
 
 
-def _inverse_start_shift(
-    successor_start: date,
-    lag: int,
-    resolver: WorkingTimeResolver,
-) -> date:
-    """Inverse of the Shared Core's SS start-event lag rule."""
+def _inverse_start_shift(successor_start: date, lag: int, resolver: WorkingTimeResolver) -> date:
     if lag >= 0:
         return resolver.subtract_working_duration(successor_start, lag + 1)
     return resolver.add_working_duration(successor_start, -lag + 1)
@@ -83,30 +78,18 @@ def _latest_predecessor_start(
     resolver: WorkingTimeResolver,
 ) -> date:
     if relationship.type is RelationshipType.FS:
-        predecessor_finish = _inverse_event_shift(
-            successor.start, relationship.lag, resolver
-        )
-        return resolver.subtract_working_duration(
-            predecessor_finish, predecessor_duration
-        )
+        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, resolver)
+        return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SS:
-        return _inverse_start_shift(
-            successor.start, relationship.lag, resolver
-        )
+        return _inverse_start_shift(successor.start, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FF:
-        predecessor_finish = _inverse_event_shift(
-            successor.finish, relationship.lag, resolver
-        )
-        return resolver.subtract_working_duration(
-            predecessor_finish, predecessor_duration
-        )
+        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
-        return _inverse_event_shift(
-            successor.finish, relationship.lag, resolver
-        )
+        return _inverse_event_shift(successor.finish, relationship.lag, resolver)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -124,13 +107,19 @@ def backward_pass(
     activity_map = {activity.id: activity for activity in activity_list}
     relationship_list = list(relationships)
     constraint_map: dict[str, list[ActivityConstraint]] = {activity_id: [] for activity_id in activity_map}
-    for constraint in constraints or ():
+    all_constraints = list(constraints or ())
+    for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
             raise ValueError("constraint references an unknown activity")
         constraint_map[constraint.activity_id].append(constraint)
 
     if set(activity_map) != set(forward):
         raise ValueError("forward schedule must contain every activity")
+
+    for activity_id, activity_constraints in constraint_map.items():
+        validate_constraint_set(
+            activity_constraints, activity_map[activity_id].duration, resolver
+        )
 
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
@@ -158,28 +147,28 @@ def backward_pass(
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel,
-                    result[rel.successor_id],
-                    activity.duration,
-                    resolver,
+                    rel, result[rel.successor_id], activity.duration, resolver
                 )
                 for rel in sorted(
                     successors,
                     key=lambda item: (
-                        item.successor_id,
-                        item.predecessor_id,
-                        item.type.value,
-                        item.lag,
+                        item.successor_id, item.predecessor_id, item.type.value, item.lag
                     ),
                 )
             )
             late_finish = resolver.add_working_duration(late_start, activity.duration)
 
-        for constraint in sorted(constraint_map[activity_id], key=lambda item: (item.type.value, item.date)):
-            late_start = apply_latest_constraint(constraint, late_start, activity.duration, resolver)
+        for constraint in sorted(
+            constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+        ):
+            late_start = apply_latest_constraint(
+                constraint, late_start, activity.duration, resolver
+            )
             late_finish = resolver.add_working_duration(late_start, activity.duration)
 
-        for constraint in sorted(constraint_map[activity_id], key=lambda item: (item.type.value, item.date)):
+        for constraint in sorted(
+            constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+        ):
             validate_constraint_window(constraint, late_start, late_finish, resolver)
 
         result[activity_id] = ScheduledActivity(
@@ -192,11 +181,7 @@ def backward_pass(
     return result
 
 
-def _working_delay_between(
-    early: date,
-    delayed: date,
-    resolver: WorkingTimeResolver,
-) -> int:
+def _working_delay_between(early: date, delayed: date, resolver: WorkingTimeResolver) -> int:
     if delayed < early:
         return -_working_delay_between(delayed, early, resolver)
     return resolver.working_days_between(early, delayed)
@@ -215,23 +200,17 @@ def _relationship_holds(
             )
             if relationship.lag >= 0
             else resolver.previous_working_day(
-                resolver.subtract_working_duration(
-                    predecessor.finish, -relationship.lag
-                )
+                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         )
         return successor.start >= required
 
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(
-            predecessor.start, relationship.lag, resolver
-        )
+        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
         return successor.start >= required
 
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(
-            predecessor.finish, relationship.lag, resolver
-        )
+        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
         return successor.finish >= required
 
     if relationship.type is RelationshipType.SF:
@@ -241,9 +220,7 @@ def _relationship_holds(
             )
             if relationship.lag >= 0
             else resolver.previous_working_day(
-                resolver.subtract_working_duration(
-                    predecessor.start, -relationship.lag
-                )
+                resolver.subtract_working_duration(predecessor.start, -relationship.lag)
             )
         )
         return successor.finish >= required
@@ -299,11 +276,7 @@ def calculate_floats(
         late = late_schedule[activity_id]
         total = max(0, _working_delay_between(early.start, late.start, resolver))
         free = _free_float(
-            activity_map[activity_id],
-            early,
-            outgoing[activity_id],
-            early_schedule,
-            resolver,
+            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
         )
         result[activity_id] = FloatActivity(
             activity_id=activity_id,
@@ -331,8 +304,13 @@ def schedule(
     selected_options = options or ScheduleOptions()
     activity_list = list(activities)
     relationship_list = list(relationships)
-    early = forward_pass(activity_list, relationship_list, project_start, resolver, constraints)
-    late = backward_pass(activity_list, relationship_list, early, project_finish, resolver, constraints)
+    constraint_list = list(constraints or ())
+    early = forward_pass(
+        activity_list, relationship_list, project_start, resolver, constraint_list
+    )
+    late = backward_pass(
+        activity_list, relationship_list, early, project_finish, resolver, constraint_list
+    )
     floats = calculate_floats(activity_list, relationship_list, early, late, resolver)
 
     effective_finish = resolver.normalize_finish(
