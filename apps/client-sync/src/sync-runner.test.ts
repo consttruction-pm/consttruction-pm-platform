@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { OfflineMutationQueue, type SyncMutation, type SyncOutcome } from "./mutation-queue.ts";
 import { ClientSyncRunner, type ClientSyncTransport } from "./sync-runner.ts";
+import { ApiSyncTransport } from "./api-sync-transport.ts";
 
 const mutation = (id: string): SyncMutation => ({
   contract_version: "sync-mutation.v1",
@@ -73,4 +74,26 @@ test("mutation id mismatch is rejected without changing queue state", async () =
   ]));
   await assert.rejects(runner.runOnce(), /MUTATION_ID_MISMATCH/);
   assert.equal(queue.size(), 1);
+});
+
+
+test("runner can consume the versioned api transport without duplicating application logic", async () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue(mutation("m1"));
+  const api = {
+    async post() {
+      return {
+        ok: true as const,
+        data: {
+          contract_version: "sync-outcome.v1" as const,
+          mutation_id: "m1",
+          disposition: "acknowledged" as const,
+        },
+      };
+    },
+  };
+  const runner = new ClientSyncRunner(queue, new ApiSyncTransport(api));
+  const outcomes = await runner.runOnce();
+  assert.equal(outcomes[0]?.disposition, "acknowledged");
+  assert.equal(queue.size(), 0);
 });
