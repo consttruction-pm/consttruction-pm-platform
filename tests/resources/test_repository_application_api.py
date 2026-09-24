@@ -4,8 +4,13 @@ import pytest
 
 from construction_pm.resources.api import ResourceAPI
 from construction_pm.resources.application import ResourceApplicationService
+from construction_pm.resources.context import ProjectContext
 from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
 from construction_pm.resources.repository import InMemoryResourceRepository
+from construction_pm.resources.transactions import NoOpTransactionManager
+
+
+CONTEXT = ProjectContext("tenant-1", "company-1", "project-1")
 
 
 def make_resource() -> Resource:
@@ -15,16 +20,24 @@ def make_resource() -> Resource:
     )
 
 
+def make_service(repo: InMemoryResourceRepository) -> ResourceApplicationService:
+    return ResourceApplicationService(
+        repository=repo,
+        context=CONTEXT,
+        transaction_manager=NoOpTransactionManager(),
+    )
+
+
 def test_repository_is_deterministic_and_defensive():
     repo = InMemoryResourceRepository()
     resource = make_resource()
-    repo.save_resource(resource)
-    assert repo.get_resource("R-1") == resource
-    assert repo.list_resources() == [resource]
+    repo.save_resource(CONTEXT, resource)
+    assert repo.get_resource(CONTEXT, "R-1") == resource
+    assert repo.list_resources(CONTEXT) == [resource]
 
 
 def test_application_rejects_unknown_resource_assignment():
-    service = ResourceApplicationService(InMemoryResourceRepository())
+    service = make_service(InMemoryResourceRepository())
     assignment = ResourceAssignment(
         activity_id="A-1", resource_id="R-X",
         planned_units=Decimal("2"), actual_units=Decimal("0"),
@@ -34,7 +47,7 @@ def test_application_rejects_unknown_resource_assignment():
 
 
 def test_api_keeps_decimal_values_typed_as_strings_at_contract_boundary():
-    service = ResourceApplicationService(InMemoryResourceRepository())
+    service = make_service(InMemoryResourceRepository())
     api = ResourceAPI(service)
     dto = api.create_resource(make_resource())
     assert dto["id"] == "R-1"
@@ -48,7 +61,7 @@ def test_api_keeps_decimal_values_typed_as_strings_at_contract_boundary():
 
 
 def test_api_calls_normalized_remaining_units_method():
-    service = ResourceApplicationService(InMemoryResourceRepository())
+    service = make_service(InMemoryResourceRepository())
     api = ResourceAPI(service)
     api.create_resource(make_resource())
     dto = api.create_assignment(ResourceAssignment(
