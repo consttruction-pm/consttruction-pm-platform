@@ -21,7 +21,8 @@ export function isApplicationErrorEnvelope(value: unknown): value is Application
   if (!error || typeof error !== "object") return false;
   const candidate = error as Record<string, unknown>;
   return (
-    typeof candidate.category === "string" &&\n    ["validation", "context", "conflict", "authorization", "not_found", "persistence"].includes(candidate.category) &&
+    typeof candidate.category === "string" &&
+    ["validation", "context", "conflict", "authorization", "not_found", "persistence"].includes(candidate.category) &&
     typeof candidate.code === "string" && candidate.code.length > 0 &&
     typeof candidate.message === "string" && candidate.message.length > 0 &&
     typeof candidate.retryable === "boolean"
