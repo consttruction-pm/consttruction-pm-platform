@@ -66,6 +66,16 @@
         "calculation_schema_version": {
           "type": "string"
         },
+        "calendar_assignments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["project_calendar", "default_activity_calendar", "default_relationship_lag_calendar"],
+          "properties": {
+            "project_calendar": { "$ref": "#/$defs/calendar_reference" },
+            "default_activity_calendar": { "$ref": "#/$defs/calendar_reference" },
+            "default_relationship_lag_calendar": { "$ref": "#/$defs/calendar_reference" }
+          }
+        },
         "language_context": {
           "type": [
             "object",
@@ -130,6 +140,18 @@
         "object",
         "null"
       ]
+    }
+  },
+  "$defs": {
+    "calendar_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendar_id", "calendar_version", "kind"],
+      "properties": {
+        "calendar_id": { "type": "string" },
+        "calendar_version": { "type": "string" },
+        "kind": { "type": "string", "enum": ["working-day", "working-time"] }
+      }
     }
   }
 }
