@@ -10,6 +10,7 @@ from .errors import (
     not_found_error,
     validation_error,
 )
+from .errors import OptimisticLockError
 from .idempotency import (
     MutationIdempotencyStore,
     assignment_fingerprint,
@@ -35,7 +36,10 @@ class ResourceApplicationService:
     authorization_policy: AuthorizationPolicy | None = None
 
     def register_resource(
-        self, resource: Resource, idempotency_key: str | None = None
+        self,
+        resource: Resource,
+        idempotency_key: str | None = None,
+        expected_revision: int | None = None,
     ) -> Resource:
         try:
             self.context.validate()
@@ -48,10 +52,13 @@ class ResourceApplicationService:
 
         def mutation() -> Resource:
             with self.transaction_manager.transaction():
-                return self.repository.save_resource(self.context, resource)
+                return self.repository.save_resource(self.context, resource, expected_revision)
 
         if self.idempotency_store is None:
-            return mutation()
+            try:
+                return mutation()
+            except OptimisticLockError as exc:
+                raise conflict_error("STALE_REVISION", str(exc)) from exc
         return self.idempotency_store.execute(
             self.context,
             key=idempotency_key or "",
@@ -62,7 +69,10 @@ class ResourceApplicationService:
         )
 
     def assign_resource(
-        self, assignment: ResourceAssignment, idempotency_key: str | None = None
+        self,
+        assignment: ResourceAssignment,
+        idempotency_key: str | None = None,
+        expected_revision: int | None = None,
     ) -> ResourceAssignment:
         try:
             self.context.validate()
@@ -80,10 +90,13 @@ class ResourceApplicationService:
                         "RESOURCE_NOT_FOUND",
                         f"Unknown resource: {assignment.resource_id}",
                     )
-                return self.repository.save_assignment(self.context, assignment)
+                return self.repository.save_assignment(self.context, assignment, expected_revision)
 
         if self.idempotency_store is None:
-            return mutation()
+            try:
+                return mutation()
+            except OptimisticLockError as exc:
+                raise conflict_error("STALE_REVISION", str(exc)) from exc
         return self.idempotency_store.execute(
             self.context,
             key=idempotency_key or "",
