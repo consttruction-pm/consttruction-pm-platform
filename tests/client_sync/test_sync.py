@@ -1,3 +1,4 @@
+import pytest
 from construction_pm.client_sync.adapter import ClientMutationRequest
 from construction_pm.client_sync.context import OfflineProjectContext
 from construction_pm.client_sync.mutation import OfflineMutation
@@ -87,7 +88,8 @@ def test_conflict_stays_queued_for_explicit_resolution():
 
     assert result[0].removed is False
     assert result[0].outcome.error_code == "STALE_REVISION"
-    assert queue.peek()[0].attempt == 1
+    with pytest.raises(ValueError, match="deferred"):
+        queue.increment_attempt(mutation)
 
 
 def test_rejected_stays_queued_for_explicit_resolution():
