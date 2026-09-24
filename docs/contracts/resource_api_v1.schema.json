@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "construction-pm/resource-contract-v1.json",
+  "title": "Resource API Contract v1",
+  "type": "object",
+  "required": ["contract_version", "operation", "result"],
+  "properties": {
+    "contract_version": {"const": "resource.v1"},
+    "operation": {"enum": ["create_resource", "create_assignment"]},
+    "result": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {
+        "revision": {"type": ["integer", "null"], "minimum": 1}
+      }
+    }
+  },
+  "additionalProperties": true
+}
