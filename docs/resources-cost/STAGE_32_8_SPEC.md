@@ -90,3 +90,12 @@ Leveling is a scheduling decision, not a cost-calculation side effect. The resou
 - CV and SV are exposed without replacing the central EVM engine.
 - The bridge is intentionally isolated so the authoritative EVM semantics remain in the shared EVM domain.
 - Added Pytest coverage for deterministic Decimal calculations.
+
+
+### 32.8.12 — Typed Excel Import/Export Contract
+Status: **70%**
+- Typed resource and assignment column schemas implemented.
+- Numeric values use Decimal and remain separate from text columns.
+- Date and boolean coercion rules implemented.
+- Pytest coverage added.
+- XLSX workbook writer/reader remains the next implementation step.
