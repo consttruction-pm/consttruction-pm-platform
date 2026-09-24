@@ -22,8 +22,8 @@ def mutation_payload():
 @pytest.mark.parametrize(
     "status,payload",
     [
-        ("applied", {"revision": 8}),
-        ("replayed", {"revision": 8}),
+        ("applied", {"revision": 8, "error_code": None, "retryable": False}),
+        ("replayed", {"revision": 8, "error_code": None, "retryable": False}),
         ("conflict", {"error_code": "STALE_REVISION", "retryable": False}),
         ("rejected", {"error_code": "VALIDATION_ERROR", "retryable": False}),
     ],
