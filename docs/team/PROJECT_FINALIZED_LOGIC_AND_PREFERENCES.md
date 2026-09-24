@@ -700,3 +700,27 @@ Stage 33.4.65 is finalized as the runtime certification gate for the time-aware 
 This establishes the current regression baseline for calendar interval arithmetic, FS/SS/FF/SF, signed lag/lead, Forward/Backward scheduling, constraints, float, typed resource/API contracts, synchronization/idempotency and cross-client regression coverage. The result is an engineering compatibility baseline, not an Oracle certification claim.
 
 Impact: no client-specific calculation semantics are authorized; Web, Desktop and Mobile continue to consume the Shared Domain/Calculation Core and versioned contracts. Future stages must preserve this green baseline and add regression coverage for every new shared semantic.
+
+
+## 38. Application/API Authorization Boundary — 2026-09-24
+
+A framework/provider-neutral authorization boundary is now implemented at the Application layer as part of Stage 33.3.4.
+
+Mandatory rules:
+- Authentication establishes identity outside the Shared Domain/Calculation Core.
+- Project-scoped authorization decisions carry tenant_id, project_id, user_id and effective roles.
+- Authorization is expressed through explicit permissions and a shared policy contract.
+- Denied operations use a stable application-level AuthorizationError.
+- Initial baseline permissions are project.read, project.write, project.schedule and project.admin.
+- Initial baseline roles are viewer, planner and project_admin; this is extensible and is not the final product role catalog.
+- Web, Desktop and Mobile must consume the same authorization semantics through Application/API contracts.
+- Authorization must never introduce client-specific Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations.
+
+Compatibility impact:
+- P6/Scheduling: unchanged.
+- Shared Calculation Core: remains independent of authentication providers and authorization policy.
+- Web-readiness: strengthened by establishing a common Application authorization boundary.
+- Portability/sync: tenant/project context remains explicit and compatible with existing optimistic-locking and idempotency contracts.
+- Testing: authorization allow/deny, stable error and context-preservation regression tests are mandatory.
+
+Next planned gate: Stage 33.3.5 Integration Regression, followed by runtime verification of the full Application/API hardening baseline.
