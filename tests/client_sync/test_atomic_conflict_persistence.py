@@ -14,7 +14,7 @@ class FakePersistence:
         return self.idempotency.get((tenant_id, project_id, key))
 
     def put_idempotency(self, record):
-        self.idempotency[(record.tenant_id, record.project_id, record.key)] = record
+        self.idempotency[(record.tenant_id, record.project_id, record.idempotency_key)] = record
 
     def save_conflict(self, mutation_id, tenant_id, project_id, context):
         self.conflicts[(tenant_id, project_id, mutation_id)] = context
