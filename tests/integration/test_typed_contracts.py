@@ -33,4 +33,3 @@ def test_application_error_contract_schema_is_versioned_and_exact() -> None:
         "not_found",
         "persistence",
     ]
-}
