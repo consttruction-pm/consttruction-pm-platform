@@ -1,0 +1,36 @@
+name: Client Typecheck
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - apps/client-sync
+          - apps/web
+          - apps/desktop
+          - apps/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install TypeScript
+        working-directory: ${{ matrix.package }}
+        run: npm install --no-package-lock
+
+      - name: Typecheck
+        working-directory: ${{ matrix.package }}
+        run: npm run typecheck
