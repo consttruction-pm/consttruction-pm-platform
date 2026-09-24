@@ -73,3 +73,10 @@ Next implementation sequence:
 
 ### Architectural rule
 Leveling is a scheduling decision, not a cost-calculation side effect. The resource domain reports capacity conflicts; the scheduling/application layer must decide whether to move activities, split work, change assignments, or accept the overload according to project rules.
+
+
+### 32.8.10 Resource Histogram & Curves
+- Added deterministic resource histogram data by resource and period.
+- Added cumulative cost S-curve dataset.
+- Preserved typed Decimal/date outputs for reporting and Excel integration.
+- Visualization remains a presentation concern; domain returns calculation-ready datasets.
