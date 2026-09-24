@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
+from datetime import date
 from decimal import Decimal
+from typing import Iterator
 
 from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 
+SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS resource_schema_version (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL,
@@ -14,9 +22,9 @@ CREATE TABLE IF NOT EXISTS resources (
     resource_type TEXT NOT NULL,
     unit TEXT NOT NULL,
     calendar_id TEXT,
-    active INTEGER NOT NULL
+    active INTEGER NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 1
 );
-
 CREATE TABLE IF NOT EXISTS resource_rates (
     resource_id TEXT NOT NULL,
     version INTEGER NOT NULL,
@@ -28,7 +36,6 @@ CREATE TABLE IF NOT EXISTS resource_rates (
     PRIMARY KEY (resource_id, version),
     FOREIGN KEY (resource_id) REFERENCES resources(id)
 );
-
 CREATE TABLE IF NOT EXISTS resource_assignments (
     activity_id TEXT NOT NULL,
     resource_id TEXT NOT NULL,
@@ -43,47 +50,114 @@ CREATE TABLE IF NOT EXISTS resource_assignments (
 );
 """
 
+class OptimisticLockError(RuntimeError):
+    """Raised when a persistence update uses a stale resource revision."""
 
 class SQLiteResourceRepository:
-    """Migration-safe SQLite adapter.
-
-    SQLite is used only as an infrastructure adapter; domain calculations
-    remain in resources.models/calculator and are independent of storage.
-    """
+    """SQLite infrastructure adapter with explicit transaction boundaries."""
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.executescript(SCHEMA_SQL)
+        self._migrate_schema()
+        self._record_schema_version()
 
-    def save_resource(self, resource: Resource) -> Resource:
+    def _migrate_schema(self) -> None:
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(resources)").fetchall()}
+        if "revision" not in columns:
+            self.connection.execute(
+                "ALTER TABLE resources ADD COLUMN revision INTEGER NOT NULL DEFAULT 1"
+            )
+
+    def _record_schema_version(self) -> None:
         self.connection.execute(
-            """INSERT INTO resources
-               (id, code, name, resource_type, unit, calendar_id, active)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET
-                 code=excluded.code, name=excluded.name,
-                 resource_type=excluded.resource_type, unit=excluded.unit,
-                 calendar_id=excluded.calendar_id, active=excluded.active""",
-            (resource.id, resource.code, resource.name, resource.resource_type.value,
-             resource.unit, resource.calendar_id, int(resource.active)),
+            "INSERT INTO resource_schema_version (id, version) VALUES (1, ?) "
+            "ON CONFLICT(id) DO UPDATE SET version=excluded.version",
+            (SCHEMA_VERSION,),
         )
-        self.connection.execute("DELETE FROM resource_rates WHERE resource_id = ?", (resource.id,))
+        self.connection.commit()
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        """Run one or more repository operations atomically."""
+        if self.connection.in_transaction:
+            yield self.connection
+            return
+        self.connection.execute("BEGIN")
+        try:
+            yield self.connection
+        except Exception:
+            self.connection.rollback()
+            raise
+        else:
+            self.connection.commit()
+
+    def _commit_if_standalone(self, was_in_transaction: bool) -> None:
+        if not was_in_transaction:
+            self.connection.commit()
+
+    def save_resource(
+        self, resource: Resource, expected_revision: int | None = None
+    ) -> Resource:
+        was_in_transaction = self.connection.in_transaction
+        if expected_revision is None:
+            self.connection.execute(
+                "INSERT INTO resources "
+                "(id, code, name, resource_type, unit, calendar_id, active, revision) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 1) "
+                "ON CONFLICT(id) DO UPDATE SET "
+                "code=excluded.code, name=excluded.name, "
+                "resource_type=excluded.resource_type, unit=excluded.unit, "
+                "calendar_id=excluded.calendar_id, active=excluded.active, "
+                "revision=resources.revision + 1",
+                (
+                    resource.id, resource.code, resource.name,
+                    resource.resource_type.value, resource.unit,
+                    resource.calendar_id, int(resource.active),
+                ),
+            )
+        else:
+            cursor = self.connection.execute(
+                "UPDATE resources SET code=?, name=?, resource_type=?, unit=?, "
+                "calendar_id=?, active=?, revision=revision + 1 "
+                "WHERE id=? AND revision=?",
+                (
+                    resource.code, resource.name, resource.resource_type.value,
+                    resource.unit, resource.calendar_id, int(resource.active),
+                    resource.id, expected_revision,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise OptimisticLockError(
+                    f"Stale resource revision for {resource.id}: expected {expected_revision}"
+                )
+
+        self.connection.execute(
+            "DELETE FROM resource_rates WHERE resource_id = ?", (resource.id,)
+        )
         self.connection.executemany(
-            """INSERT INTO resource_rates
-               (resource_id, version, rate, basis, currency, effective_from, effective_to)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            "INSERT INTO resource_rates "
+            "(resource_id, version, rate, basis, currency, effective_from, effective_to) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 (
-                    resource.id, rate.version, str(rate.rate), rate.basis.value, rate.currency,
+                    resource.id, rate.version, str(rate.rate), rate.basis.value,
+                    rate.currency,
                     None if rate.effective_from is None else rate.effective_from.isoformat(),
                     None if rate.effective_to is None else rate.effective_to.isoformat(),
                 )
                 for rate in resource.rates
             ],
         )
-        self.connection.commit()
+        self._commit_if_standalone(was_in_transaction)
         return resource
+
+    def get_resource_revision(self, resource_id: str) -> int | None:
+        row = self.connection.execute(
+            "SELECT revision FROM resources WHERE id = ?", (resource_id,)
+        ).fetchone()
+        return None if row is None else int(row[0])
 
     def get_resource(self, resource_id: str) -> Resource | None:
         row = self.connection.execute(
@@ -93,11 +167,10 @@ class SQLiteResourceRepository:
         if row is None:
             return None
         rate_rows = self.connection.execute(
-            """SELECT rate, basis, currency, effective_from, effective_to, version
-               FROM resource_rates WHERE resource_id = ? ORDER BY version""",
+            "SELECT rate, basis, currency, effective_from, effective_to, version "
+            "FROM resource_rates WHERE resource_id = ? ORDER BY version",
             (resource_id,),
         ).fetchall()
-        from datetime import date
         rates = [
             ResourceRate(
                 rate=Decimal(rate[0]), basis=CostBasis(rate[1]), currency=rate[2],
@@ -117,35 +190,42 @@ class SQLiteResourceRepository:
         rows = self.connection.execute(
             "SELECT id FROM resources ORDER BY id"
         ).fetchall()
-        return [self.get_resource(row[0]) for row in rows]
+        resources: list[Resource] = []
+        for row in rows:
+            resource = self.get_resource(row[0])
+            if resource is not None:
+                resources.append(resource)
+        return resources
 
     def save_assignment(self, assignment: ResourceAssignment) -> ResourceAssignment:
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute(
-            """INSERT INTO resource_assignments
-               (activity_id, resource_id, planned_units, actual_units,
-                remaining_units, planned_cost, actual_cost, remaining_cost)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(activity_id, resource_id) DO UPDATE SET
-                 planned_units=excluded.planned_units,
-                 actual_units=excluded.actual_units,
-                 remaining_units=excluded.remaining_units,
-                 planned_cost=excluded.planned_cost,
-                 actual_cost=excluded.actual_cost,
-                 remaining_cost=excluded.remaining_cost""",
-            (assignment.activity_id, assignment.resource_id,
-             str(assignment.planned_units), str(assignment.actual_units),
-             None if assignment.remaining_units is None else str(assignment.remaining_units),
-             None if assignment.planned_cost is None else str(assignment.planned_cost),
-             None if assignment.actual_cost is None else str(assignment.actual_cost),
-             None if assignment.remaining_cost is None else str(assignment.remaining_cost)),
+            "INSERT INTO resource_assignments "
+            "(activity_id, resource_id, planned_units, actual_units, remaining_units, "
+            "planned_cost, actual_cost, remaining_cost) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(activity_id, resource_id) DO UPDATE SET "
+            "planned_units=excluded.planned_units, actual_units=excluded.actual_units, "
+            "remaining_units=excluded.remaining_units, planned_cost=excluded.planned_cost, "
+            "actual_cost=excluded.actual_cost, remaining_cost=excluded.remaining_cost",
+            (
+                assignment.activity_id, assignment.resource_id,
+                str(assignment.planned_units), str(assignment.actual_units),
+                None if assignment.remaining_units is None else str(assignment.remaining_units),
+                None if assignment.planned_cost is None else str(assignment.planned_cost),
+                None if assignment.actual_cost is None else str(assignment.actual_cost),
+                None if assignment.remaining_cost is None else str(assignment.remaining_cost),
+            ),
         )
-        self.connection.commit()
+        self._commit_if_standalone(was_in_transaction)
         return assignment
 
     def list_assignments(self, activity_id: str | None = None) -> list[ResourceAssignment]:
-        sql = """SELECT activity_id, resource_id, planned_units, actual_units,
-                        remaining_units, planned_cost, actual_cost, remaining_cost
-                 FROM resource_assignments"""
+        sql = (
+            "SELECT activity_id, resource_id, planned_units, actual_units, "
+            "remaining_units, planned_cost, actual_cost, remaining_cost "
+            "FROM resource_assignments"
+        )
         params: tuple[str, ...] = ()
         if activity_id is not None:
             sql += " WHERE activity_id = ?"
