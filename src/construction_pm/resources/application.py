@@ -10,7 +10,7 @@ from .errors import (
     not_found_error,
     validation_error,
 )
-from .persistence import OptimisticLockError
+from .errors import OptimisticLockError
 from .idempotency import (
     MutationIdempotencyStore,
     assignment_fingerprint,
