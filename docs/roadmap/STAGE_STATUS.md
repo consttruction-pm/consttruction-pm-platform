@@ -349,6 +349,14 @@ Status: **100%**
   - Stage 33.4 is now eligible to close; future work proceeds to the next product/platform stage without reopening completed 33.4 work unless a new regression is introduced.
 
 
+### Stage 33.4.64 — Atomic Conflict Persistence
+Status: **100% — implemented; runtime-verified 2026-09-24**
+- Conflict persistence is executed through the atomic sync executor outcome hook inside the same transaction boundary as idempotency outcome persistence.
+- Regression coverage verifies conflict persistence and idempotent replay behavior.
+- GitHub Actions run **36054112830** completed successfully for the follow-up conflict-persistence test correction.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or Shared Calculation Core semantics changed.
+
+
 ### Stage 33.3.4 — Authorization Boundary
 Status: **implemented — runtime CI verification pending**
 - Added framework/provider-neutral Application authorization policy at `src/construction_pm/application/authorization.py`.
@@ -367,3 +375,8 @@ Status: **implemented — runtime CI verification pending**
 - Runtime result: **355 passed, 2 skipped, 0 failed**.
 - This verification supersedes the earlier unverified runtime notes for the time-aware calendar/scheduling regression path.
 - Stage 33.4 remains closed for engineering work unless a new regression is introduced; subsequent work should proceed to the next product/platform stage.
+
+### Latest Sync/Conflict Runtime Verification
+- Commit `dad3b10789f3a09e6615be0aa045b63bc583d65d` completes the atomic conflict persistence test correction.
+- GitHub Actions run `36054112830` completed successfully.
+- The atomic conflict persistence regression pack is now runtime-verified; subsequent work can proceed to the next sync production gate.
