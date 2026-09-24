@@ -1,6 +1,5 @@
 -- Stage 32.10 Resource/Cost persistence schema.
--- This schema is intentionally portable SQL; production database adapters
--- remain infrastructure-specific and must preserve the domain contracts.
+-- Portable baseline for infrastructure adapters.
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -10,6 +9,18 @@ CREATE TABLE resources (
     unit TEXT NOT NULL,
     calendar_id TEXT,
     active INTEGER NOT NULL
+);
+
+CREATE TABLE resource_rates (
+    resource_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    rate TEXT NOT NULL,
+    basis TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    effective_from TEXT,
+    effective_to TEXT,
+    PRIMARY KEY (resource_id, version),
+    FOREIGN KEY (resource_id) REFERENCES resources(id)
 );
 
 CREATE TABLE resource_assignments (
