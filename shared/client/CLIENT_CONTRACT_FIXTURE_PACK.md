@@ -70,6 +70,7 @@ Client requirements:
   "contract_version": "client-sync-outcome.v1",
   "status": "conflict",
   "operation": "update_activity",
+  "revision": null,
   "error_code": "STALE_REVISION",
   "retryable": false,
   "idempotency_key": "idem-activity-001"
@@ -83,6 +84,7 @@ Client requirements:
   "contract_version": "client-sync-outcome.v1",
   "status": "rejected",
   "operation": "update_activity",
+  "revision": null,
   "error_code": "VALIDATION_ERROR",
   "retryable": false,
   "idempotency_key": "idem-activity-001"
