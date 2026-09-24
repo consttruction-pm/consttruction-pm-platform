@@ -3,15 +3,16 @@ from datetime import date
 import pytest
 
 from construction_pm.scheduling.activity import Activity
-from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule import (
     ScheduleMode,
     ScheduleOptions,
+    _relationship_holds,
     backward_pass,
     schedule,
 )
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
 
 @pytest.fixture
@@ -31,12 +32,7 @@ def test_backward_pass_produces_zero_float_on_critical_chain(resolver):
 
 
 def test_backward_pass_propagates_successor_late_dates_in_branching_network(resolver):
-    activities = [
-        Activity("A", 1),
-        Activity("B", 1),
-        Activity("C", 3),
-        Activity("D", 1),
-    ]
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 3), Activity("D", 1)]
     relationships = [
         Relationship("A", "C", RelationshipType.FS),
         Relationship("B", "D", RelationshipType.FS),
@@ -99,17 +95,37 @@ def test_backward_pass_rejects_missing_activity(resolver):
         (RelationshipType.SF, -1),
     ],
 )
-def test_backward_pass_respects_relationship_lag_without_losing_feasibility(
+def test_backward_pass_lagged_result_satisfies_relationship_semantics(
     resolver, relationship_type, lag
 ):
     activities = [Activity("A", 2), Activity("B", 2)]
-    relationships = [Relationship("A", "B", relationship_type, lag=lag)]
-    early = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
-    late = backward_pass(activities, relationships, early, None, resolver)
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    early = forward_pass(activities, [relationship], date(2026, 9, 21), resolver)
+    late = backward_pass(activities, [relationship], early, None, resolver)
 
-    assert late["A"].start <= early["A"].start or late["A"].start >= early["A"].start
+    assert _relationship_holds(
+        relationship, late["A"], late["B"], resolver
+    )
+    assert late["A"].start <= late["A"].finish
     assert late["B"].start <= late["B"].finish
-    assert late["A"].finish <= late["B"].finish or relationship_type is RelationshipType.SF
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_backward_pass_relationship_lag_with_holiday_remains_feasible(
+    resolver, relationship_type
+):
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({holiday}))
+    )
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=1)
+    early = forward_pass(activities, [relationship], date(2026, 9, 21), resolver)
+    late = backward_pass(activities, [relationship], early, None, resolver)
+
+    assert _relationship_holds(
+        relationship, late["A"], late["B"], resolver
+    )
 
 
 def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(resolver):
