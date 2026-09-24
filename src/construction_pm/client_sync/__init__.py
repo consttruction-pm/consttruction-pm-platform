@@ -6,6 +6,7 @@ from .adapter import ClientMutationRequest, ClientMutationTransport
 from .sync import OfflineSyncCoordinator, SyncAttempt
 from .transport import CallableMutationTransport
 from .session import ClientProjectSession
+from .errors import ClientErrorPresentation, present_stable_error
 
 __all__ = [
     "OfflineProjectContext",
@@ -19,4 +20,6 @@ __all__ = [
     "SyncAttempt",
     "CallableMutationTransport",
     "ClientProjectSession",
+    "ClientErrorPresentation",
+    "present_stable_error",
 ]
