@@ -212,7 +212,7 @@ def _relationship_holds(
     if relationship.type is RelationshipType.FS:
         required = (
             resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag)
+                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
             if relationship.lag >= 0
             else resolver.previous_working_day(
