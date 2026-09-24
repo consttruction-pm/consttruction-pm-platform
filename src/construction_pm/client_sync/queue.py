@@ -116,6 +116,7 @@ class SQLiteOfflineMutationQueue:
     def enqueue(self, mutation: OfflineMutation) -> None:
         mutation.validate()
         payload = self._encode(mutation)
+        was_in_transaction = self.connection.in_transaction
         try:
             self.connection.execute(
                 """INSERT INTO offline_mutation_queue
@@ -124,7 +125,8 @@ class SQLiteOfflineMutationQueue:
                 (mutation.context.tenant_id, mutation.context.company_id, mutation.context.project_id,
                  mutation.operation, mutation.idempotency_key, payload),
             )
-            self._commit_if_owned()
+            if not was_in_transaction:
+                self.connection.commit()
         except sqlite3.IntegrityError as exc:
             row = self.connection.execute(
                 """SELECT payload FROM offline_mutation_queue
