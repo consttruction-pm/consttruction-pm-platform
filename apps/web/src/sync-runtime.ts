@@ -1,3 +1,4 @@
+import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
   type SyncMutation,
@@ -30,6 +31,11 @@ export class WebSyncRuntime {
     outcome: SyncOutcome,
   ): SyncConflictPresentation | null {
     return presentSyncConflict(mutation, outcome);
+  }
+
+  async refreshRevision(api: VersionedSyncRevisionApi, tenant_id: string, project_id: string, revision: number): Promise<number> {
+    const result = await new ApiRevisionTransport(api).refresh({ tenant_id, project_id, revision });
+    return result.revision;
   }
 
   retryStaleRevision(
