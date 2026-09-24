@@ -31,4 +31,15 @@ export class WebSyncRuntime {
   ): SyncConflictPresentation | null {
     return presentSyncConflict(mutation, outcome);
   }
+
+  retryStaleRevision(
+    mutationId: string,
+    outcome: SyncOutcome,
+    refreshedRevision: number,
+  ): SyncMutation {
+    if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
+      throw new Error("INVALID_STALE_REVISION_RETRY");
+    }
+    return this.mutationQueue.retryAtRevision(mutationId, refreshedRevision);
+  }
 }
