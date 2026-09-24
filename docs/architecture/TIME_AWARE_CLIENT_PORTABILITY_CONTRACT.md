@@ -39,9 +39,13 @@ Portable Project Package -> API/Application Contract -> Shared Scheduling Core -
 
 No client may introduce an alternative constraint, duration, calendar, lag, float or criticality formula.
 
+## Typed API contract v1
+
+`shared/contracts/time-scheduling.schema.json` defines the cross-client payload for calculation context, activities, relationships, duration units, lag units, calendar references, and constraint-linked activity records. Decimal-like duration/lag/float values are represented as strings to preserve exactness across clients.
+
 ## Remaining Stage 33.4 gates
 
-- typed API DTOs for the time-aware contract;
+- typed API DTOs for the time-aware contract — contract v1 is now defined in `shared/contracts/time-scheduling.schema.json`;
 - cross-client parity/regression fixtures;
 - offline portability round-trip tests;
 - final P6 time-aware parity review.
