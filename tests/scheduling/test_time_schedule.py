@@ -10,6 +10,7 @@ from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship, time_forward_pass
+from construction_pm.scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 from construction_pm.scheduling.time_schedule import (
     calculate_time_floats,
     time_backward_pass,
@@ -270,3 +271,58 @@ def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
     assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16)
     assert result.floats["A"].total_float_hours == Decimal("6.0")
     assert not result.floats["A"].critical
+
+
+def test_cross_calendar_sf_zero_lag_uses_successor_finish_event():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(4), SchedulingCalendarContext(
+            refs["project"], refs["predecessor"], refs["lag"]
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(2), SchedulingCalendarContext(
+            refs["project"], refs["successor"], refs["lag"]
+        )),
+    ]
+    relationships = [TimeRelationship("A", "B", RelationshipType.SF)]
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
+    assert early["A"].start == datetime(2026, 9, 22, 8)
+    assert early["A"].finish == datetime(2026, 9, 22, 12)
+    assert early["B"].start == datetime(2026, 9, 22, 8)
+    assert early["B"].finish == datetime(2026, 9, 22, 10)
+
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 17)
+    assert late["B"].start == datetime(2026, 9, 22, 15)
+    assert late["A"].start == datetime(2026, 9, 22, 13)
+    assert late["A"].finish == datetime(2026, 9, 22, 17)
+
+
+def test_cross_calendar_activity_constraint_uses_activity_calendar():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activity = TimeActivity(
+        "A",
+        TimeQuantity.working_hours(2),
+        SchedulingCalendarContext(refs["project"], refs["successor"], refs["lag"]),
+    )
+    constraint = TimeActivityConstraint(
+        "A",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 10, 30),
+    )
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8), registry, [constraint]
+    )
+    assert early["A"].start == datetime(2026, 9, 22, 10, 30)
+    assert early["A"].finish == datetime(2026, 9, 22, 12, 30)
