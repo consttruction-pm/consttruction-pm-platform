@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .calendar_context import CalendarResolverRegistry, SchedulingCalendarContext
@@ -54,17 +55,6 @@ def _resolver_for_activity(
     if not isinstance(resolver, TimeAwareWorkingTimeResolver):
         raise TypeError("time-aware activity requires a working-time resolver")
     return resolver
-
-
-def _lag_hours(
-    lag: LagQuantity,
-    lag_resolver: TimeAwareWorkingTimeResolver,
-) -> datetime | None:
-    if lag.unit is DurationUnit.WORKING_HOUR:
-        return lag_resolver.add_working_hours
-    raise NotImplementedError(
-        "working-day lag conversion requires an explicit day/hour calendar policy"
-    )
 
 
 def _add_signed_lag(
@@ -205,10 +195,8 @@ def _subtract_duration(
             if remaining <= 0:
                 return cursor
             if remaining <= capacity:
-                from decimal import Decimal
-                return right - __import__("datetime").timedelta(seconds=float(remaining * Decimal(3600)))
-            from decimal import Decimal
+                    return right - timedelta(seconds=float(remaining * Decimal(3600)))
             remaining -= Decimal(str(capacity))
             cursor = begin
-        cursor = datetime.combine(cursor.date() - __import__("datetime").timedelta(days=1), __import__("datetime").time.max)
+        cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
     raise ValueError("working-hour duration exceeds resolver horizon")
