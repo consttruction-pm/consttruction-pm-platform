@@ -88,3 +88,18 @@ def test_runner_preserves_non_acknowledged_outcomes_through_application_gateway(
             ),
         )
         assert store.pending() == (mutation(),)
+
+
+def test_conflict_preserves_expected_revision_and_requests_refresh() -> None:
+    from construction_pm.client_sync.e2e_conflict_flow import ConflictSyncFlow
+
+    class ConflictTransport:
+        def submit(self, submitted: OfflineMutation) -> SyncOutcome:
+            return SyncOutcome(submitted.mutation_id, SyncDisposition.CONFLICT, error_code="STALE_REVISION")
+
+    result = ConflictSyncFlow(ConflictTransport()).submit_once(mutation())
+
+    assert result.outcome.disposition is SyncDisposition.CONFLICT
+    assert result.outcome.error_code == "STALE_REVISION"
+    assert result.requires_refresh is True
+    assert result.preserved_expected_revision == 7
