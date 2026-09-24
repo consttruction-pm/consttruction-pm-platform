@@ -107,6 +107,7 @@ Status: **15% — in progress; three-client foundation established 2026-09-24**
 - 33.4.1 client foundation structure/contracts: **started**.
 - 33.4.2 shared typed API client boundary: **backend support complete — versioned Resource contract and stable application-error contract published with regression coverage**.
 - 33.4.4 security boundary: **backend support complete — provider-independent authorization policy boundary and stable FORBIDDEN error regression coverage**.
+- 33.4.5 cross-client parity: **backend support complete — shared Resource contract version, operation, revision and Decimal serialization parity regression coverage**.
 - 33.4.6 Mobile field client foundation: **scope established**.
 - 33.4.7 Mobile security/sync/device boundary: **scope established**.
 - Tracking issue: #26.
