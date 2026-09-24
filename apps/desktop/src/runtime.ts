@@ -29,6 +29,8 @@ export class DesktopRuntime {
     if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
       throw new Error("INVALID_STALE_REVISION_RETRY");
     }
+    const current = this.current();
+    if (refreshedRevision < current.revision) throw new Error("REVISION_REGRESSION");
     const mutation = this.mutationQueue.retryAtRevision(mutationId, refreshedRevision);
     this.advanceRevision(refreshedRevision);
     return mutation;
