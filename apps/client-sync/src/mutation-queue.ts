@@ -52,6 +52,36 @@ export class OfflineMutationQueue {
     this.idempotencyKeys.set(mutation.idempotency_key, mutation.mutation_id);
   }
 
+  retryAtRevision(mutationId: string, expectedRevision: number): SyncMutation {
+    if (expectedRevision < 0) {
+      throw new Error("INVALID_EXPECTED_REVISION");
+    }
+
+    const index = this.pendingMutations.findIndex(
+      (mutation) => mutation.mutation_id === mutationId,
+    );
+    if (index < 0) {
+      throw new Error("MUTATION_NOT_PENDING");
+    }
+
+    const current = this.pendingMutations[index];
+    const mutation = Object.freeze({
+      ...current,
+      expected_revision: expectedRevision,
+      idempotency_key: current.idempotency_key + ":r" + expectedRevision,
+    });
+
+    const existingMutation = this.idempotencyKeys.get(mutation.idempotency_key);
+    if (existingMutation && existingMutation !== mutationId) {
+      throw new Error("IDEMPOTENCY_KEY_REUSE");
+    }
+
+    this.idempotencyKeys.delete(current.idempotency_key);
+    this.idempotencyKeys.set(mutation.idempotency_key, mutationId);
+    this.pendingMutations[index] = mutation;
+    return mutation;
+  }
+
   pending(): readonly SyncMutation[] {
     return this.pendingMutations.slice();
   }
