@@ -55,4 +55,5 @@ Status: **15% — in progress**
 - Stage 33.2.3 transaction contract implemented in PR #10 (open, not merged): explicit application-level TransactionManager boundary and test adapter.
 - Stage 33.2.4 typed integration contract implemented in PR #13 (open, not merged): versioned shared Resource/ResourceAssignment schemas and typed Decimal integration regression tests.
 - Stage 33.2.5 project portability contract implemented in PR #14 (open, not merged): versioned portability envelope carrying calendar/version, scheduling settings, calculation schema version, project context and resource/cost context.
-- Next implementation item: Stage 33.2.6 cross-module regression suite.
+- Stage 33.2.6 cross-module regression suite implemented in PR #15 (open, not merged): contract-level regression coverage for shared schemas, portability context and typed Decimal transport.
+- Stage 33.2 completion gate remains: review/reconcile all integration contracts and current-main lineage.
