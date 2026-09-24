@@ -6,6 +6,7 @@ from typing import Protocol
 from .context import OfflineProjectContext
 from .mutation import OfflineMutation
 from .outcome import SyncMutationOutcome
+from .session import ClientProjectSession
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,24 @@ class ClientMutationRequest:
             raise ValueError("mutation must be an object")
         if self.expected_revision is not None and self.expected_revision < 1:
             raise ValueError("expected_revision must be positive when provided")
+
+    @classmethod
+    def from_session(
+        cls,
+        session: ClientProjectSession,
+        operation: str,
+        idempotency_key: str,
+        mutation: dict[str, object],
+    ) -> "ClientMutationRequest":
+        """Build a mutation from the active project session revision."""
+        session.validate()
+        return cls(
+            context=session.mutation_context(),
+            operation=operation,
+            idempotency_key=idempotency_key,
+            mutation=dict(mutation),
+            expected_revision=session.revision,
+        )
 
     def to_payload(self) -> dict[str, object]:
         self.validate()
