@@ -158,12 +158,12 @@ class SQLiteMutationIdempotencyStore:
         return result
 
 
-def resource_fingerprint(resource: object) -> str:
-    return _fingerprint({"kind": "resource", "value": _canonical(resource)})
+def resource_fingerprint(resource: object, expected_revision: int | None = None) -> str:
+    return _fingerprint({"kind": "resource", "value": _canonical(resource), "expected_revision": expected_revision})
 
 
-def assignment_fingerprint(assignment: object) -> str:
-    return _fingerprint({"kind": "assignment", "value": _canonical(assignment)})
+def assignment_fingerprint(assignment: object, expected_revision: int | None = None) -> str:
+    return _fingerprint({"kind": "assignment", "value": _canonical(assignment), "expected_revision": expected_revision})
 
 
 def _fingerprint(value: object) -> str:
