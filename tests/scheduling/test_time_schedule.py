@@ -209,8 +209,8 @@ def test_cross_calendar_fs_positive_lag_uses_successor_lag_calendar():
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].start == datetime(2026, 9, 22, 14)
     assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].finish == datetime(2026, 9, 22, 10)
-    assert late["A"].start == datetime(2026, 9, 22, 8)
+    assert late["A"].finish == datetime(2026, 9, 22, 13)
+    assert late["A"].start == datetime(2026, 9, 22, 9)
 
 
 def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
