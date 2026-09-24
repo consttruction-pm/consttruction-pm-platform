@@ -60,14 +60,17 @@ class ResourceApplicationService:
                 return mutation()
             except OptimisticLockError as exc:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
-        return self.idempotency_store.execute(
-            self.context,
-            key=idempotency_key or "",
-            operation="register_resource",
-            fingerprint=resource_fingerprint(resource, expected_revision),
-            mutation=mutation,
-            replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
-        )
+        try:
+            return self.idempotency_store.execute(
+                self.context,
+                key=idempotency_key or "",
+                operation="register_resource",
+                fingerprint=resource_fingerprint(resource, expected_revision),
+                mutation=mutation,
+                replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
+            )
+        except OptimisticLockError as exc:
+            raise conflict_error("STALE_REVISION", str(exc)) from exc
 
     def assign_resource(
         self,
@@ -100,21 +103,24 @@ class ResourceApplicationService:
                 return mutation()
             except OptimisticLockError as exc:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
-        return self.idempotency_store.execute(
-            self.context,
-            key=idempotency_key or "",
-            operation="assign_resource",
-            fingerprint=assignment_fingerprint(assignment, expected_revision),
-            mutation=mutation,
-            replay=lambda: next(
-                (
-                    item
-                    for item in self.repository.list_assignments(self.context, assignment.activity_id)
-                    if item.resource_id == assignment.resource_id
+        try:
+            return self.idempotency_store.execute(
+                self.context,
+                key=idempotency_key or "",
+                operation="assign_resource",
+                fingerprint=assignment_fingerprint(assignment, expected_revision),
+                mutation=mutation,
+                replay=lambda: next(
+                    (
+                        item
+                        for item in self.repository.list_assignments(self.context, assignment.activity_id)
+                        if item.resource_id == assignment.resource_id
+                    ),
+                    assignment,
                 ),
-                assignment,
-            ),
-        )
+            )
+        except OptimisticLockError as exc:
+            raise conflict_error("STALE_REVISION", str(exc)) from exc
 
     def get_resource(self, resource_id: str) -> Resource | None:
         return self.repository.get_resource(self.context, resource_id)
