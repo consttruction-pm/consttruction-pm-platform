@@ -48,7 +48,7 @@ Status: **72% — in progress; constraint/float/critical-path reconciliation har
   - Added FS/SS/FF/SF regression coverage plus project-finish overflow coverage.
   - Full CI execution remains unverified.
 - 33.4.23 Constraint + Float + Critical Path Reconciliation: implemented.
-- 33.4 Offline Mutation Queue Retry Attempt: implemented on backend branch; retry attempts are persistent and transaction-aware, while mutation identity/fingerprint remains stable. Merge verification pending.
+- 33.4 Offline Mutation Queue Retry Attempt: implemented and merged in PR #49 (2026-09-24); retry attempts are persistent and transaction-aware, while mutation identity/fingerprint remains stable.
   - Constrained late dates are reconciled against early dates before Total Float is accepted.
   - Negative constrained Total Float is rejected rather than hidden by clamping to zero.
   - Added constrained critical-path, ALAP, and holiday/calendar reconciliation tests.
