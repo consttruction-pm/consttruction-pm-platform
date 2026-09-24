@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OfflineMutationQueue, type SyncMutation, type SyncOutcome } from "./mutation-queue.js";
-import { ClientSyncRunner, type ClientSyncTransport } from "./sync-runner.js";
+import { OfflineMutationQueue, type SyncMutation, type SyncOutcome } from "./mutation-queue.ts";
+import { ClientSyncRunner, type ClientSyncTransport } from "./sync-runner.ts";
 
 const mutation = (id: string): SyncMutation => ({
   contract_version: "sync-mutation.v1",
