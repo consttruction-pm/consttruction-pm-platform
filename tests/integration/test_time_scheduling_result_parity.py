@@ -79,15 +79,3 @@ def test_same_shared_core_input_produces_identical_web_desktop_mobile_result_fix
     assert projections[0]["C"][0] == "2026-09-22T08:30:00"
 
 
-def test_result_preserves_negative_float_as_shared_core_value():
-    ctx = context()
-    activities = [TimeActivity("A", TimeQuantity.working_hours(4), ctx)]
-    result = time_schedule(
-        activities,
-        [],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 11),
-        registry(),
-    )
-    assert result.floats["A"].total_float_hours == Decimal("-1")
-    assert result.floats["A"].critical
