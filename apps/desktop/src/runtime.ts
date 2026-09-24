@@ -1,3 +1,8 @@
+import {
+  OfflineMutationQueue,
+  type SyncMutation,
+} from "../../client-sync/src/mutation-queue.js";
+
 export type OfflineMode = "offline" | "online";
 
 export type DesktopProjectState = {
@@ -9,6 +14,7 @@ export type DesktopProjectState = {
 
 export class DesktopRuntime {
   private state: DesktopProjectState | null = null;
+  private readonly mutationQueue = new OfflineMutationQueue();
 
   openProject(
     tenant_id: string,
@@ -41,5 +47,24 @@ export class DesktopRuntime {
     }
     this.state = Object.freeze({ ...current, revision });
     return this.state;
+  }
+
+  queueMutation(mutation: SyncMutation): void {
+    const current = this.current();
+    if (
+      mutation.tenant_id !== current.tenant_id ||
+      mutation.project_id !== current.project_id
+    ) {
+      throw new Error("PROJECT_CONTEXT_MISMATCH");
+    }
+    this.mutationQueue.enqueue(mutation);
+  }
+
+  pendingMutationCount(): number {
+    return this.mutationQueue.size();
+  }
+
+  acknowledgeMutation(mutationId: string): void {
+    this.mutationQueue.acknowledge(mutationId);
   }
 }
