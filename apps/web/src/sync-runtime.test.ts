@@ -24,7 +24,7 @@ test("web sync runtime consumes the shared conflict outcome contract", async () 
     error_code: "STALE_REVISION",
   };
   const outcomes = await runtime.syncOnce({
-    async post() {
+    async post<TRequest, TResponse>() {
       return { ok: true as const, data: outcome as TResponse };
     },
   });
