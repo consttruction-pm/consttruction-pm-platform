@@ -47,3 +47,39 @@ def test_server_rejects_idempotency_key_reuse_for_different_payload() -> None:
         assert str(exc) == "IDEMPOTENCY_KEY_REUSE"
     else:
         raise AssertionError("idempotency key reuse must be rejected")
+
+
+def test_versioned_sync_endpoint_enforces_context_and_revision_headers() -> None:
+    from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
+    from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
+
+    class Handler:
+        def handle(self, submitted: OfflineMutation) -> None:
+            return None
+
+    endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", Handler()))
+    body = {
+        "contract_version": "sync-mutation.v1",
+        "mutation_id": "m1",
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "expected_revision": 7,
+        "operation": "update_activity",
+        "payload": {},
+        "idempotency_key": "idem-1",
+    }
+    headers = {
+        "Idempotency-Key": "idem-1",
+        "X-Tenant-Id": "t1",
+        "X-Project-Id": "p1",
+        "X-Project-Revision": "7",
+    }
+    result = endpoint.post(body, headers)
+    assert result["contract_version"] == "sync-outcome.v1"
+    assert result["mutation_id"] == "m1"
+    assert result["disposition"] == "acknowledged"
+
+    stale = dict(headers, **{"X-Project-Revision": "6"})
+    conflict = endpoint.post(body, stale)
+    assert conflict["disposition"] == "conflict"
+    assert conflict["error_code"] == "STALE_REVISION"
