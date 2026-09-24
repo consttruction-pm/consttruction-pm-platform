@@ -94,3 +94,42 @@ def test_repository_rejects_invalid_project_context():
     invalid = ProjectContext("tenant-1", "company-1", "")
     with pytest.raises(ValueError, match="project_id"):
         repo.get_resource(invalid, "R-1")
+
+
+def test_application_validation_uses_stable_error_category():
+    service = make_service(InMemoryResourceRepository())
+    with pytest.raises(Exception) as exc_info:
+        service.register_resource(
+            Resource(
+                id="", code="LAB-01", name="Labor",
+                resource_type=ResourceType.LABOR, unit="hour",
+                rates=(), calendar_id=None, active=True,
+            )
+        )
+    assert exc_info.value.category.value == "validation"
+    assert exc_info.value.code == "INVALID_INPUT"
+
+
+def test_api_serializes_unknown_resource_as_stable_error():
+    service = make_service(InMemoryResourceRepository())
+    api = ResourceAPI(service)
+    dto = api.create_assignment(
+        ResourceAssignment(
+            activity_id="A-3", resource_id="R-MISSING",
+            planned_units=Decimal("1"), actual_units=Decimal("0"),
+        )
+    )
+    assert dto["error"]["category"] == "not_found"
+    assert dto["error"]["code"] == "RESOURCE_NOT_FOUND"
+    assert dto["error"]["retryable"] is False
+
+
+def test_api_serializes_invalid_context_as_stable_error():
+    service = ResourceApplicationService(
+        repository=InMemoryResourceRepository(),
+        context=ProjectContext("tenant-1", "company-1", ""),
+        transaction_manager=NoOpTransactionManager(),
+    )
+    dto = ResourceAPI(service).create_resource(make_resource())
+    assert dto["error"]["category"] == "context"
+    assert dto["error"]["code"] == "INVALID_PROJECT_CONTEXT"
