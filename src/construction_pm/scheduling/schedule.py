@@ -230,15 +230,7 @@ def _relationship_holds(
         return successor.finish >= required
 
     if relationship.type is RelationshipType.SF:
-        required = (
-            resolver.next_working_day(
-                resolver.add_working_duration(predecessor.start, relationship.lag)
-            )
-            if relationship.lag >= 0
-            else resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.start, -relationship.lag)
-            )
-        )
+        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
         return successor.finish >= required
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
