@@ -129,16 +129,32 @@ def test_time_forward_pass_rejects_implicit_working_day_conversion():
         time_forward_pass(activities, [], datetime(2026, 9, 22, 8), registry())
 
 
-def test_time_forward_pass_rejects_negative_hour_lag_until_inverse_contract_exists():
+def test_time_forward_pass_supports_negative_hour_lag():
     ctx = context()
     activities = [
-        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
-        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("A", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
     ]
-    with pytest.raises(NotImplementedError):
-        time_forward_pass(
-            activities,
-            [TimeRelationship("A", "B", lag=LagQuantity.working_hours(1) if False else LagQuantity.working_hours(-1))],
-            datetime(2026, 9, 22, 8),
-            registry(),
-        )
+    result = time_forward_pass(
+        activities,
+        [TimeRelationship("A", "B", lag=LagQuantity.working_hours(-1))],
+        datetime(2026, 9, 22, 8),
+        registry(),
+    )
+    assert result["A"].finish == datetime(2026, 9, 22, 12)
+    assert result["B"].start == datetime(2026, 9, 22, 11)
+
+def test_time_forward_pass_sf_zero_uses_predecessor_start():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+    ]
+    result = time_forward_pass(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.SF)],
+        datetime(2026, 9, 22, 8),
+        registry(),
+    )
+    assert result["A"].start == datetime(2026, 9, 22, 8)
+    assert result["B"].finish == datetime(2026, 9, 22, 8)
