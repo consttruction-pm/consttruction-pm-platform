@@ -223,3 +223,9 @@ Status: **100%**
   - Documented Mobile as a field-oriented client using Shared Core semantics.
   - Added foundation tests.
   - Mobile does not duplicate Shared Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations.
+
+- 33.4.47 Offline Mutation Queue & Synchronization Foundation: implemented.
+  - Added shared typed OfflineMutation envelope with tenant/project/revision/idempotency identity.
+  - Added deterministic FIFO OfflineMutationQueue with duplicate protection and acknowledgement.
+  - Added integration tests for queue invariants.
+  - Defined synchronization authority and boundaries; durable storage, transport, retry and conflict workflow remain subsequent stages.
