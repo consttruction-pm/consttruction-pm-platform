@@ -8,7 +8,12 @@ from .transport import CallableMutationTransport
 from .session import ClientProjectSession
 from .errors import ClientErrorPresentation, present_stable_error
 from .result import ClientMutationResult, present_mutation_payload
-from .conflict import ConflictResolutionAction, ConflictResolutionRequest, ConflictResolutionService
+from .conflict import (
+    ConflictResolutionAction,
+    ConflictResolutionRequest,
+    ConflictResolutionService,
+    build_refresh_retry_mutation,
+)
 from .conflict_presentation import ClientConflictPresentation
 
 __all__ = [
