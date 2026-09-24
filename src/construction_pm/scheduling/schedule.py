@@ -6,6 +6,7 @@ from typing import Iterable, Mapping
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
+from .constraints import ActivityConstraint, ConstraintViolation, apply_latest_constraint, validate_constraint_window
 from .forward_pass import (
     ScheduledActivity,
     _shift_working_date,
@@ -69,6 +70,7 @@ def backward_pass(
     forward: Mapping[str, ScheduledActivity],
     project_finish: date | None,
     resolver: WorkingTimeResolver,
+    constraints: Iterable[ActivityConstraint] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor *late* dates.
 
@@ -80,6 +82,11 @@ def backward_pass(
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
     relationship_list = list(relationships)
+    constraint_map: dict[str, list[ActivityConstraint]] = {activity_id: [] for activity_id in activity_map}
+    for constraint in constraints or ():
+        if constraint.activity_id not in activity_map:
+            raise ValueError("constraint references an unknown activity")
+        constraint_map[constraint.activity_id].append(constraint)
 
     if set(activity_map) != set(forward):
         raise ValueError("forward schedule must contain every activity")
@@ -126,6 +133,13 @@ def backward_pass(
                 )
             )
             late_finish = resolver.add_working_duration(late_start, activity.duration)
+
+        for constraint in sorted(constraint_map[activity_id], key=lambda item: (item.type.value, item.date)):
+            late_start = apply_latest_constraint(constraint, late_start, activity.duration, resolver)
+            late_finish = resolver.add_working_duration(late_start, activity.duration)
+
+        for constraint in sorted(constraint_map[activity_id], key=lambda item: (item.type.value, item.date)):
+            validate_constraint_window(constraint, late_start, late_finish, resolver)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id,
@@ -242,13 +256,14 @@ def schedule(
     project_start: date,
     resolver: WorkingTimeResolver,
     project_finish: date | None = None,
+    constraints: Iterable[ActivityConstraint] | None = None,
 ) -> ScheduleResult:
     """Run forward pass, backward pass and float/critical-path analysis."""
     activity_list = list(activities)
     relationship_list = list(relationships)
-    early = forward_pass(activity_list, relationship_list, project_start, resolver)
+    early = forward_pass(activity_list, relationship_list, project_start, resolver, constraints)
     late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver
+        activity_list, relationship_list, early, project_finish, resolver, constraints
     )
     floats = calculate_floats(
         activity_list, relationship_list, early, late, resolver
