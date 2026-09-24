@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **79% — in progress; P6 constraint-scope and negative-float semantics reconciled 2026-09-24**
+Status: **82% — in progress; Stage 33.4.26 parity regression pack added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -32,20 +32,13 @@ Status: **79% — in progress; P6 constraint-scope and negative-float semantics 
 - 33.4.17 Advanced Constraint Set Validation: implemented.
 - 33.4.18 Constraint Propagation Through Lagged Networks: implemented.
 - 33.4.19 Constraint Propagation Across FS/SS/FF/SF + Lag/Lead: implemented.
-- 33.4.20 Backward Constraint Propagation Across FS/SS/FF/SF + Lag/Lead: implemented.
-  - Lower-bound Start/Finish constraints now propagate into latest dates instead of being validation-only.
-  - Backward results are checked against relationship feasibility after constraint application.
-  - Project-finish overflow caused by backward lower-bound constraints is rejected deterministically.
-  - Added parameterized tests for all four relationship types and positive/negative lag.
-  - Added parameterized coverage for Start No Earlier Than across all four relationship types with positive and negative lag.
-  - Added equivalent Finish No Earlier Than coverage across all four relationship types with positive and negative lag.
-  - Added mixed relationship networks with different lag signs and downstream constraints.
-  - This verifies propagation coverage without duplicating scheduling formulas in clients.
+- 33.4.20 Backward Constraint Propagation Across FS/SS/FF/SF + Lag/Lead: implemented; lower-bound propagation behavior superseded by the Stage 33.4.25 P6 semantic correction.
+  - Relationship feasibility remains enforced in the backward schedule.
+  - Start/Finish No Earlier Than are now treated as early-date constraints and do not move late dates.
+  - Upper-bound and mandatory constraints remain subject to late-date validation.
 - 33.4.21 P6 Constraint Semantics Matrix: implemented as Shared Core documentation baseline.
-- 33.4.22 P6 Constraint Edge-Case Test Pack: implemented.
-  - Backward lower-bound constraints now propagate required date movement through successors before final relationship validation.
-  - Successor movement remains duration/calendar aware and is rejected if it exceeds project finish.
-  - Added FS/SS/FF/SF regression coverage plus project-finish overflow coverage.
+- 33.4.22 P6 Constraint Edge-Case Test Pack: implemented; obsolete lower-bound backward-propagation assertions were removed after the Stage 33.4.25 P6 semantic correction.
+  - Relationship feasibility remains covered.
   - Full CI execution remains unverified.
 - 33.4.23 Constraint + Float + Critical Path Reconciliation: implemented.
 - 33.4.24 P6 Schedule Option + Constraint Interaction Pack: implemented.
@@ -60,7 +53,7 @@ Status: **79% — in progress; P6 constraint-scope and negative-float semantics 
   - Documents Forward/Backward behavior for all six implemented constraint types.
   - Documents calendar normalization, combined-constraint validation, relationship interaction, and backward-pass validity gates.
   - Formal P6 parity verification remains pending; the matrix is a compatibility specification, not certification.
-- 33.4.25 Constraint Engine Final Hardening & Scheduling Core Review: implemented in the current review slice.
+- 33.4.25 Constraint Engine Final Hardening & Scheduling Core Review: implemented.
   - Reconciled P6 constraint scope: Start/Finish No Earlier Than affect early dates; Start/Finish No Later Than affect late dates; Mandatory Start/Finish affect both.
   - Removed backward propagation of lower-bound constraints into late dates.
   - Preserved negative Total Float as a valid P6 scheduling result and mark negative-float activities critical under the default zero threshold.
@@ -76,3 +69,11 @@ Status: **100%**
 - Nested repository transactions participate in the outer application transaction.
 - Stable stale-revision error mapping import reconciled.
 - No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics changed.
+
+- 33.4.26 Scheduling Core Parity & Edge-Case Certification Pack: implemented as a regression specification.
+  - Added parameterized FS/SS/FF/SF coverage across negative/zero/positive lag.
+  - Added deterministic input-order regression coverage.
+  - Added holiday/weekend boundary, zero-duration, custom-calendar, constraint-scope, and EARLIEST/ALAP separation tests.
+  - Added docs/architecture/SCHEDULING_P6_PARITY_CERTIFICATION_PACK.md.
+  - This is a compatibility/regression pack, not formal Oracle certification.
+  - Runtime CI execution remains unverified.
