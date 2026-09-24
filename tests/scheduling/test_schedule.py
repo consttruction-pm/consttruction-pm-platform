@@ -5,7 +5,7 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.forward_pass import forward_pass
-from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule import backward_pass, schedule
 
 
@@ -23,6 +23,36 @@ def test_backward_pass_produces_zero_float_on_critical_chain(resolver):
     assert late["C"].start == date(2026, 9, 25)
     assert late["B"].start == date(2026, 9, 23)
     assert late["A"].start == date(2026, 9, 21)
+
+
+def test_backward_pass_propagates_successor_late_dates_in_branching_network(resolver):
+    activities = [
+        Activity("A", 1),
+        Activity("B", 1),
+        Activity("C", 3),
+        Activity("D", 1),
+    ]
+    relationships = [
+        Relationship("A", "C", RelationshipType.FS),
+        Relationship("B", "D", RelationshipType.FS),
+        Relationship("C", "D", RelationshipType.FS),
+    ]
+    early = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+    late = backward_pass(activities, relationships, early, None, resolver)
+
+    assert early["D"].finish == date(2026, 9, 25)
+    assert late["D"].start == date(2026, 9, 25)
+    assert late["C"].start == date(2026, 9, 22)
+    assert late["A"].start == date(2026, 9, 21)
+    assert late["B"].start == date(2026, 9, 24)
+
+
+def test_backward_pass_rejects_project_finish_before_early_finish(resolver):
+    activities = [Activity("A", 2)]
+    early = forward_pass(activities, [], date(2026, 9, 21), resolver)
+
+    with pytest.raises(ValueError):
+        backward_pass(activities, [], early, date(2026, 9, 21), resolver)
 
 
 def test_schedule_calculates_total_and_free_float(resolver):
