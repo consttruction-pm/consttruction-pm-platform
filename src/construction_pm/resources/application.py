@@ -64,7 +64,7 @@ class ResourceApplicationService:
             self.context,
             key=idempotency_key or "",
             operation="register_resource",
-            fingerprint=resource_fingerprint(resource),
+            fingerprint=resource_fingerprint(resource, expected_revision),
             mutation=mutation,
             replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
         )
@@ -102,7 +102,7 @@ class ResourceApplicationService:
             self.context,
             key=idempotency_key or "",
             operation="assign_resource",
-            fingerprint=assignment_fingerprint(assignment),
+            fingerprint=assignment_fingerprint(assignment, expected_revision),
             mutation=mutation,
             replay=lambda: next(
                 (
