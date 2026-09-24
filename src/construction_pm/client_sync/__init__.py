@@ -16,3 +16,6 @@ from .offline_store_json import JsonFileOfflineMutationStore
 from .retry import RetryPolicy
 from .sync_outcome import SyncDisposition, SyncOutcome
 from .sync_transport import SyncTransport
+
+from .sync_adapter import ApplicationMutationGateway, ApplicationSyncAdapter
+from .sync_runner import SyncRunner
