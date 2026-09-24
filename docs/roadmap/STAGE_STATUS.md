@@ -331,3 +331,8 @@ Status: **100%**
   - Added transaction-coordinated sync execution.
   - Added commit/rollback tests for success and delegate failure.
   - Database crash recovery and distributed transaction guarantees remain deployment-specific.
+
+- 33.4.64 Atomic Conflict Persistence: implemented.
+  - Added explicit conflict persistence integration point.
+  - Preserved mutation identity, revision context, stable error code and actions.
+  - Full database atomicity between outcome and conflict rows remains the next integration gate.
