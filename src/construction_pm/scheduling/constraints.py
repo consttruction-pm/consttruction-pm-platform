@@ -28,7 +28,11 @@ class ActivityConstraint:
 
 
 class ConstraintViolation(ValueError):
-    """Raised when a mandatory or upper-bound constraint cannot be satisfied."""
+    """Raised when constraints cannot be satisfied simultaneously."""
+
+
+def _target(constraint: ActivityConstraint, resolver: WorkingTimeResolver) -> date:
+    return resolver.normalize_start(constraint.date)
 
 
 def apply_earliest_constraint(
@@ -37,7 +41,7 @@ def apply_earliest_constraint(
     duration: int,
     resolver: WorkingTimeResolver,
 ) -> date:
-    target = resolver.normalize_start(constraint.date)
+    target = _target(constraint, resolver)
 
     if constraint.type is ConstraintType.START_NO_EARLIER_THAN:
         return max(start, target)
@@ -64,17 +68,60 @@ def apply_earliest_constraint(
     return start
 
 
-def validate_upper_bound(
+def apply_latest_constraint(
+    constraint: ActivityConstraint,
+    late_start: date,
+    duration: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    target = _target(constraint, resolver)
+
+    if constraint.type is ConstraintType.START_NO_LATER_THAN:
+        return min(late_start, target)
+
+    if constraint.type is ConstraintType.FINISH_NO_LATER_THAN:
+        latest_start = resolver.subtract_working_duration(target, duration)
+        return min(late_start, latest_start)
+
+    if constraint.type is ConstraintType.MANDATORY_START:
+        if late_start < target:
+            raise ConstraintViolation(
+                f"mandatory start for {constraint.activity_id} conflicts with successor/project finish logic"
+            )
+        return target
+
+    if constraint.type is ConstraintType.MANDATORY_FINISH:
+        latest_start = resolver.subtract_working_duration(target, duration)
+        if late_start < latest_start:
+            raise ConstraintViolation(
+                f"mandatory finish for {constraint.activity_id} conflicts with successor/project finish logic"
+            )
+        return latest_start
+
+    return late_start
+
+
+def validate_constraint_window(
     constraint: ActivityConstraint,
     start: date,
     finish: date,
     resolver: WorkingTimeResolver,
 ) -> None:
-    target = resolver.normalize_start(constraint.date)
+    target = _target(constraint, resolver)
+
+    if constraint.type is ConstraintType.START_NO_EARLIER_THAN and start < target:
+        raise ConstraintViolation(
+            f"start no earlier than constraint violated for {constraint.activity_id}"
+        )
 
     if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
         raise ConstraintViolation(
             f"start no later than constraint violated for {constraint.activity_id}"
+        )
+
+    if constraint.type is ConstraintType.FINISH_NO_EARLIER_THAN and finish < target:
+        raise ConstraintViolation(
+            f"finish no earlier than constraint violated for {constraint.activity_id}"
         )
 
     if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
