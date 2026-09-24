@@ -24,6 +24,8 @@ The boundary accepts exactly one of:
 
 Web, Desktop, and Mobile should consume the same semantic result shape even if their controls and visual presentation differ.
 
+For `conflict` results, the shared `ClientConflictPresentation` bridge projects the authoritative `error_code`, `retryable`, operation, idempotency key, and queued mutation revision into `client-conflict-presentation.v1`. The bridge does not alter the result or perform any local business calculation.
+
 ## Scope
 
 This is a presentation/adapter boundary. It does not change server semantics, retry policy, conflict resolution, or business calculations.
