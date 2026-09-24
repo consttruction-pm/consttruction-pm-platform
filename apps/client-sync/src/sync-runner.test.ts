@@ -97,3 +97,47 @@ test("runner can consume the versioned api transport without duplicating applica
   assert.equal(outcomes[0]?.disposition, "acknowledged");
   assert.equal(queue.size(), 0);
 });
+
+
+test("runner carries all versioned api sync outcomes end-to-end", async () => {
+  const cases: Array<{ disposition: SyncOutcome["disposition"]; error?: string; retryable?: boolean }> = [
+    { disposition: "acknowledged" },
+    { disposition: "retry", error: "TEMPORARY_UNAVAILABLE", retryable: true },
+    { disposition: "conflict", error: "STALE_REVISION", retryable: false },
+    { disposition: "rejected", error: "FORBIDDEN", retryable: false },
+  ];
+
+  for (const current of cases) {
+    const queue = new OfflineMutationQueue();
+    queue.enqueue(mutation("m1"));
+    const api = {
+      async post<TRequest, TResponse>(): Promise<
+        | { ok: true; data: TResponse }
+        | { ok: false; error: { code: string; retryable: boolean } }
+      > {
+        if (current.disposition === "acknowledged" || current.disposition === "conflict") {
+          return {
+            ok: true,
+            data: {
+              contract_version: "sync-outcome.v1",
+              mutation_id: "m1",
+              disposition: current.disposition,
+              ...(current.error ? { error_code: current.error } : {}),
+            } as SyncOutcome as TResponse,
+          };
+        }
+        return {
+          ok: false,
+          error: {
+            code: current.error!,
+            retryable: current.retryable!,
+          },
+        };
+      },
+    };
+
+    const outcomes = await new ClientSyncRunner(queue, new ApiSyncTransport(api)).runOnce();
+    assert.equal(outcomes[0]?.disposition, current.disposition);
+    assert.equal(queue.size(), current.disposition === "acknowledged" ? 0 : 1);
+  }
+});
