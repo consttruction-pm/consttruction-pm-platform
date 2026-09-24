@@ -1,4 +1,4 @@
-import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
+import type { SyncMutation, SyncOutcome } from "./mutation-queue.js";
 
 export type SyncProjectContext = { tenant_id: string; project_id: string; revision: number };
 export type SyncApiError = { code: string; retryable: boolean };
