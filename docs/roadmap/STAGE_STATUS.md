@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **76% — in progress; schedule-mode/constraint interaction hardened 2026-09-24**
+Status: **79% — in progress; P6 constraint-scope and negative-float semantics reconciled 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -60,6 +60,12 @@ Status: **76% — in progress; schedule-mode/constraint interaction hardened 202
   - Documents Forward/Backward behavior for all six implemented constraint types.
   - Documents calendar normalization, combined-constraint validation, relationship interaction, and backward-pass validity gates.
   - Formal P6 parity verification remains pending; the matrix is a compatibility specification, not certification.
+- 33.4.25 Constraint Engine Final Hardening & Scheduling Core Review: implemented in the current review slice.
+  - Reconciled P6 constraint scope: Start/Finish No Earlier Than affect early dates; Start/Finish No Later Than affect late dates; Mandatory Start/Finish affect both.
+  - Removed backward propagation of lower-bound constraints into late dates.
+  - Preserved negative Total Float as a valid P6 scheduling result and mark negative-float activities critical under the default zero threshold.
+  - Added regression tests for lower-bound/late-date separation and negative float.
+  - Full test execution remains unverified until CI/GitHub Actions executes the committed suite.
 - Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
 - Tracking issue: #26.
