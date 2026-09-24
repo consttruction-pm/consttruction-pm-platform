@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { WebSyncRuntime } from "./sync-runtime.ts";
-import type { SyncMutation, SyncOutcome } from "../../client-sync/src/mutation-queue.ts";
+import { WebSyncRuntime } from "./sync-runtime.js";
+import type { SyncMutation, SyncOutcome } from "../../client-sync/src/mutation-queue.js";
 
 const mutation: SyncMutation = {
   contract_version: "sync-mutation.v1",
@@ -25,7 +25,7 @@ test("web sync runtime consumes the shared conflict outcome contract", async () 
   };
   const outcomes = await runtime.syncOnce({
     async post() {
-      return { ok: true as const, data: outcome };
+      return { ok: true as const, data: outcome as TResponse };
     },
   });
 
