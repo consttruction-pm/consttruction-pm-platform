@@ -557,3 +557,7 @@ Team split:
 - Hasan/Developer 1: Backend, Database, Application, API, shared contracts, persistence, context isolation, transactions, resource/cost backend, documents, import/export, backend AI contracts and integration tests.
 
 This rule was introduced to allow simultaneous progress of the Website and Desktop Application without creating duplicate calculation engines.
+
+## 29. Typed Client Integration Contract — 2026-09-24
+
+Shared Web/Desktop API contracts are versioned and authoritative. Decimal-like unit and financial values cross client boundaries as canonical decimal strings; dates use explicit ISO-8601 representation; nullable fields are explicit; calculated values must be obtained by invoking authoritative Domain methods. Web and Desktop must consume the same contract version and must not introduce alternative calculation formulas. Changes require schema versioning and regression tests.
