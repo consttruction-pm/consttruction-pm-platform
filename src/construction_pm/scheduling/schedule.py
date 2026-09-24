@@ -11,7 +11,7 @@ from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
     validate_constraint_set,
-    validate_constraint_window,
+    validate_late_constraint_window,
 )
 from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
@@ -172,7 +172,7 @@ def backward_pass(
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            validate_constraint_window(constraint, late_start, late_finish, resolver)
+            validate_late_constraint_window(constraint, late_start, late_finish, resolver)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id,
@@ -181,38 +181,9 @@ def backward_pass(
             duration=activity.duration,
         )
 
-    # A lower-bound constraint can move a predecessor later than the
-    # successor-derived latest date. Propagate that movement forward through
-    # the relationship network before declaring the backward schedule valid.
-    for activity_id in order:
-        for relationship in sorted(
-            outgoing[activity_id],
-            key=lambda item: (item.successor_id, item.type.value, item.lag),
-        ):
-            predecessor = result[relationship.predecessor_id]
-            successor = result[relationship.successor_id]
-            required_start = _successor_start(
-                relationship, predecessor, successor.duration, resolver
-            )
-            if required_start > successor.start:
-                updated = ScheduledActivity(
-                    activity_id=successor.activity_id,
-                    start=required_start,
-                    finish=resolver.add_working_duration(required_start, successor.duration),
-                    duration=successor.duration,
-                )
-                if updated.finish > finish:
-                    raise ValueError(
-                        f"backward constraint propagation exceeds project finish for {successor.activity_id}"
-                    )
-                for constraint in sorted(
-                    constraint_map[successor.activity_id],
-                    key=lambda item: (item.type.value, item.date),
-                ):
-                    validate_constraint_window(
-                        constraint, updated.start, updated.finish, resolver
-                    )
-                result[successor.activity_id] = updated
+    # P6 lower-bound constraints (Start/Finish No Earlier Than) affect
+    # early dates only. They reduce float rather than moving the late schedule.
+    # Upper-bound and mandatory constraints remain validated below.
 
     for relationship in relationship_list:
         if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
@@ -318,10 +289,9 @@ def calculate_floats(
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
         raw_total = _working_delay_between(early.start, late.start, resolver)
-        if raw_total < 0:
-            raise ValueError(
-                f"constraint-constrained late schedule precedes early schedule for {activity_id}"
-            )
+        # P6 permits negative total float. A negative value indicates the
+        # schedule is already behind a required date/project finish and is
+        # reportable rather than an invalid calculation.
         total = raw_total
         free = _free_float(
             activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
@@ -334,7 +304,9 @@ def calculate_floats(
             late_finish=late.finish,
             total_float=total,
             free_float=min(total, free),
-            critical=total == 0,
+            # The default critical-float threshold is zero; negative float
+            # is critical as well.
+            critical=total <= 0,
         )
     return result
 
