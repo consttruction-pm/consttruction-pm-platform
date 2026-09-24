@@ -96,7 +96,7 @@ Status: **100% — complete**
 - Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **30% — in progress; portable scheduling network execution added 2026-09-24**
+Status: **35% — in progress; backward pass and float analysis added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile must consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -121,7 +121,13 @@ Status: **30% — in progress; portable scheduling network execution added 2026-
   - Supports multiple predecessors, FS/SS/FF/SF relationships, positive working lag and negative working lead, deterministic topological ordering, unknown-reference validation and explicit cycle detection.
   - `tests/scheduling/test_forward_pass.py` covers multiple predecessors, all four relationship types, positive/negative lag, input-order determinism and cycle rejection.
   - The implementation uses the existing WorkingTimeResolver; no client-specific scheduling formulas were introduced.
-  - This is a foundational network-execution slice, not yet the full P6 scheduling engine. Constraint handling, backward pass/float, calendars beyond the current date-granularity resolver, and full schedule reconciliation remain future work.
+- 33.4.10 Backward Pass + Float Analysis: **implemented**.
+  - `src/construction_pm/scheduling/schedule.py` adds deterministic Backward Pass, Total Float, relationship-aware Free Float and Critical flag calculation.
+  - Backward constraints are derived from the same FS/SS/FF/SF + lag semantics used by the forward network.
+  - `ScheduleResult` exposes early schedule, float analysis and project finish through the Shared Core.
+  - `tests/scheduling/test_schedule.py` covers critical-chain backward dates, Total/Free Float, explicit project finish and validation.
+  - This is still a foundational scheduling slice; it is not yet a claim of full P6 parity. Constraint types, richer calendars/time-of-day, schedule options, baseline/current reconciliation and broader regression certification remain pending.
+- Full test execution could not be completed from the current tool environment because external GitHub repository cloning/network resolution was unavailable; the new tests are committed but should be run in GitHub Actions/CI before being marked execution-verified.
 - Tracking issue: #26.
 
 ### Stage 33.4-B — SQLite Transaction Boundary Hardening
