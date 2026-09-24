@@ -1,0 +1,516 @@
+# Project Finalized Logic & Preferences — Master Reference
+
+## هدف و وضعیت این سند
+
+این سند مرجع اصلی تصمیم‌ها، منطق‌ها، ترجیحات و قواعدی است که از ابتدای پروژه «Construction PM Platform» تا این نقطه نهایی شده‌اند.
+
+هدف:
+- جلوگیری از فراموشی تصمیم‌های قبلی.
+- جلوگیری از طراحی مجدد یا تغییر ناخواسته قراردادها.
+- ایجاد مرجع مشترک برای همه توسعه‌دهندگان و ChatGPTهای متصل به Repository.
+- نگه‌داشتن منطق سازگار با Primavera P6، PMBOK و استانداردهای معماری پروژه.
+- جدا نگه‌داشتن «استاندارد/مرجع»، «تصمیم محصول» و «جزئیات پیاده‌سازی».
+
+**قاعده:** اگر تصمیم جدیدی با این سند تعارض دارد، ابتدا باید تعارض مشخص و مستند شود؛ تغییر یک قاعده مشترک محاسباتی نباید صرفاً به دلیل ترجیح یک توسعه‌دهنده انجام شود.
+
+---
+
+# 1. چشم‌انداز محصول
+
+محصول یک پلتفرم Web-based برای مدیریت پروژه و کنترل ساخت است که هدف آن ارائه قابلیت‌های حرفه‌ای و یکپارچه در سطحی است که کاربر پروژه ساختمانی تا حد امکان به استفاده همزمان از Primavera P6 و Microsoft Project نیاز نداشته باشد.
+
+بازار هدف اصلی:
+- شرکت‌های ساختمانی
+- پیمانکاران
+- پروژه‌های ساخت و زیرساخت
+- کنترل پروژه و مدیریت منابع/هزینه/پیشرفت
+
+اولویت محصول:
+- جایگزینی عملی برای ابزارهای زمان‌بندی موجود
+- تجربه آشنا برای کاربران P6/MS Project
+- قابلیت Enterprise
+- کاهش آموزش مجدد کاربر
+
+---
+
+# 2. مراجع اصلی پروژه
+
+## 2.1 Primavera P6
+
+هرجا قابلیت با Primavera P6 همپوشانی دارد، رفتار و منطق P6 مبنای compatibility baseline است.
+
+قواعد:
+- منطق Scheduling مشترک نباید از P6 ناقص‌تر باشد.
+- محاسبات مشترک باید قابل آزمون و مقایسه با P6 باشند.
+- رفتار relationship، calendar، duration، lag، constraints، resource/cost و سایر حوزه‌های مشترک باید با منطق P6 سازگار طراحی شود.
+- در بخش‌های مشترک P6، سؤال تکراری از کاربر برای تصمیمی که قبلاً نهایی شده مجاز نیست؛ باید baseline ثبت‌شده اجرا شود.
+
+## 2.2 PMBOK / PMI
+
+در معماری و قابلیت‌های غیرالزام‌آور محصول، PMBOK Guide — Eighth Edition (November 2025) و The Standard for Project Management ANSI/PMI 99-001-2025 به‌عنوان مراجع استفاده می‌شوند.
+
+در بخش AI:
+- PMI Artificial Intelligence in Portfolio, Program and Project Management (June 2026) به‌عنوان مرجع مرتبط با قابلیت‌های AI پروژه در نظر گرفته می‌شود.
+
+**اصل:** استانداردهای PMI مرجع طراحی و حاکمیت هستند؛ منطق محاسباتی محصول در جاهایی که با P6 همپوشانی دارد باید با baseline محاسباتی P6 نیز سازگار باشد.
+
+---
+
+# 3. زبان و تقویم
+
+## زبان
+- رابط کاربری فارسی و انگلیسی.
+- داده‌های پروژه نیز باید قابلیت نگهداری فارسی و انگلیسی را داشته باشند.
+- معماری باید امکان اضافه‌شدن زبان‌های دیگر را داشته باشد.
+- Language Pack می‌تواند آنلاین/آفلاین باشد.
+- نسخه Language Pack باید مدیریت شود.
+- در نبود ترجمه، fallback به زبان پیش‌فرض انجام شود.
+
+## تقویم
+- Gregorian و Jalali/Shamsi.
+- هر پروژه calendar context مشخص دارد.
+- تقویم پروژه قابل ویرایش و versioned است.
+- Standard calendar templates قابل استفاده‌اند.
+- Calendar باید همراه project export/import قابل انتقال باشد.
+- محاسبات تاریخ و مدت باید reproducible و cross-device deterministic باشند.
+
+---
+
+# 4. Scheduling Engine — منطق نهایی
+
+تنظیمات پایه ثبت‌شده:
+
+    {"duration":"working-day","calendar":"jalali-gregorian","lag":"working","constraints":"hybrid","mode":"both"}
+
+اصول:
+- Duration پیش‌فرض در منطق زمان‌بندی بر مبنای working-day است.
+- Calendar arithmetic باید calendar-aware باشد.
+- WorkingTimeResolver مرجع تشخیص working/non-working time است.
+- Relationshipهای اصلی:
+  - FS
+  - SS
+  - FF
+  - SF
+- Forward Pass.
+- Backward Pass.
+- Constraints و lag با مدل hybrid.
+- Lag کاری در context تقویم محاسبه می‌شود.
+- Scheduling deterministic است.
+- project-specific scheduling settings و calendar version باید همراه project منتقل شوند.
+- نتیجه یک پروژه روی دستگاه دیگر با همان context باید reproducible باشد.
+- Scheduling calculation نباید به UI وابسته باشد.
+
+## Calendar Arithmetic
+باید عملیات واقعی و قابل آزمون برای:
+- add_working_duration
+- subtract_working_duration
+- calculate_duration
+- تشخیص working/non-working periods
+داشته باشد.
+
+هیچ ماژول دیگری نباید الگوریتم مستقل و متناقض برای محاسبه duration یا working time بسازد.
+
+---
+
+# 5. WBS و Activities
+
+ساختار اصلی:
+- Project
+- WBS
+- Activities
+
+قواعد:
+- WBS برای ساختاردهی پروژه است.
+- Activity واحد اصلی زمان‌بندی، progress و assignment است.
+- روابط Activityها در scheduling engine پردازش می‌شوند.
+- گزارش‌ها و roll-upها باید hierarchy پروژه را حفظ کنند.
+- محاسبات roll-up نباید صرفاً با average ساده انجام شوند مگر rule صریحاً آن را تعیین کند.
+
+---
+
+# 6. Baseline / Current / Actual / Forecast
+
+این چهار مفهوم از هم جدا هستند.
+
+- Baseline = مرجع مصوب/مبنای مقایسه.
+- Current = وضعیت فعلی برنامه/داده.
+- Actual = واقعیت ثبت‌شده.
+- Forecast = پیش‌بینی وضعیت آینده.
+
+نباید این مقادیر در یک فیلد یا formula مبهم ادغام شوند.
+
+---
+
+# 7. Progress Engine
+
+Pipeline نهایی:
+
+Progress Input
+→ Normalize
+→ Validate
+→ Apply Actuals
+→ Calculate Progress
+→ Remaining Work
+→ Remaining Duration
+→ Scheduling
+→ EVM
+→ Earned Schedule
+→ Reports
+
+قواعد:
+- Progress باید rule-driven باشد.
+- Effective progress changes باید revision داشته باشند.
+- Audit باید append-only باشد.
+- WBS roll-up باید weighted و متناسب با metric باشد؛ simple averaging ممنوع است مگر rule صریح.
+- Progress نباید مستقیماً منطق Scheduling یا EVM را duplicate کند.
+
+---
+
+# 8. EVM و Schedule Performance
+
+EVM دارای engine مرکزی و authoritative است.
+
+مفاهیم اصلی:
+- PV
+- EV
+- AC
+- BAC
+- ETC
+- EAC
+- CV
+- SV
+- Earned Schedule و reconciliation
+
+Resource/Cost می‌تواند داده موردنیاز EVM را تأمین کند اما نباید semantics مرکزی EVM را جایگزین کند.
+
+نمونه قرارداد Resource EVM:
+- ETC می‌تواند از remaining resource cost تغذیه شود.
+- EAC = AC + ETC.
+- VAC = BAC - EAC در صورت وجود BAC.
+- CV و SV توسط EVM semantics مرکزی مدیریت می‌شوند.
+
+---
+
+# 9. Resources & Costs
+
+Resource categories:
+- Labor
+- Machinery
+- Materials
+
+نمونه resourceها:
+- Worker
+- Electrician
+- Mechanic
+- Plumber
+- Machinery
+- Brick
+- Block
+
+برای resourceها:
+- Unit type صریح.
+- Calendar.
+- Availability/capacity.
+- Rate.
+- Effective date/version.
+- Assignment به Activity.
+- Planned/Budgeted units.
+- Actual units.
+- Remaining units.
+- Planned/Actual/Remaining cost.
+- Time-phased loading.
+- Curves.
+- Histogram.
+- Variance.
+- Overload detection.
+- Leveling primitives.
+
+## Resource Leveling
+Resource domain فقط ظرفیت و conflict را محاسبه/گزارش می‌کند.
+تصمیم برای جابه‌جایی Activity، split کردن work، تغییر assignment یا پذیرش overload در Scheduling/Application layer است.
+
+---
+
+# 10. Cost و Financial Precision
+
+- محاسبات مالی با Decimal.
+- float ممنوع برای محاسبات مالی.
+- نرخ‌ها typed و versioned هستند.
+- Actual/Baseline/Current/Forecast cost جدا هستند.
+- Time-phased values باید calendar context داشته باشند.
+- Recalculation deterministic و idempotent باشد.
+
+---
+
+# 11. Excel Import / Export
+
+یکی از ترجیحات قطعی پروژه:
+
+Excel باید با داده‌های استاندارد و قابل محاسبه کار کند.
+
+بنابراین:
+- Number جدا از Text.
+- Date جدا از Text.
+- Duration typed.
+- Boolean typed.
+- Decimal values نباید برای Excel به text تبدیل شوند مگر قرارداد صریح.
+- Excel formulas باید بتوانند روی ستون‌های عددی محاسبه انجام دهند.
+- schema version در workbook وجود داشته باشد.
+- import/export باید round-trip قابل آزمون داشته باشد.
+- Header/schema validation اجباری است.
+
+---
+
+# 12. Documentation Management
+
+ماژول اسناد شامل:
+- Contracts
+- Drawings
+- Correspondence
+- RFI
+- Submittal
+- Delay Claims
+- Evidence
+- Approval Workflow
+- OCR
+- Revision / Version Control
+- Intelligent Search
+- Security
+- Audit Trail
+
+اسناد باید قابلیت ارتباط با:
+- Schedule
+- Activity
+- Cost
+- Progress
+را داشته باشند.
+
+---
+
+# 13. AI Assistant و Smart Guide
+
+AI فقط یک chatbot جداگانه نیست.
+
+AI Assistant:
+- کمک به کارهای تکراری.
+- Voice Data Entry.
+- ورود داده از متن/صوت/Excel/Document.
+- پیشنهاد WBS.
+- پیشنهاد Activity.
+- پیشنهاد relationship.
+- پیشنهاد FS/SS/FF/SF و Lag/Lead.
+- پیشنهاد resource، نیروی انسانی و تجهیزات.
+- کمک به initialization/planning.
+
+Smart Guide باید در تمام بخش‌ها حاضر باشد:
+- توضیح دهد کاربر در هر مرحله چه کاری انجام دهد.
+- خطاهای ورود داده را تشخیص دهد.
+- خطاهای محاسباتی را شناسایی کند.
+- correction پیشنهاد دهد.
+- next workflow action پیشنهاد کند.
+- در صورت امکان offline نیز برای قابلیت‌های تعریف‌شده کار کند.
+- print formatting/layout assistance نیز در scope قرار دارد.
+
+AI نباید بدون traceability یا خارج از business rules، نتیجه محاسبات رسمی پروژه را خودسرانه تغییر دهد.
+
+---
+
+# 14. Remote / Web Architecture
+
+مدل محصول باید Web-ready باشد.
+
+الزامات دائمی:
+- Shared Domain/Calculation Core.
+- API/Application/Repository separation.
+- Shared business rules.
+- UI-independent core.
+- استقلال از Windows.
+- استقلال از PostgreSQL.
+- استقلال از filesystem.
+- استقلال از authentication implementation.
+- Document Storage abstraction.
+- Background Jobs abstraction.
+- API Contracts.
+- Multi-tenant.
+- Optimistic Locking.
+- Transaction Boundaries.
+- Project portability.
+
+معماری لایه‌ای:
+
+Domain / Calculation Core
+→ Application
+→ Repository / Persistence
+→ API
+→ UI
+
+Repository نباید business calculation را پنهانی انجام دهد.
+API نباید formulaهای Domain را تکرار کند.
+
+---
+
+# 15. Multi-Tenant و Context Isolation
+
+هر شرکت/tenant و project باید context مالکیت و دسترسی مشخص داشته باشد.
+
+هیچ query یا write نباید بتواند داده tenant/project دیگر را مخلوط کند.
+
+این موضوع باید در:
+- Domain context
+- Application use case
+- Repository
+- Persistence
+- API authorization
+هماهنگ باشد.
+
+---
+
+# 16. Concurrency / Optimistic Locking
+
+برای داده‌های قابل ویرایش همزمان:
+- revision/version باید مشخص باشد.
+- stale update باید رد شود.
+- overwrite بی‌صدا ممنوع است.
+
+Assignmentها نیز مانند Resourceها در صورت نیاز به concurrency control مستقل، باید revision semantics داشته باشند.
+
+---
+
+# 17. Transaction Boundaries
+
+Transaction باید در سطح use case مناسب تعریف شود.
+
+Repository می‌تواند عملیات persistence را اجرا کند، اما transaction semantics یک عملیات چندمرحله‌ای نباید به‌صورت پنهان و پراکنده ایجاد شود.
+
+Use caseهایی که چند aggregate/repository را تغییر می‌دهند باید atomicity مشخص داشته باشند.
+
+---
+
+# 18. Audit / Revision / History
+
+برای تغییرات حساس:
+- Audit Trail.
+- Revision.
+- Immutable history در موارد لازم.
+- Append-only history برای progress revisions.
+- Rate history باید در صورت نیاز به historical reporting حفظ شود.
+- update نباید بدون قرارداد history را حذف کند.
+
+---
+
+# 19. Reporting & Print
+
+Reporting باید:
+- dataset معتبر از Core/Application دریافت کند.
+- formula جدید و متناقض با Core نسازد.
+- typed data را حفظ کند.
+- baseline/current/actual/forecast را تفکیک کند.
+- قابلیت print formatting داشته باشد.
+- برای Excel/print خروجی استاندارد تولید کند.
+
+---
+
+# 20. Project Portability
+
+Project export/import باید تا حد امکان context لازم برای بازسازی محاسبات را حمل کند، از جمله:
+- calendar
+- calendar version
+- scheduling settings
+- project calculation settings
+- language/data context لازم
+- schema versions
+- resource/cost configuration
+- project-specific rules
+
+هدف:
+**Restore project on another device = same calculation context + reproducible results.**
+
+---
+
+# 21. Common Calculation Core — قانون طلایی
+
+قانون اصلی کل پروژه:
+
+**اول منطق محاسباتی در Shared Domain/Calculation Core تعریف می‌شود؛ Application آن را orchestration می‌کند؛ Repository آن را پایدار می‌کند؛ API آن را به typed contract تبدیل می‌کند؛ UI فقط آن را نمایش یا ویرایش می‌کند.**
+
+هیچ module نباید:
+- formula اختصاصی خود را برای همان مفهوم بسازد.
+- یک مقدار را با نوع متفاوت ذخیره کند.
+- محاسبه Core را دوباره انجام دهد.
+- semantics ماژول دیگر را بدون قرارداد تغییر دهد.
+
+---
+
+# 22. خطای واقعی ثبت‌شده برای یادگیری
+
+در Resource Backend، در DTO mapping تابع assignment_to_dto، مقدار method مربوط به normalized remaining units به جای نتیجه اجرای method به decimal داده شده بود.
+
+درس مشترک:
+- method و method result یکی نیستند.
+- DTO باید نتیجه typed واقعی را منتقل کند.
+- تست باید مقدار واقعی را assert کند.
+
+این مورد در review branch اصلاح شد و به عنوان regression learning در سند مشترک ثبت شده است.
+
+---
+
+# 23. کیفیت کد و تست
+
+هر قابلیت محاسباتی باید همراه با:
+- Unit Test
+- Integration Test در صورت نیاز
+- Edge Cases
+- Invalid Input Tests
+- Regression Test
+- Determinism Test در موارد مهم
+ارائه شود.
+
+برای P6-compatible calculations:
+- conformance tests لازم است.
+- خروجی باید با baseline مورد انتظار قابل مقایسه باشد.
+
+---
+
+# 24. قرارداد توسعه‌دهنده
+
+قبل از تغییر:
+1. اسناد پروژه را بخوان.
+2. Stage Status را بررسی کن.
+3. آخرین SHA فایل را دریافت کن.
+4. منطق موجود را تکرار نکن.
+5. calculation را در Core نگه دار.
+6. کد + تست + مستندات را همزمان تغییر بده.
+7. بعد از زیرمرحله progress را ثبت کن.
+8. تغییرات کوچک و قابل بازبینی commit کن.
+9. روی branch مستقل کار کن اگر کار همزمان است.
+10. قبل از merge، integration و regression را بررسی کن.
+
+---
+
+# 25. وضعیت مراحل نهایی‌شده ثبت‌شده
+
+- Stage 32.3 Progress Rules & Calculation — 100%
+- Stage 32.4 Progress History/Audit/Revision — 100%
+- Stage 32.5 Progress Update Workflow — 100%
+- Stage 32.6 Dashboard & Control Center — 100%
+- Stage 32.7 Reporting & Print Engine — 100%
+- Stage 32.8 Resource & Cost Control Center — 100%
+- Stage 33 System Integration & Platform Hardening — نقطه بعدی ثبت‌شده
+
+Stage 32.8 شامل Resource domain، rates، assignments، loading، control، performance، calendars، capacity، overload detection، curves، histogram، EVM bridge، typed XLSX I/O و integration review ثبت شده است.
+
+---
+
+# 26. قاعده تغییر این سند
+
+این فایل «Master Reference» است، اما نباید محل نگهداری جزئیات پیاده‌سازی متغیر باشد.
+
+اگر rule جدیدی تصویب شد:
+1. ابتدا در سند تخصصی همان domain ثبت شود.
+2. سپس اگر rule بین چند module مشترک است، به این Master Reference اضافه شود.
+3. تغییرات محاسباتی مشترک باید regression test داشته باشند.
+4. rule جدید نباید بدون بررسی اثر آن بر P6 compatibility، PMBOK/PMI alignment، EVM، Excel typing، portability و Web-readiness وارد Core شود.
+
+## قانون نهایی
+
+**محاسبه واحد، نوع داده صحیح، context صریح، نتیجه deterministic، history قابل ردیابی و قرارداد مشترک — پایه تمام منطق پروژه است.**
