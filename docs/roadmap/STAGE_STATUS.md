@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **98% — in progress; Stage 33.4.33 time-aware portability contract established 2026-09-24**
+Status: **100% — completed; runtime-verified 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -359,3 +359,11 @@ Status: **implemented — runtime CI verification pending**
 - Added integration regression tests for allow/deny behavior, stable AuthorizationError and context preservation.
 - No Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics changed.
 - Next gate: Stage 33.3.5 integration regression and full runtime verification.
+
+
+### Latest Stage 33.4 Runtime Verification
+- Commit `87354c31b19b4db007cc0149280912aaeb233130` corrected the zero-duration subtraction boundary expectation after CI identified the resolver's authoritative normalization behavior.
+- GitHub Actions run `36053309326` completed successfully on Python 3.11, 3.12 and 3.13.
+- Runtime result: **355 passed, 2 skipped, 0 failed**.
+- This verification supersedes the earlier unverified runtime notes for the time-aware calendar/scheduling regression path.
+- Stage 33.4 remains closed for engineering work unless a new regression is introduced; subsequent work should proceed to the next product/platform stage.
