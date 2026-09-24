@@ -12,3 +12,7 @@ from .offline_queue import OfflineMutationQueue
 
 from .offline_store import InMemoryOfflineMutationStore, OfflineMutationStore
 from .offline_store_json import JsonFileOfflineMutationStore
+
+from .retry import RetryPolicy
+from .sync_outcome import SyncDisposition, SyncOutcome
+from .sync_transport import SyncTransport
