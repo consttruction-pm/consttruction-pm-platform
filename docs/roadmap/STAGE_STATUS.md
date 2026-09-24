@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **60% — in progress; all-relationship constraint propagation coverage added 2026-09-24**
+Status: **63% — in progress; backward constraint propagation hardening added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -32,6 +32,11 @@ Status: **60% — in progress; all-relationship constraint propagation coverage 
 - 33.4.17 Advanced Constraint Set Validation: implemented.
 - 33.4.18 Constraint Propagation Through Lagged Networks: implemented.
 - 33.4.19 Constraint Propagation Across FS/SS/FF/SF + Lag/Lead: implemented.
+- 33.4.20 Backward Constraint Propagation Across FS/SS/FF/SF + Lag/Lead: implemented.
+  - Lower-bound Start/Finish constraints now propagate into latest dates instead of being validation-only.
+  - Backward results are checked against relationship feasibility after constraint application.
+  - Project-finish overflow caused by backward lower-bound constraints is rejected deterministically.
+  - Added parameterized tests for all four relationship types and positive/negative lag.
   - Added parameterized coverage for Start No Earlier Than across all four relationship types with positive and negative lag.
   - Added equivalent Finish No Earlier Than coverage across all four relationship types with positive and negative lag.
   - Added mixed relationship networks with different lag signs and downstream constraints.
