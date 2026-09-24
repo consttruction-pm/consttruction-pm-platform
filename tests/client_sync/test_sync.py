@@ -109,7 +109,8 @@ def test_rejected_stays_queued_for_explicit_resolution():
 
     assert result[0].removed is False
     assert result[0].outcome.status == "rejected"
-    assert queue.peek()[0].attempt == 1
+    with pytest.raises(ValueError, match="deferred"):
+        queue.increment_attempt(make_mutation())
 
 
 def test_mismatched_idempotency_key_is_not_accepted():
