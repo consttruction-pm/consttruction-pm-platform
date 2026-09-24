@@ -14,11 +14,22 @@ def test_web_client_does_not_define_calculation_engines() -> None:
     assert not (Path("apps/web/src") / "scheduling.py").exists()
     assert not (Path("apps/web/src") / "evm.py").exists()
 
+
 def test_web_client_consumes_stable_application_error_contract() -> None:
     source = Path("apps/web/src/client.ts").read_text()
-    assert 'isApplicationErrorEnvelope' in source
-    assert 'payload.error.code' in source
-    assert 'payload.error.retryable' in source
+    assert "isApplicationErrorEnvelope" in source
+    assert "payload.error.category" in source
+    assert "payload.error.code" in source
+    assert "payload.error.message" in source
+    assert "payload.error.retryable" in source
+    assert "message_key: payload.error.message" not in source
+
+
+def test_web_client_preserves_error_presentation_fields() -> None:
+    source = Path("apps/web/src/error-boundary.ts").read_text()
+    assert "error.category" in source
+    assert "error.message" in source
+    assert "error.message_key" in source
 
 
 def test_all_client_runtimes_consume_shared_project_context_contract() -> None:
@@ -28,5 +39,5 @@ def test_all_client_runtimes_consume_shared_project_context_contract() -> None:
         Path("apps/mobile/src/runtime.ts"),
     ):
         source = path.read_text()
-        assert 'shared/client-contracts/project-context' in source
-        assert 'validateProjectContext' in source
+        assert "shared/client-contracts/project-context" in source
+        assert "validateProjectContext" in source
