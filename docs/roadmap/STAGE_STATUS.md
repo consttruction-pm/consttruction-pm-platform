@@ -95,19 +95,19 @@ Status: **100% — complete**
 - **Stage 33.3 completion gate: 100%.**
 - Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
-### Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration
+### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
 Status: **0% — opened 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
-- Web and Desktop must consume the same versioned API/Application contracts.
+- Web, Desktop and Mobile must consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
-- Client responsibilities: application shells, navigation/workspace integration, typed contract consumption, localization, Jalali/Gregorian presentation, error/conflict UX and parity testing.
+- Client responsibilities: application shells, navigation/workspace integration, typed contract consumption, localization, Jalali/Gregorian presentation, error/conflict UX, mobile field workflows, offline sync UX and parity testing.
 - Hasan/backend responsibilities: API/shared-contract integration support, ProjectContext propagation, authorization/session boundary, optimistic-locking/idempotency/error handling and regression coverage.
-- Completion requires cross-client contract, workflow and parity regression tests.
+- Completion requires cross-client contract, workflow and parity regression tests across Web/Desktop/Mobile.
 - No Scheduling/P6 or Progress/EVM semantics are redefined in Stage 33.4.
 - Tracking issue: #26.
 
 
-### Stage 33.4 — SQLite Transaction Boundary Hardening
+### Stage 33.4-B — SQLite Transaction Boundary Hardening
 Status: **100%**
 - Application transaction rollback against SQLite persistence is regression-tested.
 - Nested repository transactions participate in the outer application transaction.
