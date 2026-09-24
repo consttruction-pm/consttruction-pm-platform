@@ -15,3 +15,8 @@ Initial responsibilities:
 - capability parity with Web
 
 The Desktop client must not create an alternative Scheduling/P6, Progress/EVM, Resource/Cost or calendar calculation engine.
+
+
+## Stage 33.4.45
+
+The executable TypeScript foundation provides a project runtime with explicit online/offline state and revision continuity. It is intentionally framework-neutral so the eventual Windows shell can consume the same boundary without introducing client-specific business calculations.
