@@ -308,3 +308,30 @@ def test_backward_constraint_propagation_rejects_project_finish_before_lower_bou
             project_finish=date(2026, 9, 23),
             constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25))],
         )
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_backward_lower_bound_propagates_to_successor_before_relationship_validation(resolver, relationship_type):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=1)
+    result = schedule(
+        activities, [relationship], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 30),
+        constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))],
+    )
+    late_a = result.late_activities["A"]
+    late_b = result.late_activities["B"]
+    assert late_a.start >= date(2026, 9, 24)
+    assert _relationship_holds(relationship, late_a, late_b, resolver)
+    assert late_b.finish <= date(2026, 9, 30)
+
+
+def test_backward_lower_bound_propagation_rejects_when_successor_would_exceed_project_finish(resolver):
+    with pytest.raises(ValueError):
+        schedule(
+            [Activity("A", 2), Activity("B", 2)],
+            [Relationship("A", "B", RelationshipType.FS, lag=1)],
+            date(2026, 9, 21), resolver,
+            project_finish=date(2026, 9, 25),
+            constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))],
+        )
