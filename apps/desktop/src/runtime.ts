@@ -1,25 +1,18 @@
+import { validateProjectContext } from "../../../shared/client-contracts/project-context";
+import type { ProjectContext } from "../../../shared/client-contracts/project-context";
+
+export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 export type OfflineMode = "offline" | "online";
 
-export type DesktopProjectState = {
-  tenant_id: string;
-  project_id: string;
-  revision: number;
-  mode: OfflineMode;
-};
+export type DesktopProjectState = ProjectContext & { mode: OfflineMode };
 
 export class DesktopRuntime {
   private state: DesktopProjectState | null = null;
 
-  openProject(
-    tenant_id: string,
-    project_id: string,
-    revision: number,
-    mode: OfflineMode = "offline",
-  ): DesktopProjectState {
-    if (!tenant_id || !project_id || revision < 0) {
-      throw new Error("INVALID_PROJECT_CONTEXT");
-    }
-    this.state = Object.freeze({ tenant_id, project_id, revision, mode });
+  openProject(tenant_id: string, project_id: string, revision: number, mode: OfflineMode = "offline"): DesktopProjectState {
+    const context: ProjectContext = { tenant_id, project_id, revision };
+    validateProjectContext(context);
+    this.state = Object.freeze({ ...context, mode });
     return this.state;
   }
 
@@ -36,9 +29,8 @@ export class DesktopRuntime {
 
   advanceRevision(revision: number): DesktopProjectState {
     const current = this.current();
-    if (revision < current.revision) {
-      throw new Error("REVISION_REGRESSION");
-    }
+    if (revision < current.revision) throw new Error("REVISION_REGRESSION");
+    validateProjectContext({ ...current, revision });
     this.state = Object.freeze({ ...current, revision });
     return this.state;
   }
