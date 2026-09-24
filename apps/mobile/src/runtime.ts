@@ -2,15 +2,13 @@ import {
   OfflineMutationQueue,
   type SyncMutation,
 } from "../../client-sync/src/mutation-queue.js";
+import { validateProjectContext } from "../../../shared/client-contracts/project-context";
+import type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
+export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 export type MobileMode = "offline" | "online";
 
-export type MobileProjectState = {
-  tenant_id: string;
-  project_id: string;
-  revision: number;
-  mode: MobileMode;
-};
+export type MobileProjectState = ProjectContext & { mode: MobileMode };
 
 export class MobileRuntime {
   private state: MobileProjectState | null = null;
@@ -22,10 +20,9 @@ export class MobileRuntime {
     revision: number,
     mode: MobileMode = "offline",
   ): MobileProjectState {
-    if (!tenant_id || !project_id || revision < 0) {
-      throw new Error("INVALID_PROJECT_CONTEXT");
-    }
-    this.state = Object.freeze({ tenant_id, project_id, revision, mode });
+    const context: ProjectContext = { tenant_id, project_id, revision };
+    validateProjectContext(context);
+    this.state = Object.freeze({ ...context, mode });
     return this.state;
   }
 
@@ -45,6 +42,7 @@ export class MobileRuntime {
     if (revision < current.revision) {
       throw new Error("REVISION_REGRESSION");
     }
+    validateProjectContext({ ...current, revision });
     this.state = Object.freeze({ ...current, revision });
     return this.state;
   }
