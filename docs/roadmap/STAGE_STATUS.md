@@ -326,3 +326,8 @@ Status: **100%**
   - Duplicate identical mutations replay persisted outcomes without delegate re-execution.
   - Key reuse with different fingerprint remains rejected.
   - Full atomic lookup/execute/store transaction hardening remains a subsequent gate.
+
+- 33.4.63 Atomic Sync Transaction & Crash-Safety: implemented.
+  - Added transaction-coordinated sync execution.
+  - Added commit/rollback tests for success and delegate failure.
+  - Database crash recovery and distributed transaction guarantees remain deployment-specific.
