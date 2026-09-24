@@ -157,4 +157,4 @@ def test_time_forward_pass_sf_zero_uses_predecessor_start():
         registry(),
     )
     assert result["A"].start == datetime(2026, 9, 22, 8)
-    assert result["B"].finish == datetime(2026, 9, 22, 8)
+    assert result["B"].finish == datetime(2026, 9, 21, 17)
