@@ -10,6 +10,7 @@ from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
+from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, apply_time_latest_constraints, validate_time_early_window
 
 
 @dataclass(frozen=True)
@@ -104,12 +105,14 @@ def time_backward_pass(
     early: Mapping[str, TimeScheduledActivity],
     project_finish: datetime,
     registry: CalendarResolverRegistry,
+    constraints: Iterable[TimeActivityConstraint] = (),
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
     activity_map = {a.id: a for a in activity_list}
     if set(activity_map) != set(early):
         raise ValueError("early schedule must contain every activity")
     relationship_list = list(relationships)
+    constraint_list = list(constraints)
     outgoing: dict[str, list[TimeRelationship]] = {a.id: [] for a in activity_list}
     incoming_count = {a.id: 0 for a in activity_list}
     successors: dict[str, list[str]] = {a.id: [] for a in activity_list}
@@ -150,12 +153,14 @@ def time_backward_pass(
         if not rels:
             late_finish = normalized_finish
             late_start = _subtract_duration(late_finish, activity.duration, resolver)
+            late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
         else:
             candidates = [
                 _latest_predecessor_start(rel, late[rel.successor_id], activity_map[rel.successor_id], activity, registry)
                 for rel in rels
             ]
             late_start = min(candidates)
+            late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
             late_finish = _add_duration(late_start, activity.duration, resolver)
         late[activity_id] = TimeScheduledActivity(activity_id, late_start, late_finish, activity.duration)
 
@@ -278,12 +283,14 @@ def time_schedule(
     project_start: datetime,
     project_finish: datetime | None,
     registry: CalendarResolverRegistry,
+    constraints: Iterable[TimeActivityConstraint] = (),
 ) -> TimeScheduleResult:
     activity_list = list(activities)
     relationship_list = list(relationships)
-    early = time_forward_pass(activity_list, relationship_list, project_start, registry)
+    constraint_list = list(constraints)
+    early = time_forward_pass(activity_list, relationship_list, project_start, registry, constraint_list)
     effective_finish = project_finish or max(item.finish for item in early.values())
-    late = time_backward_pass(activity_list, relationship_list, early, effective_finish, registry)
+    late = time_backward_pass(activity_list, relationship_list, early, effective_finish, registry, constraint_list)
     floats = calculate_time_floats(activity_list, relationship_list, early, late, registry)
     return TimeScheduleResult(
         activities=early,
