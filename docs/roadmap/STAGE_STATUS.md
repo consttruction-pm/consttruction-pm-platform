@@ -93,4 +93,15 @@ Status: **100% — complete**
 - API, Application, authorization, idempotency, revision and context-isolation contracts covered together.
 - Final Resource backend regression suite added.
 - **Stage 33.3 completion gate: 100%.**
-- Next: continue from the next unfinished Stage 33 item.
+- Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
+
+### Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration
+Status: **0% — opened 2026-09-24**
+- Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
+- Web and Desktop must consume the same versioned API/Application contracts.
+- Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
+- Client responsibilities: application shells, navigation/workspace integration, typed contract consumption, localization, Jalali/Gregorian presentation, error/conflict UX and parity testing.
+- Hasan/backend responsibilities: API/shared-contract integration support, ProjectContext propagation, authorization/session boundary, optimistic-locking/idempotency/error handling and regression coverage.
+- Completion requires cross-client contract, workflow and parity regression tests.
+- No Scheduling/P6 or Progress/EVM semantics are redefined in Stage 33.4.
+- Tracking issue: #26.
