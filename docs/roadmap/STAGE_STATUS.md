@@ -100,3 +100,12 @@ Status: **100%**
   - Added regression tests for inheritance, explicit lag calendar, version isolation and invalid kinds.
   - Existing CPM date semantics remain unchanged until the time-aware Forward/Backward integration gate is complete.
   - Runtime CI remains unverified.
+
+- 33.4.29 Activity Calendar & Relationship-Lag Calendar Resolution: implemented.
+  - Added versioned CalendarReference and SchedulingCalendarContext.
+  - Activity calendar explicitly falls back to the project calendar only through Shared Core rules.
+  - Relationship-lag calendar is independently addressable and otherwise follows the effective activity calendar.
+  - CalendarResolverRegistry rejects missing versions instead of silently substituting another calendar.
+  - Project portability schema now carries versioned calendar assignment references.
+  - Web/Desktop/Mobile must consume these references through Shared Core and must not implement local calendar selection semantics.
+  - Time-aware CPM integration remains the next gate; runtime CI execution remains unverified.
