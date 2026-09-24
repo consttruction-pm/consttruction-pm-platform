@@ -22,3 +22,9 @@ Status: **100% implementation complete**
 ### Stage 32.8.12 — Typed XLSX Import/Export
 Status: **100% implementation complete**
 - Typed schemas, real XLSX I/O, schema versioning and round-trip test implemented.
+
+
+### Stage 32.8 — Resource & Cost Control Center
+Status: **100%**
+- Resource domain, rates, assignments, loading, control, performance, calendars, capacity, overload detection, curves, histogram, EVM bridge, typed XLSX I/O and integration review completed.
+- Remaining work is cross-stage/system-level integration outside the Resource & Cost stage.
