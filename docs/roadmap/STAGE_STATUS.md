@@ -236,3 +236,10 @@ Status: **100%**
   - Added portable JSON-file persistence adapter with atomic replacement.
   - Added restart/persistence and acknowledgement integration tests.
   - Storage remains free of Scheduling/P6, Calendar, Progress/EVM, Resource/Cost and financial calculations.
+
+- 33.4.49 Synchronization Transport & Retry Contract: implemented.
+  - Added typed sync dispositions: acknowledged/retry/conflict/rejected.
+  - Added framework-neutral SyncTransport boundary.
+  - Added bounded deterministic exponential RetryPolicy.
+  - Preserved idempotency key and expected revision across retries.
+  - Added integration tests and architecture contract.
