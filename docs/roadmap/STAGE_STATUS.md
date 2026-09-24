@@ -314,3 +314,7 @@ Status: **100%**
 - 33.4.60 Live PostgreSQL CI Integration: workflow and opt-in live connectivity test added.
   - PostgreSQL 16 CI service is provisioned for integration workflow.
   - Actual GitHub Actions success is not yet verified, so runtime stage remains pending verification.
+
+- 33.4.61 Real PostgreSQL Sync-State Integration: workflows and live tests added.
+  - Tests real sync_idempotency round-trip and concurrent same-key requests.
+  - Actual GitHub Actions success is not yet verified; runtime completion remains pending.
