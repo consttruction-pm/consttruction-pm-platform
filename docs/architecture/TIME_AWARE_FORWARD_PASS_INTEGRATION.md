@@ -29,7 +29,7 @@ Unlike the date-only model, a zero-lag FS relationship can continue at the exact
 This stage intentionally does not perform hidden conversions:
 - working-day duration is not converted to hours;
 - working-day lag is not converted to hours;
-- negative working-hour lag is not yet enabled because inverse working-time lag semantics need a dedicated tested contract.
+- negative working-hour lag is supported through inverse working-time arithmetic; no elapsed-clock approximation is used.
 
 These are explicit `NotImplementedError` gates, not silent approximations.
 
@@ -39,6 +39,6 @@ Calendar identity/version and lag-calendar selection come from Shared Core conte
 
 ## Regression coverage
 
-`tests/scheduling/test_time_forward_pass.py` covers working-hour duration across breaks, FS/SS/FF, positive lag, holiday crossing, explicit rejection of implicit day/hour conversion, and the negative-lag integration gate.
+`tests/scheduling/test_time_forward_pass.py` covers working-hour duration across breaks, FS/SS/FF, positive lag, holiday crossing, explicit rejection of implicit day/hour conversion, and signed negative-lag integration and SF coverage.
 
 Runtime CI execution remains unverified.
