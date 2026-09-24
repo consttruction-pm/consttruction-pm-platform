@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from .application_gateway import ApplicationSyncGateway
+from .server_gateway import IdempotentMutationGateway
 from .offline_mutation import OfflineMutation
 
 
@@ -12,6 +13,7 @@ class VersionedSyncEndpoint:
     """Framework-neutral handler for POST /api/v1/sync/mutations."""
 
     gateway: ApplicationSyncGateway
+    idempotency: IdempotentMutationGateway | None = None
 
     def post(self, body: Mapping[str, object], headers: Mapping[str, str]) -> dict[str, object]:
         mutation = OfflineMutation(
@@ -29,7 +31,15 @@ class VersionedSyncEndpoint:
             return {"mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "INVALID_PROJECT_CONTEXT"}
         if headers.get("X-Project-Revision") != str(mutation.expected_revision):
             return {"mutation_id": mutation.mutation_id, "disposition": "conflict", "error_code": "STALE_REVISION"}
-        outcome = self.gateway.submit_mutation(mutation)
+        if self.idempotency is not None:
+            try:
+                outcome = self.idempotency.execute(mutation, self.gateway.submit_mutation(mutation))
+            except ValueError as exc:
+                if str(exc) == "IDEMPOTENCY_KEY_REUSE":
+                    return {"mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "IDEMPOTENCY_KEY_REUSE"}
+                raise
+        else:
+            outcome = self.gateway.submit_mutation(mutation)
         return {
             "contract_version": "sync-outcome.v1",
             "mutation_id": outcome.mutation_id,
