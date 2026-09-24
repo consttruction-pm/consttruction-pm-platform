@@ -42,7 +42,8 @@ def test_application_rejects_unknown_resource_assignment():
         activity_id="A-1", resource_id="R-X",
         planned_units=Decimal("2"), actual_units=Decimal("0"),
     )
-    with pytest.raises(ValueError, match="Unknown resource"):
+    from construction_pm.resources.errors import ApplicationError
+    with pytest.raises(ApplicationError, match="Unknown resource"):
         service.assign_resource(assignment)
 
 
