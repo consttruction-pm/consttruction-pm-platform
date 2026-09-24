@@ -249,3 +249,5 @@ Status: **100%**
   - Added deterministic SyncRunner over durable pending mutations.
   - Only ACKNOWLEDGED removes a mutation; RETRY/CONFLICT/REJECTED remain pending.
   - Added mutation identity verification and integration tests.
+
+- 33.4.41 Client Sync Canonical Export: merged PR #60 (SHA `bec1ab1edf765896b4cc53a65698d168c9612a7d`). Removed the package-level overwrite of the canonical OfflineMutation with the legacy module family while preserving existing sync runner/transport exports; added regression coverage. No scheduling formulas changed. CI verification pending.
