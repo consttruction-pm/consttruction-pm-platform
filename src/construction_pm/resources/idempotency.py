@@ -66,7 +66,12 @@ class InMemoryMutationIdempotencyStore:
                         "IDEMPOTENCY_KEY_REUSE",
                         "Idempotency key was already used for a different mutation",
                     )
-                return replay() if replay is not None else existing.result  # type: ignore[return-value]
+                if replay is None:
+                    raise conflict_error(
+                        "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+                        "A replay callback is required for an already-applied idempotent mutation",
+                    )
+                return replay()
 
             result = mutation()
             self._records[record_key] = IdempotencyRecord(fingerprint, result)
