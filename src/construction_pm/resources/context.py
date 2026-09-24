@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ProjectContext:
+    """Explicit tenant/company/project boundary for application use cases."""
+
+    tenant_id: str
+    company_id: str
+    project_id: str
+
+    def validate(self) -> None:
+        for field_name, value in (
+            ("tenant_id", self.tenant_id),
+            ("company_id", self.company_id),
+            ("project_id", self.project_id),
+        ):
+            if not value or not value.strip():
+                raise ValueError(f"{field_name} is required")
