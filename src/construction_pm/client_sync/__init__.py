@@ -9,6 +9,7 @@ from .session import ClientProjectSession
 from .errors import ClientErrorPresentation, present_stable_error
 from .result import ClientMutationResult, present_mutation_payload
 from .conflict import ConflictResolutionAction, ConflictResolutionRequest, ConflictResolutionService
+from .conflict_presentation import ClientConflictPresentation
 
 __all__ = [
     "OfflineProjectContext",
@@ -30,4 +31,5 @@ __all__ = [
     "ConflictResolutionAction",
     "ConflictResolutionRequest",
     "ConflictResolutionService",
+    "ClientConflictPresentation",
 ]
