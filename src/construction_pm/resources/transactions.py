@@ -1,12 +1,34 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
-from typing import Protocol
+import sqlite3
+from contextlib import AbstractContextManager, contextmanager
+from typing import Iterator, Protocol
 
 
 class TransactionManager(Protocol):
     """Application-level transaction boundary."""
     def transaction(self) -> AbstractContextManager[None]: ...
+
+
+class SQLiteTransactionManager:
+    """Application transaction adapter backed by one SQLite connection."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        if self.connection.in_transaction:
+            yield None
+            return
+        self.connection.execute("BEGIN")
+        try:
+            yield None
+        except Exception:
+            self.connection.rollback()
+            raise
+        else:
+            self.connection.commit()
 
 
 class NoOpTransactionManager:
