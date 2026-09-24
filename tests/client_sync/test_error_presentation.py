@@ -1,4 +1,9 @@
-from construction_pm.client_sync.errors import ClientErrorPresentation, present_stable_error
+from construction_pm.client_sync.adapter import normalize_stable_error
+from construction_pm.client_sync.errors import (
+    ClientErrorPresentation,
+    present_normalized_error,
+    present_stable_error,
+)
 
 
 def error_payload(message="Validation failed"):
@@ -22,6 +27,18 @@ def test_presents_stable_error_without_message_dependency():
     assert first.retryable is False
     assert second.retryable is False
     assert first.message != second.message
+
+
+def test_transport_normalization_feeds_presentation_without_reparsing():
+    normalized = normalize_stable_error(error_payload())
+
+    assert normalized is not None
+    assert present_normalized_error(normalized) == ClientErrorPresentation(
+        category="validation",
+        code="INVALID_ACTIVITY",
+        message="Validation failed",
+        retryable=False,
+    )
 
 
 def test_retryable_is_preserved_as_transport_semantics():
