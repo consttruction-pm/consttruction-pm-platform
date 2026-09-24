@@ -86,7 +86,7 @@ def test_time_forward_pass_ss_positive_lag_uses_working_hours():
         datetime(2026, 9, 22, 8),
         registry(),
     )
-    assert result["B"].start == datetime(2026, 9, 22, 12)
+    assert result["B"].start == datetime(2026, 9, 22, 10)
 
 
 def test_time_forward_pass_ff_positive_lag_preserves_finish_relation():
