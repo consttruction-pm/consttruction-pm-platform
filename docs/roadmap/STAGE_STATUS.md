@@ -259,3 +259,10 @@ Status: **100%**
   - Rejects reuse of an idempotency key for a different mutation fingerprint.
   - Added integration tests.
   - Production HTTP framework wiring, durable server idempotency persistence, authentication/authorization and end-to-end network testing remain open.
+
+- 33.4.52 Conflict Resolution Contract: implemented.
+  - Added shared ConflictContext and ConflictPresentation models.
+  - Added versioned sync-conflict.v1 schema.
+  - Preserved stable error code, expected/actual revision, available actions and opaque details.
+  - Added explicit stale-revision action semantics: discard, refresh_and_retry, defer.
+  - Clients only present conflicts; authoritative refresh/retry and business reconciliation remain Application/Shared Core responsibilities.
