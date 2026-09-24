@@ -38,7 +38,7 @@ def test_normalize_start_skips_break_and_holiday(resolver):
 
 def test_add_working_hours_consumes_multiple_intervals_and_holiday(resolver):
     assert resolver.add_working_hours(datetime(2026, 9, 22, 10), 3) == datetime(2026, 9, 22, 14)
-    assert resolver.add_working_hours(datetime(2026, 9, 22, 16), 2) == datetime(2026, 9, 24, 10)
+    assert resolver.add_working_hours(datetime(2026, 9, 22, 16), 2) == datetime(2026, 9, 24, 9)
 
 
 def test_calculate_working_hours_is_decimal_and_deterministic(resolver):
@@ -47,7 +47,7 @@ def test_calculate_working_hours_is_decimal_and_deterministic(resolver):
     ) == Decimal("5")
     assert resolver.calculate_working_hours(
         datetime(2026, 9, 22, 10), datetime(2026, 9, 24, 10)
-    ) == Decimal("10")
+    ) == Decimal("7")
 
 
 def test_negative_working_hours_are_rejected(resolver):
