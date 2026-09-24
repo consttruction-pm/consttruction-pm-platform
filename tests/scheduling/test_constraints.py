@@ -335,3 +335,36 @@ def test_backward_lower_bound_propagation_rejects_when_successor_would_exceed_pr
             project_finish=date(2026, 9, 25),
             constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))],
         )
+
+
+def test_p6_lower_bound_constraints_affect_early_dates_not_late_dates(resolver):
+    result = schedule(
+        [Activity("A", 1)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 25),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))
+        ],
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 24)
+    assert result.late_activities["A"].start == date(2026, 9, 25)
+    assert result.floats["A"].total_float == 1
+
+
+def test_p6_lower_bound_can_create_negative_total_float_and_criticality(resolver):
+    result = schedule(
+        [Activity("A", 2)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 23),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25))
+        ],
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 25)
+    assert result.late_activities["A"].start == date(2026, 9, 23)
+    assert result.floats["A"].total_float == -2
+    assert result.floats["A"].critical is True
