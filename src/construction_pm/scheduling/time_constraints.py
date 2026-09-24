@@ -133,3 +133,25 @@ def _subtract_duration(
     if duration.unit is not DurationUnit.WORKING_HOUR:
         raise NotImplementedError("time-aware constraints require working-hour duration")
     return resolver.subtract_working_hours(target, duration.value)
+
+
+def validate_time_late_window(
+    activity,
+    start: datetime,
+    finish: datetime,
+    constraints: list[TimeActivityConstraint],
+    registry: CalendarResolverRegistry,
+) -> None:
+    resolver = _resolver(activity, registry)
+    for item in constraints:
+        if item.activity_id != activity.id:
+            continue
+        target = resolver.normalize_start(item.target)
+        if item.type is TimeConstraintType.START_NO_LATER_THAN and start > target:
+            raise TimeConstraintViolation(f"late start no later than violated for {activity.id}")
+        if item.type is TimeConstraintType.FINISH_NO_LATER_THAN and finish > target:
+            raise TimeConstraintViolation(f"late finish no later than violated for {activity.id}")
+        if item.type is TimeConstraintType.MANDATORY_START and start != target:
+            raise TimeConstraintViolation(f"late mandatory start violated for {activity.id}")
+        if item.type is TimeConstraintType.MANDATORY_FINISH and finish != target:
+            raise TimeConstraintViolation(f"late mandatory finish violated for {activity.id}")
