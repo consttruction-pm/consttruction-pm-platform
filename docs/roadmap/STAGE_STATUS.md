@@ -389,3 +389,12 @@ Status: **100% — runtime-verified 2026-09-24**
 - Commit `dad3b10789f3a09e6615be0aa045b63bc583d65d` completes the atomic conflict persistence test correction.
 - GitHub Actions run `36054112830` completed successfully.
 - The atomic conflict persistence regression pack is now runtime-verified; subsequent work can proceed to the next sync production gate.
+
+### Stage 33.4.66 — Cross-Client Parity Regression Gate
+Status: **100% — runtime-verified 2026-09-25**
+- Added `docs/architecture/CLIENT_INTEGRATION_GAP_MATRIX.md` defining the Web/Desktop/Mobile integration boundary and Shared Core calculation authority.
+- Added cross-client regression coverage for shared ProjectContext identity/revision and Scheduling/Progress-EVM/Resource-Cost capability authority.
+- Offline capability remains client-specific while calculation semantics remain Shared Core-owned.
+- GitHub Actions run **36056263616** completed successfully on Python 3.11, 3.12 and 3.13.
+- PostgreSQL Sync State workflow run **36056263748** also completed successfully.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
