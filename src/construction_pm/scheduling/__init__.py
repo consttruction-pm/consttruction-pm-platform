@@ -5,6 +5,7 @@ from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
+from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
 from .relationships import Relationship, RelationshipType, successor_earliest_start
@@ -41,6 +42,10 @@ __all__ = [
     "DurationUnit",
     "TimeQuantity",
     "LagQuantity",
+    "TimeActivity",
+    "TimeRelationship",
+    "TimeScheduledActivity",
+    "time_forward_pass",
     "backward_pass",
     "calculate_floats",
     "forward_pass",
