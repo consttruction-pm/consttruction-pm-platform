@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/resource-assignment/v1",
+  "title": "ResourceAssignment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "activity_id",
+    "resource_id",
+    "planned_units",
+    "actual_units",
+    "remaining_units"
+  ],
+  "properties": {
+    "activity_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resource_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "planned_units": {
+      "type": "string"
+    },
+    "actual_units": {
+      "type": "string"
+    },
+    "remaining_units": {
+      "type": "string"
+    },
+    "planned_cost": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "actual_cost": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remaining_cost": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
