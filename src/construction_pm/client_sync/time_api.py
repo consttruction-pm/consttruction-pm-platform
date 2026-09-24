@@ -42,9 +42,11 @@ class TimeSchedulingAPIPayload:
 
         for activity in self.activities:
             self._required(activity, "activity_id")
-            duration = self._required(activity, "duration_value")
+            duration_value = activity.get("duration_value")
+            if not isinstance(duration_value, str) or not duration_value.strip():
+                raise ValueError("duration_value must be a canonical decimal string")
             try:
-                Decimal(duration)
+                Decimal(duration_value)
             except (InvalidOperation, ValueError):
                 raise ValueError("duration_value must be a canonical decimal string")
             self._enum(activity, "duration_unit", {"working-hour", "working-day"})
@@ -54,9 +56,11 @@ class TimeSchedulingAPIPayload:
             self._required(relationship, "predecessor_id")
             self._required(relationship, "successor_id")
             self._enum(relationship, "type", {"FS", "SS", "FF", "SF"})
-            lag = self._required(relationship, "lag_value")
+            lag_value = relationship.get("lag_value")
+            if not isinstance(lag_value, str) or not lag_value.strip():
+                raise ValueError("lag_value must be a canonical decimal string")
             try:
-                Decimal(lag)
+                Decimal(lag_value)
             except (InvalidOperation, ValueError):
                 raise ValueError("lag_value must be a canonical decimal string")
             self._enum(relationship, "lag_unit", {"working-hour", "working-day"})

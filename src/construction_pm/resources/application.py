@@ -79,6 +79,8 @@ class ResourceApplicationService:
             self.context.validate()
         except ValueError as exc:
             raise context_error("INVALID_PROJECT_CONTEXT", str(exc)) from exc
+        if assignment.planned_units is None or assignment.actual_units is None:
+            raise not_found_error("RESOURCE_NOT_FOUND", f"Unknown resource: {assignment.resource_id}")
         _raise_if_invalid(validate_assignment(assignment))
         (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
             self.context, "assign_resource"
