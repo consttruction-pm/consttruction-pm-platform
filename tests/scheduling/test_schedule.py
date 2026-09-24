@@ -50,14 +50,14 @@ def test_backward_pass_propagates_successor_late_dates_in_branching_network(reso
     assert late["D"].start == date(2026, 9, 25)
     assert late["C"].start == date(2026, 9, 22)
     assert late["A"].start == date(2026, 9, 21)
-    assert late["B"].start == date(2026, 9, 25)
+    assert late["B"].start == date(2026, 9, 24)
 
 
 def test_backward_pass_allows_project_finish_before_early_finish_for_negative_float(resolver):
     activities = [Activity("A", 2)]
     early = forward_pass(activities, [], date(2026, 9, 21), resolver)
     late = backward_pass(activities, [], early, date(2026, 9, 21), resolver)
-    assert late["A"].start == date(2026, 9, 20)
+    assert late["A"].start == date(2026, 9, 18)
 
 
 def test_schedule_calculates_total_and_free_float(resolver):
