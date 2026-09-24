@@ -71,6 +71,51 @@
             "object",
             "null"
           ]
+        },
+        "activity_calendar_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "default_calendar_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "default_calendar_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "inherit_project_calendar": {
+              "type": "boolean"
+            }
+          }
+        },
+        "relationship_lag_calendar_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "default_calendar_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "default_calendar_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "inherit_activity_calendar": {
+              "type": "boolean"
+            },
+            "inherit_project_calendar": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
