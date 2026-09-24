@@ -96,7 +96,7 @@ Status: **100% — complete**
 - Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **20% — in progress; portable Shared Scheduling Core foundation implemented 2026-09-24**
+Status: **25% — in progress; backend sync boundary support added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile must consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -109,7 +109,7 @@ Status: **20% — in progress; portable Shared Scheduling Core foundation implem
 - 33.4.4 security boundary: **backend support complete — provider-independent authorization policy boundary and stable FORBIDDEN error regression coverage**.
 - 33.4.5 cross-client parity: **backend support complete — shared Resource contract version, operation, revision and Decimal serialization parity regression coverage**.
 - 33.4.6 Mobile field client foundation: **scope established**.
-- 33.4.7 Mobile security/sync/device boundary: **scope established**.
+- 33.4.7 Mobile security/sync/device boundary: **backend support complete — client-sync.v1 mutation envelope defines ProjectContext, idempotency and optimistic-revision propagation with regression coverage**.
 - 33.4.8 Portable Shared Scheduling Core foundation: **implemented**.
   - `src/construction_pm/scheduling/calendar.py` provides the framework/UI-independent `WorkingCalendar` and `WorkingTimeResolver`.
   - `add_working_duration`, `subtract_working_duration` and `calculate_duration` are implemented with explicit weekend/holiday handling and deterministic date arithmetic.

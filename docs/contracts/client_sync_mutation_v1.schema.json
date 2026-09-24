@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "construction-pm/client-sync-mutation-v1.json",
+  "title": "Construction PM Client Sync Mutation v1",
+  "type": "object",
+  "required": ["contract_version", "operation", "context", "idempotency_key", "mutation"],
+  "properties": {
+    "contract_version": {"const": "client-sync.v1"},
+    "operation": {"type": "string", "minLength": 1},
+    "context": {
+      "type": "object",
+      "required": ["tenant_id", "company_id", "project_id"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "company_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "expected_revision": {"type": ["integer", "null"], "minimum": 1},
+    "mutation": {"type": "object"}
+  },
+  "additionalProperties": false
+}
