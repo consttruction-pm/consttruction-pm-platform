@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OfflineMutationQueue } from "./mutation-queue.js";
+import { OfflineMutationQueue } from "./mutation-queue.ts";
 
 test("retryAtRevision replaces the expected revision and rotates idempotency", () => {
   const queue = new OfflineMutationQueue();
