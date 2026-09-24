@@ -60,7 +60,7 @@ Status: **100% — complete**
 - No Scheduling/P6 or Progress/EVM semantics changed.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **42% — in progress; backward constraint integration added 2026-09-24**
+Status: **45% — in progress; ALAP/Schedule Options foundation added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -74,19 +74,15 @@ Status: **42% — in progress; backward constraint integration added 2026-09-24*
   - Late-date calculations now accept the same typed ActivityConstraint set used by Forward Pass.
   - Start/Finish No Later Than constraints cap latest dates; Mandatory Start/Finish constraints enforce exact late dates.
   - Lower-bound constraints remain validated against the resulting late window rather than being silently ignored.
-  - `tests/scheduling/test_backward_constraints.py` covers Start/Finish upper bounds, consistent Mandatory Finish, and unknown constraint activity validation.
-  - This remains foundational constraint behavior; full P6 constraint semantics, ALAP, schedule options and time-of-day calendars remain pending.
-  - `src/construction_pm/scheduling/constraints.py` adds typed constraint primitives:
-    - Start No Earlier Than
-    - Start No Later Than
-    - Finish No Earlier Than
-    - Finish No Later Than
-    - Mandatory Start
-    - Mandatory Finish
-  - Forward Pass now accepts optional activity constraints and validates lower/upper date bounds against the same WorkingTimeResolver.
-  - Mandatory/upper-bound conflicts raise deterministic `ConstraintViolation` errors rather than silently changing business dates.
-  - `tests/scheduling/test_constraints.py` covers lower-bound constraints, upper-bound violation, mandatory start and unknown-activity validation.
-  - These are foundational date-constraint primitives, not a claim of complete P6 constraint-option parity. Backward-pass constraint integration, ALAP behavior, full P6 constraint semantics, schedule options and richer calendars remain pending.
+  - Foundational constraint regression tests cover upper bounds, Mandatory Finish, and unknown constraint activity validation.
+- 33.4.13 ALAP / Schedule Options foundation: **implemented**.
+  - Added typed `ScheduleMode.EARLIEST` and `ScheduleMode.ALAP`.
+  - Added `ScheduleOptions` so scheduling mode is explicit and deterministic.
+  - ALAP selects the calculated late schedule while preserving early schedule, late schedule and float/critical-path analysis in the result.
+  - Default behavior remains EARLIEST/normal CPM output.
+  - Added regression tests for ALAP selection and default earliest mode.
+- A missing `validate_upper_bound` constraint helper used by Forward Pass was also reconciled into the Shared Core.
+- This is still foundational scheduling behavior. Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
 - Tracking issue: #26.
 
