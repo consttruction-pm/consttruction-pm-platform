@@ -174,12 +174,13 @@ def apply_latest_constraint(
 ) -> date:
     target = _target(constraint, resolver)
 
+    # P6 semantics: Start/Finish No Earlier Than are early-date constraints.
+    # They affect the forward pass and reduce float; they do not move late dates.
     if constraint.type is ConstraintType.START_NO_EARLIER_THAN:
-        return max(late_start, target)
+        return late_start
 
     if constraint.type is ConstraintType.FINISH_NO_EARLIER_THAN:
-        earliest_start = resolver.subtract_working_duration(target, duration)
-        return max(late_start, earliest_start)
+        return late_start
 
     if constraint.type is ConstraintType.START_NO_LATER_THAN:
         return min(late_start, target)
@@ -223,6 +224,41 @@ def validate_upper_bound(
     if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
         raise ConstraintViolation(
             f"finish no later than constraint violated for {constraint.activity_id}"
+        )
+
+
+def validate_late_constraint_window(
+    constraint: ActivityConstraint,
+    start: date,
+    finish: date,
+    resolver: WorkingTimeResolver,
+) -> None:
+    """Validate only constraints that govern P6 late dates.
+
+    Start/Finish No Earlier Than are early-date constraints in P6 and therefore
+    must not reject a late date that precedes the early-date constraint target.
+    Start/Finish No Later Than and Mandatory constraints remain applicable.
+    """
+    target = _target(constraint, resolver)
+
+    if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
+        raise ConstraintViolation(
+            f"start no later than constraint violated for {constraint.activity_id}"
+        )
+
+    if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
+        raise ConstraintViolation(
+            f"finish no later than constraint violated for {constraint.activity_id}"
+        )
+
+    if constraint.type is ConstraintType.MANDATORY_START and start != target:
+        raise ConstraintViolation(
+            f"mandatory start constraint violated for {constraint.activity_id}"
+        )
+
+    if constraint.type is ConstraintType.MANDATORY_FINISH and finish != target:
+        raise ConstraintViolation(
+            f"mandatory finish constraint violated for {constraint.activity_id}"
         )
 
 
