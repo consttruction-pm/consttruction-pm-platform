@@ -53,7 +53,6 @@ class InMemoryOfflineMutationQueue:
 
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
-        was_in_transaction = self.connection.in_transaction
         key = _queue_key(mutation)
         with self._lock:
             existing = self._items.get(key)
@@ -159,6 +158,7 @@ class SQLiteOfflineMutationQueue:
 
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
+        was_in_transaction = self.connection.in_transaction
         key = _queue_key(mutation)
         row = self.connection.execute(
             """SELECT payload FROM offline_mutation_queue
