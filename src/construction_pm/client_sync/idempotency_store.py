@@ -25,3 +25,16 @@ class InMemoryDurableIdempotencyStore:
         if existing is not None and existing.fingerprint != record.fingerprint:
             raise ValueError("IDEMPOTENCY_KEY_REUSE")
         self._records[key] = record
+
+    # Compatibility aliases for the persistence-backed sync gateway.
+    def get_idempotency(self, tenant_id: str, project_id: str, idempotency_key: str) -> IdempotencyRecord | None:
+        return self.get(tenant_id, project_id, idempotency_key)
+
+    def put_idempotency(self, record: IdempotencyRecord) -> None:
+        self.put(record)
+
+    def save_conflict(self, mutation_id: str, tenant_id: str, project_id: str, conflict) -> None:
+        return None
+
+    def get_conflict(self, mutation_id: str, tenant_id: str, project_id: str):
+        return None
