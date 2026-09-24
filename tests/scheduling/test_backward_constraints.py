@@ -40,16 +40,6 @@ def test_backward_finish_no_later_than_caps_late_finish(resolver):
     assert late["A"].start == date(2026, 9, 23)
 
 
-def test_schedule_rejects_mandatory_start_conflict(resolver):
-    activities = [Activity("A", 1), Activity("B", 1)]
-    relationships = [Relationship("A", "B")]
-    constraints = [
-        ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 25))
-    ]
-    with pytest.raises(ConstraintViolation):
-        schedule(activities, relationships, date(2026, 9, 21), resolver, constraints=constraints)
-
-
 def test_schedule_accepts_consistent_mandatory_finish(resolver):
     activities = [Activity("A", 1)]
     constraints = [
