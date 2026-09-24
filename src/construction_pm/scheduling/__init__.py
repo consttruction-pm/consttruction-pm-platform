@@ -5,7 +5,15 @@ from .calendar import WorkingCalendar, WorkingTimeResolver
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
 from .relationships import Relationship, RelationshipType, successor_earliest_start
-from .schedule import FloatActivity, ScheduleResult, backward_pass, calculate_floats, schedule
+from .schedule import (
+    FloatActivity,
+    ScheduleMode,
+    ScheduleOptions,
+    ScheduleResult,
+    backward_pass,
+    calculate_floats,
+    schedule,
+)
 
 __all__ = [
     "Activity",
@@ -15,6 +23,8 @@ __all__ = [
     "FloatActivity",
     "Relationship",
     "RelationshipType",
+    "ScheduleMode",
+    "ScheduleOptions",
     "ScheduleResult",
     "ScheduledActivity",
     "SchedulingCycleError",
