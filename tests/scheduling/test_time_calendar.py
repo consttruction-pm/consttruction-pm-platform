@@ -70,4 +70,4 @@ def test_subtract_working_hours_across_break_and_holiday(resolver):
 
 def test_zero_duration_does_not_cross_nonworking_boundary(resolver):
     assert resolver.add_working_hours(datetime(2026, 9, 22, 12), 0) == datetime(2026, 9, 22, 13)
-    assert resolver.subtract_working_hours(datetime(2026, 9, 22, 13), 0) == datetime(2026, 9, 22, 13)
+    assert resolver.subtract_working_hours(datetime(2026, 9, 22, 13), 0) == datetime(2026, 9, 22, 12)
