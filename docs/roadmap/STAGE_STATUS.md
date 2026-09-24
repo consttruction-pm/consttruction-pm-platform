@@ -154,3 +154,5 @@ Status: **100%**
   - Schedule mode remains an explicit application-level contract; no client-specific constraint logic was introduced.
   - Remaining gates: formal time-aware schedule-options contract, complete portability for per-activity time data/constraints, cross-client API regression pack, and final P6 time-based parity certification.
   - Runtime CI remains unverified.
+
+- 33.4.33 Time-Aware Client Integration & Portability Contract: implemented. Portable calculation context now carries time scheduling options and datetime constraints; Web/Desktop/Mobile parity rules are documented; Shared Core remains authoritative. Remaining gates are typed API DTOs, cross-client parity fixtures, offline portability round-trip tests, and final P6 time-aware parity review. Runtime CI remains unverified.
