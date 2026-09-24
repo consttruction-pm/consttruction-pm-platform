@@ -44,3 +44,9 @@ Status: **100%**
 - No Scheduling/P6, Progress/EVM core, or Shared Calculation Core semantics were changed.
 
 **Next point: Stage 33.2 — cross-module integration and portability checks within Developer 1 backend/database/integration-support scope.**
+
+### Stage 33.2 — Cross-Module Integration & Project Portability
+Status: **5% — started**
+- Integration/portability contract documented.
+- Current review branch lineage checked against main: divergent; reconciliation is required before integration.
+- Next implementation item: reconcile the approved resource persistence changes onto current main, then implement context isolation, transaction contract, typed integration, portability and cross-module regression coverage.
