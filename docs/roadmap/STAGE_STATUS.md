@@ -173,17 +173,18 @@ Status: **100%**
   - Runtime CI execution remains unverified.
 
 
-- 33.4.37 CI Regression Execution Gate: CI workflow added at `.github/workflows/ci.yml`.
-  - Runs the full pytest suite on Python 3.11, 3.12 and 3.13 for pushes to main and pull requests targeting main.
-  - Installs the project through the declared `.[test]` extra, so the CI environment follows the repository's packaging contract.
-  - Stage 33.4 remains 99% until an actual workflow run completes successfully and any failures are reviewed.
+- 33.4.37 CI Regression Execution Gate: **completed — runtime-verified 2026-09-24**.
+  - GitHub Actions ConstructionPM CI run **36072663120** completed successfully for commit `170b1f92c2aa1a30fd89f3c3262f0e3710403e8e`.
+  - The full pytest suite passed on Python 3.11, 3.12 and 3.13 after resolving the application-gateway delegate contract regression.
+  - The follow-up Client Typecheck run **36072663128** also completed successfully.
+  - The CI gate is now runtime-verified; no further 33.4.37 work is pending.
 
 
 - 33.4.38 Contract/CI Hardening: implemented.
   - Added CI regression workflow for Python 3.11–3.13.
   - Added integration coverage ensuring all shared JSON contract files parse as JSON objects and declare schema/title metadata.
   - Added an explicit regression check for the versioned time-scheduling contract identity.
-  - Stage 33.4 remains 99% until GitHub Actions produces a successful full-suite run and the resulting test evidence is reviewed.
+  - GitHub Actions full-suite execution is now runtime-verified by ConstructionPM CI run **36072663120**; the prior 99% verification hold is cleared.
 
 - 33.4.37 Typed Time-Aware API Contract Regression: implemented and merged in PR #55 (SHA `5b8c1b2bdb1743ed841d1c6d1cc4081afc64fb95`). Added a typed versioned API payload for calculation context, time durations, FS/SS/FF/SF lag/lead, and the six datetime constraint DTOs; JSON schema and regression tests updated. No scheduling formulas or client UI logic changed. Runtime CI remains unverified.
 
