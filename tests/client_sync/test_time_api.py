@@ -40,3 +40,30 @@ def test_time_api_payload_rejects_missing_schedule_mode():
         assert "schedule_mode" in str(exc)
     else:
         raise AssertionError("expected missing schedule mode")
+
+
+def test_time_api_payload_rejects_non_decimal_duration_and_invalid_constraint_type():
+    payload = _payload()
+    broken = TimeSchedulingAPIPayload(payload.calculation_context,
+        ({"activity_id": "A1", "duration_value": 2.5, "duration_unit": "working-hour",
+          "calendar": {"calendar_id": "site", "calendar_version": "3", "kind": "working-time"}},),
+        payload.relationships,
+        ({"activity_id": "A1", "type": "UNKNOWN", "target": "2026-09-24T08:00:00"},))
+    try:
+        broken.validate()
+    except ValueError as exc:
+        assert "canonical decimal string" in str(exc)
+    else:
+        raise AssertionError("expected schema-aligned validation failure")
+
+
+def test_time_api_payload_rejects_invalid_datetime_and_calendar_shape():
+    payload = _payload()
+    bad_context = {"schedule_mode": "EARLIEST", "project_start": "not-a-date"}
+    broken = TimeSchedulingAPIPayload(bad_context, payload.activities, payload.relationships)
+    try:
+        broken.validate()
+    except ValueError as exc:
+        assert "ISO-8601" in str(exc)
+    else:
+        raise AssertionError("expected datetime validation failure")
