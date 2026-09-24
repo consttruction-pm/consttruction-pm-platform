@@ -53,3 +53,21 @@ def test_calculate_working_hours_is_decimal_and_deterministic(resolver):
 def test_negative_working_hours_are_rejected(resolver):
     with pytest.raises(ValueError):
         resolver.add_working_hours(datetime(2026, 9, 22, 8), -1)
+
+
+def test_normalize_finish_preserves_interval_end_and_normalizes_after_break(resolver):
+    assert resolver.normalize_finish(datetime(2026, 9, 22, 12)) == datetime(2026, 9, 22, 12)
+    assert resolver.normalize_finish(datetime(2026, 9, 22, 12, 30)) == datetime(2026, 9, 22, 12)
+
+
+def test_add_working_hours_from_interval_end_crosses_break(resolver):
+    assert resolver.add_working_hours(datetime(2026, 9, 22, 12), 1) == datetime(2026, 9, 22, 14)
+
+
+def test_subtract_working_hours_across_break_and_holiday(resolver):
+    assert resolver.subtract_working_hours(datetime(2026, 9, 24, 9), 2) == datetime(2026, 9, 22, 16)
+
+
+def test_zero_duration_does_not_cross_nonworking_boundary(resolver):
+    assert resolver.add_working_hours(datetime(2026, 9, 22, 12), 0) == datetime(2026, 9, 22, 12)
+    assert resolver.subtract_working_hours(datetime(2026, 9, 22, 13), 0) == datetime(2026, 9, 22, 13)
