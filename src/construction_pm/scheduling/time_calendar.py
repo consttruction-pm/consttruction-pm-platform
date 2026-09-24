@@ -76,7 +76,7 @@ class TimeAwareWorkingTimeResolver:
             intervals = self.calendar.intervals_for(cursor.date())
             for start, end in reversed(intervals):
                 if cursor.time() >= end:
-                    return datetime.combine(cursor.date(), end) - timedelta(microseconds=1)
+                    return datetime.combine(cursor.date(), end)
                 if start <= cursor.time() < end:
                     return cursor
             cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
