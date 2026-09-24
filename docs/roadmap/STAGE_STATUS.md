@@ -336,3 +336,5 @@ Status: **100%**
   - Added explicit conflict persistence integration point.
   - Preserved mutation identity, revision context, stable error code and actions.
   - Full database atomicity between outcome and conflict rows remains the next integration gate.
+
+- 33.4.56 Backend CI Contract Regression Pack: merged PR #66 (SHA `69d3b0885812b688dc9a49b1e7b57b7edddeedaa`). Fixed offline retry transaction ownership, typed decimal time API validation, tenant/project/key-scoped sync idempotency records and stable reuse errors, missing-assignment error mapping, and resource migration schema version. No Scheduling/P6 calculations changed.
