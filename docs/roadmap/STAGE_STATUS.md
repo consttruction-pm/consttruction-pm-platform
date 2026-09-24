@@ -310,3 +310,7 @@ Status: **100%**
   - Added PostgreSQL transaction manager with commit/rollback semantics.
   - Added deterministic parallel concurrency harness.
   - Live PostgreSQL execution and true race-condition verification remain a production CI gate.
+
+- 33.4.60 Live PostgreSQL CI Integration: workflow and opt-in live connectivity test added.
+  - PostgreSQL 16 CI service is provisioned for integration workflow.
+  - Actual GitHub Actions success is not yet verified, so runtime stage remains pending verification.
