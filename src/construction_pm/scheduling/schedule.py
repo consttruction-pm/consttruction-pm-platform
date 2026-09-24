@@ -58,7 +58,7 @@ class ScheduleResult:
 def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
     if lag >= 0:
         return resolver.previous_working_day(
-            resolver.subtract_working_duration(successor_event, lag)
+            resolver.subtract_working_duration(successor_event, lag + 1)
         )
     return resolver.next_working_day(
         resolver.add_working_duration(successor_event, -lag)
