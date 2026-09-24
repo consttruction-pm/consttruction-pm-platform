@@ -9,10 +9,13 @@ export interface ClientSyncTransport {
 }
 
 export class ClientSyncRunner {
-  constructor(
-    private readonly queue: OfflineMutationQueue,
-    private readonly transport: ClientSyncTransport,
-  ) {}
+  private readonly queue: OfflineMutationQueue;
+  private readonly transport: ClientSyncTransport;
+
+  constructor(queue: OfflineMutationQueue, transport: ClientSyncTransport) {
+    this.queue = queue;
+    this.transport = transport;
+  }
 
   async runOnce(): Promise<readonly SyncOutcome[]> {
     const outcomes: SyncOutcome[] = [];
