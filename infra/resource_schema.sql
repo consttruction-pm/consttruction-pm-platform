@@ -1,5 +1,5 @@
 -- Portable baseline schema for Resource/Cost persistence.
--- Schema version: 2
+-- Schema version: 3
 
 CREATE TABLE IF NOT EXISTS resource_schema_version (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -38,10 +38,11 @@ CREATE TABLE IF NOT EXISTS resource_assignments (
     planned_cost TEXT,
     actual_cost TEXT,
     remaining_cost TEXT,
+    revision INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (activity_id, resource_id),
     FOREIGN KEY (resource_id) REFERENCES resources(id)
 );
 
 INSERT INTO resource_schema_version (id, version)
-VALUES (1, 2)
+VALUES (1, 3)
 ON CONFLICT(id) DO UPDATE SET version=excluded.version;

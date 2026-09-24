@@ -4,24 +4,46 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.resources.models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
+from construction_pm.resources.models import (
+    CostBasis,
+    Resource,
+    ResourceAssignment,
+    ResourceRate,
+    ResourceType,
+)
 from construction_pm.resources.persistence import OptimisticLockError, SQLiteResourceRepository
 
 
 def make_resource(resource_id: str = "r1") -> Resource:
     return Resource(
-        id=resource_id, code="LAB-01", name="Crew", resource_type=ResourceType.LABOR, unit="hour",
-        rates=[ResourceRate(rate=Decimal("125.50"), basis=CostBasis.PER_HOUR, currency="USD",
-                            effective_from=date(2026, 1, 1), version=2)],
+        id=resource_id,
+        code="LAB-01",
+        name="Crew",
+        resource_type=ResourceType.LABOR,
+        unit="hour",
+        rates=[
+            ResourceRate(
+                rate=Decimal("125.50"),
+                basis=CostBasis.PER_HOUR,
+                currency="USD",
+                effective_from=date(2026, 1, 1),
+                version=2,
+            )
+        ],
     )
 
 
 def test_resource_and_assignment_round_trip() -> None:
     repo = SQLiteResourceRepository(sqlite3.connect(":memory:"))
     resource = make_resource()
-    assignment = ResourceAssignment(activity_id="a1", resource_id="r1", planned_units=Decimal("10.25"),
-                                    actual_units=Decimal("4.25"), remaining_units=Decimal("6.00"),
-                                    planned_cost=Decimal("1286.375"))
+    assignment = ResourceAssignment(
+        activity_id="a1",
+        resource_id="r1",
+        planned_units=Decimal("10.25"),
+        actual_units=Decimal("4.25"),
+        remaining_units=Decimal("6.00"),
+        planned_cost=Decimal("1286.375"),
+    )
     with repo.transaction():
         repo.save_resource(resource)
         repo.save_assignment(assignment)
@@ -34,7 +56,13 @@ def test_transaction_rolls_back_resource_and_assignment_together() -> None:
     with pytest.raises(sqlite3.IntegrityError):
         with repo.transaction():
             repo.save_resource(make_resource())
-            repo.save_assignment(ResourceAssignment(activity_id="a1", resource_id="missing", planned_units=Decimal("1")))
+            repo.save_assignment(
+                ResourceAssignment(
+                    activity_id="a1",
+                    resource_id="missing",
+                    planned_units=Decimal("1"),
+                )
+            )
     assert repo.get_resource("r1") is None
     assert repo.list_assignments() == []
 
@@ -43,16 +71,38 @@ def test_decimal_values_are_stored_as_exact_text() -> None:
     connection = sqlite3.connect(":memory:")
     repo = SQLiteResourceRepository(connection)
     repo.save_resource(make_resource())
-    repo.save_assignment(ResourceAssignment(activity_id="a1", resource_id="r1",
-                                            planned_units=Decimal("10.2500"), actual_units=Decimal("4.2500")))
-    assert connection.execute("SELECT planned_units, actual_units FROM resource_assignments").fetchone() == ("10.2500", "4.2500")
+    repo.save_assignment(
+        ResourceAssignment(
+            activity_id="a1",
+            resource_id="r1",
+            planned_units=Decimal("10.2500"),
+            actual_units=Decimal("4.2500"),
+        )
+    )
+    assert connection.execute(
+        "SELECT planned_units, actual_units FROM resource_assignments"
+    ).fetchone() == ("10.2500", "4.2500")
 
 
 def test_versioned_resource_rate_round_trip() -> None:
     repo = SQLiteResourceRepository(sqlite3.connect(":memory:"))
-    resource = Resource(id="r2", code="MAT-01", name="Concrete", resource_type=ResourceType.MATERIAL, unit="m3",
-                        rates=[ResourceRate(rate=Decimal("99.95"), basis=CostBasis.PER_UNIT, currency="EUR",
-                                            effective_from=date(2026, 2, 1), effective_to=date(2026, 12, 31), version=7)])
+    resource = Resource(
+        id="r2",
+        code="MAT-01",
+        name="Concrete",
+        resource_type=ResourceType.MATERIAL,
+        unit="m3",
+        rates=[
+            ResourceRate(
+                rate=Decimal("99.95"),
+                basis=CostBasis.PER_UNIT,
+                currency="EUR",
+                effective_from=date(2026, 2, 1),
+                effective_to=date(2026, 12, 31),
+                version=7,
+            )
+        ],
+    )
     repo.save_resource(resource)
     assert repo.get_resource("r2") == resource
 
@@ -63,13 +113,61 @@ def test_optimistic_revision_rejects_stale_update() -> None:
     repo.save_resource(resource)
     revision = repo.get_resource_revision("r1")
     assert revision == 1
-    updated = Resource(id=resource.id, code=resource.code, name="Crew Updated",
-                       resource_type=resource.resource_type, unit=resource.unit, rates=resource.rates,
-                       calendar_id=resource.calendar_id, active=resource.active)
+    updated = Resource(
+        id=resource.id,
+        code=resource.code,
+        name="Crew Updated",
+        resource_type=resource.resource_type,
+        unit=resource.unit,
+        rates=resource.rates,
+        calendar_id=resource.calendar_id,
+        active=resource.active,
+    )
     repo.save_resource(updated, expected_revision=revision)
     assert repo.get_resource_revision("r1") == 2
     with pytest.raises(OptimisticLockError):
         repo.save_resource(resource, expected_revision=revision)
+
+
+def test_assignment_optimistic_revision_rejects_stale_update() -> None:
+    repo = SQLiteResourceRepository(sqlite3.connect(":memory:"))
+    repo.save_resource(make_resource())
+    assignment = ResourceAssignment(
+        activity_id="a1",
+        resource_id="r1",
+        planned_units=Decimal("10"),
+        actual_units=Decimal("4"),
+    )
+    repo.save_assignment(assignment)
+    revision = repo.get_assignment_revision("a1", "r1")
+    assert revision == 1
+
+    updated = ResourceAssignment(
+        activity_id="a1",
+        resource_id="r1",
+        planned_units=Decimal("10"),
+        actual_units=Decimal("5"),
+    )
+    repo.save_assignment(updated, expected_revision=revision)
+    assert repo.get_assignment_revision("a1", "r1") == 2
+
+    with pytest.raises(OptimisticLockError):
+        repo.save_assignment(assignment, expected_revision=revision)
+
+
+def test_assignment_revision_increments_on_unconditional_upsert() -> None:
+    repo = SQLiteResourceRepository(sqlite3.connect(":memory:"))
+    repo.save_resource(make_resource())
+    assignment = ResourceAssignment(
+        activity_id="a1",
+        resource_id="r1",
+        planned_units=Decimal("10"),
+        actual_units=Decimal("4"),
+    )
+    repo.save_assignment(assignment)
+    assert repo.get_assignment_revision("a1", "r1") == 1
+    repo.save_assignment(assignment)
+    assert repo.get_assignment_revision("a1", "r1") == 2
 
 
 def test_transaction_configuration_is_explicit_and_rollback_safe() -> None:
@@ -79,3 +177,57 @@ def test_transaction_configuration_is_explicit_and_rollback_safe() -> None:
             repo.save_resource(make_resource())
             raise RuntimeError("abort")
     assert repo.get_resource("r1") is None
+
+
+def test_legacy_assignment_schema_is_migrated_to_revision() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.executescript(
+        """
+        CREATE TABLE resource_schema_version (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            version INTEGER NOT NULL
+        );
+        CREATE TABLE resources (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL,
+            name TEXT NOT NULL,
+            resource_type TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            calendar_id TEXT,
+            active INTEGER NOT NULL,
+            revision INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE resource_rates (
+            resource_id TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            rate TEXT NOT NULL,
+            basis TEXT NOT NULL,
+            currency TEXT NOT NULL,
+            effective_from TEXT,
+            effective_to TEXT,
+            PRIMARY KEY (resource_id, version)
+        );
+        CREATE TABLE resource_assignments (
+            activity_id TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            planned_units TEXT NOT NULL,
+            actual_units TEXT NOT NULL,
+            remaining_units TEXT,
+            planned_cost TEXT,
+            actual_cost TEXT,
+            remaining_cost TEXT,
+            PRIMARY KEY (activity_id, resource_id)
+        );
+        INSERT INTO resource_schema_version VALUES (1, 2);
+        """
+    )
+    repo = SQLiteResourceRepository(connection)
+    columns = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(resource_assignments)").fetchall()
+    }
+    assert "revision" in columns
+    assert connection.execute(
+        "SELECT version FROM resource_schema_version WHERE id = 1"
+    ).fetchone() == (3,)
+    assert repo.get_assignment_revision("missing", "resource") is None
