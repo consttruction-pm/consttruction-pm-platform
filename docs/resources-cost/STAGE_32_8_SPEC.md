@@ -99,3 +99,13 @@ Status: **70%**
 - Date and boolean coercion rules implemented.
 - Pytest coverage added.
 - XLSX workbook writer/reader remains the next implementation step.
+
+
+### 32.8.12 — XLSX I/O
+Status: **100% implementation complete**
+- Real XLSX export/import implemented with openpyxl.
+- Resources and Assignments are separate typed sheets.
+- Schema version is embedded in the workbook.
+- Assignment numeric values round-trip through Decimal.
+- Header/schema validation is enforced.
+- Pytest round-trip coverage added.
