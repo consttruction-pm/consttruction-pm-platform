@@ -126,7 +126,14 @@ class SQLiteOfflineMutationQueue:
             )
             self._commit_if_owned()
         except sqlite3.IntegrityError as exc:
-            raise ValueError("offline mutation key already exists") from exc
+            row = self.connection.execute(
+                """SELECT payload FROM offline_mutation_queue
+                WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?""",
+                _queue_key(mutation),
+            ).fetchone()
+            if row is not None and self._decode(row[0]).fingerprint_payload() == mutation.fingerprint_payload():
+                return
+            raise ValueError("offline mutation key already contains a different mutation") from exc
 
     def peek(self, limit: int = 1) -> list[OfflineMutation]:
         if limit < 1:
