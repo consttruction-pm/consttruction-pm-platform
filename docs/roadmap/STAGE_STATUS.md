@@ -118,3 +118,12 @@ Status: **100%**
   - Added regression tests in tests/scheduling/test_time_forward_pass.py.
   - Web/Desktop/Mobile remain consumers of Shared Core; no client scheduling logic is introduced.
   - Runtime CI execution remains unverified.
+
+- 33.4.30 Time-Aware Forward Pass Integration: implemented.
+  - Added/updated the executable time-aware Forward Pass path using explicit TimeActivity, TimeRelationship, TimeQuantity and LagQuantity contracts.
+  - FS/SS/FF/SF are supported with working-hour positive, zero and negative lag through the authoritative lag calendar.
+  - Negative lag uses inverse working-time arithmetic; no elapsed-clock approximation is used.
+  - Time-aware finish boundaries use half-open working intervals, so an FS-zero successor normalizes through breaks/non-working periods correctly.
+  - Added SF and negative-lag regression coverage.
+  - Date-based Forward Pass remains unchanged for compatibility.
+  - Remaining gates: time-aware Backward Pass/Float, constraints, schedule options/criticality parity, portability round-trip tests and CI verification.
