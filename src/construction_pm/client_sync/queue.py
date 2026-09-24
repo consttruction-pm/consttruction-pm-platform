@@ -14,6 +14,7 @@ class OfflineMutationQueue(Protocol):
     def peek(self, limit: int = 1) -> list[OfflineMutation]: ...
     def remove(self, mutation: OfflineMutation) -> None: ...
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation: ...
+    def defer(self, mutation: OfflineMutation) -> None: ...
 
 
 def _queue_key(mutation: OfflineMutation) -> tuple[str, str, str, str, str]:
@@ -29,27 +30,43 @@ def _queue_key(mutation: OfflineMutation) -> tuple[str, str, str, str, str]:
 class InMemoryOfflineMutationQueue:
     def __init__(self) -> None:
         self._items: dict[tuple[str, str, str, str, str], OfflineMutation] = {}
+        self._deferred: set[tuple[str, str, str, str, str]] = set()
         self._lock = RLock()
 
     def enqueue(self, mutation: OfflineMutation) -> None:
         mutation.validate()
-        key = (mutation.context.tenant_id, mutation.context.company_id, mutation.context.project_id, mutation.operation, mutation.idempotency_key)
+        key = _queue_key(mutation)
         with self._lock:
             existing = self._items.get(key)
             if existing is not None and existing.fingerprint_payload() != mutation.fingerprint_payload():
                 raise ValueError("offline mutation key already contains a different mutation")
             self._items[key] = mutation
+            self._deferred.discard(key)
 
     def peek(self, limit: int = 1) -> list[OfflineMutation]:
         if limit < 1:
             raise ValueError("limit must be positive")
         with self._lock:
-            return list(self._items.values())[:limit]
+            return [
+                mutation
+                for key, mutation in self._items.items()
+                if key not in self._deferred
+            ][:limit]
 
     def remove(self, mutation: OfflineMutation) -> None:
         mutation.validate()
+        key = _queue_key(mutation)
         with self._lock:
-            self._items.pop(_queue_key(mutation), None)
+            self._items.pop(key, None)
+            self._deferred.discard(key)
+
+    def defer(self, mutation: OfflineMutation) -> None:
+        mutation.validate()
+        key = _queue_key(mutation)
+        with self._lock:
+            if key not in self._items:
+                raise KeyError("offline mutation is not queued")
+            self._deferred.add(key)
 
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
@@ -58,6 +75,8 @@ class InMemoryOfflineMutationQueue:
             existing = self._items.get(key)
             if existing is None:
                 raise KeyError("offline mutation is not queued")
+            if key in self._deferred:
+                raise ValueError("offline mutation is deferred")
             updated = OfflineMutation(
                 context=existing.context,
                 operation=existing.operation,
@@ -77,9 +96,20 @@ class SQLiteOfflineMutationQueue:
             """CREATE TABLE IF NOT EXISTS offline_mutation_queue (
                 tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL,
                 operation TEXT NOT NULL, idempotency_key TEXT NOT NULL,
-                payload TEXT NOT NULL, PRIMARY KEY (tenant_id, company_id, project_id, operation, idempotency_key)
+                payload TEXT NOT NULL, deferred INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (tenant_id, company_id, project_id, operation, idempotency_key)
             )"""
         )
+        columns = {
+            row[1]
+            for row in self.connection.execute(
+                "PRAGMA table_info(offline_mutation_queue)"
+            ).fetchall()
+        }
+        if "deferred" not in columns:
+            self.connection.execute(
+                "ALTER TABLE offline_mutation_queue ADD COLUMN deferred INTEGER NOT NULL DEFAULT 0"
+            )
         self.connection.commit()
 
     @staticmethod
@@ -139,7 +169,8 @@ class SQLiteOfflineMutationQueue:
         if limit < 1:
             raise ValueError("limit must be positive")
         rows = self.connection.execute(
-            "SELECT payload FROM offline_mutation_queue ORDER BY rowid LIMIT ?", (limit,)
+            "SELECT payload FROM offline_mutation_queue WHERE deferred=0 ORDER BY rowid LIMIT ?",
+            (limit,),
         ).fetchall()
         return [self._decode(raw) for (raw,) in rows]
 
@@ -152,16 +183,30 @@ class SQLiteOfflineMutationQueue:
         )
         self._commit_if_owned()
 
+    def defer(self, mutation: OfflineMutation) -> None:
+        mutation.validate()
+        key = _queue_key(mutation)
+        cursor = self.connection.execute(
+            """UPDATE offline_mutation_queue SET deferred=1
+            WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?""",
+            key,
+        )
+        if cursor.rowcount == 0:
+            raise KeyError("offline mutation is not queued")
+        self._commit_if_owned()
+
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
         key = _queue_key(mutation)
         row = self.connection.execute(
-            """SELECT payload FROM offline_mutation_queue
+            """SELECT payload, deferred FROM offline_mutation_queue
             WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?""",
             key,
         ).fetchone()
         if row is None:
             raise KeyError("offline mutation is not queued")
+        if row[1]:
+            raise ValueError("offline mutation is deferred")
         existing = self._decode(row[0])
         updated = OfflineMutation(
             context=existing.context,
