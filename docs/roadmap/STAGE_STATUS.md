@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **89% — in progress; Stage 33.4.28 time-based duration/lag contract established 2026-09-24**
+Status: **92% — in progress; Stage 33.4.29 calendar resolution contract established 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -92,3 +92,11 @@ Status: **100%**
   - Calendar conversion remains authoritative in the Shared Core resolver; no fixed 8-hours-per-day assumption was introduced.
   - Existing date-based Activity/Relationship/CPM APIs remain compatible and are not silently changed.
   - Full time-aware Forward/Backward/Float integration remains the next gate; runtime CI remains unverified.
+
+- 33.4.29 Activity & Relationship-Lag Calendar Resolution: implemented as the authoritative calendar-selection foundation.
+  - Added versioned CalendarReference and SchedulingCalendarContext for project/activity/relationship-lag scopes.
+  - Added CalendarResolverRegistry; requested calendar versions never silently fall back to another version.
+  - Added portability fields for activity-calendar and relationship-lag-calendar policies.
+  - Added regression tests for inheritance, explicit lag calendar, version isolation and invalid kinds.
+  - Existing CPM date semantics remain unchanged until the time-aware Forward/Backward integration gate is complete.
+  - Runtime CI remains unverified.
