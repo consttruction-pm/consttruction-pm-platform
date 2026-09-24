@@ -186,3 +186,5 @@ Status: **100%**
   - Stage 33.4 remains 99% until GitHub Actions produces a successful full-suite run and the resulting test evidence is reviewed.
 
 - 33.4.37 Typed Time-Aware API Contract Regression: implemented and merged in PR #55 (SHA `5b8c1b2bdb1743ed841d1c6d1cc4081afc64fb95`). Added a typed versioned API payload for calculation context, time durations, FS/SS/FF/SF lag/lead, and the six datetime constraint DTOs; JSON schema and regression tests updated. No scheduling formulas or client UI logic changed. Runtime CI remains unverified.
+
+- 33.4.38 Cross-Client Offline Regression Pack: implemented and merged in PR #56 (SHA `539b76a86abb4e3f87a4233a69e7eca733c76b88`). Added Web/Desktop/Mobile typed DTO parity regression and InMemory/SQLite offline round-trip coverage for ProjectContext, expected revision, idempotency identity and retry metadata. No scheduling formulas changed. Runtime CI remains unverified.
