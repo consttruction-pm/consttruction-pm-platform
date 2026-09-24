@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .models import Resource, ResourceAssignment
+from .transactions import TransactionManager
 from .repository import ResourceRepository
 from .validation import validate_assignment, validate_resource
 
@@ -15,16 +16,19 @@ def _raise_if_invalid(errors: list[str]) -> None:
 @dataclass(frozen=True)
 class ResourceApplicationService:
     repository: ResourceRepository
+    transaction_manager: TransactionManager
 
     def register_resource(self, resource: Resource) -> Resource:
         _raise_if_invalid(validate_resource(resource))
-        return self.repository.save_resource(resource)
+        with self.transaction_manager.transaction():
+            return self.repository.save_resource(resource)
 
     def assign_resource(self, assignment: ResourceAssignment) -> ResourceAssignment:
         _raise_if_invalid(validate_assignment(assignment))
-        if self.repository.get_resource(assignment.resource_id) is None:
-            raise ValueError(f"Unknown resource: {assignment.resource_id}")
-        return self.repository.save_assignment(assignment)
+        with self.transaction_manager.transaction():
+            if self.repository.get_resource(assignment.resource_id) is None:
+                raise ValueError(f"Unknown resource: {assignment.resource_id}")
+            return self.repository.save_assignment(assignment)
 
     def get_resource(self, resource_id: str) -> Resource | None:
         return self.repository.get_resource(resource_id)
