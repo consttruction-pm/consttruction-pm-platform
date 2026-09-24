@@ -27,3 +27,8 @@ The shared client layer owns action validation and queue transitions. Presentati
 `ClientConflictPresentation` provides the framework-neutral view state for Web/Desktop/Mobile. It carries operation, original idempotency key, expected revision, stable error code, retryability, and the shared action set. It deliberately does not carry localized button labels or server error message text; those remain presentation-layer concerns.
 
 The presentation model contract is `client-conflict-presentation.v1`.
+
+
+## Refresh-and-retry session boundary
+
+The refresh-and-retry action may use `ConflictResolutionService.refresh_and_retry_from_session()` only after the `ClientProjectSession.revision` has been established from an authoritative refresh/read response. A missing session revision is rejected. The service requires a fresh idempotency key and preserves the original project context; it does not infer, increment, or rewrite the revision locally.
