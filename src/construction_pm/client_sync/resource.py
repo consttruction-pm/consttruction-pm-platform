@@ -50,5 +50,9 @@ def parse_resource(payload: Mapping[str, object]) -> ClientResourceDTO:
     dto.validate(); return dto
 
 def parse_assignment(payload: Mapping[str, object]) -> ClientResourceAssignmentDTO:
+    decimal_fields = ('planned_units', 'actual_units', 'remaining_units', 'planned_cost', 'actual_cost', 'remaining_cost')
+    for field in decimal_fields:
+        if payload.get(field) is not None and not isinstance(payload.get(field), str):
+            raise ValueError('resource cost/unit values must be decimal strings')
     dto = ClientResourceAssignmentDTO(str(payload['activity_id']), str(payload['resource_id']), str(payload['planned_units']), str(payload['actual_units']), str(payload['remaining_units']), None if payload.get('planned_cost') is None else str(payload['planned_cost']), None if payload.get('actual_cost') is None else str(payload['actual_cost']), None if payload.get('remaining_cost') is None else str(payload['remaining_cost']), int(payload['revision']), str(payload.get('contract_version', '')))
     dto.validate(); return dto
