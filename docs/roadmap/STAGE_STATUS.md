@@ -109,3 +109,12 @@ Status: **100%**
   - Project portability schema now carries versioned calendar assignment references.
   - Web/Desktop/Mobile must consume these references through Shared Core and must not implement local calendar selection semantics.
   - Time-aware CPM integration remains the next gate; runtime CI execution remains unverified.
+
+- 33.4.30 Time-Aware Forward Pass Integration: first real time-based CPM path implemented in Shared Core.
+  - Added TimeActivity, TimeRelationship and TimeScheduledActivity.
+  - Added time_forward_pass using versioned activity and relationship-lag calendar context.
+  - Implemented exact datetime FS/SS/FF/SF boundary semantics for working-hour duration and non-negative working-hour lag.
+  - Explicitly rejects implicit working-day/hour conversion and negative working-hour lag until inverse semantics are separately certified.
+  - Added regression tests in tests/scheduling/test_time_forward_pass.py.
+  - Web/Desktop/Mobile remain consumers of Shared Core; no client scheduling logic is introduced.
+  - Runtime CI execution remains unverified.
