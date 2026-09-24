@@ -193,3 +193,22 @@ def test_consistent_multiple_constraints_remain_deterministic(resolver):
     )
     assert result.early_activities["A"].start == date(2026, 9, 22)
     assert result.late_activities["A"].start == date(2026, 9, 24)
+
+
+def test_multiple_constraints_propagate_through_lagged_fs_network(resolver):
+    activities = [Activity("A", 2), Activity("B", 1), Activity("C", 1)]
+    relationships = [
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        Relationship("B", "C", RelationshipType.FS, lag=1),
+    ]
+    constraints = [
+        ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24)),
+        ActivityConstraint("C", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 9, 29)),
+    ]
+    result = schedule(
+        activities, relationships, date(2026, 9, 21), resolver, constraints=constraints
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["A"].finish == date(2026, 9, 22)
+    assert result.early_activities["B"].start == date(2026, 9, 24)
+    assert result.early_activities["C"].start == date(2026, 9, 29)
