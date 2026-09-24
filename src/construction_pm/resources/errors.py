@@ -21,10 +21,18 @@ class OptimisticLockError(RuntimeError):
 class ApplicationError(Exception):
     """Stable, machine-readable application boundary error."""
 
-    category: ErrorCategory
-    code: str
-    message: str
-    retryable: bool = False
+    def __init__(
+        self,
+        category: ErrorCategory,
+        code: str,
+        message: str,
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.category = category
+        self.code = code
+        self.message = message
+        self.retryable = retryable
 
     def __str__(self) -> str:
         return self.message

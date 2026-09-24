@@ -79,3 +79,14 @@ def test_client_error_contract_is_stable_for_missing_assignment_resource():
     assignment = ResourceAssignment(activity_id="A-1", resource_id="missing", planned_units=None, actual_units=None)
     result = _api().create_assignment(assignment)
     _assert_error(result, "not_found", "RESOURCE_NOT_FOUND")
+
+
+def test_application_error_exposes_stable_fields():
+    from construction_pm.resources.errors import ApplicationError, ErrorCategory, conflict_error
+    error = conflict_error("IDEMPOTENCY_KEY_REUSE", "duplicate mutation")
+    assert isinstance(error, ApplicationError)
+    assert error.category is ErrorCategory.CONFLICT
+    assert error.code == "IDEMPOTENCY_KEY_REUSE"
+    assert error.message == "duplicate mutation"
+    assert error.retryable is False
+    assert error.to_dto()["error"]["code"] == "IDEMPOTENCY_KEY_REUSE"
