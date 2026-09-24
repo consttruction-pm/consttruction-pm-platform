@@ -29,7 +29,7 @@ def test_client_mutation_request_emits_authoritative_envelope():
         "operation": "create_activity",
         "context": {
             "tenant_id": "tenant-1",
-            "company_id": "project-1",
+            "company_id": "company-1",
             "project_id": "project-1",
         },
         "idempotency_key": "idem-1",
@@ -39,9 +39,8 @@ def test_client_mutation_request_emits_authoritative_envelope():
 
 
 def test_client_mutation_request_rejects_invalid_revision():
-    request = _request()
     request = ClientMutationRequest(
-        request.context, request.operation, request.idempotency_key, request.mutation, 0
+        _context(), "create_activity", "idem-1", {"activity_id": "A-1"}, 0
     )
     try:
         request.validate()
