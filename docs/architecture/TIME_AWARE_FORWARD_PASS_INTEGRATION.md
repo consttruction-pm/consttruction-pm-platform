@@ -41,4 +41,4 @@ Calendar identity/version and lag-calendar selection come from Shared Core conte
 
 `tests/scheduling/test_time_forward_pass.py` covers working-hour duration across breaks, FS/SS/FF, positive lag, holiday crossing, explicit rejection of implicit day/hour conversion, and signed negative-lag integration and SF coverage.
 
-Runtime CI execution remains unverified.
+Exact working-interval finish boundaries are preserved without microsecond drift. Runtime CI execution remains unverified.
