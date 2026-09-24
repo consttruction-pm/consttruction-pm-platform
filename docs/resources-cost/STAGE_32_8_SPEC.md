@@ -63,3 +63,13 @@ Next implementation sequence:
 3. EVM integration using the existing EV/PV/AC engines.
 4. Typed Excel import/export contracts.
 5. Audit/revision/portability and cross-device determinism tests.
+
+
+### Latest implementation
+- Capacity-aware overload detection with utilization percentage and excess units.
+- Available-capacity calculation for leveling workflows.
+- Deterministic resource curve dataset generation ordered by period.
+- Pytest coverage for overload and curve behavior.
+
+### Architectural rule
+Leveling is a scheduling decision, not a cost-calculation side effect. The resource domain reports capacity conflicts; the scheduling/application layer must decide whether to move activities, split work, change assignments, or accept the overload according to project rules.
