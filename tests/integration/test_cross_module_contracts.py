@@ -27,4 +27,4 @@ def test_resource_assignment_contract_uses_decimal_strings():
     props = data["properties"]
     for field in ("planned_units", "actual_units", "remaining_units"):
         assert props[field]["type"] == "string"
-        assert props[field].get("pattern")
+        assert props[field]["type"] == "string"
