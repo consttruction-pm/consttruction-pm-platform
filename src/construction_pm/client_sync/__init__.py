@@ -15,6 +15,7 @@ from .conflict import (
     build_refresh_retry_mutation,
 )
 from .conflict_presentation import ClientConflictPresentation
+from .calendar import ClientCalendarReference, ClientCalendarContext
 
 __all__ = [
     "OfflineProjectContext",
@@ -37,4 +38,6 @@ __all__ = [
     "ConflictResolutionRequest",
     "ConflictResolutionService",
     "ClientConflictPresentation",
+    "ClientCalendarReference",
+    "ClientCalendarContext",
 ]
