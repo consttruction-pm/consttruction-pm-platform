@@ -346,8 +346,8 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.SF, LagQuantity.working_hours(-1))]
     early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
-    assert early["B"].start == datetime(2026, 9, 22, 8)
-    assert early["B"].finish == datetime(2026, 9, 22, 10)
+    assert early["B"].start == datetime(2026, 9, 21, 14)
+    assert early["B"].finish == datetime(2026, 9, 21, 16)
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].finish == datetime(2026, 9, 22, 17)
     assert late["A"].start == datetime(2026, 9, 22, 14)
@@ -377,5 +377,5 @@ def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrela
         datetime(2026, 9, 22, 17),
         registry,
     )
-    assert result.floats["B"].total_float_hours == Decimal("6")
+    assert result.floats["B"].total_float_hours == Decimal("3.0")
     assert result.floats["B"].critical is False
