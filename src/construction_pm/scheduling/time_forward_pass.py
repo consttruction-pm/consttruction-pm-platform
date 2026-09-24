@@ -163,7 +163,9 @@ def time_forward_pass(
 
         assert start is not None
         start = resolver.normalize_start(start)
+        start = apply_time_earliest_constraints(activity, start, activity.duration, constraint_list, registry)
         finish = _add_duration(start, activity.duration, resolver)
+        validate_time_early_window(activity, start, finish, constraint_list, registry)
         result[activity_id] = TimeScheduledActivity(activity_id, start, finish, activity.duration)
 
     return result
