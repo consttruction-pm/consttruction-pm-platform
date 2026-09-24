@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **86% — in progress; Stage 33.4.27 time-aware calendar extension established 2026-09-24**
+Status: **89% — in progress; Stage 33.4.28 time-based duration/lag contract established 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -85,3 +85,10 @@ Status: **100%**
   - Exported the time-aware resolver from the scheduling package.
   - Existing date-based Scheduling APIs remain unchanged until time-based duration/lag contracts are explicitly integrated and tested.
   - Full P6 time-of-day parity remains pending; runtime CI execution remains unverified.
+
+- 33.4.28 Time-Based Duration & Lag Contract: implemented as an explicit Shared Core quantity foundation.
+  - Added DurationUnit with WORKING_DAY and WORKING_HOUR.
+  - Added Decimal-safe TimeQuantity for activity durations and signed LagQuantity for lag/lead.
+  - Calendar conversion remains authoritative in the Shared Core resolver; no fixed 8-hours-per-day assumption was introduced.
+  - Existing date-based Activity/Relationship/CPM APIs remain compatible and are not silently changed.
+  - Full time-aware Forward/Backward/Float integration remains the next gate; runtime CI remains unverified.
