@@ -2,18 +2,35 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from typing import Iterable, Mapping
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
-from .constraints import ActivityConstraint, ConstraintViolation, apply_latest_constraint, validate_constraint_window
-from .forward_pass import (
-    ScheduledActivity,
-    _shift_working_date,
-    _topological_order,
-    forward_pass,
-)
+from .constraints import ActivityConstraint, apply_latest_constraint, validate_constraint_window
+from .forward_pass import ScheduledActivity, _shift_working_date, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
+
+
+class ScheduleMode(str, Enum):
+    EARLIEST = "EARLIEST"
+    ALAP = "ALAP"
+
+
+@dataclass(frozen=True)
+class ScheduleOptions:
+    """Explicit scheduling-output options.
+
+    EARLIEST keeps the normal CPM early schedule as the selected schedule.
+    ALAP selects the calculated late schedule while preserving early/late
+    dates and float analysis in the result.
+    """
+
+    mode: ScheduleMode = ScheduleMode.EARLIEST
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.mode, ScheduleMode):
+            raise ValueError("mode must be a ScheduleMode")
 
 
 @dataclass(frozen=True)
@@ -33,6 +50,9 @@ class ScheduleResult:
     activities: Mapping[str, ScheduledActivity]
     floats: Mapping[str, FloatActivity]
     project_finish: date
+    early_activities: Mapping[str, ScheduledActivity] | None = None
+    late_activities: Mapping[str, ScheduledActivity] | None = None
+    mode: ScheduleMode = ScheduleMode.EARLIEST
 
 
 def _latest_predecessor_start(
@@ -72,13 +92,7 @@ def backward_pass(
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
-    """Calculate latest dates using successor *late* dates.
-
-    Terminal activities are anchored to the project finish. Non-terminal
-    activities are propagated backward from the already-computed late dates of
-    their successors. This is the CPM backward-pass invariant; using early
-    successor dates here would understate available float in branching networks.
-    """
+    """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
     relationship_list = list(relationships)
@@ -257,19 +271,26 @@ def schedule(
     resolver: WorkingTimeResolver,
     project_finish: date | None = None,
     constraints: Iterable[ActivityConstraint] | None = None,
+    options: ScheduleOptions | None = None,
 ) -> ScheduleResult:
-    """Run forward pass, backward pass and float/critical-path analysis."""
+    """Run CPM passes and select either earliest or ALAP output."""
+    selected_options = options or ScheduleOptions()
     activity_list = list(activities)
     relationship_list = list(relationships)
     early = forward_pass(activity_list, relationship_list, project_start, resolver, constraints)
-    late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver, constraints
+    late = backward_pass(activity_list, relationship_list, early, project_finish, resolver, constraints)
+    floats = calculate_floats(activity_list, relationship_list, early, late, resolver)
+
+    effective_finish = resolver.normalize_finish(
+        project_finish or max(item.finish for item in early.values())
     )
-    floats = calculate_floats(
-        activity_list, relationship_list, early, late, resolver
-    )
+    selected = late if selected_options.mode is ScheduleMode.ALAP else early
+
     return ScheduleResult(
-        activities=early,
+        activities=selected,
         floats=floats,
-        project_finish=project_finish or max(item.finish for item in early.values()),
+        project_finish=effective_finish,
+        early_activities=early,
+        late_activities=late,
+        mode=selected_options.mode,
     )
