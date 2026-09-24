@@ -81,14 +81,14 @@ test("runner can consume the versioned api transport without duplicating applica
   const queue = new OfflineMutationQueue();
   queue.enqueue(mutation("m1"));
   const api = {
-    async post() {
+    async post<TRequest, TResponse>(): Promise<{ ok: true; data: TResponse }> {
       return {
         ok: true as const,
         data: {
           contract_version: "sync-outcome.v1" as const,
           mutation_id: "m1",
           disposition: "acknowledged" as const,
-        },
+        } as TResponse,
       };
     },
   };
