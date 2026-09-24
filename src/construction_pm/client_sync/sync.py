@@ -7,6 +7,7 @@ from .adapter import ClientMutationRequest, ClientMutationTransport, normalize_s
 from .mutation import OfflineMutation
 from .outcome import SyncMutationOutcome
 from .queue import OfflineMutationQueue
+from .session import ClientProjectSession
 
 
 class MutationSender(Protocol):
@@ -27,14 +28,24 @@ class OfflineSyncCoordinator:
     transport invocation, and the disposition of authoritative sync outcomes.
     """
 
-    def __init__(self, queue: OfflineMutationQueue, transport: MutationSender) -> None:
+    def __init__(
+        self,
+        queue: OfflineMutationQueue,
+        transport: MutationSender,
+        session: ClientProjectSession | None = None,
+    ) -> None:
         self.queue = queue
         self.transport = transport
+        self.session = session
+        if self.session is not None:
+            self.session.validate()
 
     def sync_once(self, limit: int = 1) -> list[SyncAttempt]:
         results: list[SyncAttempt] = []
         for queued in self.queue.peek(limit):
             attempted = self.queue.increment_attempt(queued)
+            if self.session is not None and attempted.context != self.session.context:
+                raise ValueError("queued mutation context does not match client session")
             request = ClientMutationRequest(
                 context=attempted.context,
                 operation=attempted.operation,
@@ -54,6 +65,8 @@ class OfflineSyncCoordinator:
             removed = outcome.status in {"applied", "replayed"}
             if removed:
                 self.queue.remove(attempted)
+                if self.session is not None:
+                    self.session = self.session.apply_authoritative_outcome(outcome)
 
             results.append(SyncAttempt(attempted, outcome, removed))
         return results
