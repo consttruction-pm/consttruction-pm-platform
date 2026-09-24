@@ -286,3 +286,9 @@ Status: **100%**
   - Preserved tenant/project scoping and idempotency fingerprint semantics.
   - Extended sync-conflict.v1 with mutation identity, idempotency key and operation.
   - Current stores are deterministic in-memory references; production database durability remains a later integration gate.
+
+- 33.4.56 Database Persistence for Sync State: implemented.
+  - Added SQLite persistence for idempotency records and conflict state.
+  - Added round-trip and idempotency-key-reuse tests.
+  - Preserved tenant/project isolation and Shared Core boundaries.
+  - PostgreSQL, migrations, concurrency and production deployment remain later gates.
