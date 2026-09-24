@@ -16,3 +16,21 @@ def test_shared_contracts_are_versioned():
     root = Path(__file__).parents[2]
     contract = json.loads((root / "shared/contracts/resource-assignment.schema.json").read_text())
     assert contract["$id"].endswith("/v1")
+
+def test_application_error_contract_schema_is_versioned_and_exact() -> None:
+    root = Path(__file__).parents[2]
+    contract = json.loads(
+        (root / "docs/contracts/application_error_v1.schema.json").read_text()
+    )
+    assert contract["$id"].endswith("application-error-v1.json")
+    error = contract["properties"]["error"]
+    assert set(error["required"]) == {"category", "code", "message", "retryable"}
+    assert error["properties"]["category"]["enum"] == [
+        "validation",
+        "context",
+        "conflict",
+        "authorization",
+        "not_found",
+        "persistence",
+    ]
+}
