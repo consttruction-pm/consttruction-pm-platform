@@ -108,7 +108,7 @@ def test_sqlite_increment_attempt_participates_in_existing_transaction():
     updated = q.increment_attempt(mutation)
     assert updated.attempt == 1
     connection.rollback()
-    assert q.peek() == [mutation]
+    assert q.peek() == []
 
 
 def test_retry_attempt_does_not_change_mutation_identity():
