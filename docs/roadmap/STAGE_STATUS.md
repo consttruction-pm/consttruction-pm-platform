@@ -29,7 +29,7 @@ Status: **100%**
 - Remaining work is cross-stage/system-level integration outside the Resource & Cost stage.
 
 ### Stage 33 — System Integration & Platform Hardening
-Status: **25% — in progress**
+Status: **30% — in progress**
 - Stage 33 is the current implementation area.
 - Scope must integrate existing scheduling, progress/EVM, reporting, resource/cost and platform contracts without duplicating domain calculation rules.
 - Web-readiness, deterministic calculations, typed data, project portability and API/application/repository boundaries remain mandatory.
@@ -54,4 +54,5 @@ Status: **15% — in progress**
 - Stage 33.2.2 context-isolation contract implemented in PR #9 (open, not merged): explicit tenant/company/project context at resource Application/Repository boundaries plus cross-project/cross-tenant regression tests.
 - Stage 33.2.3 transaction contract implemented in PR #10 (open, not merged): explicit application-level TransactionManager boundary and test adapter.
 - Stage 33.2.4 typed integration contract implemented in PR #13 (open, not merged): versioned shared Resource/ResourceAssignment schemas and typed Decimal integration regression tests.
-- Next implementation item: Stage 33.2.5 project portability contract, then cross-module regression coverage.
+- Stage 33.2.5 project portability contract implemented in PR #14 (open, not merged): versioned portability envelope carrying calendar/version, scheduling settings, calculation schema version, project context and resource/cost context.
+- Next implementation item: Stage 33.2.6 cross-module regression suite.
