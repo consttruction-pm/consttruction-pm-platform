@@ -69,6 +69,7 @@ Status: **40% — in progress; constraint foundation added 2026-09-24**
 - 33.4.9 Portable Activity + Forward Pass: **implemented**.
 - 33.4.10 Backward Pass + Float Analysis: **implemented**.
 - 33.4.11 Foundational Activity Date Constraints: **implemented**.
+- 33.4 Offline Project Context backend contract: **implemented** — versioned portable project identity/schema/calendar/scheduling/calculation context with deterministic fingerprint regression coverage.
   - `src/construction_pm/scheduling/constraints.py` adds typed constraint primitives:
     - Start No Earlier Than
     - Start No Later Than
