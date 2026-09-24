@@ -50,3 +50,7 @@ def test_shared_fixture_mutation_identity(mutation_payload):
     }
     assert mutation_payload["idempotency_key"] == "idem-activity-001"
     assert mutation_payload["expected_revision"] == 7
+    assert mutation_payload["mutation"] == {
+        "activity_id": "A-100",
+        "name": "Foundation",
+    }
