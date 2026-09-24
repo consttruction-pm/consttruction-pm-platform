@@ -590,3 +590,28 @@ Reference document:
 docs/architecture/STAGE_33_3_APPLICATION_API_HARDENING.md
 
 This stage does not redefine Primavera P6/Scheduling or Progress/EVM semantics.
+
+
+## 31. Mobile Client as a First-Class Product Client — 2026-09-24
+
+The product is formally developed as three first-class client surfaces: **Web, Desktop and Mobile**. Mobile is not a reduced Web/Desktop screen set; it is optimized for field operations and rapid data capture.
+
+Mandatory rules:
+- Web, Desktop and Mobile consume the same versioned API/Application contracts and Shared Domain/Calculation Core.
+- No client may duplicate Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics.
+- ProjectContext, authorization, optimistic locking, idempotency, stable errors, audit/revision and portability rules apply to Mobile as well.
+- Mobile supports Persian/English and Jalali/Gregorian presentation; calendar arithmetic remains in Shared Core.
+- Offline workflows are explicitly scoped and use shared synchronization/conflict contracts; Mobile never accesses the database directly.
+- Mobile field workflows include progress entry, daily reports, attendance, machinery status/breakdown, document/photo capture, notifications, and applicable RFI/Submittal workflows.
+- Voice input and AI Smart Guide are exposed through shared service/API contracts, not independent business logic.
+
+### 31.1 Team split
+- User/Product Client Track: Web, Desktop and Mobile UI/UX, navigation, workflows, localization/presentation, dashboards/Gantt/report presentation, field UX, AI/Smart Guide UX and parity acceptance.
+- Hasan/Developer 1: backend/API/shared contracts, synchronization/security boundaries, persistence, context isolation, transactions, resource/cost backend, documents, import/export, backend AI contracts and integration tests.
+
+### 31.2 Compatibility impact review
+- P6/Scheduling: unchanged; calculation authority remains Shared Core.
+- Progress/EVM: unchanged; Mobile submits/reads authoritative results.
+- PMBOK/PMI alignment: supports distributed field data capture and controlled workflows without redefining core semantics.
+- Web-readiness: strengthened by making Mobile consume the same API/Application contracts.
+- Portability/tests: Mobile sync, conflict, revision and parity cases become mandatory regression coverage.
