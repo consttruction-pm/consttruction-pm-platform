@@ -8,23 +8,18 @@
 | Stage 32.5 Progress Update Workflow | 100% |
 | Stage 32.6 Dashboard & Control Center | 100% |
 | Stage 32.7 Reporting & Print Engine | 100% |
-| Stage 32.8 Resource & Cost Control Center | NEXT |
+| Stage 32.8 Resource & Cost Control Center | 100% |
+| Stage 32.9 Resource Backend Application Boundary | 100% |
 
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
-### Stage 32.8.11 — Resource/Cost ↔ EVM Integration
+### Stage 32.9 — Resource Backend Application Boundary
 Status: **100% implementation complete**
-- Resource EVM bridge implemented.
-- Deterministic Decimal calculations tested.
-- Central EVM semantics remain authoritative.
+- Added a repository protocol and deterministic in-memory adapter.
+- Added application services for validated resource registration and assignments.
+- Added API DTO/contract adapters without leaking database internals.
+- Added unit/integration boundary tests.
+- Database-specific adapters remain an infrastructure task and are not introduced into the Shared Domain/Calculation Core.
 
-
-### Stage 32.8.12 — Typed XLSX Import/Export
-Status: **100% implementation complete**
-- Typed schemas, real XLSX I/O, schema versioning and round-trip test implemented.
-
-
-### Stage 32.8 — Resource & Cost Control Center
-Status: **100%**
-- Resource domain, rates, assignments, loading, control, performance, calendars, capacity, overload detection, curves, histogram, EVM bridge, typed XLSX I/O and integration review completed.
-- Remaining work is cross-stage/system-level integration outside the Resource & Cost stage.
+### Next point
+Stage 32.10 — Database persistence adapter and migration-safe Resource/Cost storage.
