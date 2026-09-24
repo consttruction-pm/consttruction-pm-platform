@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MobileRuntime } from "./runtime.ts";
+import type { SyncOutcome } from "../../client-sync/src/mutation-queue.ts";
 
 test("mobile syncOnce uses shared transport and preserves retry", async () => {
   const runtime = new MobileRuntime();
