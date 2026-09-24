@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .context import OfflineProjectContext
+from .outcome import SyncMutationOutcome
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,18 @@ class ClientProjectSession:
     def mutation_context(self) -> OfflineProjectContext:
         self.validate()
         return self.context
+
+    def apply_authoritative_outcome(self, outcome: SyncMutationOutcome) -> "ClientProjectSession":
+        """Advance revision only from an applied/replayed authoritative outcome."""
+        self.validate()
+        outcome.validate()
+        if outcome.status not in {"applied", "replayed"}:
+            return self
+        if outcome.revision is None:
+            raise ValueError("successful outcome requires revision")
+        if self.revision is not None and outcome.revision < self.revision:
+            raise ValueError("authoritative revision cannot move backwards")
+        return self.with_revision(outcome.revision)
 
     def with_revision(self, revision: int) -> "ClientProjectSession":
         if revision < 0:
