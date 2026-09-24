@@ -166,6 +166,9 @@ def backward_pass(
             )
             late_finish = resolver.add_working_duration(late_start, activity.duration)
 
+        if late_finish > finish:
+            raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
+
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
@@ -177,6 +180,13 @@ def backward_pass(
             finish=late_finish,
             duration=activity.duration,
         )
+
+    for relationship in relationship_list:
+        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
+            raise ValueError(
+                f"backward schedule violates relationship {relationship.predecessor_id} -> "
+                f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
+            )
 
     return result
 
