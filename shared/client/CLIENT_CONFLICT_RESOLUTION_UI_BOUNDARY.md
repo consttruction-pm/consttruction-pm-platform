@@ -23,3 +23,7 @@ The shared client layer owns action validation and queue transitions. Presentati
 ## API boundary
 
 `ConflictResolutionRequest` and `ConflictResolutionService` provide the framework-neutral client boundary. UI adapters should translate user interaction into these actions rather than manipulating queue internals directly.
+
+`ClientConflictPresentation` provides the framework-neutral view state for Web/Desktop/Mobile. It carries operation, original idempotency key, expected revision, stable error code, retryability, and the shared action set. It deliberately does not carry localized button labels or server error message text; those remain presentation-layer concerns.
+
+The presentation model contract is `client-conflict-presentation.v1`.
