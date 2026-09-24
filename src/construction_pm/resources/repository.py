@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Protocol
 
 from .context import ProjectContext
+from .errors import OptimisticLockError
 from .models import Resource, ResourceAssignment
 
 
@@ -53,7 +54,7 @@ class InMemoryResourceRepository:
         key = (context.tenant_id, context.company_id, context.project_id, resource.id)
         current = self._resource_revisions.get(key)
         if current is not None and expected_revision is not None and expected_revision != current:
-            raise RuntimeError(
+            raise OptimisticLockError(
                 f"Stale resource revision for {resource.id}: expected {expected_revision}"
             )
         self._resources[key] = resource
