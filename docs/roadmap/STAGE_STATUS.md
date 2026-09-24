@@ -96,7 +96,7 @@ Status: **100% — complete**
 - Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **0% — opened 2026-09-24**
+Status: **15% — in progress; three-client foundation established 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile must consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -104,6 +104,10 @@ Status: **0% — opened 2026-09-24**
 - Hasan/backend responsibilities: API/shared-contract integration support, ProjectContext propagation, authorization/session boundary, optimistic-locking/idempotency/error handling and regression coverage.
 - Completion requires cross-client contract, workflow and parity regression tests across Web/Desktop/Mobile.
 - No Scheduling/P6 or Progress/EVM semantics are redefined in Stage 33.4.
+- 33.4.1 client foundation structure/contracts: **started**.
+- 33.4.2 shared typed API client boundary: **next implementation step**.
+- 33.4.6 Mobile field client foundation: **scope established**.
+- 33.4.7 Mobile security/sync/device boundary: **scope established**.
 - Tracking issue: #26.
 
 
