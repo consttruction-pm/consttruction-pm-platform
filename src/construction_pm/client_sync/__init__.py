@@ -19,6 +19,7 @@ from .calendar import ClientCalendarReference, ClientCalendarContext
 from .sync_presentation import ClientSyncPresentation
 from .resource import ClientResourceDTO, ClientResourceAssignmentDTO, parse_resource, parse_assignment, validate_resource_operation
 from .resource_control import ClientResourceControlDTO, parse_resource_control
+from .resource_workflow import ClientResourceMutationFactory, validate_resource_mutation_operation
 
 __all__ = [
     "OfflineProjectContext",
@@ -51,4 +52,6 @@ __all__ = [
     "validate_resource_operation",
     "ClientResourceControlDTO",
     "parse_resource_control",
+    "ClientResourceMutationFactory",
+    "validate_resource_mutation_operation",
 ]
