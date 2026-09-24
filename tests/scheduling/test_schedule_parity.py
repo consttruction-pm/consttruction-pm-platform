@@ -129,4 +129,4 @@ def test_custom_six_day_calendar_is_shared_by_scheduling_core(resolver):
         resolver,
     )
     assert result.early_activities["A"].finish == date(2026, 9, 26)
-    assert result.early_activities["B"].start == date(2026, 9, 27)
+    assert result.early_activities["B"].start == date(2026, 9, 28)
