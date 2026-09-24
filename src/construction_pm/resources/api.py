@@ -41,14 +41,14 @@ def assignment_to_dto(assignment: ResourceAssignment) -> dict[str, Any]:
 class ResourceAPI:
     service: ResourceApplicationService
 
-    def create_resource(self, resource: Resource) -> dict[str, Any]:
+    def create_resource(\n        self, resource: Resource, expected_revision: int | None = None, idempotency_key: str | None = None\n    ) -> dict[str, Any]:
         try:
-            return resource_to_dto(self.service.register_resource(resource))
+            result = self.service.register_resource(resource, idempotency_key=idempotency_key, expected_revision=expected_revision)\n            dto = resource_to_dto(result)\n            dto["revision"] = self.service.repository.get_resource_revision(self.service.context, result.id)\n            return dto
         except ApplicationError as exc:
             return exc.to_dto()
 
-    def create_assignment(self, assignment: ResourceAssignment) -> dict[str, Any]:
+    def create_assignment(\n        self, assignment: ResourceAssignment, expected_revision: int | None = None, idempotency_key: str | None = None\n    ) -> dict[str, Any]:
         try:
-            return assignment_to_dto(self.service.assign_resource(assignment))
+            result = self.service.assign_resource(assignment, idempotency_key=idempotency_key, expected_revision=expected_revision)\n            dto = assignment_to_dto(result)\n            dto["revision"] = self.service.repository.get_assignment_revision(\n                self.service.context, result.activity_id, result.resource_id\n            )\n            return dto
         except ApplicationError as exc:
             return exc.to_dto()
