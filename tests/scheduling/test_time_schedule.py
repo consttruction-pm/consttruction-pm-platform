@@ -108,3 +108,55 @@ def test_time_schedule_retains_positive_float_for_noncritical_activity():
     )
     assert result.floats["A"].total_float_hours == Decimal("6")
     assert not result.floats["A"].critical
+
+
+def test_time_schedule_uses_project_calendar_for_explicit_finish():
+    project_ref = CalendarReference("project", "1", "working-time")
+    activity_ref = CalendarReference("activity", "1", "working-time")
+    project_calendar = WorkingTimeCalendar(
+        daily_intervals={i: ((time(8), time(12)), (time(13), time(17))) for i in range(5)}
+    )
+    activity_calendar = WorkingTimeCalendar(
+        daily_intervals={i: ((time(7), time(11)), (time(12), time(16))) for i in range(5)}
+    )
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": TimeAwareWorkingTimeResolver(project_calendar),
+        "activity@1": TimeAwareWorkingTimeResolver(activity_calendar),
+    })
+    ctx = SchedulingCalendarContext(project=project_ref, activity=activity_ref, relationship_lag=activity_ref)
+    result = time_schedule(
+        [TimeActivity("A", TimeQuantity.working_hours(2), ctx)],
+        [],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 12),
+        registry,
+    )
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 12)
+    assert result.late_activities["A"].start == datetime(2026, 9, 22, 10)
+
+
+def test_time_backward_pass_does_not_use_last_activity_calendar_as_project_calendar():
+    project_ref = CalendarReference("project", "1", "working-time")
+    first_activity_ref = CalendarReference("first", "1", "working-time")
+    last_activity_ref = CalendarReference("last", "1", "working-time")
+    calendars = {
+        "project@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar(
+            daily_intervals={i: ((time(8), time(12)), (time(13), time(17))) for i in range(5)}
+        )),
+        "first@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar(
+            daily_intervals={i: ((time(7), time(11)), (time(12), time(16))) for i in range(5)}
+        )),
+        "last@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar(
+            daily_intervals={i: ((time(9), time(13)), (time(14), time(18))) for i in range(5)}
+        )),
+    }
+    registry = CalendarResolverRegistry(time_resolvers=calendars)
+    ctx_a = SchedulingCalendarContext(project=project_ref, activity=first_activity_ref, relationship_lag=first_activity_ref)
+    ctx_b = SchedulingCalendarContext(project=project_ref, activity=last_activity_ref, relationship_lag=last_activity_ref)
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx_a),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx_b),
+    ]
+    early = time_forward_pass(activities, [TimeRelationship("A", "B")], datetime(2026, 9, 22, 8), registry)
+    late = time_backward_pass(activities, [TimeRelationship("A", "B")], early, datetime(2026, 9, 22, 17), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 17)
