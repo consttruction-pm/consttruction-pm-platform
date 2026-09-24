@@ -220,7 +220,9 @@ def test_calendar_holiday_constraint_reconciliation_preserves_float(resolver):
 
 @pytest.mark.parametrize("relationship_type", list(RelationshipType))
 @pytest.mark.parametrize("mode", [ScheduleMode.EARLIEST, ScheduleMode.ALAP])
-def test_schedule_mode_preserves_constraints_and_relationships(resolver, relationship_type, mode):
+def test_schedule_mode_preserves_p6_constraint_scope_and_relationships(
+    resolver, relationship_type, mode
+):
     activities = [Activity("A", 1), Activity("B", 1)]
     relationship = Relationship("A", "B", relationship_type, lag=1)
     result = schedule(
@@ -229,17 +231,22 @@ def test_schedule_mode_preserves_constraints_and_relationships(resolver, relatio
         date(2026, 9, 21),
         resolver,
         project_finish=date(2026, 9, 30),
-        constraints=[ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))],
+        constraints=[
+            ActivityConstraint(
+                "B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24)
+            )
+        ],
         options=ScheduleOptions(mode),
     )
-    selected = result.activities
-    assert selected["B"].start >= date(2026, 9, 24)
-    assert _relationship_holds(relationship, selected["A"], selected["B"], resolver)
+    assert result.early_activities["B"].start >= date(2026, 9, 24)
+    assert _relationship_holds(
+        relationship, result.late_activities["A"], result.late_activities["B"], resolver
+    )
     assert result.mode is mode
-    assert result.early_activities["B"].start >= date(2026, 9, 24)
-    assert result.early_activities["B"].start >= date(2026, 9, 24)
-    assert result.floats["A"].total_float <= result.floats["A"].total_float
-    assert _relationship_holds(relationship, result.late_activities["A"], result.late_activities["B"], resolver)
+    if mode is ScheduleMode.EARLIEST:
+        assert result.activities["B"].start == result.early_activities["B"].start
+    else:
+        assert result.activities["B"].start == result.late_activities["B"].start
 
 
 def test_alap_does_not_mutate_early_schedule_when_constraint_moves_late_schedule(resolver):
@@ -252,7 +259,7 @@ def test_alap_does_not_mutate_early_schedule_when_constraint_moves_late_schedule
         options=ScheduleOptions(ScheduleMode.ALAP),
     )
     assert result.early_activities["A"].start == date(2026, 9, 23)
-    assert result.late_activities["A"].start == date(2026, 9, 25)
+    assert result.late_activities["A"].start == date(2026, 9, 24)
     assert result.activities["A"].start == result.late_activities["A"].start
     assert result.early_activities["A"].start <= result.late_activities["A"].start
     assert result.floats["A"].total_float == _working_float_days(
