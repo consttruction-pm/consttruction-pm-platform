@@ -53,6 +53,7 @@ class ResourceApplicationService:
             operation="register_resource",
             fingerprint=resource_fingerprint(resource),
             mutation=mutation,
+            replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
         )
 
     def assign_resource(
@@ -81,6 +82,14 @@ class ResourceApplicationService:
             operation="assign_resource",
             fingerprint=assignment_fingerprint(assignment),
             mutation=mutation,
+            replay=lambda: next(
+                (
+                    item
+                    for item in self.repository.list_assignments(self.context, assignment.activity_id)
+                    if item.resource_id == assignment.resource_id
+                ),
+                assignment,
+            ),
         )
 
     def get_resource(self, resource_id: str) -> Resource | None:
