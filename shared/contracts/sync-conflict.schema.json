@@ -3,17 +3,16 @@
   "$id": "constructionpm://contracts/sync-conflict/v1",
   "title": "ConstructionPM Synchronization Conflict",
   "type": "object",
-  "required": ["contract_version", "error_code", "expected_revision", "available_actions"],
+  "required": ["contract_version", "mutation_id", "idempotency_key", "operation", "error_code", "expected_revision", "available_actions"],
   "properties": {
     "contract_version": {"const": "sync-conflict.v1"},
+    "mutation_id": {"type": "string", "minLength": 1},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "operation": {"type": "string", "minLength": 1},
     "error_code": {"type": "string", "minLength": 1},
     "expected_revision": {"type": "integer", "minimum": 0},
     "actual_revision": {"type": ["integer", "null"], "minimum": 0},
-    "available_actions": {
-      "type": "array",
-      "items": {"type": "string", "minLength": 1},
-      "uniqueItems": true
-    },
+    "available_actions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "details": {"type": "object"}
   },
   "additionalProperties": false
