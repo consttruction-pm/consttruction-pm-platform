@@ -34,7 +34,7 @@ class TimeConstraintViolation(ValueError):
 
 
 def _resolver(activity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
-    resolver = registry.resolve(activity.calendar.effective_activity())
+    resolver = registry.resolve(activity.calendar_context.effective_activity())
     if not isinstance(resolver, TimeAwareWorkingTimeResolver):
         raise TypeError("time-aware constraints require a working-time resolver")
     return resolver
