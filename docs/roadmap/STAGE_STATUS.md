@@ -292,3 +292,9 @@ Status: **100%**
   - Added round-trip and idempotency-key-reuse tests.
   - Preserved tenant/project isolation and Shared Core boundaries.
   - PostgreSQL, migrations, concurrency and production deployment remain later gates.
+
+- 33.4.57 PostgreSQL-Compatible Persistence Contract: implemented.
+  - Added framework-neutral SyncStatePersistence contract.
+  - Added TransactionManager boundary for atomic Application-layer operations.
+  - Documented database-native idempotency uniqueness and concurrency semantics.
+  - Live PostgreSQL adapter and concurrent integration tests remain later production gates.
