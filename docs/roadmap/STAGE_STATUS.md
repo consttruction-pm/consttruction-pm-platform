@@ -177,3 +177,10 @@ Status: **100%**
   - Runs the full pytest suite on Python 3.11, 3.12 and 3.13 for pushes to main and pull requests targeting main.
   - Installs the project through the declared `.[test]` extra, so the CI environment follows the repository's packaging contract.
   - Stage 33.4 remains 99% until an actual workflow run completes successfully and any failures are reviewed.
+
+
+- 33.4.38 Contract/CI Hardening: implemented.
+  - Added CI regression workflow for Python 3.11–3.13.
+  - Added integration coverage ensuring all shared JSON contract files parse as JSON objects and declare schema/title metadata.
+  - Added an explicit regression check for the versioned time-scheduling contract identity.
+  - Stage 33.4 remains 99% until GitHub Actions produces a successful full-suite run and the resulting test evidence is reviewed.
