@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from .offline_mutation import OfflineMutation
 from .persistence_contract import SyncStatePersistence
-from .sync_outcome import SyncOutcome
+from .sync_outcome import SyncDisposition, SyncOutcome
 from .server_idempotency import mutation_fingerprint
 from .server_idempotency import IdempotencyRecord
 
@@ -60,7 +60,7 @@ def _submit_delegate(delegate, mutation: OfflineMutation) -> SyncOutcome:
 def _outcome(record: IdempotencyRecord) -> SyncOutcome:
     return SyncOutcome(
         mutation_id=record.mutation_id,
-        disposition=record.outcome["disposition"],
+        disposition=SyncDisposition(record.outcome["disposition"]),
         error_code=record.outcome.get("error_code"),
         retry_after_seconds=record.outcome.get("retry_after_seconds"),
     )
