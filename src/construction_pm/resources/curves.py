@@ -1,11 +1,8 @@
 from __future__ import annotations
-
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
-
 from .models import ResourcePeriodValue
-
 
 def build_resource_curve(values: list[ResourcePeriodValue]) -> dict[date, tuple[Decimal, Decimal]]:
     totals = defaultdict(lambda: [Decimal("0"), Decimal("0")])
@@ -13,3 +10,14 @@ def build_resource_curve(values: list[ResourcePeriodValue]) -> dict[date, tuple[
         totals[value.period_start][0] += value.units
         totals[value.period_start][1] += value.cost
     return {period: (data[0], data[1]) for period, data in sorted(totals.items())}
+
+def build_cumulative_cost_curve(values: list[ResourcePeriodValue]) -> dict[date, Decimal]:
+    daily: dict[date, Decimal] = defaultdict(lambda: Decimal("0"))
+    for value in values:
+        daily[value.period_start] += value.cost
+    cumulative = Decimal("0")
+    result: dict[date, Decimal] = {}
+    for period, cost in sorted(daily.items()):
+        cumulative += cost
+        result[period] = cumulative
+    return result
