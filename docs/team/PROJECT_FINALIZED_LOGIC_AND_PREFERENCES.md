@@ -538,3 +538,22 @@ Stage 32.8 شامل Resource domain، rates، assignments، loading، control، 
 - **تست/Regression مورد انتظار:**
 
 **قاعده همکاری:** از این نقطه به بعد، هر بار که تصمیم جدیدی به Master Reference اضافه یا یک rule مشترک اصلاح شد، همان تغییر باید به‌عنوان یک اطلاع‌رسانی توسعه‌دهنده به Hasan اعلام شود؛ حتی اگر تغییر کوچک باشد.
+
+
+## 28. Parallel Web + Desktop Client Development — 2026-09-24
+
+The product is now formally developed as two parallel clients: Website/Web Application and Desktop Application.
+
+Mandatory rules:
+- Both clients use the same Shared Domain/Calculation Core and authoritative business calculations.
+- Web and Desktop must remain capability-equivalent at the business-function level.
+- Client UI/platform differences are allowed; business semantics and calculated results must not diverge.
+- Both clients consume the shared Application/API contracts and must not access the database directly for business operations.
+- Typed data, ProjectContext, optimistic locking, transaction boundaries, audit/revision and portability rules apply to both clients.
+- A feature is complete only after shared contract/core work, Web integration, Desktop integration, shared regression tests and applicable cross-client parity tests.
+
+Team split:
+- User/Product Client Track: Web and Desktop UI/UX, client integration, workflows, localization/presentation, dashboards/Gantt/report presentation, client AI/Smart Guide UX and parity acceptance.
+- Hasan/Developer 1: Backend, Database, Application, API, shared contracts, persistence, context isolation, transactions, resource/cost backend, documents, import/export, backend AI contracts and integration tests.
+
+This rule was introduced to allow simultaneous progress of the Website and Desktop Application without creating duplicate calculation engines.
