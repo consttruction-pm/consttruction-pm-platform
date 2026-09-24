@@ -401,11 +401,15 @@ Status: **100% — runtime-verified 2026-09-25**
 
 
 ### Stage 33.4.67 — Shared Offline Mutation Queue Client Gate
-Status: **implemented — CI verification pending for the latest queue-semantics commit**
+Status: **100% — runtime-verified 2026-09-25**
 - Added the shared TypeScript `apps/client-sync` queue consumed by Desktop and Mobile foundations.
 - Queue enforces `sync-mutation.v1`, preserves ProjectContext/expected revision and rejects cross-mutation idempotency-key reuse.
 - Only `sync-outcome.v1` with disposition `acknowledged` removes a queued mutation; retry/conflict/rejected outcomes remain pending.
+- Added `ClientSyncRunner` with deterministic FIFO submission, mutation-identity validation and stop-on-non-acknowledged semantics.
 - Added Client Typecheck workflow covering client-sync, Web, Desktop and Mobile.
-- The initial client integration commit was verified by GitHub Actions run **36057977102**; ConstructionPM run **36057977085** and PostgreSQL sync run **36057977103** also completed successfully. The follow-up queue-semantics commit requires its own CI verification before this gate is marked runtime-verified.
+- GitHub Actions run **36058894403** completed successfully for Client Typecheck, including all four client typechecks and the client-sync runtime tests.
+- ConstructionPM CI run **36058894354** completed successfully.
+- PostgreSQL Sync State workflow run **36058894216** completed successfully.
+- Latest verified commit: `a55c322f2fe23a280e33d2db0552d841f6a1d83c`.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 - Next gate: connect the shared queue to the existing versioned transport/application synchronization boundary and add end-to-end client sync outcome regression coverage.
