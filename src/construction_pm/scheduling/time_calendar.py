@@ -108,6 +108,29 @@ class TimeAwareWorkingTimeResolver:
                 continue
         raise ValueError("working-hour duration exceeds resolver horizon")
 
+    def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
+        units = Decimal(str(hours))
+        if units < 0:
+            raise ValueError("hours must be non-negative")
+        cursor = self.normalize_finish(finish)
+        remaining = units
+        for _ in range(3660):
+            intervals = self.calendar.intervals_for(cursor.date())
+            for interval_start, interval_end in reversed(intervals):
+                begin = datetime.combine(cursor.date(), interval_start)
+                end = datetime.combine(cursor.date(), interval_end)
+                if cursor >= end:
+                    cursor = end
+                if begin < cursor <= end:
+                    capacity = Decimal(str((cursor - begin).total_seconds())) / Decimal(3600)
+                    if remaining <= capacity:
+                        return cursor - timedelta(seconds=float(remaining * Decimal(3600)))
+                    remaining -= capacity
+                    cursor = begin
+                    break
+            cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
+        raise ValueError("working-hour duration exceeds resolver horizon")
+
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         if finish < start:
             raise ValueError("finish must not precede start")
