@@ -34,6 +34,15 @@ class TimeScheduleResult:
     project_finish: datetime
 
 
+def _project_resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
+    if activity.calendar_context is None:
+        raise ValueError("time-aware activity requires a calendar context")
+    resolved = registry.resolve(activity.calendar_context.project)
+    if not isinstance(resolved, TimeAwareWorkingTimeResolver):
+        raise TypeError("time-aware project calendar requires a working-time resolver")
+    return resolved
+
+
 def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
     if activity.calendar_context is None:
         raise ValueError("time-aware activity requires a calendar context")
@@ -137,7 +146,7 @@ def time_backward_pass(
         raise ValueError("activity network contains a cycle")
 
     early_finish = max(item.finish for item in early.values())
-    project_finish_resolver = _resolver(activity_map[order[-1]], registry)
+    project_finish_resolver = _project_resolver(activity_map[order[0]], registry)
     normalized_finish = project_finish_resolver.normalize_finish(project_finish)
 
     late: dict[str, TimeScheduledActivity] = {}
@@ -293,7 +302,10 @@ def time_schedule(
     relationship_list = list(relationships)
     constraint_list = list(constraints)
     early = time_forward_pass(activity_list, relationship_list, project_start, registry, constraint_list)
+    project_resolver = _project_resolver(activity_list[0], registry) if activity_list else None
     effective_finish = project_finish or max(item.finish for item in early.values())
+    if project_resolver is not None:
+        effective_finish = project_resolver.normalize_finish(effective_finish)
     late = time_backward_pass(activity_list, relationship_list, early, effective_finish, registry, constraint_list)
     floats = calculate_time_floats(activity_list, relationship_list, early, late, registry)
     return TimeScheduleResult(
