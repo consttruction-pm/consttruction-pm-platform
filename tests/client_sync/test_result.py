@@ -34,6 +34,7 @@ def test_applied_outcome_is_successful():
         status="applied",
         operation="update_activity",
         revision=8,
+        retryable=False,
         idempotency_key="idem-activity-001",
     )
     assert result.successful is True
