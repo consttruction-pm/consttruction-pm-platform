@@ -68,6 +68,29 @@ class ConflictResolutionService:
     def __init__(self, queue: OfflineMutationQueue) -> None:
         self.queue = queue
 
+    def refresh_and_retry(
+        self,
+        original: OfflineMutation,
+        *,
+        current_revision: int,
+        idempotency_key: str,
+        mutation: dict[str, object] | None = None,
+    ) -> OfflineMutation:
+        """Build and enqueue an explicit refresh-and-retry replacement."""
+        replacement = build_refresh_retry_mutation(
+            original,
+            current_revision=current_revision,
+            idempotency_key=idempotency_key,
+            mutation=mutation,
+        )
+        return self.resolve(
+            ConflictResolutionRequest(
+                ConflictResolutionAction.REFRESH_AND_RETRY,
+                original,
+                replacement,
+            )
+        )
+
     def resolve(self, request: ConflictResolutionRequest) -> OfflineMutation:
         request.validate()
 
