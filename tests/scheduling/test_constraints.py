@@ -212,3 +212,62 @@ def test_multiple_constraints_propagate_through_lagged_fs_network(resolver):
     assert result.early_activities["A"].finish == date(2026, 9, 22)
     assert result.early_activities["B"].start == date(2026, 9, 24)
     assert result.early_activities["C"].start == date(2026, 9, 29)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [2, -1])
+def test_start_constraint_propagates_through_all_relationship_types(
+    resolver, relationship_type, lag
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    constraint = ActivityConstraint(
+        "B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24)
+    )
+    result = schedule(
+        activities, [relationship], date(2026, 9, 21), resolver,
+        constraints=[constraint]
+    )
+    assert result.early_activities["B"].start >= date(2026, 9, 24)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [2, -1])
+def test_finish_constraint_propagates_through_all_relationship_types(
+    resolver, relationship_type, lag
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    constraint = ActivityConstraint(
+        "B", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 9, 24)
+    )
+    result = schedule(
+        activities, [relationship], date(2026, 9, 21), resolver,
+        constraints=[constraint]
+    )
+    assert result.early_activities["B"].finish >= date(2026, 9, 24)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_relationship_network_with_mixed_lag_signs_and_downstream_constraint(
+    resolver, relationship_type
+):
+    activities = [
+        Activity("A", 1),
+        Activity("B", 1),
+        Activity("C", 1),
+    ]
+    relationships = [
+        Relationship("A", "B", relationship_type, lag=2),
+        Relationship("B", "C", RelationshipType.FS, lag=-1),
+    ]
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        constraints=[
+            ActivityConstraint("C", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25))
+        ],
+    )
+    assert result.early_activities["C"].start >= date(2026, 9, 25)
