@@ -73,14 +73,14 @@ def _add_duration(
 def _latest_predecessor_start(
     relationship: TimeRelationship,
     successor: TimeScheduledActivity,
+    successor_activity: TimeActivity,
     predecessor: TimeActivity,
     registry: CalendarResolverRegistry,
 ) -> datetime:
-    if predecessor.calendar_context is None or successor is None:
+    if predecessor.calendar_context is None or successor_activity.calendar_context is None:
         raise ValueError("time-aware activities require calendar contexts")
     # Relationship lag calendar is selected from the successor-side context.
-    if successor is None:
-        raise ValueError("successor is required")
+    lag_ref = successor_activity.calendar_context.effective_relationship_lag()
     lag_resolver = registry.resolve(lag_ref)
     if not isinstance(lag_resolver, TimeAwareWorkingTimeResolver):
         raise TypeError("time-aware relationship lag requires a working-time resolver")
@@ -152,7 +152,7 @@ def time_backward_pass(
             late_start = _subtract_duration(late_finish, activity.duration, resolver)
         else:
             candidates = [
-                _latest_predecessor_start(rel, late[rel.successor_id], activity, registry)
+                _latest_predecessor_start(rel, late[rel.successor_id], activity_map[rel.successor_id], activity, registry)
                 for rel in rels
             ]
             late_start = min(candidates)
