@@ -53,6 +53,7 @@ class InMemoryOfflineMutationQueue:
 
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
+        was_in_transaction = self.connection.in_transaction
         key = _queue_key(mutation)
         with self._lock:
             existing = self._items.get(key)
@@ -147,12 +148,14 @@ class SQLiteOfflineMutationQueue:
 
     def remove(self, mutation: OfflineMutation) -> None:
         mutation.validate()
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute(
             """DELETE FROM offline_mutation_queue
             WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?""",
             _queue_key(mutation),
         )
-        self._commit_if_owned()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def increment_attempt(self, mutation: OfflineMutation) -> OfflineMutation:
         mutation.validate()
@@ -178,5 +181,6 @@ class SQLiteOfflineMutationQueue:
             WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?""",
             (self._encode(updated), *key),
         )
-        self._commit_if_owned()
+        if not was_in_transaction:
+            self.connection.commit()
         return updated
