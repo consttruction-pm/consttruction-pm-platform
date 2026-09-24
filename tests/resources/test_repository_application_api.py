@@ -133,3 +133,12 @@ def test_api_serializes_invalid_context_as_stable_error():
     dto = ResourceAPI(service).create_resource(make_resource())
     assert dto["error"]["category"] == "context"
     assert dto["error"]["code"] == "INVALID_PROJECT_CONTEXT"
+
+
+def test_assignment_stale_revision_raises_optimistic_lock_error():
+    from construction_pm.resources.errors import OptimisticLockError
+    repo = InMemoryResourceRepository()
+    assignment = ResourceAssignment(activity_id="A-1", resource_id="R-1", planned_units=Decimal("2"), actual_units=Decimal("0"))
+    repo.save_assignment(CONTEXT, assignment)
+    with pytest.raises(OptimisticLockError):
+        repo.save_assignment(CONTEXT, assignment, expected_revision=99)
