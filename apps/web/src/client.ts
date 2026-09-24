@@ -60,7 +60,19 @@ export class FetchApiTransport implements ApiTransport {
           code: payload.error.code,
           retryable: payload.error.retryable,
           message: payload.error.message,
-          available_actions: [],
+          available_actions: Array.isArray((payload.error as Record<string, unknown>).available_actions)
+            ? ((payload.error as Record<string, unknown>).available_actions as unknown[]).map(String)
+            : [],
+          expected_revision: typeof (payload.error as Record<string, unknown>).expected_revision === "number"
+            ? (payload.error as Record<string, unknown>).expected_revision as number
+            : undefined,
+          actual_revision: typeof (payload.error as Record<string, unknown>).actual_revision === "number"
+            ? (payload.error as Record<string, unknown>).actual_revision as number
+            : undefined,
+          details: (payload.error as Record<string, unknown>).details &&
+            typeof (payload.error as Record<string, unknown>).details === "object"
+            ? { ...((payload.error as Record<string, unknown>).details as Record<string, unknown>) }
+            : undefined,
         },
       };
     }
