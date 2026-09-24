@@ -42,3 +42,24 @@ Resource and cost calculations belong to the Shared Domain/Calculation Core. UI,
 8. EVM integration.
 9. Reporting datasets.
 10. Pytest regression/conformance suite.
+
+
+## Implementation Progress — 32.8
+
+Implemented in Shared Domain/Calculation Core:
+- Resource, ResourceRate, ResourceAssignment domain models.
+- Effective-date/versioned rates and typed cost calculation.
+- Planned/Actual/Remaining units and costs.
+- Deterministic time-phased loading and aggregation.
+- Resource and assignment validation.
+- Portfolio resource/cost control aggregation.
+- Resource performance bridge for schedule/progress/EVM integration.
+- Resource calendar and capacity calculations.
+- Pytest coverage for the above behaviors.
+
+Next implementation sequence:
+1. Capacity-aware resource leveling and overload detection.
+2. Resource/cost curves and histogram datasets.
+3. EVM integration using the existing EV/PV/AC engines.
+4. Typed Excel import/export contracts.
+5. Audit/revision/portability and cross-device determinism tests.
