@@ -19,3 +19,8 @@ Persist retry-attempt metadata for offline mutations without changing mutation i
 - SQLite retry round-trip and identity preservation.
 - Missing-item regression.
 - Existing-transaction rollback regression.
+
+## Enqueue idempotency hardening
+- SQLite enqueue is idempotent when the existing queue key contains the same mutation fingerprint.
+- Reusing the same tenant/company/project/operation/idempotency key for a different mutation is rejected deterministically.
+- This keeps SQLite behavior aligned with the in-memory queue and preserves the idempotency contract across offline adapters.
