@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 RESOURCE_CONTRACT_VERSION = 'resource.v1'
+RESOURCE_OPERATIONS = frozenset({'create_resource', 'create_assignment'})
 
 @dataclass(frozen=True)
 class ClientResourceDTO:
@@ -56,3 +57,8 @@ def parse_assignment(payload: Mapping[str, object]) -> ClientResourceAssignmentD
             raise ValueError('resource cost/unit values must be decimal strings')
     dto = ClientResourceAssignmentDTO(str(payload['activity_id']), str(payload['resource_id']), str(payload['planned_units']), str(payload['actual_units']), str(payload['remaining_units']), None if payload.get('planned_cost') is None else str(payload['planned_cost']), None if payload.get('actual_cost') is None else str(payload['actual_cost']), None if payload.get('remaining_cost') is None else str(payload['remaining_cost']), int(payload['revision']), str(payload.get('contract_version', '')))
     dto.validate(); return dto
+
+
+def validate_resource_operation(operation: str) -> None:
+    if operation not in RESOURCE_OPERATIONS:
+        raise ValueError('unsupported resource operation')
