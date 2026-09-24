@@ -44,3 +44,9 @@ def test_offline_mutation_rejects_negative_attempt():
     mutation = OfflineMutation(CONTEXT, "register_resource", "k-1", {}, attempt=-1)
     with pytest.raises(ValueError, match="attempt"):
         mutation.validate()
+
+
+def test_retry_attempt_does_not_change_mutation_identity():
+    base = OfflineMutation(CONTEXT, "register_resource", "k-2", {"resource_id": "R-2"}, 3, 0)
+    retry = OfflineMutation(CONTEXT, "register_resource", "k-2", {"resource_id": "R-2"}, 3, 4)
+    assert base.fingerprint_payload() == retry.fingerprint_payload()
