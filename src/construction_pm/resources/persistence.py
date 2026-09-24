@@ -8,7 +8,7 @@ from typing import Iterator
 
 from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS resource_schema_version (
@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS resource_assignments (
     revision INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (activity_id, resource_id),
     FOREIGN KEY (resource_id) REFERENCES resources(id)
+);
+CREATE TABLE IF NOT EXISTS mutation_idempotency (
+    tenant_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, company_id, project_id, operation, idempotency_key)
 );
 """
 
