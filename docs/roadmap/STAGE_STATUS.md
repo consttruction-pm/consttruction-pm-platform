@@ -349,6 +349,13 @@ Status: **100%**
   - Stage 33.4 is now eligible to close; future work proceeds to the next product/platform stage without reopening completed 33.4 work unless a new regression is introduced.
 
 
+### Stage 33.4.61 — Real PostgreSQL Sync-State Integration
+Status: **100% — runtime-verified 2026-09-24**
+- Live PostgreSQL 16 CI verifies real sync_idempotency round-trip and concurrent same-key uniqueness behavior.
+- GitHub Actions run **36054570230** completed successfully for the PostgreSQL sync-state workflow.
+- The follow-up live atomic-conflict gate also passed in the same workflow, covering real conflict persistence and idempotent replay.
+- No Scheduling/P6 or Shared Calculation Core semantics changed.
+
 ### Stage 33.4.64 — Atomic Conflict Persistence
 Status: **100% — implemented; runtime-verified 2026-09-24**
 - Conflict persistence is executed through the atomic sync executor outcome hook inside the same transaction boundary as idempotency outcome persistence.
