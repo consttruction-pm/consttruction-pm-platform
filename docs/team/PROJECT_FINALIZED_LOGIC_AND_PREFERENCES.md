@@ -615,3 +615,21 @@ Mandatory rules:
 - PMBOK/PMI alignment: supports distributed field data capture and controlled workflows without redefining core semantics.
 - Web-readiness: strengthened by making Mobile consume the same API/Application contracts.
 - Portability/tests: Mobile sync, conflict, revision and parity cases become mandatory regression coverage.
+
+
+## 32. Offline-Capable Desktop and Mobile Scheduling — 2026-09-24
+
+Desktop is a first-class standalone application and must be able to operate after installation without requiring Web or Internet for core project work. Desktop must be capable of running the Shared Domain/Calculation Core locally, using local project persistence, including Scheduling/P6-compatible calculations.
+
+Mobile is also allowed and required, for approved planning workflows, to operate offline without depending on the Web client. In particular, Mobile must support a simple standalone planning flow: create/open a project, create a WBS, create activities, define FS/SS/FF/SF relationships and lag/lead, run Schedule/Recalculate, and view authoritative Start/Finish/Duration and applicable float/criticality results.
+
+This does not authorize a second or divergent scheduling engine. The same Shared Scheduling semantics/Core implementation must be portable to supported offline clients. Online mode uses the same authoritative contracts and can synchronize local changes/results with the server. Offline mode stores changes locally and queues synchronization; conflict/revision/idempotency rules remain mandatory.
+
+Compatibility review:
+- P6/Scheduling: semantics remain centralized and P6-compatible; offline execution changes deployment location, not calculation rules.
+- Shared Core: strengthened; Core must be portable and UI/Internet independent.
+- Web-readiness: preserved; server/API remains authoritative for shared online synchronization.
+- Portability: project calendar/settings/schema/context must travel with the local project context so results remain reproducible.
+- Testing: offline/online parity, deterministic scheduling, sync/conflict/revision and cross-client regression tests are mandatory.
+
+Required developer action: Hasan must provide/maintain the API/Application contracts and persistence/synchronization boundaries needed for local-capable Desktop/Mobile operation; no client-side duplicate scheduling formulas are permitted.
