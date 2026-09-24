@@ -5,6 +5,7 @@ from .sync_outcome import SyncOutcome
 from .server_idempotency import mutation_fingerprint
 from .server_idempotency import IdempotencyRecord
 
+
 class AtomicSyncExecutor:
     """Coordinates sync persistence through an injected transaction boundary."""
 
@@ -24,7 +25,7 @@ class AtomicSyncExecutor:
                     raise ValueError("IDEMPOTENCY_KEY_REUSE")
                 return _outcome(existing)
 
-            outcome = self.delegate.submit(mutation)
+            outcome = _submit_delegate(self.delegate, mutation)
             self.persistence.put_idempotency(
                 IdempotencyRecord(
                     mutation.tenant_id,
@@ -46,6 +47,15 @@ class AtomicSyncExecutor:
     def _after_outcome(self, mutation: OfflineMutation, outcome: SyncOutcome) -> None:
         """Hook for additional persistence that must share this transaction."""
         return None
+
+
+def _submit_delegate(delegate, mutation: OfflineMutation) -> SyncOutcome:
+    """Support both the low-level submit contract and application gateway contract."""
+    submit_mutation = getattr(delegate, "submit_mutation", None)
+    if submit_mutation is not None:
+        return submit_mutation(mutation)
+    return delegate.submit(mutation)
+
 
 def _outcome(record: IdempotencyRecord) -> SyncOutcome:
     return SyncOutcome(
