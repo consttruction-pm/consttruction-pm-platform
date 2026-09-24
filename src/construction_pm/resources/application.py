@@ -8,6 +8,7 @@ from .errors import (
     ApplicationError,
     context_error,
     not_found_error,
+    conflict_error,
     validation_error,
 )
 from .errors import OptimisticLockError
