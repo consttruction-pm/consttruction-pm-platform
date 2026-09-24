@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .context import ProjectContext
 from .models import Resource, ResourceAssignment
 from .repository import ResourceRepository
 from .validation import validate_assignment, validate_resource
@@ -15,19 +16,20 @@ def _raise_if_invalid(errors: list[str]) -> None:
 @dataclass(frozen=True)
 class ResourceApplicationService:
     repository: ResourceRepository
+    context: ProjectContext
 
     def register_resource(self, resource: Resource) -> Resource:
         _raise_if_invalid(validate_resource(resource))
-        return self.repository.save_resource(resource)
+        return self.repository.save_resource(self.context, resource)
 
     def assign_resource(self, assignment: ResourceAssignment) -> ResourceAssignment:
         _raise_if_invalid(validate_assignment(assignment))
-        if self.repository.get_resource(assignment.resource_id) is None:
+        if self.repository.get_resource(self.context, assignment.resource_id) is None:
             raise ValueError(f"Unknown resource: {assignment.resource_id}")
-        return self.repository.save_assignment(assignment)
+        return self.repository.save_assignment(self.context, assignment)
 
     def get_resource(self, resource_id: str) -> Resource | None:
-        return self.repository.get_resource(resource_id)
+        return self.repository.get_resource(self.context, resource_id)
 
     def list_assignments(self, activity_id: str | None = None) -> list[ResourceAssignment]:
-        return self.repository.list_assignments(activity_id)
+        return self.repository.list_assignments(self.context, activity_id)
