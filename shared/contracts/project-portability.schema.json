@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/project-portability/v1",
+  "title": "ConstructionPM Project Portability Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "calculation_context"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "project_id"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "company_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "calculation_context": {
+      "type": "object",
+      "required": [
+        "calendar_id",
+        "calendar_version",
+        "scheduling_settings",
+        "calculation_schema_version"
+      ],
+      "properties": {
+        "calendar_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "calendar_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scheduling_settings": {
+          "type": "object"
+        },
+        "calculation_schema_version": {
+          "type": "string"
+        },
+        "language_context": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "resource_cost_context": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "project_rules": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}
