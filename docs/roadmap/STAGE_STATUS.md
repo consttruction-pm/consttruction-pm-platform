@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **68% — in progress; backward constraint edge-case propagation hardened 2026-09-24**
+Status: **72% — in progress; constraint/float/critical-path reconciliation hardened 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -47,6 +47,11 @@ Status: **68% — in progress; backward constraint edge-case propagation hardene
   - Successor movement remains duration/calendar aware and is rejected if it exceeds project finish.
   - Added FS/SS/FF/SF regression coverage plus project-finish overflow coverage.
   - Full CI execution remains unverified.
+- 33.4.23 Constraint + Float + Critical Path Reconciliation: implemented.
+  - Constrained late dates are reconciled against early dates before Total Float is accepted.
+  - Negative constrained Total Float is rejected rather than hidden by clamping to zero.
+  - Added constrained critical-path, ALAP, and holiday/calendar reconciliation tests.
+  - Early/Late/Selected schedule separation remains intact.
   - Documents Forward/Backward behavior for all six implemented constraint types.
   - Documents calendar normalization, combined-constraint validation, relationship interaction, and backward-pass validity gates.
   - Formal P6 parity verification remains pending; the matrix is a compatibility specification, not certification.
