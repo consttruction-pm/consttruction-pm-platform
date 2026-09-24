@@ -6,7 +6,12 @@ from typing import Iterable, Mapping, Sequence
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
-from .constraints import ActivityConstraint, apply_earliest_constraint, validate_upper_bound
+from .constraints import (
+    ActivityConstraint,
+    apply_earliest_constraint,
+    validate_constraint_set,
+    validate_upper_bound,
+)
 from .relationships import Relationship, RelationshipType
 
 
@@ -35,12 +40,7 @@ def _shift_working_date(
 def _apply_lag_after(
     value: date, lag: int, resolver: WorkingTimeResolver
 ) -> date:
-    """Place a successor event after/before an anchor using working-day lag.
-
-    For a finish-to-start relation, zero lag means the successor starts on the
-    next working day. Positive lag adds working days after that boundary;
-    negative lag moves the successor before the boundary.
-    """
+    """Place a successor event after/before an anchor using working-day lag."""
     if lag >= 0:
         return resolver.next_working_day(
             resolver.add_working_duration(value, lag)
@@ -60,8 +60,7 @@ def _successor_start(
         return _shift_working_date(predecessor.start, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FS:
-        target = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
-        return target
+        return _apply_lag_after(predecessor.finish, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FF:
         target_finish = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
@@ -123,10 +122,16 @@ def forward_pass(
     constraint_map: dict[str, list[ActivityConstraint]] = {
         activity_id: [] for activity_id in activity_map
     }
-    for constraint in constraints or ():
+    all_constraints = list(constraints or ())
+    for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
             raise ValueError("constraint references an unknown activity")
         constraint_map[constraint.activity_id].append(constraint)
+
+    for activity_id, activity_constraints in constraint_map.items():
+        validate_constraint_set(
+            activity_constraints, activity_map[activity_id].duration, resolver
+        )
 
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationship_list:
