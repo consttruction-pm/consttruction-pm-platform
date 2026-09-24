@@ -1,0 +1,34 @@
+from decimal import Decimal
+
+import pytest
+
+from construction_pm.resources.context import ProjectContext
+from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
+from construction_pm.resources.repository import InMemoryResourceRepository
+
+
+def resource(resource_id: str) -> Resource:
+    return Resource(id=resource_id, code=resource_id, name=resource_id, resource_type=ResourceType.LABOR, unit="hour", rates=(), calendar_id=None, active=True)
+
+
+def test_context_isolation_prevents_cross_project_resource_reads():
+    repo = InMemoryResourceRepository()
+    project_a = ProjectContext("tenant-1", "company-1", "project-a")
+    project_b = ProjectContext("tenant-1", "company-1", "project-b")
+    repo.save_resource(project_a, resource("R-1"))
+    assert repo.get_resource(project_b, "R-1") is None
+    assert repo.list_resources(project_b) == []
+
+
+def test_context_isolation_prevents_cross_tenant_assignment_reads():
+    repo = InMemoryResourceRepository()
+    tenant_a = ProjectContext("tenant-a", "company-a", "project-a")
+    tenant_b = ProjectContext("tenant-b", "company-b", "project-a")
+    assignment = ResourceAssignment(activity_id="A-1", resource_id="R-1", planned_units=Decimal("2"), actual_units=Decimal("1"))
+    repo.save_assignment(tenant_a, assignment)
+    assert repo.list_assignments(tenant_b) == []
+
+
+def test_context_requires_all_identity_parts():
+    with pytest.raises(ValueError, match="project_id"):
+        ProjectContext("tenant-1", "company-1", "").validate()
