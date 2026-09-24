@@ -2,6 +2,8 @@ import {
   OfflineMutationQueue,
   type SyncMutation,
 } from "../../client-sync/src/mutation-queue.js";
+import { ClientSyncRunner } from "../../client-sync/src/sync-runner.js";
+import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/api-sync-transport.js";
 
 export type MobileMode = "offline" | "online";
 
@@ -66,5 +68,9 @@ export class MobileRuntime {
 
   acknowledgeMutation(mutationId: string): void {
     this.mutationQueue.acknowledge(mutationId);
+  }
+
+  async syncOnce(api: VersionedSyncApi) {
+    return new ClientSyncRunner(this.mutationQueue, new ApiSyncTransport(api)).runOnce();
   }
 }
