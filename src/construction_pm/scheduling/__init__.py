@@ -3,6 +3,7 @@
 from .activity import Activity
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
 from .relationships import Relationship, RelationshipType, successor_earliest_start
@@ -33,6 +34,9 @@ __all__ = [
     "WorkingTimeResolver",
     "WorkingTimeCalendar",
     "TimeAwareWorkingTimeResolver",
+    "DurationUnit",
+    "TimeQuantity",
+    "LagQuantity",
     "backward_pass",
     "calculate_floats",
     "forward_pass",
