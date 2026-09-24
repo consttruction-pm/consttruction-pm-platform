@@ -45,3 +45,14 @@ def test_api_keeps_decimal_values_typed_as_strings_at_contract_boundary():
     ))
     assert dto["planned_units"] == "2.50"
     assert dto["remaining_units"] == "1.25"
+
+
+def test_api_calls_normalized_remaining_units_method():
+    service = ResourceApplicationService(InMemoryResourceRepository())
+    api = ResourceAPI(service)
+    api.create_resource(make_resource())
+    dto = api.create_assignment(ResourceAssignment(
+        activity_id="A-2", resource_id="R-1",
+        planned_units=Decimal("10"), actual_units=Decimal("4"),
+    ))
+    assert dto["remaining_units"] == "6"
