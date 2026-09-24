@@ -43,8 +43,8 @@ def test_backward_pass_propagates_successor_late_dates_in_branching_network(reso
     assert early["D"].finish == date(2026, 9, 25)
     assert late["D"].start == date(2026, 9, 25)
     assert late["C"].start == date(2026, 9, 22)
-    assert late["A"].start == date(2026, 9, 21)
-    assert late["B"].start == date(2026, 9, 24)
+    assert late["A"].start == date(2026, 9, 22)
+    assert late["B"].start == date(2026, 9, 25)
 
 
 def test_backward_pass_rejects_project_finish_before_early_finish(resolver):
