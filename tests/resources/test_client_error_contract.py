@@ -52,7 +52,7 @@ def test_client_error_contract_is_stable_for_validation():
 def test_client_error_contract_is_stable_for_stale_revision():
     api = _api()
     api.create_resource(_valid_resource())
-    result = api.create_resource(_valid_resource(name="Changed"), expected_revision=0)
+    result = api.create_resource(_valid_resource(name="Changed"), expected_revision=0, idempotency_key="stale-key")
     _assert_error(result, "conflict", "STALE_REVISION")
 
 
