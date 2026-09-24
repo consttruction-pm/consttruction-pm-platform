@@ -184,3 +184,5 @@ Status: **100%**
   - Added integration coverage ensuring all shared JSON contract files parse as JSON objects and declare schema/title metadata.
   - Added an explicit regression check for the versioned time-scheduling contract identity.
   - Stage 33.4 remains 99% until GitHub Actions produces a successful full-suite run and the resulting test evidence is reviewed.
+
+- 33.4.37 Typed Time-Aware API Contract Regression: implemented and merged in PR #55 (SHA `5b8c1b2bdb1743ed841d1c6d1cc4081afc64fb95`). Added a typed versioned API payload for calculation context, time durations, FS/SS/FF/SF lag/lead, and the six datetime constraint DTOs; JSON schema and regression tests updated. No scheduling formulas or client UI logic changed. Runtime CI remains unverified.
