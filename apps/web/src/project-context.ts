@@ -1,8 +1,6 @@
-export type ProjectContext = {
-  tenant_id: string;
-  project_id: string;
-  revision: number;
-};
+import type { ProjectContext } from "./client.js";
+
+export type { ProjectContext };
 
 export class ProjectContextStore {
   private context: ProjectContext | null = null;
