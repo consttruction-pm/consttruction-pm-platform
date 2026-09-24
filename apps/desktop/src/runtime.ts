@@ -25,4 +25,12 @@ export class DesktopRuntime {
   acknowledgeMutation(mutationId: string): void { this.mutationQueue.acknowledge(mutationId); }
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> { return new ClientSyncRunner(this.mutationQueue, new ApiSyncTransport(api)).runOnce(); }
   presentConflict(mutation: SyncMutation, outcome: SyncOutcome): SyncConflictPresentation | null { return presentSyncConflict(mutation, outcome); }
+  retryStaleRevision(mutationId: string, outcome: SyncOutcome, refreshedRevision: number): SyncMutation {
+    if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
+      throw new Error("INVALID_STALE_REVISION_RETRY");
+    }
+    const mutation = this.mutationQueue.retryAtRevision(mutationId, refreshedRevision);
+    this.advanceRevision(refreshedRevision);
+    return mutation;
+  }
 }
