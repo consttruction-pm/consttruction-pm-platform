@@ -41,3 +41,11 @@ def test_all_client_runtimes_consume_shared_project_context_contract() -> None:
         source = path.read_text()
         assert "shared/client-contracts/project-context" in source
         assert "validateProjectContext" in source
+
+
+def test_web_client_preserves_conflict_context_fields() -> None:
+    client_source = Path("apps/web/src/client.ts").read_text()
+    boundary_source = Path("apps/web/src/error-boundary.ts").read_text()
+    for field in ("expected_revision", "actual_revision", "details"):
+        assert field in client_source
+        assert f"error.{field}" in boundary_source
