@@ -9,7 +9,7 @@
 | Stage 32.6 Dashboard & Control Center | 100% |
 | Stage 32.7 Reporting & Print Engine | 100% |
 | Stage 32.8 Resource & Cost Control Center | 100% |
-| Stage 33 — System Integration & Platform Hardening | 15% — in progress |
+| Stage 33 — System Integration & Platform Hardening | 35% — in progress |
 
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
@@ -29,7 +29,7 @@ Status: **100%**
 - Remaining work is cross-stage/system-level integration outside the Resource & Cost stage.
 
 ### Stage 33 — System Integration & Platform Hardening
-Status: **30% — in progress**
+Status: **35% — in progress**
 - Stage 33 is the current implementation area.
 - Scope must integrate existing scheduling, progress/EVM, reporting, resource/cost and platform contracts without duplicating domain calculation rules.
 - Web-readiness, deterministic calculations, typed data, project portability and API/application/repository boundaries remain mandatory.
@@ -46,20 +46,16 @@ Status: **100%**
 **Next point: Stage 33.2 — cross-module integration and portability checks within Developer 1 backend/database/integration-support scope.**
 
 ### Stage 33.2 — Cross-Module Integration & Project Portability
-Status: **15% — in progress**
-- Integration/portability contract documented.
-- Current review branch lineage checked against main: divergent; wholesale merge is intentionally avoided.
-- Stage 33.2.1 reconciliation is in progress via PR #6, carrying only the verified API DTO defect fix and regression test onto current main.
-- Current main already contains the Stage 33.1 resource assignment revision/schema hardening.
-- Stage 33.2.2 context-isolation contract implemented in PR #9 (open, not merged): explicit tenant/company/project context at resource Application/Repository boundaries plus cross-project/cross-tenant regression tests.
-- Stage 33.2.3 transaction contract implemented in PR #10 (open, not merged): explicit application-level TransactionManager boundary and test adapter.
-- Stage 33.2.4 typed integration contract implemented in PR #13 (open, not merged): versioned shared Resource/ResourceAssignment schemas and typed Decimal integration regression tests.
-- Stage 33.2.5 project portability contract implemented in PR #14 (open, not merged): versioned portability envelope carrying calendar/version, scheduling settings, calculation schema version, project context and resource/cost context.
-- Stage 33.2.6 cross-module regression suite implemented in PR #15 (open, not merged): contract-level regression coverage for shared schemas, portability context and typed Decimal transport.
-- Stage 33.2.1 API DTO reconciliation merged to main (PR #6; merge SHA `f4764248ea4376fb7307f5eb5e566482ce4cb4cc`): verified normalized remaining-units method invocation and regression test.
-- Stage 33.2.2 context isolation merged to main (PR #9; merge SHA `e601ebd15430dcb9555be57ad9d94ec845d3cc03`): explicit tenant/company/project context at Resource application/repository boundaries and isolation regressions.
-- Stage 33.2.3 application transaction contract reconciled and merged to main (PR #16; merge SHA `200000407d10f105c5e457ab72e677f4d9f9a6df`): TransactionManager boundary and test adapter; Resource use cases execute inside the application transaction boundary.
-- Stage 33.2.4 typed integration contracts merged to main (PR #13; merge SHA `e0b8e72d349a4102858c35c260b6a72f06a4a8b1`): versioned Resource/ResourceAssignment schemas and Decimal transport regression coverage.
-- Stage 33.2.5 project portability contract merged to main (PR #14; merge SHA `67eefcc27f322db017c825785508f700cfeb61d4`): versioned portability envelope preserving calculation context.
-- Stage 33.2.6 cross-module regression suite merged to main (PR #15; merge SHA `cf3da8d3acfbd258a5b0742991bb5ac905e4da62`): contract/versioning, portability and typed Decimal regression coverage.
-- Stage 33.2 completion gate: **100% — reconciled and merged into current main**.
+Status: **100% — reconciled and merged into current main**
+- Integration/portability contract established.
+- Stage 33.2.1 API DTO reconciliation merged (PR #6; merge SHA `f4764248ea4376fb7307f5eb5e566482ce4cb4cc`).
+- Stage 33.2.2 explicit tenant/company/project context isolation merged (PR #9; merge SHA `e601ebd15430dcb9555be57ad9d94ec845d3cc03`).
+- Stage 33.2.3 application TransactionManager contract reconciled and merged by Hasan (PR #16; merge SHA `200000407d10f105c5e457ab72e677f4d4f9a6df`).
+- Stage 33.2.4 versioned typed Resource/ResourceAssignment contracts merged (PR #13; merge SHA `e0b8e72d349a4102858c35c260b6a72f06a4a8b1`).
+- Stage 33.2.5 versioned project portability contract merged (PR #14; merge SHA `67eefcc27f322db017c825785508f700cfeb61d4`).
+- Stage 33.2.6 cross-module regression suite merged (PR #15; merge SHA `cf3da8d3acfbd258a5b0742991bb5ac905e4da62`).
+- Current main lineage was reconciled without wholesale merging the divergent review branch.
+- No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics were redefined.
+- PR #17 was superseded by PR #16 and closed to prevent duplicate implementation.
+
+**Stage 33.2 completion gate: 100%.**
