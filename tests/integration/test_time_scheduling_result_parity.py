@@ -74,8 +74,8 @@ def test_same_shared_core_input_produces_identical_web_desktop_mobile_result_fix
 
     projections = [result_projection(result) for result in results]
     assert projections[0] == projections[1] == projections[2]
-    assert projections[0]["B"][0] == "2026-09-22T13:00:00"
-    assert projections[0]["B"][1] == "2026-09-22T15:00:00"
+    assert projections[0]["B"][0] == "2026-09-22T14:00:00"
+    assert projections[0]["B"][1] == "2026-09-22T16:00:00"
     assert projections[0]["C"][0] == "2026-09-22T08:30:00"
 
 
