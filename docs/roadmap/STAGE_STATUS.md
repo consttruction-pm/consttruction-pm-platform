@@ -56,4 +56,10 @@ Status: **15% — in progress**
 - Stage 33.2.4 typed integration contract implemented in PR #13 (open, not merged): versioned shared Resource/ResourceAssignment schemas and typed Decimal integration regression tests.
 - Stage 33.2.5 project portability contract implemented in PR #14 (open, not merged): versioned portability envelope carrying calendar/version, scheduling settings, calculation schema version, project context and resource/cost context.
 - Stage 33.2.6 cross-module regression suite implemented in PR #15 (open, not merged): contract-level regression coverage for shared schemas, portability context and typed Decimal transport.
-- Stage 33.2 completion gate remains: review/reconcile all integration contracts and current-main lineage.
+- Stage 33.2.1 API DTO reconciliation merged to main (PR #6; merge SHA `f4764248ea4376fb7307f5eb5e566482ce4cb4cc`): verified normalized remaining-units method invocation and regression test.
+- Stage 33.2.2 context isolation merged to main (PR #9; merge SHA `e601ebd15430dcb9555be57ad9d94ec845d3cc03`): explicit tenant/company/project context at Resource application/repository boundaries and isolation regressions.
+- Stage 33.2.3 application transaction contract reconciled and merged to main (PR #16; merge SHA `200000407d10f105c5e457ab72e677f4d9f9a6df`): TransactionManager boundary and test adapter; Resource use cases execute inside the application transaction boundary.
+- Stage 33.2.4 typed integration contracts merged to main (PR #13; merge SHA `e0b8e72d349a4102858c35c260b6a72f06a4a8b1`): versioned Resource/ResourceAssignment schemas and Decimal transport regression coverage.
+- Stage 33.2.5 project portability contract merged to main (PR #14; merge SHA `67eefcc27f322db017c825785508f700cfeb61d4`): versioned portability envelope preserving calculation context.
+- Stage 33.2.6 cross-module regression suite merged to main (PR #15; merge SHA `cf3da8d3acfbd258a5b0742991bb5ac905e4da62`): contract/versioning, portability and typed Decimal regression coverage.
+- Stage 33.2 completion gate: **100% — reconciled and merged into current main**.
