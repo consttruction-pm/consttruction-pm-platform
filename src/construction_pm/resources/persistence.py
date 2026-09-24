@@ -96,9 +96,16 @@ class SQLiteResourceRepository:
         )
         self.connection.commit()
 
+
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        """Run one or more repository operations atomically."""
+        """Run one or more repository operations atomically.
+
+        The outermost caller owns BEGIN/COMMIT/ROLLBACK. Nested repository
+        operations participate in the same transaction and never commit it
+        independently. An exception escaping the outer context rolls back
+        every write performed inside that context.
+        """
         if self.connection.in_transaction:
             yield self.connection
             return
