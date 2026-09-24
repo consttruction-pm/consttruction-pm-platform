@@ -60,7 +60,7 @@ Status: **100% — complete**
 - No Scheduling/P6 or Progress/EVM semantics changed.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **48% — in progress; relationship-lag hardening added 2026-09-24**
+Status: **50% — in progress; combined constraint/relationship hardening added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -71,20 +71,24 @@ Status: **48% — in progress; relationship-lag hardening added 2026-09-24**
 - 33.4.11 Foundational Activity Date Constraints: implemented.
 - 33.4 Offline Project Context backend contract: implemented — versioned portable project context with deterministic regression coverage.
 - 33.4.12 Backward-Pass Constraint Integration: implemented.
-  - Late-date calculations now accept the same typed ActivityConstraint set used by Forward Pass.
+  - Late-date calculations accept the same typed ActivityConstraint set used by Forward Pass.
   - Start/Finish No Later Than constraints cap latest dates; Mandatory Start/Finish constraints enforce exact late dates.
-  - Lower-bound constraints remain validated against the resulting late window rather than being silently ignored.
+  - Lower-bound constraints remain validated against the resulting late window.
 - 33.4.13 ALAP / Schedule Options foundation: implemented.
-  - Added typed ScheduleMode.EARLIEST and ScheduleMode.ALAP.
-  - Added ScheduleOptions so scheduling mode is explicit and deterministic.
-  - ALAP selects the calculated late schedule while preserving early schedule, late schedule and float/critical-path analysis in the result.
+  - Typed ScheduleMode.EARLIEST and ScheduleMode.ALAP.
+  - Explicit deterministic ScheduleOptions.
+  - ALAP selects the calculated late schedule while preserving early/late schedules and float/critical-path analysis.
   - Default behavior remains EARLIEST/normal CPM output.
 - 33.4.14 Relationship Lag Semantics Hardening: implemented.
-  - Unified working-day lag boundary behavior across FS/SS/FF/SF in Forward Pass and the standalone relationship primitive.
-  - Corrected backward-pass inverse lag calculations for early/late consistency.
-  - Added positive/negative lag regression coverage for all four relationship types.
-  - Added holiday-aware relationship regression coverage.
-  - This correction is important for deterministic cross-client scheduling parity.
+  - Unified working-day lag boundary behavior across FS/SS/FF/SF.
+  - Corrected backward-pass inverse lag calculations.
+  - Positive/negative lag regression coverage and holiday-aware coverage added.
+- 33.4.15 Combined Constraint + Relationship Hardening: implemented.
+  - Added regression coverage for constraints interacting with relationship-driven dates.
+  - Added FS + positive lag + Start No Earlier Than coverage.
+  - Added relationship-driven Finish No Later Than violation coverage.
+  - Added Mandatory Finish conflict coverage.
+  - Corrected regression expectations for non-working weekend boundaries.
 - A missing validate_upper_bound constraint helper used by Forward Pass was reconciled into the Shared Core.
 - This remains foundational scheduling behavior. Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
