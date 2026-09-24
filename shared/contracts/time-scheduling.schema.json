@@ -8,7 +8,8 @@
     "contract_version",
     "calculation_context",
     "activities",
-    "relationships"
+    "relationships",
+    "constraints"
   ],
   "properties": {
     "contract_version": {
@@ -27,6 +28,12 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/relationship"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/constraint"
       }
     }
   },
@@ -186,6 +193,34 @@
         },
         "lag_calendar": {
           "$ref": "#/$defs/calendar_reference"
+        }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_id",
+        "type",
+        "target"
+      ],
+      "properties": {
+        "activity_id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "START_NO_EARLIER_THAN",
+            "START_NO_LATER_THAN",
+            "FINISH_NO_EARLIER_THAN",
+            "FINISH_NO_LATER_THAN",
+            "MANDATORY_START",
+            "MANDATORY_FINISH"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }
