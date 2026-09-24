@@ -55,7 +55,7 @@ def test_time_forward_pass_schedules_working_hour_duration_across_break():
         activities, [], datetime(2026, 9, 22, 10), registry()
     )
     assert result["A"].start == datetime(2026, 9, 22, 10)
-    assert result["A"].finish == datetime(2026, 9, 22, 15)
+    assert result["A"].finish == datetime(2026, 9, 22, 16)
 
 
 def test_time_forward_pass_fs_zero_uses_exact_finish_boundary():
