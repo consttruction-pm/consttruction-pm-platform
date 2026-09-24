@@ -11,3 +11,9 @@
 | Stage 32.8 Resource & Cost Control Center | NEXT |
 
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
+
+### Stage 32.8.11 — Resource/Cost ↔ EVM Integration
+Status: **100% implementation complete**
+- Resource EVM bridge implemented.
+- Deterministic Decimal calculations tested.
+- Central EVM semantics remain authoritative.
