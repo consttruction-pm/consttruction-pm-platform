@@ -683,3 +683,11 @@ Stage 33.4.36 establishes the final engineering certification gate for time-awar
 This is a compatibility engineering gate, not a claim of Oracle certification. Stage 33.4 must not be marked 100% until CI executes the full regression suite successfully and any runtime regressions are resolved.
 
 Developer notification requirement: Hasan must treat these parity/portability rules as shared-core constraints and must not introduce client-specific calculation semantics while completing backend/API/synchronization work.
+
+
+## 36. Client Integration Audit — Javad Foroughi — 2026-09-24
+- Javad's audit branch confirms that `apps/web`, `apps/desktop`, and `apps/mobile` are currently documentation-only on the audited baseline; no executable client foundation was present there.
+- The audit explicitly prohibits client duplication of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar, and financial semantics.
+- The next client implementation must consume authoritative versioned contracts and Shared Domain/Calculation Core semantics.
+- Javad's later parity fixture adds a framework-neutral conflict presentation contract preserving stable error code, expected revision, idempotency identity, and available actions without recalculation in clients.
+- No Javad audit change is authorized to alter Shared Scheduling/P6 semantics.
