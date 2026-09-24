@@ -58,7 +58,7 @@ test("retryable api errors become retry outcomes", async () => {
 
 test("non-retryable api errors become rejected outcomes", async () => {
   const api: VersionedSyncApi = {
-    async post() {
+    async post<TRequest, TResponse>(): Promise<SyncApiResult<TResponse>> {
       return { ok: false, error: { code: "FORBIDDEN", retryable: false } };
     },
   };
@@ -73,14 +73,14 @@ test("non-retryable api errors become rejected outcomes", async () => {
 
 test("mismatched successful outcome is rejected", async () => {
   const api: VersionedSyncApi = {
-    async post() {
+    async post<TRequest, TResponse>(): Promise<SyncApiResult<TResponse>> {
       return {
         ok: true,
         data: {
           contract_version: "sync-outcome.v1",
           mutation_id: "other",
           disposition: "acknowledged",
-        } as SyncOutcome,
+        } as SyncOutcome as TResponse,
       };
     },
   };
