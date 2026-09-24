@@ -159,3 +159,55 @@ def test_earliest_mode_remains_default_selected_schedule(resolver):
     assert result.activities["A"].start == date(2026, 9, 21)
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.late_activities["A"].start == date(2026, 9, 22)
+
+
+
+def test_constraint_reconciliation_preserves_nonnegative_float_and_criticality(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [Relationship("A", "C"), Relationship("B", "C")]
+    result = schedule(
+        activities, relationships, date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 24),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22))
+        ],
+    )
+    assert result.floats["C"].total_float == 0
+    assert result.floats["A"].total_float >= 0
+    assert result.floats["B"].total_float >= 0
+    assert result.floats["C"].critical is True
+    assert result.floats["A"].critical is False
+
+
+def test_constrained_alap_preserves_early_late_and_selected_schedule(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [Relationship("A", "C"), Relationship("B", "C")]
+    result = schedule(
+        activities, relationships, date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 25),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22))
+        ],
+        options=ScheduleOptions(ScheduleMode.ALAP),
+    )
+    assert result.activities["A"].start == result.late_activities["A"].start
+    assert result.activities["A"].start >= result.early_activities["A"].start
+    assert result.late_activities["A"].start >= date(2026, 9, 22)
+    assert result.floats["A"].total_float >= 0
+
+
+def test_calendar_holiday_constraint_reconciliation_preserves_float(resolver):
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(WorkingCalendar(holidays=frozenset({holiday})))
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B", RelationshipType.FS, lag=1)]
+    result = schedule(
+        activities, relationships, date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 29),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, holiday)
+        ],
+    )
+    assert result.early_activities["A"].start > holiday
+    assert result.floats["A"].total_float >= 0
+    assert result.floats["B"].total_float >= 0
