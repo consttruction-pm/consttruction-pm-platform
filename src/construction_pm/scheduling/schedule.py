@@ -6,7 +6,12 @@ from typing import Iterable, Mapping
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
-from .forward_pass import ScheduledActivity, _shift_working_date, _topological_order
+from .forward_pass import (
+    ScheduledActivity,
+    _shift_working_date,
+    _topological_order,
+    forward_pass,
+)
 from .relationships import Relationship, RelationshipType
 
 
@@ -35,11 +40,9 @@ def _latest_predecessor_start(
     predecessor_duration: int,
     resolver: WorkingTimeResolver,
 ) -> date:
-    """Invert one forward relationship constraint for the backward pass."""
     lag = relationship.lag
 
     if relationship.type is RelationshipType.FS:
-        # predecessor finish + lag < successor start in our inclusive model.
         target_finish = (
             resolver.subtract_working_duration(successor.start, lag)
             if lag >= 0
@@ -48,16 +51,14 @@ def _latest_predecessor_start(
         return resolver.subtract_working_duration(target_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SS:
-        target_start = _shift_working_date(successor.start, -lag, resolver)
-        return target_start
+        return _shift_working_date(successor.start, -lag, resolver)
 
     if relationship.type is RelationshipType.FF:
         target_finish = _shift_working_date(successor.finish, -lag, resolver)
         return resolver.subtract_working_duration(target_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
-        target_start = _shift_working_date(successor.finish, -lag, resolver)
-        return target_start
+        return _shift_working_date(successor.finish, -lag, resolver)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -103,7 +104,7 @@ def backward_pass(
                 late_finish, activity.duration
             )
         else:
-            candidates = [
+            late_start = min(
                 _latest_predecessor_start(
                     rel,
                     forward[rel.successor_id],
@@ -119,11 +120,8 @@ def backward_pass(
                         item.lag,
                     ),
                 )
-            ]
-            late_start = min(candidates)
-            late_finish = resolver.add_working_duration(
-                late_start, activity.duration
             )
+            late_finish = resolver.add_working_duration(late_start, activity.duration)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id,
@@ -151,26 +149,19 @@ def _relationship_holds(
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
 ) -> bool:
-    lag = relationship.lag
-
+    required = _shift_working_date(
+        predecessor.finish if relationship.type is RelationshipType.FS else predecessor.start,
+        relationship.lag,
+        resolver,
+    )
     if relationship.type is RelationshipType.FS:
-        required = (
-            _shift_working_date(predecessor.finish, lag, resolver)
-        )
         return successor.start > required
-
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, lag, resolver)
         return successor.start >= required
-
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, lag, resolver)
         return successor.finish >= required
-
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, lag, resolver)
         return successor.finish >= required
-
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
 
@@ -184,7 +175,7 @@ def _free_float(
     if not successors:
         return 0
 
-    max_safe = 0
+    limits: list[int] = []
     for rel in successors:
         successor = early_schedule[rel.successor_id]
         delay = 0
@@ -193,16 +184,14 @@ def _free_float(
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
                 start=candidate_start,
-                finish=resolver.add_working_duration(
-                    candidate_start, activity.duration
-                ),
+                finish=resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
             if not _relationship_holds(rel, candidate, successor, resolver):
                 break
             delay += 1
-        max_safe = delay - 1 if max_safe == 0 else min(max_safe, delay - 1)
-    return max(0, max_safe)
+        limits.append(delay - 1)
+    return max(0, min(limits))
 
 
 def calculate_floats(
@@ -212,7 +201,7 @@ def calculate_floats(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
 ) -> Mapping[str, FloatActivity]:
-    """Calculate Total Float, relationship-aware Free Float and criticality."""
+    """Calculate relationship-aware Total Float and Free Float."""
     activity_map = {activity.id: activity for activity in activities}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationships:
@@ -222,10 +211,7 @@ def calculate_floats(
     for activity_id in sorted(activity_map):
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
-        total = max(
-            0,
-            _working_delay_between(early.start, late.start, resolver),
-        )
+        total = max(0, _working_delay_between(early.start, late.start, resolver))
         free = _free_float(
             activity_map[activity_id],
             early,
@@ -256,16 +242,11 @@ def schedule(
     """Run forward pass, backward pass and float/critical-path analysis."""
     activity_list = list(activities)
     relationship_list = list(relationships)
-    early = __import__(
-        "construction_pm.scheduling.forward_pass",
-        fromlist=["forward_pass"],
-    ).forward_pass(activity_list, relationship_list, project_start, resolver)
+    early = forward_pass(
+        activity_list, relationship_list, project_start, resolver
+    )
     late = backward_pass(
-        activity_list,
-        relationship_list,
-        early,
-        project_finish,
-        resolver,
+        activity_list, relationship_list, early, project_finish, resolver
     )
     floats = calculate_floats(
         activity_list, relationship_list, early, late, resolver
