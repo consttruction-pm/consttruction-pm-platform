@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "construction-pm/client-sync-outcome-v1.json",
+  "title": "Construction PM Client Sync Outcome v1",
+  "type": "object",
+  "required": ["contract_version", "status"],
+  "properties": {
+    "contract_version": {"const": "client-sync-outcome.v1"},
+    "status": {"enum": ["applied", "replayed", "conflict", "rejected"]},
+    "operation": {"type": ["string", "null"], "minLength": 1},
+    "revision": {"type": ["integer", "null"], "minimum": 1},
+    "error_code": {"type": ["string", "null"], "minLength": 1},
+    "retryable": {"type": ["boolean", "null"]},
+    "idempotency_key": {"type": ["string", "null"], "minLength": 1}
+  },
+  "additionalProperties": false
+}
