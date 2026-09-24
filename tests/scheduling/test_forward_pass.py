@@ -20,12 +20,7 @@ def test_forward_pass_multiple_predecessors_uses_latest_requirement(resolver):
         Relationship("B", "C", RelationshipType.SS, lag=1),
     ]
 
-    result = forward_pass(
-        activities,
-        relationships,
-        date(2026, 9, 21),
-        resolver,
-    )
+    result = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
 
     assert result["A"].start == date(2026, 9, 21)
     assert result["A"].finish == date(2026, 9, 22)
@@ -39,8 +34,10 @@ def test_forward_pass_multiple_predecessors_uses_latest_requirement(resolver):
     [
         (RelationshipType.FS, date(2026, 9, 23)),
         (RelationshipType.SS, date(2026, 9, 21)),
-        (RelationshipType.FF, date(2026, 9, 22)),
-        (RelationshipType.SF, date(2026, 9, 21)),
+        (RelationshipType.FF, date(2026, 9, 21)),
+        # A starts Monday; a two-day SF successor must finish Monday and
+        # therefore starts on the preceding working day (Friday).
+        (RelationshipType.SF, date(2026, 9, 18)),
     ],
 )
 def test_forward_pass_supports_all_relationship_types(
@@ -73,7 +70,7 @@ def test_forward_pass_supports_positive_and_negative_lag(resolver):
     )
 
     assert positive["B"].start == date(2026, 9, 23)
-    assert negative["B"].start == date(2026, 9, 21)
+    assert negative["B"].start == date(2026, 9, 18)
 
 
 def test_forward_pass_is_deterministic_for_input_order(resolver):
