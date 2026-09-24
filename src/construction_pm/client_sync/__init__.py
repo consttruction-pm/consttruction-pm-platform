@@ -17,7 +17,7 @@ from .conflict import (
 from .conflict_presentation import ClientConflictPresentation
 from .calendar import ClientCalendarReference, ClientCalendarContext
 from .sync_presentation import ClientSyncPresentation
-from .resource import ClientResourceDTO, ClientResourceAssignmentDTO, parse_resource, parse_assignment
+from .resource import ClientResourceDTO, ClientResourceAssignmentDTO, parse_resource, parse_assignment, validate_resource_operation
 
 __all__ = [
     "OfflineProjectContext",
@@ -47,4 +47,5 @@ __all__ = [
     "ClientResourceAssignmentDTO",
     "parse_resource",
     "parse_assignment",
+    "validate_resource_operation",
 ]
