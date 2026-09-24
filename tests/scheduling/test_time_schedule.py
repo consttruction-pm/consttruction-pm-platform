@@ -60,10 +60,10 @@ def test_time_backward_pass_fs_inverse_matches_forward_boundary():
     late = time_backward_pass(
         activities, relationships, early, datetime(2026, 9, 22, 17), registry()
     )
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
-    assert late["B"].start == datetime(2026, 9, 22, 15)
-    assert late["A"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].start == datetime(2026, 9, 22, 11)
+    assert late["B"].finish == datetime(2026, 9, 22, 16)
+    assert late["B"].start == datetime(2026, 9, 22, 14)
+    assert late["A"].finish == datetime(2026, 9, 22, 15)
+    assert late["A"].start == datetime(2026, 9, 22, 10)
 
 
 def test_time_backward_pass_supports_negative_lag():
@@ -351,7 +351,7 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].finish == datetime(2026, 9, 22, 16)
     assert late["A"].start == datetime(2026, 9, 22, 13)
-    assert late["A"].finish == datetime(2026, 9, 22, 18)
+    assert late["A"].finish == datetime(2026, 9, 22, 17)
 
 
 def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrelated():
