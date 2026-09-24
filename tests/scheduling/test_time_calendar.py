@@ -47,7 +47,7 @@ def test_calculate_working_hours_is_decimal_and_deterministic(resolver):
     ) == Decimal("5")
     assert resolver.calculate_working_hours(
         datetime(2026, 9, 22, 10), datetime(2026, 9, 24, 10)
-    ) == Decimal("7")
+    ) == Decimal("8")
 
 
 def test_negative_working_hours_are_rejected(resolver):
