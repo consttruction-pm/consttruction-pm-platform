@@ -60,7 +60,7 @@ Status: **100% — complete**
 - No Scheduling/P6 or Progress/EVM semantics changed.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **55% — in progress; advanced constraint propagation hardening added 2026-09-24**
+Status: **57% — in progress; advanced constraint propagation coverage added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -99,6 +99,10 @@ Status: **55% — in progress; advanced constraint propagation hardening added 2
   - Mandatory start/finish combinations are checked against activity duration.
   - Cross start/finish windows are checked for emptiness before CPM passes.
   - Validation is shared by Forward and Backward scheduling paths.
+- 33.4.18 Constraint Propagation Through Lagged Networks: implemented.
+  - Added multi-constraint propagation coverage across an FS network with positive working lag.
+  - Verified that a constrained intermediate activity propagates its date through downstream relationships.
+  - Verified that a downstream finish constraint participates in the same deterministic schedule.
 - A missing validate_upper_bound constraint helper used by Forward Pass was reconciled into the Shared Core.
 - This remains foundational scheduling behavior. Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
