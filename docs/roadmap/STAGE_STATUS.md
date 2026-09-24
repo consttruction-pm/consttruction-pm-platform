@@ -93,4 +93,13 @@ Status: **100% — complete**
 - API, Application, authorization, idempotency, revision and context-isolation contracts covered together.
 - Final Resource backend regression suite added.
 - **Stage 33.3 completion gate: 100%.**
+
+### Stage 33.4 — SQLite Transaction Boundary Hardening
+Status: **100%**
+- Application transaction rollback against SQLite persistence is regression-tested.
+- Nested repository transactions participate in the outer application transaction.
+- Stable stale-revision error mapping import reconciled.
+- No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics changed.
+- Stage 33.4 completion gate: **100%**.
+- Next: continue from the next unfinished Stage 33 backend/platform item.
 - Next: continue from the next unfinished Stage 33 item.
