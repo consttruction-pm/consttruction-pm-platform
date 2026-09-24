@@ -80,3 +80,13 @@ Leveling is a scheduling decision, not a cost-calculation side effect. The resou
 - Added cumulative cost S-curve dataset.
 - Preserved typed Decimal/date outputs for reporting and Excel integration.
 - Visualization remains a presentation concern; domain returns calculation-ready datasets.
+
+
+### 32.8.11 Resource/Cost ↔ EVM Integration
+- Added a neutral Resource EVM bridge.
+- Resource cost supplies remaining resource cost as ETC input.
+- EAC is derived as AC + ETC.
+- VAC is derived as BAC - EAC when BAC is available.
+- CV and SV are exposed without replacing the central EVM engine.
+- The bridge is intentionally isolated so the authoritative EVM semantics remain in the shared EVM domain.
+- Added Pytest coverage for deterministic Decimal calculations.
