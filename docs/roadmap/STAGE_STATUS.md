@@ -60,3 +60,4 @@ Status: **100%**
 - Nested repository transactions participate in the outer application transaction.
 - Stable stale-revision error mapping import reconciled.
 - No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics changed.
+- 33.4 Offline Mutation Queue Retry Attempt: implemented on backend branch; retry attempt increments are persistent and transaction-aware, while mutation identity/fingerprint remains stable. Merge verification pending.
