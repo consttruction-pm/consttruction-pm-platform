@@ -5,6 +5,7 @@ from enum import Enum
 
 from .mutation import OfflineMutation
 from .queue import OfflineMutationQueue
+from .session import ClientProjectSession
 
 
 def build_refresh_retry_mutation(
@@ -89,6 +90,27 @@ class ConflictResolutionService:
                 original,
                 replacement,
             )
+        )
+
+    def refresh_and_retry_from_session(
+        self,
+        original: OfflineMutation,
+        session: ClientProjectSession,
+        *,
+        idempotency_key: str,
+        mutation: dict[str, object] | None = None,
+    ) -> OfflineMutation:
+        """Retry only against a revision already established by authority."""
+        session.validate()
+        if session.context != original.context:
+            raise ValueError("conflict mutation context does not match client session")
+        if session.revision is None:
+            raise ValueError("client session requires authoritative revision")
+        return self.refresh_and_retry(
+            original,
+            current_revision=session.revision,
+            idempotency_key=idempotency_key,
+            mutation=mutation,
         )
 
     def resolve(self, request: ConflictResolutionRequest) -> OfflineMutation:
