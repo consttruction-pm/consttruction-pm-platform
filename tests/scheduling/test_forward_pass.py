@@ -5,7 +5,7 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.forward_pass import SchedulingCycleError, forward_pass
-from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.relationships import Relationship, RelationshipType, successor_earliest_start
 
 
 @pytest.fixture
@@ -35,8 +35,6 @@ def test_forward_pass_multiple_predecessors_uses_latest_requirement(resolver):
         (RelationshipType.FS, date(2026, 9, 23)),
         (RelationshipType.SS, date(2026, 9, 21)),
         (RelationshipType.FF, date(2026, 9, 21)),
-        # A starts Monday; a two-day SF successor must finish Monday and
-        # therefore starts on the preceding working day (Friday).
         (RelationshipType.SF, date(2026, 9, 18)),
     ],
 )
@@ -53,24 +51,64 @@ def test_forward_pass_supports_all_relationship_types(
     assert result["B"].start == expected_start
 
 
-def test_forward_pass_supports_positive_and_negative_lag(resolver):
-    activities = [Activity("A", 2), Activity("B", 1)]
-
-    positive = forward_pass(
+@pytest.mark.parametrize(
+    ("relationship_type", "lag", "expected_start"),
+    [
+        (RelationshipType.FS, 1, date(2026, 9, 24)),
+        (RelationshipType.FS, -1, date(2026, 9, 21)),
+        (RelationshipType.SS, 2, date(2026, 9, 23)),
+        (RelationshipType.SS, -1, date(2026, 9, 18)),
+        (RelationshipType.FF, 1, date(2026, 9, 22)),
+        (RelationshipType.FF, -1, date(2026, 9, 19)),
+        (RelationshipType.SF, 1, date(2026, 9, 19)),
+        (RelationshipType.SF, -1, date(2026, 9, 17)),
+    ],
+)
+def test_forward_pass_lag_is_consistent_for_all_relationship_types(
+    resolver, relationship_type, lag, expected_start
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    result = forward_pass(
         activities,
-        [Relationship("A", "B", RelationshipType.SS, lag=2)],
+        [Relationship("A", "B", relationship_type, lag=lag)],
         date(2026, 9, 21),
         resolver,
     )
-    negative = forward_pass(
-        activities,
-        [Relationship("A", "B", RelationshipType.SS, lag=-1)],
+    assert result["B"].start == expected_start
+
+
+def test_relationship_primitive_matches_forward_pass_for_each_relationship_type(resolver):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    for relationship_type in RelationshipType:
+        relationship = Relationship("A", "B", relationship_type)
+        result = forward_pass(
+            activities,
+            [relationship],
+            date(2026, 9, 21),
+            resolver,
+        )
+        expected = successor_earliest_start(
+            relationship,
+            result["A"].start,
+            result["A"].finish,
+            activities[1].duration,
+            resolver,
+        )
+        assert result["B"].start == expected
+
+
+def test_forward_pass_skips_holiday_for_relationship_lag():
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({holiday}))
+    )
+    result = forward_pass(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
         date(2026, 9, 21),
         resolver,
     )
-
-    assert positive["B"].start == date(2026, 9, 23)
-    assert negative["B"].start == date(2026, 9, 18)
+    assert result["B"].start == date(2026, 9, 23)
 
 
 def test_forward_pass_is_deterministic_for_input_order(resolver):
