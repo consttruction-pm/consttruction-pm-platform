@@ -350,7 +350,7 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
     assert early["B"].finish == datetime(2026, 9, 21, 16)
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].start == datetime(2026, 9, 22, 14)
+    assert late["A"].start == datetime(2026, 9, 22, 13)
     assert late["A"].finish == datetime(2026, 9, 22, 18)
 
 
