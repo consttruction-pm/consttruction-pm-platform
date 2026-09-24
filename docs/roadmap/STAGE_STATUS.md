@@ -398,3 +398,14 @@ Status: **100% — runtime-verified 2026-09-25**
 - GitHub Actions run **36056263616** completed successfully on Python 3.11, 3.12 and 3.13.
 - PostgreSQL Sync State workflow run **36056263748** also completed successfully.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+
+### Stage 33.4.67 — Shared Offline Mutation Queue Client Gate
+Status: **implemented — runtime-verified 2026-09-25**
+- Added the shared TypeScript `apps/client-sync` queue consumed by Desktop and Mobile foundations.
+- Queue enforces `sync-mutation.v1`, preserves ProjectContext/expected revision and rejects cross-mutation idempotency-key reuse.
+- Only `sync-outcome.v1` with disposition `acknowledged` removes a queued mutation; retry/conflict/rejected outcomes remain pending.
+- Added Client Typecheck workflow covering client-sync, Web, Desktop and Mobile.
+- GitHub Actions run **36057977102** completed successfully; ConstructionPM run **36057977085** and PostgreSQL sync run **36057977103** also completed successfully for the integration commit.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- Next gate: connect the shared queue to the existing versioned transport/application synchronization boundary and add end-to-end client sync outcome regression coverage.
