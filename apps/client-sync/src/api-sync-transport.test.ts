@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
-import { ApiSyncTransport, type VersionedSyncApi } from "./api-sync-transport.ts";
+import { ApiSyncTransport, type VersionedSyncApi, type SyncApiResult, type SyncProjectContext } from "./api-sync-transport.ts";
 
 const mutation: SyncMutation = {
   contract_version: "sync-mutation.v1",
@@ -17,7 +17,7 @@ const mutation: SyncMutation = {
 test("api transport preserves context, revision and idempotency key", async () => {
   let received: unknown;
   const api: VersionedSyncApi = {
-    async post(path, request, context, idempotencyKey) {
+    async post<TRequest, TResponse>(path: string, request: TRequest, context: SyncProjectContext, idempotencyKey: string): Promise<SyncApiResult<TResponse>> {
       received = { path, request, context, idempotencyKey };
       return {
         ok: true,
@@ -43,7 +43,7 @@ test("api transport preserves context, revision and idempotency key", async () =
 
 test("retryable api errors become retry outcomes", async () => {
   const api: VersionedSyncApi = {
-    async post() {
+    async post<TRequest, TResponse>(): Promise<SyncApiResult<TResponse>> {
       return { ok: false, error: { code: "TEMPORARY_UNAVAILABLE", retryable: true } };
     },
   };
