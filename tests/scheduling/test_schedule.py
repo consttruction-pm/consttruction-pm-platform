@@ -6,7 +6,12 @@ from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
-from construction_pm.scheduling.schedule import backward_pass, schedule
+from construction_pm.scheduling.schedule import (
+    ScheduleMode,
+    ScheduleOptions,
+    backward_pass,
+    schedule,
+)
 
 
 @pytest.fixture
@@ -79,3 +84,36 @@ def test_backward_pass_rejects_missing_activity(resolver):
     activities = [Activity("A", 1)]
     with pytest.raises(ValueError):
         backward_pass(activities, [], {}, None, resolver)
+
+
+def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [Relationship("A", "C"), Relationship("B", "C")]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(ScheduleMode.ALAP),
+    )
+
+    assert result.mode is ScheduleMode.ALAP
+    assert result.activities["A"].start == date(2026, 9, 22)
+    assert result.activities["B"].start == date(2026, 9, 22)
+    assert result.activities["C"].start == date(2026, 9, 23)
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.late_activities["A"].start == date(2026, 9, 22)
+    assert result.floats["A"].total_float == 1
+
+
+def test_earliest_mode_remains_default_selected_schedule(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [Relationship("A", "C"), Relationship("B", "C")]
+
+    result = schedule(activities, relationships, date(2026, 9, 21), resolver)
+
+    assert result.mode is ScheduleMode.EARLIEST
+    assert result.activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.late_activities["A"].start == date(2026, 9, 22)
