@@ -10,6 +10,8 @@ from construction_pm.scheduling.constraints import (
     ConstraintViolation,
 )
 from construction_pm.scheduling.forward_pass import forward_pass
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.schedule import schedule
 
 
 @pytest.fixture
@@ -18,80 +20,50 @@ def resolver():
 
 
 def test_start_no_earlier_than_constraint():
-    resolver = WorkingTimeResolver(WorkingCalendar())
     result = forward_pass(
-        [Activity("A", 1)],
-        [],
-        date(2026, 9, 21),
-        resolver,
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
         [ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 23))],
     )
     assert result["A"].start == date(2026, 9, 23)
 
 
 def test_finish_no_earlier_than_constraint():
-    resolver = WorkingTimeResolver(WorkingCalendar())
     result = forward_pass(
-        [Activity("A", 1)],
-        [],
-        date(2026, 9, 21),
-        resolver,
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
         [ActivityConstraint("A", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 9, 23))],
     )
     assert result["A"].finish == date(2026, 9, 23)
 
 
 def test_start_no_later_than_violation():
-    resolver = WorkingTimeResolver(WorkingCalendar())
     with pytest.raises(ConstraintViolation):
         forward_pass(
-            [Activity("A", 1)],
-            [],
-            date(2026, 9, 23),
-            resolver,
+            [Activity("A", 1)], [], date(2026, 9, 23), resolver,
             [ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 22))],
         )
 
 
 def test_mandatory_start_is_enforced():
-    resolver = WorkingTimeResolver(WorkingCalendar())
     result = forward_pass(
-        [Activity("A", 1)],
-        [],
-        date(2026, 9, 21),
-        resolver,
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
         [ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 23))],
     )
     assert result["A"].start == date(2026, 9, 23)
 
 
 def test_constraint_rejects_unknown_activity():
-    resolver = WorkingTimeResolver(WorkingCalendar())
     with pytest.raises(ValueError):
         forward_pass(
-            [Activity("A", 1)],
-            [],
-            date(2026, 9, 21),
-            resolver,
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
             [ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22))],
         )
 
 
-from construction_pm.scheduling.schedule import schedule
-
-
 def test_backward_pass_applies_start_no_later_than_constraint(resolver):
     result = schedule(
-        [Activity("A", 1)],
-        [],
-        date(2026, 9, 21),
-        resolver,
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
         project_finish=date(2026, 9, 25),
-        constraints=[
-            ActivityConstraint(
-                "A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 23)
-            )
-        ],
+        constraints=[ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 23))],
     )
     assert result.floats["A"].late_start == date(2026, 9, 23)
 
@@ -99,14 +71,57 @@ def test_backward_pass_applies_start_no_later_than_constraint(resolver):
 def test_backward_pass_rejects_incompatible_mandatory_start(resolver):
     with pytest.raises(ConstraintViolation):
         schedule(
-            [Activity("A", 1)],
-            [],
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            project_finish=date(2026, 9, 23),
+            constraints=[ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 21))],
+        )
+
+
+def test_finish_no_later_than_is_checked_against_relationship_driven_finish(resolver):
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B", RelationshipType.FS)]
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            activities,
+            relationships,
             date(2026, 9, 21),
             resolver,
-            project_finish=date(2026, 9, 23),
             constraints=[
-                ActivityConstraint(
-                    "A", ConstraintType.MANDATORY_START, date(2026, 9, 21)
-                )
+                ActivityConstraint("B", ConstraintType.FINISH_NO_LATER_THAN, date(2026, 9, 21))
+            ],
+        )
+
+
+def test_start_no_earlier_than_combines_with_fs_and_positive_lag(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        Relationship("B", "C", RelationshipType.FS, lag=1),
+    ]
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        constraints=[
+            ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))
+        ],
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["B"].start == date(2026, 9, 24)
+    assert result.early_activities["C"].start == date(2026, 9, 27)
+
+
+def test_mandatory_finish_conflicts_with_relationship_and_is_rejected(resolver):
+    activities = [Activity("A", 2), Activity("B", 1)]
+    relationships = [Relationship("A", "B", RelationshipType.FS)]
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            activities,
+            relationships,
+            date(2026, 9, 21),
+            resolver,
+            constraints=[
+                ActivityConstraint("A", ConstraintType.MANDATORY_FINISH, date(2026, 9, 21))
             ],
         )
