@@ -13,7 +13,7 @@ class IdempotentMutationGateway:
         existing = self.store.lookup(mutation)
         if existing is not None:
             if existing.outcome.mutation_id != mutation.mutation_id:
-                raise ValueError("MUTATION_ID_MISMATCH")
+                raise ValueError("IDEMPOTENCY_KEY_REUSE")
             return existing.outcome
 
         self.store.remember(mutation, outcome)
