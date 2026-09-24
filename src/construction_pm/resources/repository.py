@@ -97,7 +97,7 @@ class InMemoryResourceRepository:
         )
         current = self._assignment_revisions.get(key)
         if current is not None and expected_revision is not None and expected_revision != current:
-            raise RuntimeError(
+            raise OptimisticLockError(
                 "Stale assignment revision for "
                 f"{assignment.activity_id}/{assignment.resource_id}: expected {expected_revision}"
             )
