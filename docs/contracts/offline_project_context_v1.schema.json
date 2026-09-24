@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "construction-pm/offline-project-context-v1.json",
+  "title": "Construction PM Offline Project Context v1",
+  "type": "object",
+  "required": ["contract_version","tenant_id","company_id","project_id","project_schema_version","calendar_id","calendar_version","scheduling_settings_version","calculation_settings_version"],
+  "properties": {
+    "contract_version": {"const": "offline-project-context.v1"},
+    "tenant_id": {"type": "string", "minLength": 1},
+    "company_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "project_schema_version": {"type": "integer", "minimum": 1},
+    "calendar_id": {"type": ["string", "null"], "minLength": 1},
+    "calendar_version": {"type": ["integer", "null"], "minimum": 1},
+    "scheduling_settings_version": {"type": ["integer", "null"], "minimum": 1},
+    "calculation_settings_version": {"type": ["integer", "null"], "minimum": 1}
+  },
+  "additionalProperties": false
+}
