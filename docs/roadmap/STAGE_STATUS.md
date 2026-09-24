@@ -61,7 +61,7 @@ Status: **100% — reconciled and merged into current main**
 **Stage 33.2 completion gate: 100%.**
 
 ### Stage 33.3 — Production Application/API Hardening
-Status: **60% — in progress**
+Status: **70% — in progress**
 - 33.3.1 Application/API contract audit: **100%**
 - 33.3.2 Stable Error Contract: **100%**
 - Stable machine-readable ApplicationError categories implemented.
@@ -80,4 +80,8 @@ Status: **60% — in progress**
 - SQLite idempotency records are transactionally coupled to mutation execution.
 - Resource schema advanced to v4 and portable schema updated.
 - Failure rollback and fingerprint conflict regression tests added.
-- Next: 33.3.5 Authorization boundary and API revision propagation
+- 33.3.5 Authorization boundary: **100%**
+- Explicit application authorization policy contract added.
+- Resource mutations are authorized before persistence.
+- Stable forbidden error and regression coverage added.
+- Next: 33.3.6 API revision propagation and optimistic-locking contract
