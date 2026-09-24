@@ -17,3 +17,8 @@ Status: **100% implementation complete**
 - Resource EVM bridge implemented.
 - Deterministic Decimal calculations tested.
 - Central EVM semantics remain authoritative.
+
+
+### Stage 32.8.12 — Typed XLSX Import/Export
+Status: **100% implementation complete**
+- Typed schemas, real XLSX I/O, schema versioning and round-trip test implemented.
