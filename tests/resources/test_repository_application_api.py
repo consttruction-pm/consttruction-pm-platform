@@ -69,3 +69,28 @@ def test_api_calls_normalized_remaining_units_method():
         planned_units=Decimal("10"), actual_units=Decimal("4"),
     ))
     assert dto["remaining_units"] == "6"
+
+
+def test_repository_context_isolation_for_resources_and_assignments():
+    repo = InMemoryResourceRepository()
+    project_a = ProjectContext("tenant-1", "company-1", "project-a")
+    project_b = ProjectContext("tenant-1", "company-1", "project-b")
+    repo.save_resource(project_a, make_resource())
+    repo.save_assignment(
+        project_a,
+        ResourceAssignment(
+            activity_id="A-1",
+            resource_id="R-1",
+            planned_units=Decimal("2"),
+            actual_units=Decimal("1"),
+        ),
+    )
+    assert repo.get_resource(project_b, "R-1") is None
+    assert repo.list_assignments(project_b) == []
+
+
+def test_repository_rejects_invalid_project_context():
+    repo = InMemoryResourceRepository()
+    invalid = ProjectContext("tenant-1", "company-1", "")
+    with pytest.raises(ValueError, match="project_id"):
+        repo.get_resource(invalid, "R-1")
