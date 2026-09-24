@@ -85,3 +85,8 @@ Status: **100%**
   - Exported the time-aware resolver from the scheduling package.
   - Existing date-based Scheduling APIs remain unchanged until time-based duration/lag contracts are explicitly integrated and tested.
   - Full P6 time-of-day parity remains pending; runtime CI execution remains unverified.
+- 33.4.28 Offline Sync Dispatch Contract: implemented on the backend/shared-contract boundary.
+  - Added a typed transport protocol for applying one queued OfflineMutation and returning SyncMutationOutcome.
+  - Dispatch validates the mutation and authoritative outcome, including operation and idempotency-key correlation.
+  - Queue lifecycle policy (remove/retry/conflict resolution) remains outside this contract; no client-specific business calculations are introduced.
+  - Added regression tests for matching outcomes, correlation mismatches, and non-typed transport results.
