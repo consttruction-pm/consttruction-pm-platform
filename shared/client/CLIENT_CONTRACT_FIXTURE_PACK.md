@@ -102,3 +102,21 @@ Every future client implementation must demonstrate:
 
 Framework-specific tests may wrap these fixtures, but must not redefine their
 semantics.
+
+## Conflict presentation fixture
+
+The conflict fixture must map to the same framework-neutral presentation model in Web, Desktop, and Mobile:
+
+```json
+{
+  "contract_version": "client-conflict-presentation.v1",
+  "operation": "update_activity",
+  "idempotency_key": "idem-activity-001",
+  "expected_revision": 7,
+  "error_code": "STALE_REVISION",
+  "retryable": false,
+  "available_actions": ["discard", "refresh_and_retry", "defer"]
+}
+```
+
+Acceptance rule: adapters may localize labels and render controls differently, but they must preserve the action semantics, identity, expected revision, and stable error code. No adapter may recalculate schedule, cost, Progress, or calendar state while presenting the conflict.
