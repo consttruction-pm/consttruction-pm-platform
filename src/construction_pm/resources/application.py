@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .context import ProjectContext
+from .errors import (
+    ApplicationError,
+    context_error,
+    not_found_error,
+    validation_error,
+)
 from .models import Resource, ResourceAssignment
 from .repository import ResourceRepository
 from .transactions import TransactionManager
@@ -11,7 +17,7 @@ from .validation import validate_assignment, validate_resource
 
 def _raise_if_invalid(errors: list[str]) -> None:
     if errors:
-        raise ValueError(";".join(errors))
+        raise validation_error("INVALID_INPUT", ";".join(errors))
 
 
 @dataclass(frozen=True)
@@ -21,15 +27,23 @@ class ResourceApplicationService:
     transaction_manager: TransactionManager
 
     def register_resource(self, resource: Resource) -> Resource:
+        try:
+            self.context.validate()
+        except ValueError as exc:
+            raise context_error("INVALID_PROJECT_CONTEXT", str(exc)) from exc
         _raise_if_invalid(validate_resource(resource))
         with self.transaction_manager.transaction():
             return self.repository.save_resource(self.context, resource)
 
     def assign_resource(self, assignment: ResourceAssignment) -> ResourceAssignment:
+        try:
+            self.context.validate()
+        except ValueError as exc:
+            raise context_error("INVALID_PROJECT_CONTEXT", str(exc)) from exc
         _raise_if_invalid(validate_assignment(assignment))
         with self.transaction_manager.transaction():
             if self.repository.get_resource(self.context, assignment.resource_id) is None:
-                raise ValueError(f"Unknown resource: {assignment.resource_id}")
+                raise not_found_error("RESOURCE_NOT_FOUND", f"Unknown resource: {assignment.resource_id}")
             return self.repository.save_assignment(self.context, assignment)
 
     def get_resource(self, resource_id: str) -> Resource | None:
