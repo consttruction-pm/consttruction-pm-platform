@@ -49,3 +49,5 @@ def test_web_client_preserves_conflict_context_fields() -> None:
     for field in ("expected_revision", "actual_revision", "details"):
         assert field in client_source
         assert f"error.{field}" in boundary_source
+    assert "available_actions" in client_source
+    assert "payload.error" in client_source
