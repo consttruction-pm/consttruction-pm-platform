@@ -9,7 +9,7 @@
 | Stage 32.6 Dashboard & Control Center | 100% |
 | Stage 32.7 Reporting & Print Engine | 100% |
 | Stage 32.8 Resource & Cost Control Center | 100% |
-| Stage 33 — System Integration & Platform Hardening | 35% — in progress |
+| Stage 33 — System Integration & Platform Hardening | 36% — in progress |
 
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
@@ -347,3 +347,15 @@ Status: **100%**
   - The regression run confirms the repaired Shared Scheduling/Core baseline, including calendar interval arithmetic, FS/SS/FF/SF relationships, lag/lead boundaries, Forward/Backward scheduling, float/constraints, typed resource/API contracts, synchronization/idempotency and cross-client regression coverage.
   - Stage 33.4.36 time-aware P6 certification evidence is now runtime-verified. This remains an engineering compatibility gate, not an Oracle certification claim.
   - Stage 33.4 is now eligible to close; future work proceeds to the next product/platform stage without reopening completed 33.4 work unless a new regression is introduced.
+
+
+### Stage 33.3.4 — Authorization Boundary
+Status: **implemented — runtime CI verification pending**
+- Added framework/provider-neutral Application authorization policy at `src/construction_pm/application/authorization.py`.
+- Carries tenant_id, project_id and user_id with effective roles for every project-scoped authorization decision.
+- Added explicit permissions: project.read, project.write, project.schedule and project.admin.
+- Initial baseline roles: viewer, planner and project_admin.
+- Authentication provider concerns remain outside Shared Domain/Calculation Core.
+- Added integration regression tests for allow/deny behavior, stable AuthorizationError and context preservation.
+- No Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics changed.
+- Next gate: Stage 33.3.5 integration regression and full runtime verification.
