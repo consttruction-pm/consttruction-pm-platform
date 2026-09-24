@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping
 
 from .calendar import WorkingTimeResolver
 
@@ -30,6 +29,20 @@ class Relationship:
             raise TypeError("lag must be an integer working-day value")
 
 
+def _shift_event(
+    value,
+    lag: int,
+    resolver: WorkingTimeResolver,
+) -> object:
+    if lag >= 0:
+        return resolver.next_working_day(
+            resolver.add_working_duration(value, lag)
+        )
+    return resolver.previous_working_day(
+        resolver.subtract_working_duration(value, -lag)
+    )
+
+
 def successor_earliest_start(
     relationship: Relationship,
     predecessor_start,
@@ -39,21 +52,27 @@ def successor_earliest_start(
 ):
     """Calculate the earliest successor start imposed by one relationship.
 
-    Lag is expressed in working days. This function is intentionally pure and
-    framework-independent so the same rule can execute on Web, Desktop and
-    approved Mobile offline workflows.
+    Lag is expressed in working days and uses the same event-boundary
+    semantics as the Forward Pass.
     """
-    lagged_finish = resolver.add_working_duration(predecessor_finish, relationship.lag) if relationship.lag >= 0 else resolver.subtract_working_duration(predecessor_finish, -relationship.lag)
-    lagged_start = resolver.add_working_duration(predecessor_start, relationship.lag) if relationship.lag >= 0 else resolver.subtract_working_duration(predecessor_start, -relationship.lag)
+    if relationship.type is RelationshipType.SS:
+        if relationship.lag >= 0:
+            return resolver.add_working_duration(
+                predecessor_start, relationship.lag + 1
+            )
+        return resolver.subtract_working_duration(
+            predecessor_start, -relationship.lag + 1
+        )
 
     if relationship.type is RelationshipType.FS:
-        return resolver.next_working_day(lagged_finish)
-    if relationship.type is RelationshipType.SS:
-        return lagged_start
+        return _shift_event(predecessor_finish, relationship.lag, resolver)
+
     if relationship.type is RelationshipType.FF:
-        target_finish = lagged_finish
+        target_finish = _shift_event(predecessor_finish, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, duration)
+
     if relationship.type is RelationshipType.SF:
-        target_finish = lagged_start
+        target_finish = _shift_event(predecessor_start, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, duration)
+
     raise ValueError(f"unsupported relationship type: {relationship.type}")
