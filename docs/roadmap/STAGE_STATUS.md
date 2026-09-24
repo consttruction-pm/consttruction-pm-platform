@@ -401,13 +401,17 @@ Status: **100% — runtime-verified 2026-09-25**
 
 
 ### Stage 33.4.68 — Shared Client API Sync Transport Boundary
-Status: **implemented — CI verification pending**
+Status: **100% — runtime-verified 2026-09-25**
 - Added `apps/client-sync/src/api-sync-transport.ts` as the TypeScript bridge from `ClientSyncRunner` to the existing versioned `/api/v1/sync/mutations` application/API boundary.
 - Preserves tenant/project context, expected revision and idempotency key without duplicating business calculations.
 - Maps retryable API errors to `RETRY` and non-retryable API errors to `REJECTED`; validates successful mutation identity.
-- Added transport and runner regression tests.
-- Latest implementation commit: `735559dcda3dfcee7b33e01613185fbd21658e0f`.
-- CI verification is the next gate.
+- Added transport and runner regression tests, including generic API test doubles required by strict TypeScript typechecking.
+- GitHub Actions Client Typecheck run **36060255053** completed successfully, covering Web, Desktop, Mobile and client-sync.
+- ConstructionPM CI run **36060255327** completed successfully.
+- PostgreSQL Sync State workflow run **36060254941** completed successfully.
+- Latest verified implementation commit: `7f44c75c911433ef3bb3d347c08b2678c45d5115`.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- Next gate: add end-to-end client sync outcome regression coverage for `ACK / RETRY / CONFLICT / REJECTED` across the shared runner and versioned application/API boundary.
 
 ### Stage 33.4.67 — Shared Offline Mutation Queue Client Gate
 Status: **100% — runtime-verified 2026-09-25**
