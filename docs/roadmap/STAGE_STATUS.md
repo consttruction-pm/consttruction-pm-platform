@@ -60,7 +60,7 @@ Status: **100% — complete**
 - No Scheduling/P6 or Progress/EVM semantics changed.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **40% — in progress; constraint foundation added 2026-09-24**
+Status: **42% — in progress; backward constraint integration added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -69,6 +69,12 @@ Status: **40% — in progress; constraint foundation added 2026-09-24**
 - 33.4.9 Portable Activity + Forward Pass: **implemented**.
 - 33.4.10 Backward Pass + Float Analysis: **implemented**.
 - 33.4.11 Foundational Activity Date Constraints: **implemented**.
+- 33.4.12 Backward-Pass Constraint Integration: **implemented**.
+  - Late-date calculations now accept the same typed ActivityConstraint set used by Forward Pass.
+  - Start/Finish No Later Than constraints cap latest dates; Mandatory Start/Finish constraints enforce exact late dates.
+  - Lower-bound constraints remain validated against the resulting late window rather than being silently ignored.
+  - `tests/scheduling/test_backward_constraints.py` covers Start/Finish upper bounds, consistent Mandatory Finish, and unknown constraint activity validation.
+  - This remains foundational constraint behavior; full P6 constraint semantics, ALAP, schedule options and time-of-day calendars remain pending.
   - `src/construction_pm/scheduling/constraints.py` adds typed constraint primitives:
     - Start No Earlier Than
     - Start No Later Than
