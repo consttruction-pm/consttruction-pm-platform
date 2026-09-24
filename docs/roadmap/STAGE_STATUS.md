@@ -204,3 +204,8 @@ Status: **100%**
   - Added framework-neutral typed API transport with ProjectContext propagation.
   - Preserves stable API errors and optional Idempotency-Key handling.
   - No client-side scheduling/P6, calendar, Progress/EVM, Resource/Cost or financial calculations introduced.
+
+- 33.4.44 Web Runtime Context & Error Boundary: implemented.
+  - Added runtime ProjectContext store with tenant/project/revision validation and revision updates.
+  - Added framework-neutral stable error/conflict presentation boundary preserving server action semantics.
+  - Added integration boundary tests confirming Web does not host calculation engines.
