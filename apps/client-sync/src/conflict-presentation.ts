@@ -1,4 +1,4 @@
-import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
+import type { SyncMutation, SyncOutcome } from "./mutation-queue.js";
 
 export type SyncConflictPresentation = {
   mutation_id: string;
