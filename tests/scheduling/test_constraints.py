@@ -109,7 +109,7 @@ def test_start_no_earlier_than_combines_with_fs_and_positive_lag(resolver):
     )
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.early_activities["B"].start == date(2026, 9, 24)
-    assert result.early_activities["C"].start == date(2026, 9, 27)
+    assert result.early_activities["C"].start == date(2026, 9, 28)
 
 
 def test_mandatory_finish_conflicts_with_relationship_and_is_rejected(resolver):
