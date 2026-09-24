@@ -61,7 +61,6 @@ class OfflineSyncCoordinator:
             result = present_mutation_payload(payload)
             if result is None:
                 raise ValueError("invalid client mutation result")
-
             if result.error is not None:
                 raise ValueError("offline sync requires client-sync outcome")
 
@@ -85,6 +84,11 @@ class OfflineSyncCoordinator:
                 self.queue.remove(attempted)
                 if self.session is not None:
                     self.session = self.session.apply_mutation_result(result)
+            elif result.status in {"conflict", "rejected"}:
+                # A failed mutation stays inspectable but must not silently retry.
+                # Retry requires an explicit new mutation/idempotency key after
+                # refresh or user resolution.
+                self.queue.defer(attempted)
 
             results.append(SyncAttempt(attempted, outcome, removed, result))
         return results
