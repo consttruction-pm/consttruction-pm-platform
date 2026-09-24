@@ -103,8 +103,8 @@ def test_sqlite_increment_attempt_participates_in_existing_transaction():
     connection = sqlite3.connect(":memory:")
     q = SQLiteOfflineMutationQueue(connection)
     mutation = make_mutation()
-    q.enqueue(mutation)
     connection.execute("BEGIN")
+    q.enqueue(mutation)
     updated = q.increment_attempt(mutation)
     assert updated.attempt == 1
     connection.rollback()
