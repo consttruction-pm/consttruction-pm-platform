@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **72% — in progress; constraint/float/critical-path reconciliation hardened 2026-09-24**
+Status: **76% — in progress; schedule-mode/constraint interaction hardened 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -48,6 +48,10 @@ Status: **72% — in progress; constraint/float/critical-path reconciliation har
   - Added FS/SS/FF/SF regression coverage plus project-finish overflow coverage.
   - Full CI execution remains unverified.
 - 33.4.23 Constraint + Float + Critical Path Reconciliation: implemented.
+- 33.4.24 P6 Schedule Option + Constraint Interaction Pack: implemented.
+  - EARLIEST and ALAP are tested with constrained FS/SS/FF/SF networks and positive lag.
+  - Selected schedule remains mode-specific while Early/Late schedules and Float analysis remain preserved.
+  - Added regression coverage preventing ALAP selection from mutating the Early schedule.
 - 33.4 Offline Mutation Queue Retry Attempt: implemented and merged in PR #49 (2026-09-24); retry attempts are persistent and transaction-aware, while mutation identity/fingerprint remains stable.
   - Constrained late dates are reconciled against early dates before Total Float is accepted.
   - Negative constrained Total Float is rejected rather than hidden by clamping to zero.
