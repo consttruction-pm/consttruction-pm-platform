@@ -426,3 +426,13 @@ Status: **100% — runtime-verified 2026-09-25**
 - Latest verified commit: `a55c322f2fe23a280e33d2db0552d841f6a1d83c`.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 - Next gate: connect the shared queue to the existing versioned transport/application synchronization boundary and add end-to-end client sync outcome regression coverage.
+### Stage 33.4.69 — End-to-End Client Sync Outcome Regression
+Status: **100% — runtime-verified 2026-09-25**
+- Added end-to-end TypeScript regression coverage from `ClientSyncRunner` through `ApiSyncTransport` and the versioned API boundary.
+- Verified `ACK`, `RETRY`, `CONFLICT` and `REJECTED` outcomes with the queue retaining or removing mutations according to the shared sync contract.
+- Client Typecheck run **36060519167** completed successfully.
+- ConstructionPM CI run **36060519137** completed successfully.
+- PostgreSQL Sync State workflow run **36060519320** completed successfully.
+- Latest verified commit: `f8e11714cb5a1ff7bee1782eab0d6b96ee194553`.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- Next gate: validate conflict/revision behavior against the real application/API mutation boundary and ensure Web/Desktop/Mobile runtime adapters consume the same versioned outcome contract.
