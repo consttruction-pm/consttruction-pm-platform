@@ -244,6 +244,48 @@ def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
     assert late["A"].finish == datetime(2026, 9, 22, 15)
 
 
+def test_cross_calendar_ff_float_reconciliation_matches_activity_calendar_window():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(4), SchedulingCalendarContext(
+            refs["project"], refs["predecessor"], refs["lag"]
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(2), SchedulingCalendarContext(
+            refs["project"], refs["successor"], refs["lag"]
+        )),
+    ]
+    result = time_schedule(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FF, LagQuantity.working_hours(1))],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry,
+    )
+
+    for activity in activities:
+        scheduled_early = result.early_activities[activity.id]
+        scheduled_late = result.late_activities[activity.id]
+        resolver = registry.resolve(activity.calendar_context.effective_activity())
+        assert resolver.calculate_working_hours(
+            scheduled_early.start, scheduled_early.finish
+        ) == activity.duration.value
+        assert resolver.calculate_working_hours(
+            scheduled_late.start, scheduled_late.finish
+        ) == activity.duration.value
+        expected_total = resolver.calculate_working_hours(
+            scheduled_early.start, scheduled_late.start
+        )
+        assert result.floats[activity.id].total_float_hours == expected_total
+        assert result.floats[activity.id].critical is (expected_total <= 0)
+        assert result.floats[activity.id].free_float_hours <= expected_total
+
+
 def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
     refs = {
         "project": CalendarReference("project", "1", "working-time"),
