@@ -128,7 +128,12 @@ class SQLiteMutationIdempotencyStore:
                         "IDEMPOTENCY_KEY_REUSE",
                         "Idempotency key was already used for a different mutation",
                     )
-                result = replay() if replay is not None else mutation()
+                if replay is None:
+                    raise conflict_error(
+                        "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+                        "A replay callback is required for an already-applied idempotent mutation",
+                    )
+                result = replay()
             else:
                 self.connection.execute(
                     "INSERT INTO mutation_idempotency "
