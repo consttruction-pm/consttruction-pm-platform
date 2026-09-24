@@ -60,7 +60,7 @@ Status: **100% — complete**
 - No Scheduling/P6 or Progress/EVM semantics changed.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **50% — in progress; combined constraint/relationship hardening added 2026-09-24**
+Status: **52% — in progress; backward relationship feasibility hardening added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -89,6 +89,10 @@ Status: **50% — in progress; combined constraint/relationship hardening added 
   - Added relationship-driven Finish No Later Than violation coverage.
   - Added Mandatory Finish conflict coverage.
   - Corrected regression expectations for non-working weekend boundaries.
+- 33.4.16 Backward Relationship Feasibility Hardening: implemented.
+  - Replaced weak backward lag assertions with direct relationship-feasibility checks.
+  - Positive/negative lag coverage now verifies the computed late schedule actually satisfies FS/SS/FF/SF semantics.
+  - Added holiday-aware backward relationship feasibility regression coverage.
 - A missing validate_upper_bound constraint helper used by Forward Pass was reconciled into the Shared Core.
 - This remains foundational scheduling behavior. Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
