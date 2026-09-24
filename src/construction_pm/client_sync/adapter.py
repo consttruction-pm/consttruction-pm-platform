@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .context import OfflineProjectContext
+from .mutation import OfflineMutation
+from .outcome import SyncMutationOutcome
 
 
 @dataclass(frozen=True)
@@ -44,11 +46,46 @@ class ClientMutationRequest:
             "mutation": self.mutation,
         }
 
+    def to_offline_mutation(self) -> OfflineMutation:
+        """Create the same mutation envelope for an approved offline queue."""
+        self.validate()
+        return OfflineMutation(
+            context=self.context,
+            operation=self.operation,
+            idempotency_key=self.idempotency_key,
+            mutation=dict(self.mutation),
+            expected_revision=self.expected_revision,
+        )
+
 
 class ClientMutationTransport(Protocol):
     """Transport seam; HTTP, desktop IPC or another runtime owns the implementation."""
 
     def send(self, request: ClientMutationRequest) -> object: ...
+
+
+def normalize_sync_outcome(payload: object) -> SyncMutationOutcome | None:
+    """Normalize only the authoritative client-sync outcome contract."""
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("contract_version") != SyncMutationOutcome.contract_version:
+        return None
+    allowed = {
+        "contract_version", "status", "operation", "revision",
+        "error_code", "retryable", "idempotency_key",
+    }
+    if set(payload) != allowed:
+        return None
+    outcome = SyncMutationOutcome(
+        status=payload["status"],
+        operation=payload["operation"],
+        revision=payload["revision"],
+        error_code=payload["error_code"],
+        retryable=payload["retryable"],
+        idempotency_key=payload["idempotency_key"],
+    )
+    outcome.validate()
+    return outcome
 
 
 def normalize_stable_error(payload: object) -> dict[str, object] | None:
