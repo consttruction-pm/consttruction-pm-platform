@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "construction-pm/application-error-v1.json",
+  "title": "Construction PM Application Error v1",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["category", "code", "message", "retryable"],
+      "properties": {
+        "category": {
+          "enum": ["validation", "context", "conflict", "authorization", "not_found", "persistence"]
+        },
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "retryable": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
