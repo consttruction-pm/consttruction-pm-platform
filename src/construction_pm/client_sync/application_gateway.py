@@ -37,3 +37,18 @@ class ApplicationSyncGateway:
                 )
             raise
         return SyncOutcome(mutation.mutation_id, SyncDisposition.ACKNOWLEDGED)
+
+
+@dataclass(frozen=True)
+class AtomicApplicationSyncGateway:
+    """Application gateway with one transaction covering mutation outcome persistence."""
+
+    tenant_id: str
+    project_id: str
+    handler: ApplicationMutationHandler
+    executor: object
+
+    def submit_mutation(self, mutation: OfflineMutation) -> SyncOutcome:
+        if mutation.tenant_id != self.tenant_id or mutation.project_id != self.project_id:
+            return SyncOutcome(mutation.mutation_id, SyncDisposition.REJECTED, error_code="INVALID_PROJECT_CONTEXT")
+        return self.executor.submit(mutation)
