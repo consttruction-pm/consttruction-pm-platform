@@ -13,7 +13,11 @@ from construction_pm.scheduling.schedule import (
     backward_pass,
     schedule,
 )
-from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver\n\n\ndef _working_float_days(start, finish, resolver):\n    return resolver.working_days_between(start, finish)
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+
+
+def _working_float_days(start, finish, resolver):
+    return resolver.working_days_between(start, finish)
 
 
 @pytest.fixture
