@@ -43,11 +43,17 @@ No client may introduce an alternative constraint, duration, calendar, lag, floa
 
 `shared/contracts/time-scheduling.schema.json` defines the cross-client payload for calculation context, activities, relationships, duration units, lag units, calendar references, and constraint-linked activity records. Decimal-like duration/lag/float values are represented as strings to preserve exactness across clients.
 
+## Deterministic parity and offline round-trip
+
+The Shared Core now provides a canonical JSON representation and SHA-256 fingerprint for the time-scheduling wire payload. This is a transport-level parity guard: Web, Desktop and Mobile can compare the same payload independently of property ordering. A JSON round-trip regression test verifies that offline serialization/deserialization preserves the payload exactly.
+
+This fingerprint does not replace scheduling-result parity tests; it verifies that the calculation context and scheduling inputs are preserved without transport mutation.
+
 ## Remaining Stage 33.4 gates
 
 - typed API DTOs for the time-aware contract — contract v1 is now defined in `shared/contracts/time-scheduling.schema.json`;
-- cross-client parity/regression fixtures;
-- offline portability round-trip tests;
+- scheduling-result parity fixtures executed against the same Shared Core;
+- client adapter/API integration tests;
 - final P6 time-aware parity review.
 
 Runtime CI execution remains unverified.
