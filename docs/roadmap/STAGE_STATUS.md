@@ -320,3 +320,9 @@ Status: **100%**
   - Actual GitHub Actions success is not yet verified; runtime completion remains pending.
 
 - 33.4.55 Backend Contract Regression Hardening: merged PR #64 (SHA `7e995c2b7baed8b2a1aaff71457b8a16b630a458`). Fixed `OptimisticLockError` message construction, corrected typed time API required-value return, and fixed SQLite offline queue transaction ownership for enqueue/remove/retry. Regression coverage added. No Scheduling/P6 formulas changed.
+
+- 33.4.62 Persistent Sync Gateway Integration: implemented.
+  - Added persistence-backed gateway lookup/replay/store flow.
+  - Duplicate identical mutations replay persisted outcomes without delegate re-execution.
+  - Key reuse with different fingerprint remains rejected.
+  - Full atomic lookup/execute/store transaction hardening remains a subsequent gate.
