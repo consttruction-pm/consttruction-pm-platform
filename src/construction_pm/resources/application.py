@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .context import ProjectContext
-from .errors import (
+from .idempotency import (\n    MutationIdempotencyStore,\n    assignment_fingerprint,\n    resource_fingerprint,\n)\nfrom .errors import (
     ApplicationError,
     context_error,
     not_found_error,
@@ -26,7 +26,7 @@ class ResourceApplicationService:
     context: ProjectContext
     transaction_manager: TransactionManager
 
-    def register_resource(self, resource: Resource) -> Resource:
+    def register_resource(self, resource: Resource, idempotency_key: str | None = None) -> Resource:
         try:
             self.context.validate()
         except ValueError as exc:
@@ -35,7 +35,7 @@ class ResourceApplicationService:
         with self.transaction_manager.transaction():
             return self.repository.save_resource(self.context, resource)
 
-    def assign_resource(self, assignment: ResourceAssignment) -> ResourceAssignment:
+    def assign_resource(\n        self, assignment: ResourceAssignment, idempotency_key: str | None = None\n    ) -> ResourceAssignment:
         try:
             self.context.validate()
         except ValueError as exc:
