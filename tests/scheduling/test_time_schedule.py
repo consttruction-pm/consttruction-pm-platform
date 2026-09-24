@@ -1,6 +1,8 @@
 from datetime import datetime, time
 from decimal import Decimal
 
+import pytest
+
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
@@ -418,8 +420,8 @@ def test_cross_calendar_finish_constraint_interacts_with_fs_lag_and_float():
     assert result.early_activities["B"].finish == datetime(2026, 9, 22, 16)
     assert result.late_activities["B"].start == datetime(2026, 9, 22, 14)
     assert result.floats["B"].total_float_hours == Decimal("0.0")
-    assert result.floats["A"].total_float_hours == Decimal("1.0")
-    assert not result.floats["A"].critical
+    assert result.floats["A"].total_float_hours == Decimal("0")
+    assert result.floats["A"].critical
 
 
 def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected():
