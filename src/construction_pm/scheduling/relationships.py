@@ -43,6 +43,12 @@ def _shift_event(
     )
 
 
+def _shift_working_date(value, lag: int, resolver: WorkingTimeResolver):
+    if lag >= 0:
+        return resolver.add_working_duration(value, lag + 1)
+    return resolver.subtract_working_duration(value, -lag + 1)
+
+
 def successor_earliest_start(
     relationship: Relationship,
     predecessor_start,
