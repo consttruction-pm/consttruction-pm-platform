@@ -65,6 +65,17 @@ def _inverse_event_shift(
     )
 
 
+def _inverse_start_shift(
+    successor_start: date,
+    lag: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Inverse of the Shared Core's SS start-event lag rule."""
+    if lag >= 0:
+        return resolver.subtract_working_duration(successor_start, lag + 1)
+    return resolver.add_working_duration(successor_start, -lag + 1)
+
+
 def _latest_predecessor_start(
     relationship: Relationship,
     successor: ScheduledActivity,
@@ -80,10 +91,9 @@ def _latest_predecessor_start(
         )
 
     if relationship.type is RelationshipType.SS:
-        predecessor_start = _inverse_event_shift(
-            successor.start, relationship.lag - 1, resolver
+        return _inverse_start_shift(
+            successor.start, relationship.lag, resolver
         )
-        return predecessor_start
 
     if relationship.type is RelationshipType.FF:
         predecessor_finish = _inverse_event_shift(
@@ -199,10 +209,16 @@ def _relationship_holds(
     resolver: WorkingTimeResolver,
 ) -> bool:
     if relationship.type is RelationshipType.FS:
-        required = resolver.next_working_day(
-            resolver.add_working_duration(predecessor.finish, relationship.lag)
-        ) if relationship.lag >= 0 else resolver.previous_working_day(
-            resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+        required = (
+            resolver.next_working_day(
+                resolver.add_working_duration(predecessor.finish, relationship.lag)
+            )
+            if relationship.lag >= 0
+            else resolver.previous_working_day(
+                resolver.subtract_working_duration(
+                    predecessor.finish, -relationship.lag
+                )
+            )
         )
         return successor.start >= required
 
