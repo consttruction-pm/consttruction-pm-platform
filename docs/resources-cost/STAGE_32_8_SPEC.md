@@ -109,3 +109,13 @@ Status: **100% implementation complete**
 - Assignment numeric values round-trip through Decimal.
 - Header/schema validation is enforced.
 - Pytest round-trip coverage added.
+
+
+### 32.8.13 — Resource & Cost Integration Review
+Status: **100%**
+- Added a deterministic integration snapshot contract.
+- Resource planned/actual/remaining cost is normalized before integration.
+- At-completion resource cost is derived consistently as actual + remaining.
+- Negative resource costs are rejected at the contract boundary.
+- Integration snapshot exposes a stable fingerprint payload for idempotency/cache validation.
+- Scheduling, Progress/EVM and Reporting remain separate consumers; no UI dependency was introduced.
