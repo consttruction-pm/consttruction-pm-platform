@@ -45,7 +45,6 @@ class AtomicApplicationSyncGateway:
 
     tenant_id: str
     project_id: str
-    handler: ApplicationMutationHandler
     executor: object
 
     def submit_mutation(self, mutation: OfflineMutation) -> SyncOutcome:
