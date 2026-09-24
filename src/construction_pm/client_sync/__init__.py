@@ -4,6 +4,7 @@ from .mutation import OfflineMutation
 from .queue import InMemoryOfflineMutationQueue, SQLiteOfflineMutationQueue
 from .adapter import ClientMutationRequest, ClientMutationTransport
 from .sync import OfflineSyncCoordinator, SyncAttempt
+from .transport import CallableMutationTransport
 
 __all__ = [
     "OfflineProjectContext",
@@ -15,4 +16,5 @@ __all__ = [
     "ClientMutationTransport",
     "OfflineSyncCoordinator",
     "SyncAttempt",
+    "CallableMutationTransport",
 ]
