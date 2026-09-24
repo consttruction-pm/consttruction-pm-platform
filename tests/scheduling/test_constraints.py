@@ -75,3 +75,38 @@ def test_constraint_rejects_unknown_activity():
             resolver,
             [ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22))],
         )
+
+
+from construction_pm.scheduling.schedule import schedule
+
+
+def test_backward_pass_applies_start_no_later_than_constraint(resolver):
+    result = schedule(
+        [Activity("A", 1)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 25),
+        constraints=[
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 23)
+            )
+        ],
+    )
+    assert result.floats["A"].late_start == date(2026, 9, 23)
+
+
+def test_backward_pass_rejects_incompatible_mandatory_start(resolver):
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            [Activity("A", 1)],
+            [],
+            date(2026, 9, 21),
+            resolver,
+            project_finish=date(2026, 9, 23),
+            constraints=[
+                ActivityConstraint(
+                    "A", ConstraintType.MANDATORY_START, date(2026, 9, 21)
+                )
+            ],
+        )
