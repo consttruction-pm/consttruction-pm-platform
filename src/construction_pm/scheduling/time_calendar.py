@@ -90,21 +90,28 @@ class TimeAwareWorkingTimeResolver:
         remaining = units
         for _ in range(3660):
             intervals = self.calendar.intervals_for(cursor.date())
-            moved = False
+            progressed = False
             for interval_start, interval_end in intervals:
                 begin = datetime.combine(cursor.date(), interval_start)
                 end = datetime.combine(cursor.date(), interval_end)
                 if cursor < begin:
                     cursor = begin
-                if begin <= cursor < end:
-                    capacity = Decimal(str((end - cursor).total_seconds())) / Decimal(3600)
-                    if remaining <= capacity:
-                        return cursor + timedelta(seconds=float(remaining * Decimal(3600)))
-                    remaining -= capacity
-                    moved = True
-                    break
+                if not (begin <= cursor < end):
+                    continue
+
+                capacity = Decimal(str((end - cursor).total_seconds())) / Decimal(3600)
+                if remaining <= capacity:
+                    seconds = remaining * Decimal(3600)
+                    return cursor + timedelta(microseconds=int(seconds * Decimal(1_000_000)))
+                remaining -= capacity
+                progressed = True
+                cursor = end
+
+            # Consume all remaining intervals on this day before advancing.
+            # This is essential for calendars with breaks such as 08:00–12:00
+            # and 13:00–17:00.
             cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min)
-            if not moved and not intervals:
+            if progressed or not intervals:
                 continue
         raise ValueError("working-hour duration exceeds resolver horizon")
 
