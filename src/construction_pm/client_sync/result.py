@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from .adapter import normalize_stable_error, normalize_sync_outcome
 from .errors import ClientErrorPresentation, present_normalized_error
 from .outcome import SyncMutationOutcome
+from .conflict_presentation import ClientConflictPresentation
+from .mutation import OfflineMutation
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,26 @@ class ClientMutationResult:
     @property
     def conflicted(self) -> bool:
         return self.status == "conflict"
+
+    def to_conflict_presentation(
+        self,
+        mutation: OfflineMutation,
+    ) -> ClientConflictPresentation:
+        """Project an authoritative conflict result into shared UI state."""
+        self.validate()
+        if not self.conflicted:
+            raise ValueError("conflict presentation requires a conflict result")
+        if self.operation not in (None, mutation.operation):
+            raise ValueError("conflict result operation does not match mutation")
+        if self.idempotency_key not in (None, mutation.idempotency_key):
+            raise ValueError("conflict result idempotency_key does not match mutation")
+        if self.error_code is None or self.retryable is None:
+            raise ValueError("conflict result requires error_code and retryable")
+        return ClientConflictPresentation.from_conflict(
+            mutation,
+            error_code=self.error_code,
+            retryable=self.retryable,
+        )
 
     def validate(self) -> None:
         if self.status not in {"applied", "replayed", "conflict", "rejected", "error"}:
