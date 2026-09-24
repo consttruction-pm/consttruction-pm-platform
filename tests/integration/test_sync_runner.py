@@ -129,3 +129,25 @@ def test_application_sync_gateway_rejects_cross_project_context() -> None:
     outcome = ApplicationSyncGateway("t1", "p1", Handler()).submit_mutation(altered)
 
     assert outcome == SyncOutcome("m2", SyncDisposition.REJECTED, error_code="INVALID_PROJECT_CONTEXT")
+
+
+def test_atomic_application_gateway_delegates_to_transactional_executor() -> None:
+    from construction_pm.client_sync.application_gateway import AtomicApplicationSyncGateway
+
+    mutation_value = mutation()
+    class Executor:
+        def __init__(self):
+            self.seen = None
+        def submit(self, submitted):
+            self.seen = submitted
+            return SyncOutcome(submitted.mutation_id, SyncDisposition.ACKNOWLEDGED)
+
+    executor = Executor()
+    gateway = AtomicApplicationSyncGateway("t1", "p1", executor)
+    outcome = gateway.submit_mutation(mutation_value)
+    assert outcome.disposition is SyncDisposition.ACKNOWLEDGED
+    assert executor.seen == mutation_value
+
+    rejected = gateway.submit_mutation(OfflineMutation("m3", "t1", "other", 7, "update_activity", {}, "idem-3"))
+    assert rejected.disposition is SyncDisposition.REJECTED
+    assert rejected.error_code == "INVALID_PROJECT_CONTEXT"
