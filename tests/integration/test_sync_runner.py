@@ -151,3 +151,47 @@ def test_atomic_application_gateway_delegates_to_transactional_executor() -> Non
     rejected = gateway.submit_mutation(OfflineMutation("m3", "t1", "other", 7, "update_activity", {}, "idem-3"))
     assert rejected.disposition is SyncDisposition.REJECTED
     assert rejected.error_code == "INVALID_PROJECT_CONTEXT"
+
+
+def test_transactional_application_gateway_persists_conflict_atomically() -> None:
+    from construction_pm.client_sync.application_gateway import TransactionalApplicationSyncGateway
+    from construction_pm.client_sync.server_idempotency import InMemoryServerIdempotencyStore
+
+    class Tx:
+        def __init__(self):
+            self.commits = 0
+            self.rollbacks = 0
+        class Ctx:
+            def __init__(self, outer): self.outer = outer
+            def __enter__(self): return None
+            def __exit__(self, typ, value, tb):
+                if typ is None: self.outer.commits += 1
+                else: self.outer.rollbacks += 1
+                return False
+        def transaction(self): return self.Ctx(self)
+
+    class Persistence(InMemoryServerIdempotencyStore):
+        def __init__(self):
+            super().__init__()
+            self.conflicts = {}
+        def get_idempotency(self, tenant_id, project_id, key):
+            return self.lookup(OfflineMutation("probe", tenant_id, project_id, 0, "probe", {}, key))
+        def put_idempotency(self, record): self._records[(record.tenant_id, record.project_id, record.idempotency_key)] = record
+        def save_conflict(self, mutation_id, tenant_id, project_id, context): self.conflicts[(tenant_id, project_id, mutation_id)] = context
+        def get_conflict(self, mutation_id, tenant_id, project_id): return self.conflicts.get((tenant_id, project_id, mutation_id))
+
+    class Handler:
+        def handle(self, submitted):
+            class OptimisticLockError(Exception): pass
+            raise OptimisticLockError("stale")
+
+    persistence = Persistence()
+    tx = Tx()
+    gateway = TransactionalApplicationSyncGateway("t1", "p1", persistence, tx, Handler())
+    outcome = gateway.submit_mutation(mutation())
+    assert outcome.disposition is SyncDisposition.CONFLICT
+    assert persistence.get_conflict("m1", "t1", "p1") is not None
+    assert tx.commits == 1
+    replay = gateway.submit_mutation(mutation())
+    assert replay == outcome
+    assert tx.commits == 2
