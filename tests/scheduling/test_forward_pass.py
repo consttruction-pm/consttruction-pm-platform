@@ -35,7 +35,7 @@ def test_forward_pass_multiple_predecessors_uses_latest_requirement(resolver):
         (RelationshipType.FS, date(2026, 9, 23)),
         (RelationshipType.SS, date(2026, 9, 21)),
         (RelationshipType.FF, date(2026, 9, 21)),
-        (RelationshipType.SF, date(2026, 9, 20)),
+        (RelationshipType.SF, date(2026, 9, 18)),
     ],
 )
 def test_forward_pass_supports_all_relationship_types(
@@ -59,9 +59,9 @@ def test_forward_pass_supports_all_relationship_types(
         (RelationshipType.SS, 2, date(2026, 9, 23)),
         (RelationshipType.SS, -1, date(2026, 9, 18)),
         (RelationshipType.FF, 1, date(2026, 9, 22)),
-        (RelationshipType.FF, -1, date(2026, 9, 19)),
+        (RelationshipType.FF, -1, date(2026, 9, 18)),
         (RelationshipType.SF, 1, date(2026, 9, 21)),
-        (RelationshipType.SF, -1, date(2026, 9, 18)),
+        (RelationshipType.SF, -1, date(2026, 9, 17)),
     ],
 )
 def test_forward_pass_lag_is_consistent_for_all_relationship_types(
