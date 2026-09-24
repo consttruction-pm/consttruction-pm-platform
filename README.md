@@ -23,7 +23,16 @@ A web-ready construction project management platform designed as a structured re
 7. Audit/revision history is append-only for effective project changes.
 
 ## Current documented implementation point
-Stage 32.7 — Reporting, Print Engine & Professional Project Reports: 100%.
+Stage 33.4.30 — Time-Aware CPM Calendar Integration: in progress.
 
-Next planned stage:
-Stage 32.8 — Resource & Cost Control Center.
+Latest completed foundation:
+- Stage 33.4.29 — Activity & Relationship-Lag Calendar Resolution.
+- Explicit versioned project/activity/relationship-lag calendar references.
+- Time-aware Forward/Backward scheduling with FS/SS/FF/SF and signed working-hour lag.
+- Working-time arithmetic across split daily intervals, holidays and calendar boundaries.
+- Recent late-finish, lag-boundary and optimistic-lock/idempotency regressions addressed in `main`.
+
+Current focus:
+- Authoritative project-calendar resolution in time-aware CPM.
+- Cross-calendar Forward/Backward and relationship-lag regression coverage.
+- CI verification before closing Stage 33.4.30.
