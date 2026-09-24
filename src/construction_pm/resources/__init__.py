@@ -16,3 +16,5 @@ __all__ = [
     "ResourcePeriodValue", "ResourceRate", "ResourceType",
     "aggregate_loading", "calculate_assignment_control", "calculate_cost", "spread_units", "build_resource_histogram", "build_cumulative_cost_curve",
 ]
+
+from .excel_schema import ExcelColumn, RESOURCE_COLUMNS, ASSIGNMENT_COLUMNS, coerce_excel_value
