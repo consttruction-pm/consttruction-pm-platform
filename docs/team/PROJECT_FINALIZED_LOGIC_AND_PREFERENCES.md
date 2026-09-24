@@ -633,3 +633,31 @@ Compatibility review:
 - Testing: offline/online parity, deterministic scheduling, sync/conflict/revision and cross-client regression tests are mandatory.
 
 Required developer action: Hasan must provide/maintain the API/Application contracts and persistence/synchronization boundaries needed for local-capable Desktop/Mobile operation; no client-side duplicate scheduling formulas are permitted.
+
+## 33. Developer 2 — Javad Foroughi — 2026-09-24
+
+Developer 2 is formally added to the project team as Javad Foroughi (@JavadForoughi).
+
+### 33.1 Ownership
+Javad owns the client-integration and cross-client quality track across Web, Desktop and Mobile:
+- Web API/Application contract integration, ProjectContext/session, typed DTOs, stable error presentation, conflict/revision UX and client workflows.
+- Desktop standalone/offline client foundation and approved local Core workflows.
+- Mobile field workflows and approved offline basic planning workflows.
+- Cross-client parity, integration and regression testing.
+- Persian/English UI and Jalali/Gregorian presentation integration.
+- Offline/online state, synchronization UX and conflict presentation, consuming shared synchronization contracts.
+
+### 33.2 Non-duplication rule
+Javad must consume the authoritative Shared Domain/Calculation Core and versioned Application/API contracts. Client code must not create an independent implementation of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial semantics.
+
+### 33.3 First execution package
+1. Audit apps/web, apps/desktop, apps/mobile and shared/contracts.
+2. Produce a client integration gap matrix.
+3. Implement the highest-priority missing typed client integration pieces.
+4. Add cross-client parity tests for ProjectContext, DTOs, stable errors and Scheduling integration.
+5. Prepare client foundations for upcoming Scheduling/Constraint work without changing Shared Scheduling Core semantics.
+
+### 33.4 Collaboration rule
+Javad works through feature branches and Pull Requests targeting main. Any shared semantic/API/data-contract change must be documented and announced before it is treated as authoritative. Shared calculation changes remain subject to the project's P6 compatibility and Shared Core rules.
+
+Assignment details are tracked in GitHub Issue #45.
