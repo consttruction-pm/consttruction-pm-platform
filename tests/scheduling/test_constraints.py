@@ -73,7 +73,7 @@ def test_backward_pass_rejects_incompatible_mandatory_start(resolver):
         schedule(
             [Activity("A", 1)], [], date(2026, 9, 21), resolver,
             project_finish=date(2026, 9, 23),
-            constraints=[ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 21))],
+            constraints=[ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 24))],
         )
 
 
