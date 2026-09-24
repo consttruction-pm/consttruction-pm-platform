@@ -69,11 +69,21 @@
         "calendar_assignments": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["project_calendar", "default_activity_calendar", "default_relationship_lag_calendar"],
+          "required": [
+            "project_calendar",
+            "default_activity_calendar",
+            "default_relationship_lag_calendar"
+          ],
           "properties": {
-            "project_calendar": { "$ref": "#/$defs/calendar_reference" },
-            "default_activity_calendar": { "$ref": "#/$defs/calendar_reference" },
-            "default_relationship_lag_calendar": { "$ref": "#/$defs/calendar_reference" }
+            "project_calendar": {
+              "$ref": "#/$defs/calendar_reference"
+            },
+            "default_activity_calendar": {
+              "$ref": "#/$defs/calendar_reference"
+            },
+            "default_relationship_lag_calendar": {
+              "$ref": "#/$defs/calendar_reference"
+            }
           }
         },
         "language_context": {
@@ -126,6 +136,94 @@
               "type": "boolean"
             }
           }
+        },
+        "time_scheduling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schedule_mode": {
+              "type": "string",
+              "enum": [
+                "EARLIEST",
+                "ALAP"
+              ]
+            },
+            "project_start": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "project_finish": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "data_date": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "critical_float_threshold_hours": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "time_precision": {
+              "type": "string",
+              "enum": [
+                "minute",
+                "second",
+                "millisecond",
+                "microsecond"
+              ]
+            },
+            "rounding_policy": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "calendar-boundary"
+              ]
+            }
+          }
+        },
+        "time_constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "activity_id",
+              "type",
+              "target"
+            ],
+            "properties": {
+              "activity_id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "START_NO_EARLIER_THAN",
+                  "START_NO_LATER_THAN",
+                  "FINISH_NO_EARLIER_THAN",
+                  "FINISH_NO_LATER_THAN",
+                  "MANDATORY_START",
+                  "MANDATORY_FINISH"
+                ]
+              },
+              "target": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
         }
       }
     },
@@ -146,11 +244,25 @@
     "calendar_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["calendar_id", "calendar_version", "kind"],
+      "required": [
+        "calendar_id",
+        "calendar_version",
+        "kind"
+      ],
       "properties": {
-        "calendar_id": { "type": "string" },
-        "calendar_version": { "type": "string" },
-        "kind": { "type": "string", "enum": ["working-day", "working-time"] }
+        "calendar_id": {
+          "type": "string"
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "working-day",
+            "working-time"
+          ]
+        }
       }
     }
   }
