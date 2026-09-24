@@ -109,3 +109,21 @@ def test_refresh_retry_builder_rejects_reused_key():
         assert str(exc) == "replacement mutation requires a new idempotency_key"
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_service_refresh_and_retry_builds_and_enqueues_rebased_mutation():
+    queue = InMemoryOfflineMutationQueue()
+    original = make_mutation()
+    queue.enqueue(original)
+
+    result = ConflictResolutionService(queue).refresh_and_retry(
+        original,
+        current_revision=15,
+        idempotency_key="fresh-key-15",
+        mutation={"activity_id": "A-1", "name": "Foundation Updated"},
+    )
+
+    assert result.expected_revision == 15
+    assert result.idempotency_key == "fresh-key-15"
+    assert result.mutation["name"] == "Foundation Updated"
+    assert queue.peek() == [result]
