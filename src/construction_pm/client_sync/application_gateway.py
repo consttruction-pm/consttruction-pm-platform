@@ -65,10 +65,20 @@ class TransactionalApplicationSyncGateway:
 
     def __post_init__(self) -> None:
         from .atomic_conflict import AtomicConflictSyncExecutor
+
+        # The atomic executor consumes a submit(mutation) delegate. Wrap the
+        # application handler with the existing application boundary so stale
+        # revisions are translated into a deterministic conflict outcome before
+        # idempotency/conflict persistence occurs inside the transaction.
+        self._application_gateway = ApplicationSyncGateway(
+            self.tenant_id,
+            self.project_id,
+            self.handler,
+        )
         self._executor = AtomicConflictSyncExecutor(
             self.persistence,
             self.transaction_manager,
-            self.handler,
+            self._application_gateway,
         )
 
     def submit_mutation(self, mutation: OfflineMutation) -> SyncOutcome:
