@@ -18,3 +18,5 @@ __all__ = [
 ]
 
 from .excel_schema import ExcelColumn, RESOURCE_COLUMNS, ASSIGNMENT_COLUMNS, coerce_excel_value
+
+from .xlsx_io import export_resources_xlsx, import_assignment_rows_xlsx
