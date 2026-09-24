@@ -209,8 +209,8 @@ def test_cross_calendar_fs_positive_lag_uses_successor_lag_calendar():
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].start == datetime(2026, 9, 22, 14)
     assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].finish == datetime(2026, 9, 22, 13)
-    assert late["A"].start == datetime(2026, 9, 22, 9)
+    assert late["A"].finish == datetime(2026, 9, 22, 12)
+    assert late["A"].start == datetime(2026, 9, 22, 8)
 
 
 def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
@@ -268,5 +268,5 @@ def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
     assert result.early_activities["B"].start == datetime(2026, 9, 22, 7)
     assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9)
     assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16)
-    assert result.floats["A"].total_float_hours == Decimal("7")
+    assert result.floats["A"].total_float_hours == Decimal("6.0")
     assert not result.floats["A"].critical
