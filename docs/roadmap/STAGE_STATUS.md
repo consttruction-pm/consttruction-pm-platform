@@ -105,3 +105,13 @@ Status: **0% — opened 2026-09-24**
 - Completion requires cross-client contract, workflow and parity regression tests.
 - No Scheduling/P6 or Progress/EVM semantics are redefined in Stage 33.4.
 - Tracking issue: #26.
+
+
+### Stage 33.4 — SQLite Transaction Boundary Hardening
+Status: **100%**
+- Application transaction rollback against SQLite persistence is regression-tested.
+- Nested repository transactions participate in the outer application transaction.
+- Stable stale-revision error mapping import reconciled.
+- No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics changed.
+- Stage 33.4 completion gate: **100%**.
+- Next: continue from the next unfinished Stage 33 backend/platform item.
