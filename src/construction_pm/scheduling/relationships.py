@@ -36,7 +36,7 @@ def _shift_event(
 ) -> object:
     if lag >= 0:
         return resolver.next_working_day(
-            resolver.add_working_duration(value, lag)
+            resolver.add_working_duration(value, lag + 1)
         )
     return resolver.previous_working_day(
         resolver.subtract_working_duration(value, -lag)
@@ -68,11 +68,11 @@ def successor_earliest_start(
         return _shift_event(predecessor_finish, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FF:
-        target_finish = _shift_event(predecessor_finish, relationship.lag, resolver)
+        target_finish = _shift_working_date(predecessor_finish, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, duration)
 
     if relationship.type is RelationshipType.SF:
-        target_finish = _shift_event(predecessor_start, relationship.lag, resolver)
+        target_finish = _shift_working_date(predecessor_start, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, duration)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
