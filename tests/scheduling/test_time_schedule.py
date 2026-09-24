@@ -128,11 +128,12 @@ def test_time_schedule_uses_project_calendar_for_explicit_finish():
         [TimeActivity("A", TimeQuantity.working_hours(2), ctx)],
         [],
         datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 12),
+        datetime(2026, 9, 22, 12, 30),
         registry,
     )
-    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 12)
-    assert result.late_activities["A"].start == datetime(2026, 9, 22, 10)
+    assert result.project_finish == datetime(2026, 9, 22, 12)
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 11)
+    assert result.late_activities["A"].start == datetime(2026, 9, 22, 9)
 
 
 def test_time_backward_pass_does_not_use_last_activity_calendar_as_project_calendar():
