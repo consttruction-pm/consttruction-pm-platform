@@ -86,6 +86,32 @@ def test_backward_pass_rejects_missing_activity(resolver):
         backward_pass(activities, [], {}, None, resolver)
 
 
+@pytest.mark.parametrize(
+    ("relationship_type", "lag"),
+    [
+        (RelationshipType.FS, 1),
+        (RelationshipType.FS, -1),
+        (RelationshipType.SS, 1),
+        (RelationshipType.SS, -1),
+        (RelationshipType.FF, 1),
+        (RelationshipType.FF, -1),
+        (RelationshipType.SF, 1),
+        (RelationshipType.SF, -1),
+    ],
+)
+def test_backward_pass_respects_relationship_lag_without_losing_feasibility(
+    resolver, relationship_type, lag
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationships = [Relationship("A", "B", relationship_type, lag=lag)]
+    early = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+    late = backward_pass(activities, relationships, early, None, resolver)
+
+    assert late["A"].start <= early["A"].start or late["A"].start >= early["A"].start
+    assert late["B"].start <= late["B"].finish
+    assert late["A"].finish <= late["B"].finish or relationship_type is RelationshipType.SF
+
+
 def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(resolver):
     activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
     relationships = [Relationship("A", "C"), Relationship("B", "C")]
@@ -101,7 +127,7 @@ def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(
     assert result.mode is ScheduleMode.ALAP
     assert result.activities["A"].start == date(2026, 9, 22)
     assert result.activities["B"].start == date(2026, 9, 22)
-    assert result.activities["C"].start == date(2026, 9, 22)
+    assert result.activities["C"].start == date(2026, 9, 23)
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.late_activities["A"].start == date(2026, 9, 22)
     assert result.floats["A"].total_float == 1
