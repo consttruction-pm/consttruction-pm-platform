@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from .adapter import ClientMutationRequest, ClientMutationTransport, normalize_sync_outcome
+from .adapter import ClientMutationRequest
 from .mutation import OfflineMutation
 from .outcome import SyncMutationOutcome
 from .queue import OfflineMutationQueue
+from .result import ClientMutationResult, present_mutation_payload
 from .session import ClientProjectSession
 
 
@@ -19,6 +20,7 @@ class SyncAttempt:
     mutation: OfflineMutation
     outcome: SyncMutationOutcome | None
     removed: bool
+    result: ClientMutationResult | None = None
 
 
 class OfflineSyncCoordinator:
@@ -26,6 +28,8 @@ class OfflineSyncCoordinator:
 
     The coordinator never calculates business results. It only owns queue state,
     transport invocation, and the disposition of authoritative sync outcomes.
+    Online and offline mutation handling share the same normalized result
+    boundary before a session revision can advance.
     """
 
     def __init__(
@@ -54,19 +58,33 @@ class OfflineSyncCoordinator:
                 expected_revision=attempted.expected_revision,
             )
             payload = self.transport.send(request)
-            outcome = normalize_sync_outcome(payload)
-            if outcome is None:
-                raise ValueError("invalid client-sync outcome")
+            result = present_mutation_payload(payload)
+            if result is None:
+                raise ValueError("invalid client mutation result")
+
+            if result.error is not None:
+                raise ValueError("offline sync requires client-sync outcome")
+
+            outcome = SyncMutationOutcome(
+                status=result.status,
+                operation=result.operation,
+                revision=result.revision,
+                error_code=None,
+                retryable=None,
+                idempotency_key=result.idempotency_key,
+            )
+            outcome.validate()
+
             if outcome.idempotency_key not in (None, attempted.idempotency_key):
                 raise ValueError("sync outcome idempotency_key does not match mutation")
             if outcome.operation not in (None, attempted.operation):
                 raise ValueError("sync outcome operation does not match mutation")
 
-            removed = outcome.status in {"applied", "replayed"}
+            removed = result.successful
             if removed:
                 self.queue.remove(attempted)
                 if self.session is not None:
-                    self.session = self.session.apply_authoritative_outcome(outcome)
+                    self.session = self.session.apply_mutation_result(result)
 
-            results.append(SyncAttempt(attempted, outcome, removed))
+            results.append(SyncAttempt(attempted, outcome, removed, result))
         return results
