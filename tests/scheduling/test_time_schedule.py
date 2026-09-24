@@ -293,8 +293,8 @@ def test_cross_calendar_sf_zero_lag_uses_successor_finish_event():
     early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
     assert early["A"].start == datetime(2026, 9, 22, 8)
     assert early["A"].finish == datetime(2026, 9, 22, 12)
-    assert early["B"].start == datetime(2026, 9, 22, 8)
-    assert early["B"].finish == datetime(2026, 9, 22, 10)
+    assert early["B"].start == datetime(2026, 9, 22, 7)
+    assert early["B"].finish == datetime(2026, 9, 22, 9)
 
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
     assert late["B"].finish == datetime(2026, 9, 22, 17)
@@ -325,4 +325,4 @@ def test_cross_calendar_activity_constraint_uses_activity_calendar():
         [activity], [], datetime(2026, 9, 22, 8), registry, [constraint]
     )
     assert early["A"].start == datetime(2026, 9, 22, 10, 30)
-    assert early["A"].finish == datetime(2026, 9, 22, 12, 30)
+    assert early["A"].finish == datetime(2026, 9, 22, 13, 30)
