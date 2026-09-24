@@ -209,3 +209,10 @@ Status: **100%**
   - Added runtime ProjectContext store with tenant/project/revision validation and revision updates.
   - Added framework-neutral stable error/conflict presentation boundary preserving server action semantics.
   - Added integration boundary tests confirming Web does not host calculation engines.
+
+- 33.4.45 Desktop Client Foundation: implemented.
+  - Added standalone Desktop package/typecheck boundary.
+  - Added explicit offline/online project runtime with revision continuity.
+  - Documented Desktop as an installed first-class client independent of Web/Internet for approved core workflows.
+  - Added foundation tests.
+  - Desktop does not duplicate Shared Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations.
