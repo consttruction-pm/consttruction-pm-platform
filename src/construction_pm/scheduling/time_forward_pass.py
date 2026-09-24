@@ -9,6 +9,7 @@ from .calendar_context import CalendarResolverRegistry, SchedulingCalendarContex
 from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
+from .time_constraints import TimeActivityConstraint, apply_time_earliest_constraints, validate_time_early_window
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ def time_forward_pass(
     relationships: Iterable[TimeRelationship],
     project_start: datetime,
     registry: CalendarResolverRegistry,
+    constraints: Iterable[TimeActivityConstraint] = (),
 ) -> Mapping[str, TimeScheduledActivity]:
     """Earliest-start pass for the explicit working-hour scheduling contract.
 
@@ -128,6 +130,7 @@ def time_forward_pass(
     if len(order) != len(activity_map):
         raise ValueError("activity network contains a cycle")
 
+    constraint_list = list(constraints)
     result: dict[str, TimeScheduledActivity] = {}
     for activity_id in order:
         activity = activity_map[activity_id]
