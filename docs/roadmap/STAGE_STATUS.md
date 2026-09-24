@@ -86,6 +86,12 @@ Status: **45% — in progress; ALAP/Schedule Options foundation added 2026-09-24
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
 - Tracking issue: #26.
 
+### Stage 33.4.7 — Sync Outcome Contract
+Status: **implemented**
+- Versioned typed sync outcome contract added for applied/replayed/conflict/rejected mutation results.
+- Revision, stable error code, retryability and idempotency key are represented explicitly.
+- Deterministic validation and regression coverage added; no Shared Calculation Core semantics changed.
+
 ### Stage 33.4-B — SQLite Transaction Boundary Hardening
 Status: **100%**
 - Application transaction rollback against SQLite persistence is regression-tested.
