@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **92% — in progress; Stage 33.4.29 calendar resolution contract established 2026-09-24**
+Status: **98% — in progress; Stage 33.4.33 time-aware portability contract established 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -162,3 +162,12 @@ Status: **100%**
 - 33.4.35 Deterministic Client Parity + Offline Round-Trip Foundation: canonical time-scheduling payload serialization and SHA-256 fingerprint added; cross-client property-order parity and JSON offline round-trip regression tests added. Remaining: scheduling-result parity fixtures against the Shared Core, client adapter/API integration tests, and final P6 time-aware parity review. Runtime CI remains unverified.
 
 - 33.4.36 Time-Aware P6 Parity Certification Gate: certification scope and evidence pack established. Cross-client result-parity fixtures now execute the same Shared Core scheduler repeatedly and compare typed outputs. Stage 33.4 is not marked 100% until full CI execution is verified and any runtime regressions are resolved.
+
+- 33.4.33 Time-Aware Scheduling Portability + Backend Contract: implemented.
+  - Added versioned `time-scheduling-portability.v1` backend transport contract.
+  - Carries project schema version, explicit activity/relationship-lag calendar assignments, time-aware activity durations, signed relationship lag/lead, and activity constraints.
+  - Duration/lag values are validated as canonical Decimal strings; calendar identity requires an explicit positive version.
+  - Added regression tests and architecture documentation.
+  - Web/Desktop/Mobile remain consumers of the shared contract; no client scheduling formulas were introduced.
+  - Merged in PR #54, merge SHA `148e3ceba218d401d21ffc800d6ce93a0ac07b11`.
+  - Runtime CI execution remains unverified.
