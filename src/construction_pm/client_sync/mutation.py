@@ -40,5 +40,4 @@ class OfflineMutation:
             self.idempotency_key,
             self.expected_revision,
             tuple(sorted(self.mutation.items())),
-            self.attempt,
         )
