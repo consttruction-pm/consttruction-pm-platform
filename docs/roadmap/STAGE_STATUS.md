@@ -96,7 +96,7 @@ Status: **100% — complete**
 - Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **25% — in progress; backend sync boundary support added 2026-09-24**
+Status: **30% — in progress; portable scheduling network execution added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
 - Web, Desktop and Mobile must consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -115,8 +115,14 @@ Status: **25% — in progress; backend sync boundary support added 2026-09-24**
   - `add_working_duration`, `subtract_working_duration` and `calculate_duration` are implemented with explicit weekend/holiday handling and deterministic date arithmetic.
   - `tests/scheduling/test_calendar.py` covers regression, inverse arithmetic, normalization and invalid input cases.
   - This is the first portable scheduling slice for future Desktop standalone and Mobile offline execution; it does not create a client-specific scheduling engine.
+- 33.4.9 Portable Activity + Forward Pass: **implemented**.
+  - `src/construction_pm/scheduling/activity.py` defines the framework-independent Activity model with validated working-day duration.
+  - `src/construction_pm/scheduling/forward_pass.py` implements deterministic earliest-start scheduling over an activity network.
+  - Supports multiple predecessors, FS/SS/FF/SF relationships, positive working lag and negative working lead, deterministic topological ordering, unknown-reference validation and explicit cycle detection.
+  - `tests/scheduling/test_forward_pass.py` covers multiple predecessors, all four relationship types, positive/negative lag, input-order determinism and cycle rejection.
+  - The implementation uses the existing WorkingTimeResolver; no client-specific scheduling formulas were introduced.
+  - This is a foundational network-execution slice, not yet the full P6 scheduling engine. Constraint handling, backward pass/float, calendars beyond the current date-granularity resolver, and full schedule reconciliation remain future work.
 - Tracking issue: #26.
-
 
 ### Stage 33.4-B — SQLite Transaction Boundary Hardening
 Status: **100%**
