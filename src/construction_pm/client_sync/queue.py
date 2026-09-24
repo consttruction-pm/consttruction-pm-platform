@@ -17,12 +17,12 @@ class OfflineMutationQueue(Protocol):
 
 class InMemoryOfflineMutationQueue:
     def __init__(self) -> None:
-        self._items: dict[tuple[str, str, str], OfflineMutation] = {}
+        self._items: dict[tuple[str, str, str, str, str], OfflineMutation] = {}
         self._lock = RLock()
 
     def enqueue(self, mutation: OfflineMutation) -> None:
         mutation.validate()
-        key = (mutation.context.project_id, mutation.operation, mutation.idempotency_key)
+        key = (mutation.context.tenant_id, mutation.context.company_id, mutation.context.project_id, mutation.operation, mutation.idempotency_key)
         with self._lock:
             existing = self._items.get(key)
             if existing is not None and existing.fingerprint_payload() != mutation.fingerprint_payload():
