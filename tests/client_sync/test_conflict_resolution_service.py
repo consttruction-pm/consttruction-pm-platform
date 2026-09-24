@@ -75,3 +75,37 @@ def test_refresh_and_retry_rejects_reused_idempotency_key():
         assert str(exc) == "replacement mutation requires a new idempotency_key"
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_refresh_retry_builder_uses_authoritative_revision_and_new_key():
+    from construction_pm.client_sync.conflict import build_refresh_retry_mutation
+
+    original = make_mutation()
+    replacement = build_refresh_retry_mutation(
+        original,
+        current_revision=12,
+        idempotency_key="fresh-key",
+    )
+
+    assert replacement.context == original.context
+    assert replacement.operation == original.operation
+    assert replacement.mutation == original.mutation
+    assert replacement.expected_revision == 12
+    assert replacement.idempotency_key == "fresh-key"
+    assert replacement.attempt == 0
+
+
+def test_refresh_retry_builder_rejects_reused_key():
+    from construction_pm.client_sync.conflict import build_refresh_retry_mutation
+
+    original = make_mutation()
+    try:
+        build_refresh_retry_mutation(
+            original,
+            current_revision=12,
+            idempotency_key=original.idempotency_key,
+        )
+    except ValueError as exc:
+        assert str(exc) == "replacement mutation requires a new idempotency_key"
+    else:
+        raise AssertionError("expected ValueError")
