@@ -61,11 +61,13 @@ Status: **100% — reconciled and merged into current main**
 **Stage 33.2 completion gate: 100%.**
 
 ### Stage 33.3 — Production Application/API Hardening
-Status: **20% — in progress**
+Status: **40% — in progress**
 - 33.3.1 Application/API contract audit: **100%**
-- Restored explicit ProjectContext on the ResourceRepository contract.
-- Added context-isolation and invalid-context regression tests.
-- Recorded audit findings in `docs/architecture/STAGE_33_3_1_APPLICATION_API_AUDIT.md`.
-- Identified remaining production gaps: SQLite persistence context isolation, stable typed errors, mutation idempotency, authorization boundary and API revision propagation.
+- 33.3.2 Stable Error Contract: **100%**
+- Stable machine-readable ApplicationError categories implemented.
+- Validation, ProjectContext and not-found failures are mapped to stable error codes.
+- API serialization preserves category/code/retryable semantics.
+- Regression tests added.
+- Remaining: SQLite persistence context hardening, mutation idempotency, authorization boundary, revision propagation and final integration regression.
 - No Scheduling/P6 or Progress/EVM semantics changed.
-- Next: 33.3.2 Stable Error Contract.
+- Next: 33.3.3 Mutation Idempotency Contract
