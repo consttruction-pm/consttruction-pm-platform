@@ -1,4 +1,5 @@
 from construction_pm.client_sync.offline_mutation import OfflineMutation
+from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
 from construction_pm.client_sync.offline_store import InMemoryOfflineMutationStore
 from construction_pm.client_sync.sync_adapter import ApplicationSyncAdapter
 from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcome
@@ -103,3 +104,28 @@ def test_conflict_preserves_expected_revision_and_requests_refresh() -> None:
     assert result.outcome.error_code == "STALE_REVISION"
     assert result.requires_refresh is True
     assert result.preserved_expected_revision == 7
+
+
+def test_application_sync_gateway_maps_stale_revision_to_conflict() -> None:
+    class OptimisticLockError(Exception):
+        pass
+
+    class Handler:
+        def handle(self, submitted: OfflineMutation) -> None:
+            assert submitted.expected_revision == 7
+            raise OptimisticLockError("stale")
+
+    outcome = ApplicationSyncGateway("t1", "p1", Handler()).submit_mutation(mutation())
+
+    assert outcome == SyncOutcome("m1", SyncDisposition.CONFLICT, error_code="STALE_REVISION")
+
+
+def test_application_sync_gateway_rejects_cross_project_context() -> None:
+    class Handler:
+        def handle(self, submitted: OfflineMutation) -> None:
+            raise AssertionError("handler must not run")
+
+    altered = OfflineMutation("m2", "t1", "p2", 7, "update_activity", {}, "idem-2")
+    outcome = ApplicationSyncGateway("t1", "p1", Handler()).submit_mutation(altered)
+
+    assert outcome == SyncOutcome("m2", SyncDisposition.REJECTED, error_code="INVALID_PROJECT_CONTEXT")
