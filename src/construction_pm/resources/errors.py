@@ -14,6 +14,10 @@ class ErrorCategory(str, Enum):
 
 
 @dataclass(frozen=True)
+class OptimisticLockError(RuntimeError):
+    """Raised when a persistence update uses a stale revision."""
+
+
 class ApplicationError(Exception):
     """Stable, machine-readable application boundary error."""
 
