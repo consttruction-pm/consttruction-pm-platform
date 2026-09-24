@@ -661,3 +661,25 @@ Javad must consume the authoritative Shared Domain/Calculation Core and versione
 Javad works through feature branches and Pull Requests targeting main. Any shared semantic/API/data-contract change must be documented and announced before it is treated as authoritative. Shared calculation changes remain subject to the project's P6 compatibility and Shared Core rules.
 
 Assignment details are tracked in GitHub Issue #45.
+
+
+## 34. Time-Aware Client Parity & Offline Round-Trip — 2026-09-24
+
+The time-aware scheduling contract is now required to preserve deterministic transport semantics across Web, Desktop and Mobile. Canonical JSON serialization and a SHA-256 fingerprint are used as a transport-integrity guard; offline JSON round-trip must preserve the calculation payload exactly.
+
+The fingerprint is not a scheduling engine and does not replace result-parity tests. The authoritative scheduling result remains produced by the Shared Scheduling Core.
+
+Compatibility impact:
+- P6/Scheduling: unchanged; client transport cannot redefine scheduling semantics.
+- Shared Core: strengthened through deterministic input/result parity fixtures.
+- Web-readiness: Web, Desktop and Mobile consume the same versioned contract.
+- Offline portability: calculation context, calendar references, duration/lag units and constraints must survive serialization without semantic mutation.
+- Testing: property-order invariance, offline round-trip and repeated Shared-Core result parity are mandatory regression coverage.
+
+## 35. Final Time-Aware P6 Certification Gate — 2026-09-24
+
+Stage 33.4.36 establishes the final engineering certification gate for time-aware scheduling. Certification scope includes working-time calendars, breaks/holidays, working-hour duration, FS/SS/FF/SF, signed lag/lead, relationship-lag calendar resolution, Forward/Backward scheduling, time-aware constraints, EARLIEST/ALAP, Total/Free Float, cross-client result parity and portable calculation-context integrity.
+
+This is a compatibility engineering gate, not a claim of Oracle certification. Stage 33.4 must not be marked 100% until CI executes the full regression suite successfully and any runtime regressions are resolved.
+
+Developer notification requirement: Hasan must treat these parity/portability rules as shared-core constraints and must not introduce client-specific calculation semantics while completing backend/API/synchronization work.
