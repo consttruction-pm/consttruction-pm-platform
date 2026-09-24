@@ -561,3 +561,32 @@ This rule was introduced to allow simultaneous progress of the Website and Deskt
 ## 29. Typed Client Integration Contract — 2026-09-24
 
 Shared Web/Desktop API contracts are versioned and authoritative. Decimal-like unit and financial values cross client boundaries as canonical decimal strings; dates use explicit ISO-8601 representation; nullable fields are explicit; calculated values must be obtained by invoking authoritative Domain methods. Web and Desktop must consume the same contract version and must not introduce alternative calculation formulas. Changes require schema versioning and regression tests.
+
+## 30. Stage 33.3 — Production Application/API Hardening — 2026-09-24
+
+Stage 33.3 is now the active platform-hardening stage after completion of Stage 33.2.
+
+Mandatory shared rules:
+- Application services own use-case orchestration and transaction boundaries.
+- Repositories own persistence mechanics and never redefine domain calculations.
+- API adapters serialize versioned typed contracts and never duplicate Scheduling/P6, Progress/EVM, Resource/Cost or duration calculations.
+- ProjectContext is mandatory for project-scoped application operations.
+- Optimistic-locking revisions must survive Application → Repository → API round trips.
+- Decimal-like calculated values remain canonical decimal strings at API boundaries.
+- API errors use stable typed categories rather than leaking database/framework exceptions.
+- Externally retried mutation operations that can duplicate business effects require an explicit idempotency contract.
+- Authorization checks belong at Application/API boundaries; the Shared Domain/Calculation Core remains independent of authentication providers.
+- Web and Desktop consume the same API contracts and business semantics.
+- Integration tests must cover validation failure, context isolation, stale revision/conflict, transaction failure and typed serialization.
+
+Stage 33.3 work sequence:
+33.3.1 Application/API contract audit
+33.3.2 Stable error contract
+33.3.3 Mutation idempotency contract
+33.3.4 Authorization boundary
+33.3.5 Integration regression
+
+Reference document:
+docs/architecture/STAGE_33_3_APPLICATION_API_HARDENING.md
+
+This stage does not redefine Primavera P6/Scheduling or Progress/EVM semantics.
