@@ -9,7 +9,7 @@ from typing import Iterator
 from .errors import OptimisticLockError
 from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS resource_schema_version (
