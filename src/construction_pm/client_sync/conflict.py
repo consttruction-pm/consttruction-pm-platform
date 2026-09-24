@@ -7,6 +7,35 @@ from .mutation import OfflineMutation
 from .queue import OfflineMutationQueue
 
 
+def build_refresh_retry_mutation(
+    original: OfflineMutation,
+    *,
+    current_revision: int,
+    idempotency_key: str,
+    mutation: dict[str, object] | None = None,
+) -> OfflineMutation:
+    """Rebase a queued mutation onto authoritative revision state.
+
+    The caller supplies the authoritative revision and a fresh idempotency key;
+    this helper does not calculate or infer either value locally.
+    """
+    original.validate()
+    if current_revision < 0:
+        raise ValueError("current_revision must be non-negative")
+    if not idempotency_key.strip():
+        raise ValueError("idempotency_key is required")
+    if idempotency_key == original.idempotency_key:
+        raise ValueError("replacement mutation requires a new idempotency_key")
+    return OfflineMutation(
+        context=original.context,
+        operation=original.operation,
+        idempotency_key=idempotency_key,
+        mutation=dict(original.mutation if mutation is None else mutation),
+        expected_revision=current_revision,
+        attempt=0,
+    )
+
+
 class ConflictResolutionAction(str, Enum):
     DISCARD = "discard"
     REFRESH_AND_RETRY = "refresh_and_retry"
