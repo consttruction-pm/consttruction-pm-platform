@@ -1,4 +1,5 @@
 import type { ProjectContext } from "../../../shared/client-contracts/project-context";
+import { isApplicationErrorEnvelope } from "../../../shared/client-contracts/application-error";
 
 export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
@@ -15,55 +16,45 @@ export type ApiResult<T> =
 
 export interface ApiTransport {
   get<T>(path: string, context: ProjectContext): Promise<ApiResult<T>>;
-  post<TRequest, TResponse>(
-    path: string,
-    request: TRequest,
-    context: ProjectContext,
-    idempotencyKey?: string,
-  ): Promise<ApiResult<TResponse>>;
+  post<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext, idempotencyKey?: string): Promise<ApiResult<TResponse>>;
 }
 
 export class FetchApiTransport implements ApiTransport {
   constructor(private readonly baseUrl: string) {}
 
   async get<T>(path: string, context: ProjectContext): Promise<ApiResult<T>> {
-    return this.request<T>(path, {
-      method: "GET",
-      headers: this.contextHeaders(context),
-    });
+    return this.request<T>(path, { method: "GET", headers: this.contextHeaders(context) });
   }
 
-  async post<TRequest, TResponse>(
-    path: string,
-    request: TRequest,
-    context: ProjectContext,
-    idempotencyKey?: string,
-  ): Promise<ApiResult<TResponse>> {
+  async post<TRequest, TResponse>(path: string, request: TRequest, context: ProjectContext, idempotencyKey?: string): Promise<ApiResult<TResponse>> {
     const headers = {
       ...this.contextHeaders(context),
       "Content-Type": "application/json",
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     };
-    return this.request<TResponse>(path, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(request),
-    });
+    return this.request<TResponse>(path, { method: "POST", headers, body: JSON.stringify(request) });
   }
 
   private contextHeaders(context: ProjectContext): Record<string, string> {
-    return {
-      "X-Tenant-Id": context.tenant_id,
-      "X-Project-Id": context.project_id,
-      "X-Project-Revision": String(context.revision),
-    };
+    return { "X-Tenant-Id": context.tenant_id, "X-Project-Id": context.project_id, "X-Project-Revision": String(context.revision) };
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<ApiResult<T>> {
     const response = await fetch(new URL(path, this.baseUrl), init);
     const payload = await response.json().catch(() => null);
-
     if (response.ok) return { ok: true, data: payload as T };
+
+    if (isApplicationErrorEnvelope(payload)) {
+      return {
+        ok: false,
+        error: {
+          code: payload.error.code,
+          retryable: payload.error.retryable,
+          message_key: payload.error.message,
+          available_actions: [],
+        },
+      };
+    }
 
     return {
       ok: false,
@@ -71,9 +62,7 @@ export class FetchApiTransport implements ApiTransport {
         code: String(payload?.code ?? "API_ERROR"),
         retryable: Boolean(payload?.retryable ?? false),
         message_key: String(payload?.message_key ?? "error.api"),
-        available_actions: Array.isArray(payload?.available_actions)
-          ? payload.available_actions.map(String)
-          : [],
+        available_actions: Array.isArray(payload?.available_actions) ? payload.available_actions.map(String) : [],
       },
     };
   }
