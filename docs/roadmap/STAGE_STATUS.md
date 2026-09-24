@@ -198,3 +198,9 @@ Status: **100%**
   - No scheduling, calendar, Progress/EVM, Resource/Cost or financial calculation was duplicated in client models.
 
 - 33.4.39 Time API ↔ Shared Schema Validation Parity: implemented and merged in PR #57 (SHA `d430e60d6b91f8faf24347a896e9809130698163`). API adapter now validates schedule mode, ISO-8601 datetime targets, canonical Decimal duration/lag values, calendar references, relationship types and all six constraint types consistently with the shared JSON schema. Regression tests added. No scheduling calculations changed. Runtime CI remains unverified.
+
+- 33.4.43 Web Client Foundation: implemented.
+  - Added strict TypeScript configuration and package boundary under `apps/web`.
+  - Added framework-neutral typed API transport with ProjectContext propagation.
+  - Preserves stable API errors and optional Idempotency-Key handling.
+  - No client-side scheduling/P6, calendar, Progress/EVM, Resource/Cost or financial calculations introduced.
