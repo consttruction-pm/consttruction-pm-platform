@@ -46,9 +46,10 @@ Status: **100%**
 **Next point: Stage 33.2 — cross-module integration and portability checks within Developer 1 backend/database/integration-support scope.**
 
 ### Stage 33.2 — Cross-Module Integration & Project Portability
-Status: **10% — in progress**
+Status: **15% — in progress**
 - Integration/portability contract documented.
 - Current review branch lineage checked against main: divergent; wholesale merge is intentionally avoided.
 - Stage 33.2.1 reconciliation is in progress via PR #6, carrying only the verified API DTO defect fix and regression test onto current main.
 - Current main already contains the Stage 33.1 resource assignment revision/schema hardening.
-- Next implementation item after reconciliation review: context isolation contract, then transaction contract, typed integration, portability and cross-module regression coverage.
+- Stage 33.2.2 context-isolation contract implemented in PR #9 (open, not merged): explicit tenant/company/project context at resource Application/Repository boundaries plus cross-project/cross-tenant regression tests.
+- Next implementation item: Stage 33.2.3 transaction contract, then typed integration, portability and cross-module regression coverage.
