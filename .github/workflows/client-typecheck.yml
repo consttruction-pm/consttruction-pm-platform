@@ -34,3 +34,8 @@ jobs:
       - name: Typecheck
         working-directory: ${{ matrix.package }}
         run: npm run typecheck
+
+      - name: Client sync runtime tests
+        if: matrix.package == 'apps/client-sync'
+        working-directory: apps/client-sync
+        run: npm test
