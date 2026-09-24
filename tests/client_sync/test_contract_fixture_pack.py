@@ -24,8 +24,8 @@ def mutation_payload():
     [
         ("applied", {"revision": 8, "error_code": None, "retryable": False}),
         ("replayed", {"revision": 8, "error_code": None, "retryable": False}),
-        ("conflict", {"error_code": "STALE_REVISION", "retryable": False}),
-        ("rejected", {"error_code": "VALIDATION_ERROR", "retryable": False}),
+        ("conflict", {"revision": None, "error_code": "STALE_REVISION", "retryable": False}),
+        ("rejected", {"revision": None, "error_code": "VALIDATION_ERROR", "retryable": False}),
     ],
 )
 def test_shared_fixture_outcomes_normalize(status, payload):
