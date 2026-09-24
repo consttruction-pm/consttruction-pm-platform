@@ -62,3 +62,19 @@ def test_runner_connects_through_application_adapter_to_versioned_gateway() -> N
     assert outcomes == (SyncOutcome("m1", SyncDisposition.ACKNOWLEDGED),)
     assert [item.mutation_id for item in gateway.received] == ["m1"]
     assert store.pending() == ()
+
+
+def test_runner_preserves_non_acknowledged_outcomes_through_application_gateway() -> None:
+    for disposition in (SyncDisposition.RETRY, SyncDisposition.CONFLICT, SyncDisposition.REJECTED):
+        class VersionedGateway:
+            def submit_mutation(self, submitted: OfflineMutation) -> SyncOutcome:
+                return SyncOutcome(submitted.mutation_id, disposition)
+
+        store = InMemoryOfflineMutationStore()
+        store.append(mutation())
+        runner = SyncRunner(store, ApplicationSyncAdapter(VersionedGateway()))
+
+        outcomes = runner.run_once()
+
+        assert outcomes == (SyncOutcome("m1", disposition),)
+        assert store.pending() == (mutation(),)
