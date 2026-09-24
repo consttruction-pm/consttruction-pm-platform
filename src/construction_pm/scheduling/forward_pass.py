@@ -32,27 +32,45 @@ def _shift_working_date(
     return resolver.subtract_working_duration(value, -lag + 1)
 
 
+def _apply_lag_after(
+    value: date, lag: int, resolver: WorkingTimeResolver
+) -> date:
+    """Place a successor event after/before an anchor using working-day lag.
+
+    For a finish-to-start relation, zero lag means the successor starts on the
+    next working day. Positive lag adds working days after that boundary;
+    negative lag moves the successor before the boundary.
+    """
+    if lag >= 0:
+        return resolver.next_working_day(
+            resolver.add_working_duration(value, lag)
+        )
+    return resolver.previous_working_day(
+        resolver.subtract_working_duration(value, -lag)
+    )
+
+
 def _successor_start(
     relationship: Relationship,
     predecessor: ScheduledActivity,
     successor_duration: int,
     resolver: WorkingTimeResolver,
 ) -> date:
-    lag = relationship.lag
     if relationship.type is RelationshipType.SS:
-        return _shift_working_date(predecessor.start, lag, resolver)
+        return _shift_working_date(predecessor.start, relationship.lag, resolver)
+
     if relationship.type is RelationshipType.FS:
-        if lag >= 0:
-            target = resolver.add_working_duration(predecessor.finish, lag)
-        else:
-            target = resolver.subtract_working_duration(predecessor.finish, -lag)
-        return resolver.next_working_day(target)
+        target = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
+        return target
+
     if relationship.type is RelationshipType.FF:
-        finish = _shift_working_date(predecessor.finish, lag, resolver)
-        return resolver.subtract_working_duration(finish, successor_duration)
+        target_finish = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
+        return resolver.subtract_working_duration(target_finish, successor_duration)
+
     if relationship.type is RelationshipType.SF:
-        finish = _shift_working_date(predecessor.start, lag, resolver)
-        return resolver.subtract_working_duration(finish, successor_duration)
+        target_finish = _apply_lag_after(predecessor.start, relationship.lag, resolver)
+        return resolver.subtract_working_duration(target_finish, successor_duration)
+
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
 
