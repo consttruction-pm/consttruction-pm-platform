@@ -61,7 +61,7 @@ Status: **100% — reconciled and merged into current main**
 **Stage 33.2 completion gate: 100%.**
 
 ### Stage 33.3 — Production Application/API Hardening
-Status: **85% — in progress**
+Status: **100% — complete**
 - 33.3.1 Application/API contract audit: **100%**
 - 33.3.2 Stable Error Contract: **100%**
 - Stable machine-readable ApplicationError categories implemented.
@@ -89,4 +89,8 @@ Status: **85% — in progress**
 - Current revisions are exposed at the API boundary.
 - Stale writes return stable `STALE_REVISION` conflict errors.
 - Shared optimistic-lock error contract and regression tests added.
-- Next: 33.3.7 final cross-layer integration/regression hardening
+- 33.3.7 Final cross-layer integration/regression hardening: **100%**
+- API, Application, authorization, idempotency, revision and context-isolation contracts covered together.
+- Final Resource backend regression suite added.
+- **Stage 33.3 completion gate: 100%.**
+- Next: continue from the next unfinished Stage 33 item.
