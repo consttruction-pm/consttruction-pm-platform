@@ -56,3 +56,16 @@ test("web sync runtime rotates the idempotency key for stale revision retry", ()
   assert.equal(retried.idempotency_key, "idem-1:r8");
   assert.equal(runtime.pendingMutationCount(), 1);
 });
+
+
+test("web runtime refreshes the project revision", async () => {
+  const runtime = new WebSyncRuntime();
+  const revision = await runtime.refreshRevision({
+    async get<TResponse>(path, context) {
+      assert.equal(path, "/api/v1/sync/revision");
+      assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
+      return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8 } as TResponse };
+    },
+  }, "t1", "p1", 7);
+  assert.equal(revision, 8);
+});
