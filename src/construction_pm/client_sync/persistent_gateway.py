@@ -4,7 +4,7 @@ from .offline_mutation import OfflineMutation
 from .persistence_contract import SyncStatePersistence
 from .server_idempotency import IdempotencyRecord
 from .server_gateway import IdempotentMutationGateway
-from .sync_outcome import SyncOutcome
+from .sync_outcome import SyncDisposition, SyncOutcome
 from .server_idempotency import mutation_fingerprint
 
 @dataclass
@@ -22,7 +22,7 @@ class PersistentMutationGateway:
                 raise ValueError("IDEMPOTENCY_KEY_REUSE")
             return SyncOutcome(
                 mutation_id=existing.mutation_id,
-                disposition=existing.outcome["disposition"],
+                disposition=SyncDisposition(existing.outcome["disposition"]),
                 error_code=existing.outcome.get("error_code"),
                 retry_after_seconds=existing.outcome.get("retry_after_seconds"),
             )
