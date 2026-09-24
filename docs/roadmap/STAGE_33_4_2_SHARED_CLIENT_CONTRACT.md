@@ -1,0 +1,9 @@
+# Stage 33.4.2 — Shared Client Integration Contract
+
+**Status: 100% for backend-owned contract support.**
+
+The Resource API emits the explicit `resource.v1` contract version and operation identifier on successful Resource and ResourceAssignment mutation responses. The schema is published under `docs/contracts/resource_api_v1.schema.json` for Web and Desktop consumers.
+
+Canonical decimal serialization, ProjectContext, optimistic revisions, idempotency and stable errors remain authoritative application/API behavior.
+
+No client UI or Scheduling/P6, Progress/EVM, Resource/Cost or calendar calculation semantics were changed.
