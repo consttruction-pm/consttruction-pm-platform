@@ -25,8 +25,12 @@ def mutation_fingerprint(mutation: OfflineMutation) -> str:
 
 @dataclass
 class IdempotencyRecord:
+    tenant_id: str
+    project_id: str
+    idempotency_key: str
+    mutation_id: str
     fingerprint: str
-    outcome: SyncOutcome
+    outcome: object
 
 
 @dataclass
@@ -42,4 +46,4 @@ class InMemoryServerIdempotencyStore:
         fingerprint = mutation_fingerprint(mutation)
         if existing is not None and existing.fingerprint != fingerprint:
             raise ValueError("IDEMPOTENCY_KEY_REUSE")
-        self._records[key] = IdempotencyRecord(fingerprint, outcome)
+        self._records[key] = IdempotencyRecord(mutation.tenant_id, mutation.project_id, mutation.idempotency_key, mutation.mutation_id, fingerprint, outcome)
