@@ -125,3 +125,71 @@ def test_mandatory_finish_conflicts_with_relationship_and_is_rejected(resolver):
                 ActivityConstraint("A", ConstraintType.MANDATORY_FINISH, date(2026, 9, 21))
             ],
         )
+
+
+def test_conflicting_start_bounds_are_rejected_before_scheduling(resolver):
+    with pytest.raises(ConstraintViolation):
+        forward_pass(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            [
+                ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24)),
+                ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 23)),
+            ],
+        )
+
+
+def test_conflicting_finish_bounds_are_rejected_before_scheduling(resolver):
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            constraints=[
+                ActivityConstraint("A", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 9, 24)),
+                ActivityConstraint("A", ConstraintType.FINISH_NO_LATER_THAN, date(2026, 9, 23)),
+            ],
+        )
+
+
+def test_conflicting_mandatory_start_dates_are_rejected_deterministically(resolver):
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            constraints=[
+                ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 23)),
+                ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 24)),
+            ],
+        )
+
+
+def test_mandatory_start_and_finish_must_match_activity_duration(resolver):
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            [Activity("A", 2)], [], date(2026, 9, 21), resolver,
+            constraints=[
+                ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 21)),
+                ActivityConstraint("A", ConstraintType.MANDATORY_FINISH, date(2026, 9, 23)),
+            ],
+        )
+
+
+def test_start_and_finish_bounds_can_be_empty_even_when_each_pair_is_valid(resolver):
+    with pytest.raises(ConstraintViolation):
+        schedule(
+            [Activity("A", 2)], [], date(2026, 9, 21), resolver,
+            constraints=[
+                ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 23)),
+                ActivityConstraint("A", ConstraintType.FINISH_NO_LATER_THAN, date(2026, 9, 23)),
+            ],
+        )
+
+
+def test_consistent_multiple_constraints_remain_deterministic(resolver):
+    result = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 25),
+        constraints=[
+            ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22)),
+            ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 24)),
+        ],
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 22)
+    assert result.late_activities["A"].start == date(2026, 9, 24)
