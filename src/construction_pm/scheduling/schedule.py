@@ -19,12 +19,7 @@ class ScheduleMode(str, Enum):
 
 @dataclass(frozen=True)
 class ScheduleOptions:
-    """Explicit scheduling-output options.
-
-    EARLIEST keeps the normal CPM early schedule as the selected schedule.
-    ALAP selects the calculated late schedule while preserving early/late
-    dates and float analysis in the result.
-    """
+    """Explicit scheduling-output options."""
 
     mode: ScheduleMode = ScheduleMode.EARLIEST
 
@@ -55,31 +50,53 @@ class ScheduleResult:
     mode: ScheduleMode = ScheduleMode.EARLIEST
 
 
+def _inverse_event_shift(
+    successor_event: date,
+    lag: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Latest predecessor event whose lagged event does not exceed successor."""
+    if lag >= 0:
+        return resolver.previous_working_day(
+            resolver.subtract_working_duration(successor_event, lag)
+        )
+    return resolver.next_working_day(
+        resolver.add_working_duration(successor_event, -lag)
+    )
+
+
 def _latest_predecessor_start(
     relationship: Relationship,
     successor: ScheduledActivity,
     predecessor_duration: int,
     resolver: WorkingTimeResolver,
 ) -> date:
-    lag = relationship.lag
-
     if relationship.type is RelationshipType.FS:
-        target_finish = (
-            resolver.subtract_working_duration(successor.start, lag)
-            if lag >= 0
-            else resolver.add_working_duration(successor.start, -lag)
+        predecessor_finish = _inverse_event_shift(
+            successor.start, relationship.lag, resolver
         )
-        return resolver.subtract_working_duration(target_finish, predecessor_duration)
+        return resolver.subtract_working_duration(
+            predecessor_finish, predecessor_duration
+        )
 
     if relationship.type is RelationshipType.SS:
-        return _shift_working_date(successor.start, -lag, resolver)
+        predecessor_start = _inverse_event_shift(
+            successor.start, relationship.lag - 1, resolver
+        )
+        return predecessor_start
 
     if relationship.type is RelationshipType.FF:
-        target_finish = _shift_working_date(successor.finish, -lag, resolver)
-        return resolver.subtract_working_duration(target_finish, predecessor_duration)
+        predecessor_finish = _inverse_event_shift(
+            successor.finish, relationship.lag, resolver
+        )
+        return resolver.subtract_working_duration(
+            predecessor_finish, predecessor_duration
+        )
 
     if relationship.type is RelationshipType.SF:
-        return _shift_working_date(successor.finish, -lag, resolver)
+        return _inverse_event_shift(
+            successor.finish, relationship.lag, resolver
+        )
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -181,19 +198,40 @@ def _relationship_holds(
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
 ) -> bool:
-    required = _shift_working_date(
-        predecessor.finish if relationship.type is RelationshipType.FS else predecessor.start,
-        relationship.lag,
-        resolver,
-    )
     if relationship.type is RelationshipType.FS:
-        return successor.start > required
-    if relationship.type is RelationshipType.SS:
+        required = resolver.next_working_day(
+            resolver.add_working_duration(predecessor.finish, relationship.lag)
+        ) if relationship.lag >= 0 else resolver.previous_working_day(
+            resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+        )
         return successor.start >= required
+
+    if relationship.type is RelationshipType.SS:
+        required = _shift_working_date(
+            predecessor.start, relationship.lag, resolver
+        )
+        return successor.start >= required
+
     if relationship.type is RelationshipType.FF:
+        required = _shift_working_date(
+            predecessor.finish, relationship.lag, resolver
+        )
         return successor.finish >= required
+
     if relationship.type is RelationshipType.SF:
+        required = (
+            resolver.next_working_day(
+                resolver.add_working_duration(predecessor.start, relationship.lag)
+            )
+            if relationship.lag >= 0
+            else resolver.previous_working_day(
+                resolver.subtract_working_duration(
+                    predecessor.start, -relationship.lag
+                )
+            )
+        )
         return successor.finish >= required
+
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
 
