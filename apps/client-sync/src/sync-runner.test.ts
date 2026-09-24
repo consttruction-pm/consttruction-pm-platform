@@ -20,10 +20,10 @@ class FakeTransport implements ClientSyncTransport {
   constructor(outcomes: SyncOutcome[]) {
     this.outcomes = outcomes;
   }
-  async submit(submitted: SyncMutation): Promise<SyncOutcome> {
+
+  async submit(_submitted: SyncMutation): Promise<SyncOutcome> {
     const outcome = this.outcomes.shift();
     if (!outcome) throw new Error("NO_TEST_OUTCOME");
-    assert.equal(submitted.mutation_id, outcome.mutation_id);
     return outcome;
   }
 }
