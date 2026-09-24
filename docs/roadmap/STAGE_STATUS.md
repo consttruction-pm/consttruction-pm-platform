@@ -365,7 +365,7 @@ Status: **100% — implemented; runtime-verified 2026-09-24**
 
 
 ### Stage 33.3.4 — Authorization Boundary
-Status: **implemented — runtime CI verification pending**
+Status: **100% — runtime-verified 2026-09-24**
 - Added framework/provider-neutral Application authorization policy at `src/construction_pm/application/authorization.py`.
 - Carries tenant_id, project_id and user_id with effective roles for every project-scoped authorization decision.
 - Added explicit permissions: project.read, project.write, project.schedule and project.admin.
@@ -373,7 +373,9 @@ Status: **implemented — runtime CI verification pending**
 - Authentication provider concerns remain outside Shared Domain/Calculation Core.
 - Added integration regression tests for allow/deny behavior, stable AuthorizationError and context preservation.
 - No Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics changed.
-- Next gate: Stage 33.3.5 integration regression and full runtime verification.
+- GitHub Actions run **36054570225** completed successfully on Python 3.11, 3.12 and 3.13, covering the authorization integration regression suite.
+- Authorization allow/deny matrix, stable errors and tenant/project/user context preservation are runtime-verified.
+- Next documented gate: Stage 33.3.6 API revision propagation and optimistic-locking contract.
 
 
 ### Latest Stage 33.4 Runtime Verification
