@@ -1,7 +1,8 @@
 import sqlite3
+from datetime import date
 from decimal import Decimal
 
-from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
+from construction_pm.resources.models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 from construction_pm.resources.persistence import SQLiteResourceRepository
 
 
@@ -10,6 +11,10 @@ def test_sqlite_resource_and_assignment_round_trip():
     resource = Resource(
         id="R-1", code="LAB-01", name="Labor",
         resource_type=ResourceType.LABOR, unit="hour",
+        rates=[ResourceRate(
+            rate=Decimal("25.50"), basis=CostBasis.PER_HOUR, currency="USD",
+            effective_from=date(2026, 1, 1), version=2,
+        )],
     )
     repo.save_resource(resource)
     assignment = ResourceAssignment(
