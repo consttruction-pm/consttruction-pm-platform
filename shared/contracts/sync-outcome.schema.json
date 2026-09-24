@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/sync-outcome/v1",
+  "title": "ConstructionPM Synchronization Outcome",
+  "type": "object",
+  "required": ["contract_version", "mutation_id", "disposition"],
+  "properties": {
+    "contract_version": {"const": "sync-outcome.v1"},
+    "mutation_id": {"type": "string", "minLength": 1},
+    "disposition": {"enum": ["acknowledged", "retry", "conflict", "rejected"]},
+    "error_code": {"type": ["string", "null"]},
+    "retry_after_seconds": {"type": ["integer", "null"], "minimum": 0}
+  },
+  "additionalProperties": false
+}
