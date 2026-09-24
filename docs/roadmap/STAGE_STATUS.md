@@ -145,3 +145,12 @@ Status: **100%**
   - Added regression tests for terminal finish, FS inverse, negative lag, zero float and positive float.
   - Remaining gates: time-aware constraints, richer schedule options, full portability/client contract pack, and final P6 time-based parity certification.
   - Runtime CI remains unverified.
+
+- 33.4.32 Time-Aware Constraints + Schedule Options: implemented.
+  - Added six datetime-based P6-aligned constraints in Shared Core.
+  - No Earlier Than affects early dates only; No Later Than governs late bounds; Mandatory Start/Finish apply to both early and late dates.
+  - Constraint targets are normalized through the authoritative activity working-time calendar.
+  - Added Forward/Backward integration and regression coverage.
+  - Schedule mode remains an explicit application-level contract; no client-specific constraint logic was introduced.
+  - Remaining gates: formal time-aware schedule-options contract, complete portability for per-activity time data/constraints, cross-client API regression pack, and final P6 time-based parity certification.
+  - Runtime CI remains unverified.
