@@ -278,3 +278,5 @@ Status: **100%**
   - Preserves mutation identity, expected revision and idempotency identity.
   - CONFLICT requires refresh; ACKNOWLEDGED does not.
   - Added integration tests; production network execution remains a later gate.
+
+- 33.4.53 Resource Application Error Contract Hardening: merged PR #61 (SHA `b27d2f8b34a8fc5d32c680d6a8108178c014bd32`). ApplicationError now initializes stable category/code/message/retryable fields and preserves the existing DTO/factory contract; regression coverage added. CI had exposed this backend issue. No Scheduling/P6 semantics changed.
