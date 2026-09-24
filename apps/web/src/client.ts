@@ -13,6 +13,9 @@ export type ClientError = {
   message?: string;
   message_key?: string;
   available_actions: string[];
+  expected_revision?: number;
+  actual_revision?: number;
+  details?: Record<string, unknown>;
 };
 
 export type ApiResult<T> =
