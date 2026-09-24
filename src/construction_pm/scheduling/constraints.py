@@ -174,6 +174,13 @@ def apply_latest_constraint(
 ) -> date:
     target = _target(constraint, resolver)
 
+    if constraint.type is ConstraintType.START_NO_EARLIER_THAN:
+        return max(late_start, target)
+
+    if constraint.type is ConstraintType.FINISH_NO_EARLIER_THAN:
+        earliest_start = resolver.subtract_working_duration(target, duration)
+        return max(late_start, earliest_start)
+
     if constraint.type is ConstraintType.START_NO_LATER_THAN:
         return min(late_start, target)
 
