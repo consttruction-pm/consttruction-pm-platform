@@ -139,8 +139,6 @@ def time_backward_pass(
     early_finish = max(item.finish for item in early.values())
     project_finish_resolver = _resolver(activity_map[order[-1]], registry)
     normalized_finish = project_finish_resolver.normalize_finish(project_finish)
-    if normalized_finish < early_finish:
-        raise ValueError("project finish cannot be earlier than early project finish")
 
     late: dict[str, TimeScheduledActivity] = {}
     for activity_id in reversed(order):
@@ -160,6 +158,10 @@ def time_backward_pass(
                 for rel in rels
             ]
             late_start = min(candidates)
+            latest_by_project_finish = _subtract_duration(
+                normalized_finish, activity.duration, resolver
+            )
+            late_start = min(late_start, latest_by_project_finish)
             late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
             late_finish = _add_duration(late_start, activity.duration, resolver)
         validate_time_late_window(activity, late_start, late_finish, constraint_list, registry)
@@ -198,7 +200,7 @@ def calculate_time_floats(
     registry: CalendarResolverRegistry,
 ) -> Mapping[str, TimeFloatActivity]:
     activity_map = {a.id: a for a in activities}
-    outgoing = {a.id: [] for a in activity_map}
+    outgoing = {activity_id: [] for activity_id in activity_map}
     for rel in relationships:
         outgoing[rel.predecessor_id].append(rel)
 
