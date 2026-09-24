@@ -317,7 +317,12 @@ def calculate_floats(
     for activity_id in sorted(activity_map):
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
-        total = max(0, _working_delay_between(early.start, late.start, resolver))
+        raw_total = _working_delay_between(early.start, late.start, resolver)
+        if raw_total < 0:
+            raise ValueError(
+                f"constraint-constrained late schedule precedes early schedule for {activity_id}"
+            )
+        total = raw_total
         free = _free_float(
             activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
         )
