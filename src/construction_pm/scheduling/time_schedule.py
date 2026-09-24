@@ -10,7 +10,7 @@ from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
-from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, apply_time_latest_constraints, validate_time_early_window
+from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, apply_time_latest_constraints, validate_time_late_window
 
 
 @dataclass(frozen=True)
@@ -162,6 +162,7 @@ def time_backward_pass(
             late_start = min(candidates)
             late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
             late_finish = _add_duration(late_start, activity.duration, resolver)
+        validate_time_late_window(activity, late_start, late_finish, constraint_list, registry)
         late[activity_id] = TimeScheduledActivity(activity_id, late_start, late_finish, activity.duration)
 
     for rel in relationship_list:
