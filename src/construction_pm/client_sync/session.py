@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .context import OfflineProjectContext
 from .outcome import SyncMutationOutcome
+
+if TYPE_CHECKING:
+    from .result import ClientMutationResult
 
 
 @dataclass(frozen=True)
@@ -42,6 +46,18 @@ class ClientProjectSession:
         if self.revision is not None and outcome.revision < self.revision:
             raise ValueError("authoritative revision cannot move backwards")
         return self.with_revision(outcome.revision)
+
+    def apply_mutation_result(self, result: "ClientMutationResult") -> "ClientProjectSession":
+        """Advance revision from a normalized successful mutation result only."""
+        self.validate()
+        result.validate()
+        if not result.successful:
+            return self
+        if result.revision is None:
+            raise ValueError("successful mutation result requires revision")
+        if self.revision is not None and result.revision < self.revision:
+            raise ValueError("authoritative revision cannot move backwards")
+        return self.with_revision(result.revision)
 
     def with_revision(self, revision: int) -> "ClientProjectSession":
         if revision < 0:
