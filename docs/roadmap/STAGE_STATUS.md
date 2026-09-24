@@ -14,7 +14,7 @@
 Progress percentages refer to the documented development workflow, not a claim that production source code for every module already exists.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **63% — in progress; backward constraint propagation hardening added 2026-09-24**
+Status: **65% — in progress; P6 constraint semantics matrix added 2026-09-24**
 - Scope document: docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md.
 - Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
@@ -41,6 +41,10 @@ Status: **63% — in progress; backward constraint propagation hardening added 2
   - Added equivalent Finish No Earlier Than coverage across all four relationship types with positive and negative lag.
   - Added mixed relationship networks with different lag signs and downstream constraints.
   - This verifies propagation coverage without duplicating scheduling formulas in clients.
+- 33.4.21 P6 Constraint Semantics Matrix: implemented as Shared Core documentation baseline.
+  - Documents Forward/Backward behavior for all six implemented constraint types.
+  - Documents calendar normalization, combined-constraint validation, relationship interaction, and backward-pass validity gates.
+  - Formal P6 parity verification remains pending; the matrix is a compatibility specification, not certification.
 - Full P6 constraint semantics, exact P6 schedule-option parity, richer time-of-day calendars, and formal P6 parity certification remain pending.
 - Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
 - Tracking issue: #26.
