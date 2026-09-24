@@ -69,6 +69,7 @@ Status: **42% — in progress; backward constraint integration added 2026-09-24*
 - 33.4.9 Portable Activity + Forward Pass: **implemented**.
 - 33.4.10 Backward Pass + Float Analysis: **implemented**.
 - 33.4.11 Foundational Activity Date Constraints: **implemented**.
+- 33.4 Offline Project Context backend contract: **implemented** — versioned portable project context with deterministic regression coverage.
 - 33.4.12 Backward-Pass Constraint Integration: **implemented**.
   - Late-date calculations now accept the same typed ActivityConstraint set used by Forward Pass.
   - Start/Finish No Later Than constraints cap latest dates; Mandatory Start/Finish constraints enforce exact late dates.
