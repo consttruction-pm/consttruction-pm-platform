@@ -5,7 +5,7 @@ from .server_idempotency import IdempotencyRecord
 from .server_idempotency import mutation_fingerprint
 
 class AtomicConflictSyncExecutor(AtomicSyncExecutor):
-    def _persist_conflict(self, mutation: OfflineMutation, outcome) -> None:
+    def _after_outcome(self, mutation: OfflineMutation, outcome) -> None:
         if outcome.disposition.value != "conflict":
             return
         self.persistence.save_conflict(
