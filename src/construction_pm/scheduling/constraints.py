@@ -101,6 +101,26 @@ def apply_latest_constraint(
     return late_start
 
 
+def validate_upper_bound(
+    constraint: ActivityConstraint,
+    start: date,
+    finish: date,
+    resolver: WorkingTimeResolver,
+) -> None:
+    """Validate constraints that impose an upper bound during the forward pass."""
+    target = _target(constraint, resolver)
+
+    if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
+        raise ConstraintViolation(
+            f"start no later than constraint violated for {constraint.activity_id}"
+        )
+
+    if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
+        raise ConstraintViolation(
+            f"finish no later than constraint violated for {constraint.activity_id}"
+        )
+
+
 def validate_constraint_window(
     constraint: ActivityConstraint,
     start: date,
