@@ -13,7 +13,7 @@ from .constraints import (
     validate_constraint_set,
     validate_constraint_window,
 )
-from .forward_pass import ScheduledActivity, _shift_working_date, _topological_order, forward_pass
+from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
 
 
@@ -180,6 +180,39 @@ def backward_pass(
             finish=late_finish,
             duration=activity.duration,
         )
+
+    # A lower-bound constraint can move a predecessor later than the
+    # successor-derived latest date. Propagate that movement forward through
+    # the relationship network before declaring the backward schedule valid.
+    for activity_id in order:
+        for relationship in sorted(
+            outgoing[activity_id],
+            key=lambda item: (item.successor_id, item.type.value, item.lag),
+        ):
+            predecessor = result[relationship.predecessor_id]
+            successor = result[relationship.successor_id]
+            required_start = _successor_start(
+                relationship, predecessor, successor.duration, resolver
+            )
+            if required_start > successor.start:
+                updated = ScheduledActivity(
+                    activity_id=successor.activity_id,
+                    start=required_start,
+                    finish=resolver.add_working_duration(required_start, successor.duration),
+                    duration=successor.duration,
+                )
+                if updated.finish > finish:
+                    raise ValueError(
+                        f"backward constraint propagation exceeds project finish for {successor.activity_id}"
+                    )
+                for constraint in sorted(
+                    constraint_map[successor.activity_id],
+                    key=lambda item: (item.type.value, item.date),
+                ):
+                    validate_constraint_window(
+                        constraint, updated.start, updated.finish, resolver
+                    )
+                result[successor.activity_id] = updated
 
     for relationship in relationship_list:
         if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
