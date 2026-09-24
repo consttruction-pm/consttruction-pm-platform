@@ -27,6 +27,7 @@ def test_http_transport_preserves_idempotency_and_context() -> None:
     assert headers["Idempotency-Key"] == "idem-1"
     assert headers["X-Tenant-Id"] == "t1"
     assert headers["X-Project-Id"] == "p1"
+    assert headers["X-Project-Revision"] == "7"
 
 
 def test_server_idempotency_replays_same_outcome() -> None:
