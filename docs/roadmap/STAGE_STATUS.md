@@ -45,7 +45,7 @@ Status: **82% — in progress; Stage 33.4.26 parity regression pack added 2026-0
   - EARLIEST and ALAP are tested with constrained FS/SS/FF/SF networks and positive lag.
   - Selected schedule remains mode-specific while Early/Late schedules and Float analysis remain preserved.
   - Added regression coverage preventing ALAP selection from mutating the Early schedule.
-- 33.4 Offline Mutation Queue Retry Attempt: implemented and merged in PR #49 (2026-09-24); retry attempts are persistent and transaction-aware, while mutation identity/fingerprint remains stable.
+- 33.4 Offline Mutation Queue Retry Attempt: implemented and hardened through PR #50 (2026-09-24); retry attempts are persistent and transaction-aware, mutation identity/fingerprint remains stable, and SQLite enqueue is idempotent for the same mutation while rejecting conflicting reuse of an idempotency key.
   - Constrained late dates are reconciled against early dates before Total Float is accepted.
   - Negative constrained Total Float is rejected rather than hidden by clamping to zero.
   - Added constrained critical-path, ALAP, and holiday/calendar reconciliation tests.
