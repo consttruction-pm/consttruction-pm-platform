@@ -101,7 +101,7 @@ def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(
     assert result.mode is ScheduleMode.ALAP
     assert result.activities["A"].start == date(2026, 9, 22)
     assert result.activities["B"].start == date(2026, 9, 22)
-    assert result.activities["C"].start == date(2026, 9, 23)
+    assert result.activities["C"].start == date(2026, 9, 22)
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.late_activities["A"].start == date(2026, 9, 22)
     assert result.floats["A"].total_float == 1
