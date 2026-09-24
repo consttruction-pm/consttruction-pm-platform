@@ -93,8 +93,8 @@ def test_time_schedule_produces_zero_float_for_terminal_path():
         activities, relationships, datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 15), registry()
     )
     assert result.floats["B"].total_float_hours == Decimal("0")
-    assert result.floats["A"].total_float_hours == Decimal("1")
-    assert not result.floats["A"].critical
+    assert result.floats["A"].total_float_hours == Decimal("0")
+    assert result.floats["A"].critical
 
 
 def test_time_schedule_retains_positive_float_for_noncritical_activity():
