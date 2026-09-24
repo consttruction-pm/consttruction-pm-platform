@@ -300,3 +300,8 @@ Status: **100%**
   - Live PostgreSQL adapter and concurrent integration tests remain later production gates.
 
 - 33.4.54 Resource Assignment Optimistic Lock Hardening: merged PR #63 (SHA `0aee6b16942e687d7bde91e2b4881b6f4868838a`). Stale assignment writes now raise the existing `OptimisticLockError` contract, matching resource writes; regression coverage added. No Scheduling/P6 semantics changed.
+
+- 33.4.58 PostgreSQL Persistence Adapter: implemented.
+  - Added PostgreSQL-specific adapter with database-enforced unique keys.
+  - Added parameterized-SQL contract tests.
+  - No live PostgreSQL server or concurrent DB execution is claimed yet.
