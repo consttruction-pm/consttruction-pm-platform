@@ -1,8 +1,6 @@
-export type ProjectContext = {
-  tenant_id: string;
-  project_id: string;
-  revision: number;
-};
+import type { ProjectContext } from "../../../shared/client-contracts/project-context";
+
+export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
 export type ClientError = {
   code: string;
@@ -61,16 +59,11 @@ export class FetchApiTransport implements ApiTransport {
     };
   }
 
-  private async request<T>(
-    path: string,
-    init: RequestInit,
-  ): Promise<ApiResult<T>> {
+  private async request<T>(path: string, init: RequestInit): Promise<ApiResult<T>> {
     const response = await fetch(new URL(path, this.baseUrl), init);
     const payload = await response.json().catch(() => null);
 
-    if (response.ok) {
-      return { ok: true, data: payload as T };
-    }
+    if (response.ok) return { ok: true, data: payload as T };
 
     return {
       ok: false,
