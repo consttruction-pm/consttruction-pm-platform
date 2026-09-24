@@ -29,6 +29,9 @@ export class OfflineMutationQueue {
   private readonly idempotencyKeys = new Map<string, string>();
 
   enqueue(mutation: SyncMutation): void {
+    if (mutation.contract_version !== "sync-mutation.v1") {
+      throw new Error("UNSUPPORTED_MUTATION_CONTRACT");
+    }
     if (mutation.expected_revision < 0) {
       throw new Error("INVALID_EXPECTED_REVISION");
     }
@@ -49,13 +52,24 @@ export class OfflineMutationQueue {
     this.idempotencyKeys.set(mutation.idempotency_key, mutation.mutation_id);
   }
 
+  pending(): readonly SyncMutation[] {
+    return this.pendingMutations.slice();
+  }
+
   peek(): SyncMutation | undefined {
     return this.pendingMutations[0];
   }
 
-  acknowledge(mutationId: string): void {
+  applyOutcome(outcome: SyncOutcome): void {
+    if (outcome.contract_version !== "sync-outcome.v1") {
+      throw new Error("UNSUPPORTED_OUTCOME_CONTRACT");
+    }
+    if (outcome.disposition !== "acknowledged") {
+      return;
+    }
+
     const index = this.pendingMutations.findIndex(
-      (mutation) => mutation.mutation_id === mutationId,
+      (mutation) => mutation.mutation_id === outcome.mutation_id,
     );
     if (index < 0) {
       return;
@@ -64,6 +78,14 @@ export class OfflineMutationQueue {
     const [removed] = this.pendingMutations.splice(index, 1);
     this.mutationIds.delete(removed.mutation_id);
     this.idempotencyKeys.delete(removed.idempotency_key);
+  }
+
+  acknowledge(mutationId: string): void {
+    this.applyOutcome({
+      contract_version: "sync-outcome.v1",
+      mutation_id: mutationId,
+      disposition: "acknowledged",
+    });
   }
 
   size(): number {
