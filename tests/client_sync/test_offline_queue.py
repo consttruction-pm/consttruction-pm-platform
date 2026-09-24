@@ -23,14 +23,20 @@ def test_sqlite_queue_round_trips_typed_envelope():
     q.remove(m)
     assert q.peek() == []
 
-def test_sqlite_queue_rejects_duplicate_key():
-    q=SQLiteOfflineMutationQueue(sqlite3.connect(":memory:")); m=make_mutation()
+def test_sqlite_queue_is_idempotent_for_same_mutation():
+    q = SQLiteOfflineMutationQueue(sqlite3.connect(":memory:"))
+    m = make_mutation()
     q.enqueue(m)
-    try:
-        q.enqueue(m)
-        assert False
-    except ValueError as exc:
-        assert "already exists" in str(exc)
+    q.enqueue(m)
+    assert q.peek() == [m]
+
+
+def test_sqlite_queue_rejects_same_key_for_different_mutation():
+    q = SQLiteOfflineMutationQueue(sqlite3.connect(":memory:"))
+    q.enqueue(make_mutation())
+    different = OfflineMutation(CTX, "register_resource", "k-1", {"resource_id": "R-2"}, 2)
+    with pytest.raises(ValueError, match="different mutation"):
+        q.enqueue(different)
 
 
 def test_remove_is_context_scoped():
