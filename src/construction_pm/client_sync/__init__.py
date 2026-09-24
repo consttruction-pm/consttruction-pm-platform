@@ -9,3 +9,6 @@ __all__ = ["OfflineProjectContext", "SyncMutationOutcome", "OfflineMutation", "I
 
 from .offline_mutation import OfflineMutation
 from .offline_queue import OfflineMutationQueue
+
+from .offline_store import InMemoryOfflineMutationStore, OfflineMutationStore
+from .offline_store_json import JsonFileOfflineMutationStore
