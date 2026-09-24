@@ -1,14 +1,13 @@
-import type { ProjectContext } from "./client.js";
+import { validateProjectContext } from "../../../shared/client-contracts/project-context";
+import type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
-export type { ProjectContext };
+export type { ProjectContext } from "../../../shared/client-contracts/project-context";
 
 export class ProjectContextStore {
   private context: ProjectContext | null = null;
 
   set(context: ProjectContext): void {
-    if (!context.tenant_id || !context.project_id || context.revision < 0) {
-      throw new Error("INVALID_PROJECT_CONTEXT");
-    }
+    validateProjectContext(context);
     this.context = Object.freeze({ ...context });
   }
 
@@ -18,9 +17,9 @@ export class ProjectContextStore {
   }
 
   updateRevision(revision: number): void {
-    if (revision < 0) throw new Error("INVALID_PROJECT_REVISION");
     const current = this.get();
-    this.set({ ...current, revision });
+    validateProjectContext({ ...current, revision });
+    this.context = Object.freeze({ ...current, revision });
   }
 
   clear(): void {
