@@ -127,3 +127,12 @@ Status: **100%**
   - Added SF and negative-lag regression coverage.
   - Date-based Forward Pass remains unchanged for compatibility.
   - Remaining gates: time-aware Backward Pass/Float, constraints, schedule options/criticality parity, portability round-trip tests and CI verification.
+
+- 33.4.30 Time-Aware Forward Pass Integration: implemented.
+  - Added Shared Core time_forward_pass using TimeActivity/TimeRelationship and explicit calendar contexts.
+  - Integrated working-hour duration and signed working-hour lag with FS/SS/FF/SF semantics.
+  - Added exact inverse working-hour arithmetic and preserved interval-end boundaries without microsecond drift.
+  - Added regression coverage for negative lag and SF/FF inverse behavior.
+  - No implicit working-day-to-hour conversion was introduced.
+  - Remaining gates: time-aware Backward Pass, Float/Critical Path, constraints, portability completion, cross-client contracts, and final P6 time-based parity pack.
+  - Runtime CI remains unverified.
