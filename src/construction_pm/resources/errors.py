@@ -13,7 +13,6 @@ class ErrorCategory(str, Enum):
     PERSISTENCE = "persistence"
 
 
-@dataclass(frozen=True)
 class OptimisticLockError(RuntimeError):
     """Raised when a persistence update uses a stale revision."""
 
