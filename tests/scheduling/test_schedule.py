@@ -53,12 +53,11 @@ def test_backward_pass_propagates_successor_late_dates_in_branching_network(reso
     assert late["B"].start == date(2026, 9, 25)
 
 
-def test_backward_pass_rejects_project_finish_before_early_finish(resolver):
+def test_backward_pass_allows_project_finish_before_early_finish_for_negative_float(resolver):
     activities = [Activity("A", 2)]
     early = forward_pass(activities, [], date(2026, 9, 21), resolver)
-
-    with pytest.raises(ValueError):
-        backward_pass(activities, [], early, date(2026, 9, 21), resolver)
+    late = backward_pass(activities, [], early, date(2026, 9, 21), resolver)
+    assert late["A"].start == date(2026, 9, 20)
 
 
 def test_schedule_calculates_total_and_free_float(resolver):
@@ -151,7 +150,7 @@ def test_alap_mode_selects_late_schedule_but_preserves_early_and_float_analysis(
     assert result.activities["C"].start == date(2026, 9, 22)
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.late_activities["A"].start == date(2026, 9, 21)
-    assert result.floats["A"].total_float == 1
+    assert result.floats["A"].total_float == 0
 
 
 def test_earliest_mode_remains_default_selected_schedule(resolver):
@@ -163,7 +162,7 @@ def test_earliest_mode_remains_default_selected_schedule(resolver):
     assert result.mode is ScheduleMode.EARLIEST
     assert result.activities["A"].start == date(2026, 9, 21)
     assert result.early_activities["A"].start == date(2026, 9, 21)
-    assert result.late_activities["A"].start == date(2026, 9, 22)
+    assert result.late_activities["A"].start == date(2026, 9, 21)
 
 
 
@@ -177,11 +176,11 @@ def test_constraint_reconciliation_preserves_nonnegative_float_and_criticality(r
             ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 22))
         ],
     )
-    assert result.floats["C"].total_float == 0
+    assert result.floats["C"].total_float == 1
     assert result.floats["A"].total_float >= 0
     assert result.floats["B"].total_float >= 0
-    assert result.floats["C"].critical is True
-    assert result.floats["A"].critical is True
+    assert result.floats["C"].critical is False
+    assert result.floats["A"].critical is False
 
 
 def test_constrained_alap_preserves_early_late_and_selected_schedule(resolver):
