@@ -338,3 +338,12 @@ Status: **100%**
   - Full database atomicity between outcome and conflict rows remains the next integration gate.
 
 - 33.4.56 Backend CI Contract Regression Pack: merged PR #66 (SHA `69d3b0885812b688dc9a49b1e7b57b7edddeedaa`). Fixed offline retry transaction ownership, typed decimal time API validation, tenant/project/key-scoped sync idempotency records and stable reuse errors, missing-assignment error mapping, and resource migration schema version. No Scheduling/P6 calculations changed.
+
+
+- 33.4.65 Final Time-Aware P6 Certification & CI Runtime Gate: **completed — 100%**.
+  - Verified GitHub Actions workflow run 35995754604 for commit c79dbb4c7126d8a0e0342ad69dbeec35f569b1b1.
+  - Python 3.11, 3.12 and 3.13 all completed successfully.
+  - Runtime result: **338 passed, 2 skipped, 0 failed**.
+  - The regression run confirms the repaired Shared Scheduling/Core baseline, including calendar interval arithmetic, FS/SS/FF/SF relationships, lag/lead boundaries, Forward/Backward scheduling, float/constraints, typed resource/API contracts, synchronization/idempotency and cross-client regression coverage.
+  - Stage 33.4.36 time-aware P6 certification evidence is now runtime-verified. This remains an engineering compatibility gate, not an Oracle certification claim.
+  - Stage 33.4 is now eligible to close; future work proceeds to the next product/platform stage without reopening completed 33.4 work unless a new regression is introduced.
