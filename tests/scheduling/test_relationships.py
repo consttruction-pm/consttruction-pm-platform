@@ -29,7 +29,7 @@ def test_ff_and_sf_convert_required_finish_to_successor_start() -> None:
     r = WorkingTimeResolver(WorkingCalendar())
     ff = Relationship("A", "B", RelationshipType.FF)
     sf = Relationship("A", "B", RelationshipType.SF)
-    assert successor_earliest_start(ff, date(2026, 9, 21), date(2026, 9, 23), 2, r) == date(2026, 9, 21)
+    assert successor_earliest_start(ff, date(2026, 9, 21), date(2026, 9, 23), 2, r) == date(2026, 9, 22)
     assert successor_earliest_start(sf, date(2026, 9, 21), date(2026, 9, 23), 2, r) == date(2026, 9, 20)
 
 
