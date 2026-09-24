@@ -115,3 +115,12 @@ def test_retry_attempt_does_not_change_mutation_identity():
     mutation = make_mutation()
     retried = make_mutation(attempt=1)
     assert mutation.fingerprint_payload() == retried.fingerprint_payload()
+
+
+def test_sqlite_enqueue_commits_when_standalone():
+    connection = sqlite3.connect(":memory:")
+    q = SQLiteOfflineMutationQueue(connection)
+    q.enqueue(make_mutation())
+    connection.execute("BEGIN")
+    connection.rollback()
+    assert q.peek() == [make_mutation()]

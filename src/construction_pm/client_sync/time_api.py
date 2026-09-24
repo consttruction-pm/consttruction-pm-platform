@@ -70,10 +70,11 @@ class TimeSchedulingAPIPayload:
             self._iso_datetime(target, "constraint.target")
 
     @staticmethod
-    def _required(item: Mapping[str, object], name: str) -> None:
+    def _required(item: Mapping[str, object], name: str) -> str:
         value = item.get(name)
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{name} is required")
+        return value
 
     @staticmethod
     def _calendar(value: object, name: str) -> None:
