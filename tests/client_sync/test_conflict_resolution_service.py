@@ -127,3 +127,42 @@ def test_service_refresh_and_retry_builds_and_enqueues_rebased_mutation():
     assert result.idempotency_key == "fresh-key-15"
     assert result.mutation["name"] == "Foundation Updated"
     assert queue.peek() == [result]
+
+
+def test_service_refresh_retry_from_session_uses_session_revision():
+    from construction_pm.client_sync.session import ClientProjectSession
+
+    queue = InMemoryOfflineMutationQueue()
+    original = make_mutation()
+    queue.enqueue(original)
+    session = ClientProjectSession(original.context, "api.v1", revision=21)
+
+    result = ConflictResolutionService(queue).refresh_and_retry_from_session(
+        original,
+        session,
+        idempotency_key="fresh-session-key",
+    )
+
+    assert result.expected_revision == 21
+    assert result.idempotency_key == "fresh-session-key"
+    assert queue.peek() == [result]
+
+
+def test_service_refresh_retry_from_session_rejects_missing_authoritative_revision():
+    from construction_pm.client_sync.session import ClientProjectSession
+
+    queue = InMemoryOfflineMutationQueue()
+    original = make_mutation()
+    queue.enqueue(original)
+    session = ClientProjectSession(original.context, "api.v1", revision=None)
+
+    try:
+        ConflictResolutionService(queue).refresh_and_retry_from_session(
+            original,
+            session,
+            idempotency_key="fresh-session-key",
+        )
+    except ValueError as exc:
+        assert str(exc) == "client session requires authoritative revision"
+    else:
+        raise AssertionError("expected ValueError")
