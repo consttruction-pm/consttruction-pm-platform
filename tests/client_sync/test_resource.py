@@ -22,3 +22,11 @@ def test_resource_revision_is_required_and_positive():
 def test_assignment_rejects_numeric_decimal_payload():
     with pytest.raises(ValueError, match='decimal strings'):
         parse_assignment({'contract_version':'resource.v1','activity_id':'A1','resource_id':'R1','planned_units':10,'actual_units':'0','remaining_units':'10','revision':1})
+
+
+def test_resource_operation_matches_v1_contract():
+    from construction_pm.client_sync.resource import validate_resource_operation
+    validate_resource_operation('create_resource')
+    validate_resource_operation('create_assignment')
+    with pytest.raises(ValueError):
+        validate_resource_operation('update_resource')
