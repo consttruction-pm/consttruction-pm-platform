@@ -100,6 +100,12 @@ Status: **implemented**
 - Revision, stable error code, retryability and idempotency key are represented explicitly.
 - Deterministic validation and regression coverage added; no Shared Calculation Core semantics changed.
 
+### Stage 33.4 Offline Mutation Queue Boundary
+Status: **implemented**
+- Versioned offline mutation envelope added with ProjectContext, idempotency key, expected revision and retry metadata.
+- Schema and deterministic validation regression coverage added.
+- Business calculations remain outside the client queue boundary.
+
 ### Stage 33.4-B — SQLite Transaction Boundary Hardening
 Status: **100%**
 - Application transaction rollback against SQLite persistence is regression-tested.
