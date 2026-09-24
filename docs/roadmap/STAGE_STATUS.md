@@ -196,3 +196,5 @@ Status: **100%**
   - Added first-class Web/Desktop/Mobile ClientKind and explicit Shared-Core capability authority.
   - Added integration tests covering context, client identity, calculation authority and stable error actions.
   - No scheduling, calendar, Progress/EVM, Resource/Cost or financial calculation was duplicated in client models.
+
+- 33.4.39 Time API ↔ Shared Schema Validation Parity: implemented and merged in PR #57 (SHA `d430e60d6b91f8faf24347a896e9809130698163`). API adapter now validates schedule mode, ISO-8601 datetime targets, canonical Decimal duration/lag values, calendar references, relationship types and all six constraint types consistently with the shared JSON schema. Regression tests added. No scheduling calculations changed. Runtime CI remains unverified.
