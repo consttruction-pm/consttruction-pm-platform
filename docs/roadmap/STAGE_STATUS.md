@@ -43,91 +43,44 @@ Status: **100%**
 - Legacy schema migration is regression-tested.
 - No Scheduling/P6, Progress/EVM core, or Shared Calculation Core semantics were changed.
 
-**Next point: Stage 33.2 — cross-module integration and portability checks within Developer 1 backend/database/integration-support scope.**
-
 ### Stage 33.2 — Cross-Module Integration & Project Portability
 Status: **100% — reconciled and merged into current main**
 - Integration/portability contract established.
-- Stage 33.2.1 API DTO reconciliation merged (PR #6; merge SHA `f4764248ea4376fb7307f5eb5e566482ce4cb4cc`).
-- Stage 33.2.2 explicit tenant/company/project context isolation merged (PR #9; merge SHA `e601ebd15430dcb9555be57ad9d94ec845d3cc03`).
-- Stage 33.2.3 application TransactionManager contract reconciled and merged by Hasan (PR #16; merge SHA `200000407d10f105c5e457ab72e677f4d4f9a6df`).
-- Stage 33.2.4 versioned typed Resource/ResourceAssignment contracts merged (PR #13; merge SHA `e0b8e72d349a4102858c35c260b6a72f06a4a8b1`).
-- Stage 33.2.5 versioned project portability contract merged (PR #14; merge SHA `67eefcc27f322db017c825785508f700cfeb61d4`).
-- Stage 33.2.6 cross-module regression suite merged (PR #15; merge SHA `cf3da8d3acfbd258a5b0742991bb5ac905e4da62`).
-- Current main lineage was reconciled without wholesale merging the divergent review branch.
+- Stage 33.2.1 API DTO reconciliation merged (PR #6).
+- Stage 33.2.2 explicit tenant/company/project context isolation merged (PR #9).
+- Stage 33.2.3 application TransactionManager contract reconciled and merged by Hasan (PR #16).
+- Stage 33.2.4 versioned typed Resource/ResourceAssignment contracts merged (PR #13).
+- Stage 33.2.5 versioned project portability contract merged (PR #14).
+- Stage 33.2.6 cross-module regression suite merged (PR #15).
 - No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics were redefined.
-- PR #17 was superseded by PR #16 and closed to prevent duplicate implementation.
-
-**Stage 33.2 completion gate: 100%.**
 
 ### Stage 33.3 — Production Application/API Hardening
 Status: **100% — complete**
-- 33.3.1 Application/API contract audit: **100%**
-- 33.3.2 Stable Error Contract: **100%**
-- Stable machine-readable ApplicationError categories implemented.
-- Validation, ProjectContext and not-found failures are mapped to stable error codes.
-- API serialization preserves category/code/retryable semantics.
-- Regression tests added.
-- Remaining: SQLite persistence context hardening, mutation idempotency, authorization boundary, revision propagation and final integration regression.
+- Application/API contract, stable errors, mutation idempotency, durable SQLite idempotency, authorization, optimistic locking/revision propagation and final cross-layer regression hardening completed.
 - No Scheduling/P6 or Progress/EVM semantics changed.
-- 33.3.3 Mutation Idempotency Contract: **100%**
-- Application-level idempotency key + deterministic request fingerprint contract implemented.
-- Same key + same fingerprint replays without executing the mutation twice.
-- Same key + different fingerprint returns stable `IDEMPOTENCY_KEY_REUSE` conflict.
-- Context isolation and regression tests added.
-- Durable SQLite idempotency persistence completed in Stage 33.3.4.
-- 33.3.4 Durable SQLite idempotency storage: **100%**
-- SQLite idempotency records are transactionally coupled to mutation execution.
-- Resource schema advanced to v4 and portable schema updated.
-- Failure rollback and fingerprint conflict regression tests added.
-- 33.3.5 Authorization boundary: **100%**
-- Explicit application authorization policy contract added.
-- Resource mutations are authorized before persistence.
-- Stable forbidden error and regression coverage added.
-- 33.3.6 API revision propagation and optimistic-locking contract: **100%**
-- Expected revisions propagate from API → Application → Repository.
-- Current revisions are exposed at the API boundary.
-- Stale writes return stable `STALE_REVISION` conflict errors.
-- Shared optimistic-lock error contract and regression tests added.
-- 33.3.7 Final cross-layer integration/regression hardening: **100%**
-- API, Application, authorization, idempotency, revision and context-isolation contracts covered together.
-- Final Resource backend regression suite added.
-- **Stage 33.3 completion gate: 100%.**
-- Next: Stage 33.4 — Production Web/Desktop Client Foundation and Shared Client Integration.
 
 ### Stage 33.4 — Production Web/Desktop/Mobile Client Foundation and Shared Client Integration
-Status: **35% — in progress; backward pass and float analysis added 2026-09-24**
+Status: **40% — in progress; constraint foundation added 2026-09-24**
 - Scope document: `docs/architecture/STAGE_33_4_WEB_DESKTOP_CLIENT_FOUNDATION.md`.
-- Web, Desktop and Mobile must consume the same versioned API/Application contracts.
+- Web, Desktop and Mobile consume the same versioned API/Application contracts.
 - Shared Domain/Calculation Core remains the single source of Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar and financial calculation semantics.
-- Client responsibilities: application shells, navigation/workspace integration, typed contract consumption, localization, Jalali/Gregorian presentation, error/conflict UX, mobile field workflows, offline sync UX and parity testing.
-- Hasan/backend responsibilities: API/shared-contract integration support, ProjectContext propagation, authorization/session boundary, optimistic-locking/idempotency/error handling and regression coverage.
-- Completion requires cross-client contract, workflow and parity regression tests across Web/Desktop/Mobile.
-- No Scheduling/P6 or Progress/EVM semantics are redefined in Stage 33.4.
-- 33.4.1 client foundation structure/contracts: **started**.
-- 33.4.2 shared typed API client boundary: **backend support complete — versioned Resource contract and stable application-error contract published with regression coverage**.
-- 33.4.4 security boundary: **backend support complete — provider-independent authorization policy boundary and stable FORBIDDEN error regression coverage**.
-- 33.4.5 cross-client parity: **backend support complete — shared Resource contract version, operation, revision and Decimal serialization parity regression coverage**.
-- 33.4.6 Mobile field client foundation: **scope established**.
-- 33.4.7 Mobile security/sync/device boundary: **backend support complete — client-sync.v1 mutation envelope defines ProjectContext, idempotency and optimistic-revision propagation with regression coverage**.
+- No client-specific scheduling formulas are permitted.
 - 33.4.8 Portable Shared Scheduling Core foundation: **implemented**.
-  - `src/construction_pm/scheduling/calendar.py` provides the framework/UI-independent `WorkingCalendar` and `WorkingTimeResolver`.
-  - `add_working_duration`, `subtract_working_duration` and `calculate_duration` are implemented with explicit weekend/holiday handling and deterministic date arithmetic.
-  - `tests/scheduling/test_calendar.py` covers regression, inverse arithmetic, normalization and invalid input cases.
-  - This is the first portable scheduling slice for future Desktop standalone and Mobile offline execution; it does not create a client-specific scheduling engine.
 - 33.4.9 Portable Activity + Forward Pass: **implemented**.
-  - `src/construction_pm/scheduling/activity.py` defines the framework-independent Activity model with validated working-day duration.
-  - `src/construction_pm/scheduling/forward_pass.py` implements deterministic earliest-start scheduling over an activity network.
-  - Supports multiple predecessors, FS/SS/FF/SF relationships, positive working lag and negative working lead, deterministic topological ordering, unknown-reference validation and explicit cycle detection.
-  - `tests/scheduling/test_forward_pass.py` covers multiple predecessors, all four relationship types, positive/negative lag, input-order determinism and cycle rejection.
-  - The implementation uses the existing WorkingTimeResolver; no client-specific scheduling formulas were introduced.
 - 33.4.10 Backward Pass + Float Analysis: **implemented**.
-  - `src/construction_pm/scheduling/schedule.py` adds deterministic Backward Pass, Total Float, relationship-aware Free Float and Critical flag calculation.
-  - Backward constraints are derived from the same FS/SS/FF/SF + lag semantics used by the forward network.
-  - `ScheduleResult` exposes early schedule, float analysis and project finish through the Shared Core.
-  - `tests/scheduling/test_schedule.py` covers critical-chain backward dates, Total/Free Float, explicit project finish and validation.
-  - This is still a foundational scheduling slice; it is not yet a claim of full P6 parity. Constraint types, richer calendars/time-of-day, schedule options, baseline/current reconciliation and broader regression certification remain pending.
-- Full test execution could not be completed from the current tool environment because external GitHub repository cloning/network resolution was unavailable; the new tests are committed but should be run in GitHub Actions/CI before being marked execution-verified.
+- 33.4.11 Foundational Activity Date Constraints: **implemented**.
+  - `src/construction_pm/scheduling/constraints.py` adds typed constraint primitives:
+    - Start No Earlier Than
+    - Start No Later Than
+    - Finish No Earlier Than
+    - Finish No Later Than
+    - Mandatory Start
+    - Mandatory Finish
+  - Forward Pass now accepts optional activity constraints and validates lower/upper date bounds against the same WorkingTimeResolver.
+  - Mandatory/upper-bound conflicts raise deterministic `ConstraintViolation` errors rather than silently changing business dates.
+  - `tests/scheduling/test_constraints.py` covers lower-bound constraints, upper-bound violation, mandatory start and unknown-activity validation.
+  - These are foundational date-constraint primitives, not a claim of complete P6 constraint-option parity. Backward-pass constraint integration, ALAP behavior, full P6 constraint semantics, schedule options and richer calendars remain pending.
+- Full test execution is not marked as verified until CI/GitHub Actions executes the committed test suite.
 - Tracking issue: #26.
 
 ### Stage 33.4-B — SQLite Transaction Boundary Hardening
@@ -136,5 +89,3 @@ Status: **100%**
 - Nested repository transactions participate in the outer application transaction.
 - Stable stale-revision error mapping import reconciled.
 - No Scheduling/P6, Progress/EVM, or Shared Calculation Core semantics changed.
-- Stage 33.4 completion gate: **100%**.
-- Next: continue from the next unfinished Stage 33 backend/platform item.
