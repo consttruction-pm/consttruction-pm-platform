@@ -188,3 +188,11 @@ Status: **100%**
 - 33.4.37 Typed Time-Aware API Contract Regression: implemented and merged in PR #55 (SHA `5b8c1b2bdb1743ed841d1c6d1cc4081afc64fb95`). Added a typed versioned API payload for calculation context, time durations, FS/SS/FF/SF lag/lead, and the six datetime constraint DTOs; JSON schema and regression tests updated. No scheduling formulas or client UI logic changed. Runtime CI remains unverified.
 
 - 33.4.38 Cross-Client Offline Regression Pack: implemented and merged in PR #56 (SHA `539b76a86abb4e3f87a4233a69e7eca733c76b88`). Added Web/Desktop/Mobile typed DTO parity regression and InMemory/SQLite offline round-trip coverage for ProjectContext, expected revision, idempotency identity and retry metadata. No scheduling formulas changed. Runtime CI remains unverified.
+
+
+- 33.4.42 Shared Client Foundation: implemented.
+  - Added typed ProjectContext with tenant/project/revision semantics.
+  - Added stable ClientError model for cross-client error/conflict presentation.
+  - Added first-class Web/Desktop/Mobile ClientKind and explicit Shared-Core capability authority.
+  - Added integration tests covering context, client identity, calculation authority and stable error actions.
+  - No scheduling, calendar, Progress/EVM, Resource/Cost or financial calculation was duplicated in client models.
