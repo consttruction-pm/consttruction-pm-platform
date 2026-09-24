@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/time-scheduling/v1",
+  "title": "ConstructionPM Time Scheduling API Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "calculation_context",
+    "activities",
+    "relationships"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "calculation_context": {
+      "$ref": "#/$defs/calculation_context"
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/activity"
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relationship"
+      }
+    }
+  },
+  "$defs": {
+    "calendar_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calendar_id",
+        "calendar_version",
+        "kind"
+      ],
+      "properties": {
+        "calendar_id": {
+          "type": "string"
+        },
+        "calendar_version": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "working-day",
+            "working-time"
+          ]
+        }
+      }
+    },
+    "calculation_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schedule_mode",
+        "project_start"
+      ],
+      "properties": {
+        "schedule_mode": {
+          "enum": [
+            "EARLIEST",
+            "ALAP"
+          ]
+        },
+        "project_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "project_finish": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "data_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "critical_float_threshold_hours": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time_precision": {
+          "enum": [
+            "minute",
+            "second",
+            "millisecond",
+            "microsecond"
+          ]
+        },
+        "rounding_policy": {
+          "enum": [
+            "exact",
+            "calendar-boundary"
+          ]
+        },
+        "project_calendar": {
+          "$ref": "#/$defs/calendar_reference"
+        },
+        "default_activity_calendar": {
+          "$ref": "#/$defs/calendar_reference"
+        },
+        "default_relationship_lag_calendar": {
+          "$ref": "#/$defs/calendar_reference"
+        }
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_id",
+        "duration_value",
+        "duration_unit",
+        "calendar"
+      ],
+      "properties": {
+        "activity_id": {
+          "type": "string"
+        },
+        "duration_value": {
+          "type": "string"
+        },
+        "duration_unit": {
+          "enum": [
+            "working-hour",
+            "working-day"
+          ]
+        },
+        "calendar": {
+          "$ref": "#/$defs/calendar_reference"
+        },
+        "constraint_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "predecessor_id",
+        "successor_id",
+        "type",
+        "lag_value",
+        "lag_unit"
+      ],
+      "properties": {
+        "predecessor_id": {
+          "type": "string"
+        },
+        "successor_id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "FS",
+            "SS",
+            "FF",
+            "SF"
+          ]
+        },
+        "lag_value": {
+          "type": "string"
+        },
+        "lag_unit": {
+          "enum": [
+            "working-hour",
+            "working-day"
+          ]
+        },
+        "lag_calendar": {
+          "$ref": "#/$defs/calendar_reference"
+        }
+      }
+    }
+  }
+}
