@@ -95,3 +95,9 @@ def test_retry_attempt_does_not_change_cross_client_mutation_identity():
     retried = queue.increment_attempt(mutation)
     assert retried.attempt == 1
     assert retried.fingerprint_payload() == mutation.fingerprint_payload()
+
+
+def test_package_exports_use_canonical_offline_mutation_contract():
+    from construction_pm.client_sync import OfflineMutation as ExportedOfflineMutation
+    from construction_pm.client_sync.mutation import OfflineMutation as CanonicalOfflineMutation
+    assert ExportedOfflineMutation is CanonicalOfflineMutation
