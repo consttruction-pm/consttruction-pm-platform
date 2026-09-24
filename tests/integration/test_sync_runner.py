@@ -3,6 +3,8 @@ from construction_pm.client_sync.offline_store import InMemoryOfflineMutationSto
 from construction_pm.client_sync.sync_adapter import ApplicationSyncAdapter
 from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcome
 from construction_pm.client_sync.sync_runner import SyncRunner
+from construction_pm.client_sync.server_gateway import IdempotentMutationGateway
+from construction_pm.client_sync.server_idempotency import InMemoryServerIdempotencyStore
 
 
 class Gateway:
