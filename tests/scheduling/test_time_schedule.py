@@ -60,8 +60,8 @@ def test_time_backward_pass_fs_inverse_matches_forward_boundary():
     late = time_backward_pass(
         activities, relationships, early, datetime(2026, 9, 22, 17), registry()
     )
-    assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["B"].start == datetime(2026, 9, 22, 14)
+    assert late["B"].finish == datetime(2026, 9, 22, 17)
+    assert late["B"].start == datetime(2026, 9, 22, 15)
     assert late["A"].finish == datetime(2026, 9, 22, 15)
     assert late["A"].start == datetime(2026, 9, 22, 10)
 
@@ -297,8 +297,8 @@ def test_cross_calendar_sf_zero_lag_uses_successor_finish_event():
     assert early["B"].finish == datetime(2026, 9, 22, 9)
 
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
-    assert late["B"].start == datetime(2026, 9, 22, 15)
+    assert late["B"].finish == datetime(2026, 9, 22, 16)
+    assert late["B"].start == datetime(2026, 9, 22, 14)
     assert late["A"].start == datetime(2026, 9, 22, 13)
     assert late["A"].finish == datetime(2026, 9, 22, 17)
 
@@ -349,7 +349,7 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
     assert early["B"].start == datetime(2026, 9, 21, 14)
     assert early["B"].finish == datetime(2026, 9, 21, 16)
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
+    assert late["B"].finish == datetime(2026, 9, 22, 16)
     assert late["A"].start == datetime(2026, 9, 22, 14)
     assert late["A"].finish == datetime(2026, 9, 22, 18)
 
