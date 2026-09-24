@@ -61,7 +61,7 @@ Status: **100% — reconciled and merged into current main**
 **Stage 33.2 completion gate: 100%.**
 
 ### Stage 33.3 — Production Application/API Hardening
-Status: **40% — in progress**
+Status: **50% — in progress**
 - 33.3.1 Application/API contract audit: **100%**
 - 33.3.2 Stable Error Contract: **100%**
 - Stable machine-readable ApplicationError categories implemented.
@@ -70,4 +70,10 @@ Status: **40% — in progress**
 - Regression tests added.
 - Remaining: SQLite persistence context hardening, mutation idempotency, authorization boundary, revision propagation and final integration regression.
 - No Scheduling/P6 or Progress/EVM semantics changed.
-- Next: 33.3.3 Mutation Idempotency Contract
+- 33.3.3 Mutation Idempotency Contract: **100%**
+- Application-level idempotency key + deterministic request fingerprint contract implemented.
+- Same key + same fingerprint replays without executing the mutation twice.
+- Same key + different fingerprint returns stable `IDEMPOTENCY_KEY_REUSE` conflict.
+- Context isolation and regression tests added.
+- Durable SQLite idempotency persistence remains the next persistence substage.
+- Next: 33.3.4 Durable SQLite idempotency storage
