@@ -5,6 +5,7 @@ from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
+from .time_constraints import TimeActivityConstraint, TimeConstraintType, TimeConstraintViolation
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .time_schedule import TimeFloatActivity, TimeScheduleResult, calculate_time_floats, time_backward_pass, time_schedule
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
@@ -42,6 +43,9 @@ __all__ = [
     "TimeAwareWorkingTimeResolver",
     "DurationUnit",
     "TimeQuantity",
+    "TimeActivityConstraint",
+    "TimeConstraintType",
+    "TimeConstraintViolation",
     "LagQuantity",
     "TimeActivity",
     "TimeRelationship",
