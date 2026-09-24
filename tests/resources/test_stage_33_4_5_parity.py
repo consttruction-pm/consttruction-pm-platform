@@ -51,16 +51,7 @@ def test_resource_mutation_contract_parity_across_create_operations():
 
 
 def test_resource_decimal_boundary_is_canonical_and_platform_neutral():
-    result = _api().create_assignment(
-        ResourceAssignment(
-            activity_id="A-1",
-            resource_id="R-1",
-            planned_units=Decimal("10.50"),
-            actual_units=Decimal("2.25"),
-        )
-    ) if False else None
-    # Decimal values are represented as canonical strings at the API boundary;
-    # this test is intentionally executed after a real resource exists.
+    # Decimal values are represented as canonical strings at the API boundary.
     api = _api()
     api.create_resource(_resource())
     result = api.create_assignment(
