@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/client-parity/v1",
+  "title": "ConstructionPM Client Parity Contract",
+  "type": "object",
+  "required": ["contract_version", "client", "project_context", "capabilities"],
+  "properties": {
+    "contract_version": { "const": "1.0" },
+    "client": {
+      "type": "string",
+      "enum": ["web", "desktop", "mobile"]
+    },
+    "project_context": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "revision"],
+      "properties": {
+        "tenant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["scheduling", "progress_evm", "resource_cost", "offline", "localization"],
+      "properties": {
+        "scheduling": { "const": "shared-core" },
+        "progress_evm": { "const": "shared-core" },
+        "resource_cost": { "const": "shared-core" },
+        "offline": { "type": "boolean" },
+        "localization": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 2 },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
