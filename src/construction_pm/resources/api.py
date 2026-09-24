@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any
 
 from .application import ResourceApplicationService
+from .errors import ApplicationError
 from .models import Resource, ResourceAssignment
 
 
@@ -41,7 +42,13 @@ class ResourceAPI:
     service: ResourceApplicationService
 
     def create_resource(self, resource: Resource) -> dict[str, Any]:
-        return resource_to_dto(self.service.register_resource(resource))
+        try:
+            return resource_to_dto(self.service.register_resource(resource))
+        except ApplicationError as exc:
+            return exc.to_dto()
 
     def create_assignment(self, assignment: ResourceAssignment) -> dict[str, Any]:
-        return assignment_to_dto(self.service.assign_resource(assignment))
+        try:
+            return assignment_to_dto(self.service.assign_resource(assignment))
+        except ApplicationError as exc:
+            return exc.to_dto()
