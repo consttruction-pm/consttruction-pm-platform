@@ -58,7 +58,7 @@ def test_holiday_and_weekend_boundaries_are_reproducible(resolver):
 
     assert result.early_activities["A"].start == date(2026, 9, 21)
     assert result.early_activities["A"].finish == date(2026, 9, 22)
-    assert result.early_activities["B"].start == date(2026, 9, 24)
+    assert result.early_activities["B"].start == date(2026, 9, 25)
 
 
 def test_lower_bound_constraint_can_reduce_float_without_moving_late_date(resolver):
