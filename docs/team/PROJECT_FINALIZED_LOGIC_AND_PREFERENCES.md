@@ -691,3 +691,12 @@ Developer notification requirement: Hasan must treat these parity/portability ru
 - The next client implementation must consume authoritative versioned contracts and Shared Domain/Calculation Core semantics.
 - Javad's later parity fixture adds a framework-neutral conflict presentation contract preserving stable error code, expected revision, idempotency identity, and available actions without recalculation in clients.
 - No Javad audit change is authorized to alter Shared Scheduling/P6 semantics.
+
+
+## 37. Final Time-Aware P6 Certification & Green CI Baseline — 2026-09-24
+
+Stage 33.4.65 is finalized as the runtime certification gate for the time-aware Shared Scheduling Core. GitHub Actions run 35995754604 on commit c79dbb4c7126d8a0e0342ad69dbeec35f569b1b1 passed on Python 3.11, 3.12 and 3.13 with 338 tests passed, 2 skipped and 0 failures.
+
+This establishes the current regression baseline for calendar interval arithmetic, FS/SS/FF/SF, signed lag/lead, Forward/Backward scheduling, constraints, float, typed resource/API contracts, synchronization/idempotency and cross-client regression coverage. The result is an engineering compatibility baseline, not an Oracle certification claim.
+
+Impact: no client-specific calculation semantics are authorized; Web, Desktop and Mobile continue to consume the Shared Domain/Calculation Core and versioned contracts. Future stages must preserve this green baseline and add regression coverage for every new shared semantic.
