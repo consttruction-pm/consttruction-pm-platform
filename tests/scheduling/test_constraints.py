@@ -302,5 +302,5 @@ def test_p6_lower_bound_can_create_negative_total_float_and_criticality(resolver
     )
     assert result.early_activities["A"].start == date(2026, 9, 25)
     assert result.late_activities["A"].start == date(2026, 9, 22)
-    assert result.floats["A"].total_float == -1
+    assert result.floats["A"].total_float == -3
     assert result.floats["A"].critical is True
