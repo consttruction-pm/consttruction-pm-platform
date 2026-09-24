@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import sqlite3
 from threading import RLock
-from contextlib import contextmanager\nimport sqlite3\nfrom typing import Callable, Generic, Iterator, Protocol, TypeVar
+from typing import Callable, Generic, Protocol, TypeVar
 
 from .context import ProjectContext
 from .errors import conflict_error
@@ -28,6 +29,7 @@ class MutationIdempotencyStore(Protocol):
         operation: str,
         fingerprint: str,
         mutation: Callable[[], T],
+        replay: Callable[[], T] | None = None,
     ) -> T: ...
 
 
@@ -45,11 +47,17 @@ class InMemoryMutationIdempotencyStore:
         operation: str,
         fingerprint: str,
         mutation: Callable[[], T],
+        replay: Callable[[], T] | None = None,
     ) -> T:
         if not key or not key.strip():
             raise conflict_error("INVALID_IDEMPOTENCY_KEY", "Idempotency key is required")
         context.validate()
-        record_key = (context.tenant_id, context.company_id, context.project_id, operation + ":" + key)
+        record_key = (
+            context.tenant_id,
+            context.company_id,
+            context.project_id,
+            operation + ":" + key,
+        )
         with self._lock:
             existing = self._records.get(record_key)
             if existing is not None:
@@ -58,39 +66,11 @@ class InMemoryMutationIdempotencyStore:
                         "IDEMPOTENCY_KEY_REUSE",
                         "Idempotency key was already used for a different mutation",
                     )
-                return (replay() if replay is not None else existing.result)  # type: ignore[return-value]
+                return replay() if replay is not None else existing.result  # type: ignore[return-value]
 
             result = mutation()
             self._records[record_key] = IdempotencyRecord(fingerprint, result)
             return result
-
-
-def resource_fingerprint(resource: object) -> str:
-    return _fingerprint({"kind": "resource", "value": _canonical(resource)})
-
-
-def assignment_fingerprint(assignment: object) -> str:
-    return _fingerprint({"kind": "assignment", "value": _canonical(assignment)})
-
-
-def _fingerprint(value: object) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-    return sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _canonical(value: object) -> object:
-    if hasattr(value, "__dataclass_fields__"):
-        return {
-            name: _canonical(getattr(value, name))
-            for name in value.__dataclass_fields__
-        }
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if hasattr(value, "value"):
-        return value.value
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
-    return value
 
 
 class SQLiteMutationIdempotencyStore:
@@ -125,44 +105,77 @@ class SQLiteMutationIdempotencyStore:
         if not key or not key.strip():
             raise conflict_error("INVALID_IDEMPOTENCY_KEY", "Idempotency key is required")
         context.validate()
+
         was_in_transaction = self.connection.in_transaction
         if not was_in_transaction:
             self.connection.execute("BEGIN")
-        row = self.connection.execute(
-            "SELECT fingerprint FROM mutation_idempotency "
-            "WHERE tenant_id=? AND company_id=? AND project_id=? AND operation=? AND idempotency_key=?",
-            (context.tenant_id, context.company_id, context.project_id, operation, key),
-        ).fetchone()
-        if row is not None:
-            if row[0] != fingerprint:
-                if not was_in_transaction:
-                    self.connection.rollback()
-                raise conflict_error(
-                    "IDEMPOTENCY_KEY_REUSE",
-                    "Idempotency key was already used for a different mutation",
-                )
-            try:
-                result = replay() if replay is not None else mutation()
-            except Exception:
-                if not was_in_transaction:
-                    self.connection.rollback()
-                raise
-            if not was_in_transaction:
-                self.connection.commit()
-            return result
-
-        self.connection.execute(
-            "INSERT INTO mutation_idempotency "
-            "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (context.tenant_id, context.company_id, context.project_id, operation, key, fingerprint),
-        )
         try:
-            result = mutation()
+            row = self.connection.execute(
+                "SELECT fingerprint FROM mutation_idempotency "
+                "WHERE tenant_id=? AND company_id=? AND project_id=? "
+                "AND operation=? AND idempotency_key=?",
+                (
+                    context.tenant_id,
+                    context.company_id,
+                    context.project_id,
+                    operation,
+                    key,
+                ),
+            ).fetchone()
+            if row is not None:
+                if row[0] != fingerprint:
+                    raise conflict_error(
+                        "IDEMPOTENCY_KEY_REUSE",
+                        "Idempotency key was already used for a different mutation",
+                    )
+                return replay() if replay is not None else mutation()
+
+            self.connection.execute(
+                "INSERT INTO mutation_idempotency "
+                "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    context.tenant_id,
+                    context.company_id,
+                    context.project_id,
+                    operation,
+                    key,
+                    fingerprint,
+                ),
+            )
+            return mutation()
         except Exception:
             if not was_in_transaction:
                 self.connection.rollback()
             raise
-        if not was_in_transaction:
-            self.connection.commit()
-        return result
+        else:
+            if not was_in_transaction:
+                self.connection.commit()
+
+
+def resource_fingerprint(resource: object) -> str:
+    return _fingerprint({"kind": "resource", "value": _canonical(resource)})
+
+
+def assignment_fingerprint(assignment: object) -> str:
+    return _fingerprint({"kind": "assignment", "value": _canonical(assignment)})
+
+
+def _fingerprint(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _canonical(value: object) -> object:
+    if hasattr(value, "__dataclass_fields__"):
+        return {
+            name: _canonical(getattr(value, name))
+            for name in value.__dataclass_fields__
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical(item) for item in value]
+    if hasattr(value, "value"):
+        return value.value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
