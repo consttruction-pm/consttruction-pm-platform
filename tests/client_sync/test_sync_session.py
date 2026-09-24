@@ -1,5 +1,4 @@
 from construction_pm.client_sync.context import OfflineProjectContext
-from construction_pm.client_sync.outcome import SyncMutationOutcome
 from construction_pm.client_sync.queue import InMemoryOfflineMutationQueue
 from construction_pm.client_sync.session import ClientProjectSession
 from construction_pm.client_sync.sync import OfflineSyncCoordinator
@@ -29,48 +28,53 @@ def make_session():
     )
 
 
-def test_sync_advances_session_from_authoritative_revision():
-    session = make_session()
-    queue = InMemoryOfflineMutationQueue()
+def enqueue(session, key):
     from construction_pm.client_sync.mutation import OfflineMutation
+
+    queue = InMemoryOfflineMutationQueue()
     queue.enqueue(OfflineMutation(
         context=session.context,
         operation="update_activity",
-        idempotency_key="idem-1",
+        idempotency_key=key,
         mutation={"activity_id": "A-1"},
         expected_revision=7,
     ))
+    return queue
 
-    coordinator = OfflineSyncCoordinator(queue, Transport("applied"), session=session)
+
+def test_sync_advances_session_from_shared_result_boundary():
+    session = make_session()
+    coordinator = OfflineSyncCoordinator(
+        enqueue(session, "idem-1"), Transport("applied"), session=session
+    )
+
     attempts = coordinator.sync_once()
 
     assert attempts[0].removed is True
+    assert attempts[0].result is not None
+    assert attempts[0].result.successful is True
     assert coordinator.session.revision == 8
 
 
-def test_sync_does_not_advance_session_on_conflict():
+def test_sync_preserves_conflict_result_and_does_not_advance_session():
     session = make_session()
-    queue = InMemoryOfflineMutationQueue()
-    from construction_pm.client_sync.mutation import OfflineMutation
-    queue.enqueue(OfflineMutation(
-        context=session.context,
-        operation="update_activity",
-        idempotency_key="idem-2",
-        mutation={"activity_id": "A-2"},
-        expected_revision=7,
-    ))
+    coordinator = OfflineSyncCoordinator(
+        enqueue(session, "idem-2"), Transport("conflict"), session=session
+    )
 
-    coordinator = OfflineSyncCoordinator(queue, Transport("conflict"), session=session)
     attempts = coordinator.sync_once()
 
     assert attempts[0].removed is False
+    assert attempts[0].result is not None
+    assert attempts[0].result.error_code == "STALE_REVISION"
     assert coordinator.session.revision == 7
 
 
 def test_sync_rejects_context_mismatch_before_transport():
     session = make_session()
-    queue = InMemoryOfflineMutationQueue()
     from construction_pm.client_sync.mutation import OfflineMutation
+
+    queue = InMemoryOfflineMutationQueue()
     queue.enqueue(OfflineMutation(
         context=OfflineProjectContext("t", "c", "other", 1, None, None, 1, 1),
         operation="update_activity",
