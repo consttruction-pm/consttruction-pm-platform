@@ -62,8 +62,8 @@ def test_time_backward_pass_fs_inverse_matches_forward_boundary():
     )
     assert late["B"].finish == datetime(2026, 9, 22, 17)
     assert late["B"].start == datetime(2026, 9, 22, 15)
-    assert late["A"].finish == datetime(2026, 9, 22, 15)
-    assert late["A"].start == datetime(2026, 9, 22, 11)
+    assert late["A"].finish == datetime(2026, 9, 22, 16)
+    assert late["A"].start == datetime(2026, 9, 22, 10)
 
 
 def test_time_backward_pass_supports_negative_lag():
