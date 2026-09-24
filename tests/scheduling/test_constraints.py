@@ -11,7 +11,7 @@ from construction_pm.scheduling.constraints import (
 )
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
-from construction_pm.scheduling.schedule import schedule
+from construction_pm.scheduling.schedule import _relationship_holds, schedule
 
 
 @pytest.fixture
@@ -271,3 +271,40 @@ def test_relationship_network_with_mixed_lag_signs_and_downstream_constraint(
         ],
     )
     assert result.early_activities["C"].start >= date(2026, 9, 25)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [2, -1])
+def test_backward_start_no_earlier_than_propagates_with_relationship_feasibility(resolver, relationship_type, lag):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    result = schedule(
+        activities, [relationship], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 30),
+        constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24))],
+    )
+    assert result.late_activities["A"].start >= date(2026, 9, 24)
+    assert _relationship_holds(relationship, result.late_activities["A"], result.late_activities["B"], resolver)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [2, -1])
+def test_backward_finish_no_earlier_than_propagates_with_relationship_feasibility(resolver, relationship_type, lag):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    result = schedule(
+        activities, [relationship], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 30),
+        constraints=[ActivityConstraint("A", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 9, 24))],
+    )
+    assert result.late_activities["A"].finish >= date(2026, 9, 24)
+    assert _relationship_holds(relationship, result.late_activities["A"], result.late_activities["B"], resolver)
+
+
+def test_backward_constraint_propagation_rejects_project_finish_before_lower_bound(resolver):
+    with pytest.raises((ValueError, ConstraintViolation)):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            project_finish=date(2026, 9, 23),
+            constraints=[ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25))],
+        )
