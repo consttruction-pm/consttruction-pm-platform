@@ -136,3 +136,12 @@ Status: **100%**
   - No implicit working-day-to-hour conversion was introduced.
   - Remaining gates: time-aware Backward Pass, Float/Critical Path, constraints, portability completion, cross-client contracts, and final P6 time-based parity pack.
   - Runtime CI remains unverified.
+
+- 33.4.31 Time-Aware Backward Pass + Float: implemented.
+  - Added time_backward_pass, calculate_time_floats and time_schedule.
+  - Supports FS/SS/FF/SF with signed working-hour lag in inverse propagation.
+  - Total Float is measured in working hours; negative float is preserved and critical under zero threshold.
+  - Free Float is relationship-aware and uses the authoritative successor-side lag calendar.
+  - Added regression tests for terminal finish, FS inverse, negative lag, zero float and positive float.
+  - Remaining gates: time-aware constraints, richer schedule options, full portability/client contract pack, and final P6 time-based parity certification.
+  - Runtime CI remains unverified.
