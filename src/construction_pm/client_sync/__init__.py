@@ -16,6 +16,7 @@ from .conflict import (
 )
 from .conflict_presentation import ClientConflictPresentation
 from .calendar import ClientCalendarReference, ClientCalendarContext
+from .sync_presentation import ClientSyncPresentation
 
 __all__ = [
     "OfflineProjectContext",
@@ -40,4 +41,5 @@ __all__ = [
     "ClientConflictPresentation",
     "ClientCalendarReference",
     "ClientCalendarContext",
+    "ClientSyncPresentation",
 ]
