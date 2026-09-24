@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from decimal import Decimal
 
-from .models import Resource, ResourceAssignment, ResourceType
+from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 
 
 SCHEMA_SQL = """
@@ -15,6 +15,18 @@ CREATE TABLE IF NOT EXISTS resources (
     unit TEXT NOT NULL,
     calendar_id TEXT,
     active INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS resource_rates (
+    resource_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    rate TEXT NOT NULL,
+    basis TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    effective_from TEXT,
+    effective_to TEXT,
+    PRIMARY KEY (resource_id, version),
+    FOREIGN KEY (resource_id) REFERENCES resources(id)
 );
 
 CREATE TABLE IF NOT EXISTS resource_assignments (
@@ -56,6 +68,20 @@ class SQLiteResourceRepository:
             (resource.id, resource.code, resource.name, resource.resource_type.value,
              resource.unit, resource.calendar_id, int(resource.active)),
         )
+        self.connection.execute("DELETE FROM resource_rates WHERE resource_id = ?", (resource.id,))
+        self.connection.executemany(
+            """INSERT INTO resource_rates
+               (resource_id, version, rate, basis, currency, effective_from, effective_to)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            [
+                (
+                    resource.id, rate.version, str(rate.rate), rate.basis.value, rate.currency,
+                    None if rate.effective_from is None else rate.effective_from.isoformat(),
+                    None if rate.effective_to is None else rate.effective_to.isoformat(),
+                )
+                for rate in resource.rates
+            ],
+        )
         self.connection.commit()
         return resource
 
@@ -66,10 +92,25 @@ class SQLiteResourceRepository:
         ).fetchone()
         if row is None:
             return None
+        rate_rows = self.connection.execute(
+            """SELECT rate, basis, currency, effective_from, effective_to, version
+               FROM resource_rates WHERE resource_id = ? ORDER BY version""",
+            (resource_id,),
+        ).fetchall()
+        from datetime import date
+        rates = [
+            ResourceRate(
+                rate=Decimal(rate[0]), basis=CostBasis(rate[1]), currency=rate[2],
+                effective_from=None if rate[3] is None else date.fromisoformat(rate[3]),
+                effective_to=None if rate[4] is None else date.fromisoformat(rate[4]),
+                version=rate[5],
+            )
+            for rate in rate_rows
+        ]
         return Resource(
             id=row[0], code=row[1], name=row[2],
             resource_type=ResourceType(row[3]), unit=row[4],
-            rates=[], calendar_id=row[5], active=bool(row[6]),
+            rates=rates, calendar_id=row[5], active=bool(row[6]),
         )
 
     def list_resources(self) -> list[Resource]:
