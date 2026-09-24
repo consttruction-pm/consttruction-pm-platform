@@ -127,8 +127,6 @@ def backward_pass(
 
     early_project_finish = max(item.finish for item in forward.values())
     finish = resolver.normalize_finish(project_finish or early_project_finish)
-    if finish < early_project_finish:
-        raise ValueError("project finish cannot be earlier than the early project finish")
 
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationship_list:
@@ -156,6 +154,10 @@ def backward_pass(
                     ),
                 )
             )
+            latest_by_project_finish = resolver.subtract_working_duration(
+                finish, activity.duration
+            )
+            late_start = min(late_start, latest_by_project_finish)
             late_finish = resolver.add_working_duration(late_start, activity.duration)
 
         for constraint in sorted(
@@ -296,6 +298,7 @@ def calculate_floats(
         free = _free_float(
             activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
         )
+        free = max(0, min(total, free))
         result[activity_id] = FloatActivity(
             activity_id=activity_id,
             early_start=early.start,
@@ -303,7 +306,7 @@ def calculate_floats(
             late_start=late.start,
             late_finish=late.finish,
             total_float=total,
-            free_float=min(total, free),
+            free_float=free,
             # The default critical-float threshold is zero; negative float
             # is critical as well.
             critical=total <= 0,
