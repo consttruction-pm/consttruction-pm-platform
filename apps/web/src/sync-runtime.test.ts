@@ -39,3 +39,20 @@ test("web sync runtime consumes the shared conflict outcome contract", async () 
     message_key: "sync.error.STALE_REVISION",
   });
 });
+
+test("web sync runtime rotates the idempotency key for stale revision retry", () => {
+  const runtime = new WebSyncRuntime();
+  runtime.queueMutation(mutation);
+  const outcome: SyncOutcome = {
+    contract_version: "sync-outcome.v1",
+    mutation_id: "m1",
+    disposition: "conflict",
+    error_code: "STALE_REVISION",
+  };
+
+  const retried = runtime.retryStaleRevision("m1", outcome, 8);
+
+  assert.equal(retried.expected_revision, 8);
+  assert.equal(retried.idempotency_key, "idem-1:r8");
+  assert.equal(runtime.pendingMutationCount(), 1);
+});
