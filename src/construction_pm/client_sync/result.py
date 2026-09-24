@@ -9,11 +9,13 @@ from .outcome import SyncMutationOutcome
 
 @dataclass(frozen=True)
 class ClientMutationResult:
-    """Framework-neutral result for online mutation presentation."""
+    """Framework-neutral result for online and offline mutation presentation."""
 
     status: str
     operation: str | None = None
     revision: int | None = None
+    error_code: str | None = None
+    retryable: bool | None = None
     idempotency_key: str | None = None
     error: ClientErrorPresentation | None = None
 
@@ -32,8 +34,10 @@ class ClientMutationResult:
             raise ValueError(f"unsupported mutation result status: {self.status}")
         if self.successful and self.revision is None:
             raise ValueError("successful mutation result requires revision")
+        if self.status in {"conflict", "rejected"} and not self.error_code:
+            raise ValueError("sync failure result requires error_code")
         if self.status == "error" and self.error is None:
-            raise ValueError("error mutation result requires error presentation")
+            raise ValueError("error mutation result requires presentation error")
         if self.status != "error" and self.error is not None:
             raise ValueError("non-error mutation result cannot carry presentation error")
 
@@ -59,5 +63,7 @@ def _from_outcome(outcome: SyncMutationOutcome) -> ClientMutationResult:
         status=outcome.status,
         operation=outcome.operation,
         revision=outcome.revision,
+        error_code=outcome.error_code,
+        retryable=outcome.retryable,
         idempotency_key=outcome.idempotency_key,
     )
