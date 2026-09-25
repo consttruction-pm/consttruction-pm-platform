@@ -104,6 +104,27 @@ export class ClientLanguageRuntime {
     return this.packStore.list();
   }
 
+  async removeInstalledPack(
+    packageId: string,
+    version: string,
+  ): Promise<void> {
+    if (!this.packStore) {
+      throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
+    }
+
+    await this.packStore.remove(packageId, version);
+    await this.resourceManifestStore?.remove(packageId, version);
+
+    const installed = await this.packStore.list();
+    this.manager?.syncInstalledPackState(
+      installed.map((item) => ({
+        languageTag: item.languageTag,
+        version: item.version,
+        verified: item.verified,
+      })),
+    );
+  }
+
   async downloadAndCacheLanguagePack(
     manifest: LanguagePackDownloadManifest,
     transport: LanguagePackDownloadTransport,
