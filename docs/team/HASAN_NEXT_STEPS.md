@@ -1,3 +1,17 @@
+# CURRENT STATUS OVERRIDE — 2026-09-25
+
+- Latest main checked: `9e2907380bfea63d00b0ac90df868046de2d4db5`.
+- PR #70 latest reconciled head: `11b8adfeb00260ce4c97979c305a7692190e7684`.
+- PR #70 compare: **ahead 1 / behind 0**; diff remains limited to the two intended client-sync files.
+- PR #70 has a fresh **APPROVED** review anchored to the reconciled head.
+- Latest ConstructionPM CI run: `36094238842` — failure before any workflow step, jobs report `runner_id=0`.
+- Latest Client Typecheck run: `36094238846` — same pre-step failure pattern.
+- Therefore CI failure is **not being interpreted as a code-test failure** until a runner executes actual steps.
+- Stage 33.4.70 is **95% implementation-complete; runtime verification pending**.
+- Main already contains the client-side authoritative refresh/retry flow.
+- PR #71 is the Draft backend completion PR for `sync-project-revision.v1`, the authoritative revision endpoint, and integration coverage.
+- Do not merge PR #70 or PR #71 solely on the current CI state; first obtain normal runner-backed execution and successful verification.
+
 # Hasan — Next Steps / Continuation Note
 
 ## Purpose
