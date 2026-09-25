@@ -70,17 +70,19 @@ def test_atomic_executor_acquires_idempotency_lock_before_lookup_and_commit():
     ]
 
 
-def test_atomic_executor_does_not_require_lock_hook_for_legacy_persistence():
-    class LegacyPersistence(RecordingPersistence):
-        lock_idempotency = None
+def test_atomic_executor_requires_locking_persistence():
+    class LegacyPersistence:
+        def get_idempotency(self, *args):
+            return None
 
-    persistence = LegacyPersistence()
+        def put_idempotency(self, *args):
+            raise AssertionError("delegate must not execute without an idempotency lock")
+
     transaction = RecordingTransaction()
 
-    outcome = AtomicSyncExecutor(persistence, transaction, Delegate()).submit(mutation())
-
-    assert outcome.disposition is SyncDisposition.ACKNOWLEDGED
-    assert persistence.events == [
-        ("get", "tenant", "project", "key-1"),
-        ("put", "key-1"),
-    ]
+    try:
+        AtomicSyncExecutor(LegacyPersistence(), transaction, Delegate()).submit(mutation())
+    except AttributeError as exc:
+        assert "lock_idempotency" in str(exc)
+    else:
+        raise AssertionError("non-locking persistence must be rejected")
