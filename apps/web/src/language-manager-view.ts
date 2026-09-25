@@ -1,5 +1,6 @@
 import type { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
 import type { LanguagePackCatalog } from "../../client-sync/src/language-pack-catalog.js";
+import type { LanguagePackDownloadManifest } from "../../client-sync/src/language-pack-download.js";
 import { isNewerPackAvailable, selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.js";
 import { displayLanguageName } from "./language-display-name.js";
 import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.js";
