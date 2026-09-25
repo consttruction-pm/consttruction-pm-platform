@@ -9,6 +9,7 @@ from .sync_outcome import SyncOutcome
 def mutation_fingerprint(mutation: OfflineMutation) -> str:
     canonical = json.dumps(
         {
+            "mutation_id": mutation.mutation_id,
             "tenant_id": mutation.tenant_id,
             "project_id": mutation.project_id,
             "expected_revision": mutation.expected_revision,
