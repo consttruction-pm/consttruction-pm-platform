@@ -4,22 +4,7 @@ import {
   type LanguageRegistryEntry,
   type ResolvedLanguage,
 } from "./language.ts";
-import type { LanguagePackStore, CachedLanguagePack } from "./language-pack-store.ts";
-import type { LanguageCapabilitySet } from "./language.ts";
-
-function itemCapable(item: CachedLanguagePack): LanguageCapabilitySet {
-  // Storage confirms integrity; capability metadata is supplied by the registry.
-  // Until the registry-to-store projection is wired, only deterministic UI/help
-  // can be considered locally available here.
-  return {
-    ui: true,
-    help: true,
-    aiText: false,
-    voiceInput: false,
-    voiceOutput: false,
-    offlineAi: false,
-  };
-}
+import type { LanguagePackStore } from "./language-pack-store.ts";
 
 export class ClientLanguageRuntime {
   private manager: ClientLanguageManager | null = null;
@@ -66,13 +51,11 @@ export class ClientLanguageRuntime {
     }
     await this.packStore.put(pack);
     const installed = await this.packStore.list();
-    this.manager?.setInstalledPacks(
+    this.manager?.syncInstalledPackState(
       installed.map((item) => ({
         languageTag: item.languageTag,
         version: item.version,
-        active: true,
         verified: item.verified,
-        capabilities: itemCapable(item),
       })),
     );
   }
