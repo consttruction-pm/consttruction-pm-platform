@@ -51,3 +51,17 @@ Mobile foundation is complete only when the Mobile client consumes the authorita
 ## Stage 33.4.46
 
 The executable TypeScript foundation provides an explicit online/offline project runtime and revision continuity. It is framework-neutral so the eventual mobile shell can consume the same boundary without introducing client-specific business calculations.
+
+
+## Stage 33.4.47 — Mobile Language Manager
+
+The Mobile presentation layer now exposes a concrete native-shell-ready Language Manager surface optimized for field use. The surface is compact/card-oriented rather than a desktop table, while retaining the same registry-driven language semantics and shared Manager Adapter.
+
+Supported actions:
+- Use an installed verified language pack.
+- Download the compatible catalog version.
+- Update when a newer compatible version exists.
+- Remove an inactive verified pack while preserving the shared active-pack guard.
+- Present localized errors, progress, locale, direction, and AI/Voice/offline capability state.
+
+The Mobile view remains a presentation/integration layer and does not implement project, schedule, cost, calendar, or other authoritative calculations.
