@@ -7,6 +7,10 @@ export type SyncProjectRevision = {
   revision: number;
 };
 
+function isValidRevision(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
 export interface VersionedSyncRevisionApi {
   get<TResponse>(
     path: string,
@@ -34,7 +38,7 @@ export class ApiRevisionTransport {
       revision.contract_version !== "sync-project-revision.v1" ||
       revision.tenant_id !== context.tenant_id ||
       revision.project_id !== context.project_id ||
-      revision.revision < 0
+      !isValidRevision(revision.revision)
     ) {
       throw new Error("INVALID_PROJECT_REVISION_RESPONSE");
     }
