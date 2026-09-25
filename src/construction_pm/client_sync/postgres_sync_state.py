@@ -19,6 +19,13 @@ class PostgresSyncStateStore:
             "CREATE TABLE IF NOT EXISTS sync_conflicts (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, mutation_id TEXT NOT NULL, error_code TEXT NOT NULL, expected_revision INTEGER NOT NULL, actual_revision INTEGER, available_actions_json TEXT NOT NULL, details_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, mutation_id))"
         )
 
+    def lock_idempotency(self, tenant_id: str, project_id: str, key: str) -> None:
+        lock_key = f"{tenant_id}|{project_id}|{key}"
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (lock_key,),
+        )
+
     def get_idempotency(self, tenant_id: str, project_id: str, key: str) -> IdempotencyRecord | None:
         row = self.connection.execute(
             "SELECT mutation_id, fingerprint, outcome_json FROM sync_idempotency WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
