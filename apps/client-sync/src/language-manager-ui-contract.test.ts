@@ -54,7 +54,7 @@ test("reports UI error state", () => {
   });
 
   assert.equal(state.status, "error");
-  assert.equal(state.errorMessage, "LANGUAGE_PACK_VERIFICATION_FAILED");
+  assert.equal(state.errorKey, "LANGUAGE_PACK_VERIFICATION_FAILED");
 });
 
 
