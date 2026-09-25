@@ -33,7 +33,7 @@ export class LanguagePackActivationService {
       throw new Error("LANGUAGE_PACK_LANGUAGE_MISMATCH");
     }
 
-    const bundle = await this.resources.installBundle(
+    return this.activateResources(
       manifest.language_tag,
       manifest.version,
       cached.artifact,
@@ -44,10 +44,52 @@ export class LanguagePackActivationService {
         reports: manifest.resources.reports,
       },
     );
+  }
+
+  async activateFromStoredResources(
+    packageId: string,
+    version: string,
+    resources: {
+      translation: string;
+      glossary: string;
+      help: string;
+      reports: string;
+    },
+  ): Promise<ActiveLanguageBundle> {
+    const cached = await this.store.get(packageId, version);
+    if (!cached || !cached.verified) {
+      throw new Error("LANGUAGE_PACK_NOT_VERIFIED");
+    }
+
+    return this.activateResources(
+      cached.languageTag,
+      cached.version,
+      cached.artifact,
+      resources,
+    );
+  }
+
+  private async activateResources(
+    languageTag: string,
+    version: string,
+    artifact: Uint8Array,
+    resources: {
+      translation: string;
+      glossary: string;
+      help: string;
+      reports: string;
+    },
+  ): Promise<ActiveLanguageBundle> {
+    const bundle = await this.resources.installBundle(
+      languageTag,
+      version,
+      artifact,
+      resources,
+    );
 
     const next = {
-      languageTag: manifest.language_tag,
-      version: manifest.version,
+      languageTag,
+      version,
       bundle,
     };
 
