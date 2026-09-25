@@ -5,6 +5,13 @@ import {
   type ResolvedLanguage,
 } from "./language.ts";
 import type { LanguagePackStore } from "./language-pack-store.ts";
+import {
+  LanguagePackDownloadService,
+  type LanguagePackDownloadManifest,
+  type LanguagePackDownloadProgress,
+  type LanguagePackDownloadTransport,
+  type LanguagePackVerifier,
+} from "./language-pack-download.ts";
 
 export class ClientLanguageRuntime {
   private manager: ClientLanguageManager | null = null;
@@ -65,5 +72,38 @@ export class ClientLanguageRuntime {
       throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
     }
     return this.packStore.list();
+  }
+
+  async downloadAndCacheLanguagePack(
+    manifest: LanguagePackDownloadManifest,
+    transport: LanguagePackDownloadTransport,
+    verifier: LanguagePackVerifier,
+    onProgress?: (progress: LanguagePackDownloadProgress) => void,
+  ): Promise<void> {
+    if (!this.packStore) {
+      throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
+    }
+
+    const artifact = await new LanguagePackDownloadService(
+      transport,
+      verifier,
+    ).downloadVerified(manifest, onProgress);
+
+    await this.packStore.put({
+      packageId: manifest.packageId,
+      languageTag: manifest.languageTag,
+      version: manifest.version,
+      verified: true,
+      artifact,
+    });
+
+    const installed = await this.packStore.list();
+    this.manager?.syncInstalledPackState(
+      installed.map((item) => ({
+        languageTag: item.languageTag,
+        version: item.version,
+        verified: item.verified,
+      })),
+    );
   }
 }
