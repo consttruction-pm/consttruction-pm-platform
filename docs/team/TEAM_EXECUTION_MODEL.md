@@ -1,5 +1,8 @@
 # Team Execution Model — 2026-09-25
 
+## Release objective
+At release, the product must pass the evidence-based completeness/leadership gate defined in PRODUCT_PRINCIPLES.md. Team execution therefore includes continuous market monitoring, gap discovery and re-prioritization in addition to implementation.
+
 ## Authority order
 1. Principle 1: Primavera P6 + PMBOK alignment.
 2. Principle 2: complete modern construction-management/project-controls coverage.
