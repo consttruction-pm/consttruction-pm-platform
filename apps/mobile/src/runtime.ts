@@ -1,4 +1,14 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
+import {
+  PersistentLanguagePackStore,
+  type PersistentLanguagePackBackend,
+} from "../../client-sync/src/persistent-language-pack-store.js";
+import type {
+  LanguagePackDownloadManifest,
+  LanguagePackDownloadProgress,
+  LanguagePackDownloadTransport,
+  LanguagePackVerifier,
+} from "../../client-sync/src/language-pack-download.js";
 import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
@@ -13,7 +23,14 @@ export type MobileMode = "offline" | "online";
 export type MobileProjectState = { tenant_id: string; project_id: string; revision: number; mode: MobileMode };
 
 export class MobileRuntime {
-  private readonly languageRuntime = new ClientLanguageRuntime();
+  private readonly languageRuntime: ClientLanguageRuntime;
+  constructor(languagePackBackend?: PersistentLanguagePackBackend) {
+    this.languageRuntime = new ClientLanguageRuntime(
+      languagePackBackend
+        ? new PersistentLanguagePackStore(languagePackBackend)
+        : null,
+    );
+  }
   private state: MobileProjectState | null = null;
   private readonly mutationQueue = new OfflineMutationQueue();
   openProject(tenant_id: string, project_id: string, revision: number, mode: MobileMode = "offline"): MobileProjectState {
@@ -74,6 +91,20 @@ export class MobileRuntime {
 
   canUseLanguageOffline(languageTag: string): boolean {
     return this.languageRuntime.canRunOffline(languageTag);
+  }
+
+  async downloadLanguagePack(
+    manifest: LanguagePackDownloadManifest,
+    transport: LanguagePackDownloadTransport,
+    verifier: LanguagePackVerifier,
+    onProgress?: (progress: LanguagePackDownloadProgress) => void,
+  ): Promise<void> {
+    await this.languageRuntime.downloadAndCacheLanguagePack(
+      manifest,
+      transport,
+      verifier,
+      onProgress,
+    );
   }
 
 }
