@@ -3,6 +3,7 @@
 from .activity import Activity
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
+from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_constraints import TimeActivityConstraint, TimeConstraintType, TimeConstraintViolation
@@ -36,6 +37,7 @@ __all__ = [
     "SchedulingCycleError",
     "WorkingCalendar",
     "CalendarReference",
+    "CalculationContext",
     "CalendarResolverRegistry",
     "SchedulingCalendarContext",
     "WorkingTimeResolver",
