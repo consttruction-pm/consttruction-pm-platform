@@ -657,3 +657,17 @@ def test_time_schedule_free_float_sf_uses_successor_finish_event():
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 9)
     assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9)
     assert result.floats["A"].free_float_hours == Decimal("0")
+
+
+def test_time_schedule_negative_total_float_does_not_make_free_float_negative():
+    ctx = context()
+    result = time_schedule(
+        [TimeActivity("A", TimeQuantity.working_hours(2), ctx)],
+        [],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 9),
+        registry(),
+    )
+
+    assert result.floats["A"].total_float_hours == Decimal("-1")
+    assert result.floats["A"].free_float_hours == Decimal("0")
