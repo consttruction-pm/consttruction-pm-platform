@@ -5,6 +5,7 @@ export type LanguageCatalogItem = {
   languageTag: string;
   direction: "ltr" | "rtl";
   locale: string;
+  installedPackageId: string | null;
   installedVersion: string | null;
   verified: boolean;
   offlineReady: boolean;
@@ -28,6 +29,7 @@ export class LanguageCatalogService {
         languageTag: entry.languageTag,
         direction: entry.direction,
         locale: entry.locale,
+        installedPackageId: verified?.packageId ?? null,
         installedVersion: verified?.version ?? null,
         verified: Boolean(verified),
         offlineReady: Boolean(verified && entry.capabilities.ui),
