@@ -1,4 +1,3 @@
-import type { AILanguageContext } from "./ai-language-contract.js";
 import type { LocalAIProvider } from "./language-bound-ai-service.js";
 import type { OfflineAIModelRuntime } from "./offline-ai-model-runtime.js";
 import type {
@@ -6,6 +5,7 @@ import type {
   PreferredLanguageModels,
 } from "./offline-ai-model-selector.js";
 import type { OfflineModelArtifactStore } from "./offline-ai-model-artifact-store.js";
+import type { AILanguageContext } from "./ai-language-contract.js";
 import type {
   LocalTextInferenceEngine,
   LocalVoiceEngine,
@@ -19,17 +19,18 @@ export class EngineBackedLocalAIProvider implements LocalAIProvider {
   async complete(
     request: AILanguageContext,
     modelPackageId: string,
+    modelVersion: string,
   ): Promise<string> {
-    if (request.language_tag !== request.preferred_language) {
-      throw new Error("AI_LANGUAGE_CONTEXT_MISMATCH");
+    if (!request.offline_ai_capable) {
+      throw new Error("AI_OFFLINE_CAPABILITY_UNAVAILABLE");
     }
-    if (!this.engine.isLoaded(modelPackageId, request.language_tag)) {
+    if (!this.engine.isLoaded(modelPackageId, modelVersion)) {
       throw new Error("LOCAL_AI_MODEL_NOT_LOADED");
     }
     const result = await this.engine.complete({
-      text: request.user_text,
-      languageTag: request.language_tag,
+      context: request,
       modelPackageId,
+      modelVersion,
     });
     if (result.modelPackageId !== modelPackageId) {
       throw new Error("LOCAL_AI_MODEL_ID_MISMATCH");
