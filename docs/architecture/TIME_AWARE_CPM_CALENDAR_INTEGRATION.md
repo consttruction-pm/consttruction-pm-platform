@@ -27,6 +27,7 @@ CalendarReference remains the stable (calendar_id, calendar_version, kind) contr
 Added tests verify that:
 1. an explicit project finish is interpreted using the project calendar;
 2. Backward Pass does not accidentally use the last activity's calendar as the project calendar.
+3. mixed activity project-calendar references are rejected instead of silently selecting the first activity's calendar.
 
 Existing time-scheduling tests continue to cover split intervals, holidays, FS/SS/FF/SF, signed lag, constraints and float behavior.
 
