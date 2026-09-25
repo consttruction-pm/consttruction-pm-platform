@@ -21,3 +21,80 @@ test("runtime can cache and enumerate verified local language packs", async () =
   assert.equal(packs[0]?.languageTag, "en");
   assert.deepEqual([...packs[0]!.artifact], [1, 2]);
 });
+
+
+test("downloads and caches a verified language pack through the shared runtime", async () => {
+  const store = new InMemoryLanguagePackStore();
+  const runtime = new ClientLanguageRuntime(store);
+  const phases: string[] = [];
+
+  runtime.configure(
+    [
+      {
+        languageTag: "fa",
+        direction: "rtl",
+        locale: "fa-IR",
+        fallbackChain: ["en"],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: true,
+          voiceOutput: true,
+          offlineAi: false,
+        },
+      },
+      {
+        languageTag: "en",
+        direction: "ltr",
+        locale: "en-US",
+        fallbackChain: [],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: true,
+          voiceOutput: true,
+          offlineAi: false,
+        },
+      },
+    ],
+    "en",
+    {
+      preferredLanguage: "fa",
+      fallbackChain: ["en"],
+      installedPacks: [],
+    },
+  );
+
+  await runtime.downloadAndCacheLanguagePack(
+    {
+      packageId: "construction-pm.language.fa",
+      languageTag: "fa",
+      version: "1.0.0",
+      minAppVersion: "0.1.0",
+      maxAppVersion: null,
+      compressedSizeBytes: 2,
+      downloadUri: "https://example.invalid/fa.zip",
+      checksum: "sha256:test",
+      signature: "sig",
+    },
+    {
+      async download(_uri, onChunk) {
+        const data = new Uint8Array([4, 5]);
+        onChunk?.(data);
+        return data;
+      },
+    },
+    {
+      async verify(artifact) {
+        return artifact.length === 2;
+      },
+    },
+    (progress) => phases.push(progress.phase),
+  );
+
+  assert.deepEqual(phases, ["downloading", "downloading", "verifying", "cached"]);
+  assert.equal(runtime.current().languageTag, "fa");
+  assert.equal(runtime.current().offline, true);
+});
