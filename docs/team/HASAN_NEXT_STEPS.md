@@ -8,7 +8,7 @@ This file is the authoritative continuation note for Hasan (Developer 2 / Client
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Main branch: `main`
-- Latest checked main commit: `337429eae619e820d6167950a191880663d11ecf`
+- Latest checked main commit: `e6b266432d36b11b8a4b18c63b0c9ad7e7560e89`
 - Current project stage: **Stage 33.4 — System Integration & Platform Hardening**
 - Latest documented completed gate: **Stage 33.4.69 — End-to-End Client Sync Outcome Regression**
 - Stage 33.4.69 is documented as **100% runtime-verified**.
@@ -23,35 +23,28 @@ PR #70:
 - URL: https://github.com/consttruction-pm/consttruction-pm-platform/pull/70
 - PR purpose: bridge `sync-outcome.v1` to authoritative `client-sync-outcome.v1` without duplicating business logic.
 - Conflict was resolved once by reconciling the branch with the then-current `main`.
-- Resolved head commit created during that repair: `d926748d3019f11b94e6f9e34a42313906b51090`.
-- The PR was marked ready for review and an approval was submitted at that head.
-- CI was queued for that repaired head at the time of the check.
+- Latest reconciled head commit: `cd8d0de596b520306f643c21c681b3ed47cd7632`.
+- The PR remains open, ready for review, and has an `APPROVED` review from Jalal.
+- Current GitHub comparison: `main...feature/javad/client-sync-adapter-v1` = **ahead by 7 / behind by 0**, status **ahead**.
+- Current head CI is running:
+  - ConstructionPM CI: run `36093339982` (Python 3.11/3.12/3.13)
+  - Client Typecheck: run `36093340145` (Web/Desktop/Mobile/Client-Sync)
 
-### Important: main moved again
+### Current PR #70 reconciliation
 
-After the PR repair, `main` advanced to `337429eae619e820d6167950a191880663d11ecf`.
+The branch was reconciled again against the latest `main` at `e6b266432d36b11b8a4b18c63b0c9ad7e7560e89`.
 
 A fresh comparison currently shows:
-- `main` is ahead of Hasan's branch by **3 commits**.
-- Hasan's branch is ahead of `main` by **6 commits**.
-- Therefore the branch is **diverged again**.
+- `main` is behind Hasan's branch by **7 commits**.
+- Hasan's branch is **0 commits behind** `main`.
+- Status: **ahead** (no merge conflict / no stale-base divergence).
+- The PR diff is confined to the two intended client-sync queue files.
 
-### First action before any new feature work
+The reconciled tree preserves the latest `main` state and adds only PR #70's authoritative adapter/test changes.
 
-Do NOT start a new feature from the stale branch.
+### Current verification state
 
-1. Fetch the latest `main`.
-2. Reconcile/rebase the PR #70 branch against the latest `main`.
-3. Preserve the two functional parts of PR #70:
-   - `toAuthoritativeSyncOutcome()`
-   - `fromAuthoritativeSyncOutcome()`
-   - their regression tests.
-4. Preserve the latest `main` implementation of `OfflineMutationQueue.retryAtRevision()`.
-5. Do not re-introduce code that is already present in current `main`.
-6. Run both:
-   - `apps/client-sync` TypeScript typecheck/tests
-   - Python integration/unit tests relevant to client-sync.
-7. Push the reconciled branch and verify GitHub Actions before requesting/keeping approval.
+The new head `cd8d0de596b520306f643c21c681b3ed47cd7632` has GitHub Actions checks running. Do not treat the PR as CI-verified until all checks conclude successfully.
 
 ## Do not change
 
@@ -174,6 +167,6 @@ Stage 33.4.70 is complete only when:
 
 ## Immediate next step
 
-**First reconcile PR #70 with the latest `main`. Do not start Stage 33.4.70 implementation on the currently diverged branch.**
+**PR #70 is already reconciled with the latest `main`. Keep Stage 33.4.70 blocked until the current CI checks finish successfully.**
 
-After PR #70 is clean and CI-verified, begin Stage 33.4.70 from the real Application/API conflict + revision boundary, not from another queue rewrite.
+After PR #70 is CI-verified, begin Stage 33.4.70 from the real Application/API conflict + revision boundary, not from another queue rewrite.
