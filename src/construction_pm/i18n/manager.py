@@ -32,7 +32,7 @@ class LanguagePackManager:
         self.packs_dir.mkdir(parents=True, exist_ok=True)
         self.active_dir.mkdir(parents=True, exist_ok=True)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
-        self.signature_verifier = signature_verifier or (lambda _path, _manifest: True)
+        if signature_verifier is None:\n            raise ValueError("signature verifier must be configured")\n        self.signature_verifier = signature_verifier
 
     def cache_pack(
         self,
