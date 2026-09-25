@@ -3,6 +3,8 @@ import pytest
 from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
 from construction_pm.client_sync.offline_mutation import OfflineMutation
+from construction_pm.client_sync.server_gateway import IdempotentMutationGateway
+from construction_pm.client_sync.server_idempotency import InMemoryServerIdempotencyStore
 
 
 class OptimisticLockError(Exception):
@@ -81,6 +83,27 @@ def test_api_boundary_returns_conflict_then_authoritative_revision_and_accepts_r
     acknowledged = endpoint.post(body(retried), headers(retried))
     assert acknowledged["contract_version"] == "sync-outcome.v1"
     assert acknowledged["disposition"] == "acknowledged"
+    assert handler.calls == 2
+
+
+def test_retry_uses_new_idempotency_key_and_replays_ack_without_reexecution():
+    handler = Handler()
+    endpoint = VersionedSyncEndpoint(
+        ApplicationSyncGateway("t1", "p1", handler),
+        IdempotentMutationGateway(InMemoryServerIdempotencyStore()),
+    )
+
+    stale = mutation(7)
+    first_conflict = endpoint.post(body(stale), headers(stale))
+    assert first_conflict["disposition"] == "conflict"
+    assert handler.calls == 1
+
+    retried = mutation(8)
+    acknowledged = endpoint.post(body(retried), headers(retried))
+    replayed = endpoint.post(body(retried), headers(retried))
+
+    assert acknowledged["disposition"] == "acknowledged"
+    assert replayed == acknowledged
     assert handler.calls == 2
 
 
