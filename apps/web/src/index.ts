@@ -9,3 +9,5 @@ export * from "./language-preference-store.js";
 export * from "./website-language-routing.js";
 export * from "./apply-language-presentation.js";
 export * from "./language-manager-view.js";
+export * from "./language-display-name.js";
+export * from "./language-manager-bootstrap.js";
