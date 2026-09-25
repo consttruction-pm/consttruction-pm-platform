@@ -30,7 +30,7 @@ const registry = [
 ];
 
 test("resolves preferred installed language locally", () => {
-  const manager = new ClientLanguageManager("as any" as never, "en", {
+  const manager = new ClientLanguageManager(registry, "en", {
     preferredLanguage: "fa",
     fallbackChain: ["en"],
     installedPacks: [
@@ -51,9 +51,7 @@ test("resolves preferred installed language locally", () => {
     ],
   });
 
-  // Replace the intentionally omitted registry in constructor through a normal typed instance.
-  const actual = new ClientLanguageManager(registry, "en", manager.getPreference());
-  assert.deepEqual(actual.resolve(), {
+  assert.deepEqual(manager.resolve(), {
     languageTag: "fa",
     source: "preferred",
     direction: "rtl",
