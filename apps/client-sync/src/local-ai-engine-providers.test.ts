@@ -43,14 +43,20 @@ test("engine-backed local AI provider requires the selected model to be loaded",
   const provider = new EngineBackedLocalAIProvider(engine);
 
   const request: AILanguageContext = {
+    input_language: "fa",
+    output_language: "fa",
+    project_language: "fa",
+    terminology_profile: "construction-p6",
+    locale: "fa-IR",
+    voice_language: null,
     text_capable: true,
-    language_tag: "fa",
-    preferred_language: "fa",
-    user_text: "سلام",
+    voice_input_capable: false,
+    voice_output_capable: false,
+    offline_ai_capable: true,
   };
 
   await assert.rejects(
-    provider.complete(request, "ai.fa.text"),
+    provider.complete(request, "ai.fa.text", "2.0.0"),
     /LOCAL_AI_MODEL_NOT_LOADED/,
   );
 });
