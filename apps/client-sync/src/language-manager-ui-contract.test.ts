@@ -56,3 +56,17 @@ test("reports UI error state", () => {
   assert.equal(state.status, "error");
   assert.equal(state.errorMessage, "LANGUAGE_PACK_VERIFICATION_FAILED");
 });
+
+
+test("exposes errors as translation keys", () => {
+  const state = toUiState({
+    selectedLanguage: "en",
+    items: [],
+    downloading: null,
+    progress: null,
+    error: "LANGUAGE_PACK_VERIFICATION_FAILED",
+  });
+
+  assert.equal(state.status, "error");
+  assert.equal(state.errorKey, "LANGUAGE_PACK_VERIFICATION_FAILED");
+});
