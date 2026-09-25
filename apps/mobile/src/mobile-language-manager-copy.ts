@@ -1,0 +1,26 @@
+import type { MobileLanguageManagerCopy } from "./mobile-language-manager-view.js";
+
+export const DEFAULT_ENGLISH_MOBILE_LANGUAGE_MANAGER_COPY: MobileLanguageManagerCopy = {
+  title: "Language",
+  ready: "Ready",
+  downloading: (language) => "Downloading " + language + "…",
+  language: "Language",
+  installed: "Installed",
+  offline: "Offline",
+  ai: "AI",
+  voiceIn: "Voice In",
+  voiceOut: "Voice Out",
+  offlineAi: "Offline AI",
+  selected: "Selected",
+  use: "Use",
+  download: "Download",
+  update: "Update",
+  unavailable: "Unavailable",
+  remove: "Remove",
+  yes: "Yes",
+  no: "No",
+  missing: "—",
+  rtl: "RTL",
+  ltr: "LTR",
+  downloadProgress: "Language pack download progress",
+};
