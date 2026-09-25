@@ -21,7 +21,7 @@ export type LanguageManagerUiState = {
   activeDownloadLanguage: string | null;
   progressPercent: number | null;
   status: "ready" | "downloading" | "error";
-  errorMessage: string | null;
+  errorKey: string | null;
 };
 
 export function toUiState(
@@ -56,6 +56,6 @@ export function toUiState(
       : state.downloading
         ? "downloading"
         : "ready",
-    errorMessage: state.error,
+    errorKey: state.error,
   };
 }
