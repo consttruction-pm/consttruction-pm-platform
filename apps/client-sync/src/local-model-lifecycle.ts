@@ -99,7 +99,10 @@ export class LocalTextModelLifecycleManager {
     );
     for (const entry of entries) {
       const key = modelKey(entry.model.packageId, entry.model.version);
-      await this.engine.unload(entry.model.packageId);
+      await this.engine.unload(
+        entry.model.packageId,
+        entry.model.version,
+      );
       this.loaded.delete(key);
     }
 
