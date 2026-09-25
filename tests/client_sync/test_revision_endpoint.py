@@ -62,6 +62,7 @@ def test_api_boundary_returns_conflict_then_authoritative_revision_and_accepts_r
     assert conflict["contract_version"] == "sync-outcome.v1"
     assert conflict["disposition"] == "conflict"
     assert conflict["error_code"] == "STALE_REVISION"
+    assert conflict["mutation_id"] == "m1"
 
     revision_endpoint = VersionedSyncRevisionEndpoint(
         "t1",
@@ -88,6 +89,7 @@ def test_revision_endpoint_rejects_wrong_project_context():
 
     result = endpoint.get({"X-Tenant-Id": "t2", "X-Project-Id": "p1"})
 
+    assert result["contract_version"] == "sync-project-revision.v1"
     assert result["error_code"] == "INVALID_PROJECT_CONTEXT"
     assert result["tenant_id"] == "t1"
     assert result["project_id"] == "p1"
