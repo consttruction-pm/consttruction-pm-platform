@@ -76,7 +76,7 @@ export class LanguageBoundAIService {
     request: AILanguageContext,
     appVersion: string,
     device: DeviceCapabilityProfile,
-  ): Promise<{ mode: AIExecutionMode; text: string }> {
+  ): Promise<{ mode: AIExecutionMode; text: string; decision: AIExecutionDecision }> {
     if (!request.text_capable) {
       throw new Error("AI_TEXT_OUTPUT_UNAVAILABLE");
     }
@@ -90,12 +90,14 @@ export class LanguageBoundAIService {
           decision.modelPackageId,
           decision.modelVersion!,
         ),
+        decision,
       };
     }
 
     return {
       mode: "online",
       text: await this.onlineProvider.complete(request),
+      decision,
     };
   }
 }
