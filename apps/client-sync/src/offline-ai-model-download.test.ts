@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOfflineModelStore } from "./offline-ai-model-store.ts";
+import { InMemoryOfflineModelArtifactStore } from "./offline-ai-model-artifact-store.ts";
 import { OfflineModelDownloadService } from "./offline-ai-model-download.ts";
 
 const model = {
@@ -22,6 +23,7 @@ const model = {
 
 test("downloads verifies and installs an offline AI model", async () => {
   const store = new InMemoryOfflineModelStore();
+  const artifactStore = new InMemoryOfflineModelArtifactStore();
   const phases: string[] = [];
 
   const service = new OfflineModelDownloadService(
@@ -38,6 +40,7 @@ test("downloads verifies and installs an offline AI model", async () => {
       },
     },
     store,
+    artifactStore,
   );
 
   await service.downloadAndInstall(
