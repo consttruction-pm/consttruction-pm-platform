@@ -12,6 +12,7 @@ export type AIExecutionDecision = {
   mode: AIExecutionMode;
   language: string;
   modelPackageId: string | null;
+  modelVersion: string | null;
   reason: "offline_model_available" | "offline_model_unavailable" | "offline_policy_disabled";
 };
 
@@ -19,6 +20,7 @@ export interface LocalAIProvider {
   complete(
     request: AILanguageContext,
     modelPackageId: string,
+    modelVersion: string,
   ): Promise<string>;
 }
 
@@ -54,6 +56,7 @@ export class LanguageBoundAIService {
         mode: "offline",
         language: this.preferredLanguage,
         modelPackageId: selected.aiText.packageId,
+        modelVersion: selected.aiText.version,
         reason: "offline_model_available",
       };
     }
@@ -62,6 +65,7 @@ export class LanguageBoundAIService {
       mode: "online",
       language: this.preferredLanguage,
       modelPackageId: null,
+      modelVersion: null,
       reason: device.offlineAiAllowed
         ? "offline_model_unavailable"
         : "offline_policy_disabled",
@@ -84,6 +88,7 @@ export class LanguageBoundAIService {
         text: await this.localProvider.complete(
           request,
           decision.modelPackageId,
+          decision.modelVersion!,
         ),
       };
     }
