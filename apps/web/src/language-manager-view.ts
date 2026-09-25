@@ -203,6 +203,7 @@ export class WebLanguageManagerView {
       downloadUri: item.downloadUri,
       checksum: item.checksum,
       signature: item.signature,
+      resourcePaths: item.resourcePaths,
     };
 
     try {
