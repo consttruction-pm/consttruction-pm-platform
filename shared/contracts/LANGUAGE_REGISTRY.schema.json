@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Construction PM Global Language Registry",
+  "type": "object",
+  "required": ["schema_version", "default_language", "languages"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "default_language": {"type": "string", "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"},
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "language_tag",
+          "enabled",
+          "direction",
+          "locale",
+          "translation_pack",
+          "capabilities",
+          "fallback_chain"
+        ],
+        "properties": {
+          "language_tag": {"type": "string"},
+          "display_names": {"type": "object", "additionalProperties": {"type": "string"}},
+          "enabled": {"type": "boolean"},
+          "direction": {"enum": ["ltr", "rtl"]},
+          "locale": {"type": "string"},
+          "fallback_chain": {"type": "array", "items": {"type": "string"}},
+          "translation_pack": {
+            "type": "object",
+            "required": ["package_id", "version", "min_app_version", "checksum", "signature", "compressed_size_bytes"],
+            "properties": {
+              "package_id": {"type": "string"},
+              "version": {"type": "string"},
+              "min_app_version": {"type": "string"},
+              "max_app_version": {"type": ["string", "null"]},
+              "checksum": {"type": "string"},
+              "signature": {"type": "string"},
+              "compressed_size_bytes": {"type": "integer", "minimum": 0},
+              "delta_from": {"type": ["string", "null"]}
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "required": ["ui", "help", "ai_text", "voice_input", "voice_output", "offline_ai"],
+            "properties": {
+              "ui": {"type": "boolean"},
+              "help": {"type": "boolean"},
+              "ai_text": {"type": "boolean"},
+              "voice_input": {"type": "boolean"},
+              "voice_output": {"type": "boolean"},
+              "offline_ai": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
