@@ -45,6 +45,8 @@ export type LanguageManagerWebOptions = {
 };
 
 export class WebLanguageManagerView {
+  private localErrorKey: string | null = null;
+
   constructor(private readonly options: LanguageManagerWebOptions) {}
 
   async mount(): Promise<void> {
@@ -70,8 +72,9 @@ export class WebLanguageManagerView {
 
     const status = document.createElement("p");
     status.setAttribute("role", "status");
-    status.textContent = state.errorKey
-      ? (this.options.translateError?.(state.errorKey) ?? state.errorKey)
+    const errorKey = this.localErrorKey ?? state.errorKey;
+    status.textContent = errorKey
+      ? (this.options.translateError?.(errorKey) ?? errorKey)
       : state.activeDownloadLanguage
         ? copy.downloading(displayLanguageName(state.activeDownloadLanguage, currentLanguage))
         : copy.ready;
@@ -195,10 +198,16 @@ export class WebLanguageManagerView {
 
   private async useInstalled(languageTag: string, version: string): Promise<void> {
     try {
-      await this.options.onActivateInstalledLanguage?.(languageTag, version);
+      if (!this.options.onActivateInstalledLanguage) {
+        throw new Error("LANGUAGE_ACTIVATION_NOT_CONFIGURED");
+      }
+      await this.options.onActivateInstalledLanguage(languageTag, version);
       await this.options.controller.persistSelection(languageTag);
+      this.localErrorKey = null;
       await this.refresh();
     } catch (error) {
+      const errorKey = error instanceof Error ? error.message : String(error);
+      this.localErrorKey = errorKey;
       this.options.root.dispatchEvent(
         new CustomEvent("language-manager-error", {
           detail: error instanceof Error ? error.message : String(error),
@@ -210,8 +219,11 @@ export class WebLanguageManagerView {
   private async removeInstalled(packageId: string, version: string): Promise<void> {
     try {
       await this.options.controller.removeInstalledPack(packageId, version);
+      this.localErrorKey = null;
       await this.refresh();
     } catch (error) {
+      const errorKey = error instanceof Error ? error.message : String(error);
+      this.localErrorKey = errorKey;
       this.options.root.dispatchEvent(
         new CustomEvent("language-manager-error", {
           detail: error instanceof Error ? error.message : String(error),
@@ -263,8 +275,11 @@ export class WebLanguageManagerView {
           this.options.root.dispatchEvent(event);
         },
       );
+      this.localErrorKey = null;
       await this.refresh();
     } catch (error) {
+      const errorKey = error instanceof Error ? error.message : String(error);
+      this.localErrorKey = errorKey;
       this.options.root.dispatchEvent(
         new CustomEvent("language-manager-error", {
           detail: error instanceof Error ? error.message : String(error),
