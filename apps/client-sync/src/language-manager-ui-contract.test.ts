@@ -21,6 +21,7 @@ test("maps language manager state into framework-neutral UI state", () => {
         languageTag: "fa",
         direction: "rtl",
         locale: "fa-IR",
+        installedPackageId: null,
         installedVersion: null,
         verified: false,
         offlineReady: false,
