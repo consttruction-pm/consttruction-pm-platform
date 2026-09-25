@@ -35,6 +35,9 @@ export class EngineBackedLocalAIProvider implements LocalAIProvider {
     if (result.modelPackageId !== modelPackageId) {
       throw new Error("LOCAL_AI_MODEL_ID_MISMATCH");
     }
+    if (result.modelVersion !== modelVersion) {
+      throw new Error("LOCAL_AI_MODEL_VERSION_MISMATCH");
+    }
     return result.text;
   }
 }
@@ -116,7 +119,7 @@ export class EngineBackedLocalVoiceRuntime {
   async transcribe(
     request: Omit<LocalVoiceInputRequest, "modelPackageId">,
     selected: PreferredLanguageModels,
-  ): Promise<LocalVoiceInputRequest["languageTag"] extends string ? string : never> {
+  ): Promise<string> {
     const model = selected.voiceInput;
     if (!model) throw new Error("LOCAL_VOICE_INPUT_MODEL_UNAVAILABLE");
     if (!this.engine.isInputLoaded(model.packageId, model.version)) {
@@ -128,6 +131,9 @@ export class EngineBackedLocalVoiceRuntime {
     });
     if (result.modelPackageId !== model.packageId) {
       throw new Error("LOCAL_VOICE_INPUT_MODEL_ID_MISMATCH");
+    }
+    if (result.modelVersion !== model.version) {
+      throw new Error("LOCAL_VOICE_INPUT_MODEL_VERSION_MISMATCH");
     }
     return result.text;
   }
