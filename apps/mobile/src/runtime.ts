@@ -1,5 +1,9 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
 import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
+import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
+import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
+import type { LanguagePackResourceReader } from "../../client-sync/src/language-resource-loader.js";
 import type { LanguagePackResourceManifestStore } from "../../client-sync/src/language-pack-resource-manifest-store.js";
 import type { LanguageRegistryEntry } from "../../client-sync/src/language.ts";
 import {
@@ -28,6 +32,7 @@ export type MobileProjectState = { tenant_id: string; project_id: string; revisi
 
 export class MobileRuntime {
   private readonly languageRuntime: ClientLanguageRuntime;
+  private languageActivationService: LanguagePackActivationService | null = null;
   constructor(
     private readonly languagePackBackend?: PersistentLanguagePackBackend,
     languagePreferenceStore?: LanguagePreferenceStore,
@@ -93,6 +98,38 @@ export class MobileRuntime {
 
   currentLanguage() {
     return this.languageRuntime.current();
+  }
+
+  configureLanguageResourceReader(reader: LanguagePackResourceReader): void {
+    if (!this.languagePackBackend || !this.languageResourceManifestStore) {
+      throw new Error("LANGUAGE_PACK_PERSISTENCE_NOT_CONFIGURED");
+    }
+    this.languageActivationService = new LanguagePackActivationService(
+      new PersistentLanguagePackStore(this.languagePackBackend),
+      new LanguageResourceRuntime(reader),
+    );
+  }
+
+  async activateLanguagePack(manifest: LanguagePackManifest) {
+    if (!this.languageActivationService) {
+      throw new Error("LANGUAGE_RESOURCE_READER_NOT_CONFIGURED");
+    }
+    return this.languageActivationService.activate(manifest);
+  }
+
+  async activateCachedLanguagePack(packageId: string, version: string) {
+    if (!this.languageActivationService || !this.languageResourceManifestStore) {
+      throw new Error("LANGUAGE_RESOURCE_READER_NOT_CONFIGURED");
+    }
+    const resources = await this.languageResourceManifestStore.get(packageId, version);
+    if (!resources) {
+      throw new Error("LANGUAGE_PACK_RESOURCE_MANIFEST_NOT_FOUND");
+    }
+    return this.languageActivationService.activateFromStoredResources(
+      packageId,
+      version,
+      resources.resources,
+    );
   }
 
   createLanguageManagerController(
