@@ -206,3 +206,44 @@ test("runner carries all versioned api sync outcomes end-to-end", async () => {
     assert.equal(queue.size(), current.disposition === "acknowledged" ? 0 : 1);
   }
 });
+
+
+test("api transport rejects a successful response with the wrong outcome contract", async () => {
+  const api = {
+    async post<TRequest, TResponse>(): Promise<{ ok: true; data: TResponse }> {
+      return {
+        ok: true,
+        data: {
+          contract_version: "sync-project-revision.v1",
+          mutation_id: "m1",
+          disposition: "acknowledged",
+        } as unknown as TResponse,
+      };
+    },
+  };
+
+  await assert.rejects(
+    new ApiSyncTransport(api).submit(mutation("m1")),
+    /INVALID_SYNC_OUTCOME_RESPONSE/,
+  );
+});
+
+test("api transport rejects a successful response with the wrong disposition", async () => {
+  const api = {
+    async post<TRequest, TResponse>(): Promise<{ ok: true; data: TResponse }> {
+      return {
+        ok: true,
+        data: {
+          contract_version: "sync-outcome.v1",
+          mutation_id: "m1",
+          disposition: "unknown",
+        } as unknown as TResponse,
+      };
+    },
+  };
+
+  await assert.rejects(
+    new ApiSyncTransport(api).submit(mutation("m1")),
+    /INVALID_SYNC_OUTCOME_RESPONSE/,
+  );
+});
