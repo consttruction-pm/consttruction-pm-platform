@@ -15,4 +15,4 @@ Security lifecycle:
 
 The key registry is a trust input and must itself be delivered through an authenticated/trusted release mechanism. This verifier does not claim to establish trust in an untrusted key registry.
 
-Web uses the Web Crypto API Ed25519 verification path; Node/Desktop uses Node Web Crypto. Current platform documentation confirms Ed25519 support in WebCrypto and Node WebCrypto. citeturn375637search0turn375637search2turn375637search3
+Web uses the Web Crypto API Ed25519 verification path; Node/Desktop uses Node Web Crypto. The implementation must keep feature detection and explicit unavailable errors for host environments that do not expose the required primitive.
