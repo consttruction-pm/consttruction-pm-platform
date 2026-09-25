@@ -15,17 +15,23 @@ test("desktop syncOnce uses shared transport and clears acknowledged mutation", 
   assert.equal(calls.length, 1);
 });
 
-test("desktop stale revision retry updates project revision and mutation metadata", () => {
+test("desktop stale revision retry requires authoritative refresh", async () => {
   const runtime = new DesktopRuntime();
   runtime.openProject("t1", "p1", 7);
   runtime.queueMutation({ contract_version: "sync-mutation.v1", mutation_id: "m1", tenant_id: "t1", project_id: "p1", expected_revision: 7, operation: "update_activity", payload: {}, idempotency_key: "idem-1" });
   const outcome: SyncOutcome = { contract_version: "sync-outcome.v1", mutation_id: "m1", disposition: "conflict", error_code: "STALE_REVISION" };
 
-  const retried = runtime.retryStaleRevision("m1", outcome, 8);
+  const retried = await runtime.retryStaleRevision("m1", outcome, {
+    async get<TResponse>(path: string, context: SyncProjectContext) {
+      assert.equal(path, "/api/v1/sync/revision");
+      assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
+      return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 42 } as TResponse };
+    },
+  });
 
-  assert.equal(retried.expected_revision, 8);
-  assert.equal(retried.idempotency_key, "idem-1:r8");
-  assert.equal(runtime.current().revision, 8);
+  assert.equal(retried.expected_revision, 42);
+  assert.equal(retried.idempotency_key, "idem-1:r42");
+  assert.equal(runtime.current().revision, 42);
 });
 
 
