@@ -117,6 +117,7 @@ test("offline policy disabled forces online execution", async () => {
       mode: "online",
       language: "fa",
       modelPackageId: null,
+      modelVersion: null,
       reason: "offline_policy_disabled",
     },
   );
