@@ -5,3 +5,4 @@ export * from "./desktop-language-manager-copy.js";
 export * from "./node-zip-language-pack-extractor.js";
 export * from "./language-pack-signature.js";
 export * from "../../client-sync/src/language-shell-lifecycle.js";
+export * from "./offline-model-artifact-store.js";
