@@ -5,6 +5,7 @@ from datetime import date
 from typing import Iterable, Mapping, Sequence
 
 from .activity import Activity
+from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
 from .constraints import (
     ActivityConstraint,
@@ -105,8 +106,17 @@ def forward_pass(
     project_start: date,
     resolver: WorkingTimeResolver,
     constraints: Sequence[ActivityConstraint] | None = None,
+    calculation_context: CalculationContext | None = None,
 ) -> Mapping[str, ScheduledActivity]:
-    """Deterministic earliest-start pass with foundational date constraints."""
+    """Deterministic earliest-start pass with foundational date constraints.
+
+    When supplied, ``calculation_context`` is validated at the Shared Core
+    boundary. The context is metadata/identity only and never changes dates.
+    """
+    if calculation_context is not None:
+        if calculation_context.project_version < 0:
+            raise ValueError("invalid calculation context")
+
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
     if len(activity_map) != len(activity_list):
