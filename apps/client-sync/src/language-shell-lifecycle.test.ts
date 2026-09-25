@@ -132,3 +132,35 @@ test("language shell lifecycle reports missing resource manifest without changin
   assert.equal(result.activation, "resource-manifest-missing");
   assert.equal(runtime.current().languageTag, "fa");
 });
+
+
+test("language shell installed switch leaves preference unchanged when activation fails", async () => {
+  const packs = new InMemoryLanguagePackStore();
+  await packs.put({
+    ...pack,
+    version: "1.10.0",
+  });
+
+  const preferenceStore = new InMemoryLanguagePreferenceStore();
+  await preferenceStore.save("en");
+
+  const runtime = new ClientLanguageRuntime(packs, preferenceStore);
+  runtime.configure(registry, "en", {
+    preferredLanguage: "en",
+    fallbackChain: ["en"],
+    installedPacks: [],
+  });
+
+  const shell = new ClientLanguageShellLifecycle(
+    runtime,
+    async () => {
+      throw new Error("LANGUAGE_RESOURCE_MANIFEST_NOT_FOUND");
+    },
+  );
+
+  await assert.rejects(
+    shell.switchToInstalledLanguage("fa"),
+    /LANGUAGE_RESOURCE_MANIFEST_NOT_FOUND/,
+  );
+  assert.equal(runtime.current().languageTag, "en");
+});
