@@ -63,3 +63,56 @@ test("shared client binding switches preferred language without duplicating reso
   assert.equal(english.languageTag, "en");
   assert.equal(english.direction, "ltr");
 });
+
+
+test("caching a verified pack updates the runtime offline state", async () => {
+  const store = new InMemoryLanguagePackStore();
+  const runtime = new ClientLanguageRuntime(store);
+  const caps = {
+    ui: true,
+    help: true,
+    aiText: true,
+    voiceInput: true,
+    voiceOutput: true,
+    offlineAi: false,
+  };
+
+  runtime.configure(
+    [
+      {
+        languageTag: "fa",
+        direction: "rtl",
+        locale: "fa-IR",
+        fallbackChain: ["en"],
+        capabilities: caps,
+      },
+      {
+        languageTag: "en",
+        direction: "ltr",
+        locale: "en-US",
+        fallbackChain: [],
+        capabilities: caps,
+      },
+    ],
+    "en",
+    {
+      preferredLanguage: "fa",
+      fallbackChain: ["en"],
+      installedPacks: [],
+    },
+  );
+
+  assert.equal(runtime.current().offline, false);
+
+  await runtime.cacheVerifiedPack({
+    packageId: "construction-pm.language.fa",
+    languageTag: "fa",
+    version: "1.0.0",
+    verified: true,
+    artifact: new Uint8Array([7, 8]),
+  });
+
+  assert.equal(runtime.current().languageTag, "fa");
+  assert.equal(runtime.current().packVersion, "1.0.0");
+  assert.equal(runtime.current().offline, true);
+});
