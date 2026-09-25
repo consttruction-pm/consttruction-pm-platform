@@ -15,6 +15,9 @@ export function toAuthoritativeSyncOutcome(mutation: SyncMutation, outcome: Sync
   if (outcome.contract_version !== "sync-outcome.v1") throw new Error("UNSUPPORTED_OUTCOME_CONTRACT");
   if (outcome.mutation_id !== mutation.mutation_id) throw new Error("MUTATION_ID_MISMATCH");
   if (outcome.disposition === "retry") throw new Error("UNREPRESENTABLE_RETRY_OUTCOME");
+  if (outcome.retry_after_seconds !== null && outcome.retry_after_seconds !== undefined) {
+    throw new Error("UNREPRESENTABLE_RETRY_METADATA");
+  }
   const status = outcome.disposition === "acknowledged" ? "applied" : outcome.disposition;
   return { contract_version:"client-sync-outcome.v1", status, operation:mutation.operation, error_code:outcome.error_code ?? null, retryable:null, idempotency_key:mutation.idempotency_key };
 }
