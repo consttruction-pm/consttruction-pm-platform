@@ -104,6 +104,24 @@ def time_forward_pass(
     if not activity_map:
         return {}
 
+    # The project calendar is authoritative for the project boundary. Activity
+    # calendars may differ, but every activity must belong to the same project
+    # calendar and the project start must first be normalized in that calendar.
+    first_context = activity_list[0].calendar_context
+    if first_context is None:
+        raise ValueError("time-aware activity requires a calendar context")
+    project_ref = first_context.project
+    for activity in activity_list[1:]:
+        context = activity.calendar_context
+        if context is None:
+            raise ValueError("time-aware activity requires a calendar context")
+        if context.project != project_ref:
+            raise ValueError("time-aware activities must share one project calendar")
+    project_resolver = registry.resolve(project_ref)
+    if not isinstance(project_resolver, TimeAwareWorkingTimeResolver):
+        raise TypeError("time-aware project calendar requires a working-time resolver")
+    normalized_project_start = project_resolver.normalize_start(project_start)
+
     relationship_list = list(relationships)
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
@@ -135,7 +153,11 @@ def time_forward_pass(
     for activity_id in order:
         activity = activity_map[activity_id]
         resolver = _resolver_for_activity(activity, registry)
-        start = resolver.normalize_start(project_start) if not incoming[activity_id] else None
+        start = (
+            resolver.normalize_start(normalized_project_start)
+            if not incoming[activity_id]
+            else None
+        )
 
         for rel in sorted(
             incoming[activity_id],
