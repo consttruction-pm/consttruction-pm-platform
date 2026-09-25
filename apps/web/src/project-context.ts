@@ -6,7 +6,7 @@ export class ProjectContextStore {
   private context: ProjectContext | null = null;
 
   set(context: ProjectContext): void {
-    if (!context.tenant_id || !context.project_id || context.revision < 0) {
+    if (!context.tenant_id || !context.project_id || !Number.isInteger(context.revision) || context.revision < 0) {
       throw new Error("INVALID_PROJECT_CONTEXT");
     }
     this.context = Object.freeze({ ...context });
@@ -18,8 +18,9 @@ export class ProjectContextStore {
   }
 
   updateRevision(revision: number): void {
-    if (revision < 0) throw new Error("INVALID_PROJECT_REVISION");
+    if (!Number.isInteger(revision) || revision < 0) throw new Error("INVALID_PROJECT_REVISION");
     const current = this.get();
+    if (revision < current.revision) throw new Error("REVISION_REGRESSION");
     this.set({ ...current, revision });
   }
 
