@@ -1,5 +1,6 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
 import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import type { LanguagePackResourceManifestStore } from "../../client-sync/src/language-pack-resource-manifest-store.js";
 import type { LanguageRegistryEntry } from "../../client-sync/src/language.ts";
 import {
   PersistentLanguagePackStore,
@@ -30,12 +31,14 @@ export class DesktopRuntime {
   constructor(
     private readonly languagePackBackend?: PersistentLanguagePackBackend,
     languagePreferenceStore?: LanguagePreferenceStore,
+    private readonly languageResourceManifestStore?: LanguagePackResourceManifestStore,
   ) {
     this.languageRuntime = new ClientLanguageRuntime(
       languagePackBackend
         ? new PersistentLanguagePackStore(languagePackBackend)
         : null,
       languagePreferenceStore ?? null,
+      languageResourceManifestStore ?? null,
     );
   }
   private state: DesktopProjectState | null = null;
