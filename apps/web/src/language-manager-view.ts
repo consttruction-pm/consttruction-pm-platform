@@ -1,9 +1,7 @@
-import type { LanguageManagerController } from "../../client-sync/src/language-manager-controller.ts";
-import type { LanguagePackCatalog } from "../../client-sync/src/language-pack-catalog.ts";
-import type { LanguagePackDownloadManifest } from "../../client-sync/src/language-pack-download.ts";
-import { selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.ts";
-import { displayLanguageName } from "./language-display-name.ts";
-import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.ts";
+import type { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import { selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.js";
+import { displayLanguageName } from "./language-display-name.js";
+import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.js";
 
 export type LanguageManagerWebOptions = {
   root: HTMLElement;
