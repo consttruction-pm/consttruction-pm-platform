@@ -2,7 +2,7 @@ import {
   OfflineMutationQueue,
   type SyncMutation,
   type SyncOutcome,
-} from "./mutation-queue.js";
+} from "./mutation-queue.ts";
 
 export interface ClientSyncTransport {
   submit(mutation: SyncMutation): Promise<SyncOutcome>;
