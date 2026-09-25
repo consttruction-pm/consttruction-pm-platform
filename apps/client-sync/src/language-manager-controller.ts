@@ -52,7 +52,7 @@ export class LanguageManagerController {
     if (current.packVersion === version) {
       throw new Error("CANNOT_REMOVE_ACTIVE_LANGUAGE_PACK");
     }
-    await this.store.remove(packageId, version);
+    await this.runtime.removeInstalledPack(packageId, version);
     return this.refresh();
   }
 
