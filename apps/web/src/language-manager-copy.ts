@@ -1,0 +1,28 @@
+import type { LanguageManagerCopy } from "./language-manager-view.js";
+
+export const DEFAULT_ENGLISH_LANGUAGE_MANAGER_COPY: LanguageManagerCopy = {
+  title: "Language",
+  ready: "Ready",
+  downloading: (language) => "Downloading " + language + "…",
+  supportedLanguages: "Supported languages",
+  language: "Language",
+  locale: "Locale",
+  direction: "Direction",
+  installed: "Installed",
+  offline: "Offline",
+  ai: "AI",
+  voiceIn: "Voice In",
+  voiceOut: "Voice Out",
+  offlineAi: "Offline AI",
+  selected: "Selected",
+  use: "Use",
+  download: "Download",
+  update: "Update",
+  unavailable: "Unavailable",
+  remove: "Remove",
+  yes: "Yes",
+  no: "No",
+  missing: "—",
+  rtl: "RTL",
+  ltr: "LTR",
+};
