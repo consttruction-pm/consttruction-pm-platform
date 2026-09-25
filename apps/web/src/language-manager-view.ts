@@ -2,6 +2,7 @@ import type { LanguageManagerController } from "../../client-sync/src/language-m
 import type { LanguagePackCatalog } from "../../client-sync/src/language-pack-catalog.ts";
 import type { LanguagePackDownloadManifest } from "../../client-sync/src/language-pack-download.ts";
 import { selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.ts";
+import { displayLanguageName } from "./language-display-name.ts";
 import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.ts";
 
 export type LanguageManagerWebOptions = {
@@ -33,7 +34,8 @@ export class WebLanguageManagerView {
     root.replaceChildren();
 
     const heading = document.createElement("h2");
-    heading.textContent = "Language";
+    const currentLanguage = state.rows.find((row) => row.selected)?.languageTag ?? state.selectedLanguage;
+    heading.textContent = displayLanguageName(currentLanguage);
     root.append(heading);
 
     const status = document.createElement("p");
@@ -88,7 +90,7 @@ export class WebLanguageManagerView {
       tr.dir = row.direction;
 
       const values = [
-        row.languageTag,
+        displayLanguageName(row.languageTag, currentLanguage),
         row.locale,
         row.direction.toUpperCase(),
         row.installedVersion ?? "—",
