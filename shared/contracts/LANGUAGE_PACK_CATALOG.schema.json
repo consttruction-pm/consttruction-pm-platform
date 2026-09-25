@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Construction PM Language Pack Catalog",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "default_language", "items"],
+  "properties": {
+    "schema_version": {"type":"string"},
+    "generated_at": {"type":"string"},
+    "default_language": {"type":"string"},
+    "items": {
+      "type":"array",
+      "items": {
+        "type":"object",
+        "required": ["package_id","language_tag","version","min_app_version","compressed_size_bytes","download_uri","checksum","signature","capabilities"],
+        "properties": {
+          "package_id": {"type":"string"},
+          "language_tag": {"type":"string"},
+          "version": {"type":"string"},
+          "min_app_version": {"type":"string"},
+          "max_app_version": {"type":["string","null"]},
+          "compressed_size_bytes": {"type":"integer","minimum":0},
+          "download_uri": {"type":"string"},
+          "checksum": {"type":"string"},
+          "signature": {"type":"string"},
+          "capabilities": {"type":"object"}
+        }
+      }
+    }
+  }
+}
