@@ -163,3 +163,22 @@ test("signature message binds resource paths", () => {
     canonicalSigningMessage(changed),
   );
 });
+
+
+test("signature registry rejects an expired retired key", async () => {
+  const keyPair = await makeKeyPair();
+  const key: LanguagePackSigningKey = {
+    keyId: "key-retired-expired",
+    algorithm: "Ed25519",
+    publicKeyBase64Url: keyPair.publicKey,
+    status: "retired",
+    notBefore: "2025-01-01T00:00:00Z",
+    notAfter: "2026-01-01T00:00:00Z",
+  };
+
+  const registry = new LanguagePackSigningKeyRegistry([key]);
+  assert.throws(
+    () => registry.resolve("key-retired-expired", new Date("2026-09-25T00:00:00Z")),
+    /LANGUAGE_PACK_SIGNING_KEY_EXPIRED/,
+  );
+});
