@@ -4,6 +4,10 @@ import { LanguageManagerClientAdapter } from "../../client-sync/src/language-man
 import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
 import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
+import {
+  ZipLanguagePackExtractor,
+  type RawDeflateDecoder,
+} from "../../client-sync/src/zip-language-pack-extractor.js";
 import type { LanguagePackResourceReader } from "../../client-sync/src/language-resource-loader.js";
 import type { LanguagePackResourceManifestStore } from "../../client-sync/src/language-pack-resource-manifest-store.js";
 import type { LanguageRegistryEntry } from "../../client-sync/src/language.ts";
@@ -109,6 +113,10 @@ export class MobileRuntime {
       new PersistentLanguagePackStore(this.languagePackBackend),
       new LanguageResourceRuntime(reader),
     );
+  }
+
+  configureZipLanguageResourceReader(decoder: RawDeflateDecoder): void {
+    this.configureLanguageResourceReader(new ZipLanguagePackExtractor(decoder));
   }
 
   async activateLanguagePack(manifest: LanguagePackManifest) {
