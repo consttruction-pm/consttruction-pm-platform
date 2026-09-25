@@ -1,3 +1,4 @@
+import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.ts";
 import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
@@ -9,6 +10,7 @@ import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/a
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 
 export class WebSyncRuntime {
+  private readonly languageRuntime = new ClientLanguageRuntime();
   private readonly mutationQueue = new OfflineMutationQueue();
 
   queueMutation(mutation: SyncMutation): void {
@@ -55,4 +57,25 @@ export class WebSyncRuntime {
     });
     return this.mutationQueue.retryAtRevision(mutationId, revision.revision);
   }
+
+  configureLanguage(
+    registry: Parameters<ClientLanguageRuntime["configure"]>[0],
+    defaultLanguage: string,
+    preference: Parameters<ClientLanguageRuntime["configure"]>[2],
+  ) {
+    return this.languageRuntime.configure(registry, defaultLanguage, preference);
+  }
+
+  currentLanguage() {
+    return this.languageRuntime.current();
+  }
+
+  setPreferredLanguage(languageTag: string) {
+    return this.languageRuntime.setPreferredLanguage(languageTag);
+  }
+
+  canUseLanguageOffline(languageTag: string): boolean {
+    return this.languageRuntime.canRunOffline(languageTag);
+  }
+
 }
