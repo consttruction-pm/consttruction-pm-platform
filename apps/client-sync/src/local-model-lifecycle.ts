@@ -155,24 +155,17 @@ export class LocalTextModelLifecycleManager {
       totalLoadedBytes(this.loaded) + incomingBytes >
         this.policy.maxLoadedModelBytes
     ) {
+      const activeEntry = this.activePackageId
+        ? [...this.loaded.values()].find(
+            (entry) => entry.model.packageId === this.activePackageId,
+          )
+        : undefined;
+      const activeKey = activeEntry
+        ? modelKey(activeEntry.model.packageId, activeEntry.model.version)
+        : null;
+
       const evictable = [...this.loaded.entries()]
-        .filter(
-          ([key]) =>
-            key !== incomingKey &&
-            key !==
-              (this.activePackageId
-                ? [...this.loaded.values()].find(
-                    (entry) => entry.model.packageId === this.activePackageId,
-                  )?.model
-                    ? modelKey(
-                        this.activePackageId,
-                        [...this.loaded.values()].find(
-                          (entry) => entry.model.packageId === this.activePackageId,
-                        )!.model.version,
-                      )
-                    : null
-                : null),
-        )
+        .filter(([key]) => key !== incomingKey && key !== activeKey)
         .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt)[0];
 
       if (!evictable) {
