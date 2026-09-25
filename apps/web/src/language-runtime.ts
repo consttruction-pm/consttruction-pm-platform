@@ -1,6 +1,13 @@
 import {
   ClientLanguageRuntime,
 } from "../../client-sync/src/language-runtime.js";
+import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
+import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
+import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
+import {
+  WebLanguageResourceReader,
+  type WebLanguagePackExtractor,
+} from "./language-resource-reader.js";
 import {
   FetchLanguagePackTransport,
   WebLanguagePackVerifier,
@@ -19,10 +26,12 @@ import type {
 
 export class WebLanguageRuntime {
   readonly language: ClientLanguageRuntime;
+  private readonly packs: IndexedDbLanguagePackStore;
 
   constructor(databaseName?: string) {
+    this.packs = new IndexedDbLanguagePackStore(databaseName);
     this.language = new ClientLanguageRuntime(
-      new IndexedDbLanguagePackStore(databaseName),
+      this.packs,
       new WebLanguagePreferenceStore(),
     );
   }
@@ -41,3 +50,17 @@ export class WebLanguageRuntime {
     );
   }
 }
+
+
+  async activateLanguagePack(
+    manifest: LanguagePackManifest,
+    extractor: WebLanguagePackExtractor,
+  ) {
+    const resources = new LanguageResourceRuntime(
+      new WebLanguageResourceReader(extractor),
+    );
+    return new LanguagePackActivationService(
+      this.packs,
+      resources,
+    ).activate(manifest);
+  }
