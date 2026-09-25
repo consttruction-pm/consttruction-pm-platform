@@ -58,6 +58,7 @@ export class LanguageManagerViewModel {
           languageTag: entry.languageTag,
           direction: entry.direction,
           locale: entry.locale,
+          installedPackageId: verified?.packageId ?? null,
           installedVersion: verified?.version ?? null,
           verified: Boolean(verified),
           offlineReady: Boolean(verified && entry.capabilities.ui),
