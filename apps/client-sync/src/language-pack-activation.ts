@@ -1,4 +1,4 @@
-import type { LanguagePackManifest } from "../../src/construction_pm/i18n/models";
+import type { LanguagePackManifest } from "./language-pack-manifest.ts";
 import type { LanguagePackStore } from "./language-pack-store.ts";
 import {
   LanguageResourceRuntime,
