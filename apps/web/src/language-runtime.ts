@@ -17,6 +17,9 @@ import {
   IndexedDbLanguagePackStore,
 } from "./language-pack-store.js";
 import {
+  IndexedDbLanguagePackResourceManifestStore,
+} from "./language-pack-resource-manifest-store.js";
+import {
   WebLanguagePreferenceStore,
 } from "./language-preference-store.js";
 import type {
@@ -27,13 +30,16 @@ import type {
 export class WebLanguageRuntime {
   readonly language: ClientLanguageRuntime;
   private readonly packs: IndexedDbLanguagePackStore;
+  private readonly resourceManifests: IndexedDbLanguagePackResourceManifestStore;
   private activationService: LanguagePackActivationService | null = null;
 
   constructor(databaseName?: string) {
     this.packs = new IndexedDbLanguagePackStore(databaseName);
+    this.resourceManifests = new IndexedDbLanguagePackResourceManifestStore();
     this.language = new ClientLanguageRuntime(
       this.packs,
       new WebLanguagePreferenceStore(),
+      this.resourceManifests,
     );
   }
 
