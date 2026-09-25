@@ -114,3 +114,26 @@ test("web runtime rejects an invalid authoritative revision response", async () 
     /INVALID_PROJECT_REVISION_RESPONSE/,
   );
 });
+
+test("web stale retry can be acknowledged after authoritative refresh", async () => {
+  const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
+  runtime.queueMutation(mutation);
+  const conflict: SyncOutcome = { contract_version: "sync-outcome.v1", mutation_id: "m1", disposition: "conflict", error_code: "STALE_REVISION" };
+  const retried = await runtime.retryStaleRevision("m1", conflict, {
+    async get<TResponse>() {
+      return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 42 } as TResponse };
+    },
+  });
+  const outcomes = await runtime.syncOnce({
+    async post<TRequest, TResponse>(_path: string, request: TRequest, context: SyncProjectContext, idempotencyKey: string) {
+      assert.equal((request as SyncMutation).expected_revision, 42);
+      assert.equal(context.revision, 42);
+      assert.equal(idempotencyKey, "idem-1:r42");
+      return { ok: true as const, data: { contract_version: "sync-outcome.v1", mutation_id: "m1", disposition: "acknowledged" } as TResponse };
+    },
+  });
+  assert.equal(retried.expected_revision, 42);
+  assert.equal(outcomes[0]?.disposition, "acknowledged");
+  assert.equal(runtime.pendingMutationCount(), 0);
+});
