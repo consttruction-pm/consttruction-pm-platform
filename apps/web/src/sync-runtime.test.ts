@@ -76,3 +76,15 @@ test("web runtime refreshes the project revision", async () => {
   }, "t1", "p1", 7);
   assert.equal(revision, 8);
 });
+
+test("web runtime rejects an invalid authoritative revision response", async () => {
+  const runtime = new WebSyncRuntime();
+  await assert.rejects(
+    runtime.refreshRevision({
+      async get<TResponse>() {
+        return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8.5 } as TResponse };
+      },
+    }, "t1", "p1", 7),
+    /INVALID_PROJECT_REVISION_RESPONSE/,
+  );
+});
