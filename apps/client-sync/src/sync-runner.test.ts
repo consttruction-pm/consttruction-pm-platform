@@ -99,6 +99,71 @@ test("runner can consume the versioned api transport without duplicating applica
 });
 
 
+test("conflict refresh uses authoritative revision before explicit retry", async () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue(mutation("m1"));
+  const runner = new ClientSyncRunner(queue, new FakeTransport([
+    {
+      contract_version: "sync-outcome.v1",
+      mutation_id: "m1",
+      disposition: "conflict",
+      error_code: "STALE_REVISION",
+    },
+  ]));
+
+  await runner.runOnce();
+
+  const seen: Array<{ tenant_id: string; project_id: string; revision: number }> = [];
+  const revisionTransport = {
+    async refresh(context: { tenant_id: string; project_id: string; revision: number }) {
+      seen.push(context);
+      return {
+        contract_version: "sync-project-revision.v1" as const,
+        tenant_id: "t1",
+        project_id: "p1",
+        revision: 8,
+      };
+    },
+  };
+
+  const retried = await runner.retryConflictAtAuthoritativeRevision("m1", revisionTransport);
+  assert.deepEqual(seen, [{ tenant_id: "t1", project_id: "p1", revision: 7 }]);
+  assert.equal(retried.expected_revision, 8);
+  assert.equal(retried.idempotency_key, "idem-m1:r8");
+  assert.equal(queue.peek()?.expected_revision, 8);
+});
+
+test("conflict refresh does not guess or locally increment the revision", async () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue(mutation("m1"));
+  const runner = new ClientSyncRunner(queue, new FakeTransport([
+    {
+      contract_version: "sync-outcome.v1",
+      mutation_id: "m1",
+      disposition: "conflict",
+      error_code: "STALE_REVISION",
+    },
+  ]));
+
+  await runner.runOnce();
+
+  const revisionTransport = {
+    async refresh() {
+      return {
+        contract_version: "sync-project-revision.v1" as const,
+        tenant_id: "t1",
+        project_id: "p1",
+        revision: 42,
+      };
+    },
+  };
+
+  const retried = await runner.retryConflictAtAuthoritativeRevision("m1", revisionTransport);
+  assert.equal(retried.expected_revision, 42);
+  assert.notEqual(retried.expected_revision, 8);
+});
+
+
 test("runner carries all versioned api sync outcomes end-to-end", async () => {
   const cases: Array<{ disposition: SyncOutcome["disposition"]; error?: string; retryable?: boolean }> = [
     { disposition: "acknowledged" },
