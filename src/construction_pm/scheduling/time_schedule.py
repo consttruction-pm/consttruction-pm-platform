@@ -256,32 +256,33 @@ def calculate_time_floats(
                     raise ValueError("successor requires calendar context")
                 lag_resolver = registry.resolve(lag_context.effective_relationship_lag())
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
-                    # Measure slack by delaying the predecessor and checking the
-                    # relationship event in the authoritative lag calendar.
-                    delay = Decimal("0")
-                    for _ in range(10000):
-                        candidate_start = resolver.add_working_hours(e.start, delay)
-                        candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
-                        if rel.type is RelationshipType.FS:
-                            event = candidate_finish
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.SS:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.FF:
-                            event = candidate_finish
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        else:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        if not holds:
-                            break
-                        delay += Decimal("1")
-                    limits.append(max(Decimal("0"), delay - Decimal("1")))
+                    # Free float is the exact working-time distance from the
+                    # predecessor's current relationship event to the latest
+                    # event permitted by the successor, measured in the
+                    # predecessor activity calendar. This avoids the former
+                    # one-hour stepping approximation and preserves fractional
+                    # working-hour precision.
+                    if rel.type is RelationshipType.FS:
+                        predecessor_event = e.finish
+                        successor_event = successor.start
+                    elif rel.type is RelationshipType.SS:
+                        predecessor_event = e.start
+                        successor_event = successor.start
+                    elif rel.type is RelationshipType.FF:
+                        predecessor_event = e.finish
+                        successor_event = successor.finish
+                    else:
+                        predecessor_event = e.start
+                        successor_event = successor.finish
+                    required = _inverse_lag_for_float(successor_event, rel.lag, lag_resolver)
+                    if required <= predecessor_event:
+                        limits.append(Decimal("0"))
+                    else:
+                        limits.append(
+                            resolver.calculate_working_hours(
+                                predecessor_event, required
+                            )
+                        )
             free = min(limits) if limits else Decimal("0")
 
         result[activity_id] = TimeFloatActivity(
@@ -297,16 +298,16 @@ def calculate_time_floats(
     return result
 
 
-def _add_signed_lag_for_float(
-    anchor: datetime,
+def _inverse_lag_for_float(
+    event: datetime,
     lag: LagQuantity,
     resolver: TimeAwareWorkingTimeResolver,
 ) -> datetime:
     if lag.unit is not DurationUnit.WORKING_HOUR:
         raise NotImplementedError("time-aware float requires working-hour lag")
     if lag.value >= 0:
-        return resolver.add_working_hours(anchor, lag.value)
-    return resolver.subtract_working_hours(anchor, -lag.value)
+        return resolver.subtract_working_hours(event, lag.value)
+    return resolver.add_working_hours(event, -lag.value)
 
 
 def time_schedule(
