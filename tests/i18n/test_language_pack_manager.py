@@ -55,7 +55,7 @@ def test_manifest_requires_core_fields() -> None:
 
 
 def test_cache_activate_and_rollback(tmp_path: Path) -> None:
-    manager = LanguagePackManager(tmp_path)
+    manager = LanguagePackManager(tmp_path, signature_verifier=lambda _path, _manifest: True)
     artifact_v1 = tmp_path / "fa-v1.zip"
     artifact_v1.write_bytes(b"language-pack-v1")
     m1 = manifest_for(artifact_v1, "1.0.0")
@@ -79,7 +79,7 @@ def test_cache_activate_and_rollback(tmp_path: Path) -> None:
 
 
 def test_checksum_mismatch_rejected(tmp_path: Path) -> None:
-    manager = LanguagePackManager(tmp_path)
+    manager = LanguagePackManager(tmp_path, signature_verifier=lambda _path, _manifest: True)
     artifact = tmp_path / "bad.zip"
     artifact.write_bytes(b"actual")
     manifest = LanguagePackManifest.from_dict(
