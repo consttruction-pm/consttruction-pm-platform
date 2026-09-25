@@ -60,3 +60,13 @@ function normalizeVersion(version: string): number[] {
     return Number(part);
   });
 }
+
+
+export function isNewerPackAvailable(
+  installedVersion: string | null,
+  candidateVersion: string | null,
+): boolean {
+  if (!candidateVersion) return false;
+  if (!installedVersion) return true;
+  return compareVersions(candidateVersion, installedVersion) > 0;
+}
