@@ -72,15 +72,20 @@ def test_real_postgres_atomic_conflict_persists_and_replays():
 
 def test_real_postgres_same_key_executes_delegate_once_across_connections():
     mutation = _mutation(key="live-race-key", mutation_id="live-race-m1")
-    barrier = __import__("threading").Barrier(2)
-    calls = __import__("threading").Lock()
+    import threading
+    import concurrent.futures
+
+    delegate_started = threading.Event()
+    release_delegate = threading.Event()
+    call_lock = threading.Lock()
     call_count = [0]
 
     class RaceDelegate:
         def submit(self, item):
-            with calls:
+            with call_lock:
                 call_count[0] += 1
-            barrier.wait(timeout=5)
+            delegate_started.set()
+            release_delegate.wait(timeout=5)
             return SyncOutcome(item.mutation_id, SyncDisposition.CONFLICT, error_code="REVISION_CONFLICT")
 
     def worker():
@@ -90,10 +95,14 @@ def test_real_postgres_same_key_executes_delegate_once_across_connections():
             executor = AtomicConflictSyncExecutor(store, PostgresTransactionManager(conn), RaceDelegate())
             return executor.submit(mutation)
 
-    import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(worker)
+        assert delegate_started.wait(timeout=5)
         second = pool.submit(worker)
+        import time
+        time.sleep(0.2)
+        assert call_count[0] == 1
+        release_delegate.set()
         first_result = first.result(timeout=10)
         second_result = second.result(timeout=10)
 
