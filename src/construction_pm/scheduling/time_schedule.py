@@ -43,6 +43,24 @@ def _project_resolver(activity: TimeActivity, registry: CalendarResolverRegistry
     return resolved
 
 
+def _validate_project_calendar_context(
+    activities: Iterable[TimeActivity],
+) -> None:
+    activity_list = list(activities)
+    if not activity_list:
+        return
+    first = activity_list[0].calendar_context
+    if first is None:
+        raise ValueError("time-aware activity requires a calendar context")
+    project_ref = first.project
+    for activity in activity_list[1:]:
+        context = activity.calendar_context
+        if context is None:
+            raise ValueError("time-aware activity requires a calendar context")
+        if context.project != project_ref:
+            raise ValueError("time-aware activities must share one project calendar")
+
+
 def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
     if activity.calendar_context is None:
         raise ValueError("time-aware activity requires a calendar context")
