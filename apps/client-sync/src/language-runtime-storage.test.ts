@@ -98,3 +98,61 @@ test("downloads and caches a verified language pack through the shared runtime",
   assert.equal(runtime.current().languageTag, "fa");
   assert.equal(runtime.current().offline, true);
 });
+
+
+test("persists and restores preferred language through a shared preference store", async () => {
+  const store = new InMemoryLanguagePackStore();
+  const values: { value: string | null } = { value: null };
+  const preferenceStore = {
+    async load() {
+      return values.value;
+    },
+    async save(languageTag: string) {
+      values.value = languageTag;
+    },
+  };
+  const runtime = new ClientLanguageRuntime(store, preferenceStore);
+
+  runtime.configure(
+    [
+      {
+        languageTag: "en",
+        direction: "ltr",
+        locale: "en-US",
+        fallbackChain: [],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: true,
+          voiceOutput: true,
+          offlineAi: false,
+        },
+      },
+      {
+        languageTag: "fa",
+        direction: "rtl",
+        locale: "fa-IR",
+        fallbackChain: ["en"],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: true,
+          voiceOutput: true,
+          offlineAi: false,
+        },
+      },
+    ],
+    "en",
+    {
+      preferredLanguage: "en",
+      fallbackChain: ["fa"],
+      installedPacks: [],
+    },
+  );
+
+  await runtime.persistPreferredLanguage("fa");
+  assert.equal(values.value, "fa");
+  assert.equal((await runtime.restorePreferredLanguage()).languageTag, "fa");
+});
