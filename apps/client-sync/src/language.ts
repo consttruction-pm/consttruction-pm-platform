@@ -70,6 +70,8 @@ export class ClientLanguageManager {
       { tag: this.defaultLanguage, source: "default" as const },
     ];
 
+    let firstRegistered: ResolvedLanguage | null = null;
+
     for (const candidate of candidates) {
       const entry = this.registry.find((item) => item.languageTag === candidate.tag);
       if (!entry) continue;
@@ -89,16 +91,22 @@ export class ClientLanguageManager {
         };
       }
 
-      // Registry language may be selected before its pack is downloaded.
-      // Resolution remains useful to the UI, but this result is not offline-ready.
-      return {
-        languageTag: entry.languageTag,
-        source: candidate.source,
-        direction: entry.direction,
-        locale: entry.locale,
-        packVersion: null,
-        offline: false,
-      };
+      // Keep the first registered language as a non-offline fallback only
+      // after every preferred/fallback candidate has been checked for a pack.
+      if (!firstRegistered) {
+        firstRegistered = {
+          languageTag: entry.languageTag,
+          source: candidate.source,
+          direction: entry.direction,
+          locale: entry.locale,
+          packVersion: null,
+          offline: false,
+        };
+      }
+    }
+
+    if (firstRegistered) {
+      return firstRegistered;
     }
 
     throw new Error("no registered language is available");
