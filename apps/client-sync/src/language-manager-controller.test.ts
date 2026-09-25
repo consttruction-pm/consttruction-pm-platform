@@ -75,3 +75,97 @@ test("controller exposes catalog and selection through shared runtime", async ()
   const selected = controller.select("fa");
   assert.equal(selected.languageTag, "fa");
 });
+
+
+test("removes a non-active verified language pack", async () => {
+  const store = new InMemoryLanguagePackStore();
+  await store.put({
+    packageId: "construction-pm.language.fa",
+    languageTag: "fa",
+    version: "1.0.0",
+    verified: true,
+    artifact: new Uint8Array([1]),
+  });
+
+  const runtime = new ClientLanguageRuntime(store);
+  runtime.configure(
+    [
+      {
+        languageTag: "en",
+        direction: "ltr",
+        locale: "en-US",
+        fallbackChain: [],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: false,
+          voiceOutput: false,
+          offlineAi: false,
+        },
+      },
+    ],
+    "en",
+    {
+      preferredLanguage: "en",
+      fallbackChain: [],
+      installedPacks: [],
+    },
+  );
+
+  const controller = new LanguageManagerController(runtime, [], store);
+  await controller.removeInstalledPack(
+    "construction-pm.language.fa",
+    "1.0.0",
+  );
+
+  assert.equal((await store.list()).length, 0);
+});
+
+test("blocks removal of the active language pack", async () => {
+  const store = new InMemoryLanguagePackStore();
+  await store.put({
+    packageId: "construction-pm.language.en",
+    languageTag: "en",
+    version: "1.0.0",
+    verified: true,
+    artifact: new Uint8Array([1]),
+  });
+
+  const runtime = new ClientLanguageRuntime(store);
+  runtime.configure(
+    [
+      {
+        languageTag: "en",
+        direction: "ltr",
+        locale: "en-US",
+        fallbackChain: [],
+        capabilities: {
+          ui: true,
+          help: true,
+          aiText: true,
+          voiceInput: false,
+          voiceOutput: false,
+          offlineAi: false,
+        },
+      },
+    ],
+    "en",
+    {
+      preferredLanguage: "en",
+      fallbackChain: [],
+      installedPacks: [],
+    },
+  );
+
+  const controller = new LanguageManagerController(runtime, [], store);
+
+  await assert.rejects(
+    controller.removeInstalledPack(
+      "construction-pm.language.en",
+      "1.0.0",
+    ),
+    /CANNOT_REMOVE_ACTIVE_LANGUAGE_PACK/,
+  );
+  assert.equal((await store.list()).length, 1);
+});
