@@ -34,8 +34,8 @@ test("local model lifecycle loads the selected model and exposes active provenan
     async load(packageId: string, version: string) {
       loaded.push(packageId + "@" + version);
     },
-    async unload(packageId: string) {
-      unloaded.push(packageId);
+    async unload(packageId: string, version: string) {
+      unloaded.push(packageId + "@" + version);
     },
     isLoaded: () => true,
     async complete() {
@@ -61,7 +61,9 @@ test("local model lifecycle evicts the least-recently-used inactive model before
   const unloaded: string[] = [];
   const engine = {
     async load() {},
-    async unload(packageId: string) { unloaded.push(packageId); },
+    async unload(packageId: string, version: string) {
+      unloaded.push(packageId + "@" + version);
+    },
     isLoaded: () => true,
     async complete() {
       return { text: "ok", modelPackageId: "x", modelVersion: "1.0.0" };
@@ -108,7 +110,7 @@ test("local model lifecycle evicts the least-recently-used inactive model before
   selectedIndex = 2;
   await manager.prepare("0.1.0", device);
 
-  assert.deepEqual(unloaded, ["ai.fa.text"]);
+  assert.deepEqual(unloaded, ["ai.fa.text@1.0.0"]);
   assert.equal(manager.snapshot().activePackageId, "ai.de.text");
 });
 
