@@ -3,6 +3,7 @@ import {
   PersistentLanguagePackStore,
   type PersistentLanguagePackBackend,
 } from "../../client-sync/src/persistent-language-pack-store.js";
+import type { LanguagePreferenceStore } from "../../client-sync/src/language-preference-store.js";
 import type {
   LanguagePackDownloadManifest,
   LanguagePackDownloadProgress,
@@ -24,11 +25,15 @@ export type MobileProjectState = { tenant_id: string; project_id: string; revisi
 
 export class MobileRuntime {
   private readonly languageRuntime: ClientLanguageRuntime;
-  constructor(languagePackBackend?: PersistentLanguagePackBackend) {
+  constructor(
+    languagePackBackend?: PersistentLanguagePackBackend,
+    languagePreferenceStore?: LanguagePreferenceStore,
+  ) {
     this.languageRuntime = new ClientLanguageRuntime(
       languagePackBackend
         ? new PersistentLanguagePackStore(languagePackBackend)
         : null,
+      languagePreferenceStore ?? null,
     );
   }
   private state: MobileProjectState | null = null;
@@ -87,6 +92,14 @@ export class MobileRuntime {
 
   setPreferredLanguage(languageTag: string) {
     return this.languageRuntime.setPreferredLanguage(languageTag);
+  }
+
+  async persistPreferredLanguage(languageTag: string) {
+    return this.languageRuntime.persistPreferredLanguage(languageTag);
+  }
+
+  async restorePreferredLanguage() {
+    return this.languageRuntime.restorePreferredLanguage();
   }
 
   canUseLanguageOffline(languageTag: string): boolean {
