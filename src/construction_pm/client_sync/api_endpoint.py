@@ -26,17 +26,17 @@ class VersionedSyncEndpoint:
             idempotency_key=str(body["idempotency_key"]),
         )
         if headers.get("Idempotency-Key") != mutation.idempotency_key:
-            return {"mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "INVALID_IDEMPOTENCY_KEY"}
+            return {"contract_version": "sync-outcome.v1", "mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "INVALID_IDEMPOTENCY_KEY"}
         if headers.get("X-Tenant-Id") != mutation.tenant_id or headers.get("X-Project-Id") != mutation.project_id:
-            return {"mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "INVALID_PROJECT_CONTEXT"}
+            return {"contract_version": "sync-outcome.v1", "mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "INVALID_PROJECT_CONTEXT"}
         if headers.get("X-Project-Revision") != str(mutation.expected_revision):
-            return {"mutation_id": mutation.mutation_id, "disposition": "conflict", "error_code": "STALE_REVISION"}
+            return {"contract_version": "sync-outcome.v1", "mutation_id": mutation.mutation_id, "disposition": "conflict", "error_code": "STALE_REVISION"}
         if self.idempotency is not None:
             try:
                 outcome = self.idempotency.execute_lazy(mutation, lambda: self.gateway.submit_mutation(mutation))
             except ValueError as exc:
                 if str(exc) == "IDEMPOTENCY_KEY_REUSE":
-                    return {"mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "IDEMPOTENCY_KEY_REUSE"}
+                    return {"contract_version": "sync-outcome.v1", "mutation_id": mutation.mutation_id, "disposition": "rejected", "error_code": "IDEMPOTENCY_KEY_REUSE"}
                 raise
         else:
             outcome = self.gateway.submit_mutation(mutation)
