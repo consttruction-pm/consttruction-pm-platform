@@ -1,6 +1,6 @@
 import type { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
 import type { LanguagePackCatalog } from "../../client-sync/src/language-pack-catalog.js";
-import { selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.js";
+import { isNewerPackAvailable, selectCompatiblePack } from "../../client-sync/src/language-pack-catalog.js";
 import { displayLanguageName } from "./language-display-name.js";
 import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.js";
 
@@ -119,6 +119,12 @@ export class WebLanguageManagerView {
       if (row.selected) {
         button.textContent = "Selected";
         button.disabled = true;
+      } else if (row.installedVersion && row.verified && compatible &&
+                 isNewerPackAvailable(row.installedVersion, compatible.version)) {
+        button.textContent = "Update";
+        button.addEventListener("click", () => {
+          void this.download(compatible);
+        });
       } else if (row.installedVersion && row.verified) {
         button.textContent = "Use";
         button.addEventListener("click", () => {
@@ -135,6 +141,19 @@ export class WebLanguageManagerView {
       }
 
       actionCell.append(button);
+
+      if (!row.selected && row.installedVersion && row.verified && row.installedPackageId) {
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "Remove";
+        removeButton.addEventListener("click", () => {
+          void this.removeInstalled(
+            row.installedPackageId!,
+            row.installedVersion!,
+          );
+        });
+        actionCell.append(removeButton);
+      }
       tr.append(actionCell);
       body.append(tr);
     }
@@ -147,6 +166,19 @@ export class WebLanguageManagerView {
     try {
       await this.options.onActivateInstalledLanguage?.(languageTag, version);
       await this.options.controller.persistSelection(languageTag);
+      await this.refresh();
+    } catch (error) {
+      this.options.root.dispatchEvent(
+        new CustomEvent("language-manager-error", {
+          detail: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+
+  private async removeInstalled(packageId: string, version: string): Promise<void> {
+    try {
+      await this.options.controller.removeInstalledPack(packageId, version);
       await this.refresh();
     } catch (error) {
       this.options.root.dispatchEvent(
