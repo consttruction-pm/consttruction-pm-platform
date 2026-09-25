@@ -68,9 +68,11 @@ export class WebLanguageManagerView {
 
     const copy = this.options.copy;
     const heading = document.createElement("h2");
-    const currentLanguage = state.rows.find((row) => row.selected)?.languageTag ?? state.selectedLanguage;
+    const selectedRow = state.rows.find((row) => row.selected);
+    const currentLanguage = selectedRow?.languageTag ?? state.selectedLanguage;
     heading.textContent = copy.title;
-    root.dir = currentLanguage === "fa" ? "rtl" : (state.rows.find((row) => row.selected)?.direction ?? "ltr");
+    root.lang = currentLanguage;
+    root.dir = selectedRow?.direction ?? "ltr";
     root.append(heading);
 
     const status = document.createElement("p");
