@@ -8,6 +8,15 @@ from .server_gateway import IdempotentMutationGateway
 from .offline_mutation import OfflineMutation
 
 
+def _versioned_revision_error(tenant_id: str, project_id: str, code: str) -> dict[str, object]:
+    return {
+        "contract_version": "sync-project-revision.v1",
+        "tenant_id": tenant_id,
+        "project_id": project_id,
+        "error_code": code,
+    }
+
+
 @dataclass(frozen=True)
 class VersionedSyncEndpoint:
     """Framework-neutral handler for POST /api/v1/sync/mutations."""
@@ -59,13 +68,15 @@ class VersionedSyncRevisionEndpoint:
 
     def get(self, headers: Mapping[str, str]) -> dict[str, object]:
         if headers.get("X-Tenant-Id") != self.tenant_id or headers.get("X-Project-Id") != self.project_id:
-            return {"contract_version": "sync-project-revision.v1", "tenant_id": self.tenant_id, "project_id": self.project_id, "error_code": "INVALID_PROJECT_CONTEXT"}
-        revision = int(self.revision_provider(self.tenant_id, self.project_id))
-        if revision < 0:
+            return _versioned_revision_error(self.tenant_id, self.project_id, "INVALID_PROJECT_CONTEXT")
+
+        raw_revision = self.revision_provider(self.tenant_id, self.project_id)
+        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise ValueError("INVALID_PROJECT_REVISION")
+
         return {
             "contract_version": "sync-project-revision.v1",
             "tenant_id": self.tenant_id,
             "project_id": self.project_id,
-            "revision": revision,
+            "revision": raw_revision,
         }
