@@ -23,16 +23,22 @@ A web-ready construction project management platform designed as a structured re
 7. Audit/revision history is append-only for effective project changes.
 
 ## Current documented implementation point
-Stage 33.4.30 — Time-Aware CPM Calendar Integration: in progress.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current documented sync/platform work is at **Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock**, implemented with runtime verification pending.
 
-Latest completed foundation:
-- Stage 33.4.29 — Activity & Relationship-Lag Calendar Resolution.
-- Explicit versioned project/activity/relationship-lag calendar references.
-- Time-aware Forward/Backward scheduling with FS/SS/FF/SF and signed working-hour lag.
-- Working-time arithmetic across split daily intervals, holidays and calendar boundaries.
-- Recent late-finish, lag-boundary and optimistic-lock/idempotency regressions addressed in `main`.
+Recent completed gates:
+- Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
+- Stage 33.4.66 — Cross-Client Parity Regression Gate: runtime-verified.
+- Stage 33.4.67 — Shared Offline Mutation Queue Client Gate: runtime-verified.
+- Stage 33.4.68 — Shared Client API Sync Transport Boundary: runtime-verified.
+- Stage 33.4.69 — End-to-End Client Sync Outcome Regression: runtime-verified.
+- Stage 33.4.70 — Authoritative Conflict Revision Refresh & Cross-Client Retry Boundary: implemented; runtime verification pending.
+- Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock: implemented; runtime verification pending.
 
-Current focus:
-- Authoritative project-calendar resolution in time-aware CPM.
-- Cross-calendar Forward/Backward and relationship-lag regression coverage.
-- CI verification before closing Stage 33.4.30.
+Current sync/platform focus:
+- Preserve authoritative revision refresh before stale-revision retry.
+- Serialize same-key idempotent mutation execution at the PostgreSQL transaction boundary.
+- Keep distinct idempotency keys concurrently executable.
+- Maintain ACK/RETRY/CONFLICT/REJECTED semantics across Web/Desktop/Mobile.
+- Complete runtime verification only when GitHub Actions provides executable job steps and test results.
+
+No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics are changed by the current sync-platform gates.
