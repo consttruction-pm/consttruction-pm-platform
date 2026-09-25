@@ -145,7 +145,6 @@ export class ClientLanguageRuntime {
       })),
     );
   }
-}
 
   async cachedResourceManifest(
     packageId: string,
@@ -156,3 +155,4 @@ export class ClientLanguageRuntime {
     }
     return this.resourceManifestStore.get(packageId, version);
   }
+}
