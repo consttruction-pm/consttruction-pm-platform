@@ -5,6 +5,10 @@ import type {
 import type {
   LanguagePreferenceStore,
 } from "../../client-sync/src/language-preference-store.js";
+import type {
+  CachedLanguagePackResources,
+  LanguagePackResourceManifestStore,
+} from "../../client-sync/src/language-pack-resource-manifest-store.js";
 
 export interface MobileKeyValueStorage {
   get(key: string): Promise<string | null>;
@@ -14,6 +18,7 @@ export interface MobileKeyValueStorage {
 
 const PACKS_KEY = "construction-pm.language-packs";
 const PREFERENCE_KEY = "construction-pm.preferred-language";
+const RESOURCE_MANIFESTS_KEY = "construction-pm.language-pack-resource-manifests";
 
 export class MobileKeyValueLanguagePackStore implements LanguagePackStore {
   constructor(private readonly storage: MobileKeyValueStorage) {}
@@ -112,4 +117,46 @@ function base64ToBytes(value: string): Uint8Array {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+
+export class MobileKeyValueLanguagePackResourceManifestStore
+  implements LanguagePackResourceManifestStore
+{
+  constructor(private readonly storage: MobileKeyValueStorage) {}
+
+  async get(packageId: string, version: string): Promise<CachedLanguagePackResources | null> {
+    const manifests = await this.list();
+    return manifests.find(
+      (item) => item.packageId === packageId && item.version === version,
+    ) ?? null;
+  }
+
+  async put(manifest: CachedLanguagePackResources): Promise<void> {
+    if (!manifest.packageId || !manifest.languageTag || !manifest.version) {
+      throw new Error("INVALID_LANGUAGE_PACK_RESOURCE_MANIFEST");
+    }
+    const manifests = (await this.list()).filter(
+      (item) => !(item.packageId === manifest.packageId && item.version === manifest.version),
+    );
+    manifests.push({ ...manifest, resources: { ...manifest.resources } });
+    await this.storage.set(RESOURCE_MANIFESTS_KEY, JSON.stringify(manifests));
+  }
+
+  async remove(packageId: string, version: string): Promise<void> {
+    const manifests = (await this.list()).filter(
+      (item) => !(item.packageId === packageId && item.version === version),
+    );
+    await this.storage.set(RESOURCE_MANIFESTS_KEY, JSON.stringify(manifests));
+  }
+
+  private async list(): Promise<readonly CachedLanguagePackResources[]> {
+    const raw = await this.storage.get(RESOURCE_MANIFESTS_KEY);
+    if (!raw) return [];
+    const value = JSON.parse(raw) as CachedLanguagePackResources[];
+    return value.map((item) => ({
+      ...item,
+      resources: { ...item.resources },
+    }));
+  }
 }
