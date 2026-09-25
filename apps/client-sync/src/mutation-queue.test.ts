@@ -53,4 +53,15 @@ test("retryAtRevision rejects unknown mutations and invalid revisions", () => {
   assert.throws(() => queue.retryAtRevision("m1", Number.MAX_SAFE_INTEGER + 1), {
     message: "INVALID_EXPECTED_REVISION",
   });
+
+  assert.throws(() => queue.enqueue({
+    contract_version: "sync-mutation.v1",
+    mutation_id: "m2",
+    tenant_id: "t1",
+    project_id: "p1",
+    expected_revision: 8.5,
+    operation: "update_activity",
+    payload: {},
+    idempotency_key: "idem-2",
+  }), { message: "INVALID_EXPECTED_REVISION" });
 });
