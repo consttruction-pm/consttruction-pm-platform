@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import type { SyncMutation, SyncOutcome } from "../../client-sync/src/mutation-queue.js";
+import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
 
 const mutation: SyncMutation = {
   contract_version: "sync-mutation.v1",
@@ -61,7 +62,7 @@ test("web sync runtime rotates the idempotency key for stale revision retry", ()
 test("web runtime refreshes the project revision", async () => {
   const runtime = new WebSyncRuntime();
   const revision = await runtime.refreshRevision({
-    async get<TResponse>(path, context) {
+    async get<TResponse>(path: string, context: SyncProjectContext) {
       assert.equal(path, "/api/v1/sync/revision");
       assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
       return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8 } as TResponse };
