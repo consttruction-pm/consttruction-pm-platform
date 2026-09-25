@@ -15,8 +15,30 @@ const mutation: SyncMutation = {
   idempotency_key: "idem-1",
 };
 
+test("web runtime requires an opened project context for mutations", () => {
+  const runtime = new WebSyncRuntime();
+  assert.throws(() => runtime.queueMutation(mutation), /PROJECT_CONTEXT_NOT_SET/);
+  assert.deepEqual(runtime.openProject("t1", "p1", 7), {
+    tenant_id: "t1",
+    project_id: "p1",
+    revision: 7,
+  });
+  runtime.queueMutation(mutation);
+  assert.equal(runtime.pendingMutationCount(), 1);
+});
+
+test("web runtime rejects mutations from another project", () => {
+  const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
+  assert.throws(
+    () => runtime.queueMutation({ ...mutation, project_id: "p2" }),
+    /PROJECT_CONTEXT_MISMATCH/,
+  );
+});
+
 test("web sync runtime consumes the shared conflict outcome contract", async () => {
   const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
   runtime.queueMutation(mutation);
   const outcome: SyncOutcome = {
     contract_version: "sync-outcome.v1",
@@ -43,6 +65,7 @@ test("web sync runtime consumes the shared conflict outcome contract", async () 
 
 test("web sync runtime retries stale revision only after authoritative refresh", async () => {
   const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
   runtime.queueMutation(mutation);
   const outcome: SyncOutcome = {
     contract_version: "sync-outcome.v1",
@@ -61,30 +84,33 @@ test("web sync runtime retries stale revision only after authoritative refresh",
 
   assert.equal(retried.expected_revision, 42);
   assert.equal(retried.idempotency_key, "idem-1:r42");
+  assert.equal(runtime.currentProject().revision, 42);
   assert.equal(runtime.pendingMutationCount(), 1);
 });
 
-
 test("web runtime refreshes the project revision", async () => {
   const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
   const revision = await runtime.refreshRevision({
     async get<TResponse>(path: string, context: SyncProjectContext) {
       assert.equal(path, "/api/v1/sync/revision");
       assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
       return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8 } as TResponse };
     },
-  }, "t1", "p1", 7);
+  });
   assert.equal(revision, 8);
+  assert.equal(runtime.currentProject().revision, 8);
 });
 
 test("web runtime rejects an invalid authoritative revision response", async () => {
   const runtime = new WebSyncRuntime();
+  runtime.openProject("t1", "p1", 7);
   await assert.rejects(
     runtime.refreshRevision({
       async get<TResponse>() {
         return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8.5 } as TResponse };
       },
-    }, "t1", "p1", 7),
+    }),
     /INVALID_PROJECT_REVISION_RESPONSE/,
   );
 });
