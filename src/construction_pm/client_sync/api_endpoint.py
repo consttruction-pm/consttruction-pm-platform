@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Callable, Mapping
 
 from .application_gateway import ApplicationSyncGateway
 from .server_gateway import IdempotentMutationGateway
@@ -55,7 +55,7 @@ class VersionedSyncRevisionEndpoint:
 
     tenant_id: str
     project_id: str
-    revision_provider: object
+    revision_provider: Callable[[str, str], int]
 
     def get(self, headers: Mapping[str, str]) -> dict[str, object]:
         if headers.get("X-Tenant-Id") != self.tenant_id or headers.get("X-Project-Id") != self.project_id:
