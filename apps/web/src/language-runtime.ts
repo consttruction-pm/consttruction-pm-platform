@@ -1,6 +1,13 @@
 import {
   ClientLanguageRuntime,
 } from "../../client-sync/src/language-runtime.js";
+import {
+  ClientLanguageShellLifecycle,
+} from "../../client-sync/src/language-shell-lifecycle.js";
+import type {
+  LanguagePreference,
+  LanguageRegistryEntry,
+} from "../../client-sync/src/language.js";
 import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
@@ -79,6 +86,27 @@ export class WebLanguageRuntime {
       throw new Error("LANGUAGE_RESOURCE_EXTRACTOR_NOT_CONFIGURED");
     }
     return this.activationService.activate(manifest);
+  }
+
+  async initializeLanguage(
+    registry: readonly LanguageRegistryEntry[],
+    defaultLanguage: string,
+    preference: LanguagePreference,
+  ) {
+    const shell = new ClientLanguageShellLifecycle(
+      this.language,
+      (packageId, version) => this.activateCachedLanguagePack(packageId, version),
+    );
+    shell.configure(registry, defaultLanguage, preference);
+    return shell.initialize();
+  }
+
+  async switchToInstalledLanguage(languageTag: string) {
+    const shell = new ClientLanguageShellLifecycle(
+      this.language,
+      (packageId, version) => this.activateCachedLanguagePack(packageId, version),
+    );
+    return shell.switchToInstalledLanguage(languageTag);
   }
 
   async activateCachedLanguagePack(
