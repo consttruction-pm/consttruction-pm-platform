@@ -17,3 +17,4 @@ test("retryAtRevision rejects unsafe and fractional revisions",()=>{const queue=
 test("retryAtRevision is idempotent when revision is unchanged",()=>{const queue=new OfflineMutationQueue();queue.enqueue({...mutation,payload:{}});const retried=queue.retryAtRevision("m1",7);assert.equal(retried.idempotency_key,"idem-1");assert.equal(queue.size(),1);});
 
 test("adapter does not discard retry timing",()=>{assert.throws(()=>toAuthoritativeSyncOutcome(mutation,{...outcome("conflict"),retry_after_seconds:5}),/UNREPRESENTABLE_RETRY_METADATA/);});
+test("reverse adapter rejects authoritative revision and retryability it cannot carry",()=>{assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"conflict",revision:8}),/UNREPRESENTABLE_REVISION/);assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"conflict",retryable:true}),/UNREPRESENTABLE_RETRYABLE/);});
