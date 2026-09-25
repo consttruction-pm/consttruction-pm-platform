@@ -20,9 +20,9 @@ export interface ClientSyncTransport {
 
 export class ClientSyncRunner {
   private readonly queue: OfflineMutationQueue;
-  private readonly transport: ClientSyncTransport;
+  private readonly transport?: ClientSyncTransport;
 
-  constructor(queue: OfflineMutationQueue, transport: ClientSyncTransport) {
+  constructor(queue: OfflineMutationQueue, transport?: ClientSyncTransport) {
     this.queue = queue;
     this.transport = transport;
   }
@@ -55,6 +55,7 @@ export class ClientSyncRunner {
   }
 
   async runOnce(): Promise<readonly SyncOutcome[]> {
+    if (!this.transport) throw new Error("SYNC_SUBMIT_NOT_CONFIGURED");
     const outcomes: SyncOutcome[] = [];
     for (const mutation of this.queue.pending()) {
       const outcome = await this.transport.submit(mutation);
