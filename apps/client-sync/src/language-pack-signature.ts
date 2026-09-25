@@ -12,6 +12,7 @@ export type LanguagePackSigningKey = {
 };
 
 export interface LanguagePackSignatureCrypto {
+  digestSha256(data: Uint8Array): Promise<Uint8Array>;
   verifyEd25519(
     publicKey: Uint8Array,
     signature: Uint8Array,
@@ -72,7 +73,10 @@ export class RegistryBackedLanguagePackSignatureVerifier
       return false;
     }
 
-    const checksum = await sha256Hex(artifact);
+    const digest = await this.crypto.digestSha256(artifact);
+    const checksum = [...digest]
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
     if (
       checksum.toLowerCase() !==
       manifest.checksum.slice("sha256:".length).toLowerCase()
@@ -128,18 +132,31 @@ function parseSignature(value: string): {
 }
 
 function decodeBase64Url(value: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+  if (!/^[A-Za-z0-9_-]*$/.test(value) || value.length % 4 === 1) {
     throw new Error("INVALID_LANGUAGE_PACK_SIGNATURE_ENCODING");
   }
-  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
-  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-  let decoded: string;
-  try {
-    decoded = atob(padded);
-  } catch {
-    throw new Error("INVALID_LANGUAGE_PACK_SIGNATURE_ENCODING");
+
+  const alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  const output: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+
+  for (const character of value) {
+    const digit = alphabet.indexOf(character);
+    if (digit < 0) {
+      throw new Error("INVALID_LANGUAGE_PACK_SIGNATURE_ENCODING");
+    }
+    buffer = (buffer << 6) | digit;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      output.push((buffer >>> bits) & 0xff);
+      buffer &= (1 << bits) - 1;
+    }
   }
-  return Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+
+  return new Uint8Array(output);
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
