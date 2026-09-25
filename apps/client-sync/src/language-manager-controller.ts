@@ -23,7 +23,7 @@ export class LanguageManagerController {
   constructor(
     private readonly runtime: ClientLanguageRuntime,
     registry: readonly LanguageRegistryEntry[],
-    store: LanguagePackStore,
+    private readonly store: LanguagePackStore,
   ) {
     this.catalog = new LanguageCatalogService(registry, store);
   }
@@ -42,6 +42,18 @@ export class LanguageManagerController {
 
   async persistSelection(languageTag: string) {
     return this.runtime.persistPreferredLanguage(languageTag);
+  }
+
+  async removeInstalledPack(
+    packageId: string,
+    version: string,
+  ): Promise<LanguageManagerState> {
+    const current = this.runtime.current();
+    if (current.packVersion === version) {
+      throw new Error("CANNOT_REMOVE_ACTIVE_LANGUAGE_PACK");
+    }
+    await this.store.remove(packageId, version);
+    return this.refresh();
   }
 
   async download(
