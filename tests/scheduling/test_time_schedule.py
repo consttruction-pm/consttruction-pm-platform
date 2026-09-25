@@ -867,3 +867,27 @@ def test_time_schedule_mixed_relationships_preserve_float_reconciliation():
     assert result.floats["B"].critical is False
     assert result.floats["C"].critical is False
     assert result.floats["D"].total_float_hours == Decimal("4")
+
+
+def test_time_schedule_constraints_do_not_hide_relationship_violation_in_backward_pass():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+    ]
+    relationships = [TimeRelationship("A", "B", RelationshipType.FS)]
+    constraint = TimeActivityConstraint(
+        "B",
+        TimeConstraintType.MANDATORY_START,
+        datetime(2026, 9, 22, 9),
+    )
+
+    with pytest.raises(ValueError, match="mandatory start conflicts"):
+        time_schedule(
+            activities,
+            relationships,
+            datetime(2026, 9, 22, 8),
+            datetime(2026, 9, 22, 10),
+            registry(),
+            [constraint],
+        )
