@@ -185,19 +185,12 @@ def test_time_backward_pass_rejects_mixed_project_calendar_references():
             project_b, activity_ref, activity_ref
         )),
     ]
-    early = time_forward_pass(
-        activities,
-        [],
-        datetime(2026, 9, 22, 8),
-        registry,
-    )
 
     with pytest.raises(ValueError, match="must share one project calendar"):
-        time_backward_pass(
+        time_forward_pass(
             activities,
             [],
-            early,
-            datetime(2026, 9, 22, 17),
+            datetime(2026, 9, 22, 8),
             registry,
         )
 
