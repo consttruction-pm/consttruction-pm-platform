@@ -63,6 +63,14 @@ export class ClientLanguageManager {
     return this.resolve();
   }
 
+  setInstalledPacks(installedPacks: readonly InstalledLanguagePack[]): ResolvedLanguage {
+    this.preference = {
+      ...this.preference,
+      installedPacks: installedPacks.map((pack) => ({ ...pack })),
+    };
+    return this.resolve();
+  }
+
   resolve(): ResolvedLanguage {
     const candidates = [
       { tag: this.preference.preferredLanguage, source: "preferred" as const },
