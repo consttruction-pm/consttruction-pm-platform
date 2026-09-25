@@ -53,7 +53,7 @@ export class OfflineMutationQueue {
   }
 
   retryAtRevision(mutationId: string, expectedRevision: number): SyncMutation {
-    if (expectedRevision < 0) {
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
       throw new Error("INVALID_EXPECTED_REVISION");
     }
 
@@ -65,6 +65,9 @@ export class OfflineMutationQueue {
     }
 
     const current = this.pendingMutations[index];
+    if (current.expected_revision === expectedRevision) {
+      return current;
+    }
     const mutation = Object.freeze({
       ...current,
       expected_revision: expectedRevision,
