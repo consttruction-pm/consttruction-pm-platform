@@ -833,3 +833,37 @@ def test_time_schedule_constraint_induced_negative_float_marks_constrained_path_
     assert result.floats["B"].critical
     assert result.floats["A"].free_float_hours == Decimal("0")
     assert result.floats["C"].critical is False
+
+
+def test_time_schedule_mixed_relationships_preserve_float_reconciliation():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("D", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.SS),
+        TimeRelationship("A", "C", RelationshipType.FS),
+        TimeRelationship("B", "D", RelationshipType.FF),
+        TimeRelationship("C", "D", RelationshipType.SF),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 14),
+        registry(),
+    )
+
+    assert result.early_activities["A"].start == datetime(2026, 9, 22, 8)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 8)
+    assert result.early_activities["C"].start == datetime(2026, 9, 22, 9)
+    assert result.early_activities["D"].finish == datetime(2026, 9, 22, 10)
+    assert result.floats["A"].total_float_hours == Decimal("0")
+    assert result.floats["A"].critical
+    assert result.floats["B"].critical is False
+    assert result.floats["C"].critical is False
+    assert result.floats["D"].total_float_hours == Decimal("4")
