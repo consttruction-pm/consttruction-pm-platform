@@ -112,3 +112,23 @@ def test_checksum_mismatch_rejected(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="checksum mismatch"):
         manager.cache_pack(manifest, artifact)
+
+def test_rollback_rejects_tampered_backup(tmp_path: Path) -> None:
+    manager = LanguagePackManager(tmp_path, signature_verifier=lambda _path, _manifest: True)
+    artifact_v1 = tmp_path / "fa-v1.zip"
+    artifact_v1.write_bytes(b"language-pack-v1")
+    m1 = manifest_for(artifact_v1, "1.0.0")
+    manager.cache_pack(m1, artifact_v1)
+    manager.activate(m1)
+
+    artifact_v2 = tmp_path / "fa-v2.zip"
+    artifact_v2.write_bytes(b"language-pack-v2")
+    m2 = manifest_for(artifact_v2, "1.1.0")
+    manager.cache_pack(m2, artifact_v2)
+    manager.activate(m2)
+
+    backup_artifact = tmp_path / "backup" / m2.package_id / "pack.artifact"
+    backup_artifact.write_bytes(b"tampered")
+
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        manager.rollback(m2.package_id)
