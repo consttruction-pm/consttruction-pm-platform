@@ -5,6 +5,7 @@ import {
   type ResolvedLanguage,
 } from "./language.ts";
 import type { LanguagePackStore } from "./language-pack-store.ts";
+import type { LanguagePreferenceStore } from "./language-preference-store.ts";
 import {
   LanguagePackDownloadService,
   type LanguagePackDownloadManifest,
@@ -16,7 +17,10 @@ import {
 export class ClientLanguageRuntime {
   private manager: ClientLanguageManager | null = null;
 
-  constructor(private readonly packStore: LanguagePackStore | null = null) {}
+  constructor(
+    private readonly packStore: LanguagePackStore | null = null,
+    private readonly preferenceStore: LanguagePreferenceStore | null = null,
+  ) {}
 
   configure(
     registry: readonly LanguageRegistryEntry[],
@@ -43,6 +47,30 @@ export class ClientLanguageRuntime {
       throw new Error("LANGUAGE_RUNTIME_NOT_CONFIGURED");
     }
     return this.manager.setPreferredLanguage(languageTag);
+  }
+
+  async persistPreferredLanguage(languageTag: string): Promise<ResolvedLanguage> {
+    const resolved = this.setPreferredLanguage(languageTag);
+    if (!this.preferenceStore) {
+      throw new Error("LANGUAGE_PREFERENCE_STORE_NOT_CONFIGURED");
+    }
+    await this.preferenceStore.save(languageTag);
+    return resolved;
+  }
+
+  async restorePreferredLanguage(): Promise<ResolvedLanguage> {
+    if (!this.manager) {
+      throw new Error("LANGUAGE_RUNTIME_NOT_CONFIGURED");
+    }
+    if (!this.preferenceStore) {
+      throw new Error("LANGUAGE_PREFERENCE_STORE_NOT_CONFIGURED");
+    }
+
+    const saved = await this.preferenceStore.load();
+    if (!saved) {
+      return this.manager.resolve();
+    }
+    return this.manager.setPreferredLanguage(saved);
   }
 
   canUseLanguageOffline(languageTag: string): boolean {
