@@ -157,3 +157,42 @@ test("idempotency and operation mismatches are rejected", () => {
     /OPERATION_MISMATCH/,
   );
 });
+
+
+test("retryAtRevision rejects unsafe and fractional revisions", () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue({
+    contract_version: "sync-mutation.v1",
+    mutation_id: "m1",
+    tenant_id: "t1",
+    project_id: "p1",
+    expected_revision: 7,
+    operation: "update_activity",
+    payload: {},
+    idempotency_key: "idem-1",
+  });
+
+  for (const revision of [8.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity]) {
+    assert.throws(() => queue.retryAtRevision("m1", revision), {
+      message: "INVALID_EXPECTED_REVISION",
+    });
+  }
+});
+
+test("retryAtRevision is idempotent when revision is unchanged", () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue({
+    contract_version: "sync-mutation.v1",
+    mutation_id: "m1",
+    tenant_id: "t1",
+    project_id: "p1",
+    expected_revision: 7,
+    operation: "update_activity",
+    payload: {},
+    idempotency_key: "idem-1",
+  });
+
+  const retried = queue.retryAtRevision("m1", 7);
+  assert.equal(retried.idempotency_key, "idem-1");
+  assert.equal(queue.size(), 1);
+});
