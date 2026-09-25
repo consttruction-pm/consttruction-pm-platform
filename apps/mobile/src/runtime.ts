@@ -1,4 +1,6 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
+import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import type { LanguageRegistryEntry } from "../../client-sync/src/language.ts";
 import {
   PersistentLanguagePackStore,
   type PersistentLanguagePackBackend,
@@ -26,7 +28,7 @@ export type MobileProjectState = { tenant_id: string; project_id: string; revisi
 export class MobileRuntime {
   private readonly languageRuntime: ClientLanguageRuntime;
   constructor(
-    languagePackBackend?: PersistentLanguagePackBackend,
+    private readonly languagePackBackend?: PersistentLanguagePackBackend,
     languagePreferenceStore?: LanguagePreferenceStore,
   ) {
     this.languageRuntime = new ClientLanguageRuntime(
@@ -89,6 +91,23 @@ export class MobileRuntime {
   currentLanguage() {
     return this.languageRuntime.current();
   }
+
+  createLanguageManagerController(
+    registry: readonly LanguageRegistryEntry[],
+  ): LanguageManagerController {
+    if (!this.languageRuntime.isConfigured()) {
+      throw new Error("LANGUAGE_RUNTIME_NOT_CONFIGURED");
+    }
+    if (!this.languagePackBackend) {
+      throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
+    }
+    return new LanguageManagerController(
+      this.languageRuntime,
+      registry,
+      new PersistentLanguagePackStore(this.languagePackBackend),
+    );
+  }
+
 
   setPreferredLanguage(languageTag: string) {
     return this.languageRuntime.setPreferredLanguage(languageTag);
