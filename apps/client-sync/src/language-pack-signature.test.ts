@@ -91,6 +91,9 @@ test("registry-backed language pack signature verifier accepts a valid rotated k
   const verifier = new RegistryBackedLanguagePackSignatureVerifier(
     new LanguagePackSigningKeyRegistry([key]),
     {
+      async digestSha256(data) {
+        return new Uint8Array(await subtle.digest("SHA-256", data));
+      },
       async verifyEd25519(publicKey, signature, message) {
         const imported = await subtle.importKey(
           "raw",
