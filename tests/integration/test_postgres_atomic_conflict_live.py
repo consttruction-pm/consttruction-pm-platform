@@ -76,6 +76,7 @@ def test_real_postgres_same_key_executes_delegate_once_across_connections():
     import concurrent.futures
 
     delegate_started = threading.Event()
+    second_worker_started = threading.Event()
     release_delegate = threading.Event()
     call_lock = threading.Lock()
     call_count = [0]
@@ -89,6 +90,7 @@ def test_real_postgres_same_key_executes_delegate_once_across_connections():
             return SyncOutcome(item.mutation_id, SyncDisposition.CONFLICT, error_code="REVISION_CONFLICT")
 
     def worker():
+        second_worker_started.set()
         with _connect() as conn:
             store = PostgresSyncStateStore(conn)
             store.initialize()
@@ -99,9 +101,7 @@ def test_real_postgres_same_key_executes_delegate_once_across_connections():
         first = pool.submit(worker)
         assert delegate_started.wait(timeout=5)
         second = pool.submit(worker)
-        import time
-        time.sleep(0.2)
-        assert call_count[0] == 1
+        assert second_worker_started.wait(timeout=5)
         release_delegate.set()
         first_result = first.result(timeout=10)
         second_result = second.result(timeout=10)
