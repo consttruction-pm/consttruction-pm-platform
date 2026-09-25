@@ -75,6 +75,7 @@ export type DesktopLanguageManagerRow = LanguageManagerRow & {
   action: DesktopLanguageManagerAction;
   actionLabel: string;
   removeAvailable: boolean;
+  removeAction: DesktopLanguageManagerAction | null;
 };
 
 export type DesktopLanguageManagerSurface = {
@@ -176,13 +177,23 @@ function toDesktopRow(
   const action = getAction(row, compatible);
   const actionLabel = getActionLabel(action, copy);
 
+  const removeAvailable =
+    !row.selected && Boolean(row.installedPackageId && row.installedVersion);
+
   return {
     ...row,
     displayName: displayDesktopLanguageName(row.languageTag, uiLanguage),
     action,
     actionLabel,
-    removeAvailable:
-      !row.selected && Boolean(row.installedPackageId && row.installedVersion),
+    removeAvailable,
+    removeAction:
+      removeAvailable
+        ? {
+            kind: "remove-installed",
+            packageId: row.installedPackageId!,
+            version: row.installedVersion!,
+          }
+        : null,
   };
 }
 
