@@ -39,7 +39,7 @@ export class ClientSyncRunner {
     if (
       revision.tenant_id !== mutation.tenant_id ||
       revision.project_id !== mutation.project_id ||
-      revision.revision < 0
+      !Number.isSafeInteger(revision.revision) || revision.revision < 0
     ) {
       throw new Error("INVALID_PROJECT_REVISION_RESPONSE");
     }
