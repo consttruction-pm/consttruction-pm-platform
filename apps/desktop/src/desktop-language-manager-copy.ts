@@ -48,7 +48,7 @@ export const DEFAULT_ENGLISH_DESKTOP_LANGUAGE_MANAGER_COPY: DesktopLanguageManag
   unavailable: "Unavailable",
   remove: "Remove",
   yes: "Yes",
-  no: "—",
+  no: "No",
   missing: "—",
   action: "Action",
   downloadProgress: "Language pack download progress",
