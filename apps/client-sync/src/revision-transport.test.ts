@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiRevisionTransport } from "./revision-transport.ts";
-import type { SyncProjectContext } from "./api-sync-transport.ts";
+import type { SyncProjectContext, SyncApiResult } from "./api-sync-transport.ts";
 
 const context: SyncProjectContext = {
   tenant_id: "t1",
@@ -11,7 +11,7 @@ const context: SyncProjectContext = {
 
 test("refresh returns the versioned project revision", async () => {
   const transport = new ApiRevisionTransport({
-    async get(path, receivedContext) {
+    async get<TResponse>(path: string, receivedContext: SyncProjectContext): Promise<SyncApiResult<TResponse>> {
       assert.equal(path, "/api/v1/sync/revision");
       assert.deepEqual(receivedContext, context);
       return {
