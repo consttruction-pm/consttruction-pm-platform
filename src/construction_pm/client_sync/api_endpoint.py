@@ -47,3 +47,25 @@ class VersionedSyncEndpoint:
             "error_code": outcome.error_code,
             "retry_after_seconds": outcome.retry_after_seconds,
         }
+
+
+@dataclass(frozen=True)
+class VersionedSyncRevisionEndpoint:
+    """Framework-neutral handler for GET /api/v1/sync/revision."""
+
+    tenant_id: str
+    project_id: str
+    revision_provider: object
+
+    def get(self, headers: Mapping[str, str]) -> dict[str, object]:
+        if headers.get("X-Tenant-Id") != self.tenant_id or headers.get("X-Project-Id") != self.project_id:
+            return {"contract_version": "sync-project-revision.v1", "tenant_id": self.tenant_id, "project_id": self.project_id, "error_code": "INVALID_PROJECT_CONTEXT"}
+        revision = int(self.revision_provider(self.tenant_id, self.project_id))
+        if revision < 0:
+            raise ValueError("INVALID_PROJECT_REVISION")
+        return {
+            "contract_version": "sync-project-revision.v1",
+            "tenant_id": self.tenant_id,
+            "project_id": self.project_id,
+            "revision": revision,
+        }
