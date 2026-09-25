@@ -25,6 +25,8 @@ export function fromAuthoritativeSyncOutcome(mutation: SyncMutation, outcome: Au
   if (outcome.contract_version !== "client-sync-outcome.v1") throw new Error("UNSUPPORTED_AUTHORITATIVE_OUTCOME_CONTRACT");
   if (outcome.idempotency_key !== null && outcome.idempotency_key !== undefined && outcome.idempotency_key !== mutation.idempotency_key) throw new Error("IDEMPOTENCY_KEY_MISMATCH");
   if (outcome.operation !== null && outcome.operation !== undefined && outcome.operation !== mutation.operation) throw new Error("OPERATION_MISMATCH");
+  if (outcome.revision !== null && outcome.revision !== undefined) throw new Error("UNREPRESENTABLE_REVISION");
+  if (outcome.retryable !== null && outcome.retryable !== undefined) throw new Error("UNREPRESENTABLE_RETRYABLE");
   const disposition: SyncDisposition = outcome.status === "applied" || outcome.status === "replayed" ? "acknowledged" : outcome.status;
   return { contract_version:"sync-outcome.v1", mutation_id:mutation.mutation_id, disposition, error_code:outcome.error_code ?? null };
 }
