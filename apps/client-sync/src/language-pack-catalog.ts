@@ -16,6 +16,12 @@ export type LanguagePackCatalogItem = {
     voiceOutput: boolean;
     offlineAi: boolean;
   };
+  resourcePaths?: {
+    translation: string;
+    glossary: string;
+    help: string;
+    reports: string;
+  };
 };
 
 export type LanguagePackCatalog = {
