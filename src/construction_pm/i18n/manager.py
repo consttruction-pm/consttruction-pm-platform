@@ -107,11 +107,23 @@ class LanguagePackManager:
         return active_package_dir
 
     def rollback(self, package_id: str) -> Path:
-        """Restore the previous active pack atomically."""
+        """Restore the previous active pack atomically after re-verification."""
         backup = self.backup_dir / package_id
         active = self.active_dir / package_id
         if not backup.is_dir():
             raise FileNotFoundError(f"no rollback pack available for {package_id}")
+
+        manifest_path = backup / "manifest.json"
+        artifact_path = backup / "pack.artifact"
+        if not manifest_path.is_file() or not artifact_path.is_file():
+            raise ValueError("rollback pack is incomplete")
+
+        manifest = LanguagePackManifest.from_dict(
+            json.loads(manifest_path.read_text(encoding="utf-8"))
+        )
+        self._verify_checksum(artifact_path, manifest.integrity.checksum)
+        if not self.signature_verifier(artifact_path, manifest):
+            raise ValueError("rollback language pack signature verification failed")
 
         staged = Path(tempfile.mkdtemp(prefix=".rollback-", dir=self.active_dir))
         try:
