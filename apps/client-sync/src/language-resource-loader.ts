@@ -27,6 +27,11 @@ export class LanguageResourceLoader {
       reports: string;
     },
   ): Promise<LanguageResourceBundle> {
+    validateResourcePath(resourcePaths.translation);
+    validateResourcePath(resourcePaths.glossary);
+    validateResourcePath(resourcePaths.help);
+    validateResourcePath(resourcePaths.reports);
+
     const [translationText, glossaryText, helpText, reportText] = await Promise.all([
       this.reader.readText(artifact, resourcePaths.translation),
       this.reader.readText(artifact, resourcePaths.glossary),
@@ -74,4 +79,17 @@ function isStringMap(value: unknown): value is Record<string, string> {
   return Object.values(value as Record<string, unknown>).every(
     (item) => typeof item === "string",
   );
+}
+
+
+function validateResourcePath(resourcePath: string): void {
+  if (!resourcePath || resourcePath.startsWith("/") || resourcePath.startsWith("\\")) {
+    throw new Error("INVALID_LANGUAGE_RESOURCE_PATH");
+  }
+
+  const normalized = resourcePath.replaceAll("\\\\", "/");
+  const segments = normalized.split("/");
+  if (segments.some((segment) => segment === "..")) {
+    throw new Error("INVALID_LANGUAGE_RESOURCE_PATH");
+  }
 }
