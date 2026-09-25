@@ -3,6 +3,7 @@ import type {
   LanguagePackVerifier,
 } from "./language-pack-download.ts";
 import type { OfflineModelPack } from "./offline-ai-model-selector.ts";
+import type { OfflineModelArtifactStore } from "./offline-ai-model-artifact-store.ts";
 import type { OfflineModelStore } from "./offline-ai-model-store.ts";
 
 export type OfflineModelDownloadManifest = {
@@ -15,6 +16,7 @@ export class OfflineModelDownloadService {
     private readonly transport: LanguagePackDownloadTransport,
     private readonly verifier: LanguagePackVerifier,
     private readonly store: OfflineModelStore,
+    private readonly artifactStore: OfflineModelArtifactStore,
   ) {}
 
   async downloadAndInstall(
@@ -81,6 +83,14 @@ export class OfflineModelDownloadService {
 
     await this.store.put({
       ...manifest.model,
+      verified: true,
+    });
+    await this.artifactStore.put({
+      packageId: manifest.model.packageId,
+      languageTag: manifest.model.languageTag,
+      modelType: manifest.model.modelType,
+      version: manifest.model.version,
+      artifact: new Uint8Array(artifact),
       verified: true,
     });
 
