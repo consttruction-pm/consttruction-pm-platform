@@ -21,7 +21,7 @@ test("refresh returns the versioned project revision", async () => {
           tenant_id: "t1",
           project_id: "p1",
           revision: 8,
-        },
+        } as TResponse,
       };
     },
   });
