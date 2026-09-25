@@ -5,6 +5,7 @@ import { LanguagePackActivationService } from "../../client-sync/src/language-pa
 import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 import type { LanguagePackResourceReader } from "../../client-sync/src/language-resource-loader.js";
+import { NodeZipLanguagePackExtractor } from "./node-zip-language-pack-extractor.js";
 import type { LanguagePackResourceManifestStore } from "../../client-sync/src/language-pack-resource-manifest-store.js";
 import type { LanguageRegistryEntry } from "../../client-sync/src/language.ts";
 import {
@@ -109,6 +110,10 @@ export class DesktopRuntime {
       new PersistentLanguagePackStore(this.languagePackBackend),
       new LanguageResourceRuntime(reader),
     );
+  }
+
+  configureZipLanguageResourceReader(): void {
+    this.configureLanguageResourceReader(new NodeZipLanguagePackExtractor());
   }
 
   async activateLanguagePack(manifest: LanguagePackManifest) {
