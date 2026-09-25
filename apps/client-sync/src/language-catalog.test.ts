@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LanguageCatalogService } from "./language-catalog.ts";
+import { LanguageCatalogService, isNewerPackAvailable } from "./language-catalog.ts";
 import { InMemoryLanguagePackStore } from "./language-pack-store.ts";
 
 test("catalog reports installed and offline-ready languages", async () => {
@@ -57,4 +57,13 @@ test("catalog reports installed and offline-ready languages", async () => {
   });
   assert.equal(catalog[1]?.installedVersion, null);
   assert.equal(catalog[1]?.offlineReady, false);
+});
+
+
+test("detects only a genuinely newer compatible pack", () => {
+  assert.equal(isNewerPackAvailable("1.0.0", "1.1.0"), true);
+  assert.equal(isNewerPackAvailable("1.1.0", "1.1.0"), false);
+  assert.equal(isNewerPackAvailable("1.2.0", "1.1.0"), false);
+  assert.equal(isNewerPackAvailable(null, "1.0.0"), true);
+  assert.equal(isNewerPackAvailable("1.0.0", null), false);
 });
