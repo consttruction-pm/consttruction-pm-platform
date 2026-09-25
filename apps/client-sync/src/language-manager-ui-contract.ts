@@ -4,6 +4,7 @@ export type LanguageManagerRow = {
   languageTag: string;
   locale: string;
   direction: "ltr" | "rtl";
+  installedPackageId: string | null;
   installedVersion: string | null;
   verified: boolean;
   offlineReady: boolean;
@@ -38,6 +39,7 @@ export function toUiState(
       languageTag: item.languageTag,
       locale: item.locale,
       direction: item.direction,
+      installedPackageId: item.installedPackageId,
       installedVersion: item.installedVersion,
       verified: item.verified,
       offlineReady: item.offlineReady,
