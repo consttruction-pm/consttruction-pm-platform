@@ -46,16 +46,13 @@ export class WebSyncRuntime {
     if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
       throw new Error("INVALID_STALE_REVISION_RETRY");
     }
-    return new ClientSyncRunner(
-      this.mutationQueue,
-      new ApiSyncTransport({
-        async post<TRequest, TResponse>() {
-          return { ok: true as const, data: outcome as TResponse };
-        },
-      }),
-    ).retryConflictAtAuthoritativeRevision(
-      mutationId,
-      new ApiRevisionTransport(revisionApi),
-    );
+    const mutation = this.mutationQueue.pending().find((item) => item.mutation_id === mutationId);
+    if (!mutation) throw new Error("MUTATION_NOT_PENDING");
+    const revision = await new ApiRevisionTransport(revisionApi).refresh({
+      tenant_id: mutation.tenant_id,
+      project_id: mutation.project_id,
+      revision: mutation.expected_revision,
+    });
+    return this.mutationQueue.retryAtRevision(mutationId, revision.revision);
   }
 }
