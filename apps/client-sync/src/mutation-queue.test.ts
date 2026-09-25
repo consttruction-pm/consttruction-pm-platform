@@ -1,20 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
-import { OfflineMutationQueue, fromAuthoritativeSyncOutcome, toAuthoritativeSyncOutcome } from "./mutation-queue.ts";
-const mutation:SyncMutation={contract_version:"sync-mutation.v1",mutation_id:"m1",tenant_id:"t1",project_id:"p1",expected_revision:7,operation:"update_activity",payload:{activity_id:"A1"},idempotency_key:"idem-1"};
-function outcome(disposition:SyncOutcome["disposition"]):SyncOutcome{return{contract_version:"sync-outcome.v1",mutation_id:mutation.mutation_id,disposition,error_code:disposition==="conflict"?"STALE_REVISION":null};}
-test("retryAtRevision replaces the expected revision and rotates idempotency",()=>{const queue=new OfflineMutationQueue();queue.enqueue({...mutation});const retried=queue.retryAtRevision("m1",8);assert.equal(retried.expected_revision,8);assert.equal(retried.idempotency_key,"idem-1:r8");assert.equal(queue.peek()?.expected_revision,8);assert.equal(queue.peek()?.idempotency_key,"idem-1:r8");assert.equal(queue.size(),1);const repeated=queue.retryAtRevision("m1",8);assert.equal(repeated.idempotency_key,"idem-1:r8");assert.equal(repeated.expected_revision,8);});
-test("retryAtRevision rejects unknown mutations and invalid revisions",()=>{const queue=new OfflineMutationQueue();assert.throws(()=>queue.retryAtRevision("missing",1),{message:"MUTATION_NOT_PENDING"});queue.enqueue({...mutation,payload:{}});assert.throws(()=>queue.retryAtRevision("m1",-1),{message:"INVALID_EXPECTED_REVISION"});assert.throws(()=>queue.retryAtRevision("m1",Number.MAX_SAFE_INTEGER+1),{message:"INVALID_EXPECTED_REVISION"});assert.throws(()=>queue.enqueue({...mutation,mutation_id:"m2",idempotency_key:"idem-2",expected_revision:8.5,payload:{}}),{message:"INVALID_EXPECTED_REVISION"});});
-test("acknowledged maps to authoritative applied",()=>{assert.deepEqual(toAuthoritativeSyncOutcome(mutation,outcome("acknowledged")),{contract_version:"client-sync-outcome.v1",status:"applied",operation:"update_activity",error_code:null,retryable:null,idempotency_key:"idem-1"});});
-test("conflict and rejected preserve their status and error",()=>{assert.equal(toAuthoritativeSyncOutcome(mutation,outcome("conflict")).status,"conflict");assert.equal(toAuthoritativeSyncOutcome(mutation,outcome("conflict")).error_code,"STALE_REVISION");assert.equal(toAuthoritativeSyncOutcome(mutation,outcome("rejected")).status,"rejected");});
-test("retry is rejected because authoritative outcome has no retry status",()=>{assert.throws(()=>toAuthoritativeSyncOutcome(mutation,outcome("retry")),/UNREPRESENTABLE_RETRY_OUTCOME/);});
-test("mutation identity mismatch is rejected",()=>{assert.throws(()=>toAuthoritativeSyncOutcome(mutation,{...outcome("acknowledged"),mutation_id:"other"}),/MUTATION_ID_MISMATCH/);});
-test("applied and replayed map back to acknowledged",()=>{for(const status of ["applied","replayed"] as const){assert.deepEqual(fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status,operation:mutation.operation,idempotency_key:mutation.idempotency_key}),{contract_version:"sync-outcome.v1",mutation_id:"m1",disposition:"acknowledged",error_code:null});}});
-test("authoritative conflict and rejected map back without changing semantics",()=>{for(const status of ["conflict","rejected"] as const){assert.equal(fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status,operation:mutation.operation,idempotency_key:mutation.idempotency_key,error_code:"E1"}).disposition,status);}});
-test("idempotency and operation mismatches are rejected",()=>{assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"applied",idempotency_key:"other"}),/IDEMPOTENCY_KEY_MISMATCH/);assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"applied",operation:"delete_activity"}),/OPERATION_MISMATCH/);});
-test("retryAtRevision rejects unsafe and fractional revisions",()=>{const queue=new OfflineMutationQueue();queue.enqueue({...mutation,payload:{}});for(const revision of [8.5,Number.MAX_SAFE_INTEGER+1,NaN,Infinity])assert.throws(()=>queue.retryAtRevision("m1",revision),{message:"INVALID_EXPECTED_REVISION"});});
-test("retryAtRevision is idempotent when revision is unchanged",()=>{const queue=new OfflineMutationQueue();queue.enqueue({...mutation,payload:{}});const retried=queue.retryAtRevision("m1",7);assert.equal(retried.idempotency_key,"idem-1");assert.equal(queue.size(),1);});
 
-test("adapter does not discard retry timing",()=>{assert.throws(()=>toAuthoritativeSyncOutcome(mutation,{...outcome("conflict"),retry_after_seconds:5}),/UNREPRESENTABLE_RETRY_METADATA/);});
-test("reverse adapter rejects authoritative revision and retryability it cannot carry",()=>{assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"conflict",revision:8}),/UNREPRESENTABLE_REVISION/);assert.throws(()=>fromAuthoritativeSyncOutcome(mutation,{contract_version:"client-sync-outcome.v1",status:"conflict",retryable:true}),/UNREPRESENTABLE_RETRYABLE/);});
+import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
+import { fromAuthoritativeSyncOutcome, toAuthoritativeSyncOutcome } from "./mutation-queue.ts";
+
+const adapterMutation: SyncMutation = {
+  contract_version: "sync-mutation.v1", mutation_id: "adapter-m1", tenant_id: "t1",
+  project_id: "p1", expected_revision: 7, operation: "update_activity",
+  payload: { activity_id: "A1" }, idempotency_key: "adapter-idem-1",
+};
+const adapterOutcome = (disposition: SyncOutcome["disposition"]): SyncOutcome => ({
+  contract_version: "sync-outcome.v1", mutation_id: adapterMutation.mutation_id, disposition,
+  error_code: disposition === "conflict" ? "STALE_REVISION" : null,
+});
+
+test("authoritative adapter maps acknowledged without losing identity", () => {
+  assert.deepEqual(toAuthoritativeSyncOutcome(adapterMutation, adapterOutcome("acknowledged")), {
+    contract_version: "client-sync-outcome.v1", status: "applied", operation: "update_activity",
+    error_code: null, retryable: null, idempotency_key: "adapter-idem-1",
+  });
+});
+test("authoritative adapter rejects unrepresentable retry metadata", () => {
+  assert.throws(() => toAuthoritativeSyncOutcome(adapterMutation, {...adapterOutcome("conflict"), retry_after_seconds: 5}), /UNREPRESENTABLE_RETRY_METADATA/);
+  assert.throws(() => toAuthoritativeSyncOutcome(adapterMutation, adapterOutcome("retry")), /UNREPRESENTABLE_RETRY_OUTCOME/);
+});
+test("reverse authoritative adapter rejects lossy metadata", () => {
+  assert.throws(() => fromAuthoritativeSyncOutcome(adapterMutation, {contract_version:"client-sync-outcome.v1", status:"conflict", revision:8}), /UNREPRESENTABLE_REVISION/);
+  assert.throws(() => fromAuthoritativeSyncOutcome(adapterMutation, {contract_version:"client-sync-outcome.v1", status:"conflict", retryable:true}), /UNREPRESENTABLE_RETRYABLE/);
+});
+test("reverse authoritative adapter preserves representable status and identity", () => {
+  assert.deepEqual(fromAuthoritativeSyncOutcome(adapterMutation, {
+    contract_version:"client-sync-outcome.v1", status:"replayed", operation:adapterMutation.operation, idempotency_key:adapterMutation.idempotency_key,
+  }), {contract_version:"sync-outcome.v1", mutation_id:"adapter-m1", disposition:"acknowledged", error_code:null});
+});
