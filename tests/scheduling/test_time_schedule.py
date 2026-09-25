@@ -580,3 +580,80 @@ def test_time_schedule_free_float_preserves_fractional_working_hours():
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 9)
     assert result.early_activities["B"].start == datetime(2026, 9, 22, 13, 22, 30)
     assert result.floats["A"].free_float_hours == Decimal("4.375")
+
+
+def test_time_schedule_free_float_fs_negative_lag_uses_exact_inverse_boundary():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(-1)),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry(),
+    )
+
+    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 9)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 8)
+    assert result.floats["A"].free_float_hours == Decimal("0")
+
+
+def test_time_schedule_free_float_ff_preserves_fractional_boundary():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+        "lag": CalendarReference("lag", "1", "working-time"),
+    }
+    registry = _cross_calendar_registry()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            refs["project"], refs["predecessor"], refs["lag"]
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            refs["project"], refs["successor"], refs["lag"]
+        )),
+    ]
+    constraint = TimeActivityConstraint(
+        "B",
+        TimeConstraintType.FINISH_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 15, 22, 30),
+    )
+
+    result = time_schedule(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FF)],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry,
+        [constraint],
+    )
+
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 15, 22, 30)
+    assert result.floats["A"].free_float_hours == Decimal("3.375")
+
+
+def test_time_schedule_free_float_sf_uses_successor_finish_event():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    result = time_schedule(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.SF)],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry(),
+    )
+
+    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 9)
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9)
+    assert result.floats["A"].free_float_hours == Decimal("0")
