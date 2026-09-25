@@ -1,0 +1,17 @@
+name: Runner Diagnostic
+
+on:
+  push:
+    paths:
+      - ".github/workflows/runner-diagnostic.yml"
+  workflow_dispatch:
+
+jobs:
+  runner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner start
+        run: |
+          echo "runner-started"
+          uname -a
+          python --version
