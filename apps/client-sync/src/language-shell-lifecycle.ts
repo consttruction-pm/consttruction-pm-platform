@@ -34,6 +34,7 @@ export class ClientLanguageShellLifecycle {
   }
 
   async initialize(): Promise<LanguageShellBootstrapResult> {
+    await this.runtime.refreshInstalledPackState();
     const language = await this.runtime.restorePreferredLanguage();
     return this.activateResolved(language);
   }
