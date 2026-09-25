@@ -38,4 +38,5 @@ def test_real_idempotency_race_allows_only_one_identity():
     for t in threads: t.start()
     for t in threads: t.join()
     assert len(results)==2
-    assert "ok" in results
+    assert results.count("ok") == 1
+    assert results.count("ValueError") == 1
