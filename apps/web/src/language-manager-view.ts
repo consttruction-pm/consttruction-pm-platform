@@ -40,6 +40,7 @@ export type LanguageManagerWebOptions = {
   createDownloadTransport: () => Parameters<LanguageManagerController["download"]>[1];
   createVerifier: () => Parameters<LanguageManagerController["download"]>[2];
   copy: LanguageManagerCopy;
+  translateError?: (key: string) => string;
   onActivateInstalledLanguage?: (languageTag: string, version: string) => Promise<void>;
 };
 
@@ -69,8 +70,8 @@ export class WebLanguageManagerView {
 
     const status = document.createElement("p");
     status.setAttribute("role", "status");
-    status.textContent = state.errorMessage
-      ? state.errorMessage
+    status.textContent = state.errorKey
+      ? (this.options.translateError?.(state.errorKey) ?? state.errorKey)
       : state.activeDownloadLanguage
         ? copy.downloading(displayLanguageName(state.activeDownloadLanguage, currentLanguage))
         : copy.ready;
