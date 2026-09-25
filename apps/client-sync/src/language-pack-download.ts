@@ -8,6 +8,12 @@ export type LanguagePackDownloadManifest = {
   downloadUri: string;
   checksum: string;
   signature: string;
+  resourcePaths?: {
+    translation: string;
+    glossary: string;
+    help: string;
+    reports: string;
+  };
 };
 
 export type LanguagePackDownloadProgress = {
