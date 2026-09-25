@@ -292,7 +292,7 @@ def calculate_time_floats(
             late_start=l.start,
             late_finish=l.finish,
             total_float_hours=total,
-            free_float_hours=min(total, free),
+            free_float_hours=max(Decimal("0"), min(total, free)),
             critical=total <= 0,
         )
     return result
