@@ -36,14 +36,21 @@ export class DesktopRuntime {
     return this.advanceRevision(result.revision);
   }
 
-  retryStaleRevision(mutationId: string, outcome: SyncOutcome, refreshedRevision: number): SyncMutation {
+  async retryStaleRevision(mutationId: string, outcome: SyncOutcome, revisionApi: VersionedSyncRevisionApi): Promise<SyncMutation> {
     if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
       throw new Error("INVALID_STALE_REVISION_RETRY");
     }
     const current = this.current();
-    if (refreshedRevision < current.revision) throw new Error("REVISION_REGRESSION");
-    const mutation = this.mutationQueue.retryAtRevision(mutationId, refreshedRevision);
-    this.advanceRevision(refreshedRevision);
-    return mutation;
+    const mutation = this.mutationQueue.pending().find((item) => item.mutation_id === mutationId);
+    if (!mutation) throw new Error("MUTATION_NOT_PENDING");
+    const revision = await new ApiRevisionTransport(revisionApi).refresh({
+      tenant_id: current.tenant_id,
+      project_id: current.project_id,
+      revision: mutation.expected_revision,
+    });
+    if (revision.revision < current.revision) throw new Error("REVISION_REGRESSION");
+    const retried = this.mutationQueue.retryAtRevision(mutationId, revision.revision);
+    this.advanceRevision(revision.revision);
+    return retried;
   }
 }
