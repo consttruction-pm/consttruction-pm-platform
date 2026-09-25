@@ -3,6 +3,7 @@ import {
   type LanguagePreference,
 } from "./language-runtime.js";
 import type { LanguageRegistryEntry, ResolvedLanguage } from "./language.js";
+import { isNewerPackAvailable } from "./language-pack-catalog.js";
 
 export type LanguageShellActivationState =
   | "activated"
@@ -45,7 +46,10 @@ export class ClientLanguageShellLifecycle {
     const installed = await this.runtime.installedPacks();
     const pack = installed
       .filter((item) => item.languageTag === languageTag && item.verified)
-      .sort((left, right) => right.version.localeCompare(left.version))[0];
+      .reduce<typeof installed[number] | null>((latest, item) => {
+        if (!latest) return item;
+        return isNewerPackAvailable(latest.version, item.version) ? item : latest;
+      }, null);
 
     if (!pack) {
       const current = this.runtime.current();
