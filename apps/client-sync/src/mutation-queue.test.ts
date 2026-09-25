@@ -99,3 +99,43 @@ test("reverse authoritative adapter preserves representable status and identity"
     contract_version:"client-sync-outcome.v1", status:"replayed", operation:adapterMutation.operation, idempotency_key:adapterMutation.idempotency_key,
   }), {contract_version:"sync-outcome.v1", mutation_id:"adapter-m1", disposition:"acknowledged", error_code:null});
 });
+
+test("authoritative adapter preserves conflict and rejected dispositions", () => {
+  assert.equal(
+    toAuthoritativeSyncOutcome(adapterMutation, adapterOutcome("conflict")).status,
+    "conflict",
+  );
+  assert.equal(
+    toAuthoritativeSyncOutcome(adapterMutation, adapterOutcome("rejected")).status,
+    "rejected",
+  );
+});
+
+test("authoritative adapter rejects mismatched mutation identity", () => {
+  assert.throws(
+    () => toAuthoritativeSyncOutcome(
+      adapterMutation,
+      { ...adapterOutcome("acknowledged"), mutation_id: "different-mutation" },
+    ),
+    /MUTATION_ID_MISMATCH/,
+  );
+});
+
+test("reverse authoritative adapter rejects mismatched operation and idempotency", () => {
+  assert.throws(
+    () => fromAuthoritativeSyncOutcome(adapterMutation, {
+      contract_version: "client-sync-outcome.v1",
+      status: "applied",
+      operation: "delete_activity",
+    }),
+    /OPERATION_MISMATCH/,
+  );
+  assert.throws(
+    () => fromAuthoritativeSyncOutcome(adapterMutation, {
+      contract_version: "client-sync-outcome.v1",
+      status: "applied",
+      idempotency_key: "different-idem",
+    }),
+    /IDEMPOTENCY_KEY_MISMATCH/,
+  );
+});
