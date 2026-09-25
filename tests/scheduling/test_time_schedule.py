@@ -553,3 +553,30 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
             registry,
             [constraint],
         )
+
+
+def test_time_schedule_free_float_preserves_fractional_working_hours():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [TimeRelationship("A", "B", RelationshipType.FS)]
+    constraint = TimeActivityConstraint(
+        "B",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 13, 22, 30),
+    )
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry(),
+        [constraint],
+    )
+
+    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 9)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 13, 22, 30)
+    assert result.floats["A"].free_float_hours == Decimal("4.375")
