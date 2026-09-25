@@ -1,0 +1,59 @@
+{
+  "$schema": "./LANGUAGE_REGISTRY.schema.json",
+  "schema_version": "1.0",
+  "default_language": "en",
+  "languages": [
+    {
+      "language_tag": "en",
+      "display_names": {"en": "English", "fa": "انگلیسی"},
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "en-US",
+      "fallback_chain": [],
+      "translation_pack": {
+        "package_id": "construction-pm.language.en",
+        "version": "1.0.0",
+        "min_app_version": "0.1.0",
+        "max_app_version": null,
+        "checksum": "sha256:TBD",
+        "signature": "TBD",
+        "compressed_size_bytes": 0,
+        "delta_from": null
+      },
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "fa",
+      "display_names": {"en": "Persian", "fa": "فارسی"},
+      "enabled": true,
+      "direction": "rtl",
+      "locale": "fa-IR",
+      "fallback_chain": ["en"],
+      "translation_pack": {
+        "package_id": "construction-pm.language.fa",
+        "version": "1.0.0",
+        "min_app_version": "0.1.0",
+        "max_app_version": null,
+        "checksum": "sha256:TBD",
+        "signature": "TBD",
+        "compressed_size_bytes": 0,
+        "delta_from": null
+      },
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    }
+  ]
+}
