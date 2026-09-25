@@ -800,3 +800,36 @@ def test_time_schedule_negative_project_float_marks_longest_path_critical():
     assert result.floats["B"].critical
     assert result.floats["C"].total_float_hours == Decimal("1")
     assert result.floats["C"].critical is False
+
+
+def test_time_schedule_constraint_induced_negative_float_marks_constrained_path_critical():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS),
+    ]
+    constraint = TimeActivityConstraint(
+        "B",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 16),
+    )
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 15),
+        registry(),
+        [constraint],
+    )
+
+    assert result.floats["B"].total_float_hours == Decimal("-3")
+    assert result.floats["A"].total_float_hours == Decimal("-3")
+    assert result.floats["A"].critical
+    assert result.floats["B"].critical
+    assert result.floats["A"].free_float_hours == Decimal("0")
+    assert result.floats["C"].critical is False
