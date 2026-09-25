@@ -9,6 +9,9 @@ import {
 import {
   IndexedDbLanguagePackStore,
 } from "./language-pack-store.js";
+import {
+  WebLanguagePreferenceStore,
+} from "./language-preference-store.js";
 import type {
   LanguagePackDownloadManifest,
   LanguagePackDownloadProgress,
@@ -20,6 +23,7 @@ export class WebLanguageRuntime {
   constructor(databaseName?: string) {
     this.language = new ClientLanguageRuntime(
       new IndexedDbLanguagePackStore(databaseName),
+      new WebLanguagePreferenceStore(),
     );
   }
 
