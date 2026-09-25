@@ -158,3 +158,77 @@ def test_time_forward_pass_sf_zero_uses_predecessor_start():
     )
     assert result["A"].start == datetime(2026, 9, 22, 8)
     assert result["B"].finish == datetime(2026, 9, 21, 17)
+
+
+def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
+    project_ref = CalendarReference("project", "1", "working-time")
+    activity_ref = CalendarReference("activity", "1", "working-time")
+    project_calendar = WorkingTimeCalendar(
+        holidays=frozenset({date(2026, 9, 22)}),
+        daily_intervals={i: ((time(8), time(12)), (time(13), time(17))) for i in range(5)},
+    )
+    activity_calendar = WorkingTimeCalendar(
+        daily_intervals={i: ((time(7), time(11)), (time(12), time(16))) for i in range(5)},
+    )
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": TimeAwareWorkingTimeResolver(project_calendar),
+        "activity@1": TimeAwareWorkingTimeResolver(activity_calendar),
+    })
+    context = SchedulingCalendarContext(
+        project=project_ref,
+        activity=activity_ref,
+        relationship_lag=activity_ref,
+    )
+
+    result = time_forward_pass(
+        [TimeActivity("A", TimeQuantity.working_hours(1), context)],
+        [],
+        datetime(2026, 9, 22, 8),
+        registry,
+    )
+
+    assert result["A"].start == datetime(2026, 9, 23, 7)
+    assert result["A"].finish == datetime(2026, 9, 23, 8)
+
+
+def test_time_forward_pass_rejects_mixed_project_calendar_references_before_scheduling():
+    project_a = CalendarReference("project-a", "1", "working-time")
+    project_b = CalendarReference("project-b", "1", "working-time")
+    activity_ref = CalendarReference("activity", "1", "working-time")
+    resolver = TimeAwareWorkingTimeResolver(WorkingTimeCalendar())
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project-a@1": resolver,
+        "project-b@1": resolver,
+        "activity@1": resolver,
+    })
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            project_a, activity_ref, activity_ref
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            project_b, activity_ref, activity_ref
+        )),
+    ]
+
+    with pytest.raises(ValueError, match="must share one project calendar"):
+        time_forward_pass(
+            activities, [], datetime(2026, 9, 22, 8), registry
+        )
+
+
+def test_time_forward_pass_requires_registered_project_calendar():
+    project_ref = CalendarReference("project", "1", "working-time")
+    activity_ref = CalendarReference("activity", "1", "working-time")
+    registry = CalendarResolverRegistry(time_resolvers={
+        "activity@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar()),
+    })
+    activity = TimeActivity(
+        "A",
+        TimeQuantity.working_hours(1),
+        SchedulingCalendarContext(project_ref, activity_ref, activity_ref),
+    )
+
+    with pytest.raises(KeyError, match="calendar not registered: project@1"):
+        time_forward_pass(
+            [activity], [], datetime(2026, 9, 22, 8), registry
+        )
