@@ -28,6 +28,8 @@ export type LanguageManagerCopy = {
   yes: string;
   no: string;
   missing: string;
+  action: string;
+  downloadProgress: string;
   rtl: string;
   ltr: string;
 };
@@ -68,6 +70,7 @@ export class WebLanguageManagerView {
     const heading = document.createElement("h2");
     const currentLanguage = state.rows.find((row) => row.selected)?.languageTag ?? state.selectedLanguage;
     heading.textContent = copy.title;
+    root.dir = currentLanguage === "fa" ? "rtl" : (state.rows.find((row) => row.selected)?.direction ?? "ltr");
     root.append(heading);
 
     const status = document.createElement("p");
@@ -86,7 +89,7 @@ export class WebLanguageManagerView {
       progress.value = state.progressPercent;
       progress.setAttribute(
         "aria-label",
-        "Language pack download progress",
+        copy.downloadProgress,
       );
       root.append(progress);
     }
@@ -105,7 +108,7 @@ export class WebLanguageManagerView {
       copy.voiceIn,
       copy.voiceOut,
       copy.offlineAi,
-      copy.use,
+      copy.action,
     ]) {
       const cell = document.createElement("th");
       cell.scope = "col";
