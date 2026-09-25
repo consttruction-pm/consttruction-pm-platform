@@ -36,7 +36,7 @@ test("refresh returns the versioned project revision", async () => {
 
 test("refresh rejects an invalid project revision response", async () => {
   const transport = new ApiRevisionTransport({
-    async get() {
+    async get<TResponse>(): Promise<SyncApiResult<TResponse>> {
       return {
         ok: true,
         data: {
@@ -44,7 +44,7 @@ test("refresh rejects an invalid project revision response", async () => {
           tenant_id: "other",
           project_id: "p1",
           revision: 8,
-        },
+        } as TResponse,
       };
     },
   });
@@ -56,7 +56,7 @@ test("refresh rejects an invalid project revision response", async () => {
 
 test("refresh surfaces api errors", async () => {
   const transport = new ApiRevisionTransport({
-    async get() {
+    async get<TResponse>(): Promise<SyncApiResult<TResponse>> {
       return {
         ok: false,
         error: { code: "PROJECT_NOT_FOUND", retryable: false },
