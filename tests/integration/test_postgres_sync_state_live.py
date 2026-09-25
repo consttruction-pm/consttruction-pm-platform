@@ -85,3 +85,50 @@ def test_real_distinct_mutation_keys_execute_concurrently():
     second.join(timeout=20)
     assert len(results) == 2
     assert results == ["acknowledged", "acknowledged"]
+
+
+def test_real_same_mutation_key_executes_delegate_once():
+    from construction_pm.client_sync.atomic_sync import AtomicSyncExecutor
+    from construction_pm.client_sync.offline_mutation import OfflineMutation
+    from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
+    from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcome
+
+    calls = []
+    entered = threading.Event()
+    release = threading.Event()
+
+    def delegate(mutation):
+        calls.append(mutation.mutation_id)
+        entered.set()
+        release.wait(timeout=10)
+        return SyncOutcome(mutation.mutation_id, SyncDisposition.ACKNOWLEDGED)
+
+    def worker(results):
+        try:
+            with _connect() as conn:
+                store = PostgresSyncStateStore(conn)
+                store.initialize()
+                executor = AtomicSyncExecutor(store, PostgresTransactionManager(conn), delegate)
+                mutation = OfflineMutation(
+                    "race-exec-mutation", "race-exec-t", "race-exec-p", 1,
+                    "update_activity", {"activity_id": "A1"}, "race-exec-key",
+                )
+                results.append(executor.submit(mutation).disposition.value)
+        except Exception as exc:
+            results.append(type(exc).__name__)
+
+    results = []
+    first = threading.Thread(target=worker, args=(results,))
+    second = threading.Thread(target=worker, args=(results,))
+    first.start()
+    assert entered.wait(timeout=10)
+    second.start()
+    import time
+    time.sleep(0.5)
+    assert calls == ["race-exec-mutation"]
+    release.set()
+    first.join(timeout=20)
+    second.join(timeout=20)
+    assert len(results) == 2
+    assert sorted(results) == ["acknowledged", "acknowledged"]
+    assert calls == ["race-exec-mutation"]
