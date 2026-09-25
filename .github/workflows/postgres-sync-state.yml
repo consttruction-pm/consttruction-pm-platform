@@ -9,6 +9,7 @@ on:
       - "src/construction_pm/client_sync/**"
       - "tests/integration/test_postgres_sync_state_live.py"
       - "tests/integration/test_postgres_atomic_conflict_live.py"
+      - "tests/integration/test_postgres_idempotency_lock_live.py"
       - ".github/workflows/postgres-sync-state.yml"
 
 jobs:
@@ -38,4 +39,4 @@ jobs:
       - name: Run live sync-state tests
         env:
           CONSTRUCTION_PM_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/construction_pm
-        run: python -m pytest -q tests/integration/test_postgres_sync_state_live.py tests/integration/test_postgres_atomic_conflict_live.py
+        run: python -m pytest -q tests/integration/test_postgres_sync_state_live.py tests/integration/test_postgres_atomic_conflict_live.py tests/integration/test_postgres_idempotency_lock_live.py
