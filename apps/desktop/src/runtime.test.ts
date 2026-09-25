@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DesktopRuntime } from "./runtime.js";
 import type { SyncOutcome } from "../../client-sync/src/mutation-queue.js";
+import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
 
 test("desktop syncOnce uses shared transport and clears acknowledged mutation", async () => {
   const runtime = new DesktopRuntime();
@@ -32,7 +33,7 @@ test("desktop runtime refreshes the project revision", async () => {
   const runtime = new DesktopRuntime();
   runtime.openProject("t1", "p1", 7);
   const state = await runtime.refreshRevision({
-    async get<TResponse>(path, context) {
+    async get<TResponse>(path: string, context: SyncProjectContext) {
       assert.equal(path, "/api/v1/sync/revision");
       assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
       return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8 } as TResponse };
