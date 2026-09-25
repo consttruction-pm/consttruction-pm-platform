@@ -10,26 +10,74 @@ export type SyncMutation = {
 };
 export type SyncDisposition = "acknowledged" | "retry" | "conflict" | "rejected";
 export type SyncOutcome = { contract_version: "sync-outcome.v1"; mutation_id: string; disposition: SyncDisposition; error_code?: string | null; retry_after_seconds?: number | null; };
-export type AuthoritativeSyncOutcome = { contract_version: "client-sync-outcome.v1"; status: "applied" | "replayed" | "conflict" | "rejected"; operation?: string | null; revision?: number | null; error_code?: string | null; retryable?: boolean | null; idempotency_key?: string | null; };
-export function toAuthoritativeSyncOutcome(mutation: SyncMutation, outcome: SyncOutcome): AuthoritativeSyncOutcome {
-  if (outcome.contract_version !== "sync-outcome.v1") throw new Error("UNSUPPORTED_OUTCOME_CONTRACT");
-  if (outcome.mutation_id !== mutation.mutation_id) throw new Error("MUTATION_ID_MISMATCH");
-  if (outcome.disposition === "retry") throw new Error("UNREPRESENTABLE_RETRY_OUTCOME");
+export type AuthoritativeSyncOutcome = {
+  contract_version: "client-sync-outcome.v1";
+  status: "applied" | "replayed" | "conflict" | "rejected";
+  operation?: string | null;
+  revision?: number | null;
+  error_code?: string | null;
+  retryable?: boolean | null;
+  idempotency_key?: string | null;
+};
+
+export function toAuthoritativeSyncOutcome(
+  mutation: SyncMutation,
+  outcome: SyncOutcome,
+): AuthoritativeSyncOutcome {
+  if (outcome.contract_version !== "sync-outcome.v1") {
+    throw new Error("UNSUPPORTED_OUTCOME_CONTRACT");
+  }
+  if (outcome.mutation_id !== mutation.mutation_id) {
+    throw new Error("MUTATION_ID_MISMATCH");
+  }
+  if (outcome.disposition === "retry") {
+    throw new Error("UNREPRESENTABLE_RETRY_OUTCOME");
+  }
   if (outcome.retry_after_seconds !== null && outcome.retry_after_seconds !== undefined) {
     throw new Error("UNREPRESENTABLE_RETRY_METADATA");
   }
   const status = outcome.disposition === "acknowledged" ? "applied" : outcome.disposition;
-  return { contract_version:"client-sync-outcome.v1", status, operation:mutation.operation, error_code:outcome.error_code ?? null, retryable:null, idempotency_key:mutation.idempotency_key };
+  return {
+    contract_version: "client-sync-outcome.v1",
+    status,
+    operation: mutation.operation,
+    error_code: outcome.error_code ?? null,
+    retryable: null,
+    idempotency_key: mutation.idempotency_key,
+  };
 }
-export function fromAuthoritativeSyncOutcome(mutation: SyncMutation, outcome: AuthoritativeSyncOutcome): SyncOutcome {
-  if (outcome.contract_version !== "client-sync-outcome.v1") throw new Error("UNSUPPORTED_AUTHORITATIVE_OUTCOME_CONTRACT");
-  if (outcome.idempotency_key !== null && outcome.idempotency_key !== undefined && outcome.idempotency_key !== mutation.idempotency_key) throw new Error("IDEMPOTENCY_KEY_MISMATCH");
-  if (outcome.operation !== null && outcome.operation !== undefined && outcome.operation !== mutation.operation) throw new Error("OPERATION_MISMATCH");
-  if (outcome.revision !== null && outcome.revision !== undefined) throw new Error("UNREPRESENTABLE_REVISION");
-  if (outcome.retryable !== null && outcome.retryable !== undefined) throw new Error("UNREPRESENTABLE_RETRYABLE");
-  const disposition: SyncDisposition = outcome.status === "applied" || outcome.status === "replayed" ? "acknowledged" : outcome.status;
-  return { contract_version:"sync-outcome.v1", mutation_id:mutation.mutation_id, disposition, error_code:outcome.error_code ?? null };
+
+export function fromAuthoritativeSyncOutcome(
+  mutation: SyncMutation,
+  outcome: AuthoritativeSyncOutcome,
+): SyncOutcome {
+  if (outcome.contract_version !== "client-sync-outcome.v1") {
+    throw new Error("UNSUPPORTED_AUTHORITATIVE_OUTCOME_CONTRACT");
+  }
+  if (outcome.idempotency_key != null && outcome.idempotency_key !== mutation.idempotency_key) {
+    throw new Error("IDEMPOTENCY_KEY_MISMATCH");
+  }
+  if (outcome.operation != null && outcome.operation !== mutation.operation) {
+    throw new Error("OPERATION_MISMATCH");
+  }
+  if (outcome.revision != null) {
+    throw new Error("UNREPRESENTABLE_REVISION");
+  }
+  if (outcome.retryable != null) {
+    throw new Error("UNREPRESENTABLE_RETRYABLE");
+  }
+  const disposition: SyncDisposition =
+    outcome.status === "applied" || outcome.status === "replayed"
+      ? "acknowledged"
+      : outcome.status;
+  return {
+    contract_version: "sync-outcome.v1",
+    mutation_id: mutation.mutation_id,
+    disposition,
+    error_code: outcome.error_code ?? null,
+  };
 }
+
 export class OfflineMutationQueue {
   private readonly pendingMutations: SyncMutation[] = [];
   private readonly mutationIds = new Set<string>();
