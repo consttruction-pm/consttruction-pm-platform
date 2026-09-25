@@ -1,3 +1,4 @@
+import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.ts";
 import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
@@ -12,6 +13,7 @@ export type OfflineMode = "offline" | "online";
 export type DesktopProjectState = { tenant_id: string; project_id: string; revision: number; mode: OfflineMode };
 
 export class DesktopRuntime {
+  private readonly languageRuntime = new ClientLanguageRuntime();
   private state: DesktopProjectState | null = null;
   private readonly mutationQueue = new OfflineMutationQueue();
   openProject(tenant_id: string, project_id: string, revision: number, mode: OfflineMode = "offline"): DesktopProjectState {
@@ -53,4 +55,25 @@ export class DesktopRuntime {
     this.advanceRevision(revision.revision);
     return retried;
   }
+
+  configureLanguage(
+    registry: Parameters<ClientLanguageRuntime["configure"]>[0],
+    defaultLanguage: string,
+    preference: Parameters<ClientLanguageRuntime["configure"]>[2],
+  ) {
+    return this.languageRuntime.configure(registry, defaultLanguage, preference);
+  }
+
+  currentLanguage() {
+    return this.languageRuntime.current();
+  }
+
+  setPreferredLanguage(languageTag: string) {
+    return this.languageRuntime.setPreferredLanguage(languageTag);
+  }
+
+  canUseLanguageOffline(languageTag: string): boolean {
+    return this.languageRuntime.canRunOffline(languageTag);
+  }
+
 }
