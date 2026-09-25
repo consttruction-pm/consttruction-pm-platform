@@ -10,9 +10,14 @@ import type {
 import type {
   LanguagePreferenceStore,
 } from "../../client-sync/src/language-preference-store.js";
+import type {
+  CachedLanguagePackResources,
+  LanguagePackResourceManifestStore,
+} from "../../client-sync/src/language-pack-resource-manifest-store.js";
 
 const PACKS_FILE = "language-packs.json";
 const PREFERENCE_FILE = "language-preference.txt";
+const RESOURCE_MANIFEST_FILE = "language-pack-resources.json";
 
 type SerializedPack = {
   packageId: string;
@@ -112,4 +117,65 @@ function isNotFound(error: unknown): boolean {
       "code" in error &&
       error.code === "ENOENT",
   );
+}
+
+
+export class DesktopFileLanguagePackResourceManifestStore
+  implements LanguagePackResourceManifestStore
+{
+  constructor(private readonly directory: string) {}
+
+  async get(packageId: string, version: string): Promise<CachedLanguagePackResources | null> {
+    const manifests = await this.loadAll();
+    return manifests.find(
+      (item) => item.packageId === packageId && item.version === version,
+    ) ?? null;
+  }
+
+  async put(manifest: CachedLanguagePackResources): Promise<void> {
+    if (!manifest.packageId || !manifest.languageTag || !manifest.version) {
+      throw new Error("INVALID_LANGUAGE_PACK_RESOURCE_MANIFEST");
+    }
+    const manifests = (await this.loadAll()).filter(
+      (item) => !(item.packageId === manifest.packageId && item.version === manifest.version),
+    );
+    manifests.push({ ...manifest, resources: { ...manifest.resources } });
+    await this.saveAll(manifests);
+  }
+
+  async remove(packageId: string, version: string): Promise<void> {
+    await this.saveAll(
+      (await this.loadAll()).filter(
+        (item) => !(item.packageId === packageId && item.version === version),
+      ),
+    );
+  }
+
+  private async loadAll(): Promise<readonly CachedLanguagePackResources[]> {
+    try {
+      const raw = await readFile(join(this.directory, RESOURCE_MANIFEST_FILE), "utf8");
+      const value = JSON.parse(raw) as CachedLanguagePackResources[];
+      return value.map((item) => ({
+        ...item,
+        resources: { ...item.resources },
+      }));
+    } catch (error) {
+      if (isNotFound(error)) return [];
+      throw error;
+    }
+  }
+
+  private async saveAll(
+    manifests: readonly CachedLanguagePackResources[],
+  ): Promise<void> {
+    await mkdir(this.directory, { recursive: true });
+    const file = join(this.directory, RESOURCE_MANIFEST_FILE);
+    const temp = file + ".tmp";
+    await writeFile(
+      temp,
+      JSON.stringify(manifests),
+      "utf8",
+    );
+    await rename(temp, file);
+  }
 }
