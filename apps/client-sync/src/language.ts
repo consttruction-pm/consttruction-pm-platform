@@ -63,10 +63,30 @@ export class ClientLanguageManager {
     return this.resolve();
   }
 
-  setInstalledPacks(installedPacks: readonly InstalledLanguagePack[]): ResolvedLanguage {
+  syncInstalledPackState(
+    installedPacks: readonly {
+      languageTag: string;
+      version: string;
+      verified: boolean;
+    }[],
+  ): ResolvedLanguage {
     this.preference = {
       ...this.preference,
-      installedPacks: installedPacks.map((pack) => ({ ...pack })),
+      installedPacks: installedPacks
+        .map((pack) => {
+          const entry = this.registry.find(
+            (item) => item.languageTag === pack.languageTag,
+          );
+          if (!entry) return null;
+          return {
+            languageTag: pack.languageTag,
+            version: pack.version,
+            active: true,
+            verified: pack.verified,
+            capabilities: entry.capabilities,
+          };
+        })
+        .filter((pack): pack is InstalledLanguagePack => pack !== null),
     };
     return this.resolve();
   }
