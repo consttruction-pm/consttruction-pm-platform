@@ -100,3 +100,17 @@ def test_revision_endpoint_rejects_negative_revision():
 
     with pytest.raises(ValueError, match="INVALID_PROJECT_REVISION"):
         endpoint.get({"X-Tenant-Id": "t1", "X-Project-Id": "p1"})
+
+
+def test_revision_endpoint_rejects_boolean_revision():
+    endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: True)
+
+    with pytest.raises(ValueError, match="INVALID_PROJECT_REVISION"):
+        endpoint.get({"X-Tenant-Id": "t1", "X-Project-Id": "p1"})
+
+
+def test_revision_endpoint_rejects_float_revision():
+    endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: 8.5)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="INVALID_PROJECT_REVISION"):
+        endpoint.get({"X-Tenant-Id": "t1", "X-Project-Id": "p1"})
