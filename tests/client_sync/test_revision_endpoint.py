@@ -1,3 +1,6 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
@@ -53,6 +56,48 @@ def body(item: OfflineMutation) -> dict[str, object]:
         "payload": item.payload,
         "idempotency_key": item.idempotency_key,
     }
+
+
+def test_idempotency_execution_is_atomic_for_concurrent_replays():
+    store = InMemoryServerIdempotencyStore()
+    gateway = IdempotentMutationGateway(store)
+    item = mutation(8)
+    started = threading.Event()
+    second_started = threading.Event()
+    release = threading.Event()
+    calls = 0
+    calls_lock = threading.Lock()
+
+    def producer():
+        nonlocal calls
+        with calls_lock:
+            calls += 1
+            call_number = calls
+        if call_number == 1:
+            started.set()
+            release.wait(timeout=2)
+        else:
+            second_started.set()
+        return {
+            "contract_version": "sync-outcome.v1",
+            "mutation_id": item.mutation_id,
+            "disposition": "acknowledged",
+        }
+
+    def invoke():
+        return gateway.execute_lazy(item, producer)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(invoke)
+        assert started.wait(timeout=2)
+        second = executor.submit(invoke)
+        assert not second_started.wait(timeout=0.05)
+        release.set()
+        first_result = first.result(timeout=2)
+        second_result = second.result(timeout=2)
+
+    assert first_result == second_result
+    assert calls == 1
 
 
 def test_api_boundary_returns_conflict_then_authoritative_revision_and_accepts_retry():
