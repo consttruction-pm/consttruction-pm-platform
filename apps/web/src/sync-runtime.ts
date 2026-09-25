@@ -35,11 +35,7 @@ export class WebSyncRuntime {
   }
 
   private syncRunner(): ClientSyncRunner {
-    return new ClientSyncRunner(this.mutationQueue, {
-      submit: (mutation) => {
-        throw new Error("SYNC_SUBMIT_NOT_CONFIGURED");
-      },
-    });
+    return new ClientSyncRunner(this.mutationQueue);
   }
 
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> {
