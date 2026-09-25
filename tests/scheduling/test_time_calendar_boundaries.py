@@ -45,6 +45,22 @@ def test_calculate_working_hours_across_split_intervals_is_exact(resolver):
     ) == Decimal("2")
 
 
+def test_calculate_working_hours_at_same_working_cursor_is_zero(resolver):
+    cursor = datetime(2026, 9, 22, 10, 15, 30, 250000)
+    assert resolver.calculate_working_hours(cursor, cursor) == Decimal("0")
+
+
+def test_calculate_working_hours_at_same_nonworking_cursor_is_zero(resolver):
+    cursor = datetime(2026, 9, 22, 12, 30)
+    assert resolver.calculate_working_hours(cursor, cursor) == Decimal("0")
+
+
+def test_calculate_working_hours_over_holiday_only_is_zero(resolver):
+    holiday_start = datetime(2026, 9, 23, 8)
+    holiday_finish = datetime(2026, 9, 23, 17)
+    assert resolver.calculate_working_hours(holiday_start, holiday_finish) == Decimal("0")
+
+
 def test_invalid_interval_order_is_rejected():
     with pytest.raises(ValueError, match="working interval start must precede end"):
         WorkingTimeCalendar(
