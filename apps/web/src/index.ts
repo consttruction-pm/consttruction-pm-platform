@@ -14,3 +14,4 @@ export * from "./language-manager-bootstrap.js";
 export * from "./language-manager-copy.js";
 export * from "./web-zip-language-pack-extractor.js";
 export * from "./language-pack-signature.js";
+export * from "../../client-sync/src/language-shell-lifecycle.js";
