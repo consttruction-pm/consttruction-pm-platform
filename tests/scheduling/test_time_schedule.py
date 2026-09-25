@@ -671,3 +671,48 @@ def test_time_schedule_negative_total_float_does_not_make_free_float_negative():
 
     assert result.floats["A"].total_float_hours == Decimal("-1")
     assert result.floats["A"].free_float_hours == Decimal("0")
+
+
+def test_time_schedule_marks_all_activities_on_multiple_critical_paths():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("D", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS),
+        TimeRelationship("A", "C", RelationshipType.FS),
+        TimeRelationship("B", "D", RelationshipType.FS),
+        TimeRelationship("C", "D", RelationshipType.FS),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 14),
+        registry(),
+    )
+
+    assert all(result.floats[activity_id].critical for activity_id in ("A", "C", "D"))
+    assert result.floats["B"].critical is False
+    assert result.floats["B"].total_float_hours == Decimal("3")
+    assert result.floats["A"].total_float_hours == Decimal("0")
+    assert result.floats["C"].total_float_hours == Decimal("0")
+    assert result.floats["D"].total_float_hours == Decimal("0")
+
+
+def test_time_schedule_critical_flag_matches_nonpositive_total_float():
+    ctx = context()
+    result = time_schedule(
+        [TimeActivity("A", TimeQuantity.working_hours(1), ctx)],
+        [],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 9),
+        registry(),
+    )
+
+    assert result.floats["A"].total_float_hours == Decimal("0")
+    assert result.floats["A"].critical is True
