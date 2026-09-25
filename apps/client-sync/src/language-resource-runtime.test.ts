@@ -32,27 +32,18 @@ test("installs and resolves a language resource bundle locally", async () => {
   });
 
   assert.equal(runtime.translate("fa", "1.0.0", "nav.dashboard"), "داشبورد");
-  assert.equal(
-    runtime.translate("fa", "1.0.0", "activity.duration"),
-    null,
-  );
+  assert.equal(runtime.translate("fa", "1.0.0", "activity.duration"), null);
 });
 
-test("can use a locally installed fallback bundle", async () => {
+test("resolves a missing translation from a locally installed fallback bundle", async () => {
   const runtime = new LanguageResourceRuntime({
-    async readText(_artifact, path) {
-      if (path === "translations.json") {
-        return JSON.stringify(
-          path === "translations.json" ? {} : {},
-        );
+    async readText(artifact, path) {
+      if (artifact[0] === 1 && path === "translations.json") {
+        return JSON.stringify({
+          "nav.dashboard": "داشبورد",
+        });
       }
-      return "{}";
-    },
-  });
-
-  const baseReaderRuntime = new LanguageResourceRuntime({
-    async readText(_artifact, path) {
-      if (path === "translations.json") {
+      if (artifact[0] === 2 && path === "translations.json") {
         return JSON.stringify({
           "activity.duration": "Duration",
         });
@@ -67,7 +58,8 @@ test("can use a locally installed fallback bundle", async () => {
     help: "help.json",
     reports: "reports.json",
   });
-  await baseReaderRuntime.installBundle("en", "1.0.0", new Uint8Array([2]), {
+
+  await runtime.installBundle("en", "1.0.0", new Uint8Array([2]), {
     translation: "translations.json",
     glossary: "glossary.json",
     help: "help.json",
@@ -75,7 +67,10 @@ test("can use a locally installed fallback bundle", async () => {
   });
 
   assert.equal(
-    baseReaderRuntime.translate("en", "1.0.0", "activity.duration"),
+    runtime.translate("fa", "1.0.0", "activity.duration", {
+      languageTag: "en",
+      version: "1.0.0",
+    }),
     "Duration",
   );
 });
