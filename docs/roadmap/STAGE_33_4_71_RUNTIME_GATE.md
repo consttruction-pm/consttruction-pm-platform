@@ -4,6 +4,7 @@ Status: implemented — runtime verification pending.
 
 - PostgreSQL idempotency execution acquires a transaction-scoped advisory lock derived from tenant/project/idempotency-key identity before delegate execution.
 - The live PostgreSQL regression covers two independent connections using the same idempotency key and requires exactly one delegate execution.
+- The live PostgreSQL regression also verifies that distinct idempotency keys can enter their delegates concurrently, confirming lock granularity is scoped to tenant/project/key rather than a global serialization point.
 - A focused persistence-contract regression verifies the adapter emits `pg_advisory_xact_lock` using the composite mutation identity.
 - Existing database uniqueness and fingerprint checks remain in place.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
