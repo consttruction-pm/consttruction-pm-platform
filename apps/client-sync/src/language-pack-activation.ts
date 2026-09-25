@@ -50,7 +50,18 @@ export class LanguagePackActivationService {
       version: manifest.version,
       bundle,
     };
+
+    // New resources are fully loaded before the active bundle changes.
+    const previous = this.active;
     this.active = next;
+    if (
+      previous &&
+      (previous.languageTag !== next.languageTag ||
+        previous.version !== next.version)
+    ) {
+      this.resources.removeBundle(previous.languageTag, previous.version);
+    }
+
     return next;
   }
 
