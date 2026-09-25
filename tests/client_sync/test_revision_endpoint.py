@@ -107,6 +107,38 @@ def test_retry_uses_new_idempotency_key_and_replays_ack_without_reexecution():
     assert handler.calls == 2
 
 
+def test_api_boundary_rejects_boolean_revision():
+    handler = Handler()
+    endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", handler))
+    item = mutation(7)
+    payload = body(item)
+    payload["expected_revision"] = True
+
+    result = endpoint.post(payload, headers(item))
+
+    assert result["contract_version"] == "sync-outcome.v1"
+    assert result["mutation_id"] == "m1"
+    assert result["disposition"] == "rejected"
+    assert result["error_code"] == "INVALID_EXPECTED_REVISION"
+    assert handler.calls == 0
+
+
+def test_api_boundary_rejects_non_integer_revision():
+    handler = Handler()
+    endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", handler))
+    item = mutation(7)
+    payload = body(item)
+    payload["expected_revision"] = 7.5
+
+    result = endpoint.post(payload, headers(item))
+
+    assert result["contract_version"] == "sync-outcome.v1"
+    assert result["mutation_id"] == "m1"
+    assert result["disposition"] == "rejected"
+    assert result["error_code"] == "INVALID_EXPECTED_REVISION"
+    assert handler.calls == 0
+
+
 def test_revision_endpoint_rejects_wrong_project_context():
     endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: 8)
 

@@ -31,7 +31,7 @@ export class OfflineMutationQueue {
   private readonly idempotencyKeys = new Map<string,string>();
   enqueue(mutation: SyncMutation): void {
     if (mutation.contract_version !== "sync-mutation.v1") throw new Error("UNSUPPORTED_MUTATION_CONTRACT");
-    if (mutation.expected_revision < 0) throw new Error("INVALID_EXPECTED_REVISION");
+    if (!Number.isSafeInteger(mutation.expected_revision) || mutation.expected_revision < 0) throw new Error("INVALID_EXPECTED_REVISION");
     if (!mutation.mutation_id || !mutation.idempotency_key) throw new Error("INVALID_MUTATION_METADATA");
     const existingMutation=this.idempotencyKeys.get(mutation.idempotency_key);
     if (existingMutation && existingMutation !== mutation.mutation_id) throw new Error("IDEMPOTENCY_KEY_REUSE");
