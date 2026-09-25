@@ -447,3 +447,12 @@ Status: **implemented — runtime verification pending**
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 - Runtime CI verification remains pending; recent GitHub Actions runs have failed without executable steps/logs, so those statuses are not interpreted as code-test failures.
 
+
+### Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock
+Status: **implemented — runtime verification pending**
+- PostgreSQL idempotency execution now acquires a transaction-scoped advisory lock derived from tenant/project/idempotency key before the delegate executes.
+- This closes the concurrency gap where two transactions could both observe a missing idempotency record and execute the mutation side effect before the unique-key insert.
+- PostgreSQL persistence retains the database unique key and race-safe insert semantics; the advisory lock protects the delegate execution itself.
+- Added a live PostgreSQL concurrency regression requiring the same mutation key to execute the delegate exactly once across independent database connections.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- Runtime CI verification remains pending; the latest GitHub Actions status is not yet reported for these commits.
