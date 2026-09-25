@@ -2,7 +2,7 @@
 
 Effective date: 2026-09-25
 
-This document is the top-level product-governance reference. New requirements, architecture changes, calculations, workflows and client features must be checked against these principles before implementation.
+This document is the top-level product-governance reference. New requirements, architecture changes, calculations, workflows, client features and release decisions must be checked against these principles before implementation or release.
 
 ## Principle 1 — Primavera P6 + PMBOK alignment
 
@@ -12,11 +12,21 @@ PMI's PMBOK Guide — Eighth Edition (November 2025), together with ANSI/PMI 99-
 
 No client, API adapter, external package or AI agent may silently redefine P6/shared calculation semantics.
 
-## Principle 2 — Complete, current Construction Management + Project Controls platform
+## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
-After compliance with Principle 1, the product must continuously cover the real operational lifecycle of modern construction: preconstruction, estimating, procurement, contracting, planning, field execution, quality, safety, progress, project controls, risk, claims, commercial control, closeout and portfolio management.
+After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
 
-This principle exists because the market is moving beyond isolated scheduling toward integrated construction operating systems and AI-native project-control platforms.
+This is a release target that must be demonstrated with evidence, not treated as a marketing assertion. The benchmark must be refreshed before release and include leading incumbent platforms, emerging AI-native products and specialized point solutions that materially affect the product scope.
+
+### Release-completeness requirements
+
+- No P0 capability in the approved completeness matrix may remain merely planned at release.
+- Every major competitor capability relevant to our specialist scope must be either implemented, intentionally integrated through a supported adapter, or explicitly documented as outside our defined scope.
+- Each implemented capability must meet an agreed depth/quality bar, not only exist as a screen or placeholder.
+- Cross-domain workflows must connect Schedule, Progress, Cost, Resources, Documents, Contracts, Procurement, Field, Risk and AI where their business relationship requires it.
+- AI features must be construction-grounded, auditable and action-aware rather than generic chat-only features.
+- Release certification must include functional, calculation, interoperability, security, offline/online, performance, localization and usability evidence.
+- New market developments found before release become release-gate inputs; the roadmap must be re-ranked rather than allowing a stale benchmark to define completeness.
 
 ### Required product layers
 
@@ -58,26 +68,29 @@ AI results that influence project decisions must expose source context where ava
 
 Dates, durations, decimals, currencies, quantities, IDs, versions, revisions and statuses must be represented as typed contracts. Excel, Project, API and offline packages must preserve calculation-ready types.
 
+## Release Gate
+
+Every release candidate must pass two sequential product gates:
+1. **Gate A — P6/PMBOK conformance:** verified compatibility with the applicable P6/shared calculation baseline and alignment with the PMBOK/PMI governance baseline.
+2. **Gate B — market completeness and leadership:** refreshed competitive benchmark, P0 closure, evidence-based depth review, cross-domain workflow coverage, AI/automation readiness, interoperability, client parity and release-quality verification.
+
+Gate B does not override Gate A. A feature that increases market breadth but changes established P6/shared calculation semantics is rejected or redesigned.
+
 ## Decision gate
 
-Every new feature is classified as:
-- P6/PMBOK baseline behavior,
-- modern construction completeness,
-- shared platform infrastructure,
-- client presentation/integration,
-- AI intelligence, or
-- external validation/reuse.
+Every new feature is classified as P6/PMBOK baseline behavior, modern construction completeness, shared platform infrastructure, client presentation/integration, AI intelligence, or external validation/reuse.
 
 Conflicts are resolved in this order:
 1. Explicit P6 compatibility requirement for overlapping behavior.
 2. Shared Core/domain integrity.
 3. PMBOK/project-governance alignment.
 4. Construction lifecycle completeness.
-5. Cross-client parity and portability.
-6. User experience and implementation convenience.
+5. Market benchmark/release leadership target.
+6. Cross-client parity and portability.
+7. User experience and implementation convenience.
 
 ## Current market benchmark
 
-The 2026 competitive review considered Oracle Primavera Cloud/P6, Procore, InEight, Autodesk Construction Cloud/Forma, Bentley SYNCHRO, nPlan, ALICE, Planera, Pillar, MeltPlan, Jet.Build, Anyset AI, Mastt, Nodes & Links, Trunk Tools, OpenSpace, Buildots and Document Crunch.
+The 2026 competitive review considered Oracle Primavera Cloud/P6, Procore, InEight, Autodesk Construction Cloud/Forma, Bentley SYNCHRO, nPlan, ALICE, Planera, Pillar, MeltPlan, Jet.Build, Anyset AI, Mastt, Nodes & Links, Trunk Tools, OpenSpace, Buildots and Document Crunch. The benchmark must be refreshed before release.
 
 This is a product-governance benchmark, not a claim that every listed vendor implements every capability.
