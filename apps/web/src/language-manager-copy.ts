@@ -23,6 +23,8 @@ export const DEFAULT_ENGLISH_LANGUAGE_MANAGER_COPY: LanguageManagerCopy = {
   yes: "Yes",
   no: "No",
   missing: "—",
+  action: "Action",
+  downloadProgress: "Language pack download progress",
   rtl: "RTL",
   ltr: "LTR",
 };
