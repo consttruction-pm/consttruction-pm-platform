@@ -1,6 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OfflineMutationQueue } from "./mutation-queue.ts";
+
+import type { SyncMutation, SyncOutcome } from "./mutation-queue.ts";
+
+import {
+  OfflineMutationQueue,
+  fromAuthoritativeSyncOutcome,
+  toAuthoritativeSyncOutcome,
+} from "./mutation-queue.ts";
+
+const mutation: SyncMutation = {
+  contract_version: "sync-mutation.v1",
+  mutation_id: "m1",
+  tenant_id: "t1",
+  project_id: "p1",
+  expected_revision: 7,
+  operation: "update_activity",
+  payload: { activity_id: "A1" },
+  idempotency_key: "idem-1",
+};
+
+function outcome(disposition: SyncOutcome["disposition"]): SyncOutcome {
+  return {
+    contract_version: "sync-outcome.v1",
+    mutation_id: mutation.mutation_id,
+    disposition,
+    error_code: disposition === "conflict" ? "STALE_REVISION" : null,
+  };
+}
 
 test("retryAtRevision replaces the expected revision and rotates idempotency", () => {
   const queue = new OfflineMutationQueue();
@@ -45,4 +72,88 @@ test("retryAtRevision rejects unknown mutations and invalid revisions", () => {
   assert.throws(() => queue.retryAtRevision("m1", -1), {
     message: "INVALID_EXPECTED_REVISION",
   });
+});
+
+test("acknowledged maps to authoritative applied", () => {
+  assert.deepEqual(toAuthoritativeSyncOutcome(mutation, outcome("acknowledged")), {
+    contract_version: "client-sync-outcome.v1",
+    status: "applied",
+    operation: "update_activity",
+    error_code: null,
+    retryable: null,
+    idempotency_key: "idem-1",
+  });
+});
+
+test("conflict and rejected preserve their status and error", () => {
+  assert.equal(toAuthoritativeSyncOutcome(mutation, outcome("conflict")).status, "conflict");
+  assert.equal(toAuthoritativeSyncOutcome(mutation, outcome("conflict")).error_code, "STALE_REVISION");
+  assert.equal(toAuthoritativeSyncOutcome(mutation, outcome("rejected")).status, "rejected");
+});
+
+test("retry is rejected because authoritative outcome has no retry status", () => {
+  assert.throws(
+    () => toAuthoritativeSyncOutcome(mutation, outcome("retry")),
+    /UNREPRESENTABLE_RETRY_OUTCOME/,
+  );
+});
+
+test("mutation identity mismatch is rejected", () => {
+  assert.throws(
+    () => toAuthoritativeSyncOutcome(mutation, { ...outcome("acknowledged"), mutation_id: "other" }),
+    /MUTATION_ID_MISMATCH/,
+  );
+});
+
+test("applied and replayed map back to acknowledged", () => {
+  for (const status of ["applied", "replayed"] as const) {
+    assert.deepEqual(
+      fromAuthoritativeSyncOutcome(mutation, {
+        contract_version: "client-sync-outcome.v1",
+        status,
+        operation: mutation.operation,
+        idempotency_key: mutation.idempotency_key,
+      }),
+      {
+        contract_version: "sync-outcome.v1",
+        mutation_id: "m1",
+        disposition: "acknowledged",
+        error_code: null,
+      },
+    );
+  }
+});
+
+test("authoritative conflict and rejected map back without changing semantics", () => {
+  for (const status of ["conflict", "rejected"] as const) {
+    assert.equal(
+      fromAuthoritativeSyncOutcome(mutation, {
+        contract_version: "client-sync-outcome.v1",
+        status,
+        operation: mutation.operation,
+        idempotency_key: mutation.idempotency_key,
+        error_code: "E1",
+      }).disposition,
+      status,
+    );
+  }
+});
+
+test("idempotency and operation mismatches are rejected", () => {
+  assert.throws(
+    () => fromAuthoritativeSyncOutcome(mutation, {
+      contract_version: "client-sync-outcome.v1",
+      status: "applied",
+      idempotency_key: "other",
+    }),
+    /IDEMPOTENCY_KEY_MISMATCH/,
+  );
+  assert.throws(
+    () => fromAuthoritativeSyncOutcome(mutation, {
+      contract_version: "client-sync-outcome.v1",
+      status: "applied",
+      operation: "delete_activity",
+    }),
+    /OPERATION_MISMATCH/,
+  );
 });
