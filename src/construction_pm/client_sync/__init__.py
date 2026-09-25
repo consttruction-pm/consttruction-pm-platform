@@ -10,7 +10,8 @@ __all__ = [
     "InMemoryOfflineMutationQueue", "SQLiteOfflineMutationQueue", "TimeSchedulingPortability",
     "TimeSchedulingAPIPayload", "RetryPolicy", "SyncDisposition", "SyncOutcome", "SyncTransport",
     "ApplicationMutationGateway", "ApplicationSyncAdapter", "SyncRunner", "InMemoryOfflineMutationStore",
-    "OfflineMutationStore", "JsonFileOfflineMutationStore",
+    "OfflineMutationStore", "JsonFileOfflineMutationStore", "ProjectRevision", "ProjectRevisionReader",
+    "InMemoryProjectRevisionReader", "VersionedSyncRevisionEndpoint",
 ]
 
 from .retry import RetryPolicy
@@ -26,3 +27,4 @@ from .server_gateway import IdempotentMutationGateway
 from .server_idempotency import InMemoryServerIdempotencyStore, mutation_fingerprint
 
 from .conflict import ConflictContext, ConflictPresentation
+from .revision_endpoint import InMemoryProjectRevisionReader, ProjectRevision, ProjectRevisionReader, VersionedSyncRevisionEndpoint
