@@ -34,6 +34,14 @@ export class WebSyncRuntime {
     return this.mutationQueue.size();
   }
 
+  private syncRunner(): ClientSyncRunner {
+    return new ClientSyncRunner(this.mutationQueue, {
+      submit: (mutation) => {
+        throw new Error("SYNC_SUBMIT_NOT_CONFIGURED");
+      },
+    });
+  }
+
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> {
     return new ClientSyncRunner(
       this.mutationQueue,
@@ -69,11 +77,10 @@ export class WebSyncRuntime {
     if (mutation.tenant_id !== current.tenant_id || mutation.project_id !== current.project_id) {
       throw new Error("PROJECT_CONTEXT_MISMATCH");
     }
-    const revision = await new ApiRevisionTransport(revisionApi).refresh({
-      tenant_id: current.tenant_id,
-      project_id: current.project_id,
-      revision: mutation.expected_revision,
-    });
+    const revision = await this.syncRunner().refreshConflictRevision(
+      mutationId,
+      new ApiRevisionTransport(revisionApi),
+    );
     this.projectContext.updateRevision(revision.revision);
     return this.mutationQueue.retryAtRevision(mutationId, revision.revision);
   }
