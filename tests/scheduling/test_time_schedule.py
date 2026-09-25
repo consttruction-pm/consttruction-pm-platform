@@ -716,3 +716,87 @@ def test_time_schedule_critical_flag_matches_nonpositive_total_float():
 
     assert result.floats["A"].total_float_hours == Decimal("0")
     assert result.floats["A"].critical is True
+
+
+def test_time_schedule_merge_split_marks_only_longest_branch_critical():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("D", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS),
+        TimeRelationship("A", "C", RelationshipType.FS),
+        TimeRelationship("B", "D", RelationshipType.FS),
+        TimeRelationship("C", "D", RelationshipType.FS),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 14),
+        registry(),
+    )
+
+    assert result.floats["A"].critical
+    assert result.floats["C"].critical
+    assert result.floats["D"].critical
+    assert result.floats["B"].critical is False
+    assert result.floats["B"].total_float_hours == Decimal("3")
+
+
+def test_time_schedule_multiple_terminal_activities_share_project_finish_without_false_criticality():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry(),
+    )
+
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 14)
+    assert result.early_activities["C"].finish == datetime(2026, 9, 22, 9)
+    assert result.floats["B"].total_float_hours == Decimal("3")
+    assert result.floats["B"].critical is False
+    assert result.floats["C"].total_float_hours == Decimal("8")
+    assert result.floats["C"].critical is False
+
+
+def test_time_schedule_negative_project_float_marks_longest_path_critical():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(4), ctx),
+        TimeActivity("C", TimeQuantity.working_hours(1), ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS),
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 10),
+        registry(),
+    )
+
+    assert result.floats["A"].total_float_hours == Decimal("-4")
+    assert result.floats["B"].total_float_hours == Decimal("-4")
+    assert result.floats["A"].critical
+    assert result.floats["B"].critical
+    assert result.floats["C"].total_float_hours == Decimal("1")
+    assert result.floats["C"].critical is False
