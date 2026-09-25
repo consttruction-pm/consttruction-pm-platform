@@ -11,6 +11,7 @@ test("Web UI contract preserves RTL and capability metadata", () => {
         languageTag: "fa",
         direction: "rtl",
         locale: "fa-IR",
+        installedPackageId: "construction-pm.language.fa",
         installedVersion: "1.0.0",
         verified: true,
         offlineReady: true,
