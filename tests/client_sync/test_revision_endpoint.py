@@ -8,6 +8,7 @@ from construction_pm.client_sync.application_gateway import ApplicationSyncGatew
 from construction_pm.client_sync.offline_mutation import OfflineMutation
 from construction_pm.client_sync.server_gateway import IdempotentMutationGateway
 from construction_pm.client_sync.server_idempotency import InMemoryServerIdempotencyStore
+from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcome
 
 
 class OptimisticLockError(Exception):
@@ -78,11 +79,7 @@ def test_idempotency_execution_is_atomic_for_concurrent_replays():
             release.wait(timeout=2)
         else:
             second_started.set()
-        return {
-            "contract_version": "sync-outcome.v1",
-            "mutation_id": item.mutation_id,
-            "disposition": "acknowledged",
-        }
+        return SyncOutcome(item.mutation_id, SyncDisposition.ACKNOWLEDGED)
 
     def invoke():
         return gateway.execute_lazy(item, producer)
