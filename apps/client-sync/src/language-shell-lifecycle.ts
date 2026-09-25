@@ -8,6 +8,7 @@ import { isNewerPackAvailable } from "./language-pack-catalog.js";
 export type LanguageShellActivationState =
   | "activated"
   | "not-required"
+  | "not-installed"
   | "resource-manifest-missing";
 
 export type LanguageShellBootstrapResult = {
@@ -55,7 +56,7 @@ export class ClientLanguageShellLifecycle {
       const current = this.runtime.current();
       return {
         language: current,
-        activation: "resource-manifest-missing",
+        activation: "not-installed",
       };
     }
 
