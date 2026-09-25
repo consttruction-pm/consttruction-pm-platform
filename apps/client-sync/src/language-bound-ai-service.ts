@@ -1,6 +1,4 @@
-import type {
-  AILanguageContext,
-} from "../../../src/construction_pm/i18n/ai";
+import type { AILanguageContext } from "./ai-language-contract.ts";
 import type {
   DeviceCapabilityProfile,
   PreferredLanguageModels,
@@ -75,7 +73,9 @@ export class LanguageBoundAIService {
     appVersion: string,
     device: DeviceCapabilityProfile,
   ): Promise<{ mode: AIExecutionMode; text: string }> {
-    request.require_text_output();
+    if (!request.text_capable) {
+      throw new Error("AI_TEXT_OUTPUT_UNAVAILABLE");
+    }
     const decision = await this.decide(appVersion, device);
 
     if (decision.mode === "offline" && decision.modelPackageId) {
