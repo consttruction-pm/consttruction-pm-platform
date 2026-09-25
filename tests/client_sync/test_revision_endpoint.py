@@ -1,0 +1,100 @@
+import pytest
+
+from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
+from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
+from construction_pm.client_sync.offline_mutation import OfflineMutation
+
+
+class OptimisticLockError(Exception):
+    pass
+
+
+def mutation(revision: int = 7) -> OfflineMutation:
+    return OfflineMutation(
+        mutation_id="m1",
+        tenant_id="t1",
+        project_id="p1",
+        expected_revision=revision,
+        operation="update_activity",
+        payload={"activity_id": "A1"},
+        idempotency_key=f"idem-1:r{revision}",
+    )
+
+
+class Handler:
+    def __init__(self) -> None:
+        self.authoritative_revision = 8
+        self.calls = 0
+
+    def handle(self, item: OfflineMutation) -> None:
+        self.calls += 1
+        if item.expected_revision != self.authoritative_revision:
+            raise OptimisticLockError()
+
+
+def headers(item: OfflineMutation) -> dict[str, str]:
+    return {
+        "Idempotency-Key": item.idempotency_key,
+        "X-Tenant-Id": item.tenant_id,
+        "X-Project-Id": item.project_id,
+        "X-Project-Revision": str(item.expected_revision),
+    }
+
+
+def body(item: OfflineMutation) -> dict[str, object]:
+    return {
+        "mutation_id": item.mutation_id,
+        "tenant_id": item.tenant_id,
+        "project_id": item.project_id,
+        "expected_revision": item.expected_revision,
+        "operation": item.operation,
+        "payload": item.payload,
+        "idempotency_key": item.idempotency_key,
+    }
+
+
+def test_api_boundary_returns_conflict_then_authoritative_revision_and_accepts_retry():
+    handler = Handler()
+    endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", handler))
+
+    stale = mutation(7)
+    conflict = endpoint.post(body(stale), headers(stale))
+    assert conflict["contract_version"] == "sync-outcome.v1"
+    assert conflict["disposition"] == "conflict"
+    assert conflict["error_code"] == "STALE_REVISION"
+
+    revision_endpoint = VersionedSyncRevisionEndpoint(
+        "t1",
+        "p1",
+        lambda tenant_id, project_id: handler.authoritative_revision,
+    )
+    refreshed = revision_endpoint.get({"X-Tenant-Id": "t1", "X-Project-Id": "p1"})
+    assert refreshed == {
+        "contract_version": "sync-project-revision.v1",
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "revision": 8,
+    }
+
+    retried = mutation(8)
+    acknowledged = endpoint.post(body(retried), headers(retried))
+    assert acknowledged["contract_version"] == "sync-outcome.v1"
+    assert acknowledged["disposition"] == "acknowledged"
+    assert handler.calls == 2
+
+
+def test_revision_endpoint_rejects_wrong_project_context():
+    endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: 8)
+
+    result = endpoint.get({"X-Tenant-Id": "t2", "X-Project-Id": "p1"})
+
+    assert result["error_code"] == "INVALID_PROJECT_CONTEXT"
+    assert result["tenant_id"] == "t1"
+    assert result["project_id"] == "p1"
+
+
+def test_revision_endpoint_rejects_negative_revision():
+    endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: -1)
+
+    with pytest.raises(ValueError, match="INVALID_PROJECT_REVISION"):
+        endpoint.get({"X-Tenant-Id": "t1", "X-Project-Id": "p1"})
