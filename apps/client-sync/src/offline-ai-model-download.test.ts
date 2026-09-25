@@ -65,6 +65,7 @@ test("rejects an unverified model download", async () => {
       },
     },
     new InMemoryOfflineModelStore(),
+    new InMemoryOfflineModelArtifactStore(),
   );
 
   await assert.rejects(
