@@ -1,4 +1,4 @@
-import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.ts";
+import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
 import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
 import {
   OfflineMutationQueue,
