@@ -6,6 +6,7 @@ import {
 } from "./language.ts";
 import type { LanguagePackStore } from "./language-pack-store.ts";
 import type { LanguagePreferenceStore } from "./language-preference-store.ts";
+import type { LanguagePackResourceManifestStore } from "./language-pack-resource-manifest-store.ts";
 import {
   LanguagePackDownloadService,
   type LanguagePackDownloadManifest,
@@ -20,6 +21,7 @@ export class ClientLanguageRuntime {
   constructor(
     private readonly packStore: LanguagePackStore | null = null,
     private readonly preferenceStore: LanguagePreferenceStore | null = null,
+    private readonly resourceManifestStore: LanguagePackResourceManifestStore | null = null,
   ) {}
 
   configure(
@@ -125,6 +127,15 @@ export class ClientLanguageRuntime {
       artifact,
     });
 
+    if (manifest.resourcePaths && this.resourceManifestStore) {
+      await this.resourceManifestStore.put({
+        packageId: manifest.packageId,
+        languageTag: manifest.languageTag,
+        version: manifest.version,
+        resources: { ...manifest.resourcePaths },
+      });
+    }
+
     const installed = await this.packStore.list();
     this.manager?.syncInstalledPackState(
       installed.map((item) => ({
@@ -135,3 +146,13 @@ export class ClientLanguageRuntime {
     );
   }
 }
+
+  async cachedResourceManifest(
+    packageId: string,
+    version: string,
+  ) {
+    if (!this.resourceManifestStore) {
+      throw new Error("LANGUAGE_RESOURCE_MANIFEST_STORE_NOT_CONFIGURED");
+    }
+    return this.resourceManifestStore.get(packageId, version);
+  }
