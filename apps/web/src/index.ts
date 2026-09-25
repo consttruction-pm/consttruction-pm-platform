@@ -7,3 +7,4 @@ export * from "./language-pack-store.js";
 export * from "./language-pack-download.js";
 export * from "./language-preference-store.js";
 export * from "./website-language-routing.js";
+export * from "./apply-language-presentation.js";
