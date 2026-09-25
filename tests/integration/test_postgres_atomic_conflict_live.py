@@ -108,3 +108,60 @@ def test_real_postgres_same_key_executes_delegate_once_across_connections():
 
     assert first_result == second_result
     assert call_count[0] == 1
+
+
+def test_real_postgres_distinct_keys_can_execute_concurrently():
+    import concurrent.futures
+    import threading
+
+    first_started = threading.Event()
+    second_started = threading.Event()
+    release = threading.Event()
+    call_lock = threading.Lock()
+    calls = []
+
+    class ParallelDelegate:
+        def submit(self, item):
+            with call_lock:
+                calls.append(item.idempotency_key)
+            if item.idempotency_key == "live-parallel-key-a":
+                first_started.set()
+            else:
+                second_started.set()
+            assert release.wait(timeout=5)
+            return SyncOutcome(
+                item.mutation_id,
+                SyncDisposition.CONFLICT,
+                error_code="REVISION_CONFLICT",
+            )
+
+    def worker(mutation):
+        with _connect() as conn:
+            store = PostgresSyncStateStore(conn)
+            store.initialize()
+            executor = AtomicConflictSyncExecutor(
+                store, PostgresTransactionManager(conn), ParallelDelegate()
+            )
+            return executor.submit(mutation)
+
+    first_mutation = _mutation(
+        key="live-parallel-key-a", mutation_id="live-parallel-m1"
+    )
+    second_mutation = _mutation(
+        key="live-parallel-key-b", mutation_id="live-parallel-m2"
+    )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(worker, first_mutation)
+        second = pool.submit(worker, second_mutation)
+
+        assert first_started.wait(timeout=5)
+        assert second_started.wait(timeout=5)
+        assert set(calls) == {"live-parallel-key-a", "live-parallel-key-b"}
+
+        release.set()
+        first_result = first.result(timeout=10)
+        second_result = second.result(timeout=10)
+
+    assert first_result.disposition is SyncDisposition.CONFLICT
+    assert second_result.disposition is SyncDisposition.CONFLICT
