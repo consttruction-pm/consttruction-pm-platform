@@ -84,3 +84,40 @@ test("rejects invalid resource JSON", async () => {
     /INVALID_TRANSLATION_RESOURCE_JSON/,
   );
 });
+
+
+test("rejects absolute resource paths", async () => {
+  const loader = new LanguageResourceLoader({
+    async readText() {
+      return "{}";
+    },
+  });
+
+  await assert.rejects(
+    loader.load("fa", "1.0.0", new Uint8Array([1]), {
+      translation: "/translations.json",
+      glossary: "glossary.json",
+      help: "help.json",
+      reports: "reports.json",
+    }),
+    /INVALID_LANGUAGE_RESOURCE_PATH/,
+  );
+});
+
+test("rejects parent traversal resource paths", async () => {
+  const loader = new LanguageResourceLoader({
+    async readText() {
+      return "{}";
+    },
+  });
+
+  await assert.rejects(
+    loader.load("fa", "1.0.0", new Uint8Array([1]), {
+      translation: "../translations.json",
+      glossary: "glossary.json",
+      help: "help.json",
+      reports: "reports.json",
+    }),
+    /INVALID_LANGUAGE_RESOURCE_PATH/,
+  );
+});
