@@ -133,6 +133,33 @@ test("conflict refresh uses authoritative revision before explicit retry", async
   assert.equal(queue.peek()?.expected_revision, 8);
 });
 
+test("conflict refresh rejects an unsafe authoritative revision", async () => {
+  const queue = new OfflineMutationQueue();
+  queue.enqueue(mutation("m1"));
+  const runner = new ClientSyncRunner(queue, new FakeTransport([
+    { contract_version: "sync-outcome.v1", mutation_id: "m1", disposition: "conflict", error_code: "STALE_REVISION" },
+  ]));
+  await runner.runOnce();
+
+  const revisionTransport = {
+    async refresh() {
+      return {
+        contract_version: "sync-project-revision.v1" as const,
+        tenant_id: "t1",
+        project_id: "p1",
+        revision: Number.MAX_SAFE_INTEGER + 1,
+      };
+    },
+  };
+
+  await assert.rejects(
+    runner.retryConflictAtAuthoritativeRevision("m1", revisionTransport),
+    /INVALID_PROJECT_REVISION_RESPONSE/,
+  );
+  assert.equal(queue.peek()?.expected_revision, 7);
+});
+
+
 test("conflict refresh does not guess or locally increment the revision", async () => {
   const queue = new OfflineMutationQueue();
   queue.enqueue(mutation("m1"));
