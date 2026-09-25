@@ -27,3 +27,9 @@
   min-width: 6rem;
   padding: 0.45rem 0.7rem;
 }
+
+[data-language-manager] td:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
