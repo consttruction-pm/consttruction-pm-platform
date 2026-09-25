@@ -4,12 +4,7 @@ import {
   type SyncOutcome,
 } from "./mutation-queue.ts";
 
-export type SyncProjectRevision = {
-  contract_version: "sync-project-revision.v1";
-  tenant_id: string;
-  project_id: string;
-  revision: number;
-};
+import type { SyncProjectRevision } from "./revision-transport.ts";
 
 export interface ClientSyncRevisionTransport {
   refresh(context: {
