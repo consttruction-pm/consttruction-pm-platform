@@ -45,3 +45,16 @@ test("mobile runtime refreshes the project revision", async () => {
   });
   assert.equal(state.revision, 8);
 });
+
+test("mobile runtime rejects an invalid authoritative revision response", async () => {
+  const runtime = new MobileRuntime();
+  runtime.openProject("t1", "p1", 7);
+  await assert.rejects(
+    runtime.refreshRevision({
+      async get<TResponse>() {
+        return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 8.5 } as TResponse };
+      },
+    }),
+    /INVALID_PROJECT_REVISION_RESPONSE/,
+  );
+});
