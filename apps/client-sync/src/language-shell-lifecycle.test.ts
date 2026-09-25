@@ -164,3 +164,27 @@ test("language shell installed switch leaves preference unchanged when activatio
   );
   assert.equal(runtime.current().languageTag, "en");
 });
+
+test("language shell reports an explicit not-installed state without changing current language", async () => {
+  const runtime = new ClientLanguageRuntime(
+    new InMemoryLanguagePackStore(),
+    new InMemoryLanguagePreferenceStore(),
+  );
+  runtime.configure(registry, "en", {
+    preferredLanguage: "en",
+    fallbackChain: ["en"],
+    installedPacks: [],
+  });
+
+  const shell = new ClientLanguageShellLifecycle(
+    runtime,
+    async () => {
+      throw new Error("NOT_EXPECTED");
+    },
+  );
+
+  const result = await shell.switchToInstalledLanguage("fa");
+
+  assert.equal(result.activation, "not-installed");
+  assert.equal(result.language.languageTag, "en");
+});
