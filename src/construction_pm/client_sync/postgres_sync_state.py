@@ -29,16 +29,16 @@ class PostgresSyncStateStore:
         return IdempotencyRecord(tenant_id, project_id, key, row[0], row[1], _loads(row[2]))
 
     def put_idempotency(self, record: IdempotencyRecord) -> None:
+        self.connection.execute(
+            "INSERT INTO sync_idempotency (tenant_id, project_id, idempotency_key, mutation_id, fingerprint, outcome_json) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (tenant_id, project_id, idempotency_key) DO NOTHING",
+            (record.tenant_id, record.project_id, record.idempotency_key, record.mutation_id, record.fingerprint, _json(record.outcome)),
+        )
         row = self.connection.execute(
             "SELECT fingerprint FROM sync_idempotency WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
             (record.tenant_id, record.project_id, record.idempotency_key),
         ).fetchone()
         if row is not None and row[0] != record.fingerprint:
             raise ValueError("IDEMPOTENCY_KEY_REUSE")
-        self.connection.execute(
-            "INSERT INTO sync_idempotency (tenant_id, project_id, idempotency_key, mutation_id, fingerprint, outcome_json) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (tenant_id, project_id, idempotency_key) DO UPDATE SET mutation_id=EXCLUDED.mutation_id, fingerprint=EXCLUDED.fingerprint, outcome_json=EXCLUDED.outcome_json",
-            (record.tenant_id, record.project_id, record.idempotency_key, record.mutation_id, record.fingerprint, _json(record.outcome)),
-        )
 
     def save_conflict(self, mutation_id: str, tenant_id: str, project_id: str, context: ConflictContext) -> None:
         self.connection.execute(
