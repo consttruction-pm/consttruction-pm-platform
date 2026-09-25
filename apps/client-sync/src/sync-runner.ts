@@ -4,6 +4,21 @@ import {
   type SyncOutcome,
 } from "./mutation-queue.ts";
 
+export type SyncProjectRevision = {
+  contract_version: "sync-project-revision.v1";
+  tenant_id: string;
+  project_id: string;
+  revision: number;
+};
+
+export interface ClientSyncRevisionTransport {
+  refresh(context: {
+    tenant_id: string;
+    project_id: string;
+    revision: number;
+  }): Promise<SyncProjectRevision>;
+}
+
 export interface ClientSyncTransport {
   submit(mutation: SyncMutation): Promise<SyncOutcome>;
 }
@@ -15,6 +30,33 @@ export class ClientSyncRunner {
   constructor(queue: OfflineMutationQueue, transport: ClientSyncTransport) {
     this.queue = queue;
     this.transport = transport;
+  }
+
+  async refreshConflictRevision(mutationId: string, revisionTransport: ClientSyncRevisionTransport): Promise<SyncProjectRevision> {
+    const mutation = this.queue.pending().find((item) => item.mutation_id === mutationId);
+    if (!mutation) throw new Error("MUTATION_NOT_PENDING");
+
+    const revision = await revisionTransport.refresh({
+      tenant_id: mutation.tenant_id,
+      project_id: mutation.project_id,
+      revision: mutation.expected_revision,
+    });
+    if (
+      revision.tenant_id !== mutation.tenant_id ||
+      revision.project_id !== mutation.project_id ||
+      revision.revision < 0
+    ) {
+      throw new Error("INVALID_PROJECT_REVISION_RESPONSE");
+    }
+    return revision;
+  }
+
+  async retryConflictAtAuthoritativeRevision(
+    mutationId: string,
+    revisionTransport: ClientSyncRevisionTransport,
+  ): Promise<SyncMutation> {
+    const revision = await this.refreshConflictRevision(mutationId, revisionTransport);
+    return this.queue.retryAtRevision(mutationId, revision.revision);
   }
 
   async runOnce(): Promise<readonly SyncOutcome[]> {
