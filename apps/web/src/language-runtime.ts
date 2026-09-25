@@ -8,6 +8,7 @@ import {
   WebLanguageResourceReader,
   type WebLanguagePackExtractor,
 } from "./language-resource-reader.js";
+import { WebZipLanguagePackExtractor } from "./web-zip-language-pack-extractor.js";
 import {
   FetchLanguagePackTransport,
   WebLanguagePackVerifier,
@@ -51,6 +52,10 @@ export class WebLanguageRuntime {
       this.packs,
       resources,
     );
+  }
+
+  configureZipResourceExtractor(): void {
+    this.configureResourceExtractor(new WebZipLanguagePackExtractor());
   }
 
   async downloadLanguagePack(
