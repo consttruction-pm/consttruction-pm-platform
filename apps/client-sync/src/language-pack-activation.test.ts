@@ -73,7 +73,7 @@ test("activates a verified pack from local storage", async () => {
       previous_version: null,
       rollback_supported: true,
     },
-  } as never);
+  });
 
   assert.equal(active.languageTag, "fa");
   assert.equal(service.current()?.version, "1.0.0");
@@ -123,7 +123,7 @@ test("rejects a missing verified pack", async () => {
         voice_output: false,
         offline_ai: false,
       },
-    } as never),
+    }),
     /LANGUAGE_PACK_NOT_VERIFIED/,
   );
 });
