@@ -1,7 +1,9 @@
+import type { AILanguageContext } from "./ai-language-contract.js";
+
 export type LocalInferenceRequest = {
-  text: string;
-  languageTag: string;
+  context: AILanguageContext;
   modelPackageId: string;
+  modelVersion: string;
   signal?: AbortSignal;
   maxOutputTokens?: number;
 };
