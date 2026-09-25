@@ -139,6 +139,35 @@ def test_api_boundary_rejects_non_integer_revision():
     assert handler.calls == 0
 
 
+def test_idempotency_key_reuse_with_different_mutation_id_is_rejected():
+    handler = Handler()
+    endpoint = VersionedSyncEndpoint(
+        ApplicationSyncGateway("t1", "p1", handler),
+        IdempotentMutationGateway(InMemoryServerIdempotencyStore()),
+    )
+
+    first = mutation(8)
+    acknowledged = endpoint.post(body(first), headers(first))
+    assert acknowledged["disposition"] == "acknowledged"
+
+    reused = OfflineMutation(
+        mutation_id="m2",
+        tenant_id="t1",
+        project_id="p1",
+        expected_revision=8,
+        operation="update_activity",
+        payload={"activity_id": "A1"},
+        idempotency_key=first.idempotency_key,
+    )
+    rejected = endpoint.post(body(reused), headers(reused))
+
+    assert rejected["contract_version"] == "sync-outcome.v1"
+    assert rejected["mutation_id"] == "m2"
+    assert rejected["disposition"] == "rejected"
+    assert rejected["error_code"] == "IDEMPOTENCY_KEY_REUSE"
+    assert handler.calls == 1
+
+
 def test_revision_endpoint_rejects_wrong_project_context():
     endpoint = VersionedSyncRevisionEndpoint("t1", "p1", lambda _tenant_id, _project_id: 8)
 
