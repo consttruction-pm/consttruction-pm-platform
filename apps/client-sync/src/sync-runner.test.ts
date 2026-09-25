@@ -247,3 +247,48 @@ test("api transport rejects a successful response with the wrong disposition", a
     /INVALID_SYNC_OUTCOME_RESPONSE/,
   );
 });
+
+
+test("revision transport rejects a non-integer authoritative revision", async () => {
+  const { ApiRevisionTransport } = await import("./revision-transport.ts");
+  const api = {
+    async get<TResponse>(): Promise<{ ok: true; data: TResponse }> {
+      return {
+        ok: true,
+        data: {
+          contract_version: "sync-project-revision.v1",
+          tenant_id: "t1",
+          project_id: "p1",
+          revision: 8.5,
+        } as unknown as TResponse,
+      };
+    },
+  };
+
+  await assert.rejects(
+    new ApiRevisionTransport(api).refresh({ tenant_id: "t1", project_id: "p1", revision: 7 }),
+    /INVALID_PROJECT_REVISION_RESPONSE/,
+  );
+});
+
+test("revision transport rejects an unsafe integer authoritative revision", async () => {
+  const { ApiRevisionTransport } = await import("./revision-transport.ts");
+  const api = {
+    async get<TResponse>(): Promise<{ ok: true; data: TResponse }> {
+      return {
+        ok: true,
+        data: {
+          contract_version: "sync-project-revision.v1",
+          tenant_id: "t1",
+          project_id: "p1",
+          revision: Number.MAX_SAFE_INTEGER + 1,
+        } as unknown as TResponse,
+      };
+    },
+  };
+
+  await assert.rejects(
+    new ApiRevisionTransport(api).refresh({ tenant_id: "t1", project_id: "p1", revision: 7 }),
+    /INVALID_PROJECT_REVISION_RESPONSE/,
+  );
+});
