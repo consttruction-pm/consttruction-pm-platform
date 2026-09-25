@@ -146,6 +146,7 @@ test("desktop language manager surface is registry/capability driven", () => {
   assert.equal(surface.rows[1]?.action.version, "1.1.0");
   assert.equal(surface.rows[1]?.direction, "rtl");
   assert.equal(surface.rows[1]?.removeAvailable, false);
+  assert.equal(surface.rows[0]?.removeAction, null);
 });
 
 test("desktop language manager renders translated errors without mutating language data", () => {
@@ -186,4 +187,58 @@ test("desktop language manager renders translated errors without mutating langua
   assert.equal(surface.statusText, "translated:LANGUAGE_ACTIVATION_NOT_CONFIGURED");
   assert.equal(surface.rows[0]?.languageTag, "fa");
   assert.equal(surface.rows[0]?.installedVersion, "1.0.0");
+});
+
+
+test("desktop language manager exposes a safe remove command for inactive verified packs", () => {
+  const state = {
+    selectedLanguage: "en",
+    status: "ready" as const,
+    activeDownloadLanguage: null,
+    progressPercent: null,
+    errorKey: null,
+    rows: [
+      {
+        languageTag: "en",
+        locale: "en-US",
+        direction: "ltr" as const,
+        installedPackageId: "construction-pm.language.en",
+        installedVersion: "1.0.0",
+        verified: true,
+        offlineReady: true,
+        aiText: true,
+        voiceInput: false,
+        voiceOutput: false,
+        offlineAi: true,
+        selected: true,
+      },
+      {
+        languageTag: "fa",
+        locale: "fa-IR",
+        direction: "rtl" as const,
+        installedPackageId: "construction-pm.language.fa",
+        installedVersion: "1.0.0",
+        verified: true,
+        offlineReady: true,
+        aiText: true,
+        voiceInput: true,
+        voiceOutput: true,
+        offlineAi: true,
+        selected: false,
+      },
+    ],
+  };
+
+  const surface = buildDesktopLanguageManagerSurface(
+    state,
+    catalog,
+    "0.1.0",
+    copy,
+  );
+
+  assert.deepEqual(surface.rows[1]?.removeAction, {
+    kind: "remove-installed",
+    packageId: "construction-pm.language.fa",
+    version: "1.0.0",
+  });
 });
