@@ -46,7 +46,8 @@ export class IndexedDbOfflineModelArtifactStore
 
     const db = await this.dbPromise;
     const key = model.packageId + "@" + model.version;
-    const buffer = model.artifact.slice().buffer;
+    const buffer = new ArrayBuffer(model.artifact.byteLength);
+    new Uint8Array(buffer).set(model.artifact);
     await request(
       db,
       this.storeName,
