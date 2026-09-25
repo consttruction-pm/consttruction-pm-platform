@@ -5,6 +5,33 @@ import { isNewerPackAvailable, selectCompatiblePack } from "../../client-sync/sr
 import { displayLanguageName } from "./language-display-name.js";
 import { toUiState, type LanguageManagerUiState } from "../../client-sync/src/language-manager-ui-contract.js";
 
+export type LanguageManagerCopy = {
+  title: string;
+  ready: string;
+  downloading: (language: string) => string;
+  supportedLanguages: string;
+  language: string;
+  locale: string;
+  direction: string;
+  installed: string;
+  offline: string;
+  ai: string;
+  voiceIn: string;
+  voiceOut: string;
+  offlineAi: string;
+  selected: string;
+  use: string;
+  download: string;
+  update: string;
+  unavailable: string;
+  remove: string;
+  yes: string;
+  no: string;
+  missing: string;
+  rtl: string;
+  ltr: string;
+};
+
 export type LanguageManagerWebOptions = {
   root: HTMLElement;
   controller: LanguageManagerController;
@@ -12,6 +39,7 @@ export type LanguageManagerWebOptions = {
   appVersion: string;
   createDownloadTransport: () => Parameters<LanguageManagerController["download"]>[1];
   createVerifier: () => Parameters<LanguageManagerController["download"]>[2];
+  copy: LanguageManagerCopy;
   onActivateInstalledLanguage?: (languageTag: string, version: string) => Promise<void>;
 };
 
@@ -33,9 +61,10 @@ export class WebLanguageManagerView {
 
     root.replaceChildren();
 
+    const copy = this.options.copy;
     const heading = document.createElement("h2");
     const currentLanguage = state.rows.find((row) => row.selected)?.languageTag ?? state.selectedLanguage;
-    heading.textContent = displayLanguageName(currentLanguage);
+    heading.textContent = copy.title;
     root.append(heading);
 
     const status = document.createElement("p");
@@ -43,8 +72,8 @@ export class WebLanguageManagerView {
     status.textContent = state.errorMessage
       ? state.errorMessage
       : state.activeDownloadLanguage
-        ? "Downloading " + state.activeDownloadLanguage + "…"
-        : "Ready";
+        ? copy.downloading(displayLanguageName(state.activeDownloadLanguage, currentLanguage))
+        : copy.ready;
     root.append(status);
 
     if (state.progressPercent !== null) {
@@ -59,20 +88,20 @@ export class WebLanguageManagerView {
     }
 
     const table = document.createElement("table");
-    table.setAttribute("aria-label", "Supported languages");
+    table.setAttribute("aria-label", copy.supportedLanguages);
 
     const header = document.createElement("tr");
     for (const label of [
-      "Language",
-      "Locale",
-      "Direction",
-      "Installed",
-      "Offline",
-      "AI",
-      "Voice In",
-      "Voice Out",
-      "Offline AI",
-      "Action",
+      copy.language,
+      copy.locale,
+      copy.direction,
+      copy.installed,
+      copy.offline,
+      copy.ai,
+      copy.voiceIn,
+      copy.voiceOut,
+      copy.offlineAi,
+      copy.use,
     ]) {
       const cell = document.createElement("th");
       cell.scope = "col";
@@ -92,13 +121,13 @@ export class WebLanguageManagerView {
       const values = [
         displayLanguageName(row.languageTag, currentLanguage),
         row.locale,
-        row.direction.toUpperCase(),
-        row.installedVersion ?? "—",
-        row.offlineReady ? "Ready" : "No",
-        row.aiText ? "Yes" : "No",
-        row.voiceInput ? "Yes" : "No",
-        row.voiceOutput ? "Yes" : "No",
-        row.offlineAi ? "Yes" : "No",
+        row.direction === "rtl" ? copy.rtl : copy.ltr,
+        row.installedVersion ?? copy.missing,
+        row.offlineReady ? copy.ready : copy.no,
+        row.aiText ? copy.yes : copy.no,
+        row.voiceInput ? copy.yes : copy.no,
+        row.voiceOutput ? copy.yes : copy.no,
+        row.offlineAi ? copy.yes : copy.no,
       ];
 
       for (const value of values) {
@@ -118,26 +147,26 @@ export class WebLanguageManagerView {
       );
 
       if (row.selected) {
-        button.textContent = "Selected";
+        button.textContent = copy.selected;
         button.disabled = true;
       } else if (row.installedVersion && row.verified && compatible &&
                  isNewerPackAvailable(row.installedVersion, compatible.version)) {
-        button.textContent = "Update";
+        button.textContent = copy.update;
         button.addEventListener("click", () => {
           void this.download(compatible);
         });
       } else if (row.installedVersion && row.verified) {
-        button.textContent = "Use";
+        button.textContent = copy.use;
         button.addEventListener("click", () => {
           void this.useInstalled(row.languageTag, row.installedVersion!);
         });
       } else if (compatible) {
-        button.textContent = "Download";
+        button.textContent = copy.download;
         button.addEventListener("click", () => {
           void this.download(compatible);
         });
       } else {
-        button.textContent = "Unavailable";
+        button.textContent = copy.unavailable;
         button.disabled = true;
       }
 
@@ -146,7 +175,7 @@ export class WebLanguageManagerView {
       if (!row.selected && row.installedVersion && row.verified && row.installedPackageId) {
         const removeButton = document.createElement("button");
         removeButton.type = "button";
-        removeButton.textContent = "Remove";
+        removeButton.textContent = copy.remove;
         removeButton.addEventListener("click", () => {
           void this.removeInstalled(
             row.installedPackageId!,
