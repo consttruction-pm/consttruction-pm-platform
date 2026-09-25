@@ -43,11 +43,10 @@ export class DesktopRuntime {
     const current = this.current();
     const mutation = this.mutationQueue.pending().find((item) => item.mutation_id === mutationId);
     if (!mutation) throw new Error("MUTATION_NOT_PENDING");
-    const revision = await new ApiRevisionTransport(revisionApi).refresh({
-      tenant_id: current.tenant_id,
-      project_id: current.project_id,
-      revision: mutation.expected_revision,
-    });
+    const revision = await new ClientSyncRunner(this.mutationQueue).refreshConflictRevision(
+      mutationId,
+      new ApiRevisionTransport(revisionApi),
+    );
     if (revision.revision < current.revision) throw new Error("REVISION_REGRESSION");
     const retried = this.mutationQueue.retryAtRevision(mutationId, revision.revision);
     this.advanceRevision(revision.revision);
