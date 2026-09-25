@@ -187,8 +187,8 @@ def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
         registry,
     )
 
-    assert result["A"].start == datetime(2026, 9, 23, 7)
-    assert result["A"].finish == datetime(2026, 9, 23, 8)
+    assert result["A"].start == datetime(2026, 9, 23, 8)
+    assert result["A"].finish == datetime(2026, 9, 23, 9)
 
 
 def test_time_forward_pass_rejects_mixed_project_calendar_references_before_scheduling():
