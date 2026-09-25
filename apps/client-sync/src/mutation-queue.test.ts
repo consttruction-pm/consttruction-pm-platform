@@ -22,6 +22,10 @@ test("retryAtRevision replaces the expected revision and rotates idempotency", (
   assert.equal(queue.peek()?.expected_revision, 8);
   assert.equal(queue.peek()?.idempotency_key, "idem-1:r8");
   assert.equal(queue.size(), 1);
+
+  const repeated = queue.retryAtRevision("m1", 8);
+  assert.equal(repeated.idempotency_key, "idem-1:r8");
+  assert.equal(repeated.expected_revision, 8);
 });
 
 test("retryAtRevision rejects unknown mutations and invalid revisions", () => {
@@ -43,6 +47,10 @@ test("retryAtRevision rejects unknown mutations and invalid revisions", () => {
   });
 
   assert.throws(() => queue.retryAtRevision("m1", -1), {
+    message: "INVALID_EXPECTED_REVISION",
+  });
+
+  assert.throws(() => queue.retryAtRevision("m1", Number.MAX_SAFE_INTEGER + 1), {
     message: "INVALID_EXPECTED_REVISION",
   });
 });
