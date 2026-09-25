@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toUiState } from "../../client-sync/src/language-manager-ui-contract.ts";
+import { toUiState } from "../../client-sync/src/language-manager-ui-contract.js";
 
 test("Web UI contract preserves RTL and capability metadata", () => {
   const state = toUiState({
