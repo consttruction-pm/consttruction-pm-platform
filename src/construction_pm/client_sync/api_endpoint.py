@@ -25,11 +25,15 @@ class VersionedSyncEndpoint:
     idempotency: IdempotentMutationGateway | None = None
 
     def post(self, body: Mapping[str, object], headers: Mapping[str, str]) -> dict[str, object]:
+        raw_revision = body.get("expected_revision")
+        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
+            mutation_id = str(body.get("mutation_id", ""))
+            return {"contract_version": "sync-outcome.v1", "mutation_id": mutation_id, "disposition": "rejected", "error_code": "INVALID_EXPECTED_REVISION"}
         mutation = OfflineMutation(
             mutation_id=str(body["mutation_id"]),
             tenant_id=str(body["tenant_id"]),
             project_id=str(body["project_id"]),
-            expected_revision=int(body["expected_revision"]),
+            expected_revision=raw_revision,
             operation=str(body["operation"]),
             payload=dict(body.get("payload", {})),
             idempotency_key=str(body["idempotency_key"]),
