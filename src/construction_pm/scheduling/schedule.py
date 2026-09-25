@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Iterable, Mapping
 
 from .activity import Activity
+from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
 from .constraints import (
     ActivityConstraint,
@@ -314,14 +315,17 @@ def schedule(
     project_finish: date | None = None,
     constraints: Iterable[ActivityConstraint] | None = None,
     options: ScheduleOptions | None = None,
+    calculation_context: CalculationContext | None = None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
+    if calculation_context is not None and calculation_context.project_version < 0:
+        raise ValueError("invalid calculation context")
     activity_list = list(activities)
     relationship_list = list(relationships)
     constraint_list = list(constraints or ())
     early = forward_pass(
-        activity_list, relationship_list, project_start, resolver, constraint_list
+        activity_list, relationship_list, project_start, resolver, constraint_list, calculation_context
     )
     late = backward_pass(
         activity_list, relationship_list, early, project_finish, resolver, constraint_list
