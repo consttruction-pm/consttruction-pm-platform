@@ -11,7 +11,7 @@
       "type":"array",
       "items": {
         "type":"object",
-        "required": ["package_id","language_tag","version","min_app_version","compressed_size_bytes","download_uri","checksum","signature","capabilities"],
+        "required": ["package_id","language_tag","version","min_app_version","compressed_size_bytes","download_uri","checksum","signature","capabilities","resource_paths"],
         "properties": {
           "package_id": {"type":"string"},
           "language_tag": {"type":"string"},
@@ -22,7 +22,17 @@
           "download_uri": {"type":"string"},
           "checksum": {"type":"string"},
           "signature": {"type":"string"},
-          "capabilities": {"type":"object"}
+          "capabilities": {"type":"object"},
+          "resource_paths": {
+            "type": "object",
+            "required": ["translation","glossary","help","reports"],
+            "properties": {
+              "translation": {"type":"string"},
+              "glossary": {"type":"string"},
+              "help": {"type":"string"},
+              "reports": {"type":"string"}
+            }
+          }
         }
       }
     }
