@@ -1,5 +1,6 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
 import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import { LanguageManagerClientAdapter } from "../../client-sync/src/language-manager-client-adapter.js";
 import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
 import { LanguageResourceRuntime } from "../../client-sync/src/language-resource-runtime.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
@@ -129,6 +130,14 @@ export class DesktopRuntime {
       packageId,
       version,
       resources.resources,
+    );
+  }
+
+  createLanguageManagerAdapter(
+    registry: readonly LanguageRegistryEntry[],
+  ): LanguageManagerClientAdapter {
+    return new LanguageManagerClientAdapter(
+      this.createLanguageManagerController(registry),
     );
   }
 
