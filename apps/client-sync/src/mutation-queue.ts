@@ -32,7 +32,7 @@ export class OfflineMutationQueue {
     if (mutation.contract_version !== "sync-mutation.v1") {
       throw new Error("UNSUPPORTED_MUTATION_CONTRACT");
     }
-    if (mutation.expected_revision < 0) {
+    if (!Number.isSafeInteger(mutation.expected_revision) || mutation.expected_revision < 0) {
       throw new Error("INVALID_EXPECTED_REVISION");
     }
     if (!mutation.mutation_id || !mutation.idempotency_key) {
