@@ -8,6 +8,8 @@ For schedule calculations, activity calendars determine working-time duration be
 
 ## Implementation status
 
+**Stage 33.4.30 — complete.** The time-aware CPM calendar integration is now verified in the repository CI path.
+
 Stage 33.4.30 integrates the existing versioned calendar-resolution contract into the time-aware CPM path:
 
 - Forward Pass resolves the activity calendar for activity duration.
@@ -33,4 +35,8 @@ Existing time-scheduling tests continue to cover split intervals, holidays, FS/S
 
 ## Verification
 
-Repository writes are complete on main. CI/runtime execution must be verified from the GitHub Actions status before Stage 33.4.30 is marked complete.
+Repository writes are complete on main.
+
+- ConstructionPM CI passed on commit `a78be1ca2d723d7a07ca199f0aba4f16c8174f6f`, covering Python 3.11, 3.12 and 3.13.
+- PostgreSQL Sync State Integration passed on the same commit.
+- The separate Client Typecheck workflow remains red because of existing TypeScript `TS7006` errors in client test callbacks; those failures are outside the time-aware CPM Python scheduling path and were also present on the preceding scheduling commits.
