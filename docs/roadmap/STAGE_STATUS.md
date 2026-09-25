@@ -437,3 +437,13 @@ Status: **100% — runtime-verified 2026-09-25**
 - Latest verified commit: `f8e11714cb5a1ff7bee1782eab0d6b96ee194553`.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 - Next gate: validate conflict/revision behavior against the real application/API mutation boundary and ensure Web/Desktop/Mobile runtime adapters consume the same versioned outcome contract.
+
+### Stage 33.4.70 — Authoritative Conflict Revision Refresh & Cross-Client Retry Boundary
+Status: **implemented — runtime verification pending**
+- Web/Desktop/Mobile stale-revision retry paths now refresh the authoritative project revision through the shared sync-project-revision.v1 contract before rotating the mutation idempotency key and retrying.
+- Client retry paths no longer accept a caller-supplied guessed revision for STALE_REVISION.
+- Added VersionedSyncRevisionEndpoint at the application/API boundary and an end-to-end regression covering CONFLICT -> authoritative revision refresh -> retry -> ACKNOWLEDGED.
+- Web/Desktop/Mobile regression tests verify the server-provided revision is used, including a non-sequential revision jump, and that retry metadata follows the refreshed revision.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- Runtime CI verification remains pending; recent GitHub Actions runs have failed without executable steps/logs, so those statuses are not interpreted as code-test failures.
+
