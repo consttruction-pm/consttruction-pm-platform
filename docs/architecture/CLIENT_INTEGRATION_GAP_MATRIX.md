@@ -8,29 +8,33 @@ This matrix tracks the Web, Desktop and Mobile integration boundary against the 
 
 | Area | Web | Desktop | Mobile | Contract authority | Next gate |
 |---|---|---|---|---|---|
-| Project context | Implemented | Implemented | Implemented | `shared/contracts/client-parity.schema.json` | Runtime parity fixture |
+| Project context | Implemented + enforced in sync runtime | Implemented | Implemented | `shared/contracts/client-parity.schema.json` | Runtime parity fixture |
 | API transport | Implemented | Foundation only | Foundation only | Versioned Application/API contracts | Client adapter integration |
 | Stable errors | Implemented | Foundation only | Foundation only | Application error contract | Cross-client error fixture |
 | Offline project state | N/A / server-connected | Implemented | Implemented | Offline Project Context contract | Round-trip parity |
-| Offline mutation queue | Consumer boundary | Shared queue consumer | Shared queue consumer | `sync-mutation.v1` / `sync-outcome.v1` | End-to-end client sync |
+| Offline mutation queue | Shared queue consumer | Shared queue consumer | Shared queue consumer | `sync-mutation.v1` / `sync-outcome.v1` | End-to-end outcome regression |
+| Authoritative revision refresh | Implemented | Implemented | Implemented | `sync-project-revision.v1` | Runtime CI verification |
+| Stale-revision retry | Implemented | Implemented | Implemented | Versioned sync revision boundary | Runtime CI verification |
 | Scheduling/P6 calculations | Shared Core only | Shared Core only | Shared Core only | Shared Domain/Calculation Core | Result-parity fixture |
 | Progress/EVM calculations | Shared Core only | Shared Core only | Shared Core only | Shared Domain/Calculation Core | Result-parity fixture |
 | Resource/Cost calculations | Shared Core only | Shared Core only | Shared Core only | Shared Domain/Calculation Core | Result-parity fixture |
 | Localization | Presentation boundary | Presentation boundary | Presentation boundary | UI contract; calendar arithmetic stays Shared Core | Persian/English + Jalali/Gregorian fixtures |
 | Conflict presentation | Implemented Web boundary | Foundation | Foundation | Sync conflict contract | Cross-client conflict fixture |
 
-## Shared offline queue gate
+## Shared synchronization gate
 
-The Desktop and Mobile foundations now consume the same `apps/client-sync` TypeScript queue rather than maintaining client-specific queue semantics.
+All three clients now consume the same `apps/client-sync` queue and versioned API/revision transport boundaries rather than maintaining client-specific synchronization semantics.
 
-The shared queue:
+The shared synchronization path:
 - accepts only `sync-mutation.v1`;
 - preserves mutation identity, ProjectContext and expected revision;
 - rejects idempotency-key reuse across different mutation identities;
 - treats only `acknowledged` `sync-outcome.v1` as queue removal;
-- retains `retry`, `conflict` and `rejected` outcomes for later synchronization handling.
+- retains `retry`, `conflict` and `rejected` outcomes for later synchronization handling;
+- refreshes authoritative project revision through `sync-project-revision.v1` before stale-revision retry;
+- rotates retry idempotency metadata from the refreshed revision.
 
-The queue is transport/business-rule neutral. It does not calculate Scheduling/P6, Progress/EVM, Resource/Cost or financial semantics.
+The queue and transport layers are business-rule neutral. They do not calculate Scheduling/P6, Progress/EVM, Resource/Cost or financial semantics.
 
 ## Rules
 
@@ -43,4 +47,4 @@ The queue is transport/business-rule neutral. It does not calculate Scheduling/P
 
 ## Next implementation gate
 
-The next client-integration gate is end-to-end client synchronization: connect the shared queue to the existing versioned transport/application sync boundary and verify ACK/RETRY/CONFLICT/REJECTED behavior without duplicating business calculations in Desktop or Mobile.
+Client synchronization semantics are implemented through the shared queue, API transport and authoritative revision boundary. The remaining gate is runtime CI verification; the latest GitHub-hosted runs have failed before any workflow step starts, with no executable step logs, so they are not interpreted as application test failures.
