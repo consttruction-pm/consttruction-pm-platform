@@ -1,4 +1,7 @@
 import { ClientLanguageRuntime } from "../../client-sync/src/language-runtime.js";
+import {
+  ClientLanguageShellLifecycle,
+} from "../../client-sync/src/language-shell-lifecycle.js";
 import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
 import { LanguageManagerClientAdapter } from "../../client-sync/src/language-manager-client-adapter.js";
 import { LanguagePackActivationService } from "../../client-sync/src/language-pack-activation.js";
@@ -124,6 +127,27 @@ export class MobileRuntime {
       throw new Error("LANGUAGE_RESOURCE_READER_NOT_CONFIGURED");
     }
     return this.languageActivationService.activate(manifest);
+  }
+
+  async initializeLanguage(
+    registry: readonly LanguageRegistryEntry[],
+    defaultLanguage: string,
+    preference: Parameters<ClientLanguageRuntime["configure"]>[2],
+  ) {
+    const shell = new ClientLanguageShellLifecycle(
+      this.languageRuntime,
+      (packageId, version) => this.activateCachedLanguagePack(packageId, version),
+    );
+    shell.configure(registry, defaultLanguage, preference);
+    return shell.initialize();
+  }
+
+  async switchToInstalledLanguage(languageTag: string) {
+    const shell = new ClientLanguageShellLifecycle(
+      this.languageRuntime,
+      (packageId, version) => this.activateCachedLanguagePack(packageId, version),
+    );
+    return shell.switchToInstalledLanguage(languageTag);
   }
 
   async activateCachedLanguagePack(packageId: string, version: string) {
