@@ -12,3 +12,4 @@ export * from "./language-manager-view.js";
 export * from "./language-display-name.js";
 export * from "./language-manager-bootstrap.js";
 export * from "./language-manager-copy.js";
+export * from "./web-zip-language-pack-extractor.js";
