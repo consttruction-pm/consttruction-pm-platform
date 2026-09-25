@@ -75,4 +75,22 @@ export class WebLanguageRuntime {
     }
     return this.activationService.activate(manifest);
   }
+
+  async activateCachedLanguagePack(
+    packageId: string,
+    version: string,
+  ) {
+    if (!this.activationService) {
+      throw new Error("LANGUAGE_RESOURCE_EXTRACTOR_NOT_CONFIGURED");
+    }
+    const resources = await this.resourceManifests.get(packageId, version);
+    if (!resources) {
+      throw new Error("LANGUAGE_PACK_RESOURCE_MANIFEST_NOT_FOUND");
+    }
+    return this.activationService.activateFromStoredResources(
+      packageId,
+      version,
+      resources.resources,
+    );
+  }
 }
