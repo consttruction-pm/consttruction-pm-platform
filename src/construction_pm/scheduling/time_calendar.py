@@ -29,6 +29,10 @@ class WorkingTimeCalendar:
     )
 
     def __post_init__(self) -> None:
+        invalid_weekdays = [weekday for weekday in self.working_weekdays if weekday < 0 or weekday > 6]
+        if invalid_weekdays:
+            raise ValueError("working weekday must be between 0 and 6")
+
         for weekday, intervals in self.daily_intervals.items():
             if weekday < 0 or weekday > 6:
                 raise ValueError("weekday must be between 0 and 6")
