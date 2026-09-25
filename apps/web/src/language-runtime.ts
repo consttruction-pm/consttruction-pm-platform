@@ -4,6 +4,8 @@ import {
 import {
   ClientLanguageShellLifecycle,
 } from "../../client-sync/src/language-shell-lifecycle.js";
+import { LanguageManagerController } from "../../client-sync/src/language-manager-controller.js";
+import { LanguageManagerClientAdapter } from "../../client-sync/src/language-manager-client-adapter.js";
 import type {
   LanguagePreference,
   LanguageRegistryEntry,
@@ -86,6 +88,17 @@ export class WebLanguageRuntime {
       throw new Error("LANGUAGE_RESOURCE_EXTRACTOR_NOT_CONFIGURED");
     }
     return this.activationService.activate(manifest);
+  }
+
+  createLanguageManagerAdapter(
+    registry: readonly LanguageRegistryEntry[],
+  ): LanguageManagerClientAdapter {
+    if (!this.language.isConfigured()) {
+      throw new Error("LANGUAGE_RUNTIME_NOT_CONFIGURED");
+    }
+    return new LanguageManagerClientAdapter(
+      new LanguageManagerController(this.language, registry, this.packs),
+    );
   }
 
   async initializeLanguage(
