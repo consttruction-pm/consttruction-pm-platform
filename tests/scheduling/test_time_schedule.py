@@ -140,6 +140,34 @@ def test_time_schedule_uses_project_calendar_for_explicit_finish():
     assert result.late_activities["A"].start == datetime(2026, 9, 22, 9)
 
 
+def test_time_schedule_rejects_mixed_project_calendar_references():
+    project_a = CalendarReference("project-a", "1", "working-time")
+    project_b = CalendarReference("project-b", "1", "working-time")
+    activity_ref = CalendarReference("activity", "1", "working-time")
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project-a@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar()),
+        "project-b@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar()),
+        "activity@1": TimeAwareWorkingTimeResolver(WorkingTimeCalendar()),
+    })
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            project_a, activity_ref, activity_ref
+        )),
+        TimeActivity("B", TimeQuantity.working_hours(1), SchedulingCalendarContext(
+            project_b, activity_ref, activity_ref
+        )),
+    ]
+
+    with pytest.raises(ValueError, match="must share one project calendar"):
+        time_schedule(
+            activities,
+            [],
+            datetime(2026, 9, 22, 8),
+            datetime(2026, 9, 22, 17),
+            registry,
+        )
+
+
 def test_time_backward_pass_does_not_use_last_activity_calendar_as_project_calendar():
     project_ref = CalendarReference("project", "1", "working-time")
     first_activity_ref = CalendarReference("first", "1", "working-time")
