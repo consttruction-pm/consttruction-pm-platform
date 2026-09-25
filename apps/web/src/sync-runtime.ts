@@ -38,14 +38,24 @@ export class WebSyncRuntime {
     return result.revision;
   }
 
-  retryStaleRevision(
+  async retryStaleRevision(
     mutationId: string,
     outcome: SyncOutcome,
-    refreshedRevision: number,
-  ): SyncMutation {
+    revisionApi: VersionedSyncRevisionApi,
+  ): Promise<SyncMutation> {
     if (outcome.mutation_id !== mutationId || outcome.disposition !== "conflict" || outcome.error_code !== "STALE_REVISION") {
       throw new Error("INVALID_STALE_REVISION_RETRY");
     }
-    return this.mutationQueue.retryAtRevision(mutationId, refreshedRevision);
+    return new ClientSyncRunner(
+      this.mutationQueue,
+      new ApiSyncTransport({
+        async post<TRequest, TResponse>() {
+          return { ok: true as const, data: outcome as TResponse };
+        },
+      }),
+    ).retryConflictAtAuthoritativeRevision(
+      mutationId,
+      new ApiRevisionTransport(revisionApi),
+    );
   }
 }
