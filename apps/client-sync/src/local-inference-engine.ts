@@ -20,7 +20,7 @@ export interface LocalTextInferenceEngine {
     modelVersion: string,
     artifact: Uint8Array,
   ): Promise<void>;
-  unload(modelPackageId: string): Promise<void>;
+  unload(modelPackageId: string, modelVersion: string): Promise<void>;
   isLoaded(modelPackageId: string, modelVersion: string): boolean;
   complete(request: LocalInferenceRequest): Promise<LocalInferenceResult>;
 }
@@ -56,8 +56,8 @@ export interface LocalVoiceEngine {
     modelVersion: string,
     artifact: Uint8Array,
   ): Promise<void>;
-  unloadInput(modelPackageId: string): Promise<void>;
-  unloadOutput(modelPackageId: string): Promise<void>;
+  unloadInput(modelPackageId: string, modelVersion: string): Promise<void>;
+  unloadOutput(modelPackageId: string, modelVersion: string): Promise<void>;
   isInputLoaded(modelPackageId: string, modelVersion: string): boolean;
   isOutputLoaded(modelPackageId: string, modelVersion: string): boolean;
   transcribe(request: LocalVoiceInputRequest): Promise<LocalVoiceInputResult>;
