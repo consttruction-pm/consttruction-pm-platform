@@ -41,7 +41,7 @@ test("web sync runtime consumes the shared conflict outcome contract", async () 
   });
 });
 
-test("web sync runtime rotates the idempotency key for stale revision retry", () => {
+test("web sync runtime retries stale revision only after authoritative refresh", async () => {
   const runtime = new WebSyncRuntime();
   runtime.queueMutation(mutation);
   const outcome: SyncOutcome = {
@@ -51,10 +51,16 @@ test("web sync runtime rotates the idempotency key for stale revision retry", ()
     error_code: "STALE_REVISION",
   };
 
-  const retried = runtime.retryStaleRevision("m1", outcome, 8);
+  const retried = await runtime.retryStaleRevision("m1", outcome, {
+    async get<TResponse>(path: string, context: SyncProjectContext) {
+      assert.equal(path, "/api/v1/sync/revision");
+      assert.deepEqual(context, { tenant_id: "t1", project_id: "p1", revision: 7 });
+      return { ok: true as const, data: { contract_version: "sync-project-revision.v1", tenant_id: "t1", project_id: "p1", revision: 42 } as TResponse };
+    },
+  });
 
-  assert.equal(retried.expected_revision, 8);
-  assert.equal(retried.idempotency_key, "idem-1:r8");
+  assert.equal(retried.expected_revision, 42);
+  assert.equal(retried.idempotency_key, "idem-1:r42");
   assert.equal(runtime.pendingMutationCount(), 1);
 });
 
