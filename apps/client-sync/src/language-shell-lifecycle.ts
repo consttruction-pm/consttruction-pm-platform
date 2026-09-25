@@ -42,8 +42,25 @@ export class ClientLanguageShellLifecycle {
   async switchToInstalledLanguage(
     languageTag: string,
   ): Promise<LanguageShellBootstrapResult> {
+    const installed = await this.runtime.installedPacks();
+    const pack = installed
+      .filter((item) => item.languageTag === languageTag && item.verified)
+      .sort((left, right) => right.version.localeCompare(left.version))[0];
+
+    if (!pack) {
+      const current = this.runtime.current();
+      return {
+        language: current,
+        activation: "resource-manifest-missing",
+      };
+    }
+
+    await this.activateCached(pack.packageId, pack.version);
     const language = this.runtime.setPreferredLanguage(languageTag);
-    return this.activateResolved(language);
+    return {
+      language,
+      activation: "activated",
+    };
   }
 
   current(): ResolvedLanguage {
