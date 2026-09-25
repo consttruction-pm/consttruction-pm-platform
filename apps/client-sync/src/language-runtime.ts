@@ -4,9 +4,12 @@ import {
   type LanguageRegistryEntry,
   type ResolvedLanguage,
 } from "./language.ts";
+import type { LanguagePackStore } from "./language-pack-store.ts";
 
 export class ClientLanguageRuntime {
   private manager: ClientLanguageManager | null = null;
+
+  constructor(private readonly packStore: LanguagePackStore | null = null) {}
 
   configure(
     registry: readonly LanguageRegistryEntry[],
@@ -35,10 +38,24 @@ export class ClientLanguageRuntime {
     return this.manager.setPreferredLanguage(languageTag);
   }
 
-  canRunOffline(languageTag: string): boolean {
+  canUseLanguageOffline(languageTag: string): boolean {
     if (!this.manager) {
       return false;
     }
     return this.manager.canRunOffline(languageTag);
+  }
+
+  async cacheVerifiedPack(pack: Parameters<LanguagePackStore["put"]>[0]): Promise<void> {
+    if (!this.packStore) {
+      throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
+    }
+    await this.packStore.put(pack);
+  }
+
+  async installedPacks() {
+    if (!this.packStore) {
+      throw new Error("LANGUAGE_PACK_STORE_NOT_CONFIGURED");
+    }
+    return this.packStore.list();
   }
 }
