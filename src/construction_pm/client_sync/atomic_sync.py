@@ -17,6 +17,9 @@ class AtomicSyncExecutor:
     def submit(self, mutation: OfflineMutation) -> SyncOutcome:
         fingerprint = mutation_fingerprint(mutation)
         with self.transaction_manager.transaction():
+            lock = getattr(self.persistence, "lock_idempotency", None)
+            if lock is not None:
+                lock(mutation.tenant_id, mutation.project_id, mutation.idempotency_key)
             existing = self.persistence.get_idempotency(
                 mutation.tenant_id, mutation.project_id, mutation.idempotency_key
             )
