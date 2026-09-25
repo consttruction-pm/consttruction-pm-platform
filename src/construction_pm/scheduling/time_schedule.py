@@ -135,6 +135,7 @@ def time_backward_pass(
     constraints: Iterable[TimeActivityConstraint] = (),
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
+    _validate_project_calendar_context(activity_list)
     activity_map = {a.id: a for a in activity_list}
     if set(activity_map) != set(early):
         raise ValueError("early schedule must contain every activity")
@@ -317,6 +318,7 @@ def time_schedule(
     constraints: Iterable[TimeActivityConstraint] = (),
 ) -> TimeScheduleResult:
     activity_list = list(activities)
+    _validate_project_calendar_context(activity_list)
     relationship_list = list(relationships)
     constraint_list = list(constraints)
     early = time_forward_pass(activity_list, relationship_list, project_start, registry, constraint_list)
