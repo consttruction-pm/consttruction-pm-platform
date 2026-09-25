@@ -60,6 +60,13 @@ test("uses local AI when a compatible verified preferred-language model exists",
 
   assert.equal(result.mode, "offline");
   assert.equal(result.text, "local:construction-pm.ai.fa");
+  assert.deepEqual(result.decision, {
+    mode: "offline",
+    language: "fa",
+    modelPackageId: "construction-pm.ai.fa",
+    modelVersion: "1.0.0",
+    reason: "offline_model_available",
+  });
 });
 
 test("falls back to online AI when offline model is unavailable", async () => {
@@ -86,6 +93,7 @@ test("falls back to online AI when offline model is unavailable", async () => {
 
   assert.equal(result.mode, "online");
   assert.equal(result.text, "online");
+  assert.equal(result.decision.reason, "offline_model_unavailable");
 });
 
 test("offline policy disabled forces online execution", async () => {
