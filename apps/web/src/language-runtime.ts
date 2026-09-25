@@ -27,12 +27,23 @@ import type {
 export class WebLanguageRuntime {
   readonly language: ClientLanguageRuntime;
   private readonly packs: IndexedDbLanguagePackStore;
+  private activationService: LanguagePackActivationService | null = null;
 
   constructor(databaseName?: string) {
     this.packs = new IndexedDbLanguagePackStore(databaseName);
     this.language = new ClientLanguageRuntime(
       this.packs,
       new WebLanguagePreferenceStore(),
+    );
+  }
+
+  configureResourceExtractor(extractor: WebLanguagePackExtractor): void {
+    const resources = new LanguageResourceRuntime(
+      new WebLanguageResourceReader(extractor),
+    );
+    this.activationService = new LanguagePackActivationService(
+      this.packs,
+      resources,
     );
   }
 
@@ -49,18 +60,13 @@ export class WebLanguageRuntime {
       onProgress,
     );
   }
-}
-
 
   async activateLanguagePack(
     manifest: LanguagePackManifest,
-    extractor: WebLanguagePackExtractor,
   ) {
-    const resources = new LanguageResourceRuntime(
-      new WebLanguageResourceReader(extractor),
-    );
-    return new LanguagePackActivationService(
-      this.packs,
-      resources,
-    ).activate(manifest);
+    if (!this.activationService) {
+      throw new Error("LANGUAGE_RESOURCE_EXTRACTOR_NOT_CONFIGURED");
+    }
+    return this.activationService.activate(manifest);
   }
+}
