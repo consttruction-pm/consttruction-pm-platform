@@ -19,7 +19,7 @@ def test_postgres_idempotency_lock_uses_transaction_scoped_advisory_lock():
     sql, params = connection.calls[0]
     assert "pg_advisory_xact_lock" in sql
     assert "hashtextextended" in sql
-    assert params == ("tenant|project|mutation-key",)
+    assert params == ("[\"tenant\",\"project\",\"mutation-key\"]",)
 
 
 def test_postgres_idempotency_lock_key_includes_tenant_project_and_key():
@@ -28,5 +28,15 @@ def test_postgres_idempotency_lock_key_includes_tenant_project_and_key():
 
     store.lock_idempotency("tenant-a", "project-a", "key-a")
     store.lock_idempotency("tenant-b", "project-a", "key-a")
+
+    assert connection.calls[0][1] != connection.calls[1][1]
+
+
+def test_postgres_idempotency_lock_identity_avoids_delimiter_collisions():
+    connection = RecordingConnection()
+    store = PostgresSyncStateStore(connection)
+
+    store.lock_idempotency("a|b", "c", "d")
+    store.lock_idempotency("a", "b|c", "d")
 
     assert connection.calls[0][1] != connection.calls[1][1]
