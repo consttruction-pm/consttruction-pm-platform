@@ -30,6 +30,16 @@ def resource_type_for_record(record: Record) -> str:
         return "variation" if record.change_type == "variation" else "change"
     if isinstance(record, ClaimRecord):
         return "claim"
+    if isinstance(record, ProcurementQuote):
+        return "quote"
+    if isinstance(record, ProcurementBidComparison):
+        return "bid_comparison"
+    if isinstance(record, PurchaseOrder):
+        return "purchase_order"
+    if isinstance(record, ProcurementCommitment):
+        return "commitment"
+    if isinstance(record, ProcurementDelivery):
+        return "delivery"
     if isinstance(record, ChangeNotice):
         if record.notice_type == "variation":
             return "variation"
@@ -46,6 +56,8 @@ def resource_family_for_record(record: Record) -> str:
         return "change"
     if isinstance(record, ClaimRecord):
         return "change"
+    if isinstance(record, (ProcurementQuote, ProcurementBidComparison, PurchaseOrder, ProcurementCommitment, ProcurementDelivery)):
+        return "procurement"
     if isinstance(record, ChangeNotice):
         return "change"
     if isinstance(record, ProcurementRFQ):
