@@ -121,3 +121,31 @@ def test_broken_equipment_without_cause_is_rejected():
         raise AssertionError("broken equipment without cause must fail")
     except ValueError as exc:
         assert "breakdown cause" in str(exc)
+
+
+def test_equipment_status_round_trip_preserves_breakdown_and_meter_hours():
+    conn, api = _stack()
+    record = EquipmentStatusReport(
+        "ES-3",
+        BackendScope("tenant-1", "project-1", 12),
+        "EQ-3",
+        date(2026, 9, 27),
+        "zone-c",
+        "broken",
+        "user-1",
+        _audit(),
+        breakdown_cause_key="engine.overheat",
+        activity_allocations=(FieldActivityAllocation("A-9", Decimal("2.75"), "hour"),),
+        meter_hours=Decimal("305.125"),
+        evidence_refs=(_evidence(),),
+    )
+    result = api.save_resource(record, auth_context=_auth(), idempotency_key="equipment-3")
+    assert result["resource_type"] == "equipment_status"
+    assert result["payload"]["breakdown_cause_key"] == "engine.overheat"
+    assert result["payload"]["meter_hours"] == "305.125"
+    read_back = api.read_resource(record, auth_context=_auth())
+    assert read_back is not None
+    assert read_back["payload"]["equipment_id"] == "EQ-3"
+    assert read_back["payload"]["meter_hours"] == "305.125"
+    assert read_back["payload"]["activity_allocations"][0]["quantity"] == "2.75"
+    conn.close()
