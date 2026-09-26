@@ -135,3 +135,14 @@ def test_closed_approved_decision_is_valid():
         approved_at=approved.approved_at,
     )
     closed.validate()
+
+def test_decision_rejects_invalid_scalar_and_timestamp_types():
+    decision = _decision()
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_STATUS"):
+        replace(decision, status=[]).validate()
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_TYPE"):
+        replace(decision, decision_type=[]).validate()
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_APPROVAL_TIMESTAMP"):
+        replace(decision, approved_at="2026-09-27T00:00:00Z").validate()
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_IMPLEMENTATION_TIMESTAMP"):
+        replace(decision, implemented_at="2026-09-27T00:00:00Z").validate()
