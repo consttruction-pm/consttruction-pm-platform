@@ -37,7 +37,7 @@ def test_p0_resource_families_have_explicit_resource_types() -> None:
     expected = {
         "p0-field-resource.schema.json": {
             "daily_log", "issue", "observation", "inspection",
-            "quality_record", "safety_record", "punch_item", "field_photo",
+            "quality_record", "safety_record", "punch_item", "field_photo", "timecard", "equipment_status",
         },
         "p0-change-resource.schema.json": {
             "change", "variation", "notice", "claim", "claim_evidence",
