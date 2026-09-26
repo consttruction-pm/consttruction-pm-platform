@@ -216,3 +216,52 @@ def test_stale_action_revision_is_rejected():
             occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
             event_type="approved",
         )
+
+def test_transition_rejects_identity_mismatch():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    proposed = store.persist_transition(action())
+    import json
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
+        json.dumps(proposed.action.as_dict()),
+        1,
+    )
+    changed_target = replace_action_for_test(proposed.action, target_id="project-2")
+    with pytest.raises(PortfolioActionTransitionMismatch, match="PORTFOLIO_ACTION_TRANSITION_MISMATCH"):
+        store.transition(
+            changed_target,
+            expected_action_revision=1,
+            actor_id="admin-1",
+            occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+            event_type="approved",
+        )
+
+
+def test_transition_rejects_event_status_mismatch():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    proposed = store.persist_transition(action())
+    import json
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
+        json.dumps(proposed.action.as_dict()),
+        1,
+    )
+    policy = RoleBasedAuthorizationPolicy({
+        "admin": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE, Permission.PROJECT_ADMIN})
+    })
+    transition = PortfolioActionTransitionService(policy)
+    approved = transition.approve(
+        proposed.action,
+        AuthorizationContext("tenant-1", "project-1", "admin-1", frozenset({"admin"})),
+        decided_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+    )
+    with pytest.raises(PortfolioActionTransitionMismatch, match="PORTFOLIO_ACTION_EVENT_MISMATCH"):
+        store.transition(
+            approved,
+            expected_action_revision=1,
+            actor_id="admin-1",
+            occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+            event_type="rejected",
+        )
