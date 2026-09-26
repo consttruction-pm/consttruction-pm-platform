@@ -43,11 +43,15 @@ class PortfolioDecisionBoundary:
             raise ValueError("INVALID_PORTFOLIO_DECISION_STATUS")
         if self.decision_type not in _DECISION_TYPES:
             raise ValueError("INVALID_PORTFOLIO_DECISION_TYPE")
+        if not isinstance(self.requires_approval, bool):
+            raise ValueError("INVALID_PORTFOLIO_DECISION_REQUIRES_APPROVAL")
         for values, field_name in (
             (self.affected_project_ids, "affected_project_id"),
             (self.impact_link_ids, "impact_link_id"),
             (self.proposed_action_ids, "proposed_action_id"),
         ):
+            if not isinstance(values, (tuple, list)):
+                raise ValueError(f"INVALID_PORTFOLIO_DECISION_{field_name.upper()}S")
             for value in values:
                 if not isinstance(value, str) or not value.strip():
                     raise ValueError(f"INVALID_PORTFOLIO_DECISION_{field_name.upper()}")
@@ -73,7 +77,11 @@ class PortfolioDecisionBoundary:
             raise ValueError("APPROVED_PORTFOLIO_DECISION_REQUIRED")
         if not self.evidence_refs:
             raise ValueError("PORTFOLIO_DECISION_EVIDENCE_REQUIRED")
+        if not isinstance(self.evidence_refs, (tuple, list)):
+            raise ValueError("INVALID_PORTFOLIO_DECISION_EVIDENCE_REFS")
         for source in self.evidence_refs:
+            if not isinstance(source, SourceReference):
+                raise ValueError("INVALID_PORTFOLIO_DECISION_EVIDENCE_REFERENCE")
             if not isinstance(source.revision, int) or isinstance(source.revision, bool) or not 0 <= source.revision <= MAX_SAFE_REVISION:
                 raise ValueError("INVALID_PORTFOLIO_DECISION_SOURCE_REVISION")
 
@@ -122,12 +130,12 @@ def approve_portfolio_decision(
     approved_at: datetime,
 ) -> PortfolioDecisionBoundary:
     decision.validate()
+    if not isinstance(approved_by, str) or not approved_by.strip():
+        raise ValueError("APPROVER_REQUIRED")
+    if not isinstance(approved_at, datetime) or approved_at.tzinfo is None or approved_at.utcoffset() is None:
+        raise ValueError("APPROVAL_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
     if not decision.requires_approval:
         return decision
-    if not approved_by.strip():
-        raise ValueError("APPROVER_REQUIRED")
-    if approved_at.tzinfo is None or approved_at.utcoffset() is None:
-        raise ValueError("APPROVAL_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
     return PortfolioDecisionBoundary(
         **{**decision.__dict__, "status": "approved", "approved_by": approved_by, "approved_at": approved_at}
     )
@@ -142,9 +150,9 @@ def mark_portfolio_decision_implemented(
     decision.validate()
     if decision.requires_approval and decision.status != "approved":
         raise ValueError("PORTFOLIO_DECISION_MUST_BE_APPROVED_BEFORE_IMPLEMENTATION")
-    if not implementation_reference.strip():
+    if not isinstance(implementation_reference, str) or not implementation_reference.strip():
         raise ValueError("IMPLEMENTATION_REFERENCE_REQUIRED")
-    if implemented_at.tzinfo is None or implemented_at.utcoffset() is None:
+    if not isinstance(implemented_at, datetime) or implemented_at.tzinfo is None or implemented_at.utcoffset() is None:
         raise ValueError("IMPLEMENTATION_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
     return PortfolioDecisionBoundary(
         **{
