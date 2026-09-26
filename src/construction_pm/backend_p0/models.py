@@ -1517,7 +1517,247 @@ class ProcurementDelivery:
         }
 
 
-Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem | ChangeCase | ClaimRecord | ProcurementQuote | ProcurementBidComparison | PurchaseOrder | ProcurementCommitment | ProcurementDelivery
+@dataclass(frozen=True)
+class Portfolio:
+    portfolio_id: str
+    tenant_id: str
+    status: str
+    name_key: str
+    audit: AuditMetadata
+    description_key: str | None = None
+    contract_version: str = "portfolio.v1"
+
+    def validate(self) -> None:
+        _require_text(self.portfolio_id, "portfolio_id")
+        _require_text(self.tenant_id, "tenant_id")
+        _require_text(self.name_key, "name_key")
+        if self.status not in {"draft", "active", "archived"}:
+            raise ValueError("invalid portfolio status")
+        if self.description_key is not None:
+            _require_text(self.description_key, "description_key")
+        self.audit.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "portfolio_id": self.portfolio_id,
+            "tenant_id": self.tenant_id,
+            "status": self.status,
+            "name_key": self.name_key,
+            "description_key": self.description_key,
+            "audit": self.audit.as_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class PortfolioProjectLink:
+    link_id: str
+    portfolio_id: str
+    tenant_id: str
+    project_id: str
+    project_revision: int
+    status: str
+    role: str
+    audit: AuditMetadata
+    display_name_key: str | None = None
+    manager_id: str | None = None
+    tags: tuple[str, ...] = ()
+    contract_version: str = "portfolio-project-link.v1"
+
+    def validate(self) -> None:
+        _require_text(self.link_id, "link_id")
+        _require_text(self.portfolio_id, "portfolio_id")
+        _require_text(self.tenant_id, "tenant_id")
+        _require_text(self.project_id, "project_id")
+        if not isinstance(self.project_revision, int) or isinstance(self.project_revision, bool) or not 0 <= self.project_revision <= MAX_SAFE_REVISION:
+            raise ValueError("invalid project revision")
+        if self.status not in {"included", "on_hold", "excluded"}:
+            raise ValueError("invalid portfolio project link status")
+        if self.role not in {"member", "program", "priority", "reference"}:
+            raise ValueError("invalid portfolio project link role")
+        for value, name in ((self.display_name_key, "display_name_key"), (self.manager_id, "manager_id")):
+            if value is not None:
+                _require_text(value, name)
+        for tag in self.tags:
+            _require_text(tag, "tag")
+        self.audit.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "link_id": self.link_id,
+            "portfolio_id": self.portfolio_id,
+            "tenant_id": self.tenant_id,
+            "project_id": self.project_id,
+            "project_revision": self.project_revision,
+            "status": self.status,
+            "role": self.role,
+            "display_name_key": self.display_name_key,
+            "manager_id": self.manager_id,
+            "tags": list(self.tags),
+            "audit": self.audit.as_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class PortfolioSnapshotProject:
+    project_id: str
+    project_revision: int
+    status: str
+    name_key: str | None = None
+    schedule_result_ref: str | None = None
+    progress_result_ref: str | None = None
+    cost_result_ref: str | None = None
+    resource_result_ref: str | None = None
+    risk_result_ref: str | None = None
+    claim_result_ref: str | None = None
+    procurement_result_ref: str | None = None
+
+    def validate(self) -> None:
+        _require_text(self.project_id, "project_id")
+        if not isinstance(self.project_revision, int) or isinstance(self.project_revision, bool) or not 0 <= self.project_revision <= MAX_SAFE_REVISION:
+            raise ValueError("invalid project revision")
+        _require_text(self.status, "project status")
+        if self.name_key is not None:
+            _require_text(self.name_key, "name_key")
+        for value, name in (
+            (self.schedule_result_ref, "schedule_result_ref"),
+            (self.progress_result_ref, "progress_result_ref"),
+            (self.cost_result_ref, "cost_result_ref"),
+            (self.resource_result_ref, "resource_result_ref"),
+            (self.risk_result_ref, "risk_result_ref"),
+            (self.claim_result_ref, "claim_result_ref"),
+            (self.procurement_result_ref, "procurement_result_ref"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "project_id": self.project_id,
+            "project_revision": self.project_revision,
+            "status": self.status,
+            "name_key": self.name_key,
+            "schedule_result_ref": self.schedule_result_ref,
+            "progress_result_ref": self.progress_result_ref,
+            "cost_result_ref": self.cost_result_ref,
+            "resource_result_ref": self.resource_result_ref,
+            "risk_result_ref": self.risk_result_ref,
+            "claim_result_ref": self.claim_result_ref,
+            "procurement_result_ref": self.procurement_result_ref,
+        }
+
+
+@dataclass(frozen=True)
+class PortfolioControlSnapshot:
+    snapshot_id: str
+    portfolio_id: str
+    generated_at: datetime
+    projects: tuple[PortfolioSnapshotProject, ...]
+    source_refs: tuple[EvidenceRef, ...]
+    audit: AuditMetadata
+    contract_version: str = "portfolio-control-snapshot.v1"
+
+    def validate(self) -> None:
+        _require_text(self.snapshot_id, "snapshot_id")
+        _require_text(self.portfolio_id, "portfolio_id")
+        _require_aware(self.generated_at, "generated_at")
+        if not self.projects:
+            raise ValueError("portfolio snapshot requires at least one project")
+        ids: set[str] = set()
+        for project in self.projects:
+            project.validate()
+            if project.project_id in ids:
+                raise ValueError("duplicate portfolio project")
+            ids.add(project.project_id)
+        if not self.source_refs:
+            raise ValueError("portfolio snapshot requires at least one source reference")
+        self.audit.validate()
+        for evidence in self.source_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "snapshot_id": self.snapshot_id,
+            "portfolio_id": self.portfolio_id,
+            "generated_at": self.generated_at.isoformat(),
+            "projects": [item.as_dict() for item in self.projects],
+            "source_refs": [item.as_dict() for item in self.source_refs],
+            "audit": self.audit.as_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class PortfolioDecision:
+    decision_id: str
+    portfolio_id: str
+    tenant_id: str
+    status: str
+    decision_type: str
+    title_key: str
+    audit: AuditMetadata
+    detail_key: str | None = None
+    affected_project_ids: tuple[str, ...] = ()
+    source_snapshot_id: str | None = None
+    impact_link_ids: tuple[str, ...] = ()
+    requires_approval: bool = True
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "portfolio-decision.v1"
+
+    def validate(self) -> None:
+        _require_text(self.decision_id, "decision_id")
+        _require_text(self.portfolio_id, "portfolio_id")
+        _require_text(self.tenant_id, "tenant_id")
+        _require_text(self.title_key, "title_key")
+        if self.status not in {"proposed", "under_review", "approved", "rejected", "implemented", "closed", "cancelled"}:
+            raise ValueError("invalid portfolio decision status")
+        if self.decision_type not in {"escalate", "prioritize", "hold", "review", "sequence", "approve"}:
+            raise ValueError("invalid portfolio decision type")
+        for value, name in ((self.detail_key, "detail_key"), (self.source_snapshot_id, "source_snapshot_id"), (self.approved_by, "approved_by")):
+            if value is not None:
+                _require_text(value, name)
+        for value in (*self.affected_project_ids, *self.impact_link_ids):
+            _require_text(value, "reference")
+        if self.status == "approved" and (not self.approved_by or not self.approved_at):
+            raise ValueError("approved portfolio decision requires approval")
+        if self.approved_at is not None:
+            _require_aware(self.approved_at, "approved_at")
+        if not self.evidence_refs:
+            raise ValueError("portfolio decision requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "decision_id": self.decision_id,
+            "portfolio_id": self.portfolio_id,
+            "tenant_id": self.tenant_id,
+            "status": self.status,
+            "decision_type": self.decision_type,
+            "title_key": self.title_key,
+            "detail_key": self.detail_key,
+            "affected_project_ids": list(self.affected_project_ids),
+            "source_snapshot_id": self.source_snapshot_id,
+            "impact_link_ids": list(self.impact_link_ids),
+            "requires_approval": self.requires_approval,
+            "approved_by": self.approved_by,
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem | ChangeCase | ClaimRecord | ProcurementQuote | ProcurementBidComparison | PurchaseOrder | ProcurementCommitment | ProcurementDelivery | Portfolio | PortfolioProjectLink | PortfolioControlSnapshot | PortfolioDecision
 
 
 def resource_type(record: Record) -> str:
@@ -1555,6 +1795,14 @@ def resource_type(record: Record) -> str:
         return "procurement_commitment"
     if isinstance(record, ProcurementDelivery):
         return "procurement_delivery"
+    if isinstance(record, Portfolio):
+        return "portfolio"
+    if isinstance(record, PortfolioProjectLink):
+        return "portfolio_project_link"
+    if isinstance(record, PortfolioControlSnapshot):
+        return "portfolio_control_snapshot"
+    if isinstance(record, PortfolioDecision):
+        return "portfolio_decision"
     raise TypeError(f"Unsupported record type: {type(record)!r}")
 
 
@@ -1593,4 +1841,12 @@ def record_id(record: Record) -> str:
         return record.commitment_id
     if isinstance(record, ProcurementDelivery):
         return record.delivery_id
+    if isinstance(record, Portfolio):
+        return record.portfolio_id
+    if isinstance(record, PortfolioProjectLink):
+        return record.link_id
+    if isinstance(record, PortfolioControlSnapshot):
+        return record.snapshot_id
+    if isinstance(record, PortfolioDecision):
+        return record.decision_id
     raise TypeError(f"Unsupported record type: {type(record)!r}")
