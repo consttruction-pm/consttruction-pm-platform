@@ -56,7 +56,7 @@ def test_sync_project_revision_contract_is_versioned():
     assert len(contract["oneOf"]) == 2
     success, error = contract["oneOf"]
     assert success["properties"]["contract_version"]["const"] == "sync-project-revision.v1"
-    assert success["required"] == ["contract_version", "tenant_id", "project_id", "revision"]
+    assert success["required"] == ["contract_version", "tenant_id", "project_id", "revision"]\n    assert success["properties"]["revision"]["maximum"] == 9007199254740991
     assert error["properties"]["error_code"]["const"] == "INVALID_PROJECT_CONTEXT"
     assert error["required"] == ["contract_version", "tenant_id", "project_id", "error_code"]
 
@@ -79,7 +79,7 @@ def test_revision_endpoint_returns_authoritative_server_revision():
     }
 
 
-def test_revision_endpoint_rejects_wrong_project_context_without_reading_revision():
+def test_revision_endpoint_rejects_unsafe_project_revision():\n    endpoint = VersionedSyncRevisionEndpoint(\n        tenant_id="tenant-1",\n        project_id="project-1",\n        revision_provider=lambda tenant_id, project_id: 9007199254740992,\n    )\n\n    try:\n        endpoint.get({"X-Tenant-Id": "tenant-1", "X-Project-Id": "project-1"})\n    except ValueError as exc:\n        assert str(exc) == "INVALID_PROJECT_REVISION"\n    else:\n        raise AssertionError("unsafe project revision must be rejected")\n\n\ndef test_revision_endpoint_rejects_wrong_project_context_without_reading_revision():
     calls = []
 
     def revision_provider(tenant_id, project_id):
