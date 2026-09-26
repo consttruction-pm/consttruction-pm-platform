@@ -106,8 +106,8 @@ def test_transition_persists_next_revision_atomically():
 
     persisted = store.persist_transition(approved)
 
-    assert persisted.portfolio_revision == 1
-    assert persisted.status.value == "approved"
+    assert persisted.action.portfolio_revision == 1
+    assert persisted.action.status.value == "approved"
     assert persisted.action_revision == 1
     assert any(sql.startswith("UPDATE portfolio_control_revisions") for sql, _ in connection.sql)
     assert any(sql.startswith("INSERT INTO portfolio_control_actions") for sql, _ in connection.sql)
@@ -132,11 +132,13 @@ def test_same_idempotency_key_replays_without_revision_advance():
     connection.rows[("idem", "tenant-1", "portfolio-1", "idem-1")] = (
         action_fingerprint(action()),
         json.dumps(persisted),
+        1,
     )
     store = PostgresPortfolioActionStore(connection)
 
     replay = store.persist_transition(action())
-    assert replay.portfolio_revision == 1
+    assert replay.action.portfolio_revision == 1
+    assert replay.action_revision == 1
     assert not any(sql.startswith("SELECT revision") for sql, _ in connection.sql)
 
 
@@ -146,6 +148,7 @@ def test_idempotency_key_reuse_is_rejected():
     connection.rows[("idem", "tenant-1", "portfolio-1", "idem-1")] = (
         "different-fingerprint",
         json.dumps(action(portfolio_revision=1).as_dict()),
+        1,
     )
     store = PostgresPortfolioActionStore(connection)
 
