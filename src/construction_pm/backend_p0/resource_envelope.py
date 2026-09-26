@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from .models import ChangeNotice, EquipmentStatusReport, FieldDailyLog, FieldIssue, FieldTimecard, ProcurementRFQ, Record, record_id
+from .models import ChangeNotice, EquipmentStatusReport, FieldDailyLog, FieldIssue, FieldInspection, FieldTimecard, ProcurementRFQ, PunchItem, QualityRecord, Record, SafetyObservation, record_id
 from .repository import StoredRecord
 
 
@@ -18,6 +18,14 @@ def resource_type_for_record(record: Record) -> str:
         return "timecard"
     if isinstance(record, EquipmentStatusReport):
         return "equipment_status"
+    if isinstance(record, FieldInspection):
+        return "inspection"
+    if isinstance(record, QualityRecord):
+        return "quality_record"
+    if isinstance(record, SafetyObservation):
+        return "safety_record"
+    if isinstance(record, PunchItem):
+        return "punch_item"
     if isinstance(record, ChangeNotice):
         if record.notice_type == "variation":
             return "variation"
@@ -28,7 +36,7 @@ def resource_type_for_record(record: Record) -> str:
 
 
 def resource_family_for_record(record: Record) -> str:
-    if isinstance(record, (FieldDailyLog, FieldIssue, FieldTimecard, EquipmentStatusReport)):
+    if isinstance(record, (FieldDailyLog, FieldIssue, FieldTimecard, EquipmentStatusReport, FieldInspection, QualityRecord, SafetyObservation, PunchItem)):
         return "field"
     if isinstance(record, ChangeNotice):
         return "change"
