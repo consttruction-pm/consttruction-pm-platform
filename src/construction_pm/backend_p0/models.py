@@ -5,7 +5,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Mapping
 
-MAX_SAFE_REVISION = 9_007_199_254_740_991
+from construction_pm.client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
+
+MAX_SAFE_REVISION = MAX_SAFE_PROJECT_REVISION
 
 
 def _require_text(value: str, field_name: str) -> None:
