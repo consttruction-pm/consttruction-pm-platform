@@ -80,6 +80,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 idempotency_key TEXT NOT NULL,
                 fingerprint TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
+                initial_result_json TEXT NOT NULL,
                 action_revision INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -118,18 +119,18 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
         with self._transaction():
             existing = self.connection.execute(
                 """
-                SELECT payload_json, action_revision, fingerprint
+                SELECT payload_json, initial_result_json, action_revision, fingerprint
                 FROM portfolio_control_actions
                 WHERE tenant_id=? AND portfolio_id=? AND idempotency_key=?
                 """,
                 (action.tenant_id, action.portfolio_id, action.idempotency_key),
             ).fetchone()
             if existing is not None:
-                if existing[2] != fingerprint:
+                if existing[3] != fingerprint:
                     raise ValueError("PORTFOLIO_ACTION_IDEMPOTENCY_KEY_REUSE")
                 return StoredPortfolioControlAction(
-                    _action_from_payload(json.loads(existing[0])),
-                    int(existing[1]),
+                    _action_from_payload(json.loads(existing[1])),
+                    1,
                 )
 
             conflict = self.connection.execute(
@@ -147,9 +148,9 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 """
                 INSERT INTO portfolio_control_actions (
                     tenant_id, portfolio_id, action_id, idempotency_key,
-                    fingerprint, payload_json, action_revision,
+                    fingerprint, payload_json, initial_result_json, action_revision,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     action.tenant_id,
@@ -157,6 +158,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                     action.action_id,
                     action.idempotency_key,
                     fingerprint,
+                    json.dumps(action.as_dict(), sort_keys=True, separators=(",", ":")),
                     json.dumps(action.as_dict(), sort_keys=True, separators=(",", ":")),
                     1,
                     action.requested_at.isoformat(),
