@@ -39,9 +39,9 @@ class PortfolioDecisionBoundary:
         ):
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"INVALID_PORTFOLIO_DECISION_{field_name.upper()}")
-        if self.status not in _STATUSES:
+        if not isinstance(self.status, str) or self.status not in _STATUSES:
             raise ValueError("INVALID_PORTFOLIO_DECISION_STATUS")
-        if self.decision_type not in _DECISION_TYPES:
+        if not isinstance(self.decision_type, str) or self.decision_type not in _DECISION_TYPES:
             raise ValueError("INVALID_PORTFOLIO_DECISION_TYPE")
         if not isinstance(self.requires_approval, bool):
             raise ValueError("INVALID_PORTFOLIO_DECISION_REQUIRES_APPROVAL")
@@ -63,8 +63,12 @@ class PortfolioDecisionBoundary:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"INVALID_PORTFOLIO_DECISION_{field_name.upper()}")
+        if self.approved_at is not None and not isinstance(self.approved_at, datetime):
+            raise ValueError("INVALID_PORTFOLIO_DECISION_APPROVAL_TIMESTAMP")
         if self.approved_at is not None and (self.approved_at.tzinfo is None or self.approved_at.utcoffset() is None):
             raise ValueError("PORTFOLIO_DECISION_APPROVAL_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
+        if self.implemented_at is not None and not isinstance(self.implemented_at, datetime):
+            raise ValueError("INVALID_PORTFOLIO_DECISION_IMPLEMENTATION_TIMESTAMP")
         if self.implemented_at is not None and (self.implemented_at.tzinfo is None or self.implemented_at.utcoffset() is None):
             raise ValueError("PORTFOLIO_DECISION_IMPLEMENTATION_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
         if self.status == "approved":
