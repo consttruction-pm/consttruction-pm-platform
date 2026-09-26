@@ -6,9 +6,7 @@ from typing import Callable, Mapping
 from .application_gateway import ApplicationSyncGateway
 from .server_gateway import IdempotentMutationGateway
 from .offline_mutation import OfflineMutation
-
-
-MAX_SAFE_PROJECT_REVISION = 9007199254740991
+from .revision_limits import MAX_SAFE_PROJECT_REVISION
 
 
 def _versioned_revision_error(tenant_id: str, project_id: str, code: str) -> dict[str, object]:
