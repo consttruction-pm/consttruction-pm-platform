@@ -72,6 +72,21 @@ def test_sync_mutation_contract_caps_expected_revision_at_client_safe_integer():
     assert contract["properties"]["expected_revision"]["maximum"] == 9007199254740991
 
 
+def test_offline_mutation_rejects_unsafe_expected_revision_at_domain_boundary():
+    try:
+        OfflineMutation(
+            mutation_id="mutation-unsafe",
+            tenant_id="tenant-1",
+            project_id="project-1",
+            expected_revision=9007199254740992,
+            operation="update_activity",
+            payload={"activity_id": "A-1"},
+            idempotency_key="idem-unsafe",
+        )
+    except ValueError as exc:
+        assert str(exc) == "INVALID_EXPECTED_REVISION"
+    else:
+        raise AssertionError("unsafe expected_revision must be rejected by OfflineMutation")
 def test_mutation_endpoint_rejects_unsafe_expected_revision():
     endpoint = VersionedSyncEndpoint(
         ApplicationSyncGateway("tenant-1", "project-1", RevisionAwareHandler({("tenant-1", "project-1"): 8}))
