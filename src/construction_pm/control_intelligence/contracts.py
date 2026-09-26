@@ -3,6 +3,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Mapping, Tuple
 
+MAX_SAFE_REVISION = 9_007_199_254_740_991
+
 from .graph import ControlDomain
 
 @dataclass(frozen=True)
@@ -14,7 +16,11 @@ class ControlScope:
     def __post_init__(self) -> None:
         if not self.tenant_id or not self.project_id:
             raise ValueError("INVALID_CONTROL_SCOPE")
-        if isinstance(self.project_revision, bool) or self.project_revision < 0:
+        if (
+            isinstance(self.project_revision, bool)
+            or not isinstance(self.project_revision, int)
+            or not 0 <= self.project_revision <= MAX_SAFE_REVISION
+        ):
             raise ValueError("INVALID_PROJECT_REVISION")
 
 @dataclass(frozen=True)
@@ -29,7 +35,11 @@ class SourceReference:
     def __post_init__(self) -> None:
         if not self.source_id or not self.source_type or not self.locator:
             raise ValueError("INVALID_SOURCE_REFERENCE")
-        if isinstance(self.revision, bool) or self.revision < 0:
+        if (
+            isinstance(self.revision, bool)
+            or not isinstance(self.revision, int)
+            or not 0 <= self.revision <= MAX_SAFE_REVISION
+        ):
             raise ValueError("INVALID_SOURCE_REVISION")
 
 class FindingSeverity(str, Enum):
