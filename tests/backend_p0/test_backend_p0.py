@@ -145,8 +145,14 @@ def test_idempotency_replays_without_reexecution():
     service.repository.save = counted  # type: ignore[attr-defined]
     first = service.save(record, auth_context=auth(), idempotency_key="same-key")
     second = service.save(record, auth_context=auth(), idempotency_key="same-key")
+    changed = FieldDailyLog(record.log_id, record.scope, record.log_date, record.location_key, "approved", record.entries, record.audit, record.evidence_refs)
+    updated = service.save(changed, auth_context=auth(), expected_revision=1, idempotency_key="update-key")
+    replay_after_update = service.save(record, auth_context=auth(), idempotency_key="same-key")
     assert first.record_revision == second.record_revision == 1
-    assert calls["n"] == 1
+    assert updated.record_revision == 2
+    assert replay_after_update.record_revision == 1
+    assert replay_after_update.record == record
+    assert calls["n"] == 2
     connection.close()
 
 
@@ -158,6 +164,17 @@ def test_idempotency_key_reuse_is_rejected():
     with pytest.raises(BackendApplicationError) as exc:
         service.save(changed, auth_context=auth(), idempotency_key="reuse")
     assert exc.value.code == "IDEMPOTENCY_KEY_REUSE"
+    connection.close()
+
+
+def test_read_requires_project_read_permission():
+    connection, _, service, _ = make_stack()
+    record = all_records()[0]
+    service.save(record, auth_context=auth(), idempotency_key="read-seed")
+    assert service.get(record, auth_context=auth(frozenset({"viewer"}))) is not None
+    with pytest.raises(BackendApplicationError) as exc:
+        service.get(record, auth_context=auth(frozenset({"unknown-role"})))
+    assert exc.value.code == "FORBIDDEN"
     connection.close()
 
 
@@ -179,6 +196,8 @@ def test_required_evidence_and_revision_boundaries():
         FieldIssue("I-2", scope, "quality", "low", "open", "title", "user", audit).validate()
     with pytest.raises(ValueError, match="safe integer"):
         BackendScope("tenant-1", "project-1", 9_007_199_254_740_992).validate()
+    with pytest.raises(ValueError, match="integer"):
+        BackendScope("tenant-1", "project-1", True).validate()
     with pytest.raises(ValueError, match="greater than zero"):
         ProcurementRFQItem("x", "y", Decimal("0"), "m3").validate()
 
@@ -238,7 +257,7 @@ def test_api_returns_machine_readable_revision():
     assert result["record_revision"] == 1
     assert result["operation"] == "save"
     json_payload = json.dumps(result, ensure_ascii=False)
-    assert '"quantity": 12.5' in json_payload
+    assert '"quantity": "12.50"' in json_payload
     connection.close()
 
 
