@@ -8,8 +8,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterator
 
+from .contracts import SourceReference
 from .portfolio_control_actions import (
     PortfolioActionStatus,
+    PortfolioActionType,
     PortfolioControlAction,
 )
 
