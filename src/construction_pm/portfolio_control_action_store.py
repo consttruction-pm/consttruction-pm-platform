@@ -133,7 +133,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
 
     def create(self, action: PortfolioControlAction) -> StoredPortfolioControlAction:
         action.validate()
-        fingerprint = _fingerprint(action.as_dict())
+        fingerprint = _request_fingerprint(action)
 
         with self._transaction():
             existing = self.connection.execute(
@@ -253,7 +253,6 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 sort_keys=True,
                 separators=(",", ":"),
             )
-            fp = _fingerprint(action.as_dict())
             self.connection.execute(
                 """
                 UPDATE portfolio_control_actions
@@ -263,7 +262,6 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 """,
                 (
                     payload,
-                    fp,
                     next_revision,
                     occurred_at.isoformat(),
                     action.tenant_id,
@@ -384,9 +382,37 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 self.connection.commit()
 
 
-def _fingerprint(payload: dict[str, object]) -> str:
+def _request_fingerprint(action: PortfolioControlAction) -> str:
+    payload = {
+        "action_id": action.action_id,
+        "tenant_id": action.tenant_id,
+        "portfolio_id": action.portfolio_id,
+        "portfolio_revision": action.portfolio_revision,
+        "target_type": action.target_type,
+        "target_id": action.target_id,
+        "action_type": action.action_type.value,
+        "source_snapshot_id": action.source_snapshot_id,
+        "expected_portfolio_revision": action.expected_portfolio_revision,
+        "requested_by": action.requested_by,
+        "requested_at": action.requested_at.isoformat(),
+        "requires_approval": action.requires_approval,
+        "idempotency_key": action.idempotency_key,
+        "rationale_key": action.rationale_key,
+        "evidence_refs": [
+            {
+                "source_id": ref.source_id,
+                "source_type": ref.source_type,
+                "locator": ref.locator,
+                "revision": ref.revision,
+                "excerpt_key": ref.excerpt_key,
+                "content_hash": ref.content_hash,
+            }
+            for ref in action.evidence_refs
+        ],
+    }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
 
 
 def _event_id(
