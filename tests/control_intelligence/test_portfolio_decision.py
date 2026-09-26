@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
@@ -137,7 +138,7 @@ def test_closed_approved_decision_is_valid():
     closed.validate()
 
 def test_decision_rejects_invalid_scalar_and_timestamp_types():
-    decision = _decision()
+    decision = base_decision()
     with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_STATUS"):
         replace(decision, status=[]).validate()
     with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_TYPE"):
