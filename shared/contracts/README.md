@@ -53,6 +53,7 @@ These schemas are authoritative for both Web and Desktop clients.
 ### Portfolio Control Read Model
 
 - `portfolio-control-snapshot.v1.schema.json`
+- `portfolio-control-action.v1.schema.json`
 
 ### Generic resource envelopes
 
