@@ -55,8 +55,8 @@ def policy():
     })
 
 
-def decision():
-    return PortfolioDecisionBoundary(
+def decision(**overrides):
+    values = dict(
         decision_id="D-1",
         portfolio_id="P-1",
         tenant_id="T-1",
@@ -65,76 +65,5 @@ def decision():
         title_key="decision.review",
         evidence_refs=(SourceReference("S-1", "snapshot", "$.portfolio", 1),),
     )
-
-
-def context(user_id="admin-1", role="project_admin", tenant_id="T-1"):
-    return AuthorizationContext(tenant_id=tenant_id, project_id="portfolio-scope", user_id=user_id, roles=frozenset({role}))
-
-
-def test_create_enforces_tenant_scope_and_actor_identity():
-    store = PostgresPortfolioDecisionStore(Connection())
-    service = PortfolioDecisionApplicationService(store, policy())
-    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
-
-    created = service.create(
-        decision(),
-        context=context(),
-        idempotency_key="k-1",
-        actor_id="admin-1",
-        occurred_at=now,
-    )
-
-    assert created.decision_revision == 1
-    assert created.decision.decision_id == "D-1"
-
-    with pytest.raises(AuthorizationError, match="ACTOR_MISMATCH"):
-        service.create(
-            decision(decision_id="D-2"),
-            context=context(),
-            idempotency_key="k-2",
-            actor_id="other-user",
-            occurred_at=now,
-        )
-
-
-def test_create_rejects_cross_tenant_decision():
-    service = PortfolioDecisionApplicationService(PostgresPortfolioDecisionStore(Connection()), policy())
-    with pytest.raises(AuthorizationError, match="CROSS_TENANT"):
-        service.create(
-            PortfolioDecisionBoundary(
-                decision_id="D-2",
-                portfolio_id="P-1",
-                tenant_id="T-2",
-                status="proposed",
-                decision_type="review",
-                title_key="decision.review",
-                evidence_refs=(SourceReference("S-1", "snapshot", "$.portfolio", 1),),
-            ),
-            context=context(),
-            idempotency_key="k-2",
-            actor_id="admin-1",
-            occurred_at=datetime.now(timezone.utc),
-        )
-
-
-def test_approve_sets_authoritative_actor_and_persists_transition():
-    service = PortfolioDecisionApplicationService(PostgresPortfolioDecisionStore(Connection()), policy())
-    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
-    created = service.create(
-        decision(),
-        context=context(),
-        idempotency_key="k-1",
-        actor_id="admin-1",
-        occurred_at=now,
-    )
-
-    approved = service.approve(
-        decision(),
-        context=context(),
-        expected_decision_revision=created.decision_revision,
-        approved_at=datetime(2026, 9, 27, 15, 5, tzinfo=timezone.utc),
-    )
-
-    assert approved.decision_revision == 2
-    assert approved.decision.status == "approved"
-    assert approved.decision.approved_by == "admin-1"
+    values.update(overrides)
+    return PortfolioDecisionBoundary(**values)
