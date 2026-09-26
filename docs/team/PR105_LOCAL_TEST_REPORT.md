@@ -1,6 +1,6 @@
 # PR #105 — Local Test Report
 
-Commit under test: `33bfaefa62ef612782a492a5fd8a2ead7ce63488`
+Commit under test: `fdec89cd5ab5f7f4a538909f2d2998de01681942`
 
 ## ChatGPT environment verification
 
@@ -32,13 +32,13 @@ Therefore this result is **not** PostgreSQL runtime verification.
 
 A local test double was used against the reconstructed production `AtomicSyncExecutor` control flow to verify the bounded concurrency behavior without pretending it is PostgreSQL.
 
-Result: **5 passed in 0.04s**
+Result: **6 passed in 0.04s**
 
 - same idempotency key: concurrent submissions execute the delegate exactly once and replay the saved outcome;
 - distinct idempotency keys: concurrent submissions execute independently;
 - idempotency-key reuse with a different mutation is rejected;
 - the PostgreSQL lock SQL is checked to use `pg_advisory_xact_lock(hashtextextended(...))`;
-- the lock key is checked to include tenant, project, and idempotency key.
+- the lock key is checked to include tenant, project, and idempotency key;\n- structured lock-key encoding prevents delimiter-based scope ambiguity (for example values containing `|`).
 
 This simulation is **not claimed as PostgreSQL runtime verification**. It checks the test logic and atomic/idempotency control flow only.
 
@@ -55,12 +55,12 @@ Because no executable job steps were exposed, these failures are classified as *
 
 ## Scope
 
-The production implementation was not changed during this local validation step.
+The production implementation was hardened after local validation: PostgreSQL advisory-lock scope now uses deterministic JSON-array encoding of `(tenant_id, project_id, idempotency_key)` instead of delimiter concatenation. This preserves tenant/project/key scoping without ambiguous `|`-based composite encoding.
 
 PR #105 remains a bounded Stage 33.4.71 verification/hardening change:
 - idempotency keys are unique per test execution;
 - the same-key test asserts the replayed mutation identity;
-- PostgreSQL idempotency execution is protected by the transaction-scoped advisory lock already present in the implementation.
+- PostgreSQL idempotency execution is protected by the transaction-scoped advisory lock;\n- advisory-lock key encoding is now unambiguous for delimiter-containing identifiers.
 
 ## Current gate
 
