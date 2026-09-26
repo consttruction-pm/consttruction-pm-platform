@@ -8,7 +8,7 @@ A web-ready construction project management platform designed as a structured re
 ## Repository structure
 - `docs/` — product requirements, architecture, domain rules, scheduling, progress, reporting and implementation specifications.
 - `src/` — application source code (to be populated from approved implementation artifacts).
-- `tests/` — automated tests and conformance tests.
+- 	ests/` — automated tests and conformance tests.
 - `infra/` — deployment, database and environment definitions.
 - `tools/` — developer and migration utilities.
 - `docs/roadmap/` — staged implementation roadmap and completion tracking.
@@ -21,7 +21,7 @@ A web-ready construction project management platform designed as a structured re
 5. Excel/Project exports must use typed numeric/date/duration fields.
 6. Every calculation must be deterministic and testable.
 7. Audit/revision history is append-only for effective project changes.
-8. GitHub/Codex is the canonical development, code-execution and test environment; ChatGPT is a coordination/review/support environment.
+8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
 
 ## Current documented implementation point
