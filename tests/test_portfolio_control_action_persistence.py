@@ -161,7 +161,7 @@ def test_project_request_and_portfolio_decision_authorization():
 def test_transition_failure_rolls_back_action_and_audit():
     connection, store, _ = stack()
     proposed = store.create(action())
-    with pytest.raises(ValueError, match="not-found"):
+    with pytest.raises(ValueError, match="PORTFOLIO_ACTION_NOT_FOUND"):
         store.transition(
             action=action(action_id="missing"),
             expected_action_revision=1,
