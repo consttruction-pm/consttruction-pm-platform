@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/control-impact.v1",
+  "title": "Control Impact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "scope",
+    "impacts"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "control-impact.v1"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "project_revision"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "impacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "impact_id",
+          "scope",
+          "source_domain",
+          "source_entity_type",
+          "source_entity_id",
+          "target_domain",
+          "target_entity_type",
+          "target_entity_id",
+          "impact_type",
+          "status",
+          "severity",
+          "detail_key",
+          "source_refs"
+        ],
+        "properties": {
+          "impact_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tenant_id",
+              "project_id",
+              "project_revision"
+            ],
+            "properties": {
+              "tenant_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "project_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "project_revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "source_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_entity_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_entity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_entity_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_entity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "impact_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "observed",
+              "potential",
+              "confirmed"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "detail_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source_id",
+                "source_type",
+                "locator",
+                "revision"
+              ],
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "excerpt_key": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "content_hash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "attributes": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
