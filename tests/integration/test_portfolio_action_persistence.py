@@ -43,6 +43,8 @@ class RecordingConnection:
             return Cursor(self.rows.get(("idem",) + params))
         if sql.startswith("SELECT revision"):
             return Cursor(self.rows.get(("revision",) + params))
+        if sql.startswith("SELECT action_revision"):
+            return Cursor(self.rows.get(("action",) + params))
         return Cursor()
 
     def commit(self):
@@ -169,6 +171,7 @@ def test_action_transition_increments_action_revision_and_appends_audit():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (1,)
     transitioned = store.transition(
         proposed.action,
         expected_action_revision=1,
@@ -185,6 +188,7 @@ def test_stale_action_revision_is_rejected():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (1,)
     with pytest.raises(PortfolioActionRevisionConflict, match="expected=0 actual=1"):
         store.transition(
             proposed.action,
