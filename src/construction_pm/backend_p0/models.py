@@ -838,7 +838,180 @@ class PunchItem:
         }
 
 
-Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem
+@dataclass(frozen=True)
+class ChangeCase:
+    change_id: str
+    scope: BackendScope
+    change_type: str
+    status: str
+    title_key: str
+    initiated_by: str
+    audit: AuditMetadata
+    detail_key: str | None = None
+    originating_notice_id: str | None = None
+    schedule_refs: tuple[str, ...] = ()
+    cost_refs: tuple[str, ...] = ()
+    dependency_refs: tuple[str, ...] = ()
+    impact_link_ids: tuple[str, ...] = ()
+    implementation_activity_ids: tuple[str, ...] = ()
+    approval_required: bool = True
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "change-case.v1"
+
+    def validate(self) -> None:
+        _require_text(self.change_id, "change_id")
+        self.scope.validate()
+        _require_text(self.title_key, "title_key")
+        _require_text(self.initiated_by, "initiated_by")
+        if self.change_type not in {"potential_change", "instruction", "variation", "delay_event"}:
+            raise ValueError("invalid change type")
+        if self.status not in {"draft", "under_review", "approved", "rejected", "implemented", "closed", "cancelled"}:
+            raise ValueError("invalid change status")
+        for value, name in (
+            (self.detail_key, "detail_key"),
+            (self.originating_notice_id, "originating_notice_id"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        for values, name in (
+            (self.schedule_refs, "schedule_reference"),
+            (self.cost_refs, "cost_reference"),
+            (self.dependency_refs, "dependency_reference"),
+            (self.impact_link_ids, "impact_link_id"),
+            (self.implementation_activity_ids, "activity_id"),
+        ):
+            for value in values:
+                _require_text(value, name)
+        if self.status == "approved":
+            if not self.approved_by or not self.approved_at:
+                raise ValueError("approved change requires approver and timestamp")
+        if self.approved_by is not None:
+            _require_text(self.approved_by, "approved_by")
+        if self.approved_at is not None:
+            _require_aware(self.approved_at, "approved_at")
+        if not self.evidence_refs:
+            raise ValueError("change case requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "change_id": self.change_id,
+            "scope": {"tenant_id": self.scope.tenant_id, "project_id": self.scope.project_id, "project_revision": self.scope.project_revision},
+            "change_type": self.change_type,
+            "status": self.status,
+            "title_key": self.title_key,
+            "detail_key": self.detail_key,
+            "initiated_by": self.initiated_by,
+            "originating_notice_id": self.originating_notice_id,
+            "schedule_refs": list(self.schedule_refs),
+            "cost_refs": list(self.cost_refs),
+            "dependency_refs": list(self.dependency_refs),
+            "impact_link_ids": list(self.impact_link_ids),
+            "implementation_activity_ids": list(self.implementation_activity_ids),
+            "approval_required": self.approval_required,
+            "approved_by": self.approved_by,
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class ClaimRecord:
+    claim_id: str
+    scope: BackendScope
+    claim_type: str
+    status: str
+    title_key: str
+    submitted_by: str
+    audit: AuditMetadata
+    detail_key: str | None = None
+    originating_notice_id: str | None = None
+    change_id: str | None = None
+    schedule_refs: tuple[str, ...] = ()
+    cost_refs: tuple[str, ...] = ()
+    impact_link_ids: tuple[str, ...] = ()
+    entitlement_reference: str | None = None
+    quantum_reference: str | None = None
+    decision_reference: str | None = None
+    approval_required: bool = True
+    decided_by: str | None = None
+    decided_at: datetime | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "claim-record.v1"
+
+    def validate(self) -> None:
+        _require_text(self.claim_id, "claim_id")
+        self.scope.validate()
+        _require_text(self.title_key, "title_key")
+        _require_text(self.submitted_by, "submitted_by")
+        if self.claim_type not in {"extension_of_time", "compensation", "variation", "delay", "other"}:
+            raise ValueError("invalid claim type")
+        if self.status not in {"draft", "submitted", "under_review", "accepted", "partially_accepted", "rejected", "settled", "closed", "withdrawn"}:
+            raise ValueError("invalid claim status")
+        for value, name in (
+            (self.detail_key, "detail_key"),
+            (self.originating_notice_id, "originating_notice_id"),
+            (self.change_id, "change_id"),
+            (self.entitlement_reference, "entitlement_reference"),
+            (self.quantum_reference, "quantum_reference"),
+            (self.decision_reference, "decision_reference"),
+            (self.decided_by, "decided_by"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        for values, name in (
+            (self.schedule_refs, "schedule_reference"),
+            (self.cost_refs, "cost_reference"),
+            (self.impact_link_ids, "impact_link_id"),
+        ):
+            for value in values:
+                _require_text(value, name)
+        if self.status in {"accepted", "partially_accepted", "rejected", "settled", "closed"}:
+            if not self.decided_by or not self.decided_at:
+                raise ValueError("decided claim requires decision actor and timestamp")
+        if self.decided_at is not None:
+            _require_aware(self.decided_at, "decided_at")
+        if not self.evidence_refs:
+            raise ValueError("claim requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "claim_id": self.claim_id,
+            "scope": {"tenant_id": self.scope.tenant_id, "project_id": self.scope.project_id, "project_revision": self.scope.project_revision},
+            "claim_type": self.claim_type,
+            "status": self.status,
+            "title_key": self.title_key,
+            "detail_key": self.detail_key,
+            "submitted_by": self.submitted_by,
+            "originating_notice_id": self.originating_notice_id,
+            "change_id": self.change_id,
+            "schedule_refs": list(self.schedule_refs),
+            "cost_refs": list(self.cost_refs),
+            "impact_link_ids": list(self.impact_link_ids),
+            "entitlement_reference": self.entitlement_reference,
+            "quantum_reference": self.quantum_reference,
+            "decision_reference": self.decision_reference,
+            "approval_required": self.approval_required,
+            "decided_by": self.decided_by,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem | ChangeCase | ClaimRecord
 
 
 def resource_type(record: Record) -> str:
@@ -862,6 +1035,10 @@ def resource_type(record: Record) -> str:
         return "safety_observation"
     if isinstance(record, PunchItem):
         return "punch_item"
+    if isinstance(record, ChangeCase):
+        return "change_case"
+    if isinstance(record, ClaimRecord):
+        return "claim_record"
     raise TypeError(f"Unsupported record type: {type(record)!r}")
 
 
@@ -886,4 +1063,8 @@ def record_id(record: Record) -> str:
         return record.observation_id
     if isinstance(record, PunchItem):
         return record.punch_id
+    if isinstance(record, ChangeCase):
+        return record.change_id
+    if isinstance(record, ClaimRecord):
+        return record.claim_id
     raise TypeError(f"Unsupported record type: {type(record)!r}")
