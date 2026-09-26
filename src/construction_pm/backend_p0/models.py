@@ -391,7 +391,143 @@ class ProcurementRFQ:
         }
 
 
-Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ
+@dataclass(frozen=True)
+class FieldActivityAllocation:
+    activity_id: str
+    quantity: Decimal
+    unit: str
+
+    def validate(self) -> None:
+        _require_text(self.activity_id, "activity_id")
+        if self.quantity <= Decimal("0"):
+            raise ValueError("allocation quantity must be greater than zero")
+        _require_text(self.unit, "unit")
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {"activity_id": self.activity_id, "quantity": self.quantity, "unit": self.unit}
+
+
+@dataclass(frozen=True)
+class FieldTimecard:
+    timecard_id: str
+    scope: BackendScope
+    person_id: str
+    log_date: date
+    workplace_key: str
+    attendance_status: str
+    audit: AuditMetadata
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    activity_allocations: tuple[FieldActivityAllocation, ...] = ()
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "field-timecard.v1"
+
+    def validate(self) -> None:
+        _require_text(self.timecard_id, "timecard_id")
+        self.scope.validate()
+        _require_text(self.person_id, "person_id")
+        _require_text(self.workplace_key, "workplace_key")
+        if self.attendance_status not in {"present", "absent", "late", "leave", "on_site"}:
+            raise ValueError("invalid attendance status")
+        if not isinstance(self.log_date, date):
+            raise ValueError("log_date must be a date")
+        if self.start_at is not None:
+            _require_aware(self.start_at, "start_at")
+        if self.end_at is not None:
+            _require_aware(self.end_at, "end_at")
+        if self.start_at and self.end_at and self.end_at < self.start_at:
+            raise ValueError("end_at cannot precede start_at")
+        for allocation in self.activity_allocations:
+            allocation.validate()
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "timecard_id": self.timecard_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "person_id": self.person_id,
+            "log_date": self.log_date.isoformat(),
+            "workplace_key": self.workplace_key,
+            "attendance_status": self.attendance_status,
+            "start_at": self.start_at.isoformat() if self.start_at else None,
+            "end_at": self.end_at.isoformat() if self.end_at else None,
+            "activity_allocations": [item.as_dict() for item in self.activity_allocations],
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class EquipmentStatusReport:
+    report_id: str
+    scope: BackendScope
+    equipment_id: str
+    report_date: date
+    workplace_key: str
+    status: str
+    reported_by: str
+    audit: AuditMetadata
+    breakdown_cause_key: str | None = None
+    activity_allocations: tuple[FieldActivityAllocation, ...] = ()
+    meter_hours: Decimal | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "equipment-status-report.v1"
+
+    def validate(self) -> None:
+        _require_text(self.report_id, "report_id")
+        self.scope.validate()
+        _require_text(self.equipment_id, "equipment_id")
+        _require_text(self.workplace_key, "workplace_key")
+        _require_text(self.reported_by, "reported_by")
+        if self.status not in {"active", "broken", "idle", "maintenance", "offsite"}:
+            raise ValueError("invalid equipment status")
+        if not isinstance(self.report_date, date):
+            raise ValueError("report_date must be a date")
+        if self.status == "broken" and not self.breakdown_cause_key:
+            raise ValueError("broken equipment requires breakdown cause")
+        if self.breakdown_cause_key is not None:
+            _require_text(self.breakdown_cause_key, "breakdown_cause_key")
+        if self.meter_hours is not None and self.meter_hours < Decimal("0"):
+            raise ValueError("meter_hours cannot be negative")
+        for allocation in self.activity_allocations:
+            allocation.validate()
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "report_id": self.report_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "equipment_id": self.equipment_id,
+            "report_date": self.report_date.isoformat(),
+            "workplace_key": self.workplace_key,
+            "status": self.status,
+            "breakdown_cause_key": self.breakdown_cause_key,
+            "reported_by": self.reported_by,
+            "activity_allocations": [item.as_dict() for item in self.activity_allocations],
+            "meter_hours": self.meter_hours,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport
 
 
 def resource_type(record: Record) -> str:
@@ -403,6 +539,10 @@ def resource_type(record: Record) -> str:
         return "change_notice"
     if isinstance(record, ProcurementRFQ):
         return "procurement_rfq"
+    if isinstance(record, FieldTimecard):
+        return "field_timecard"
+    if isinstance(record, EquipmentStatusReport):
+        return "equipment_status_report"
     raise TypeError(f"Unsupported record type: {type(record)!r}")
 
 
@@ -415,4 +555,8 @@ def record_id(record: Record) -> str:
         return record.notice_id
     if isinstance(record, ProcurementRFQ):
         return record.rfq_id
+    if isinstance(record, FieldTimecard):
+        return record.timecard_id
+    if isinstance(record, EquipmentStatusReport):
+        return record.report_id
     raise TypeError(f"Unsupported record type: {type(record)!r}")

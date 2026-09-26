@@ -82,7 +82,7 @@ class SQLiteBackendP0Repository(BackendP0Repository):
                     payload["contract_version"],
                     scope.project_revision,
                     revision,
-                    payload["status"],
+                    _record_status(payload),
                     audit.created_by,
                     audit.created_at.isoformat(),
                     audit.updated_at.isoformat(),
@@ -107,7 +107,7 @@ class SQLiteBackendP0Repository(BackendP0Repository):
                 payload["contract_version"],
                 scope.project_revision,
                 revision,
-                payload["status"],
+                _record_status(payload),
                 audit.created_by,
                 audit.created_at.isoformat(),
                 audit.updated_at.isoformat(),
@@ -134,6 +134,17 @@ class SQLiteBackendP0Repository(BackendP0Repository):
         return StoredRecord(_record_from_payload(json.loads(row[0])), int(row[1]))
 
 
+
+def _record_status(payload: dict) -> str:
+    status = payload.get("status")
+    if isinstance(status, str):
+        return status
+    attendance_status = payload.get("attendance_status")
+    if isinstance(attendance_status, str):
+        return attendance_status
+    raise ValueError("Record payload does not expose a persistence status")
+
+
 def _json_default(value: object) -> object:
     if isinstance(value, Decimal):
         return str(value)
@@ -152,6 +163,9 @@ def _record_from_payload(payload: dict) -> Record:
         FieldIssue,
         ProcurementRFQ,
         ProcurementRFQItem,
+        FieldActivityAllocation,
+        FieldTimecard,
+        EquipmentStatusReport,
     )
 
     scope_data = payload["scope"]
@@ -226,6 +240,52 @@ def _record_from_payload(payload: dict) -> Record:
             evidence_refs=evidence,
             approval_required=payload.get("approval_required", True),
             attributes=payload.get("attributes", {}),
+        )
+
+    if payload["contract_version"] == "field-timecard.v1":
+        allocations = tuple(
+            FieldActivityAllocation(
+                activity_id=item["activity_id"],
+                quantity=Decimal(str(item["quantity"])),
+                unit=item["unit"],
+            )
+            for item in payload.get("activity_allocations", [])
+        )
+        return FieldTimecard(
+            timecard_id=payload["timecard_id"],
+            scope=scope,
+            person_id=payload["person_id"],
+            log_date=date.fromisoformat(payload["log_date"]),
+            workplace_key=payload["workplace_key"],
+            attendance_status=payload["attendance_status"],
+            audit=audit,
+            start_at=datetime.fromisoformat(payload["start_at"]) if payload.get("start_at") else None,
+            end_at=datetime.fromisoformat(payload["end_at"]) if payload.get("end_at") else None,
+            activity_allocations=allocations,
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "equipment-status-report.v1":
+        allocations = tuple(
+            FieldActivityAllocation(
+                activity_id=item["activity_id"],
+                quantity=Decimal(str(item["quantity"])),
+                unit=item["unit"],
+            )
+            for item in payload.get("activity_allocations", [])
+        )
+        return EquipmentStatusReport(
+            report_id=payload["report_id"],
+            scope=scope,
+            equipment_id=payload["equipment_id"],
+            report_date=date.fromisoformat(payload["report_date"]),
+            workplace_key=payload["workplace_key"],
+            status=payload["status"],
+            reported_by=payload["reported_by"],
+            audit=audit,
+            breakdown_cause_key=payload.get("breakdown_cause_key"),
+            activity_allocations=allocations,
+            meter_hours=Decimal(str(payload["meter_hours"])) if payload.get("meter_hours") is not None else None,
+            evidence_refs=evidence,
         )
     if payload["contract_version"] == "procurement-rfq.v1":
         items = tuple(
