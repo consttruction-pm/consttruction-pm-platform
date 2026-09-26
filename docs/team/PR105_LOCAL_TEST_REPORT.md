@@ -1,10 +1,10 @@
 # PR #105 — Local Test Report
 
-Commit under test: `5196a96d6f4e8b6c5288aa70ecede57bbd8d6bb3`
+Commit under test: `33bfaefa62ef612782a492a5fd8a2ead7ce63488`
 
 ## ChatGPT environment verification
 
-The repository test `tests/integration/test_postgres_idempotency_lock_live.py` was reconstructed from the current PR branch inside an isolated ChatGPT workspace.
+The relevant Stage 33.4.71 files from PR #105 were reconstructed in an isolated ChatGPT workspace and the bounded local verification was run there.
 
 Environment checks:
 - `pytest 9.0.2`: available
@@ -18,26 +18,51 @@ Environment checks:
 
 ## Test results
 
-### Repository test as written
-Result: **not executable as real PostgreSQL integration** because `psycopg` and a PostgreSQL DSN are unavailable.
+### Repository live PostgreSQL integration test
 
-### PostgreSQL-behavior concurrency simulation
-The same repository test was executed with a local transaction/row-key-lock simulation implementing the SQL operations used by `PostgresSyncStateStore`.
+Test: `tests/integration/test_postgres_idempotency_lock_live.py`
 
-Result: **2 passed**
+Result in ChatGPT environment: **1 skipped**.
+
+Reason: the test uses `pytest.importorskip("psycopg")`, and `psycopg` is unavailable. A live PostgreSQL DSN/server is also unavailable in this environment.
+
+Therefore this result is **not** PostgreSQL runtime verification.
+
+### Deterministic local concurrency regression
+
+A local test double was used against the reconstructed production `AtomicSyncExecutor` control flow to verify the bounded concurrency behavior without pretending it is PostgreSQL.
+
+Result: **2 passed in 0.04s**
 
 - same idempotency key: concurrent submissions execute the delegate exactly once;
 - distinct idempotency keys: concurrent submissions execute independently.
 
-This simulation is **not claimed as PostgreSQL runtime verification**. It verifies the test logic and the atomic/idempotency control flow without replacing the required live database test.
+This simulation is **not claimed as PostgreSQL runtime verification**. It checks the test logic and atomic/idempotency control flow only.
+
+## GitHub Actions status
+
+The current head has associated workflow runs, but the GitHub Actions jobs did not reach executable steps:
+
+- PostgreSQL Integration run `36219818970`: failure; job `postgres` has `steps: null`.
+- PostgreSQL Sync State Integration run `36219818977`: failure; job `postgres-sync` has `steps: null`.
+- ConstructionPM CI run `36219818988`: all three Python test jobs failed with `steps: null`.
+- Client Typecheck run `36219818949`: all four typecheck jobs failed with `steps: null`.
+
+Because no executable job steps were exposed, these failures are classified as **CI/runner infrastructure failures**, not test failures. No CI success is inferred from them, and the workflow is not being repeatedly rerun solely to chase the same infrastructure condition.
 
 ## Scope
 
-The production implementation was not changed. The PR #105 code change remains test hardening:
+The production implementation was not changed during this local validation step.
 
+PR #105 remains a bounded Stage 33.4.71 verification/hardening change:
 - idempotency keys are unique per test execution;
-- the same-key test asserts the replayed mutation identity.
+- the same-key test asserts the replayed mutation identity;
+- PostgreSQL idempotency execution is protected by the transaction-scoped advisory lock already present in the implementation.
 
 ## Current gate
 
-PR #105 remains runtime-pending until the real PostgreSQL integration test executes successfully and the GitHub Actions infrastructure completes the required checks. No CI success is being inferred from the local simulation.
+Stage 33.4.71 remains **runtime verification pending**.
+
+The remaining external gate is a real PostgreSQL integration execution on an operational runner. The local 2-pass concurrency simulation and the skipped live test are supporting evidence only; they do not replace that gate.
+
+`docs/roadmap/STAGE_STATUS.md` must not be marked runtime-verified until the real PostgreSQL test executes and passes.
