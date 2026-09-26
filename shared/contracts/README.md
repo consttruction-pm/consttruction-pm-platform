@@ -54,6 +54,7 @@ These schemas are authoritative for both Web and Desktop clients.
 
 - `portfolio-control-snapshot.v1.schema.json`
 - `portfolio-control-action.v1.schema.json`
+- `portfolio-decision.v1.schema.json`
 
 ### Generic resource envelopes
 
@@ -66,7 +67,7 @@ The concrete contracts define payload semantics; generic P0 resource contracts d
 
 Change and Claim records link to schedule/cost/dependency/impact references. Financial quantum, entitlement calculation and schedule impact calculations remain authoritative in their existing domain engines. Procurement monetary values are persisted and transported as exact Decimal strings; this layer does not calculate project cost or earned value.
 
-Portfolio Control is a cross-project read model. It references authoritative project results and revisions; it does not duplicate scheduling, progress/EVM, resource/cost or financial calculations.
+Portfolio Control is a cross-project read model. It references authoritative project results and revisions; it does not duplicate scheduling, progress/EVM, resource/cost or financial calculations. Portfolio decisions are approval-gated records and never execute project mutations directly.
 
 Stage 34.2.5 adds attendance/timecard and equipment-status field workflows. Stage 34.2.6 adds inspection, quality, safety and punch/closeout workflows. Field records remain revision-aware and carry explicit evidence/audit boundaries.
 
