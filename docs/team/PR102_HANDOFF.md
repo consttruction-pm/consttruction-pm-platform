@@ -15,7 +15,9 @@ The sync revision boundary now enforces the JavaScript-safe integer maximum
 `9007199254740991` in the versioned contracts and Application/API integration
 regressions. Unsafe authoritative revisions are rejected with
 `INVALID_PROJECT_REVISION`, and unsafe mutation `expected_revision` values are
-rejected with `INVALID_EXPECTED_REVISION`.
+rejected with `INVALID_EXPECTED_REVISION`. The same client-safe upper bound is
+enforced again at the `OfflineMutation` domain boundary so internal callers
+cannot construct an unsafe revision object around the API validation.
 
 The existing Stage 33.4.70 flow remains:
 
