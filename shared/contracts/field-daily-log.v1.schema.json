@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://construction-pm.local/contracts/field-daily-log.v1.schema.json",
+  "$id": "https://construction-pm.local/contracts/v1/field-daily-log.v1",
   "title": "Field Daily Log v1",
   "type": "object",
   "additionalProperties": false,
