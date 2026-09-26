@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.3 — P0 Context / Audit / Idempotency Boundary**. Stage 34.1 and Stage 34.2.1–34.2.2 were integrated and runtime-verified through GitHub Actions; Stage 34.2.3 is now integrated into `main` through PR #116.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.5 — Field Operations Core**. Stage 34.1, Stage 34.2.1–34.2.4, and Stage 34.2.5 were integrated through reviewed PR gates; Stage 34.2.5 passed the full Python 3.11/3.12/3.13 test matrix and Web/Desktop/Mobile/Client-Sync verification before merge.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -45,9 +45,12 @@ Recent completed gates:
 - Stage 34.2.1 — Backend P0 versioned contracts: integrated and runtime-verified.
 - Stage 34.2.2 — Backend P0 persistence/transaction/application/API foundation: integrated and runtime-verified.
 - Stage 34.2.3 — P0 context, audit, revision-precondition and idempotency-scope boundary: integrated through PR #116; focused contract tests are present.
+- Stage 34.2.4 — P0 resource envelope integration: integrated and runtime-verified.
+- Stage 34.2.5 — Field Operations Core: attendance/timecard and equipment status/breakdown; integrated and runtime-verified.
 
 Current Stage 34 focus:
-- Continue backend P0 boundary hardening with tenant/project context, audit events, revision preconditions and idempotency scope.
+- Continue Field Operations Core with inspection, quality, safety and punch/closeout foundations.
+- Extend field records through the same tenant/project/revision/audit/idempotency boundaries.
 - Preserve authoritative revision refresh and atomic same-key idempotency semantics across clients.
 - Maintain ACK/RETRY/CONFLICT/REJECTED semantics across Web/Desktop/Mobile.
 - Keep Shared P6/Scheduling, Progress/EVM and Resource/Cost calculations out of backend resource boundaries.
