@@ -80,6 +80,11 @@ def test_resource_type_mapping_is_deterministic():
     assert (resource_family_for_record(daily), resource_type_for_record(daily)) == ("field", "daily_log")
     assert (resource_family_for_record(issue), resource_type_for_record(issue)) == ("field", "issue")
     assert (resource_family_for_record(change), resource_type_for_record(change)) == ("change", "variation")
+    claim_notice = ChangeNotice(
+        "CN-2", scope, "claim_notice", "submitted", "claim.title", "user-1", audit,
+        evidence_refs=(evidence,),
+    )
+    assert (resource_family_for_record(claim_notice), resource_type_for_record(claim_notice)) == ("change", "notice")
     assert (resource_family_for_record(rfq), resource_type_for_record(rfq)) == ("procurement", "rfq")
 
 
