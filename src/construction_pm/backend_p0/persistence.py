@@ -173,6 +173,15 @@ def _record_from_payload(payload: dict) -> Record:
         PunchItem,
         ChangeCase,
         ClaimRecord,
+        ProcurementQuoteItem,
+        ProcurementQuote,
+        ProcurementBidComparisonEntry,
+        ProcurementBidComparison,
+        PurchaseOrderItem,
+        PurchaseOrder,
+        ProcurementCommitment,
+        ProcurementDeliveryItem,
+        ProcurementDelivery,
     )
 
     scope_data = payload["scope"]
@@ -293,6 +302,132 @@ def _record_from_payload(payload: dict) -> Record:
             approval_required=payload.get("approval_required", True),
             decided_by=payload.get("decided_by"),
             decided_at=datetime.fromisoformat(payload["decided_at"]) if payload.get("decided_at") else None,
+            evidence_refs=evidence,
+        )
+
+    if payload["contract_version"] == "procurement-quote.v1":
+        items = tuple(
+            ProcurementQuoteItem(
+                item_id=item["item_id"],
+                description_key=item["description_key"],
+                quantity=Decimal(str(item["quantity"])),
+                unit=item["unit"],
+                unit_price=Decimal(str(item["unit_price"])),
+                lead_time_days=item.get("lead_time_days"),
+                activity_ids=tuple(item.get("activity_ids", [])),
+                attributes=item.get("attributes", {}),
+            )
+            for item in payload.get("items", [])
+        )
+        return ProcurementQuote(
+            quote_id=payload["quote_id"],
+            scope=scope,
+            rfq_id=payload["rfq_id"],
+            supplier_id=payload["supplier_id"],
+            status=payload["status"],
+            currency=payload["currency"],
+            valid_until=date.fromisoformat(payload["valid_until"]),
+            items=items,
+            audit=audit,
+            delivery_terms_key=payload.get("delivery_terms_key"),
+            payment_terms_key=payload.get("payment_terms_key"),
+            notes_key=payload.get("notes_key"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "procurement-bid-comparison.v1":
+        entries = tuple(
+            ProcurementBidComparisonEntry(
+                quote_id=item["quote_id"],
+                supplier_id=item["supplier_id"],
+                compliance_status=item["compliance_status"],
+                evaluator_notes_key=item.get("evaluator_notes_key"),
+                technical_reference=item.get("technical_reference"),
+                commercial_reference=item.get("commercial_reference"),
+            )
+            for item in payload.get("entries", [])
+        )
+        return ProcurementBidComparison(
+            comparison_id=payload["comparison_id"],
+            scope=scope,
+            rfq_id=payload["rfq_id"],
+            status=payload["status"],
+            entries=entries,
+            audit=audit,
+            selected_quote_id=payload.get("selected_quote_id"),
+            selected_supplier_id=payload.get("selected_supplier_id"),
+            decision_reference=payload.get("decision_reference"),
+            approved_by=payload.get("approved_by"),
+            approved_at=datetime.fromisoformat(payload["approved_at"]) if payload.get("approved_at") else None,
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "purchase-order.v1":
+        items = tuple(
+            PurchaseOrderItem(
+                item_id=item["item_id"],
+                description_key=item["description_key"],
+                quantity=Decimal(str(item["quantity"])),
+                unit=item["unit"],
+                unit_price=Decimal(str(item["unit_price"])),
+                activity_ids=tuple(item.get("activity_ids", [])),
+                delivery_location_key=item.get("delivery_location_key"),
+            )
+            for item in payload.get("items", [])
+        )
+        return PurchaseOrder(
+            po_id=payload["po_id"],
+            scope=scope,
+            supplier_id=payload["supplier_id"],
+            status=payload["status"],
+            currency=payload["currency"],
+            items=items,
+            audit=audit,
+            rfq_id=payload.get("rfq_id"),
+            quote_id=payload.get("quote_id"),
+            order_date=date.fromisoformat(payload["order_date"]) if payload.get("order_date") else None,
+            required_delivery_date=date.fromisoformat(payload["required_delivery_date"]) if payload.get("required_delivery_date") else None,
+            commitment_id=payload.get("commitment_id"),
+            approval_reference=payload.get("approval_reference"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "procurement-commitment.v1":
+        return ProcurementCommitment(
+            commitment_id=payload["commitment_id"],
+            scope=scope,
+            status=payload["status"],
+            supplier_id=payload["supplier_id"],
+            currency=payload["currency"],
+            committed_amount=Decimal(str(payload["committed_amount"])),
+            audit=audit,
+            po_id=payload.get("po_id"),
+            cost_refs=tuple(payload.get("cost_refs", [])),
+            activity_ids=tuple(payload.get("activity_ids", [])),
+            release_reference=payload.get("release_reference"),
+            notes_key=payload.get("notes_key"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "procurement-delivery.v1":
+        items = tuple(
+            ProcurementDeliveryItem(
+                item_id=item["item_id"],
+                quantity_received=Decimal(str(item["quantity_received"])),
+                unit=item["unit"],
+                inspection_id=item.get("inspection_id"),
+                punch_id=item.get("punch_id"),
+                acceptance_status=item.get("acceptance_status", "pending"),
+            )
+            for item in payload.get("items", [])
+        )
+        return ProcurementDelivery(
+            delivery_id=payload["delivery_id"],
+            scope=scope,
+            po_id=payload["po_id"],
+            supplier_id=payload["supplier_id"],
+            status=payload["status"],
+            delivery_date=date.fromisoformat(payload["delivery_date"]),
+            items=items,
+            audit=audit,
+            location_key=payload.get("location_key"),
+            receipt_reference=payload.get("receipt_reference"),
             evidence_refs=evidence,
         )
     if payload["contract_version"] == "field-inspection.v1":
