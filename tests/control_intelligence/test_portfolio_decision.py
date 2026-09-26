@@ -115,3 +115,23 @@ def test_implementation_reference_must_be_nonempty_string(value):
 def test_evidence_refs_must_contain_source_references():
     with pytest.raises(ValueError, match="EVIDENCE_REFERENCE"):
         base_decision(evidence_refs=({"source_id": "snap-1"},)).validate()
+
+
+
+def test_closed_decision_requires_complete_approval():
+    with pytest.raises(ValueError, match="PORTFOLIO_DECISION_APPROVAL_REQUIRED"):
+        base_decision(status="closed", approved_by="user-2").validate()
+
+
+def test_closed_approved_decision_is_valid():
+    approved = approve_portfolio_decision(
+        base_decision(),
+        approved_by="user-2",
+        approved_at=datetime(2026, 9, 27, 14, 0, tzinfo=timezone.utc),
+    )
+    closed = base_decision(
+        status="closed",
+        approved_by=approved.approved_by,
+        approved_at=approved.approved_at,
+    )
+    closed.validate()
