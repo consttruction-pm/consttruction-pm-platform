@@ -6,11 +6,15 @@ from construction_pm.client_sync.application_gateway import ApplicationSyncGatew
 from construction_pm.client_sync.offline_mutation import OfflineMutation
 from construction_pm.client_sync.sync_outcome import SyncDisposition
 
+
+class OptimisticLockError(Exception):
+    pass
+
 class RevisionAwareHandler:
     def __init__(self, revisions): self.revisions, self.calls = revisions, 0
     def handle(self, mutation):
         self.calls += 1
-        if mutation.expected_revision != self.revisions[(mutation.tenant_id, mutation.project_id)]: raise RuntimeError("stale revision")
+        if mutation.expected_revision != self.revisions[(mutation.tenant_id, mutation.project_id)]: raise OptimisticLockError("stale revision")
 
 def _mutation(revision, key="idem-1"):
     return {"contract_version":"sync-mutation.v1","mutation_id":"mutation-1","tenant_id":"tenant-1","project_id":"project-1","expected_revision":revision,"operation":"update_activity","payload":{"activity_id":"A-1"},"idempotency_key":key}
