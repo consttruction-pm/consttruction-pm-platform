@@ -1,6 +1,6 @@
 # Stage 34.2.10 — Portfolio Decision & Approval Boundary
 
-Status: implementation in progress.
+Status: **completed and merged**.
 
 ## Scope
 
@@ -16,7 +16,15 @@ Define an auditable, human-approval-first boundary for portfolio decisions deriv
 - Implementation records an opaque application/mutation reference; this boundary never executes project mutations itself.
 - Evidence references are mandatory and revision-safe.
 - Contract is shared and client-independent.
-- Python and client runtime verification is required before merge.
+- Python and client runtime verification completed before merge.
+- Closed lifecycle states enforce complete approval requirements.
+
+## Verification
+
+- Python contract/domain regression coverage merged.
+- Client runtime wire-contract coverage merged.
+- CI and Client Typecheck passed before merge.
+- Merge completed in PR #146.
 
 ## Non-goals
 
