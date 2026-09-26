@@ -80,7 +80,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                 idempotency_key TEXT NOT NULL,
                 fingerprint TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
-                initial_result_json TEXT NOT NULL,
+                initial_result_json TEXT,
                 action_revision INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -108,6 +108,23 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
                     action_id,
                     action_revision
                 );
+            """
+        )
+        columns = {
+            row[1]
+            for row in self.connection.execute(
+                "PRAGMA table_info(portfolio_control_actions)"
+            ).fetchall()
+        }
+        if "initial_result_json" not in columns:
+            self.connection.execute(
+                "ALTER TABLE portfolio_control_actions ADD COLUMN initial_result_json TEXT"
+            )
+        self.connection.execute(
+            """
+            UPDATE portfolio_control_actions
+            SET initial_result_json=payload_json
+            WHERE initial_result_json IS NULL
             """
         )
         self.connection.commit()
