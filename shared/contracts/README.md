@@ -23,10 +23,21 @@ These schemas are authoritative for both Web and Desktop clients.
 
 ## Stage 34.2 — Backend P0
 
+### Concrete resource contracts
+
 - `field-daily-log.v1.schema.json`
 - `field-issue.v1.schema.json`
 - `change-notice.v1.schema.json`
 - `procurement-rfq.v1.schema.json`
+
+### Generic resource envelopes
+
+- `p0-field-resource.schema.json`
+- `p0-change-resource.schema.json`
+- `p0-procurement-resource.schema.json`
+- `p0-dependency-resource.schema.json`
+
+The concrete contracts define payload semantics; generic P0 resource contracts define the transport/resource envelope and do not replace Shared Core calculations.
 
 ## Contract evolution rules
 

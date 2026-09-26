@@ -9,6 +9,7 @@ from construction_pm.application.authorization import AuthorizationContext
 from .application import BackendP0ApplicationService
 from .errors import BackendApplicationError
 from .models import Record
+from .resource_envelope import to_resource_envelope
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,25 @@ class BackendP0API:
         dto["operation"] = "save"
         return dto
 
+    def save_resource(
+        self,
+        record: Record,
+        *,
+        auth_context: AuthorizationContext,
+        expected_revision: int | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            stored = self.service.save(
+                record,
+                auth_context=auth_context,
+                expected_revision=expected_revision,
+                idempotency_key=idempotency_key,
+            )
+        except BackendApplicationError as exc:
+            return exc.to_dto()
+        return to_resource_envelope(stored)
+
     def read(self, record: Record, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         try:
             stored = self.service.get(record, auth_context=auth_context)
@@ -47,6 +67,15 @@ class BackendP0API:
         dto = _json_safe(stored.record.as_dict())
         dto["record_revision"] = stored.record_revision
         return dto
+
+    def read_resource(self, record: Record, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
+        try:
+            stored = self.service.get(record, auth_context=auth_context)
+        except BackendApplicationError as exc:
+            return exc.to_dto()
+        if stored is None:
+            return None
+        return to_resource_envelope(stored)
 
 
 def _json_safe(value: Any) -> Any:
