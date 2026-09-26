@@ -17,6 +17,7 @@ from construction_pm.portfolio_control_actions import (
 from construction_pm.portfolio_action_persistence import (
     PortfolioActionIdempotencyReuse,
     PortfolioRevisionConflict,
+    PortfolioActionRevisionConflict,
     PostgresPortfolioActionStore,
 )
 
@@ -83,6 +84,7 @@ def test_initialize_is_repeatable_and_scoped():
     assert connection.sql[0][0].startswith("CREATE TABLE IF NOT EXISTS portfolio_control_revisions")
     assert "PRIMARY KEY (tenant_id, portfolio_id)" in connection.sql[0][0]
     assert "UNIQUE (tenant_id, portfolio_id, idempotency_key)" in connection.sql[1][0]
+    assert any(sql.startswith("CREATE TABLE IF NOT EXISTS portfolio_control_action_audit") for sql, _ in connection.sql)
 
 
 def test_transition_persists_next_revision_atomically():
@@ -104,6 +106,7 @@ def test_transition_persists_next_revision_atomically():
 
     assert persisted.portfolio_revision == 1
     assert persisted.status.value == "approved"
+    assert persisted.action_revision == 1
     assert any(sql.startswith("UPDATE portfolio_control_revisions") for sql, _ in connection.sql)
     assert any(sql.startswith("INSERT INTO portfolio_control_actions") for sql, _ in connection.sql)
 
@@ -159,3 +162,34 @@ def test_transaction_rolls_back_on_revision_conflict():
 
     assert connection.commits == 0
     assert connection.rollbacks == 1
+
+
+def test_action_transition_increments_action_revision_and_appends_audit():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    proposed = store.persist_transition(action())
+    transitioned = store.transition(
+        proposed.action,
+        expected_action_revision=1,
+        actor_id="admin-1",
+        occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+        event_type="approved",
+    )
+    assert transitioned.action_revision == 2
+    assert transitioned.action.status.value == "proposed"
+    assert any(sql.startswith("INSERT INTO portfolio_control_action_audit") for sql, _ in connection.sql)
+
+def test_stale_action_revision_is_rejected():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    proposed = store.persist_transition(action())
+    with pytest.raises(PortfolioActionRevisionConflict, match="expected=0 actual=1"):
+        store.transition(
+            proposed.action,
+            expected_action_revision=0,
+            actor_id="admin-1",
+            occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+            event_type="approved",
+        )
