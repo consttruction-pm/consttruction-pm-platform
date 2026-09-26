@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from construction_pm.application.authorization import AuthorizationError
+
 from construction_pm.application.authorization import (
     AuthorizationContext,
     Permission,
@@ -65,7 +67,7 @@ def test_action_contract_is_versioned_and_closed() -> None:
 
 def test_project_action_requires_project_target() -> None:
     with pytest.raises(ValueError, match="PROJECT_ACTION_REQUIRES_PROJECT_TARGET"):
-        action(target_type="portfolio").validate()
+        action(target_type="portfolio", target_id="portfolio-1").validate()
 
 
 def test_decision_requires_approval_and_decision_metadata() -> None:
@@ -92,7 +94,7 @@ def test_scope_and_revision_are_enforced() -> None:
             action(),
             AuthorizationContext("tenant-1", "project-2", "user-1", frozenset({"planner"})),
         )
-    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_ACTION_EXPECTED_PORTFOLIO_REVISION"):
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_ACTION_EXPECTED_REVISION"):
         action(expected_portfolio_revision=9_007_199_254_740_992).validate()
 
 
@@ -112,7 +114,7 @@ def test_request_and_decision_permissions_are_distinct() -> None:
         approved,
         AuthorizationContext("tenant-1", "project-1", "admin-1", frozenset({"admin"})),
     )
-    with pytest.raises(Exception):
+    with pytest.raises(AuthorizationError):
         service.authorize_decision(
             approved,
             AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"planner"})),
