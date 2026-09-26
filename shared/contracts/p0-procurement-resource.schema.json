@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://consttruction-pm.github.io/contracts/p0-procurement-resource.v1.json",
+  "title": "P0 Procurement Resource v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "resource_type",
+    "resource_id",
+    "tenant_id",
+    "project_id",
+    "revision",
+    "payload"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "resource_type": {
+      "enum": [
+        "rfq",
+        "quote",
+        "bid_comparison",
+        "purchase_order",
+        "commitment",
+        "delivery"
+      ]
+    },
+    "resource_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
