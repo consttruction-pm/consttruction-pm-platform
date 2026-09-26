@@ -16,6 +16,10 @@ def test_stage_34_2_p0_schemas_are_versioned_closed_json_schemas() -> None:
         assert payload["$schema"].endswith("/draft/2020-12/schema")
         assert payload["additionalProperties"] is False
         assert payload["properties"]["contract_version"]["const"] == version
+    daily = json.loads((root / "field-daily-log.v1.schema.json").read_text(encoding="utf-8"))
+    rfq = json.loads((root / "procurement-rfq.v1.schema.json").read_text(encoding="utf-8"))
+    assert daily["properties"]["entries"]["items"]["properties"]["quantity"]["type"] == ["string", "null"]
+    assert rfq["properties"]["items"]["items"]["properties"]["quantity"]["type"] == "string"
 
 
 def test_stage_34_2_p0_schemas_include_project_revision_and_audit_contracts() -> None:
