@@ -35,4 +35,4 @@ jobs:
       - name: Run live PostgreSQL integration
         env:
           CONSTRUCTION_PM_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/construction_pm
-        run: python -m pytest -q tests/integration/test_postgres_live.py
+        run: python -m pytest -q tests/integration/test_postgres_*.py
