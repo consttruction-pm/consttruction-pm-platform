@@ -256,7 +256,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
             self.connection.execute(
                 """
                 UPDATE portfolio_control_actions
-                SET payload_json=?, fingerprint=?, action_revision=?, updated_at=?
+                SET payload_json=?, action_revision=?, updated_at=?
                 WHERE tenant_id=? AND portfolio_id=? AND action_id=?
                   AND action_revision=?
                 """,
