@@ -182,6 +182,11 @@ def _record_from_payload(payload: dict) -> Record:
         ProcurementCommitment,
         ProcurementDeliveryItem,
         ProcurementDelivery,
+        Portfolio,
+        PortfolioProjectLink,
+        PortfolioSnapshotProject,
+        PortfolioControlSnapshot,
+        PortfolioDecision,
     )
 
     scope_data = payload["scope"]
@@ -305,6 +310,73 @@ def _record_from_payload(payload: dict) -> Record:
             evidence_refs=evidence,
         )
 
+
+    if payload["contract_version"] == "portfolio.v1":
+        return Portfolio(
+            portfolio_id=payload["portfolio_id"],
+            tenant_id=payload["tenant_id"],
+            status=payload["status"],
+            name_key=payload["name_key"],
+            audit=audit,
+            description_key=payload.get("description_key"),
+        )
+    if payload["contract_version"] == "portfolio-project-link.v1":
+        return PortfolioProjectLink(
+            link_id=payload["link_id"],
+            portfolio_id=payload["portfolio_id"],
+            tenant_id=payload["tenant_id"],
+            project_id=payload["project_id"],
+            project_revision=int(payload["project_revision"]),
+            status=payload["status"],
+            role=payload["role"],
+            audit=audit,
+            display_name_key=payload.get("display_name_key"),
+            manager_id=payload.get("manager_id"),
+            tags=tuple(payload.get("tags", [])),
+        )
+    if payload["contract_version"] == "portfolio-control-snapshot.v1":
+        projects = tuple(
+            PortfolioSnapshotProject(
+                project_id=item["project_id"],
+                project_revision=int(item["project_revision"]),
+                status=item["status"],
+                name_key=item.get("name_key"),
+                schedule_result_ref=item.get("schedule_result_ref"),
+                progress_result_ref=item.get("progress_result_ref"),
+                cost_result_ref=item.get("cost_result_ref"),
+                resource_result_ref=item.get("resource_result_ref"),
+                risk_result_ref=item.get("risk_result_ref"),
+                claim_result_ref=item.get("claim_result_ref"),
+                procurement_result_ref=item.get("procurement_result_ref"),
+            )
+            for item in payload.get("projects", [])
+        )
+        return PortfolioControlSnapshot(
+            snapshot_id=payload["snapshot_id"],
+            portfolio_id=payload["portfolio_id"],
+            generated_at=datetime.fromisoformat(payload["generated_at"]),
+            projects=projects,
+            source_refs=evidence,
+            audit=audit,
+        )
+    if payload["contract_version"] == "portfolio-decision.v1":
+        return PortfolioDecision(
+            decision_id=payload["decision_id"],
+            portfolio_id=payload["portfolio_id"],
+            tenant_id=payload["tenant_id"],
+            status=payload["status"],
+            decision_type=payload["decision_type"],
+            title_key=payload["title_key"],
+            audit=audit,
+            detail_key=payload.get("detail_key"),
+            affected_project_ids=tuple(payload.get("affected_project_ids", [])),
+            source_snapshot_id=payload.get("source_snapshot_id"),
+            impact_link_ids=tuple(payload.get("impact_link_ids", [])),
+            requires_approval=payload.get("requires_approval", True),
+            approved_by=payload.get("approved_by"),
+            approved_at=datetime.fromisoformat(payload["approved_at"]) if payload.get("approved_at") else None,
+            evidence_refs=evidence,
+        )
     if payload["contract_version"] == "procurement-quote.v1":
         items = tuple(
             ProcurementQuoteItem(
