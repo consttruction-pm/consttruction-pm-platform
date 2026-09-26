@@ -78,6 +78,19 @@ def test_create_is_idempotent_and_replays_same_authoritative_action():
     assert first.action == replay.action
     assert first.action_revision == replay.action_revision == 1
 
+    approved = service.decide(
+        first.action,
+        auth_context=auth(frozenset({"admin"})),
+        expected_action_revision=1,
+        status=PortfolioActionStatus.APPROVED,
+        actor_id="admin-1",
+        occurred_at=datetime(2026, 9, 27, 16, 5, tzinfo=timezone.utc),
+    )
+    replay_after_decision = store.create(action())
+    assert approved.action_revision == 2
+    assert replay_after_decision.action_revision == 1
+    assert replay_after_decision.action.status is PortfolioActionStatus.PROPOSED
+
     changed = action(idempotency_key="idem-A-1", target_id="project-2")
     with pytest.raises(ValueError, match="IDEMPOTENCY_KEY_REUSE"):
         store.create(changed)
