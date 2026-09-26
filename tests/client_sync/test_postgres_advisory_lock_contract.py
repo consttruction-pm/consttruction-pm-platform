@@ -9,7 +9,7 @@ class RecordingConnection:
         self.calls.append((sql, params))
 
 
-def test_postgres_idempotency_lock_uses_composite_mutation_identity():
+def test_postgres_idempotency_lock_uses_canonical_composite_mutation_identity():
     connection = RecordingConnection()
     store = PostgresSyncStateStore(connection)
 
@@ -18,6 +18,6 @@ def test_postgres_idempotency_lock_uses_composite_mutation_identity():
     assert connection.calls == [
         (
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            ("tenant-1|project-7|mutation-key-9",),
+            ('["tenant-1","project-7","mutation-key-9"]',),
         )
     ]
