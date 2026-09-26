@@ -17,7 +17,12 @@ def test_execute_serializes_same_key_and_replays_authoritative_outcome():
     mutation = _mutation()
     outcomes = [
         SyncOutcome("m1", SyncDisposition.ACKNOWLEDGED),
-        SyncOutcome("m2", SyncDisposition.RETRY, error_code="TRANSIENT"),
+        SyncOutcome(
+            "m2",
+            SyncDisposition.RETRY,
+            error_code="TRANSIENT",
+            retry_after_seconds=5,
+        ),
     ]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
