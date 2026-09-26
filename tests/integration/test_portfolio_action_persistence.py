@@ -246,6 +246,35 @@ def test_transition_rejects_identity_mismatch():
         )
 
 
+def test_transition_rejects_audit_actor_mismatch():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    proposed = store.persist_transition(action())
+    import json
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
+        json.dumps(proposed.action.as_dict()),
+        1,
+    )
+    policy = RoleBasedAuthorizationPolicy({
+        "admin": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE, Permission.PROJECT_ADMIN})
+    })
+    transition = PortfolioActionTransitionService(policy)
+    approved = transition.approve(
+        proposed.action,
+        AuthorizationContext("tenant-1", "project-1", "admin-1", frozenset({"admin"})),
+        decided_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+    )
+    with pytest.raises(PortfolioActionTransitionMismatch, match="PORTFOLIO_ACTION_AUDIT_ACTOR_MISMATCH"):
+        store.transition(
+            approved,
+            expected_action_revision=1,
+            actor_id="admin-2",
+            occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+            event_type="approved",
+        )
+
+
 def test_transition_rejects_event_status_mismatch():
     connection = RecordingConnection()
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
