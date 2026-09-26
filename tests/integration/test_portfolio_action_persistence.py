@@ -159,3 +159,13 @@ def test_transaction_rolls_back_on_revision_conflict():
 
     assert connection.commits == 0
     assert connection.rollbacks == 1
+
+
+def test_initialize_creates_append_only_audit_ledger():
+    connection = RecordingConnection()
+    PostgresPortfolioActionStore(connection).initialize()
+    assert any(
+        sql.startswith("CREATE TABLE IF NOT EXISTS portfolio_control_action_audit")
+        and "UNIQUE (tenant_id, portfolio_id, action_id, portfolio_revision)" in sql
+        for sql, _ in connection.sql
+    )
