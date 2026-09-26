@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.2 — Backend P0 Persistence & Transaction**, integrated into `main` via the hardened Stage 34 integration gate. The Stage 34 package has been runtime-verified through the GitHub Actions PR gate on Python 3.11, 3.12 and 3.13, plus Web/Desktop/Mobile typecheck and client-sync runtime coverage.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.3 — P0 Context / Audit / Idempotency Boundary**. Stage 34.1 and Stage 34.2.1–34.2.2 were integrated and runtime-verified through GitHub Actions; Stage 34.2.3 is now integrated into `main` through PR #116.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -44,6 +44,7 @@ Recent completed gates:
 - Stage 34.1 — Shared Control Intelligence contract/domain foundation: integrated and runtime-verified.
 - Stage 34.2.1 — Backend P0 versioned contracts: integrated and runtime-verified.
 - Stage 34.2.2 — Backend P0 persistence/transaction/application/API foundation: integrated and runtime-verified.
+- Stage 34.2.3 — P0 context, audit, revision-precondition and idempotency-scope boundary: integrated through PR #116; focused contract tests are present.
 
 Current Stage 34 focus:
 - Continue backend P0 boundary hardening with tenant/project context, audit events, revision preconditions and idempotency scope.
