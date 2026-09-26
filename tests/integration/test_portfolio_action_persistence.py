@@ -180,6 +180,10 @@ def test_action_transition_increments_action_revision_and_appends_audit():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
+    policy = RoleBasedAuthorizationPolicy({
+        "admin": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE, Permission.PROJECT_ADMIN})
+    })
+    transition = PortfolioActionTransitionService(policy)
     import json
     connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
         json.dumps(proposed.action.as_dict()),
@@ -207,7 +211,10 @@ def test_stale_action_revision_is_rejected():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
-    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (1,)
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
+        "invalid-fixture",
+        1,
+    )
     with pytest.raises(PortfolioActionRevisionConflict, match="expected=0 actual=1"):
         store.transition(
             proposed.action,
