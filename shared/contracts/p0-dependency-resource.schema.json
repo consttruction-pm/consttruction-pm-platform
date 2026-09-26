@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://consttruction-pm.github.io/contracts/p0-dependency-resource.v1.json",
+  "$id": "https://consttruction-pm.github.io/contracts/v1/p0-dependency-resource.json",
   "title": "P0 Dependency Resource v1",
   "type": "object",
   "additionalProperties": false,
