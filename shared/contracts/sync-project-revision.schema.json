@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/sync-project-revision/v1",
+  "title": "ConstructionPM Authoritative Project Revision",
+  "oneOf": [
+    {"type":"object","required":["contract_version","tenant_id","project_id","revision"],"properties":{"contract_version":{"const":"sync-project-revision.v1"},"tenant_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},"revision":{"type":"integer","minimum":0,"maximum":9007199254740991}},"additionalProperties":false},
+    {"type":"object","required":["contract_version","tenant_id","project_id","error_code"],"properties":{"contract_version":{"const":"sync-project-revision.v1"},"tenant_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},"error_code":{"const":"INVALID_PROJECT_CONTEXT"}},"additionalProperties":false}
+  ]
+}
