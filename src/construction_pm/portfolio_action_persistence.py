@@ -132,9 +132,7 @@ class PostgresPortfolioActionStore:
                 payload,
             ),
         )
-        return persisted
-
-    def get(self, tenant_id: str, portfolio_id: str, action_id: str) -> StoredPortfolioAction | None:
+        self._append_audit(\n            persisted,\n            1,\n            "proposed",\n            persisted.requested_by,\n            persisted.requested_at,\n        )\n        return StoredPortfolioAction(persisted, 1)\n\n    def get(self, tenant_id: str, portfolio_id: str, action_id: str) -> StoredPortfolioAction | None:
         row = self.connection.execute(
             "SELECT action_json, action_revision FROM portfolio_control_actions "
             "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s",
@@ -208,7 +206,7 @@ class PostgresPortfolioActionStore:
             "WHERE tenant_id=%s AND portfolio_id=%s AND idempotency_key=%s",
             (tenant_id, portfolio_id, key),
         ).fetchone()
-        return None if row is None else (row[0], row[1])
+        return None if row is None else (row[0], row[1], row[2])
 
 
 def _action_from_json(payload: str) -> PortfolioControlAction:
