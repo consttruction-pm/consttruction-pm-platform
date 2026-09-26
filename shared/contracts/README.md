@@ -29,6 +29,8 @@ These schemas are authoritative for both Web and Desktop clients.
 - `field-issue.v1.schema.json`
 - `change-notice.v1.schema.json`
 - `procurement-rfq.v1.schema.json`
+- `field-timecard.v1.schema.json`
+- `equipment-status-report.v1.schema.json`
 
 ### Generic resource envelopes
 
@@ -38,6 +40,8 @@ These schemas are authoritative for both Web and Desktop clients.
 - `p0-dependency-resource.schema.json`
 
 The concrete contracts define payload semantics; generic P0 resource contracts define the transport/resource envelope and do not replace Shared Core calculations.
+
+Stage 34.2.5 adds attendance/timecard and equipment-status field workflows. Reports remain revision-aware and can allocate recorded quantities across multiple activities.
 
 ## Contract evolution rules
 
