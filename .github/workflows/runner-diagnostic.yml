@@ -8,17 +8,10 @@ on:
 
 jobs:
   runner:
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04
-          - ubuntu-slim
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Runner start
         run: |
-          echo "runner-started:${{ matrix.os }}"
+          echo "runner-started"
           uname -a
           python --version
