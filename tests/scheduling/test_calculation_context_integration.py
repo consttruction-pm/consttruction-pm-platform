@@ -33,7 +33,7 @@ def test_forward_pass_context_is_metadata_only():
 
 def test_forward_pass_rejects_invalid_context_boundary():
     resolver = WorkingTimeResolver(WorkingCalendar())
-    with pytest.raises(ValueError, match="invalid calculation context"):
+    with pytest.raises(ValueError, match="project_version must be non-negative"):
         forward_pass(
             [Activity("A", 1)], [], date(2026, 9, 21), resolver,
             calculation_context=ctx(-1),
@@ -52,7 +52,7 @@ def test_schedule_propagates_context_without_changing_result():
 
 def test_schedule_rejects_invalid_context_boundary():
     resolver = WorkingTimeResolver(WorkingCalendar())
-    with pytest.raises(ValueError, match="invalid calculation context"):
+    with pytest.raises(ValueError, match="project_version must be non-negative"):
         schedule(
             [Activity("A", 1)], [], date(2026, 9, 21), resolver,
             calculation_context=ctx(-1),
