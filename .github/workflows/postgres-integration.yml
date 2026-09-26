@@ -15,6 +15,7 @@ on:
   pull_request:
     paths:
       - "src/construction_pm/client_sync/**"
+      - "src/construction_pm/portfolio_action_persistence.py"
       - "tests/integration/test_postgres_*.py"
       - ".github/workflows/postgres-integration.yml"
 
