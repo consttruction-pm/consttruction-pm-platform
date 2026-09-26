@@ -11,10 +11,9 @@ const dispositions = new Set<SyncOutcome["disposition"]>([
   "rejected",
 ]);
 
-function isValidSyncOutcome(value: SyncOutcome, mutationId: string): boolean {
+function isValidSyncOutcome(value: SyncOutcome): boolean {
   return (
     value.contract_version === "sync-outcome.v1" &&
-    value.mutation_id === mutationId &&
     dispositions.has(value.disposition)
   );
 }
@@ -45,8 +44,11 @@ export class ApiSyncTransport {
     );
 
     if (result.ok) {
-      if (!isValidSyncOutcome(result.data, mutation.mutation_id)) {
+      if (!isValidSyncOutcome(result.data)) {
         throw new Error("INVALID_SYNC_OUTCOME_RESPONSE");
+      }
+      if (result.data.mutation_id !== mutation.mutation_id) {
+        throw new Error("MUTATION_ID_MISMATCH");
       }
       return result.data;
     }
