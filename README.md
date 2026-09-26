@@ -8,7 +8,7 @@ A web-ready construction project management platform designed as a structured re
 ## Repository structure
 - `docs/` — product requirements, architecture, domain rules, scheduling, progress, reporting and implementation specifications.
 - `src/` — application source code (to be populated from approved implementation artifacts).
-- 	ests/` — automated tests and conformance tests.
+- `tests/` — automated tests and conformance tests.
 - `infra/` — deployment, database and environment definitions.
 - `tools/` — developer and migration utilities.
 - `docs/roadmap/` — staged implementation roadmap and completion tracking.
