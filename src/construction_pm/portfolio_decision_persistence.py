@@ -6,6 +6,7 @@ from datetime import datetime
 
 from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
 from .control_intelligence.portfolio_decision import PortfolioDecisionBoundary
+from .control_intelligence.contracts import SourceReference
 
 
 class PortfolioDecisionRevisionConflict(ValueError):
@@ -204,5 +205,11 @@ class PostgresPortfolioDecisionStore:
             approved_at=datetime.fromisoformat(data["approved_at"]) if data.get("approved_at") else None,
             implemented_at=datetime.fromisoformat(data["implemented_at"]) if data.get("implemented_at") else None,
             implementation_reference=data.get("implementation_reference"),
-            evidence_refs=tuple(),
+            evidence_refs=tuple(
+                SourceReference(
+                    ref["source_id"], ref["source_type"], ref["locator"], int(ref["revision"]),
+                    ref.get("excerpt_key"), ref.get("content_hash")
+                )
+                for ref in data.get("evidence_refs", ())
+            ),
         )
