@@ -42,3 +42,10 @@ confirm why jobs terminate before the first workflow step. Do not mark
 Stage 33.4.70 runtime-verified until the required Python and TypeScript checks
 actually execute and pass.
 
+
+## Runner isolation test — 2026-09-26
+
+A minimal runner-only diagnostic was executed from this branch using three GitHub-hosted labels: ubuntu-latest, ubuntu-24.04, and ubuntu-slim. All three job objects were created but terminated before the first step with empty step arrays and no job logs. This isolates the current CI blocker to GitHub-hosted runner allocation/provisioning rather than the Stage 33.4.70 implementation or its dependencies.
+
+Diagnostic run: 36218453294
+Jobs: 108339028751, 108339028861, 108339028885
