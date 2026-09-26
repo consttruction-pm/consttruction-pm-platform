@@ -8,11 +8,10 @@ on:
 
 jobs:
   runner:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Runner start
-        shell: pwsh
         run: |
-          Write-Output "runner-started"
-          $PSVersionTable.PSVersion
-          Get-ComputerInfo | Select-Object WindowsProductName
+          echo "runner-started"
+          uname -a
+          python --version
