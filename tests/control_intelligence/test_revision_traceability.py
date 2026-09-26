@@ -102,9 +102,9 @@ def test_revision_values_match_shared_safe_integer_boundary() -> None:
 
 
 def test_dependency_revisions_match_shared_safe_integer_boundary() -> None:
-    from construction_pm.control_intelligence.graph import DependencyEdge, DependencyNode
+    from construction_pm.control_intelligence.graph import DependencyEdge, DependencyNode, DependencyRelation
 
     with pytest.raises(ValueError, match="INVALID_DEPENDENCY_NODE_REVISION"):
         DependencyNode("n-1", ControlDomain.SCHEDULE, "activity", "A-1", 9_007_199_254_740_992)
     with pytest.raises(ValueError, match="INVALID_SOURCE_REVISION"):
-        DependencyEdge("n-1", "n-2", "impacts", 9_007_199_254_740_992, 1)  # type: ignore[arg-type]
+        DependencyEdge("n-1", "n-2", DependencyRelation.IMPACTS, 9_007_199_254_740_992, 1)
