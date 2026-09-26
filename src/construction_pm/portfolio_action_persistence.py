@@ -21,6 +21,10 @@ class PortfolioActionRevisionConflict(RuntimeError):
     """Raised when an action transition uses a stale action revision."""
 
 
+class PortfolioActionTransitionMismatch(ValueError):
+    """Raised when a transition does not match the persisted action identity."""
+
+
 @dataclass(frozen=True)
 class StoredPortfolioAction:
     action: PortfolioControlAction
@@ -166,17 +170,27 @@ class PostgresPortfolioActionStore:
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("PORTFOLIO_ACTION_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
         row = self.connection.execute(
-            "SELECT action_revision FROM portfolio_control_actions "
+            "SELECT action_json, action_revision FROM portfolio_control_actions "
             "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s FOR UPDATE",
             (action.tenant_id, action.portfolio_id, action.action_id),
         ).fetchone()
         if row is None:
             raise ValueError("PORTFOLIO_ACTION_NOT_FOUND")
-        current = row[0]
+        stored = _action_from_json(row[0])
+        current = row[1]
         if current != expected_action_revision:
             raise PortfolioActionRevisionConflict(
                 f"PORTFOLIO_ACTION_STALE_REVISION expected={expected_action_revision} actual={current}"
             )
+        if _transition_identity(stored) != _transition_identity(action):
+            raise PortfolioActionTransitionMismatch("PORTFOLIO_ACTION_TRANSITION_MISMATCH")
+        expected_event = {
+            "approved": "approved",
+            "rejected": "rejected",
+            "cancelled": "cancelled",
+        }.get(action.status.value)
+        if expected_event != event_type:
+            raise PortfolioActionTransitionMismatch("PORTFOLIO_ACTION_EVENT_MISMATCH")
         next_revision = current + 1
         payload = json.dumps(action.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         self.connection.execute(
@@ -216,6 +230,26 @@ class PostgresPortfolioActionStore:
             (tenant_id, portfolio_id, key),
         ).fetchone()
         return None if row is None else (row[0], row[1], row[2])
+
+
+def _transition_identity(action: PortfolioControlAction) -> tuple[object, ...]:
+    data = action.as_dict()
+    return (
+        data["action_id"],
+        data["tenant_id"],
+        data["portfolio_id"],
+        data["portfolio_revision"],
+        data["target_type"],
+        data["target_id"],
+        data["source_snapshot_id"],
+        data["expected_portfolio_revision"],
+        data["requested_by"],
+        data["requested_at"],
+        data["requires_approval"],
+        data["idempotency_key"],
+        data["rationale_key"],
+        tuple(sorted(json.dumps(item, ensure_ascii=False, sort_keys=True) for item in data["evidence_refs"])),
+    )
 
 
 def _action_from_json(payload: str) -> PortfolioControlAction:

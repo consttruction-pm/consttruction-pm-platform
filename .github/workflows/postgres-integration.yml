@@ -9,6 +9,7 @@ on:
     branches: ["main"]
     paths:
       - "src/construction_pm/client_sync/**"
+      - "src/construction_pm/portfolio_action_persistence.py"
       - "tests/integration/test_postgres_*.py"
       - ".github/workflows/postgres-integration.yml"
   pull_request:
