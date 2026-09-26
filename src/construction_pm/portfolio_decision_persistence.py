@@ -4,9 +4,8 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
-from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
-from .control_intelligence.portfolio_decision import PortfolioDecisionBoundary
 from .control_intelligence.contracts import SourceReference
+from .control_intelligence.portfolio_decision import PortfolioDecisionBoundary
 
 
 class PortfolioDecisionRevisionConflict(ValueError):
