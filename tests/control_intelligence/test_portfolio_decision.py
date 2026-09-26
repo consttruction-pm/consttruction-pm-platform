@@ -84,3 +84,34 @@ def test_decision_contract_is_json_ready():
     assert payload["contract_version"] == "portfolio-decision.v1"
     assert payload["requires_approval"] is True
     assert payload["affected_project_ids"] == ["PR-1", "PR-2"]
+
+
+@pytest.mark.parametrize("value", [1, "true", None])
+def test_requires_approval_must_be_boolean(value):
+    with pytest.raises(ValueError, match="REQUIRES_APPROVAL"):
+        base_decision(requires_approval=value).validate()
+
+
+@pytest.mark.parametrize("value", ["", 123, None])
+def test_approval_actor_must_be_nonempty_string(value):
+    with pytest.raises(ValueError, match="APPROVER_REQUIRED"):
+        approve_portfolio_decision(
+            base_decision(),
+            approved_by=value,
+            approved_at=datetime(2026, 9, 27, 14, 0, tzinfo=timezone.utc),
+        )
+
+
+@pytest.mark.parametrize("value", ["", 123, None])
+def test_implementation_reference_must_be_nonempty_string(value):
+    with pytest.raises(ValueError, match="IMPLEMENTATION_REFERENCE_REQUIRED"):
+        mark_portfolio_decision_implemented(
+            base_decision(requires_approval=False),
+            implementation_reference=value,
+            implemented_at=datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc),
+        )
+
+
+def test_evidence_refs_must_contain_source_references():
+    with pytest.raises(ValueError, match="EVIDENCE_REFERENCE"):
+        base_decision(evidence_refs=({"source_id": "snap-1"},)).validate()
