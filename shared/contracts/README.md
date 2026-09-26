@@ -31,6 +31,10 @@ These schemas are authoritative for both Web and Desktop clients.
 - `procurement-rfq.v1.schema.json`
 - `field-timecard.v1.schema.json`
 - `equipment-status-report.v1.schema.json`
+- `field-inspection.v1.schema.json`
+- `quality-record.v1.schema.json`
+- `safety-observation.v1.schema.json`
+- `punch-item.v1.schema.json`
 
 ### Generic resource envelopes
 
@@ -41,7 +45,7 @@ These schemas are authoritative for both Web and Desktop clients.
 
 The concrete contracts define payload semantics; generic P0 resource contracts define the transport/resource envelope and do not replace Shared Core calculations.
 
-Stage 34.2.5 adds attendance/timecard and equipment-status field workflows. Reports remain revision-aware and can allocate recorded quantities across multiple activities.
+Stage 34.2.5 adds attendance/timecard and equipment-status field workflows. Stage 34.2.6 adds inspection, quality, safety and punch/closeout workflows. Field records remain revision-aware and carry explicit evidence/audit boundaries.
 
 ## Contract evolution rules
 

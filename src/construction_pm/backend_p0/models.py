@@ -527,7 +527,318 @@ class EquipmentStatusReport:
         }
 
 
-Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport
+@dataclass(frozen=True)
+class FieldInspectionItem:
+    item_id: str
+    criterion_key: str
+    result: str
+    comment_key: str | None = None
+
+    def validate(self) -> None:
+        _require_text(self.item_id, "item_id")
+        _require_text(self.criterion_key, "criterion_key")
+        if self.result not in {"pass", "fail", "na"}:
+            raise ValueError("invalid inspection item result")
+        if self.comment_key is not None:
+            _require_text(self.comment_key, "comment_key")
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "item_id": self.item_id,
+            "criterion_key": self.criterion_key,
+            "result": self.result,
+            "comment_key": self.comment_key,
+        }
+
+
+@dataclass(frozen=True)
+class FieldInspection:
+    inspection_id: str
+    scope: BackendScope
+    inspection_type_key: str
+    subject_type: str
+    subject_id: str
+    inspection_date: date
+    inspector_id: str
+    status: str
+    result: str
+    checklist: tuple[FieldInspectionItem, ...]
+    audit: AuditMetadata
+    location_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "field-inspection.v1"
+
+    def validate(self) -> None:
+        _require_text(self.inspection_id, "inspection_id")
+        self.scope.validate()
+        _require_text(self.inspection_type_key, "inspection_type_key")
+        _require_text(self.subject_type, "subject_type")
+        _require_text(self.subject_id, "subject_id")
+        _require_text(self.inspector_id, "inspector_id")
+        if self.status not in {"draft", "scheduled", "in_progress", "completed", "cancelled"}:
+            raise ValueError("invalid inspection status")
+        if self.result not in {"pass", "fail", "conditional", "na"}:
+            raise ValueError("invalid inspection result")
+        if not isinstance(self.inspection_date, date):
+            raise ValueError("inspection_date must be a date")
+        if not self.checklist:
+            raise ValueError("inspection requires at least one checklist item")
+        ids: set[str] = set()
+        for item in self.checklist:
+            item.validate()
+            if item.item_id in ids:
+                raise ValueError("duplicate inspection item_id")
+            ids.add(item.item_id)
+        if self.location_key is not None:
+            _require_text(self.location_key, "location_key")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "inspection_id": self.inspection_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "inspection_type_key": self.inspection_type_key,
+            "subject_type": self.subject_type,
+            "subject_id": self.subject_id,
+            "location_key": self.location_key,
+            "inspection_date": self.inspection_date.isoformat(),
+            "inspector_id": self.inspector_id,
+            "status": self.status,
+            "result": self.result,
+            "checklist": [item.as_dict() for item in self.checklist],
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class QualityRecord:
+    record_id: str
+    scope: BackendScope
+    category_key: str
+    severity: str
+    status: str
+    title_key: str
+    reported_by: str
+    audit: AuditMetadata
+    detail_key: str | None = None
+    location_key: str | None = None
+    activity_ids: tuple[str, ...] = ()
+    inspection_id: str | None = None
+    specification_reference: str | None = None
+    corrective_action_key: str | None = None
+    disposition_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "quality-record.v1"
+
+    def validate(self) -> None:
+        _require_text(self.record_id, "record_id")
+        self.scope.validate()
+        _require_text(self.category_key, "category_key")
+        _require_text(self.title_key, "title_key")
+        _require_text(self.reported_by, "reported_by")
+        if self.severity not in {"low", "medium", "high", "critical"}:
+            raise ValueError("invalid quality severity")
+        if self.status not in {"open", "in_progress", "pending_verification", "accepted", "rejected", "closed", "cancelled"}:
+            raise ValueError("invalid quality status")
+        for value in (*self.activity_ids,):
+            _require_text(value, "activity_id")
+        for value, name in (
+            (self.detail_key, "detail_key"),
+            (self.location_key, "location_key"),
+            (self.inspection_id, "inspection_id"),
+            (self.specification_reference, "specification_reference"),
+            (self.corrective_action_key, "corrective_action_key"),
+            (self.disposition_key, "disposition_key"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        if not self.evidence_refs:
+            raise ValueError("quality record requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "record_id": self.record_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "category_key": self.category_key,
+            "severity": self.severity,
+            "status": self.status,
+            "title_key": self.title_key,
+            "detail_key": self.detail_key,
+            "reported_by": self.reported_by,
+            "location_key": self.location_key,
+            "activity_ids": list(self.activity_ids),
+            "inspection_id": self.inspection_id,
+            "specification_reference": self.specification_reference,
+            "corrective_action_key": self.corrective_action_key,
+            "disposition_key": self.disposition_key,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class SafetyObservation:
+    observation_id: str
+    scope: BackendScope
+    category_key: str
+    severity: str
+    status: str
+    title_key: str
+    observed_by: str
+    audit: AuditMetadata
+    location_key: str | None = None
+    activity_ids: tuple[str, ...] = ()
+    immediate_action_key: str | None = None
+    root_cause_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "safety-observation.v1"
+
+    def validate(self) -> None:
+        _require_text(self.observation_id, "observation_id")
+        self.scope.validate()
+        _require_text(self.category_key, "category_key")
+        _require_text(self.title_key, "title_key")
+        _require_text(self.observed_by, "observed_by")
+        if self.severity not in {"low", "medium", "high", "critical"}:
+            raise ValueError("invalid safety severity")
+        if self.status not in {"open", "in_progress", "resolved", "closed", "cancelled"}:
+            raise ValueError("invalid safety status")
+        for value in self.activity_ids:
+            _require_text(value, "activity_id")
+        for value, name in (
+            (self.location_key, "location_key"),
+            (self.immediate_action_key, "immediate_action_key"),
+            (self.root_cause_key, "root_cause_key"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        if self.severity in {"high", "critical"} and not self.immediate_action_key:
+            raise ValueError("high or critical safety observation requires immediate action")
+        if not self.evidence_refs:
+            raise ValueError("safety observation requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "observation_id": self.observation_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "category_key": self.category_key,
+            "severity": self.severity,
+            "status": self.status,
+            "title_key": self.title_key,
+            "observed_by": self.observed_by,
+            "location_key": self.location_key,
+            "activity_ids": list(self.activity_ids),
+            "immediate_action_key": self.immediate_action_key,
+            "root_cause_key": self.root_cause_key,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class PunchItem:
+    punch_id: str
+    scope: BackendScope
+    category_key: str
+    priority: str
+    status: str
+    title_key: str
+    reported_by: str
+    audit: AuditMetadata
+    location_key: str | None = None
+    activity_ids: tuple[str, ...] = ()
+    responsible_party_id: str | None = None
+    due_date: date | None = None
+    verification_by: str | None = None
+    closeout_code_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "punch-item.v1"
+
+    def validate(self) -> None:
+        _require_text(self.punch_id, "punch_id")
+        self.scope.validate()
+        _require_text(self.category_key, "category_key")
+        _require_text(self.title_key, "title_key")
+        _require_text(self.reported_by, "reported_by")
+        if self.priority not in {"low", "medium", "high", "critical"}:
+            raise ValueError("invalid punch priority")
+        if self.status not in {"open", "in_progress", "ready_for_verification", "rejected", "closed", "cancelled"}:
+            raise ValueError("invalid punch status")
+        for value in self.activity_ids:
+            _require_text(value, "activity_id")
+        for value, name in (
+            (self.location_key, "location_key"),
+            (self.responsible_party_id, "responsible_party_id"),
+            (self.verification_by, "verification_by"),
+            (self.closeout_code_key, "closeout_code_key"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        if self.due_date is not None and not isinstance(self.due_date, date):
+            raise ValueError("due_date must be a date")
+        if self.status == "closed" and not self.verification_by:
+            raise ValueError("closed punch item requires verification_by")
+        if not self.evidence_refs:
+            raise ValueError("punch item requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "punch_id": self.punch_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "category_key": self.category_key,
+            "priority": self.priority,
+            "status": self.status,
+            "title_key": self.title_key,
+            "reported_by": self.reported_by,
+            "location_key": self.location_key,
+            "activity_ids": list(self.activity_ids),
+            "responsible_party_id": self.responsible_party_id,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "verification_by": self.verification_by,
+            "closeout_code_key": self.closeout_code_key,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem
 
 
 def resource_type(record: Record) -> str:
@@ -543,6 +854,14 @@ def resource_type(record: Record) -> str:
         return "field_timecard"
     if isinstance(record, EquipmentStatusReport):
         return "equipment_status_report"
+    if isinstance(record, FieldInspection):
+        return "field_inspection"
+    if isinstance(record, QualityRecord):
+        return "quality_record"
+    if isinstance(record, SafetyObservation):
+        return "safety_observation"
+    if isinstance(record, PunchItem):
+        return "punch_item"
     raise TypeError(f"Unsupported record type: {type(record)!r}")
 
 
@@ -559,4 +878,12 @@ def record_id(record: Record) -> str:
         return record.timecard_id
     if isinstance(record, EquipmentStatusReport):
         return record.report_id
+    if isinstance(record, FieldInspection):
+        return record.inspection_id
+    if isinstance(record, QualityRecord):
+        return record.record_id
+    if isinstance(record, SafetyObservation):
+        return record.observation_id
+    if isinstance(record, PunchItem):
+        return record.punch_id
     raise TypeError(f"Unsupported record type: {type(record)!r}")
