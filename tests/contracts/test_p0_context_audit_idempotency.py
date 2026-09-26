@@ -65,6 +65,7 @@ def test_contract_is_versioned_and_bounded() -> None:
     assert contract["properties"]["contract_version"]["const"] == "1.0"
     assert contract["properties"]["revision"]["maximum"] == MAX_SAFE
     assert {
+        "contract_version",
         "tenant_id",
         "project_id",
         "resource_type",
