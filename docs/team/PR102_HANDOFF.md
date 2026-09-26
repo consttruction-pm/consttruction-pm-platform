@@ -4,7 +4,7 @@
 
 - Branch: `feature/hasan/stage-33-4-70-api-revision-boundary`
 - Pull request: #102
-- Current implementation commit: `8c8fcad5c4291a27108d13fe02e96d54ba297d42`
+- Current branch head: `6f3b6e51a8a76d1000e9393b2ce98bf73910ccfa`
 - Stage: 33.4.70
 - Merge: not performed
 - Stage status: runtime verification pending
@@ -14,7 +14,8 @@
 The sync revision boundary now enforces the JavaScript-safe integer maximum
 `9007199254740991` in both the versioned contract and the Application/API
 integration regression. Unsafe authoritative revisions are rejected with
-`INVALID_PROJECT_REVISION`.
+`INVALID_PROJECT_REVISION`, and unsafe mutation `expected_revision` values are
+rejected with `INVALID_EXPECTED_REVISION`.
 
 The existing Stage 33.4.70 flow remains:
 
@@ -27,7 +28,7 @@ The existing Stage 33.4.70 flow remains:
 
 ## Verification blocker
 
-The latest GitHub Actions runs for commit `8c8fcad5c4291a27108d13fe02e96d54ba297d42`
+The latest GitHub Actions runs for the current branch head
 completed as failures before executing workflow steps (`steps=null`, no logs).
 This has also occurred on the immediately preceding runs, so it has not been
 treated as a code-test failure.
