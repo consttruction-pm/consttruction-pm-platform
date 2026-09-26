@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping
 
+MAX_SAFE_REVISION = 9_007_199_254_740_991
+
 class ControlDomain(str, Enum):
     SCHEDULE = "schedule"
     PROGRESS = "progress"
@@ -35,7 +37,11 @@ class DependencyNode:
     def __post_init__(self) -> None:
         if not self.node_id or not self.entity_type or not self.entity_id:
             raise ValueError("INVALID_DEPENDENCY_NODE_IDENTITY")
-        if isinstance(self.revision, bool) or self.revision < 0:
+        if (
+            isinstance(self.revision, bool)
+            or not isinstance(self.revision, int)
+            or not 0 <= self.revision <= MAX_SAFE_REVISION
+        ):
             raise ValueError("INVALID_DEPENDENCY_NODE_REVISION")
 
 @dataclass(frozen=True)
@@ -52,9 +58,17 @@ class DependencyEdge:
             raise ValueError("INVALID_DEPENDENCY_EDGE_IDENTITY")
         if self.source_node_id == self.target_node_id:
             raise ValueError("SELF_DEPENDENCY_NOT_ALLOWED")
-        if isinstance(self.source_revision, bool) or self.source_revision < 0:
+        if (
+            isinstance(self.source_revision, bool)
+            or not isinstance(self.source_revision, int)
+            or not 0 <= self.source_revision <= MAX_SAFE_REVISION
+        ):
             raise ValueError("INVALID_SOURCE_REVISION")
-        if isinstance(self.target_revision, bool) or self.target_revision < 0:
+        if (
+            isinstance(self.target_revision, bool)
+            or not isinstance(self.target_revision, int)
+            or not 0 <= self.target_revision <= MAX_SAFE_REVISION
+        ):
             raise ValueError("INVALID_TARGET_REVISION")
 
 @dataclass
