@@ -71,7 +71,7 @@ def stack():
 
 
 def test_create_is_idempotent_and_replays_same_authoritative_action():
-    connection, store, _ = stack()
+    connection, store, service = stack()
     first = store.create(action())
     replay = store.create(action())
 
