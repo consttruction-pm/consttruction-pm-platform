@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.9 — Portfolio Control Read Model**. Stage 34.1 through Stage 34.2.9 have been integrated through reviewed PR gates. Stage 34.2.9 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.10 — Portfolio Control Action / Approval Boundary**. Stage 34.1 through Stage 34.2.10 have been integrated through reviewed PR gates. Stage 34.2.10 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -51,9 +51,10 @@ Recent completed gates:
 - Stage 34.2.7 — Change / Variation / Notice / Claim Core: persistent Change Case and Claim Record boundaries with evidence, approval and decision traceability; integrated and runtime-verified.
 - Stage 34.2.8 — Procurement / Commercial Commitments Core: quote, bid comparison, purchase order, commitment and delivery boundaries with exact Decimal transport; integrated and runtime-verified.
 - Stage 34.2.9 — Portfolio Control Read Model: cross-project project status/revision/membership snapshot with opaque links to authoritative control results; integrated and runtime-verified.
+- Stage 34.2.10 — Portfolio Control Action / Approval Boundary: versioned action contract with tenant/portfolio/revision/idempotency/evidence boundaries and application-layer request/decision authorization; integrated and runtime-verified.
 
 Current Stage 34 focus:
-- Continue construction control backend with Portfolio decision/approval boundaries and cross-project control actions.
+- Continue construction control backend with the next Portfolio decision/approval implementation and cross-project control actions.
 - Preserve Procurement / Commercial Commitments linkage to Cost, Schedule, Activity and Document authoritative records.
 - Extend field records through the same tenant/project/revision/audit/idempotency boundaries.
 - Preserve authoritative revision refresh and atomic same-key idempotency semantics across clients.
