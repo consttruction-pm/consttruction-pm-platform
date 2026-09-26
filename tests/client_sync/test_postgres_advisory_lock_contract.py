@@ -18,6 +18,6 @@ def test_postgres_idempotency_lock_uses_composite_mutation_identity():
     assert connection.calls == [
         (
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            ("10:tenant-1|9:project-7|14:mutation-key-9",),
+            ("8:tenant-1|9:project-7|14:mutation-key-9",),
         )
     ]
