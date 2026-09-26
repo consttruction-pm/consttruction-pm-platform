@@ -24,6 +24,12 @@ A web-ready construction project management platform designed as a structured re
 8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
 
+## Team responsibility model
+The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
+- **Jalal** — Lead Developer / Architect / Integration; Shared Core, scheduling/calculation, P6 parity, integration and final technical acceptance.
+- **Hasan** — Backend / Database / API; PostgreSQL, backend/application/repository, API contracts, sync and database-backed verification.
+- **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
+
 ## Current documented implementation point
 The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current documented sync/platform work is at **Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock**, implemented with runtime verification pending.
 
