@@ -1,6 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 from typing import Any
+
 from .conflict import ConflictContext
 from .server_idempotency import IdempotencyRecord
 
@@ -22,13 +23,7 @@ class SQLiteSyncStateStore:
         self.connection.commit()
 
     def lock_idempotency(self, tenant_id: str, project_id: str, key: str) -> None:
-        """Acquire SQLite's transactional writer lock for an idempotency key.
-
-        SQLite serializes writers at database level. The insert is deliberately
-        performed inside the caller's transaction so concurrent atomic-sync
-        submissions cannot both pass the lookup before either persists a result.
-        Lock rows are retained as durable coordination markers.
-        """
+        """Acquire SQLite's transactional writer lock for an idempotency key."""
         self.connection.execute(
             "INSERT OR IGNORE INTO sync_idempotency_locks VALUES (?, ?, ?)",
             (tenant_id, project_id, key),
@@ -52,7 +47,6 @@ class SQLiteSyncStateStore:
                 _json(record.outcome),
             ),
         )
-        self.connection.commit()
 
     def get_idempotency(
         self, tenant_id: str, project_id: str, key: str
@@ -85,7 +79,6 @@ class SQLiteSyncStateStore:
                 _json(context.details),
             ),
         )
-        self.connection.commit()
 
     def get_conflict(
         self, mutation_id: str, tenant_id: str, project_id: str
