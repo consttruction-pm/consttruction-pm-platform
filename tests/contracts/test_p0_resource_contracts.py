@@ -19,7 +19,7 @@ CONTRACTS = (
 def test_p0_resource_contract_is_versioned_and_context_scoped(filename: str) -> None:
     contract = json.loads((ROOT / "shared" / "contracts" / filename).read_text())
     assert contract["$schema"].endswith("/draft/2020-12/schema")
-    assert contract["$id"].endswith(".v1.json")
+    assert "/v1/" in contract["$id"]
     assert contract["properties"]["contract_version"]["const"] == "1.0"
     assert set(contract["required"]) == {
         "contract_version",
