@@ -50,10 +50,9 @@ class BackendP0API:
 
 
 def _json_safe(value: Any) -> Any:
-    """Convert domain decimals to JSON numeric values at the transport boundary."""
+    """Convert domain decimals to canonical exact decimal strings at the transport boundary."""
     if isinstance(value, Decimal):
-        number = float(value)
-        return int(number) if value == value.to_integral_value() else number
+        return format(value, "f")
     if isinstance(value, dict):
         return {key: _json_safe(item) for key, item in value.items()}
     if isinstance(value, list):
