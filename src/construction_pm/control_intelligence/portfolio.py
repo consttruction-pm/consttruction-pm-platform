@@ -46,10 +46,9 @@ class PortfolioProjectControlInput:
             raise ValueError("INVALID_PORTFOLIO_MEMBERSHIP_STATUS")
         if not isinstance(self.status, str) or not self.status.strip():
             raise ValueError("INVALID_PORTFOLIO_PROJECT_STATUS")
-        for value, field_name in (
-            (self.name_key, "name_key"),
-            *(getattr(self, name), name) for name in _RESULT_FIELDS
-        ):
+        values = [(self.name_key, "name_key")]
+        values.extend((getattr(self, name), name) for name in _RESULT_FIELDS)
+        for value, field_name in values:
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"INVALID_{field_name.upper()}")
 
@@ -101,11 +100,8 @@ class PortfolioControlSnapshot:
         if not self.source_refs:
             raise ValueError("PORTFOLIO_SNAPSHOT_SOURCE_REQUIRED")
         for source in self.source_refs:
-            if source.revision > self._max_project_revision():
-                raise ValueError("PORTFOLIO_SOURCE_REVISION_EXCEEDS_SNAPSHOT_PROJECTS")
-    
-    def _max_project_revision(self) -> int:
-        return max(project.project_revision for project in self.projects)
+            if source.revision < 0 or source.revision > MAX_SAFE_REVISION:
+                raise ValueError("INVALID_PORTFOLIO_SOURCE_REVISION")
 
     @property
     def summary(self) -> Mapping[str, int]:
