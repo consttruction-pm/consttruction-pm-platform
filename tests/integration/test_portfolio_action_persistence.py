@@ -22,11 +22,15 @@ from construction_pm.portfolio_action_persistence import (
 
 
 class Cursor:
-    def __init__(self, row=None):
+    def __init__(self, row=None, rows=None):
         self.row = row
+        self.rows = rows or []
 
     def fetchone(self):
         return self.row
+
+    def fetchall(self):
+        return self.rows
 
 
 class RecordingConnection:
@@ -42,6 +46,8 @@ class RecordingConnection:
             return Cursor(self.rows.get(("idem",) + params))
         if sql.startswith("SELECT revision"):
             return Cursor(self.rows.get(("revision",) + params))
+        if sql.startswith("SELECT event_id"):
+            return Cursor(rows=self.rows.get(("audit",) + params, []))
         return Cursor()
 
     def commit(self):
@@ -169,3 +175,17 @@ def test_initialize_creates_append_only_audit_ledger():
         and "UNIQUE (tenant_id, portfolio_id, action_id, portfolio_revision)" in sql
         for sql, _ in connection.sql
     )
+
+
+def test_audit_history_reads_append_only_revision_order():
+    connection = RecordingConnection()
+    connection.rows[("audit", "tenant-1", "portfolio-1", "action-1")] = [
+        ("event-1", 1, "approved", "admin-1", "2026-09-27T13:05:00+00:00", '{"status":"approved"}'),
+        ("event-2", 2, "implemented", "admin-1", "2026-09-27T13:10:00+00:00", '{"status":"implemented"}'),
+    ]
+    history = PostgresPortfolioActionStore(connection).audit_history(
+        "tenant-1", "portfolio-1", "action-1"
+    )
+    assert [event.portfolio_revision for event in history] == [1, 2]
+    assert [event.event_type for event in history] == ["approved", "implemented"]
+    assert history[0].actor_id == "admin-1"
