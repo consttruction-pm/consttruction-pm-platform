@@ -59,6 +59,32 @@ def test_sync_project_revision_contract_is_versioned():
     assert success["required"] == ["contract_version", "tenant_id", "project_id", "revision"]
     assert success["properties"]["revision"]["maximum"] == 9007199254740991
     assert error["properties"]["error_code"]["const"] == "INVALID_PROJECT_CONTEXT"
+
+
+def test_sync_mutation_contract_caps_expected_revision_at_client_safe_integer():
+    root = Path(__file__).resolve().parents[2]
+    contract = json.loads(
+        (root / "shared" / "contracts" / "sync-mutation.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert contract["properties"]["expected_revision"]["maximum"] == 9007199254740991
+
+
+def test_mutation_endpoint_rejects_unsafe_expected_revision():
+    endpoint = VersionedSyncEndpoint(
+        ApplicationSyncGateway("tenant-1", "project-1", RevisionAwareHandler({("tenant-1", "project-1"): 8}))
+    )
+    result = endpoint.post(
+        _mutation(9007199254740992),
+        _headers(9007199254740992, "idem-unsafe"),
+    )
+    assert result == {
+        "contract_version": "sync-outcome.v1",
+        "mutation_id": "mutation-1",
+        "disposition": "rejected",
+        "error_code": "INVALID_EXPECTED_REVISION",
+    }
     assert error["required"] == ["contract_version", "tenant_id", "project_id", "error_code"]
 
 
