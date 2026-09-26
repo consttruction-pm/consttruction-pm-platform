@@ -211,8 +211,9 @@ def test_stale_action_revision_is_rejected():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
+    import json
     connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
-        "invalid-fixture",
+        json.dumps(proposed.action.as_dict()),
         1,
     )
     with pytest.raises(PortfolioActionRevisionConflict, match="expected=0 actual=1"):
