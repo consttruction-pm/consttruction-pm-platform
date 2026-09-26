@@ -5,13 +5,38 @@ or authoritative scheduling, calendar, duration, Progress/EVM, Resource/Cost or
 financial calculations.
 """
 
-from .contracts import ControlFinding, ControlIntelligenceResult, ControlScope, ProposedAction, SourceReference
-from .graph import DependencyEdge, DependencyGraph, DependencyNode
+from .change_claim import ChangeClaimImpact
+from .contracts import ControlFinding, ControlIntelligenceResult, ControlScope, FindingSeverity, ProposedAction, SourceReference
+from .graph import ControlDomain, DependencyEdge, DependencyGraph, DependencyNode, DependencyRelation
+from .impact import ControlImpact, ControlImpactSet, ImpactSeverity, ImpactStatus
+from .query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
+from .risk import PredictiveScheduleRisk, RiskBand
 from .scenario import ScenarioChange, ScenarioImpact, ScenarioProposal, ScenarioRequest
 
 __all__ = [
-    "ControlFinding", "ControlIntelligenceResult", "ControlScope",
-    "DependencyEdge", "DependencyGraph", "DependencyNode",
-    "ProposedAction", "ScenarioChange", "ScenarioImpact",
-    "ScenarioProposal", "ScenarioRequest", "SourceReference",
+    "ChangeClaimImpact",
+    "ControlDomain",
+    "ControlFinding",
+    "ControlImpact",
+    "ControlImpactSet",
+    "ControlIntelligenceResult",
+    "ControlScope",
+    "DependencyEdge",
+    "DependencyGraph",
+    "DependencyNode",
+    "DependencyRelation",
+    "FindingSeverity",
+    "ImpactSeverity",
+    "ImpactStatus",
+    "PredictiveScheduleRisk",
+    "ProposedAction",
+    "RiskBand",
+    "ScenarioChange",
+    "ScenarioImpact",
+    "ScenarioProposal",
+    "ScenarioRequest",
+    "ScheduleQueryAnswer",
+    "ScheduleQueryKind",
+    "ScheduleQueryRequest",
+    "SourceReference",
 ]

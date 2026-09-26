@@ -1,28 +1,19 @@
 # Stage 34.1 — Shared Control Intelligence
 
-Status: **initial contract package implemented — runtime verification pending**
+Status: **contract/domain foundation substantially implemented — runtime verification pending**
 
-## Package 34.1.1 — Cross-Domain Dependency Graph
-- Versioned `dependency-graph.v1` contract.
-- Shared domain graph nodes are tenant/project/revision scoped.
-- Supported domains include Schedule, Progress, EVM, Resource, Cost, Document, Change, Claim, Procurement and Field.
-- Edges describe cross-domain dependency/impact/evidence relationships without duplicating domain calculations.
-- Graph rejects duplicate nodes, unknown endpoints and self-dependencies.
+## Implemented packages
+- Cross-domain dependency graph with revision-scoped nodes and typed relationships.
+- Auditable control-intelligence result with mandatory source references.
+- Revision-scoped scenario request/proposal boundary; proposals cannot mutate authoritative state.
+- Cross-domain impact contract linking Schedule/Progress/EVM/Resource/Cost and other construction domains.
+- Natural-language schedule query contract with revision scope and traceable answers.
+- Predictive schedule-risk boundary with model version, confidence and source evidence; no risk formula is defined here.
+- Change/Claim impact links to schedule/cost evidence with application approval boundary.
 
-## Package 34.1.2 — Auditable Control-Intelligence Result
-- Versioned `control-intelligence-result.v1` contract.
-- Result scope carries tenant/project/authoritative project revision.
-- Findings and proposed actions carry source references.
-- Results require traceable source references and timezone-aware generation timestamps.
-
-## Package 34.1.3 — Scenario Contract Boundary
-- Versioned `control-scenario.v1` request contract.
-- Scenario changes are explicitly proposed and revision-scoped.
-- Scenario proposals are non-authoritative and cannot directly mutate project state.
-- Future approval and application execution belong to the Application/API boundary.
-
-## Boundary
-This package defines contracts and domain validation only. It does not redefine or duplicate Primavera P6 scheduling, calendar, duration, Progress/EVM, Resource/Cost or financial formulas.
+## Mandatory boundary
+These contracts do not redefine or duplicate Primavera P6 scheduling, calendar, duration, Progress/EVM, Resource/Cost or financial formulas.
+Client applications must consume these versioned contracts and must not become an authoritative calculation engine.
 
 ## Verification
-Focused contract/domain tests are added. GitHub Actions runtime verification remains a separate infrastructure-dependent gate while Hosted Runner jobs fail before executable steps.
+Focused domain tests are included. Full GitHub Actions runtime verification remains infrastructure-dependent while hosted Runner jobs terminate before executable steps.
