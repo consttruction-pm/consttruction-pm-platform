@@ -47,6 +47,7 @@ class CountingDelegate:
 
 def _submit(connection, mutation, counter, counter_lock, barrier=None):
     store = PostgresSyncStateStore(connection)
+    store.initialize()
     executor = AtomicSyncExecutor(
         store,
         PostgresTransactionManager(connection),
