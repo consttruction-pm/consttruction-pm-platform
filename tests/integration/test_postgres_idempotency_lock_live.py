@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+import uuid
 
 import pytest
 
@@ -60,6 +61,7 @@ def test_same_idempotency_key_executes_delegate_exactly_once():
         PostgresSyncStateStore(setup_connection).initialize()
         setup_connection.commit()
 
+    key = f"same-key-{uuid.uuid4().hex}"
     counter = [0]
     counter_lock = threading.Lock()
     results = []
@@ -70,7 +72,7 @@ def test_same_idempotency_key_executes_delegate_exactly_once():
         try:
             with psycopg.connect(DSN) as connection:
                 start.wait(timeout=5)
-                results.append(_submit(connection, _mutation("same-key"), counter, counter_lock))
+                results.append(_submit(connection, _mutation(key), counter, counter_lock))
         except Exception as exc:  # pragma: no cover - failure is reported below
             errors.append(exc)
 
@@ -84,6 +86,7 @@ def test_same_idempotency_key_executes_delegate_exactly_once():
     assert not any(thread.is_alive() for thread in threads)
     assert len(results) == 2
     assert all(result.disposition is SyncDisposition.ACKNOWLEDGED for result in results)
+    assert all(result.mutation_id == "mutation-1" for result in results)
     assert counter[0] == 1
 
 
@@ -92,6 +95,8 @@ def test_distinct_idempotency_keys_can_execute_concurrently():
         PostgresSyncStateStore(setup_connection).initialize()
         setup_connection.commit()
 
+    key_a = f"key-a-{uuid.uuid4().hex}"
+    key_b = f"key-b-{uuid.uuid4().hex}"
     counter = [0]
     counter_lock = threading.Lock()
     delegate_barrier = threading.Barrier(2)
@@ -116,8 +121,8 @@ def test_distinct_idempotency_keys_can_execute_concurrently():
             errors.append(exc)
 
     threads = [
-        threading.Thread(target=worker, args=("key-a",)),
-        threading.Thread(target=worker, args=("key-b",)),
+        threading.Thread(target=worker, args=(key_a,)),
+        threading.Thread(target=worker, args=(key_b,)),
     ]
     for thread in threads:
         thread.start()
