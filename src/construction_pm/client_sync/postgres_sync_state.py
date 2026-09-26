@@ -20,7 +20,7 @@ class PostgresSyncStateStore:
         )
 
     def lock_idempotency(self, tenant_id: str, project_id: str, key: str) -> None:
-        lock_key = f"{tenant_id}|{project_id}|{key}"
+        lock_key = _idempotency_lock_identity(tenant_id, project_id, key)
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
             (lock_key,),
@@ -69,3 +69,12 @@ def _json(value: Any) -> str:
 def _loads(value: str) -> Any:
     import json
     return json.loads(value)
+
+
+
+def _idempotency_lock_identity(tenant_id: str, project_id: str, key: str) -> str:
+    """Build an unambiguous advisory-lock identity for the mutation scope."""
+    return "|".join(
+        f"{len(value)}:{value}"
+        for value in (tenant_id, project_id, key)
+    )
