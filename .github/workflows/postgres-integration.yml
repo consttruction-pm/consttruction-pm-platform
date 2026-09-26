@@ -2,6 +2,12 @@ name: PostgreSQL Integration
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/construction_pm/client_sync/**"
+      - "tests/integration/test_postgres_*.py"
+      - ".github/workflows/postgres-integration.yml"
   pull_request:
     paths:
       - "src/construction_pm/client_sync/**"
