@@ -10,37 +10,17 @@ from .contracts import ControlFinding, ControlIntelligenceResult, ControlScope, 
 from .graph import ControlDomain, DependencyEdge, DependencyGraph, DependencyNode, DependencyRelation
 from .impact import ControlImpact, ControlImpactSet, ImpactSeverity, ImpactStatus
 from .portfolio import PortfolioControlSnapshot, PortfolioProjectControlInput, build_portfolio_control_snapshot
+from .portfolio_decision import PortfolioDecisionBoundary, approve_portfolio_decision, mark_portfolio_decision_implemented
 from .query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from .risk import PredictiveScheduleRisk, RiskBand
 from .scenario import ScenarioChange, ScenarioImpact, ScenarioProposal, ScenarioRequest
 
 __all__ = [
-    "ChangeClaimImpact",
-    "ControlDomain",
-    "ControlFinding",
-    "ControlImpact",
-    "ControlImpactSet",
-    "ControlIntelligenceResult",
-    "PortfolioControlSnapshot",
-    "PortfolioProjectControlInput",
-    "build_portfolio_control_snapshot",
-    "ControlScope",
-    "DependencyEdge",
-    "DependencyGraph",
-    "DependencyNode",
-    "DependencyRelation",
-    "FindingSeverity",
-    "ImpactSeverity",
-    "ImpactStatus",
-    "PredictiveScheduleRisk",
-    "ProposedAction",
-    "RiskBand",
-    "ScenarioChange",
-    "ScenarioImpact",
-    "ScenarioProposal",
-    "ScenarioRequest",
-    "ScheduleQueryAnswer",
-    "ScheduleQueryKind",
-    "ScheduleQueryRequest",
-    "SourceReference",
+    "ChangeClaimImpact","ControlDomain","ControlFinding","ControlImpact","ControlImpactSet",
+    "ControlIntelligenceResult","PortfolioControlSnapshot","PortfolioDecisionBoundary",
+    "approve_portfolio_decision","mark_portfolio_decision_implemented","PortfolioProjectControlInput",
+    "build_portfolio_control_snapshot","ControlScope","DependencyEdge","DependencyGraph","DependencyNode",
+    "DependencyRelation","FindingSeverity","ImpactSeverity","ImpactStatus","PredictiveScheduleRisk",
+    "ProposedAction","RiskBand","ScenarioChange","ScenarioImpact","ScenarioProposal","ScenarioRequest",
+    "ScheduleQueryAnswer","ScheduleQueryKind","ScheduleQueryRequest","SourceReference",
 ]
