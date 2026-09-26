@@ -143,6 +143,37 @@ class PostgresPortfolioActionStore:
         )
         return persisted
 
+
+
+
+    def audit_history(
+        self,
+        tenant_id: str,
+        portfolio_id: str,
+        action_id: str,
+    ) -> tuple[PortfolioActionAuditEvent, ...]:
+        rows = self.connection.execute(
+            "SELECT event_id, portfolio_revision, event_type, actor_id, occurred_at, action_json "
+            "FROM portfolio_control_action_audit "
+            "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
+            "ORDER BY portfolio_revision ASC",
+            (tenant_id, portfolio_id, action_id),
+        ).fetchall()
+        return tuple(
+            PortfolioActionAuditEvent(
+                event_id=row[0],
+                tenant_id=tenant_id,
+                portfolio_id=portfolio_id,
+                action_id=action_id,
+                portfolio_revision=int(row[1]),
+                event_type=row[2],
+                actor_id=row[3],
+                occurred_at=datetime.fromisoformat(row[4]),
+                action_json=row[5],
+            )
+            for row in rows
+        )
+
     def _find_by_idempotency(
         self, tenant_id: str, portfolio_id: str, key: str
     ) -> tuple[str, str] | None:
@@ -181,35 +212,6 @@ def _action_from_json(payload: str) -> PortfolioControlAction:
         decided_by=data["decided_by"],
         decided_at=datetime.fromisoformat(data["decided_at"]) if data["decided_at"] else None,
     )
-
-
-    def audit_history(
-        self,
-        tenant_id: str,
-        portfolio_id: str,
-        action_id: str,
-    ) -> tuple[PortfolioActionAuditEvent, ...]:
-        rows = self.connection.execute(
-            "SELECT event_id, portfolio_revision, event_type, actor_id, occurred_at, action_json "
-            "FROM portfolio_control_action_audit "
-            "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
-            "ORDER BY portfolio_revision ASC",
-            (tenant_id, portfolio_id, action_id),
-        ).fetchall()
-        return tuple(
-            PortfolioActionAuditEvent(
-                event_id=row[0],
-                tenant_id=tenant_id,
-                portfolio_id=portfolio_id,
-                action_id=action_id,
-                portfolio_revision=int(row[1]),
-                event_type=row[2],
-                actor_id=row[3],
-                occurred_at=datetime.fromisoformat(row[4]),
-                action_json=row[5],
-            )
-            for row in rows
-        )
 
 
 def _audit_event_id(action: PortfolioControlAction) -> str:
