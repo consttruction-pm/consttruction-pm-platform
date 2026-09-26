@@ -457,3 +457,22 @@ Status: **implemented — runtime verification pending**
 - Added a live PostgreSQL concurrency regression proving distinct idempotency keys can execute delegates concurrently, confirming lock granularity is scoped to tenant/project/key.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 - Runtime CI verification remains pending; the latest GitHub Actions status is not yet reported for these commits.
+
+
+### Stage 34.2 — P0 Contract & Portfolio Control
+Status: **current implementation track through 34.2.14 completed/merged; documentation reconciliation in progress**
+
+- 34.2.2 — Backend P0 persistence: implemented and verified.
+- 34.2.4 — P0 resource envelope: implemented and verified.
+- 34.2.5 — Field operations core/sync bridge: implemented and verified.
+- 34.2.6 — Field assurance/core persistence and PostgreSQL atomicity: implemented and live-verified.
+- 34.2.7 — Change/Claim core + Client Integration Audit: implemented; Client resource sync boundary coverage merged in PR #149; post-merge CI green.
+- 34.2.8 — Procurement/Commercial core: implemented.
+- 34.2.9 — Portfolio Control read model: implemented and regression-verified.
+- 34.2.10 — Portfolio Decision & Approval Boundary: implemented and merged; Python and client runtime verification completed.
+- 34.2.11 — Portfolio Action Transition Boundary: implemented and integrated.
+- 34.2.12 — Portfolio Action Persistence: implemented and integrated.
+- 34.2.13 — Portfolio Action Audit & Revision Transition Boundary: implemented and integrated.
+- 34.2.14 — Portfolio Action Transition Integrity: implemented, live PostgreSQL verified, and merged.
+
+Boundary rule: Portfolio Control remains a cross-project read/decision layer and does not duplicate authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations. Portfolio decisions/actions do not directly execute project mutations; application/API authorization and mutation boundaries remain authoritative.
