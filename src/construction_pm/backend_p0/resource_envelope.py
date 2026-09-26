@@ -5,6 +5,7 @@ from typing import Any
 
 from .models import (
     ChangeCase,
+    ChangeNotice,
     ClaimRecord,
     EquipmentStatusReport,
     FieldDailyLog,
