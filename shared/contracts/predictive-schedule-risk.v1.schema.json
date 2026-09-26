@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://construction-pm.local/contracts/predictive-schedule-risk.v1.schema.json",
+  "$id": "https://construction-pm.local/contracts/v1/predictive-schedule-risk.v1",
   "title": "Predictive Schedule Risk v1",
   "type": "object",
   "additionalProperties": false,
