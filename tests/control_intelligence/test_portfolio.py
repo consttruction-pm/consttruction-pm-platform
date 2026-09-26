@@ -62,7 +62,7 @@ def test_portfolio_snapshot_is_cross_project_and_read_only():
     }
     assert data["projects"][1]["project_revision"] == 13
     assert data["projects"][1]["schedule_result_ref"] == "schedule-P-2"
-    assert "resource" not in data["projects"][1]
+    assert data["projects"][1]["resource_result_ref"] == "resource-P-2"
 
 
 def test_duplicate_projects_are_rejected():
@@ -105,3 +105,29 @@ def test_builder_returns_contract_safe_json():
     )
     assert data["contract_version"] == "portfolio-control-snapshot.v1"
     assert json.dumps(data, sort_keys=True)
+
+
+def test_portfolio_snapshot_is_deterministic_for_same_ordered_inputs():
+    generated_at = datetime(2026, 9, 27, 13, 0, tzinfo=timezone.utc)
+    projects = [project("P-1", "included"), project("P-2", "on_hold", revision=13)]
+    source_refs = [source(revision=12)]
+
+    first = build_portfolio_control_snapshot(
+        snapshot_id="snap-deterministic",
+        portfolio_id="portfolio-1",
+        tenant_id="tenant-1",
+        generated_at=generated_at,
+        projects=projects,
+        source_refs=source_refs,
+    )
+    second = build_portfolio_control_snapshot(
+        snapshot_id="snap-deterministic",
+        portfolio_id="portfolio-1",
+        tenant_id="tenant-1",
+        generated_at=generated_at,
+        projects=projects,
+        source_refs=source_refs,
+    )
+
+    assert first == second
+    assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
