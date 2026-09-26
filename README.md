@@ -59,6 +59,7 @@ Recent completed gates:
 - Stage 34.2.15 — Portfolio Action Audit Actor Integrity: audit actor/timestamp must match authoritative decision metadata; integrated and runtime-verified.
 - Stage 34.2.16 — Portfolio Decision Persistence: PostgreSQL persistence with tenant/portfolio scope, idempotency replay/reuse protection, optimistic decision revision, append-only audit events and approval transition checks; integrated and runtime-verified.
 - Stage 34.2.17 — Portfolio Decision PostgreSQL Runtime Verification: DSN-gated live PostgreSQL round-trip coverage for persistence, read-back, approval revision transition and append-only audit history; integrated with Python 3.11/3.12/3.13 and client typecheck gates green.
+- Stage 34.2.18 — Portfolio Decision Application Boundary: application-layer authorization, tenant scope, actor integrity, creation and approval orchestration over the authoritative Portfolio Decision domain/persistence boundaries.
 
 Current Stage 34 focus:
 - Continue construction control backend with the next Portfolio decision/approval implementation and cross-project control actions.
