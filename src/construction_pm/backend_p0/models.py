@@ -1011,7 +1011,513 @@ class ClaimRecord:
         }
 
 
-Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem | ChangeCase | ClaimRecord
+@dataclass(frozen=True)
+class ProcurementQuoteItem:
+    item_id: str
+    description_key: str
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    lead_time_days: int | None = None
+    activity_ids: tuple[str, ...] = ()
+    attributes: Mapping[str, Any] = field(default_factory=dict)
+
+    def validate(self) -> None:
+        _require_text(self.item_id, "item_id")
+        _require_text(self.description_key, "description_key")
+        if self.quantity <= Decimal("0"):
+            raise ValueError("quote quantity must be greater than zero")
+        _require_text(self.unit, "unit")
+        if self.unit_price < Decimal("0"):
+            raise ValueError("unit price cannot be negative")
+        if self.lead_time_days is not None and (
+            not isinstance(self.lead_time_days, int) or isinstance(self.lead_time_days, bool) or self.lead_time_days < 0
+        ):
+            raise ValueError("lead_time_days must be a non-negative integer")
+        for activity_id in self.activity_ids:
+            _require_text(activity_id, "activity_id")
+        if not isinstance(self.attributes, Mapping):
+            raise ValueError("attributes must be an object")
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "item_id": self.item_id,
+            "description_key": self.description_key,
+            "quantity": self.quantity,
+            "unit": self.unit,
+            "unit_price": self.unit_price,
+            "lead_time_days": self.lead_time_days,
+            "activity_ids": list(self.activity_ids),
+            "attributes": dict(self.attributes),
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementQuote:
+    quote_id: str
+    scope: BackendScope
+    rfq_id: str
+    supplier_id: str
+    status: str
+    currency: str
+    valid_until: date
+    items: tuple[ProcurementQuoteItem, ...]
+    audit: AuditMetadata
+    delivery_terms_key: str | None = None
+    payment_terms_key: str | None = None
+    notes_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "procurement-quote.v1"
+
+    def validate(self) -> None:
+        _require_text(self.quote_id, "quote_id")
+        self.scope.validate()
+        _require_text(self.rfq_id, "rfq_id")
+        _require_text(self.supplier_id, "supplier_id")
+        _require_text(self.currency, "currency")
+        if len(self.currency) != 3 or not self.currency.isalpha() or not self.currency.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        if self.status not in {"draft", "submitted", "under_review", "withdrawn", "accepted", "rejected", "expired"}:
+            raise ValueError("invalid quote status")
+        if not isinstance(self.valid_until, date):
+            raise ValueError("valid_until must be a date")
+        if not self.items:
+            raise ValueError("quote requires at least one item")
+        ids: set[str] = set()
+        for item in self.items:
+            item.validate()
+            if item.item_id in ids:
+                raise ValueError("duplicate quote item_id")
+            ids.add(item.item_id)
+        for value, name in (
+            (self.delivery_terms_key, "delivery_terms_key"),
+            (self.payment_terms_key, "payment_terms_key"),
+            (self.notes_key, "notes_key"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        if not self.evidence_refs:
+            raise ValueError("quote requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "quote_id": self.quote_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "rfq_id": self.rfq_id,
+            "supplier_id": self.supplier_id,
+            "status": self.status,
+            "currency": self.currency,
+            "valid_until": self.valid_until.isoformat(),
+            "items": [item.as_dict() for item in self.items],
+            "delivery_terms_key": self.delivery_terms_key,
+            "payment_terms_key": self.payment_terms_key,
+            "notes_key": self.notes_key,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementBidComparisonEntry:
+    quote_id: str
+    supplier_id: str
+    compliance_status: str
+    evaluator_notes_key: str | None = None
+    technical_reference: str | None = None
+    commercial_reference: str | None = None
+
+    def validate(self) -> None:
+        _require_text(self.quote_id, "quote_id")
+        _require_text(self.supplier_id, "supplier_id")
+        if self.compliance_status not in {"compliant", "partial", "non_compliant", "not_evaluated"}:
+            raise ValueError("invalid compliance status")
+        for value, name in (
+            (self.evaluator_notes_key, "evaluator_notes_key"),
+            (self.technical_reference, "technical_reference"),
+            (self.commercial_reference, "commercial_reference"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "quote_id": self.quote_id,
+            "supplier_id": self.supplier_id,
+            "compliance_status": self.compliance_status,
+            "evaluator_notes_key": self.evaluator_notes_key,
+            "technical_reference": self.technical_reference,
+            "commercial_reference": self.commercial_reference,
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementBidComparison:
+    comparison_id: str
+    scope: BackendScope
+    rfq_id: str
+    status: str
+    entries: tuple[ProcurementBidComparisonEntry, ...]
+    audit: AuditMetadata
+    selected_quote_id: str | None = None
+    selected_supplier_id: str | None = None
+    decision_reference: str | None = None
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "procurement-bid-comparison.v1"
+
+    def validate(self) -> None:
+        _require_text(self.comparison_id, "comparison_id")
+        self.scope.validate()
+        _require_text(self.rfq_id, "rfq_id")
+        if self.status not in {"draft", "under_review", "approved", "rejected", "closed"}:
+            raise ValueError("invalid bid comparison status")
+        if not self.entries:
+            raise ValueError("bid comparison requires at least one entry")
+        quote_ids: set[str] = set()
+        for entry in self.entries:
+            entry.validate()
+            if entry.quote_id in quote_ids:
+                raise ValueError("duplicate comparison quote_id")
+            quote_ids.add(entry.quote_id)
+        if self.selected_quote_id is not None:
+            _require_text(self.selected_quote_id, "selected_quote_id")
+            if self.selected_quote_id not in quote_ids:
+                raise ValueError("selected quote must be present in comparison")
+        if self.selected_supplier_id is not None:
+            _require_text(self.selected_supplier_id, "selected_supplier_id")
+            if self.selected_quote_id is None:
+                raise ValueError("selected supplier requires selected quote")
+        if self.status == "approved" and (not self.selected_quote_id or not self.selected_supplier_id or not self.approved_by or not self.approved_at):
+            raise ValueError("approved bid comparison requires selection and approval")
+        if self.decision_reference is not None:
+            _require_text(self.decision_reference, "decision_reference")
+        if self.approved_by is not None:
+            _require_text(self.approved_by, "approved_by")
+        if self.approved_at is not None:
+            _require_aware(self.approved_at, "approved_at")
+        if not self.evidence_refs:
+            raise ValueError("bid comparison requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "comparison_id": self.comparison_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "rfq_id": self.rfq_id,
+            "status": self.status,
+            "entries": [item.as_dict() for item in self.entries],
+            "selected_quote_id": self.selected_quote_id,
+            "selected_supplier_id": self.selected_supplier_id,
+            "decision_reference": self.decision_reference,
+            "approved_by": self.approved_by,
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class PurchaseOrderItem:
+    item_id: str
+    description_key: str
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    activity_ids: tuple[str, ...] = ()
+    delivery_location_key: str | None = None
+
+    def validate(self) -> None:
+        _require_text(self.item_id, "item_id")
+        _require_text(self.description_key, "description_key")
+        if self.quantity <= Decimal("0"):
+            raise ValueError("order quantity must be greater than zero")
+        _require_text(self.unit, "unit")
+        if self.unit_price < Decimal("0"):
+            raise ValueError("order unit price cannot be negative")
+        for activity_id in self.activity_ids:
+            _require_text(activity_id, "activity_id")
+        if self.delivery_location_key is not None:
+            _require_text(self.delivery_location_key, "delivery_location_key")
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "item_id": self.item_id,
+            "description_key": self.description_key,
+            "quantity": self.quantity,
+            "unit": self.unit,
+            "unit_price": self.unit_price,
+            "activity_ids": list(self.activity_ids),
+            "delivery_location_key": self.delivery_location_key,
+        }
+
+
+@dataclass(frozen=True)
+class PurchaseOrder:
+    po_id: str
+    scope: BackendScope
+    supplier_id: str
+    status: str
+    currency: str
+    items: tuple[PurchaseOrderItem, ...]
+    audit: AuditMetadata
+    rfq_id: str | None = None
+    quote_id: str | None = None
+    order_date: date | None = None
+    required_delivery_date: date | None = None
+    commitment_id: str | None = None
+    approval_reference: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "purchase-order.v1"
+
+    def validate(self) -> None:
+        _require_text(self.po_id, "po_id")
+        self.scope.validate()
+        _require_text(self.supplier_id, "supplier_id")
+        _require_text(self.currency, "currency")
+        if len(self.currency) != 3 or not self.currency.isalpha() or not self.currency.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        if self.status not in {"draft", "approved", "issued", "partially_received", "closed", "cancelled"}:
+            raise ValueError("invalid purchase order status")
+        if not self.items:
+            raise ValueError("purchase order requires at least one item")
+        ids: set[str] = set()
+        for item in self.items:
+            item.validate()
+            if item.item_id in ids:
+                raise ValueError("duplicate purchase order item_id")
+            ids.add(item.item_id)
+        for value, name in (
+            (self.rfq_id, "rfq_id"),
+            (self.quote_id, "quote_id"),
+            (self.commitment_id, "commitment_id"),
+            (self.approval_reference, "approval_reference"),
+        ):
+            if value is not None:
+                _require_text(value, name)
+        if self.order_date is not None and not isinstance(self.order_date, date):
+            raise ValueError("order_date must be a date")
+        if self.required_delivery_date is not None and not isinstance(self.required_delivery_date, date):
+            raise ValueError("required_delivery_date must be a date")
+        if self.order_date and self.required_delivery_date and self.required_delivery_date < self.order_date:
+            raise ValueError("required delivery date cannot precede order date")
+        if self.status == "approved" and not self.approval_reference:
+            raise ValueError("approved purchase order requires approval reference")
+        if not self.evidence_refs:
+            raise ValueError("purchase order requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "po_id": self.po_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "rfq_id": self.rfq_id,
+            "quote_id": self.quote_id,
+            "supplier_id": self.supplier_id,
+            "status": self.status,
+            "currency": self.currency,
+            "order_date": self.order_date.isoformat() if self.order_date else None,
+            "required_delivery_date": self.required_delivery_date.isoformat() if self.required_delivery_date else None,
+            "items": [item.as_dict() for item in self.items],
+            "commitment_id": self.commitment_id,
+            "approval_reference": self.approval_reference,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementCommitment:
+    commitment_id: str
+    scope: BackendScope
+    status: str
+    supplier_id: str
+    currency: str
+    committed_amount: Decimal
+    audit: AuditMetadata
+    po_id: str | None = None
+    cost_refs: tuple[str, ...] = ()
+    activity_ids: tuple[str, ...] = ()
+    release_reference: str | None = None
+    notes_key: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "procurement-commitment.v1"
+
+    def validate(self) -> None:
+        _require_text(self.commitment_id, "commitment_id")
+        self.scope.validate()
+        _require_text(self.supplier_id, "supplier_id")
+        _require_text(self.currency, "currency")
+        if len(self.currency) != 3 or not self.currency.isalpha() or not self.currency.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        if self.committed_amount < Decimal("0"):
+            raise ValueError("committed amount cannot be negative")
+        if self.status not in {"planned", "committed", "partially_released", "released", "closed", "cancelled"}:
+            raise ValueError("invalid commitment status")
+        if self.po_id is not None:
+            _require_text(self.po_id, "po_id")
+        for values, name in ((self.cost_refs, "cost_reference"), (self.activity_ids, "activity_id")):
+            for value in values:
+                _require_text(value, name)
+        if self.status in {"partially_released", "released"} and not self.release_reference:
+            raise ValueError("released commitment requires release reference")
+        if self.release_reference is not None:
+            _require_text(self.release_reference, "release_reference")
+        if self.notes_key is not None:
+            _require_text(self.notes_key, "notes_key")
+        if not self.evidence_refs:
+            raise ValueError("commitment requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "commitment_id": self.commitment_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "po_id": self.po_id,
+            "supplier_id": self.supplier_id,
+            "status": self.status,
+            "currency": self.currency,
+            "committed_amount": self.committed_amount,
+            "cost_refs": list(self.cost_refs),
+            "activity_ids": list(self.activity_ids),
+            "release_reference": self.release_reference,
+            "notes_key": self.notes_key,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementDeliveryItem:
+    item_id: str
+    quantity_received: Decimal
+    unit: str
+    inspection_id: str | None = None
+    punch_id: str | None = None
+    acceptance_status: str = "pending"
+
+    def validate(self) -> None:
+        _require_text(self.item_id, "item_id")
+        if self.quantity_received <= Decimal("0"):
+            raise ValueError("received quantity must be greater than zero")
+        _require_text(self.unit, "unit")
+        for value, name in ((self.inspection_id, "inspection_id"), (self.punch_id, "punch_id")):
+            if value is not None:
+                _require_text(value, name)
+        if self.acceptance_status not in {"pending", "accepted", "rejected", "partial"}:
+            raise ValueError("invalid acceptance status")
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "item_id": self.item_id,
+            "quantity_received": self.quantity_received,
+            "unit": self.unit,
+            "inspection_id": self.inspection_id,
+            "punch_id": self.punch_id,
+            "acceptance_status": self.acceptance_status,
+        }
+
+
+@dataclass(frozen=True)
+class ProcurementDelivery:
+    delivery_id: str
+    scope: BackendScope
+    po_id: str
+    supplier_id: str
+    status: str
+    delivery_date: date
+    items: tuple[ProcurementDeliveryItem, ...]
+    audit: AuditMetadata
+    location_key: str | None = None
+    receipt_reference: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
+    contract_version: str = "procurement-delivery.v1"
+
+    def validate(self) -> None:
+        _require_text(self.delivery_id, "delivery_id")
+        self.scope.validate()
+        _require_text(self.po_id, "po_id")
+        _require_text(self.supplier_id, "supplier_id")
+        if self.status not in {"scheduled", "partial", "received", "rejected", "cancelled"}:
+            raise ValueError("invalid delivery status")
+        if not isinstance(self.delivery_date, date):
+            raise ValueError("delivery_date must be a date")
+        if not self.items:
+            raise ValueError("delivery requires at least one item")
+        for item in self.items:
+            item.validate()
+        if self.location_key is not None:
+            _require_text(self.location_key, "location_key")
+        if self.receipt_reference is not None:
+            _require_text(self.receipt_reference, "receipt_reference")
+        if self.status == "received" and not self.receipt_reference:
+            raise ValueError("received delivery requires receipt reference")
+        if not self.evidence_refs:
+            raise ValueError("delivery requires at least one evidence reference")
+        self.audit.validate()
+        for evidence in self.evidence_refs:
+            evidence.validate()
+
+    def as_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "contract_version": self.contract_version,
+            "delivery_id": self.delivery_id,
+            "scope": {
+                "tenant_id": self.scope.tenant_id,
+                "project_id": self.scope.project_id,
+                "project_revision": self.scope.project_revision,
+            },
+            "po_id": self.po_id,
+            "supplier_id": self.supplier_id,
+            "status": self.status,
+            "delivery_date": self.delivery_date.isoformat(),
+            "location_key": self.location_key,
+            "items": [item.as_dict() for item in self.items],
+            "receipt_reference": self.receipt_reference,
+            "audit": self.audit.as_dict(),
+            "evidence_refs": [item.as_dict() for item in self.evidence_refs],
+        }
+
+
+Record = FieldDailyLog | FieldIssue | ChangeNotice | ProcurementRFQ | FieldTimecard | EquipmentStatusReport | FieldInspection | QualityRecord | SafetyObservation | PunchItem | ChangeCase | ClaimRecord | ProcurementQuote | ProcurementBidComparison | PurchaseOrder | ProcurementCommitment | ProcurementDelivery
 
 
 def resource_type(record: Record) -> str:
@@ -1039,6 +1545,16 @@ def resource_type(record: Record) -> str:
         return "change_case"
     if isinstance(record, ClaimRecord):
         return "claim_record"
+    if isinstance(record, ProcurementQuote):
+        return "procurement_quote"
+    if isinstance(record, ProcurementBidComparison):
+        return "procurement_bid_comparison"
+    if isinstance(record, PurchaseOrder):
+        return "purchase_order"
+    if isinstance(record, ProcurementCommitment):
+        return "procurement_commitment"
+    if isinstance(record, ProcurementDelivery):
+        return "procurement_delivery"
     raise TypeError(f"Unsupported record type: {type(record)!r}")
 
 
@@ -1067,4 +1583,14 @@ def record_id(record: Record) -> str:
         return record.change_id
     if isinstance(record, ClaimRecord):
         return record.claim_id
+    if isinstance(record, ProcurementQuote):
+        return record.quote_id
+    if isinstance(record, ProcurementBidComparison):
+        return record.comparison_id
+    if isinstance(record, PurchaseOrder):
+        return record.po_id
+    if isinstance(record, ProcurementCommitment):
+        return record.commitment_id
+    if isinstance(record, ProcurementDelivery):
+        return record.delivery_id
     raise TypeError(f"Unsupported record type: {type(record)!r}")
