@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://construction-pm.local/contracts/procurement-rfq.v1.schema.json",
+  "$id": "https://construction-pm.local/contracts/v1/procurement-rfq.v1",
   "title": "Procurement RFQ v1",
   "type": "object",
   "additionalProperties": false,
