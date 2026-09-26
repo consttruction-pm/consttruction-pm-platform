@@ -171,6 +171,8 @@ def _record_from_payload(payload: dict) -> Record:
         QualityRecord,
         SafetyObservation,
         PunchItem,
+        ChangeCase,
+        ClaimRecord,
     )
 
     scope_data = payload["scope"]
@@ -248,6 +250,51 @@ def _record_from_payload(payload: dict) -> Record:
         )
 
 
+
+    if payload["contract_version"] == "change-case.v1":
+        return ChangeCase(
+            change_id=payload["change_id"],
+            scope=scope,
+            change_type=payload["change_type"],
+            status=payload["status"],
+            title_key=payload["title_key"],
+            initiated_by=payload["initiated_by"],
+            audit=audit,
+            detail_key=payload.get("detail_key"),
+            originating_notice_id=payload.get("originating_notice_id"),
+            schedule_refs=tuple(payload.get("schedule_refs", [])),
+            cost_refs=tuple(payload.get("cost_refs", [])),
+            dependency_refs=tuple(payload.get("dependency_refs", [])),
+            impact_link_ids=tuple(payload.get("impact_link_ids", [])),
+            implementation_activity_ids=tuple(payload.get("implementation_activity_ids", [])),
+            approval_required=payload.get("approval_required", True),
+            approved_by=payload.get("approved_by"),
+            approved_at=datetime.fromisoformat(payload["approved_at"]) if payload.get("approved_at") else None,
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "claim-record.v1":
+        return ClaimRecord(
+            claim_id=payload["claim_id"],
+            scope=scope,
+            claim_type=payload["claim_type"],
+            status=payload["status"],
+            title_key=payload["title_key"],
+            submitted_by=payload["submitted_by"],
+            audit=audit,
+            detail_key=payload.get("detail_key"),
+            originating_notice_id=payload.get("originating_notice_id"),
+            change_id=payload.get("change_id"),
+            schedule_refs=tuple(payload.get("schedule_refs", [])),
+            cost_refs=tuple(payload.get("cost_refs", [])),
+            impact_link_ids=tuple(payload.get("impact_link_ids", [])),
+            entitlement_reference=payload.get("entitlement_reference"),
+            quantum_reference=payload.get("quantum_reference"),
+            decision_reference=payload.get("decision_reference"),
+            approval_required=payload.get("approval_required", True),
+            decided_by=payload.get("decided_by"),
+            decided_at=datetime.fromisoformat(payload["decided_at"]) if payload.get("decided_at") else None,
+            evidence_refs=evidence,
+        )
     if payload["contract_version"] == "field-inspection.v1":
         checklist = tuple(
             FieldInspectionItem(
