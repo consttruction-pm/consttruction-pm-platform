@@ -60,6 +60,8 @@ class PortfolioControlAction:
                 raise ValueError(f"INVALID_PORTFOLIO_ACTION_{name.upper()}")
         if self.target_type not in {"portfolio", "project"}:
             raise ValueError("INVALID_PORTFOLIO_ACTION_TARGET")
+        if self.target_type == "portfolio" and self.target_id != self.portfolio_id:
+            raise ValueError("PORTFOLIO_TARGET_MUST_MATCH_PORTFOLIO")
         for value, name in (
             (self.portfolio_revision, "PORTFOLIO_ACTION_REVISION"),
             (self.expected_portfolio_revision, "PORTFOLIO_ACTION_EXPECTED_REVISION"),
@@ -130,7 +132,8 @@ class PortfolioControlActionService:
     def authorize_request(self, action: PortfolioControlAction, context: AuthorizationContext) -> None:
         action.validate()
         self._require_scope(action, context)
-        self._require(context, Permission.PROJECT_WRITE)
+        permission = Permission.PROJECT_ADMIN if action.target_type == "portfolio" else Permission.PROJECT_WRITE
+        self._require(context, permission)
 
     def authorize_decision(self, action: PortfolioControlAction, context: AuthorizationContext) -> None:
         action.validate()
