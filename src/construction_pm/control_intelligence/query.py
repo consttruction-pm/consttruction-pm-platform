@@ -2,13 +2,15 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Tuple
 
-from .contracts import ControlScope, ProposedAction, SourceReference
+from .contracts import ControlScope, ProposedAction, SourceReference, require_enum
+
 
 class ScheduleQueryKind(str, Enum):
     FACT = "fact"
     EXPLANATION = "explanation"
     FILTER = "filter"
     SCENARIO = "scenario"
+
 
 @dataclass(frozen=True)
 class ScheduleQueryRequest:
@@ -21,10 +23,14 @@ class ScheduleQueryRequest:
     constraints: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not self.query_id or not self.requested_by or not self.query_text.strip():
+        if not isinstance(self.query_id, str) or not self.query_id.strip() or not isinstance(self.requested_by, str) or not self.requested_by.strip() or not isinstance(self.query_text, str) or not self.query_text.strip():
             raise ValueError("INVALID_SCHEDULE_QUERY")
-        if not self.language.strip():
+        if not isinstance(self.scope, ControlScope):
+            raise ValueError("INVALID_SCHEDULE_QUERY_SCOPE")
+        require_enum(self.kind, ScheduleQueryKind, "INVALID_SCHEDULE_QUERY_KIND")
+        if not isinstance(self.language, str) or not self.language.strip():
             raise ValueError("INVALID_QUERY_LANGUAGE")
+
 
 @dataclass(frozen=True)
 class ScheduleQueryAnswer:
@@ -36,7 +42,9 @@ class ScheduleQueryAnswer:
     proposed_actions: Tuple[ProposedAction, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.query_id or not self.answer_key:
+        if not isinstance(self.query_id, str) or not self.query_id.strip() or not isinstance(self.answer_key, str) or not self.answer_key.strip():
             raise ValueError("INVALID_SCHEDULE_QUERY_ANSWER")
+        if not isinstance(self.scope, ControlScope):
+            raise ValueError("INVALID_SCHEDULE_QUERY_ANSWER_SCOPE")
         if not self.source_refs:
             raise ValueError("SCHEDULE_QUERY_SOURCE_REQUIRED")
