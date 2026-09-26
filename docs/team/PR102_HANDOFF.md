@@ -4,7 +4,7 @@
 
 - Branch: `feature/hasan/stage-33-4-70-api-revision-boundary`
 - Pull request: #102
-- Current branch head: `6f3b6e51a8a76d1000e9393b2ce98bf73910ccfa`
+- Current branch head: tracked directly by PR #102; verify the PR head SHA before handoff/review.
 - Stage: 33.4.70
 - Merge: not performed
 - Stage status: runtime verification pending
