@@ -8,6 +8,9 @@ from .server_gateway import IdempotentMutationGateway
 from .offline_mutation import OfflineMutation
 
 
+MAX_SAFE_PROJECT_REVISION = 9007199254740991
+
+
 def _versioned_revision_error(tenant_id: str, project_id: str, code: str) -> dict[str, object]:
     return {
         "contract_version": "sync-project-revision.v1",
@@ -26,7 +29,7 @@ class VersionedSyncEndpoint:
 
     def post(self, body: Mapping[str, object], headers: Mapping[str, str]) -> dict[str, object]:
         raw_revision = body.get("expected_revision")
-        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
+        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0 or raw_revision > MAX_SAFE_PROJECT_REVISION:
             mutation_id = str(body.get("mutation_id", ""))
             return {"contract_version": "sync-outcome.v1", "mutation_id": mutation_id, "disposition": "rejected", "error_code": "INVALID_EXPECTED_REVISION"}
         mutation = OfflineMutation(
@@ -75,7 +78,7 @@ class VersionedSyncRevisionEndpoint:
             return _versioned_revision_error(self.tenant_id, self.project_id, "INVALID_PROJECT_CONTEXT")
 
         raw_revision = self.revision_provider(self.tenant_id, self.project_id)
-        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
+        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0 or raw_revision > MAX_SAFE_PROJECT_REVISION:
             raise ValueError("INVALID_PROJECT_REVISION")
 
         return {
