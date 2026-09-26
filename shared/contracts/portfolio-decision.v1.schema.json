@@ -171,5 +171,59 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "requires_approval": {
+            "const": true
+          }
+        },
+        "required": [
+          "requires_approval"
+        ]
+      },
+      "then": {
+        "if": {
+          "properties": {
+            "status": {
+              "enum": [
+                "approved",
+                "implemented",
+                "closed"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "required": [
+            "approved_by",
+            "approved_at"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "implemented"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "implemented_at",
+          "implementation_reference"
+        ]
+      }
+    }
+  ]
 }
