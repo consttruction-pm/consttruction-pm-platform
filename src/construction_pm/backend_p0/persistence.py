@@ -82,7 +82,7 @@ class SQLiteBackendP0Repository(BackendP0Repository):
                     payload["contract_version"],
                     scope.project_revision,
                     revision,
-                    payload["status"],
+                    _record_status(payload),
                     audit.created_by,
                     audit.created_at.isoformat(),
                     audit.updated_at.isoformat(),
@@ -107,7 +107,7 @@ class SQLiteBackendP0Repository(BackendP0Repository):
                 payload["contract_version"],
                 scope.project_revision,
                 revision,
-                payload["status"],
+                _record_status(payload),
                 audit.created_by,
                 audit.created_at.isoformat(),
                 audit.updated_at.isoformat(),
@@ -132,6 +132,17 @@ class SQLiteBackendP0Repository(BackendP0Repository):
         if row is None:
             return None
         return StoredRecord(_record_from_payload(json.loads(row[0])), int(row[1]))
+
+
+
+def _record_status(payload: dict) -> str:
+    status = payload.get("status")
+    if isinstance(status, str):
+        return status
+    attendance_status = payload.get("attendance_status")
+    if isinstance(attendance_status, str):
+        return attendance_status
+    raise ValueError("Record payload does not expose a persistence status")
 
 
 def _json_default(value: object) -> object:
