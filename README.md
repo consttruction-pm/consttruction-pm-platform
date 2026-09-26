@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.7 — Change / Variation / Notice / Claim Core**. Stage 34.1 through Stage 34.2.7 have been integrated through reviewed PR gates. Stage 34.2.6 passed the full Python 3.11/3.12/3.13 matrix, Web/Desktop/Mobile/Client-Sync verification, and live PostgreSQL integration before merge; Stage 34.2.7 passed the Python and client runtime gates before merge.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.8 — Procurement / Commercial Commitments Core**. Stage 34.1 through Stage 34.2.8 have been integrated through reviewed PR gates. Stage 34.2.6 passed the full Python 3.11/3.12/3.13 matrix, Web/Desktop/Mobile/Client-Sync verification, and live PostgreSQL integration before merge; Stage 34.2.7 and Stage 34.2.8 passed their Python and client runtime gates before merge.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -49,9 +49,11 @@ Recent completed gates:
 - Stage 34.2.5 — Field Operations Core: attendance/timecard and equipment status/breakdown; integrated and runtime-verified.
 - Stage 34.2.6 — Field Assurance Core: inspection, quality/NCR, safety observation and punch/closeout foundations; integrated and runtime-verified.
 - Stage 34.2.7 — Change / Variation / Notice / Claim Core: persistent Change Case and Claim Record boundaries with evidence, approval and decision traceability; integrated and runtime-verified.
+- Stage 34.2.8 — Procurement / Commercial Commitments Core: quote, bid comparison, purchase order, commitment and delivery boundaries with exact Decimal transport; integrated and runtime-verified.
 
 Current Stage 34 focus:
-- Continue construction control backend with Procurement / Commercial Commitments and their evidence, approval and revision boundaries.
+- Continue construction control backend with Portfolio Control / Cross-Project aggregation and decision boundaries.
+- Preserve Procurement / Commercial Commitments linkage to Cost, Schedule, Activity and Document authoritative records.
 - Extend field records through the same tenant/project/revision/audit/idempotency boundaries.
 - Preserve authoritative revision refresh and atomic same-key idempotency semantics across clients.
 - Maintain ACK/RETRY/CONFLICT/REJECTED semantics across Web/Desktop/Mobile.
