@@ -139,7 +139,9 @@ class PostgresPortfolioActionStore:
             persisted.requested_by,
             persisted.requested_at,
         )
-        return StoredPortfolioAction(persisted, 1)\n\n    def get(self, tenant_id: str, portfolio_id: str, action_id: str) -> StoredPortfolioAction | None:
+        return StoredPortfolioAction(persisted, 1)
+
+    def get(self, tenant_id: str, portfolio_id: str, action_id: str) -> StoredPortfolioAction | None:
         row = self.connection.execute(
             "SELECT action_json, action_revision FROM portfolio_control_actions "
             "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s",
