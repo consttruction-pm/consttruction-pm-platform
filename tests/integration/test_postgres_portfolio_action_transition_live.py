@@ -57,16 +57,17 @@ def test_real_postgres_persists_transition_and_audit_atomically() -> None:
 
         with PostgresTransactionManager(connection).transaction():
             proposed = store.persist_transition(action)
+            decided_at = datetime.now(timezone.utc)
             approved = transition.approve(
                 proposed.action,
                 context,
-                decided_at=datetime.now(timezone.utc),
+                decided_at=decided_at,
             )
             persisted = store.transition(
                 approved,
                 expected_action_revision=proposed.action_revision,
                 actor_id="admin-live",
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=decided_at,
                 event_type="approved",
             )
 

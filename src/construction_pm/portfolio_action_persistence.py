@@ -191,6 +191,8 @@ class PostgresPortfolioActionStore:
         }.get(action.status.value)
         if expected_event != event_type:
             raise PortfolioActionTransitionMismatch("PORTFOLIO_ACTION_EVENT_MISMATCH")
+        if action.decided_by != actor_id or action.decided_at != occurred_at:
+            raise PortfolioActionTransitionMismatch("PORTFOLIO_ACTION_AUDIT_ACTOR_MISMATCH")
         next_revision = current + 1
         payload = json.dumps(action.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         self.connection.execute(
