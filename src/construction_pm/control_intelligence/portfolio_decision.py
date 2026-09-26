@@ -57,14 +57,11 @@ class PortfolioDecisionBoundary:
             raise ValueError("INVALID_PORTFOLIO_DECISION_IMPLEMENTATION_TIMESTAMP")
         if self.implemented_at is not None and (self.implemented_at.tzinfo is None or self.implemented_at.utcoffset() is None):
             raise ValueError("PORTFOLIO_DECISION_IMPLEMENTATION_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
-        if self.status == "approved":
+        if self.status in {"approved", "implemented", "closed"}:
             self._require_approval()
         if self.status == "implemented":
-            self._require_approval()
             if self.implemented_at is None or self.implementation_reference is None:
                 raise ValueError("IMPLEMENTED_PORTFOLIO_DECISION_REQUIRES_IMPLEMENTATION_REFERENCE")
-        if self.requires_approval is True and self.status in {"implemented", "closed"} and self.approved_by is None:
-            raise ValueError("APPROVED_PORTFOLIO_DECISION_REQUIRED")
         if not self.evidence_refs:
             raise ValueError("PORTFOLIO_DECISION_EVIDENCE_REQUIRED")
         if not isinstance(self.evidence_refs, (tuple, list)):
