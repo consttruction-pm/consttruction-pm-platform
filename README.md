@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current documented sync/platform work is at **Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock**, implemented with runtime verification pending.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.2 — Backend P0 Persistence & Transaction**, integrated into `main` via the hardened Stage 34 integration gate. The Stage 34 package has been runtime-verified through the GitHub Actions PR gate on Python 3.11, 3.12 and 3.13, plus Web/Desktop/Mobile typecheck and client-sync runtime coverage.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -40,13 +40,15 @@ Recent completed gates:
 - Stage 33.4.68 — Shared Client API Sync Transport Boundary: runtime-verified.
 - Stage 33.4.69 — End-to-End Client Sync Outcome Regression: runtime-verified.
 - Stage 33.4.70 — Authoritative Conflict Revision Refresh & Cross-Client Retry Boundary: implemented; runtime verification pending.
-- Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock: implemented; runtime verification pending.
+- Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock: implemented; runtime-verified through the available execution gate before Stage 34 integration.
+- Stage 34.1 — Shared Control Intelligence contract/domain foundation: integrated and runtime-verified.
+- Stage 34.2.1 — Backend P0 versioned contracts: integrated and runtime-verified.
+- Stage 34.2.2 — Backend P0 persistence/transaction/application/API foundation: integrated and runtime-verified.
 
-Current sync/platform focus:
-- Preserve authoritative revision refresh before stale-revision retry.
-- Serialize same-key idempotent mutation execution at the PostgreSQL transaction boundary.
-- Keep distinct idempotency keys concurrently executable.
+Current Stage 34 focus:
+- Continue backend P0 boundary hardening with tenant/project context, audit events, revision preconditions and idempotency scope.
+- Preserve authoritative revision refresh and atomic same-key idempotency semantics across clients.
 - Maintain ACK/RETRY/CONFLICT/REJECTED semantics across Web/Desktop/Mobile.
-- Complete runtime verification only when GitHub Actions provides executable job steps and test results.
+- Keep Shared P6/Scheduling, Progress/EVM and Resource/Cost calculations out of backend resource boundaries.
 
 No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics are changed by the current sync-platform gates.
