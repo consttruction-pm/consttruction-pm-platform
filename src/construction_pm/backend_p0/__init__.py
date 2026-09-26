@@ -13,6 +13,7 @@ from .models import (
 )
 from .persistence import SQLiteBackendP0Repository
 from .transactions import SQLiteTransactionManager
+from .resource_envelope import resource_family_for_record, resource_type_for_record, to_resource_envelope
 
 __all__ = [
     "AuditMetadata",
@@ -28,4 +29,7 @@ __all__ = [
     "ProcurementRFQItem",
     "SQLiteBackendP0Repository",
     "SQLiteTransactionManager",
+    "resource_family_for_record",
+    "resource_type_for_record",
+    "to_resource_envelope",
 ]
