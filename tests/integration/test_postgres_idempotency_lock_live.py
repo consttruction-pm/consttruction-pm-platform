@@ -47,7 +47,6 @@ class CountingDelegate:
 
 def _submit(connection, mutation, counter, counter_lock, barrier=None):
     store = PostgresSyncStateStore(connection)
-    store.initialize()
     executor = AtomicSyncExecutor(
         store,
         PostgresTransactionManager(connection),
@@ -57,6 +56,10 @@ def _submit(connection, mutation, counter, counter_lock, barrier=None):
 
 
 def test_same_idempotency_key_executes_delegate_exactly_once():
+    with psycopg.connect(DSN) as setup_connection:
+        PostgresSyncStateStore(setup_connection).initialize()
+        setup_connection.commit()
+
     counter = [0]
     counter_lock = threading.Lock()
     results = []
@@ -85,6 +88,10 @@ def test_same_idempotency_key_executes_delegate_exactly_once():
 
 
 def test_distinct_idempotency_keys_can_execute_concurrently():
+    with psycopg.connect(DSN) as setup_connection:
+        PostgresSyncStateStore(setup_connection).initialize()
+        setup_connection.commit()
+
     counter = [0]
     counter_lock = threading.Lock()
     delegate_barrier = threading.Barrier(2)
