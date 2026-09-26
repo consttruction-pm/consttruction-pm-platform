@@ -14,6 +14,10 @@ from .models import (
     FieldTimecard,
     ProcurementBidComparison,
     ProcurementCommitment,
+    Portfolio,
+    PortfolioProjectLink,
+    PortfolioControlSnapshot,
+    PortfolioDecision,
     ProcurementDelivery,
     ProcurementQuote,
     ProcurementRFQ,
@@ -59,6 +63,14 @@ def resource_type_for_record(record: Record) -> str:
         return "commitment"
     if isinstance(record, ProcurementDelivery):
         return "delivery"
+    if isinstance(record, Portfolio):
+        return "portfolio"
+    if isinstance(record, PortfolioProjectLink):
+        return "project_link"
+    if isinstance(record, PortfolioControlSnapshot):
+        return "control_snapshot"
+    if isinstance(record, PortfolioDecision):
+        return "decision"
     if isinstance(record, ChangeNotice):
         if record.notice_type == "variation":
             return "variation"
@@ -77,6 +89,8 @@ def resource_family_for_record(record: Record) -> str:
         return "change"
     if isinstance(record, (ProcurementQuote, ProcurementBidComparison, PurchaseOrder, ProcurementCommitment, ProcurementDelivery)):
         return "procurement"
+    if isinstance(record, (Portfolio, PortfolioProjectLink, PortfolioControlSnapshot, PortfolioDecision)):
+        return "portfolio"
     if isinstance(record, ChangeNotice):
         return "change"
     if isinstance(record, ProcurementRFQ):
