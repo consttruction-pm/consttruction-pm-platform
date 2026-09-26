@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/portfolio-action-audit-event.v1",
+  "title": "Portfolio Action Audit Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "event_id",
+    "tenant_id",
+    "portfolio_id",
+    "action_id",
+    "portfolio_revision",
+    "event_type",
+    "actor_id",
+    "occurred_at",
+    "action_snapshot"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "portfolio-action-audit-event.v1"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "portfolio_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "portfolio_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved",
+        "rejected",
+        "cancelled",
+        "implemented",
+        "closed"
+      ]
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "action_snapshot": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
