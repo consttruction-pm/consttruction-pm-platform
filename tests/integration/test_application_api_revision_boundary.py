@@ -59,6 +59,7 @@ def test_sync_project_revision_contract_is_versioned():
     assert success["required"] == ["contract_version", "tenant_id", "project_id", "revision"]
     assert success["properties"]["revision"]["maximum"] == 9007199254740991
     assert error["properties"]["error_code"]["const"] == "INVALID_PROJECT_CONTEXT"
+    assert error["required"] == ["contract_version", "tenant_id", "project_id", "error_code"]
 
 
 def test_sync_mutation_contract_caps_expected_revision_at_client_safe_integer():
@@ -85,7 +86,6 @@ def test_mutation_endpoint_rejects_unsafe_expected_revision():
         "disposition": "rejected",
         "error_code": "INVALID_EXPECTED_REVISION",
     }
-    assert error["required"] == ["contract_version", "tenant_id", "project_id", "error_code"]
 
 
 def test_revision_endpoint_returns_authoritative_server_revision():
