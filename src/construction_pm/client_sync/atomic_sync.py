@@ -1,9 +1,9 @@
 from dataclasses import dataclass
+
 from .offline_mutation import OfflineMutation
 from .persistence_contract import SyncStatePersistence
+from .server_idempotency import IdempotencyRecord, mutation_fingerprint
 from .sync_outcome import SyncDisposition, SyncOutcome
-from .server_idempotency import mutation_fingerprint
-from .server_idempotency import IdempotencyRecord
 
 
 class AtomicSyncExecutor:
@@ -17,9 +17,9 @@ class AtomicSyncExecutor:
     def submit(self, mutation: OfflineMutation) -> SyncOutcome:
         fingerprint = mutation_fingerprint(mutation)
         with self.transaction_manager.transaction():
-            lock = getattr(self.persistence, "lock_idempotency", None)
-            if lock is not None:
-                lock(mutation.tenant_id, mutation.project_id, mutation.idempotency_key)
+            self.persistence.lock_idempotency(
+                mutation.tenant_id, mutation.project_id, mutation.idempotency_key
+            )
             existing = self.persistence.get_idempotency(
                 mutation.tenant_id, mutation.project_id, mutation.idempotency_key
             )

@@ -10,14 +10,7 @@ class IdempotentMutationGateway:
     store: InMemoryServerIdempotencyStore
 
     def execute(self, mutation: OfflineMutation, outcome: SyncOutcome) -> SyncOutcome:
-        existing = self.store.lookup(mutation)
-        if existing is not None:
-            if existing.outcome.mutation_id != mutation.mutation_id:
-                raise ValueError("IDEMPOTENCY_KEY_REUSE")
-            return existing.outcome
-
-        self.store.remember(mutation, outcome)
-        return outcome
+        return self.store.execute_once(mutation, lambda: outcome)
 
     def execute_lazy(self, mutation: OfflineMutation, producer) -> SyncOutcome:
         return self.store.execute_once(mutation, producer)
@@ -25,5 +18,9 @@ class IdempotentMutationGateway:
     def conflict(self, mutation: OfflineMutation, error_code: str) -> SyncOutcome:
         return self.execute(
             mutation,
-            SyncOutcome(mutation.mutation_id, SyncDisposition.CONFLICT, error_code=error_code),
+            SyncOutcome(
+                mutation.mutation_id,
+                SyncDisposition.CONFLICT,
+                error_code=error_code,
+            ),
         )
