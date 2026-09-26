@@ -70,6 +70,7 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
+        self._savepoint_counter = 0
         self.connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS portfolio_control_actions (
@@ -340,7 +341,8 @@ class SQLitePortfolioControlActionStore(PortfolioControlActionStore):
         outer = self.connection.in_transaction
         savepoint = None
         if outer:
-            savepoint = "portfolio_action_sp"
+            self._savepoint_counter += 1
+            savepoint = f"portfolio_action_sp_{self._savepoint_counter}"
             self.connection.execute(f"SAVEPOINT {savepoint}")
         else:
             self.connection.execute("BEGIN IMMEDIATE")
@@ -373,16 +375,12 @@ def _event_id(
     action_revision: int,
     event_type: str,
 ) -> str:
-    canonical = "|".join(
-        (
-            tenant_id,
-            portfolio_id,
-            action_id,
-            str(action_revision),
-            event_type,
-        )
+    parts = (tenant_id, portfolio_id, action_id, str(action_revision), event_type)
+    canonical = b"".join(
+        len(part.encode("utf-8")).to_bytes(4, "big") + part.encode("utf-8")
+        for part in parts
     )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _action_from_payload(payload: dict[str, object]) -> PortfolioControlAction:
