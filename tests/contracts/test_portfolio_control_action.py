@@ -4,9 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from construction_pm.application.authorization import AuthorizationError
-
 from construction_pm.application.authorization import (
+    AuthorizationError,
     AuthorizationContext,
     Permission,
     RoleBasedAuthorizationPolicy,
@@ -70,6 +69,12 @@ def test_project_action_requires_project_target() -> None:
         action(target_type="portfolio", target_id="portfolio-1").validate()
 
 
+def test_portfolio_target_must_match_portfolio() -> None:
+    with pytest.raises(ValueError, match="PORTFOLIO_TARGET_MUST_MATCH_PORTFOLIO"):
+        action(target_type="portfolio", target_id="other-portfolio").validate()
+
+
+
 def test_decision_requires_approval_and_decision_metadata() -> None:
     with pytest.raises(ValueError, match="DECISION_ACTION_MUST_REQUIRE_APPROVAL"):
         action(action_type=PortfolioActionType.APPROVE, requires_approval=False).validate()
@@ -119,6 +124,25 @@ def test_request_and_decision_permissions_are_distinct() -> None:
             approved,
             AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"planner"})),
         )
+
+
+def test_portfolio_level_request_requires_admin() -> None:
+    service = PortfolioControlActionService(policy())
+    portfolio_action = action(
+        target_type="portfolio",
+        target_id="portfolio-1",
+        action_type=PortfolioActionType.REQUEST_REVIEW,
+    )
+    with pytest.raises(AuthorizationError):
+        service.authorize_request(
+            portfolio_action,
+            AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"planner"})),
+        )
+    service.authorize_request(
+        portfolio_action,
+        AuthorizationContext("tenant-1", "project-1", "admin-1", frozenset({"admin"})),
+    )
+
 
 
 def test_as_dict_preserves_opaque_authoritative_references() -> None:
