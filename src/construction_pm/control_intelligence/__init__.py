@@ -9,6 +9,7 @@ from .change_claim import ChangeClaimImpact
 from .contracts import ControlFinding, ControlIntelligenceResult, ControlScope, FindingSeverity, ProposedAction, SourceReference
 from .graph import ControlDomain, DependencyEdge, DependencyGraph, DependencyNode, DependencyRelation
 from .impact import ControlImpact, ControlImpactSet, ImpactSeverity, ImpactStatus
+from .portfolio import PortfolioControlSnapshot, PortfolioProjectControlInput, build_portfolio_control_snapshot
 from .query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from .risk import PredictiveScheduleRisk, RiskBand
 from .scenario import ScenarioChange, ScenarioImpact, ScenarioProposal, ScenarioRequest
@@ -20,6 +21,9 @@ __all__ = [
     "ControlImpact",
     "ControlImpactSet",
     "ControlIntelligenceResult",
+    "PortfolioControlSnapshot",
+    "PortfolioProjectControlInput",
+    "build_portfolio_control_snapshot",
     "ControlScope",
     "DependencyEdge",
     "DependencyGraph",
