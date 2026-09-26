@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Protocol
+import json
 
 from .conflict import ConflictContext
 from .server_idempotency import IdempotencyRecord
@@ -20,7 +21,11 @@ class PostgresSyncStateStore:
         )
 
     def lock_idempotency(self, tenant_id: str, project_id: str, key: str) -> None:
-        lock_key = f"{tenant_id}|{project_id}|{key}"
+        lock_key = json.dumps(
+            [tenant_id, project_id, key],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
             (lock_key,),
