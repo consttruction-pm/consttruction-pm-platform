@@ -103,7 +103,7 @@
           },
           "quantity": {
             "type": [
-              "number",
+              "string",
               "null"
             ]
           },
