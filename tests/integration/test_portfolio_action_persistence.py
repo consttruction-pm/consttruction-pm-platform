@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
@@ -18,6 +19,7 @@ from construction_pm.portfolio_action_persistence import (
     PortfolioActionIdempotencyReuse,
     PortfolioRevisionConflict,
     PortfolioActionRevisionConflict,
+    PortfolioActionTransitionMismatch,
     PostgresPortfolioActionStore,
 )
 
@@ -43,7 +45,7 @@ class RecordingConnection:
             return Cursor(self.rows.get(("idem",) + params))
         if sql.startswith("SELECT revision"):
             return Cursor(self.rows.get(("revision",) + params))
-        if sql.startswith("SELECT action_revision"):
+        if sql.startswith("SELECT action_json, action_revision"):
             return Cursor(self.rows.get(("action",) + params))
         return Cursor()
 
@@ -52,6 +54,10 @@ class RecordingConnection:
 
     def rollback(self):
         self.rollbacks += 1
+
+
+def replace_action_for_test(action_value, **changes):
+    return replace(action_value, **changes)
 
 
 def source():
@@ -174,16 +180,26 @@ def test_action_transition_increments_action_revision_and_appends_audit():
     connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
     store = PostgresPortfolioActionStore(connection)
     proposed = store.persist_transition(action())
-    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (1,)
-    transitioned = store.transition(
+    import json
+    connection.rows[("action", "tenant-1", "portfolio-1", "action-1")] = (
+        json.dumps(proposed.action.as_dict()),
+        1,
+    )
+    approved = transition.approve(
         proposed.action,
+        AuthorizationContext("tenant-1", "project-1", "admin-1", frozenset({"admin"})),
+        decided_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
+    )
+    transitioned = store.transition(
+        approved,
         expected_action_revision=1,
         actor_id="admin-1",
         occurred_at=datetime(2026, 9, 27, 13, 5, tzinfo=timezone.utc),
         event_type="approved",
     )
     assert transitioned.action_revision == 2
-    assert transitioned.action.status.value == "proposed"
+    assert transitioned.action.status.value == "approved"
+    assert transitioned.action.decided_by == "admin-1"
     assert any(sql.startswith("INSERT INTO portfolio_control_action_audit") for sql, _ in connection.sql)
 
 def test_stale_action_revision_is_rejected():
