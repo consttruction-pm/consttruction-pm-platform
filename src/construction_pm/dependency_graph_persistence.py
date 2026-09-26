@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
+from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
+
 
 class DependencyRevisionConflict(RuntimeError):
     """Raised when the project dependency graph revision is stale."""
@@ -41,7 +43,8 @@ class DependencyLink:
             raise ValueError("INVALID_DEPENDENCY_LINK")
         if self.source_resource_id == self.target_resource_id:
             raise ValueError("DEPENDENCY_SELF_REFERENCE")
-        if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 0:
+        if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 0
+            or self.revision > MAX_SAFE_PROJECT_REVISION:
             raise ValueError("INVALID_DEPENDENCY_REVISION")
 
 
