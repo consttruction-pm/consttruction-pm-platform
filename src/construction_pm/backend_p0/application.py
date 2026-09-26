@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from construction_pm.application.authorization import (
@@ -11,6 +12,7 @@ from construction_pm.application.authorization import (
 from .errors import BackendApplicationError, ErrorCategory, OptimisticLockError
 from .idempotency import IdempotencyStore, fingerprint
 from .models import Record, record_id, resource_type
+from .persistence import _record_from_payload
 from .repository import BackendP0Repository, StoredRecord
 from .transactions import TransactionManager
 
@@ -53,12 +55,16 @@ class BackendP0ApplicationService:
                     idempotency_key or "",
                     fp,
                     mutation,
-                    replay=lambda: self.repository.get(
-                        record.scope.tenant_id,
-                        record.scope.project_id,
-                        resource_type(record),
-                        record_id(record),
-                    ) or self._raise_replay_missing(record),
+                    serialize=lambda stored: json.dumps(
+                        {
+                            "record": stored.record.as_dict(),
+                            "record_revision": stored.record_revision,
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=str,
+                    ),
+                    deserialize=self._deserialize_stored_record,
                 )
         except OptimisticLockError as exc:
             raise BackendApplicationError(
@@ -72,6 +78,12 @@ class BackendP0ApplicationService:
                 ErrorCategory.AUTHORIZATION,
                 "CROSS_SCOPE_ACCESS",
                 "Authorization context does not match the resource scope",
+            )
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise BackendApplicationError(
+                ErrorCategory.AUTHORIZATION,
+                "FORBIDDEN",
+                "Operation is not authorized",
             )
         return self.repository.get(
             record.scope.tenant_id,
@@ -96,9 +108,9 @@ class BackendP0ApplicationService:
             )
 
     @staticmethod
-    def _raise_replay_missing(record: Record) -> StoredRecord:
-        raise BackendApplicationError(
-            ErrorCategory.CONFLICT,
-            "IDEMPOTENCY_REPLAY_UNAVAILABLE",
-            f"Original idempotent result is missing for {resource_type(record)}:{record_id(record)}",
+    def _deserialize_stored_record(payload: str) -> StoredRecord:
+        snapshot = json.loads(payload)
+        return StoredRecord(
+            _record_from_payload(snapshot["record"]),
+            int(snapshot["record_revision"]),
         )
