@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://construction-pm.local/contracts/schedule-query-result.v1.schema.json",
+  "$id": "https://construction-pm.local/contracts/v1/schedule-query-result.v1",
   "title": "Schedule Query Result v1",
   "type": "object",
   "additionalProperties": false,
