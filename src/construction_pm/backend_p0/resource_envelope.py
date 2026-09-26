@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from .models import ChangeNotice, FieldDailyLog, FieldIssue, ProcurementRFQ, Record, record_id
@@ -42,5 +43,15 @@ def to_resource_envelope(stored: StoredRecord) -> dict[str, Any]:
         "tenant_id": record.scope.tenant_id,
         "project_id": record.scope.project_id,
         "revision": stored.record_revision,
-        "payload": record.as_dict(),
+        "payload": _json_safe(record.as_dict()),
     }
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
