@@ -8,6 +8,29 @@ Work must proceed in parallel whenever technically possible. A PR being unfinish
 
 Only a real technical dependency may block a task. When a dependency exists, convert it into a stable contract/interface, mock, fixture, or test boundary where practical so independent work can continue.
 
+## Mandatory daily start procedure
+Before starting daily work, every team member must read and confirm understanding of:
+- this document,
+- current project status,
+- active engineering rules,
+- assigned daily task and expected output.
+
+No development activity should start before reviewing these rules.
+
+## Development and test environment rule
+The project currently uses:
+- ChatGPT: design, analysis, code review, implementation guidance, test planning, debugging support and preparation of changes.
+- GitHub: source control, team synchronization, version history and controlled CI execution.
+
+ChatGPT is not considered a permanent replacement for a real runtime environment. PostgreSQL, long-running tests, performance tests and full integration verification must be executed in a suitable GitHub/runtime environment when available.
+
+## GitHub Free resource management rule
+To avoid hitting GitHub Free limitations:
+- Daily development changes should use focused tests.
+- Fast CI tests should be preferred for frequent commits.
+- Heavy regression, performance and database-load tests should be scheduled periodically, not on every commit.
+- Test execution must be planned according to available CI resources.
+
 ## Lanes
 
 ### Jalal — Shared Core / Project Controls Intelligence / Integration QA
@@ -66,8 +89,5 @@ Each lane should finish with:
 - tests/evidence where applicable,
 - known blockers explicitly identified,
 - a clear handoff point for integration.
-
-## Current correction
-The previous workflow allowed some of Jalal's work to wait on Hasan's completion. This document replaces that serial dependency with the parallel-lane model above.
 
 Status: Active project working rule.
