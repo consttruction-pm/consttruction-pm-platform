@@ -43,7 +43,12 @@ class DependencyLink:
             raise ValueError("INVALID_DEPENDENCY_LINK")
         if self.source_resource_id == self.target_resource_id:
             raise ValueError("DEPENDENCY_SELF_REFERENCE")
-        if (\n            isinstance(self.revision, bool)\n            or not isinstance(self.revision, int)\n            or self.revision < 0\n            or self.revision > MAX_SAFE_PROJECT_REVISION\n        ):
+        if (
+            isinstance(self.revision, bool)
+            or not isinstance(self.revision, int)
+            or self.revision < 0
+            or self.revision > MAX_SAFE_PROJECT_REVISION
+        ):
             raise ValueError("INVALID_DEPENDENCY_REVISION")
 
 
