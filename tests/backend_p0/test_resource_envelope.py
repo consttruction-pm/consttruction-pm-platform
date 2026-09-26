@@ -103,7 +103,7 @@ def test_resource_api_envelope_keeps_revision_and_exact_decimal_strings():
     assert result["tenant_id"] == "tenant-1"
     assert result["project_id"] == "project-1"
     assert result["revision"] == 1
-    assert result["payload"]["entries"][0]["quantity"] == Decimal("12.5000")
+    assert result["payload"]["entries"][0]["quantity"] == "12.5000"
     connection.close()
 
 
