@@ -16,6 +16,8 @@ from .models import (
     SafetyObservation,
     PunchItem,
     FieldIssue,
+    ChangeCase,
+    ClaimRecord,
     ProcurementRFQ,
     ProcurementRFQItem,
 )
@@ -41,6 +43,8 @@ __all__ = [
     "SafetyObservation",
     "PunchItem",
     "FieldIssue",
+    "ChangeCase",
+    "ClaimRecord",
     "ProcurementRFQ",
     "ProcurementRFQItem",
     "SQLiteBackendP0Repository",

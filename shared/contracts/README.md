@@ -36,6 +36,11 @@ These schemas are authoritative for both Web and Desktop clients.
 - `safety-observation.v1.schema.json`
 - `punch-item.v1.schema.json`
 
+### Change / Claim Core
+
+- `change-case.v1.schema.json`
+- `claim-record.v1.schema.json`
+
 ### Generic resource envelopes
 
 - `p0-field-resource.schema.json`
@@ -44,6 +49,8 @@ These schemas are authoritative for both Web and Desktop clients.
 - `p0-dependency-resource.schema.json`
 
 The concrete contracts define payload semantics; generic P0 resource contracts define the transport/resource envelope and do not replace Shared Core calculations.
+
+Change and Claim records link to schedule/cost/dependency/impact references. Financial quantum, entitlement calculation and schedule impact calculations remain authoritative in their existing domain engines.
 
 Stage 34.2.5 adds attendance/timecard and equipment-status field workflows. Stage 34.2.6 adds inspection, quality, safety and punch/closeout workflows. Field records remain revision-aware and carry explicit evidence/audit boundaries.
 
