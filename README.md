@@ -21,6 +21,8 @@ A web-ready construction project management platform designed as a structured re
 5. Excel/Project exports must use typed numeric/date/duration fields.
 6. Every calculation must be deterministic and testable.
 7. Audit/revision history is append-only for effective project changes.
+8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
+9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
 
 ## Current documented implementation point
 The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current documented sync/platform work is at **Stage 33.4.71 — PostgreSQL Atomic Idempotency Execution Lock**, implemented with runtime verification pending.
