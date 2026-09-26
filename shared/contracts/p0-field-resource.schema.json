@@ -26,7 +26,9 @@
         "quality_record",
         "safety_record",
         "punch_item",
-        "field_photo"
+        "field_photo",
+        "timecard",
+        "equipment_status"
       ]
     },
     "resource_id": {
