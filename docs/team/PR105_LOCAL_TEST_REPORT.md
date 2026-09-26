@@ -32,10 +32,13 @@ Therefore this result is **not** PostgreSQL runtime verification.
 
 A local test double was used against the reconstructed production `AtomicSyncExecutor` control flow to verify the bounded concurrency behavior without pretending it is PostgreSQL.
 
-Result: **2 passed in 0.04s**
+Result: **5 passed in 0.04s**
 
-- same idempotency key: concurrent submissions execute the delegate exactly once;
-- distinct idempotency keys: concurrent submissions execute independently.
+- same idempotency key: concurrent submissions execute the delegate exactly once and replay the saved outcome;
+- distinct idempotency keys: concurrent submissions execute independently;
+- idempotency-key reuse with a different mutation is rejected;
+- the PostgreSQL lock SQL is checked to use `pg_advisory_xact_lock(hashtextextended(...))`;
+- the lock key is checked to include tenant, project, and idempotency key.
 
 This simulation is **not claimed as PostgreSQL runtime verification**. It checks the test logic and atomic/idempotency control flow only.
 
