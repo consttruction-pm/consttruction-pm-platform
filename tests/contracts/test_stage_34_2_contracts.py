@@ -30,3 +30,15 @@ def test_stage_34_2_p0_schemas_include_project_revision_and_audit_contracts() ->
         assert "project_revision" in text
         assert "created_by" in text
         assert "updated_at" in text
+
+
+def test_stage_34_2_5_field_operation_contracts_are_versioned() -> None:
+    root = Path(__file__).parents[2] / "shared" / "contracts"
+    for filename, version in {
+        "field-timecard.v1.schema.json": "field-timecard.v1",
+        "equipment-status-report.v1.schema.json": "equipment-status-report.v1",
+    }.items():
+        payload = json.loads((root / filename).read_text(encoding="utf-8"))
+        assert payload["$id"].endswith(f"/{filename[:-12]}")
+        assert payload["properties"]["contract_version"]["const"] == version
+        assert payload["properties"]["scope"]["$ref"] == "#/$defs/scope"
