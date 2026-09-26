@@ -12,8 +12,8 @@
 ## What is implemented
 
 The sync revision boundary now enforces the JavaScript-safe integer maximum
-`9007199254740991` in both the versioned contract and the Application/API
-integration regression. Unsafe authoritative revisions are rejected with
+`9007199254740991` in the versioned contracts and Application/API integration
+regressions. Unsafe authoritative revisions are rejected with
 `INVALID_PROJECT_REVISION`, and unsafe mutation `expected_revision` values are
 rejected with `INVALID_EXPECTED_REVISION`.
 
@@ -28,10 +28,12 @@ The existing Stage 33.4.70 flow remains:
 
 ## Verification blocker
 
-The latest GitHub Actions runs for the current branch head
-completed as failures before executing workflow steps (`steps=null`, no logs).
-This has also occurred on the immediately preceding runs, so it has not been
-treated as a code-test failure.
+The latest GitHub Actions runs for the current branch head complete within
+seconds with `runner_id=0`, an empty `runner_name`, zero workflow steps, and no
+downloadable job logs. This signature has repeated across the repository's
+Python, PostgreSQL and TypeScript workflows, so it is recorded as a hosted
+runner allocation/infrastructure blocker rather than as an application test
+failure. Runtime verification must remain pending until executable steps run.
 
 ## Help requested
 
