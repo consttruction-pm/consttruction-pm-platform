@@ -166,6 +166,11 @@ def _record_from_payload(payload: dict) -> Record:
         FieldActivityAllocation,
         FieldTimecard,
         EquipmentStatusReport,
+        FieldInspectionItem,
+        FieldInspection,
+        QualityRecord,
+        SafetyObservation,
+        PunchItem,
     )
 
     scope_data = payload["scope"]
@@ -242,6 +247,85 @@ def _record_from_payload(payload: dict) -> Record:
             attributes=payload.get("attributes", {}),
         )
 
+
+    if payload["contract_version"] == "field-inspection.v1":
+        checklist = tuple(
+            FieldInspectionItem(
+                item_id=item["item_id"],
+                criterion_key=item["criterion_key"],
+                result=item["result"],
+                comment_key=item.get("comment_key"),
+            )
+            for item in payload.get("checklist", [])
+        )
+        return FieldInspection(
+            inspection_id=payload["inspection_id"],
+            scope=scope,
+            inspection_type_key=payload["inspection_type_key"],
+            subject_type=payload["subject_type"],
+            subject_id=payload["subject_id"],
+            inspection_date=date.fromisoformat(payload["inspection_date"]),
+            inspector_id=payload["inspector_id"],
+            status=payload["status"],
+            result=payload["result"],
+            checklist=checklist,
+            audit=audit,
+            location_key=payload.get("location_key"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "quality-record.v1":
+        return QualityRecord(
+            record_id=payload["record_id"],
+            scope=scope,
+            category_key=payload["category_key"],
+            severity=payload["severity"],
+            status=payload["status"],
+            title_key=payload["title_key"],
+            reported_by=payload["reported_by"],
+            audit=audit,
+            detail_key=payload.get("detail_key"),
+            location_key=payload.get("location_key"),
+            activity_ids=tuple(payload.get("activity_ids", [])),
+            inspection_id=payload.get("inspection_id"),
+            specification_reference=payload.get("specification_reference"),
+            corrective_action_key=payload.get("corrective_action_key"),
+            disposition_key=payload.get("disposition_key"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "safety-observation.v1":
+        return SafetyObservation(
+            observation_id=payload["observation_id"],
+            scope=scope,
+            category_key=payload["category_key"],
+            severity=payload["severity"],
+            status=payload["status"],
+            title_key=payload["title_key"],
+            observed_by=payload["observed_by"],
+            audit=audit,
+            location_key=payload.get("location_key"),
+            activity_ids=tuple(payload.get("activity_ids", [])),
+            immediate_action_key=payload.get("immediate_action_key"),
+            root_cause_key=payload.get("root_cause_key"),
+            evidence_refs=evidence,
+        )
+    if payload["contract_version"] == "punch-item.v1":
+        return PunchItem(
+            punch_id=payload["punch_id"],
+            scope=scope,
+            category_key=payload["category_key"],
+            priority=payload["priority"],
+            status=payload["status"],
+            title_key=payload["title_key"],
+            reported_by=payload["reported_by"],
+            audit=audit,
+            location_key=payload.get("location_key"),
+            activity_ids=tuple(payload.get("activity_ids", [])),
+            responsible_party_id=payload.get("responsible_party_id"),
+            due_date=date.fromisoformat(payload["due_date"]) if payload.get("due_date") else None,
+            verification_by=payload.get("verification_by"),
+            closeout_code_key=payload.get("closeout_code_key"),
+            evidence_refs=evidence,
+        )
     if payload["contract_version"] == "field-timecard.v1":
         allocations = tuple(
             FieldActivityAllocation(
