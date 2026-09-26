@@ -18,7 +18,7 @@ def resource_type_for_record(record: Record) -> str:
         if record.notice_type == "variation":
             return "variation"
         if record.notice_type == "claim_notice":
-            return "claim"
+            return "notice"
         return "notice"
     raise TypeError(f"Unsupported P0 resource record: {type(record)!r}")
 
