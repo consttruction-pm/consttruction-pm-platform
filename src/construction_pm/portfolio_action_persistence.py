@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Any, Protocol
 
 from .portfolio_control_actions import PortfolioControlAction
@@ -29,6 +30,19 @@ def action_fingerprint(action: PortfolioControlAction) -> str:
     ).hexdigest()
 
 
+@dataclass(frozen=True)
+class PortfolioActionAuditEvent:
+    event_id: str
+    tenant_id: str
+    portfolio_id: str
+    action_id: str
+    portfolio_revision: int
+    event_type: str
+    actor_id: str
+    occurred_at: datetime
+    action_json: str
+
+
 @dataclass
 class PostgresPortfolioActionStore:
     connection: PortfolioActionConnection
@@ -38,6 +52,13 @@ class PostgresPortfolioActionStore:
             "CREATE TABLE IF NOT EXISTS portfolio_control_revisions "
             "(tenant_id TEXT NOT NULL, portfolio_id TEXT NOT NULL, revision BIGINT NOT NULL, "
             "PRIMARY KEY (tenant_id, portfolio_id))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS portfolio_control_action_audit "
+            "(event_id TEXT NOT NULL, tenant_id TEXT NOT NULL, portfolio_id TEXT NOT NULL, "
+            "action_id TEXT NOT NULL, portfolio_revision BIGINT NOT NULL, event_type TEXT NOT NULL, "
+            "actor_id TEXT NOT NULL, occurred_at TEXT NOT NULL, action_json TEXT NOT NULL, "
+            "PRIMARY KEY (event_id), UNIQUE (tenant_id, portfolio_id, action_id, portfolio_revision))"
         )
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS portfolio_control_actions "
@@ -103,6 +124,23 @@ class PostgresPortfolioActionStore:
                 payload,
             ),
         )
+        self.connection.execute(
+            "INSERT INTO portfolio_control_action_audit "
+            "(event_id, tenant_id, portfolio_id, action_id, portfolio_revision, event_type, actor_id, occurred_at, action_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id, portfolio_id, action_id, portfolio_revision) DO NOTHING",
+            (
+                _audit_event_id(persisted),
+                persisted.tenant_id,
+                persisted.portfolio_id,
+                persisted.action_id,
+                persisted.portfolio_revision,
+                persisted.status.value,
+                persisted.decided_by or persisted.requested_by,
+                (persisted.decided_at or persisted.requested_at).isoformat(),
+                payload,
+            ),
+        )
         return persisted
 
     def _find_by_idempotency(
@@ -143,3 +181,49 @@ def _action_from_json(payload: str) -> PortfolioControlAction:
         decided_by=data["decided_by"],
         decided_at=datetime.fromisoformat(data["decided_at"]) if data["decided_at"] else None,
     )
+
+
+    def audit_history(
+        self,
+        tenant_id: str,
+        portfolio_id: str,
+        action_id: str,
+    ) -> tuple[PortfolioActionAuditEvent, ...]:
+        rows = self.connection.execute(
+            "SELECT event_id, portfolio_revision, event_type, actor_id, occurred_at, action_json "
+            "FROM portfolio_control_action_audit "
+            "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
+            "ORDER BY portfolio_revision ASC",
+            (tenant_id, portfolio_id, action_id),
+        ).fetchall()
+        return tuple(
+            PortfolioActionAuditEvent(
+                event_id=row[0],
+                tenant_id=tenant_id,
+                portfolio_id=portfolio_id,
+                action_id=action_id,
+                portfolio_revision=int(row[1]),
+                event_type=row[2],
+                actor_id=row[3],
+                occurred_at=datetime.fromisoformat(row[4]),
+                action_json=row[5],
+            )
+            for row in rows
+        )
+
+
+def _audit_event_id(action: PortfolioControlAction) -> str:
+    parts = (
+        action.tenant_id,
+        action.portfolio_id,
+        action.action_id,
+        str(action.portfolio_revision),
+        action.status.value,
+        action.decided_by or action.requested_by,
+        (action.decided_at or action.requested_at).isoformat(),
+    )
+    canonical = b"".join(
+        len(part.encode("utf-8")).to_bytes(4, "big") + part.encode("utf-8")
+        for part in parts
+    )
+    return hashlib.sha256(canonical).hexdigest()
