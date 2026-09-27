@@ -1,12 +1,36 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 
 export type LanguagePackResource={path:string;bytes:Uint8Array};
-export type ValidatedLanguagePackResources=ReadonlyMap<string,Uint8Array>;
+export interface ValidatedLanguagePackResources extends ReadonlyMap<string,Uint8Array>{}
 
 const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
  manifest.resources.translation,manifest.resources.glossary,manifest.resources.help,manifest.resources.reports,
  manifest.resources.voice_input,manifest.resources.voice_output,manifest.resources.offline_ai_model,
 ].filter((path):path is string=>path!==null);
+
+class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources{
+ private readonly values:Map<string,Uint8Array>;
+ constructor(values:ReadonlyMap<string,Uint8Array>){
+  this.values=new Map(values);
+ }
+ get size():number{return this.values.size;}
+ get(path:string):Uint8Array|undefined{
+  const value=this.values.get(path);
+  return value?new Uint8Array(value):undefined;
+ }
+ has(path:string):boolean{return this.values.has(path);}
+ entries():MapIterator<[string,Uint8Array]>{
+  return this.values.entries().map(([path,bytes])=>[path,new Uint8Array(bytes)] as [string,Uint8Array]);
+ }
+ keys():MapIterator<string>{return this.values.keys();}
+ values():MapIterator<Uint8Array>{
+  return this.values.values().map(bytes=>new Uint8Array(bytes));
+ }
+ [Symbol.iterator]():MapIterator<[string,Uint8Array]>{return this.entries();}
+ forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
+  for(const [key,value] of this.values) callbackfn.call(thisArg,new Uint8Array(value),key,this);
+ }
+}
 
 export function validateLanguagePackResourcePath(path:string):void{
  if(!path || path.includes("\0") || path.startsWith("/") || path.startsWith("\\") || path.includes("\\")){
@@ -33,5 +57,5 @@ export function validateLanguagePackResources(manifest:LanguagePackManifest,reso
  for(const path of declaredSet){
   if(!result.has(path)) throw new Error("LANGUAGE_PACK_RESOURCE_MISSING");
  }
- return result;
+ return new ImmutableLanguagePackResourceMap(result);
 }
