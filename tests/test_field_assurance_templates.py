@@ -129,7 +129,8 @@ def test_invalid_contract_version_is_rejected() -> None:
         invalid.validate()
 
 
-def test_revision_is_part_of_template_scope() -> None:
-    current = template(revision=4).as_dict()
-    stale = template(revision=3).as_dict()
-    assert current["scope"]["project_revision"] != stale["scope"]["project_revision"]
+def test_revision_mismatch_is_rejected() -> None:
+    current = template(revision=4)
+    current.require_scope(scope(4))
+    with pytest.raises(FieldAssuranceTemplateError, match="TEMPLATE_SCOPE_MISMATCH"):
+        current.require_scope(scope(5))
