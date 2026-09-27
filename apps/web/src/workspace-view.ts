@@ -263,6 +263,26 @@ function renderFieldAssurance(
   `;
 }
 
+function renderProcurement(records: WorkspaceState["procurementRecords"], label: string): string {
+  if (!records.length) return "";
+  return `
+    <section class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}">
+      <h2>${escapeHtml(label)}</h2>
+      <div class="cp-field-list">
+        ${records.map((record) => `<article class="cp-field-card" data-procurement-id="${escapeAttribute(record.id)}">
+          <strong>${escapeHtml(record.id)}</strong>
+          <span>${escapeHtml(record.type)} · ${escapeHtml(record.status)}</span>
+          ${record.supplierId ? `<span>Supplier: ${escapeHtml(record.supplierId)}</span>` : ""}
+          ${record.referenceId ? `<span>Ref: ${escapeHtml(record.referenceId)}</span>` : ""}
+          ${record.amount !== null ? `<span>Amount: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</span>` : ""}
+          <span>${record.itemCount} item(s) · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</span>
+          ${record.approvalRef ? `<span>Approval: ${escapeHtml(record.approvalRef)}</span>` : ""}
+        </article>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderChangeClaimControl(
   notices: WorkspaceState["changeNotices"],
   changes: WorkspaceState["changeCases"],
