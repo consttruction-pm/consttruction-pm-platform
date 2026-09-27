@@ -17,6 +17,19 @@ class PortfolioActionIdempotencyReuse(ValueError):
     """Raised when an idempotency key is reused for different action input."""
 
 
+@dataclass(frozen=True)
+class PortfolioActionAuditEvent:
+    event_id: str
+    tenant_id: str
+    portfolio_id: str
+    action_id: str
+    portfolio_revision: int
+    event_type: str
+    actor_id: str
+    occurred_at: str
+    action_fingerprint: str
+
+
 class PortfolioActionConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
 
@@ -109,6 +122,22 @@ class PostgresPortfolioActionStore:
             (persisted.portfolio_revision, action.tenant_id, action.portfolio_id, current_revision),
         )
         self.connection.execute(
+            "INSERT INTO portfolio_control_action_audit "
+            "(event_id, tenant_id, portfolio_id, action_id, portfolio_revision, event_type, actor_id, occurred_at, action_fingerprint) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                _audit_event_id(persisted),
+                persisted.tenant_id,
+                persisted.portfolio_id,
+                persisted.action_id,
+                persisted.portfolio_revision,
+                persisted.status.value,
+                persisted.decided_by or persisted.requested_by,
+                (persisted.decided_at or persisted.requested_at).isoformat(),
+                fingerprint,
+            ),
+        )
+        self.connection.execute(
             "INSERT INTO portfolio_control_actions "
             "(tenant_id, portfolio_id, action_id, idempotency_key, fingerprint, expected_revision, "
             "portfolio_revision, status, action_json) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -174,6 +203,19 @@ class PostgresPortfolioActionStore:
             for row in rows
         )
 
+    def audit_history(
+        self, tenant_id: str, portfolio_id: str, action_id: str
+    ) -> tuple[PortfolioActionAuditEvent, ...]:
+        rows = self.connection.execute(
+            "SELECT event_id, tenant_id, portfolio_id, action_id, portfolio_revision, "
+            "event_type, actor_id, occurred_at, action_fingerprint "
+            "FROM portfolio_control_action_audit "
+            "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
+            "ORDER BY portfolio_revision ASC",
+            (tenant_id, portfolio_id, action_id),
+        ).fetchall()
+        return tuple(PortfolioActionAuditEvent(*row) for row in rows)
+
     def _find_by_idempotency(
         self, tenant_id: str, portfolio_id: str, key: str
     ) -> tuple[str, str] | None:
@@ -183,6 +225,11 @@ class PostgresPortfolioActionStore:
             (tenant_id, portfolio_id, key),
         ).fetchone()
         return None if row is None else (row[0], row[1])
+
+
+def _audit_event_id(action: PortfolioControlAction) -> str:
+    material = "|".join((action.tenant_id, action.portfolio_id, action.action_id, str(action.portfolio_revision), action.status.value))
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
 def _action_from_json(payload: str) -> PortfolioControlAction:
