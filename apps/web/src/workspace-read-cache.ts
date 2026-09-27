@@ -55,7 +55,8 @@ export class CachedWorkspaceReadClient {
       },
     };
 
-    const result = await new WorkspaceReadClient(transport).load(context, options);
+    const snapshotContext = readProjectContext(cached.cache.workspace_read);
+    const result = await new WorkspaceReadClient(transport).load(snapshotContext, options);
     if (!result.ok) {
       throw new Error(result.error.code);
     }
@@ -68,4 +69,28 @@ export class CachedWorkspaceReadClient {
   }
 
   constructor(private readonly cacheReader: WorkspaceReadCacheReader) {}
+}
+
+function readProjectContext(
+  snapshot: Readonly<Record<string, unknown>>,
+): ProjectContext {
+  const value = snapshot.context;
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    typeof (value as Record<string, unknown>).tenant_id !== "string" ||
+    typeof (value as Record<string, unknown>).project_id !== "string" ||
+    !Number.isSafeInteger((value as Record<string, unknown>).revision) ||
+    ((value as Record<string, unknown>).revision as number) < 0
+  ) {
+    throw new Error("INVALID_WORKSPACE_READ_CONTEXT");
+  }
+
+  return {
+    tenant_id: (value as Record<string, string>).tenant_id,
+    project_id: (value as Record<string, string>).project_id,
+    revision: (value as Record<string, number>).revision,
+  };
+}
 }
