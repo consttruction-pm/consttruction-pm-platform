@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.example/contracts/bi-sync-result.v1.schema.json",
+  "title": "BI Sync Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenant_id", "project_id", "operation_id", "status", "external_reference", "message"],
+  "properties": {
+    "tenant_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["accepted", "rejected", "retry"]},
+    "external_reference": {"type": ["string", "null"]},
+    "message": {"type": "string"}
+  }
+}
