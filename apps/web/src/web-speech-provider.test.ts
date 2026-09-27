@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.ts";
-import { createWebSpeechInputAdapter, createWebSpeechOutputAdapter } from "./web-speech-provider.ts";
+import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.js";
+import { createWebSpeechInputAdapter, createWebSpeechOutputAdapter } from "./web-speech-provider.js";
 
 const aiLanguage: AILanguageContext = {
   input_language: "fa-IR", output_language: "fa-IR", project_language: "fa-IR",
