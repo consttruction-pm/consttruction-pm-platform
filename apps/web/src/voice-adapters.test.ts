@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.ts";
-import { voiceCommandToScheduleQuery } from "../../client-sync/src/voice-command.ts";
-import { createWebVoiceAdapters, normalizeWebVoiceCapture, requireWebVoiceOutput } from "./voice-adapters.ts";
+import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.js";
+import { voiceCommandToScheduleQuery } from "../../client-sync/src/voice-command.js";
+import { createWebVoiceAdapters, normalizeWebVoiceCapture, requireWebVoiceOutput } from "./voice-adapters.js";
 
 const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 } as const;
 const aiLanguage: AILanguageContext = {
