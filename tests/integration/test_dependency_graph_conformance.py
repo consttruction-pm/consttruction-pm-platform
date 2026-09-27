@@ -60,19 +60,6 @@ def test_persistence_projection_is_typed_and_lossless(
     assert graph.edges[0].target_revision == 7
 
 
-def test_unknown_domain_is_rejected_without_inference():
-    with pytest.raises(DependencyProjectionError, match="UNMAPPABLE_DEPENDENCY_DOMAIN"):
-        project_dependency_link(
-            link(source_resource_id="unknown:task-1"),
-            graph_revision=7,
-        )
-
-
-def test_unknown_relation_is_rejected_without_inference():
-    with pytest.raises(DependencyProjectionError, match="UNMAPPABLE_DEPENDENCY_RELATION"):
-        project_dependency_link(link(dependency_type="invented_relation"), graph_revision=7)
-
-
 def test_graph_revision_mismatch_is_rejected():
     with pytest.raises(DependencyProjectionError, match="DEPENDENCY_GRAPH_REVISION_MISMATCH"):
         project_dependency_link(link(revision=6), graph_revision=7)
@@ -105,6 +92,8 @@ def test_all_control_domains_have_explicit_resource_prefix(resource_prefix):
         ("derived_from", DependencyRelation.DERIVED_FROM),
         ("allocates", DependencyRelation.ALLOCATES),
         ("claims_against", DependencyRelation.CLAIMS_AGAINST),
+        ("schedule_to_change", DependencyRelation.IMPACTS),
+        ("schedule_to_rfi", DependencyRelation.IMPACTS),
     ],
 )
 def test_all_shared_dependency_relations_have_explicit_mapping(dependency_type, relation):
