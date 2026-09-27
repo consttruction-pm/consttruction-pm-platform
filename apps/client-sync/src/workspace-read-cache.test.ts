@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ProjectContext } from "./api-sync-transport.js";
+import type { SyncProjectContext } from "./api-sync-transport.js";
 import {
   WORKSPACE_CONTROL_ROOM_CACHE_VERSION,
   classifyWorkspaceReadCache,
@@ -9,7 +9,7 @@ import {
   validateWorkspaceReadCache,
 } from "./workspace-read-cache.js";
 
-const context: ProjectContext = {
+const context: SyncProjectContext = {
   tenant_id: "tenant-1",
   project_id: "project-1",
   revision: 7,
