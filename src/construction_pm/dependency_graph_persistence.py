@@ -134,14 +134,9 @@ class PostgresDependencyGraphStore:
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
-        existing = self._find_idempotency(link.tenant_id, link.project_id, idempotency_key)
-        fingerprint = dependency_fingerprint(link)
-        if existing is not None:
-            existing_fingerprint, existing_json, existing_revision = existing
-            if existing_fingerprint != fingerprint:
-                raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
-            return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
-
+        # Lock the project revision before checking idempotency. This serializes
+        # concurrent writes/replays for one project and prevents a same-key race
+        # from reaching the unique constraint as a transaction error.
         row = self.connection.execute(
             "SELECT revision FROM project_dependency_revisions "
             "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
@@ -150,6 +145,15 @@ class PostgresDependencyGraphStore:
         if row is None:
             raise ValueError("DEPENDENCY_PROJECT_NOT_INITIALIZED")
         current = row[0]
+
+        existing = self._find_idempotency(link.tenant_id, link.project_id, idempotency_key)
+        fingerprint = dependency_fingerprint(link)
+        if existing is not None:
+            existing_fingerprint, existing_json, existing_revision = existing
+            if existing_fingerprint != fingerprint:
+                raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
+            return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
+
         if current != expected_graph_revision:
             raise DependencyRevisionConflict(
                 f"DEPENDENCY_REVISION_CONFLICT expected={expected_graph_revision} actual={current}"
