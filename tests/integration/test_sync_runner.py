@@ -174,6 +174,7 @@ def test_transactional_application_gateway_persists_conflict_atomically() -> Non
         def __init__(self):
             super().__init__()
             self.conflicts = {}
+        def lock_idempotency(self, tenant_id, project_id, key): pass
         def get_idempotency(self, tenant_id, project_id, key):
             return self.lookup(OfflineMutation("probe", tenant_id, project_id, 0, "probe", {}, key))
         def put_idempotency(self, record): self._records[(record.tenant_id, record.project_id, record.idempotency_key)] = record
