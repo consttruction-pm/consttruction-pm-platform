@@ -55,7 +55,7 @@ def mutation():
     )
 
 
-def test_atomic_executor_acquires_idempotency_lock_before_lookup_and_commit():
+def test_atomic_executor_requires_lock_before_lookup_and_commit():
     persistence = RecordingPersistence()
     transaction = RecordingTransaction()
 
@@ -65,22 +65,6 @@ def test_atomic_executor_acquires_idempotency_lock_before_lookup_and_commit():
     assert transaction.events == ["begin", "commit"]
     assert persistence.events == [
         ("lock", "tenant", "project", "key-1"),
-        ("get", "tenant", "project", "key-1"),
-        ("put", "key-1"),
-    ]
-
-
-def test_atomic_executor_does_not_require_lock_hook_for_legacy_persistence():
-    class LegacyPersistence(RecordingPersistence):
-        lock_idempotency = None
-
-    persistence = LegacyPersistence()
-    transaction = RecordingTransaction()
-
-    outcome = AtomicSyncExecutor(persistence, transaction, Delegate()).submit(mutation())
-
-    assert outcome.disposition is SyncDisposition.ACKNOWLEDGED
-    assert persistence.events == [
         ("get", "tenant", "project", "key-1"),
         ("put", "key-1"),
     ]

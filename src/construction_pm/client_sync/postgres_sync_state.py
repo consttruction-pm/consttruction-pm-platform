@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from typing import Any, Protocol
-import json
 
 from .conflict import ConflictContext
 from .server_idempotency import IdempotencyRecord
 
+
 class PostgresConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
+
 
 @dataclass
 class PostgresSyncStateStore:
@@ -21,10 +22,9 @@ class PostgresSyncStateStore:
         )
 
     def lock_idempotency(self, tenant_id: str, project_id: str, key: str) -> None:
-        lock_key = json.dumps(
-            [tenant_id, project_id, key],
-            ensure_ascii=False,
-            separators=(",", ":"),
+        lock_key = "|".join(
+            f"{len(value)}:{value}"
+            for value in (tenant_id, project_id, key)
         )
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
@@ -67,9 +67,11 @@ class PostgresSyncStateStore:
             return None
         return ConflictContext(row[0], row[1], row[2], tuple(_loads(row[3])), _loads(row[4]))
 
+
 def _json(value: Any) -> str:
     import json
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
 
 def _loads(value: str) -> Any:
     import json

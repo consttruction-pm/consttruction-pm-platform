@@ -6,6 +6,7 @@ from construction_pm.client_sync.sync_outcome import SyncDisposition, SyncOutcom
 
 class Store:
     def __init__(self): self.record=None
+    def lock_idempotency(self,t,p,k): pass
     def get_idempotency(self,t,p,k): return self.record
     def put_idempotency(self,r): self.record=r
     def save_conflict(self,*a): pass

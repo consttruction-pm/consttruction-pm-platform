@@ -11,6 +11,9 @@ class FakePersistence:
         self.idempotency = {}
         self.conflicts = {}
 
+    def lock_idempotency(self, tenant_id, project_id, key):
+        pass
+
     def get_idempotency(self, tenant_id, project_id, key):
         return self.idempotency.get((tenant_id, project_id, key))
 
