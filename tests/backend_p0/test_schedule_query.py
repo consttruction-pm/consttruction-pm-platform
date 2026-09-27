@@ -88,21 +88,21 @@ def test_application_delegates_to_provider_and_preserves_scope() -> None:
 def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
     service = ScheduleQueryApplicationService(Provider(answer()), policy())
 
-    with pytest.raises(Exception) as cross_scope:
-        service.execute(
-            request(),
-            auth_context=auth(tenant_id="tenant-2"),
-        )
-    assert getattr(cross_scope.value, "category") == ErrorCategory.AUTHORIZATION
-    assert getattr(cross_scope.value, "code") == "CROSS_SCOPE_ACCESS"
+    try:
+        service.execute(request(), auth_context=auth(tenant_id="tenant-2"))
+    except Exception as exc:
+        assert getattr(exc, "category") == ErrorCategory.AUTHORIZATION
+        assert getattr(exc, "code") == "CROSS_SCOPE_ACCESS"
+    else:
+        pytest.fail("cross-scope query was accepted")
 
-    with pytest.raises(Exception) as forbidden:
-        service.execute(
-            request(),
-            auth_context=auth(role="unknown-role"),
-        )
-    assert getattr(forbidden.value, "category") == ErrorCategory.AUTHORIZATION
-    assert getattr(forbidden.value, "code") == "FORBIDDEN"
+    try:
+        service.execute(request(), auth_context=auth(role="unknown-role"))
+    except Exception as exc:
+        assert getattr(exc, "category") == ErrorCategory.AUTHORIZATION
+        assert getattr(exc, "code") == "FORBIDDEN"
+    else:
+        pytest.fail("forbidden query was accepted")
 
 
 @pytest.mark.parametrize(
@@ -121,10 +121,13 @@ def test_application_rejects_provider_result_mismatch(
 ) -> None:
     service = ScheduleQueryApplicationService(Provider(bad_answer), policy())
 
-    with pytest.raises(Exception) as exc:
+    try:
         service.execute(request(), auth_context=auth())
-    assert getattr(exc.value, "category") == ErrorCategory.CONFLICT
-    assert getattr(exc.value, "code") == error
+    except Exception as exc:
+        assert getattr(exc, "category") == ErrorCategory.CONFLICT
+        assert getattr(exc, "code") == error
+    else:
+        pytest.fail(f"provider mismatch was accepted: {error}")
 
 
 def test_api_returns_versioned_source_backed_result() -> None:
