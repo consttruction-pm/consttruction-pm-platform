@@ -100,15 +100,15 @@ def make_service():
     return DependencyGraphApplicationService(store, policy), connection
 
 
-def make_link(resource_id="dependency-1", tenant_id="tenant-a", project_id="project-a"):
+def make_link(resource_id="dependency-1", tenant_id="tenant-a", project_id="project-a", source_resource_id="schedule:task-1", target_resource_id="progress:task-1", dependency_type="schedule_to_progress"):
     return DependencyLink(
         resource_id=resource_id,
         tenant_id=tenant_id,
         project_id=project_id,
         revision=1,
-        source_resource_id="schedule:task-1",
-        target_resource_id="progress:task-1",
-        dependency_type="schedule_to_progress",
+        source_resource_id=source_resource_id,
+        target_resource_id=target_resource_id,
+        dependency_type=dependency_type,
         metadata={},
         source_revision=1,
         target_revision=1,
