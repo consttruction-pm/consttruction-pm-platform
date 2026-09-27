@@ -107,14 +107,17 @@ export function workspaceActivitiesFromSnapshot(
 }
 
 function validateSnapshotIdentity(snapshot: WorkspaceControlRoomSnapshot): void {
+  const MAX_SAFE_REVISION = 9_007_199_254_740_991;
   if (
     !snapshot.context.tenant_id ||
     !snapshot.context.project_id ||
     !Number.isInteger(snapshot.context.revision) ||
-    snapshot.context.revision < 0
+    snapshot.context.revision < 0 ||
+    snapshot.context.revision > MAX_SAFE_REVISION
   ) {
     throw new Error("INVALID_WORKSPACE_CONTEXT");
   }
+
   const columnIds = new Set<string>();
   for (const column of snapshot.columns) {
     if (!column.id || columnIds.has(column.id)) {
