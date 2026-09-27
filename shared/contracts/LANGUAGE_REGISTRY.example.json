@@ -1,5 +1,5 @@
 {
-  "$schema": "./LANGUAGE_REGISTRY.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "schema_version": "1.0",
   "default_language": "en",
   "languages": [
@@ -44,5 +44,7 @@
       }
     }
   ],
-  "title": "Construction PM Language Registry Example"
+  "title": "Construction PM Language Registry Example",
+  "$id": "https://construction-pm.local/contracts/language-registry-example.v1.schema.json",
+  "x-contract-version": "1.0"
 }
