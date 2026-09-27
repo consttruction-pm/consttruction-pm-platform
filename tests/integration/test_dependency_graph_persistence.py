@@ -257,3 +257,31 @@ def test_dependency_metadata_rejects_non_string_keys_before_mutation(metadata):
 
     assert connection.revisions[("T-1", "P-1")] == 0
     assert connection.audit == []
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {1: "one", "1": "string"},
+        {1: "one", 2.0: "two"},
+        {True: "bool", 1: "int"},
+    ],
+)
+def test_dependency_metadata_rejects_mixed_or_colliding_non_string_keys_before_mutation(metadata):
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    store.initialize()
+    store.ensure_project("T-1", "P-1")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_METADATA"):
+        store.persist(
+            link(metadata=metadata),
+            expected_graph_revision=0,
+            idempotency_key="mixed-metadata-keys",
+            actor_id="u-1",
+            occurred_at=now,
+        )
+
+    assert connection.revisions[("T-1", "P-1")] == 0
+    assert connection.audit == []
