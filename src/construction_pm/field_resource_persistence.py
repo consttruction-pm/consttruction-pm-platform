@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
 from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
@@ -74,6 +75,8 @@ class StoredFieldResource:
 class FieldResourceConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
 
+    def transaction(self) -> AbstractContextManager[None]: ...
+
 
 def field_resource_fingerprint(resource: FieldResource) -> str:
     payload = {
@@ -136,64 +139,76 @@ class PostgresFieldResourceStore:
             raise ValueError("FIELD_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
         fingerprint = field_resource_fingerprint(resource)
-        existing = self._find_idempotency(resource.tenant_id, resource.project_id, idempotency_key)
-        if existing is not None:
-            existing_fingerprint, existing_json, existing_revision = existing
-            if existing_fingerprint != fingerprint:
-                raise FieldResourceIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
-            return StoredFieldResource(_resource_from_json(existing_json), existing_revision)
 
-        row = self.connection.execute(
-            "SELECT revision FROM project_field_revisions "
-            "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
-            (resource.tenant_id, resource.project_id),
-        ).fetchone()
-        if row is None:
-            raise ValueError("FIELD_PROJECT_NOT_INITIALIZED")
-        current = row[0]
-        if current != expected_project_revision:
-            raise FieldResourceRevisionConflict(
-                f"FIELD_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
+        with self.connection.transaction():
+            existing = self._find_idempotency(
+                resource.tenant_id, resource.project_id, idempotency_key
             )
+            if existing is not None:
+                return self._resolve_idempotency_replay(existing, fingerprint)
 
-        next_revision = current + 1
-        payload = json.dumps(
-            resource.__dict__, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
-        self.connection.execute(
-            "UPDATE project_field_revisions SET revision=%s "
-            "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
-            (next_revision, resource.tenant_id, resource.project_id, current),
-        )
-        self.connection.execute(
-            "INSERT INTO project_field_resources "
-            "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, project_revision, resource_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-            (
-                resource.tenant_id,
-                resource.project_id,
-                resource.resource_id,
-                idempotency_key,
-                fingerprint,
-                next_revision,
-                payload,
-            ),
-        )
-        self.connection.execute(
-            "INSERT INTO project_field_audit "
-            "(tenant_id, project_id, resource_id, project_revision, event_type, actor_id, occurred_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-            (
-                resource.tenant_id,
-                resource.project_id,
-                resource.resource_id,
-                next_revision,
-                "created",
-                actor_id,
-                occurred_at.isoformat(),
-            ),
-        )
-        return StoredFieldResource(resource, next_revision)
+            row = self.connection.execute(
+                "SELECT revision FROM project_field_revisions "
+                "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+                (resource.tenant_id, resource.project_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("FIELD_PROJECT_NOT_INITIALIZED")
+
+            # Re-check after locking the project revision row. A concurrent request
+            # using the same idempotency key may have committed while this request
+            # waited for the row lock; that request must be replayed, not rejected
+            # as a stale revision.
+            existing = self._find_idempotency(
+                resource.tenant_id, resource.project_id, idempotency_key
+            )
+            if existing is not None:
+                return self._resolve_idempotency_replay(existing, fingerprint)
+
+            current = row[0]
+            if current != expected_project_revision:
+                raise FieldResourceRevisionConflict(
+                    f"FIELD_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
+                )
+
+            next_revision = current + 1
+            payload = json.dumps(
+                resource.__dict__, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            self.connection.execute(
+                "UPDATE project_field_revisions SET revision=%s "
+                "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
+                (next_revision, resource.tenant_id, resource.project_id, current),
+            )
+            self.connection.execute(
+                "INSERT INTO project_field_resources "
+                "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, project_revision, resource_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    resource.tenant_id,
+                    resource.project_id,
+                    resource.resource_id,
+                    idempotency_key,
+                    fingerprint,
+                    next_revision,
+                    payload,
+                ),
+            )
+            self.connection.execute(
+                "INSERT INTO project_field_audit "
+                "(tenant_id, project_id, resource_id, project_revision, event_type, actor_id, occurred_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    resource.tenant_id,
+                    resource.project_id,
+                    resource.resource_id,
+                    next_revision,
+                    "created",
+                    actor_id,
+                    occurred_at.isoformat(),
+                ),
+            )
+            return StoredFieldResource(resource, next_revision)
 
     def get(self, tenant_id: str, project_id: str, resource_id: str) -> StoredFieldResource | None:
         row = self.connection.execute(
@@ -216,6 +231,14 @@ class PostgresFieldResourceStore:
             (row[0], row[1], row[2], datetime.fromisoformat(row[3]))
             for row in rows
         )
+
+    @staticmethod
+    def _resolve_idempotency_replay(existing: tuple[str, str, int], fingerprint: str) -> StoredFieldResource:
+        existing_fingerprint, existing_json, existing_revision = existing
+        if existing_fingerprint != fingerprint:
+            raise FieldResourceIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
+        return StoredFieldResource(_resource_from_json(existing_json), existing_revision)
+
 
     def _find_idempotency(self, tenant_id: str, project_id: str, key: str):
         row = self.connection.execute(
