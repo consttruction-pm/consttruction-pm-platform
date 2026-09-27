@@ -43,3 +43,9 @@ def test_predictive_risk_requires_model_and_sources() -> None:
             RiskBand.LOW, RiskBand.LOW, RiskBand.LOW,
             "title", "detail", (ControlDomain.SCHEDULE,), (), "model-v1"
         )
+
+
+def test_schedule_query_answer_rejects_stale_evidence_revision() -> None:
+    stale = SourceReference("s-stale", "schedule", "/schedule/A1", 11)
+    with pytest.raises(ValueError, match="SCHEDULE_QUERY_SOURCE_REVISION_MISMATCH"):
+        ScheduleQueryAnswer("q-stale", scope(), "schedule.query.result", source_refs=(stale,))
