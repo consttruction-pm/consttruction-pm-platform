@@ -492,3 +492,20 @@ Status: **current implementation track through 34.2.14 completed/merged; documen
 - 34.2.14 — Portfolio Action Transition Integrity: implemented, live PostgreSQL verified, and merged.
 
 Boundary rule: Portfolio Control remains a cross-project read/decision layer and does not duplicate authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations. Portfolio decisions/actions do not directly execute project mutations; application/API authorization and mutation boundaries remain authoritative.
+
+### Stage 34.3 — Web/Site Experience: Control Room + Field Foundations
+Status: **runtime-verified through 2026-09-27**
+- PR #248 — Main Workspace WBS/Activity Grid/Gantt rendering: merged; CI runtime-verified.
+- PR #249 — versioned `workspace-control-room.v1` snapshot contract and Web runtime-test gate: merged; CI runtime-verified.
+- PR #252 — Web projection of existing `control-intelligence-result.v1`: merged; CI runtime-verified.
+- PR #253 — Control Summary rendering with authoritative metrics/findings: merged; CI runtime-verified.
+- PR #255 — `field-daily-log.v1` Web projection and Daily Log rendering: merged; CI runtime-verified.
+- PR #256 — `field-timecard.v1` and `equipment-status-report.v1` Web projections and Control Room panels: merged; CI runtime-verified.
+- Web client continues to consume authoritative contracts; no P6/Scheduling, Progress/EVM, Resource/Cost or financial calculations are implemented in the client.
+
+Next Stage 34.3 implementation gates:
+- versioned read/API integration for Control Room and field projections;
+- inspection/quality/safety/punch workflows;
+- Change/Claim/Document/Procurement Web workflows;
+- AI Copilot/Smart Guide/voice presentation against existing authoritative contracts;
+- Web/Desktop/Mobile parity for the new field workflows.
