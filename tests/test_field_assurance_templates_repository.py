@@ -173,7 +173,7 @@ def test_canonical_application_service_accepts_production_sqlite_repository():
     try:
         repository = SQLiteFieldAssuranceTemplateRepository(connection)
         policy = RoleBasedAuthorizationPolicy({'planner': frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE})})
-        app = FieldAssuranceApplicationService(repository=repository, authorization_policy=policy)
+        app = FieldAssuranceApplicationService(repository=repository, authorization_policy=policy, transaction_manager=SQLiteTransactionManager(connection))
         context = AuthorizationContext('tenant-1', 'project-1', 'user-1', frozenset({'planner'}))
         app.create_template(_template(), context=context, expected_project_revision=4, actor_id='user-1')
         execution = FieldAssuranceExecution(
