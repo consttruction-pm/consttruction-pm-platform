@@ -9,7 +9,7 @@ const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
 ].filter((path):path is string=>path!==null);
 
 export function validateLanguagePackResourcePath(path:string):void{
- if(!path || path.includes("\0") || path.startsWith("/") || path.startsWith("\") || path.includes("\")){
+ if(!path || path.includes("\0") || path.startsWith("/") || path.startsWith("\\") || path.includes("\\")){
   throw new Error("INVALID_LANGUAGE_PACK_RESOURCE_PATH");
  }
  const segments=path.split("/");
