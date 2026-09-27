@@ -158,6 +158,26 @@ class WorkspaceControlRoomReadService:
                     f"Workspace read collection {key} is invalid",
                 )
 
+        for key in (
+            "change_notices",
+            "change_cases",
+            "claims",
+            "change_claim_impacts",
+            "documents",
+            "procurement_rfqs",
+            "procurement_quotes",
+            "procurement_bid_comparisons",
+            "purchase_orders",
+            "procurement_commitments",
+            "procurement_deliveries",
+        ):
+            if key in snapshot and not isinstance(snapshot[key], (list, tuple)):
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "INVALID_WORKSPACE_READ_COLLECTION",
+                    f"Workspace read collection {key} is invalid",
+                )
+
 
 __all__ = [
     "WORKSPACE_CONTROL_ROOM_READ_PATH",
