@@ -103,18 +103,33 @@ class DependencyConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
 
 
+def _canonical_json_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _canonical_json_value(value[key])
+            for key in sorted(value, key=lambda item: str(item))
+        }
+    if isinstance(value, list):
+        return [_canonical_json_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_canonical_json_value(item) for item in value]
+    return value
+
+
 def dependency_fingerprint(link: DependencyLink) -> str:
-    payload = {
-        "resource_id": link.resource_id,
-        "tenant_id": link.tenant_id,
-        "project_id": link.project_id,
-        "source_resource_id": link.source_resource_id,
-        "target_resource_id": link.target_resource_id,
-        "dependency_type": link.dependency_type,
-        "metadata": link.metadata,
-        "source_revision": link.source_revision,
-        "target_revision": link.target_revision,
-    }
+    payload = _canonical_json_value(
+        {
+            "resource_id": link.resource_id,
+            "tenant_id": link.tenant_id,
+            "project_id": link.project_id,
+            "source_resource_id": link.source_resource_id,
+            "target_resource_id": link.target_resource_id,
+            "dependency_type": link.dependency_type,
+            "metadata": link.metadata,
+            "source_revision": link.source_revision,
+            "target_revision": link.target_revision,
+        }
+    )
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
