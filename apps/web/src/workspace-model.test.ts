@@ -9,6 +9,7 @@ import {
   setCalendarMode,
   setLocale,
   setControlSummary,
+  setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
 
@@ -97,6 +98,22 @@ test("control summary can be attached without changing project context", () => {
   };
   const next = setControlSummary(state, summary);
   assert.equal(next.controlSummary?.resultId, "result-1");
+  assert.deepEqual(next.context, context);
+});
+
+
+test("site daily logs attach to the same project workspace", () => {
+  const state = createWorkspaceState(context);
+  const log = {
+    logId: "log-1",
+    logDate: "2026-09-27",
+    locationKey: "tower-a",
+    status: "submitted" as const,
+    entries: [],
+    updatedAt: "2026-09-27T10:00:00Z",
+  };
+  const next = setSiteDailyLogs(state, [log]);
+  assert.equal(next.siteDailyLogs[0]?.logId, "log-1");
   assert.deepEqual(next.context, context);
 });
 
