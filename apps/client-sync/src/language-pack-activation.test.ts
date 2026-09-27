@@ -21,11 +21,12 @@ const resources=()=>[
 ];
 
 test("rejects unsafe resource paths",()=>assert.throws(()=>validateLanguagePackResourcePath("../translation.json"),/INVALID_LANGUAGE_PACK_RESOURCE_PATH/));
+test("rejects Windows separators",()=>assert.throws(()=>validateLanguagePackResourcePath("nested\\translation.json"),/INVALID_LANGUAGE_PACK_RESOURCE_PATH/));
 test("activates only after artifact integrity and resource validation",()=>{
  const store=new AtomicLanguagePackStore();
  const active=store.activate(artifact,manifest(),resources(),()=>true);
  assert.equal(active.manifest.package_id,"construction-pm.language.fa");
- assert.deepEqual([...active.resources["translation.json"]],[1]);
+ assert.deepEqual([...active.resources.get("translation.json")!],[1]);
 });
 test("failed activation preserves the previously active pack",()=>{
  const store=new AtomicLanguagePackStore();
