@@ -111,6 +111,8 @@ class FieldAssuranceApplicationService:
             scope=execution.scope,
             expected_project_revision=expected_project_revision,
         )
+        if execution.executed_by != actor_id:
+            raise AuthorizationError("FIELD_ASSURANCE_EXECUTED_BY_MISMATCH")
         return self.repository.execute(execution)
 
 
