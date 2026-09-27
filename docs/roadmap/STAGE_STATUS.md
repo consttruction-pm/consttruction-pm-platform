@@ -529,3 +529,15 @@ Status: **verified baseline / documentation reconciled**
 - No duplicate implementation of those completed gates is authorized.
 - Current Stage 34.3 remaining gates remain: Document/RFI/Submittal/document linkage Web workflow, Procurement/Commercial Commitments Web workflow, AI Copilot/Smart Guide/voice presentation, cross-client parity, and final Stage 34.3 integration/runtime evidence reconciliation.
 - For Hasan's backend track, the next implementation must be the first missing backend contract/persistence/application boundary required by those remaining gates, starting from current main and only after checking that the needed capability is not already implemented.
+
+### 2026-09-27 — Document/RFI/Submittal Application/API Boundary
+Status: **100% — runtime-verified through PR #280**
+- Added `DocumentApplicationService` for tenant/project-scoped document create/read/update/status-transition orchestration.
+- Existing `p0-document-resource` contract remains authoritative for contract, drawing, correspondence, RFI, Submittal, delay-claim and evidence resources.
+- Existing document persistence remains responsible for idempotent create, expected-revision update, append-only audit and lifecycle persistence.
+- Application transactions now wrap document mutations; authorization and actor identity remain at the Application boundary.
+- Added thin `DocumentAPI` adapter using the existing `api-error.v1` contract.
+- Focused integration coverage includes RFI create/read, Submittal approval, cross-scope/permission rejection, stale-revision conflict and idempotency-key reuse.
+- PR #280 exact head `3fe0881c9efcc6af1cf2ac2ca548d385338dd204` passed Python 3.11, 3.12, 3.13 and all Web/Desktop/Mobile/Client-Sync typechecks.
+- Merge commit: `cac86817e52b25f956d6366940f76dda5a61ded2`.
+- No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
