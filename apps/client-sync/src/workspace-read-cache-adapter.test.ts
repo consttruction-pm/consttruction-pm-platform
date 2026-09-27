@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProjectContext } from "./api-sync-transport.js";
+import type { SyncSyncProjectContext } from "./api-sync-transport.js";
 import {
   WorkspaceReadCacheAdapter,
   type WorkspaceControlRoomReadTransport,
@@ -8,7 +8,7 @@ import {
 } from "./workspace-read-cache-adapter.js";
 import type { WorkspaceControlRoomReadCache } from "./workspace-read-cache.js";
 
-const context: ProjectContext = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
+const context: SyncProjectContext = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
 
 function snapshot(revision = 7): Record<string, unknown> {
   return { contract_version: "workspace-control-room-read.v1", context: { ...context, revision }, workspace: {} };
@@ -49,6 +49,7 @@ test("serves last known snapshot offline and exposes staleness", async () => {
   await adapter.read(context, true);
   const result = await adapter.read({ ...context, revision: 8 }, false);
   assert.equal(result.mode, "offline"); assert.equal(result.state, "stale");
+  assert.ok(result.cache);
   assert.equal(result.cache.source_revision, 7); assert.equal(transport.fetches, 1);
 });
 
@@ -90,7 +91,7 @@ test("online stale cache is replaced only by an authoritative snapshot at the re
   assert.equal(result.mode, "online");
   assert.equal(result.state, "fresh");
   assert.equal(result.cache.source_revision, 8);
-  assert.equal(result.cache.workspace_read.context.revision, 8);
+  assert.equal((result.cache.workspace_read.context as { revision: number }).revision, 8);
   assert.equal(store.cache?.source_revision, 8);
 });
 
@@ -109,6 +110,7 @@ test("reconciles an offline stale snapshot when returning online", async () => {
   await adapter.read(context, true);
   const offline = await adapter.read({ ...context, revision: 8 }, false);
   assert.equal(offline.state, "stale");
+  assert.ok(offline.cache);
   assert.equal(offline.cache.source_revision, 7);
   transport.revision = 8;
   const online = await adapter.read({ ...context, revision: 8 }, true);
