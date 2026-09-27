@@ -188,7 +188,7 @@ class PostgresDependencyGraphStore:
             )
             if json.loads(metadata_json) != link.metadata:
                 raise ValueError("metadata does not round-trip through JSON")
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, RecursionError) as exc:
             raise ValueError("INVALID_DEPENDENCY_METADATA") from exc
         if (
             isinstance(expected_graph_revision, bool)
