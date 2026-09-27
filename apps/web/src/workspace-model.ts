@@ -272,6 +272,18 @@ export function setDocuments(
   };
 }
 
+export function setProcurementRecords(
+  state: WorkspaceState,
+  procurementRecords: readonly WorkspaceProcurementRecord[],
+): WorkspaceState {
+  return {
+    ...state,
+    procurementRecords: procurementRecords.map((record) =>
+      Object.freeze({ ...record, activityIds: [...record.activityIds] }),
+    ),
+  };
+}
+
 export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn): WorkspaceState {
   if (column.formula === null || !column.formula.trim()) {
     throw new Error("FORMULA_REQUIRED");
