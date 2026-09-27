@@ -517,3 +517,15 @@ Current remaining Stage 34.3 gates:
 
 Stale PR note:
 - Earlier Stage 34.3 PRs whose content is already represented by merged current-main gates must not be re-implemented or merged again merely because their branches remain open.
+
+
+### 2026-09-27 — Backend Continuation Reconciliation After PR #273
+Status: **verified baseline / documentation reconciled**
+- Current main baseline at this reconciliation: `76dc682c7418c2d3769bcf5b9334a49586d6b050`.
+- PR #273 (Field Assurance authoritative write guard) is merged; its exact head passed ConstructionPM CI run `36306525146` and Client Typecheck run `36306525137`.
+- Stage 33.4.72–33.4.73 atomic idempotency execution hardening is already runtime-verified through PR #171, including live PostgreSQL same-key serialization and distinct-key concurrency.
+- Job-Step Transaction & Replay Boundary is already runtime-verified through PR #206, covering success, failure/rollback, retry, replay, key reuse, optimistic-lock conflict and same-key concurrency.
+- Existing API/Web-readiness regression coverage verifies ProjectContext/tenant-project isolation, revision/optimistic locking, idempotency, authorization, typed DTOs, transaction rollback and the authoritative Field Assurance write guard.
+- No duplicate implementation of those completed gates is authorized.
+- Current Stage 34.3 remaining gates remain: Document/RFI/Submittal/document linkage Web workflow, Procurement/Commercial Commitments Web workflow, AI Copilot/Smart Guide/voice presentation, cross-client parity, and final Stage 34.3 integration/runtime evidence reconciliation.
+- For Hasan's backend track, the next implementation must be the first missing backend contract/persistence/application boundary required by those remaining gates, starting from current main and only after checking that the needed capability is not already implemented.
