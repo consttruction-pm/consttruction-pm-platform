@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import type {LanguagePackManifest} from "./language-pack-manifest.ts";
+import {validateLanguagePackManifest,type LanguagePackManifest} from "./language-pack-manifest.ts";
 
 export type LanguagePackSignatureVerifier=(payload:Uint8Array,signature:string,keyId:string|null)=>boolean;
 
@@ -54,6 +54,7 @@ export function verifyLanguagePackChecksum(artifact:Uint8Array,manifest:Language
 }
 
 export function verifyLanguagePackIntegrity(artifact:Uint8Array,manifest:LanguagePackManifest,verifySignature:LanguagePackSignatureVerifier):void {
+ validateLanguagePackManifest(manifest);
  if(!verifyLanguagePackChecksum(artifact,manifest)) throw new Error("LANGUAGE_PACK_CHECKSUM_MISMATCH");
  if(!manifest.integrity.signature) throw new Error("LANGUAGE_PACK_SIGNATURE_MISSING");
  const signingPayload=canonicalizeLanguagePackSigningPayload(manifest);
