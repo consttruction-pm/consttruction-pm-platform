@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Construction PM Multilingual AI Language Contract",
+  "type":"object",
+  "required":["input_language","output_language","project_language","terminology_profile","locale","voice_language","capabilities"],
+  "properties": {
+    "input_language":{"type":"string"},
+    "output_language":{"type":"string"},
+    "project_language":{"type":"string"},
+    "terminology_profile":{"type":"string"},
+    "locale":{"type":"string"},
+    "voice_language":{"type":["string","null"]},
+    "capabilities": {
+      "type":"object",
+      "required":["text","voice_input","voice_output","offline_ai"],
+      "properties": {
+        "text":{"type":"boolean"},
+        "voice_input":{"type":"boolean"},
+        "voice_output":{"type":"boolean"},
+        "offline_ai":{"type":"boolean"}
+      }
+    },
+    "provenance_context":{"type":["object","null"]}
+  }
+}
