@@ -219,3 +219,59 @@ def test_dependency_graph_live_idempotency_reuse_does_not_advance_revision() -> 
         assert loaded.graph_revision == 1
         assert store.get(tenant_id, project_id, f"{resource_id}-other") is None
         assert len(store.history(tenant_id, project_id, resource_id)) == 1
+
+
+def test_dependency_graph_live_concurrent_writes_serialize_on_project_revision() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"concurrent-tenant-{suffix}"
+    project_id = f"concurrent-project-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    def make_link(name: str) -> DependencyLink:
+        return DependencyLink(
+            resource_id=f"dependency-{name}-{suffix}",
+            tenant_id=tenant_id,
+            project_id=project_id,
+            revision=1,
+            source_resource_id=f"schedule:{name}-{suffix}",
+            target_resource_id=f"rfi:{name}-{suffix}",
+            dependency_type="schedule_to_rfi",
+            metadata={"relation": "blocks"},
+        )
+
+    with psycopg.connect(DSN) as setup:
+        store = PostgresDependencyGraphStore(setup)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        setup.commit()
+
+    first = psycopg.connect(DSN)
+    second = psycopg.connect(DSN)
+    try:
+        first_store = PostgresDependencyGraphStore(first)
+        second_store = PostgresDependencyGraphStore(second)
+
+        first.execute("BEGIN")
+        first_store.persist(
+            make_link("first"),
+            expected_graph_revision=0,
+            idempotency_key=f"concurrent-first-{suffix}",
+            actor_id="requester-1",
+            occurred_at=created_at,
+        )
+
+        second.execute("BEGIN")
+        second_store.persist(
+            make_link("second"),
+            expected_graph_revision=0,
+            idempotency_key=f"concurrent-second-{suffix}",
+            actor_id="requester-2",
+            occurred_at=created_at,
+        )
+        second.commit()
+
+        first.rollback()
+        assert second_store.get(tenant_id, project_id, f"dependency-second-{suffix}") is not None
+    finally:
+        first.close()
+        second.close()
