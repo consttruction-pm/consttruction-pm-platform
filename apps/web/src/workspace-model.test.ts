@@ -82,3 +82,53 @@ test("duplicate activity ids are rejected", () => {
     /INVALID_ACTIVITY_ROWS/,
   );
 });
+
+test("typed activity cells and Gantt data remain server-projected", () => {
+  const state = createWorkspaceState(context);
+  const next = withActivities(state, [
+    {
+      id: "A-1",
+      wbsId: "W-1",
+      code: "01",
+      name: "Foundation",
+      cells: {
+        start: "2026-09-01T08:00:00Z",
+        finish: "2026-09-05T17:00:00Z",
+        duration: 4,
+        progress: 35,
+      },
+      gantt: {
+        start: "2026-09-01T08:00:00Z",
+        finish: "2026-09-05T17:00:00Z",
+        progressPercent: 35,
+        critical: true,
+      },
+    },
+  ]);
+
+  assert.equal(next.activities[0]?.cells?.duration, 4);
+  assert.equal(next.activities[0]?.gantt?.critical, true);
+  assert.equal(next.activities[0]?.gantt?.progressPercent, 35);
+});
+
+test("invalid Gantt geometry is rejected at the workspace boundary", () => {
+  const state = createWorkspaceState(context);
+  assert.throws(
+    () =>
+      withActivities(state, [
+        {
+          id: "A-1",
+          wbsId: "W-1",
+          code: "01",
+          name: "Foundation",
+          gantt: {
+            start: "2026-09-05",
+            finish: "2026-09-01",
+            progressPercent: 40,
+            critical: false,
+          },
+        },
+      ]),
+    /INVALID_GANTT_DATA/,
+  );
+});
