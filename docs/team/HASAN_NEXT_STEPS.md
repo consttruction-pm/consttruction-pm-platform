@@ -272,3 +272,16 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 - PR #366 was closed without merge after its original branch diverged from the newly advanced `main`; its authorization validation change remains unmerged.
 - A fresh current-main implementation is tracked in PR #369. Its exact head is `5396415bd49ed93d07d12ae84939ab22ed596da3`; GitHub Actions has not yet produced a run/status for this head, so it must not be marked runtime-verified or merged until evidence appears.
 - Next action: verify PR #369 Actions. If a concrete CI failure appears, fix only that failure; if no workflow is emitted, investigate the repository Actions trigger/status rather than bypassing the verification gate.
+
+
+### 2026-09-28 — Current-main reconciliation after PR #394
+
+- PR #394 (Field Assurance canonical reconciliation documentation) is merged to `main` as `8efe211686790dd01a13f6d3b5dd082c891d95cb`.
+- The prior continuation note for PR #369 is stale: PR #369 is closed without merge and must not be revived.
+- Current open Hasan-owned implementation PRs: none.
+- The first concrete open Hasan-owned backend work is Issue #393, **P6 Parity Track — Hasan: Persistence, API & Import/Export**.
+- PR #395 is an active Jalal-owned prerequisite for that track: it establishes the Shared/Core P6 Field Registry and business-object registry seam. Hasan must not duplicate or modify that active Core implementation.
+- PR #395 currently has Client Typecheck green but ConstructionPM CI failing because `shared/contracts/p6-business-object-registry.v1.json` does not declare `$schema`; the failing regression is `tests/integration/test_contract_files_parse.py::test_all_shared_json_contracts_are_valid_json`. This is an evidence-backed blocker in the active Jalal PR, not a reason to bypass CI or create a duplicate backend fix.
+- Once the authoritative P6 registry prerequisite is merged and current `main` is re-read, Hasan's first implementation slice under #393 is persistence/API/import-export for the registry metadata, with tenant/project scope, versioning, typed values, revision/concurrency and deterministic round-trip behavior.
+- Do not redefine P6 scheduling/calendar/formula semantics in the backend. Consume the Shared Core contracts from the owning track.
+- Do not start a backend branch from an unmerged Jalal PR or resurrect stale PR #384; start from the current `main` after the prerequisite is merged.
