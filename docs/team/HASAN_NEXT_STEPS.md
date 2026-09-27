@@ -42,12 +42,11 @@ The backend must:
 
 Stage 34.3 Web/Site Experience is runtime-verified through 2026-09-27 for the completed Control Room and Field workflow slices.
 
-Remaining product gates recorded in `docs/roadmap/STAGE_STATUS.md` include:
-1. Document / RFI / Submittal / document-linkage Web workflow.
-2. Procurement / Commercial Commitments Web workflow.
-3. AI Copilot / Smart Guide / voice presentation.
-4. Web/Desktop/Mobile parity for newly integrated Control Room workflows.
-5. Final Stage 34.3 integration/regression and runtime evidence reconciliation.
+Remaining Stage 34.3 product gates recorded in `docs/roadmap/STAGE_STATUS.md` are:
+1. Voice interaction / speech-to-command UX against versioned query/action contracts.
+2. Web/Desktop/Mobile parity for the expanded Control Room workflows.
+3. Final Stage 34.3 integration/regression and runtime evidence reconciliation.
+Document/RFI/Submittal, Procurement/Commercial, and AI Smart Guide/schedule-query request composition are already implemented and runtime-verified through PRs #280, #281, and #283.
 
 For Hasan, the backend action is to provide or verify the authoritative contracts/persistence/application boundaries required by those client slices, not to duplicate UI behavior.
 
