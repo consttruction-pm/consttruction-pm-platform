@@ -3,7 +3,10 @@ import sqlite3
 
 import pytest
 
+from construction_pm.application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.field_assurance_application import FieldAssuranceApplicationService
+from construction_pm.field_assurance_execution import FieldAssuranceExecution, FieldAssuranceExecutionAnswer
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.field_assurance_templates import (
     FieldAssuranceTemplate,
@@ -161,5 +164,26 @@ def test_application_service_depends_on_repository_protocol():
         )
         service.create_template(_template())
         assert service.read_template(_scope(), "TPL-1", 2) is not None
+    finally:
+        connection.close()
+
+
+def test_canonical_application_service_accepts_production_sqlite_repository():
+    connection = sqlite3.connect(':memory:')
+    try:
+        repository = SQLiteFieldAssuranceTemplateRepository(connection)
+        policy = RoleBasedAuthorizationPolicy({'planner': frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE})})
+        app = FieldAssuranceApplicationService(repository=repository, authorization_policy=policy)
+        context = AuthorizationContext('tenant-1', 'project-1', 'user-1', frozenset({'planner'}))
+        app.create_template(_template(), context=context, expected_project_revision=4, actor_id='user-1')
+        execution = FieldAssuranceExecution(
+            execution_id='EXEC-CANONICAL', scope=_scope(), template_id='TPL-1', template_version=2,
+            answers=(FieldAssuranceExecutionAnswer('I-1', 12.5), FieldAssuranceExecutionAnswer('I-2', 'pass')),
+            executed_by='user-1', executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
+        )
+        saved = app.execute(execution, context=context, expected_project_revision=4, actor_id='user-1')
+        stored = repository.get_execution(_scope(), 'EXEC-CANONICAL')
+        assert stored is not None
+        assert stored.as_dict() == saved.as_dict()
     finally:
         connection.close()
