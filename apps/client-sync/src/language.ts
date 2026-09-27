@@ -2,7 +2,7 @@ export type LanguageDirection = "ltr" | "rtl";
 export interface LanguageCapabilitySet { ui:boolean; help:boolean; aiText:boolean; voiceInput:boolean; voiceOutput:boolean; offlineAi:boolean; }
 export interface InstalledLanguagePack { languageTag:string; version:string; active:boolean; verified:boolean; capabilities:LanguageCapabilitySet; }
 export interface LanguageRegistryEntry { languageTag:string; direction:LanguageDirection; locale:string; fallbackChain:string[]; capabilities:LanguageCapabilitySet; }
-export interface LanguagePreference { preferredLanguage:string; fallbackChain:string[]; installedPacks:InstalledLanguagePack[]; }
+export interface LanguagePreference { preferredLanguage:string; fallbackChain:string[]; installedPacks:InstalledLanguagePack[]; offlinePreferred:boolean; }
 export interface ResolvedLanguage { languageTag:string; source:"preferred"|"fallback"|"default"; direction:LanguageDirection; locale:string; packVersion:string|null; offline:boolean; }
 
 export class ClientLanguageManager {
