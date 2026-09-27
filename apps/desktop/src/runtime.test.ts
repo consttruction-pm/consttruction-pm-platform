@@ -1,3 +1,4 @@
+import { createDesktopVoiceAdapters } from "./voice-adapters.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DesktopRuntime } from "./runtime.ts";
@@ -134,8 +135,7 @@ test("Desktop reconciles stale offline workspace after returning online", async 
   assert.equal(fresh.state, "fresh");
   assert.equal(fresh.cache.source_revision, 8);
   assert.equal(transport.calls, 1);
-})import { createDesktopVoiceAdapters } from "./voice-adapters.ts";
-;
+});
 test("desktop runtime exposes configured voice adapter boundary", () => {
   const runtime = new DesktopRuntime();
   const adapters = createDesktopVoiceAdapters({
