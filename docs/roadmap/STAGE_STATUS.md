@@ -630,3 +630,12 @@ Status: **runtime-verified through PR #334**
 - Merge commit: `3942d9fd2df466e8c9c09157a80a0b979b12b9da`.
 - The cross-client parity gate is therefore runtime-verified. Remaining Stage 34.3 work is provider-specific voice UX/integration and final integration/regression evidence reconciliation.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+
+
+### 2026-09-27 — Portfolio Query Application/API Boundary
+Status: **runtime-verified through PR #336**
+- Added the missing versioned `portfolio-control-snapshot.v1` Application/API adapter over the existing authoritative Portfolio Control Snapshot/read-model model.
+- Tenant scope and `project.read` authorization are enforced at the Application boundary; portfolio metrics remain supplied by the authoritative read model.
+- PR #336 exact implementation head `a1d81740719827e0ed91ca4a075bf631abc64405` passed Client Typecheck run **36348158270** and ConstructionPM CI run **36348158292**.
+- Merge commit: `181d00bb583d5a523ee0479c72e896caff3df61a`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
