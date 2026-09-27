@@ -54,6 +54,8 @@ _RELATION_BY_TYPE = {
     "cost_to_schedule": DependencyRelation.IMPACTS,
     "change_to_schedule": DependencyRelation.IMPACTS,
     "claim_to_change": DependencyRelation.CLAIMS_AGAINST,
+    "schedule_to_change": DependencyRelation.IMPACTS,
+    "schedule_to_rfi": DependencyRelation.IMPACTS,
 }
 
 
