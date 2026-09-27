@@ -9,6 +9,7 @@ from typing import Any, Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .backend_p0.transactions import SQLiteTransactionManager
+from .field_assurance_execution import FieldAssuranceExecution, FieldAssuranceExecutionError
 from .field_assurance_templates import (
     FieldAssuranceTemplate,
     FieldAssuranceTemplateError,
@@ -20,72 +21,6 @@ from .field_assurance_templates import (
 
 class FieldAssuranceTemplatePersistenceError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class FieldAssuranceExecution:
-    execution_id: str
-    template_id: str
-    template_version: int
-    scope: BackendScope
-    answers: tuple[tuple[str, object], ...]
-    executed_by: str
-    executed_at: datetime
-
-    def validate(self, template: FieldAssuranceTemplate) -> None:
-        if self.template_id != template.template_id or self.template_version != template.template_version:
-            raise FieldAssuranceTemplatePersistenceError("TEMPLATE_VERSION_MISMATCH")
-        if self.scope != template.scope:
-            raise FieldAssuranceTemplatePersistenceError("TEMPLATE_SCOPE_MISMATCH")
-        if not isinstance(self.execution_id, str) or not self.execution_id.strip():
-            raise FieldAssuranceTemplatePersistenceError("INVALID_EXECUTION_ID")
-        if not isinstance(self.executed_by, str) or not self.executed_by.strip():
-            raise FieldAssuranceTemplatePersistenceError("INVALID_EXECUTED_BY")
-        if self.executed_at.tzinfo is None or self.executed_at.utcoffset() is None:
-            raise FieldAssuranceTemplatePersistenceError("EXECUTED_AT_MUST_BE_TIMEZONE_AWARE")
-
-        expected = {item.item_id: item for item in template.items}
-        seen: set[str] = set()
-        for item_id, value in self.answers:
-            if item_id in seen:
-                raise FieldAssuranceTemplatePersistenceError("DUPLICATE_EXECUTION_ANSWER")
-            seen.add(item_id)
-            item = expected.get(item_id)
-            if item is None:
-                raise FieldAssuranceTemplatePersistenceError("UNKNOWN_EXECUTION_ITEM")
-            if item.input_type is FieldAssuranceTemplateInputType.BOOLEAN and not isinstance(value, bool):
-                raise FieldAssuranceTemplatePersistenceError("INVALID_BOOLEAN_ANSWER")
-            if item.input_type is FieldAssuranceTemplateInputType.SELECT and (
-                not isinstance(value, str) or value not in item.options
-            ):
-                raise FieldAssuranceTemplatePersistenceError("INVALID_SELECT_ANSWER")
-            if item.input_type is FieldAssuranceTemplateInputType.TEXT and (
-                not isinstance(value, str) or not value.strip()
-            ):
-                raise FieldAssuranceTemplatePersistenceError("INVALID_TEXT_ANSWER")
-            if item.input_type is FieldAssuranceTemplateInputType.NUMBER:
-                try:
-                    Decimal(str(value))
-                except Exception as exc:
-                    raise FieldAssuranceTemplatePersistenceError("INVALID_NUMBER_ANSWER") from exc
-
-        if any(item.required and item.item_id not in seen for item in template.items):
-            raise FieldAssuranceTemplatePersistenceError("MISSING_REQUIRED_ANSWER")
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "execution_id": self.execution_id,
-            "template_id": self.template_id,
-            "template_version": self.template_version,
-            "scope": {
-                "tenant_id": self.scope.tenant_id,
-                "project_id": self.scope.project_id,
-                "project_revision": self.scope.project_revision,
-            },
-            "answers": {item_id: value for item_id, value in self.answers},
-            "executed_by": self.executed_by,
-            "executed_at": self.executed_at.isoformat(),
-        }
 
 
 class FieldAssuranceTemplateRepository(Protocol):
@@ -169,6 +104,7 @@ class SQLiteFieldAssuranceTemplateRepository:
         return None if row is None else _template_from_dict(json.loads(row[0]))
 
     def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
+        execution.scope.validate()
         template = self.get_template(execution.scope, execution.template_id, execution.template_version)
         if template is None:
             existing = self.connection.execute(
@@ -180,7 +116,10 @@ class SQLiteFieldAssuranceTemplateRepository:
             if existing is not None:
                 raise FieldAssuranceTemplatePersistenceError("TEMPLATE_VERSION_MISMATCH")
             raise FieldAssuranceTemplatePersistenceError("TEMPLATE_NOT_FOUND")
-        execution.validate(template)
+        try:
+            execution.validate_against(template)
+        except FieldAssuranceExecutionError as exc:
+            raise FieldAssuranceTemplatePersistenceError(str(exc)) from exc
         payload = json.dumps(execution.as_dict(), sort_keys=True, separators=(",", ":"), default=_json_default)
         row = self.connection.execute(
             """SELECT payload_json FROM field_assurance_executions
@@ -201,6 +140,9 @@ class SQLiteFieldAssuranceTemplateRepository:
             ),
         )
         return execution
+
+    def execute(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
+        return self.create_execution(execution)
 
     def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None:
         scope.validate()
@@ -264,10 +206,13 @@ def _execution_from_dict(payload: Mapping[str, Any]) -> FieldAssuranceExecution:
     scope_data = payload["scope"]
     return FieldAssuranceExecution(
         execution_id=str(payload["execution_id"]),
+        scope=BackendScope(str(scope_data["tenant_id"]), str(scope_data["project_id"]), int(scope_data["project_revision"])),
         template_id=str(payload["template_id"]),
         template_version=int(payload["template_version"]),
-        scope=BackendScope(str(scope_data["tenant_id"]), str(scope_data["project_id"]), int(scope_data["project_revision"])),
-        answers=tuple(payload.get("answers", {}).items()),
+        answers=tuple(
+            __import__("construction_pm.field_assurance_execution", fromlist=["FieldAssuranceExecutionAnswer"]).FieldAssuranceExecutionAnswer(item_id, value)
+            for item_id, value in payload.get("answers", {}).items()
+        ),
         executed_by=str(payload["executed_by"]),
         executed_at=datetime.fromisoformat(str(payload["executed_at"])),
     )
