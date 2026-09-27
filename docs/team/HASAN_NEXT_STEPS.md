@@ -90,7 +90,7 @@ Shared Core remains authoritative for shared calculation semantics.
 
 ## Next point
 
-Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Prefer Document/RFI/Submittal backend linkage or Procurement/Commercial backend integration only where current `main` does not already provide the required contract.
+Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Document/RFI/Submittal backend Application/API boundary is now implemented and runtime-verified through PR #280. The next Hasan-owned selection is therefore the first actually missing Procurement/Commercial Application/API integration required by the remaining Stage 34.3 Web workflow; do not duplicate the existing procurement persistence/core contract.
 
 Do not revive stale PRs merely because they remain open.
 
