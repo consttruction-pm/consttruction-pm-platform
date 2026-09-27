@@ -25,24 +25,53 @@ export type WorkspaceEquipmentStatus = Readonly<{
   meterHours: string | null;
 }>;
 
-type ProjectScope = {
+export type ProjectScope = {
   tenant_id: string;
   project_id: string;
   project_revision: number;
 };
 
+export type FieldTimecardSnapshot = {
+  contract_version: typeof FIELD_TIMECARD_VERSION;
+  timecard_id: string;
+  scope: ProjectScope;
+  person_id: string;
+  log_date: string;
+  workplace_key: string;
+  attendance_status: AttendanceStatus;
+  start_at?: string | null;
+  end_at?: string | null;
+  activity_allocations?: readonly { activity_id: string; quantity: string; unit: string }[];
+  audit: {
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+  };
+  evidence_refs?: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
+export type EquipmentStatusSnapshot = {
+  contract_version: typeof EQUIPMENT_STATUS_VERSION;
+  report_id: string;
+  scope: ProjectScope;
+  equipment_id: string;
+  report_date: string;
+  workplace_key: string;
+  status: EquipmentStatus;
+  breakdown_cause_key?: string | null;
+  reported_by: string;
+  activity_allocations?: readonly { activity_id: string; quantity: string; unit: string }[];
+  meter_hours?: string | null;
+  audit: {
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+  };
+  evidence_refs?: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
 export function projectTimecard(
-  snapshot: {
-    contract_version: typeof FIELD_TIMECARD_VERSION;
-    timecard_id: string;
-    scope: ProjectScope;
-    person_id: string;
-    log_date: string;
-    workplace_key: string;
-    attendance_status: AttendanceStatus;
-    start_at?: string | null;
-    end_at?: string | null;
-  },
+  snapshot: FieldTimecardSnapshot,
   context: ProjectScope,
 ): WorkspaceTimecard {
   if (snapshot.contract_version !== FIELD_TIMECARD_VERSION) {
@@ -74,18 +103,7 @@ export function projectTimecard(
 }
 
 export function projectEquipmentStatus(
-  snapshot: {
-    contract_version: typeof EQUIPMENT_STATUS_VERSION;
-    report_id: string;
-    scope: ProjectScope;
-    equipment_id: string;
-    report_date: string;
-    workplace_key: string;
-    status: EquipmentStatus;
-    breakdown_cause_key?: string | null;
-    reported_by: string;
-    meter_hours?: string | null;
-  },
+  snapshot: EquipmentStatusSnapshot,
   context: ProjectScope,
 ): WorkspaceEquipmentStatus {
   if (snapshot.contract_version !== EQUIPMENT_STATUS_VERSION) {

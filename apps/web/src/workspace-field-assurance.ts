@@ -31,6 +31,84 @@ type ProjectScope = {
   project_revision: number;
 };
 
+export type InspectionSnapshot = {
+  contract_version: typeof FIELD_INSPECTION_VERSION;
+  inspection_id: string;
+  scope: ProjectScope;
+  inspection_type_key: string;
+  subject_type: string;
+  subject_id: string;
+  location_key?: string | null;
+  inspection_date: string;
+  inspector_id: string;
+  status: InspectionStatus;
+  result: InspectionResult;
+  checklist: readonly {
+    item_id: string;
+    criterion_key: string;
+    result: "pass" | "fail" | "na";
+    comment_key?: string | null;
+  }[];
+  audit: { created_by: string; created_at: string; updated_at: string };
+  evidence_refs?: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
+export type QualityRecordSnapshot = {
+  contract_version: typeof QUALITY_RECORD_VERSION;
+  record_id: string;
+  scope: ProjectScope;
+  category_key: string;
+  severity: QualitySeverity;
+  status: QualityStatus;
+  title_key: string;
+  reported_by: string;
+  detail_key?: string | null;
+  location_key?: string | null;
+  activity_ids?: readonly string[];
+  inspection_id?: string | null;
+  specification_reference?: string | null;
+  corrective_action_key?: string | null;
+  disposition_key?: string | null;
+  audit: { created_by: string; created_at: string; updated_at: string };
+  evidence_refs: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
+export type SafetyObservationSnapshot = {
+  contract_version: typeof SAFETY_OBSERVATION_VERSION;
+  observation_id: string;
+  scope: ProjectScope;
+  category_key: string;
+  severity: SafetySeverity;
+  status: SafetyStatus;
+  title_key: string;
+  observed_by: string;
+  location_key?: string | null;
+  activity_ids?: readonly string[];
+  immediate_action_key?: string | null;
+  root_cause_key?: string | null;
+  audit: { created_by: string; created_at: string; updated_at: string };
+  evidence_refs: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
+export type PunchItemSnapshot = {
+  contract_version: typeof PUNCH_ITEM_VERSION;
+  punch_id: string;
+  scope: ProjectScope;
+  category_key: string;
+  priority: PunchPriority;
+  status: PunchStatus;
+  title_key: string;
+  reported_by: string;
+  location_key?: string | null;
+  activity_ids?: readonly string[];
+  responsible_party_id?: string | null;
+  due_date?: string | null;
+  verification_by?: string | null;
+  closeout_code_key?: string | null;
+  audit: { created_by: string; created_at: string; updated_at: string };
+  evidence_refs: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+};
+
 export type WorkspaceQualityRecord = Readonly<{
   recordId: string;
   categoryKey: string;

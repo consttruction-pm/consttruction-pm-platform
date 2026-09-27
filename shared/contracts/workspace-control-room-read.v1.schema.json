@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/workspace-control-room-read/v1",
+  "title": "Construction PM Workspace Control Room Read v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "context",
+    "workspace",
+    "field_daily_logs",
+    "field_issues",
+    "field_timecards",
+    "equipment_status_reports",
+    "inspections",
+    "quality_records",
+    "safety_observations",
+    "punch_items"
+  ],
+  "properties": {
+    "contract_version": { "const": "workspace-control-room-read.v1" },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "revision"],
+      "properties": {
+        "tenant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      }
+    },
+    "workspace": {
+      "$ref": "constructionpm://contracts/workspace-control-room/v1"
+    },
+    "control_intelligence": {
+      "type": ["object", "null"],
+      "$ref": "constructionpm://contracts/control-intelligence-result/v1"
+    },
+    "field_daily_logs": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/field-daily-log.v1" }
+    },
+    "field_issues": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/field-issue.v1" }
+    },
+    "field_timecards": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/field-timecard.v1" }
+    },
+    "equipment_status_reports": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/equipment-status-report.v1" }
+    },
+    "inspections": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/field-inspection.v1" }
+    },
+    "quality_records": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/quality-record.v1" }
+    },
+    "safety_observations": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/safety-observation.v1" }
+    },
+    "punch_items": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/punch-item.v1" }
+    }
+  }
+}
