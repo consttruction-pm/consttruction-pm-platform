@@ -122,7 +122,7 @@ def test_punch_cannot_close_before_verification():
         punch = PunchItem(
             "P-1", _scope(), "closeout", "high", "in_progress",
             "punch.title", "user-1", _audit(),
-            responsible_party_id="sub-1", due_date=date(2026, 10, 1),
+            responsible_party_id="sub-1", verification_by="user-1", due_date=date(2026, 10, 1),
             evidence_refs=(_evidence(),)
         )
         assert api.save(punch, auth_context=_auth(), idempotency_key="p-1")["record_revision"] == 1
