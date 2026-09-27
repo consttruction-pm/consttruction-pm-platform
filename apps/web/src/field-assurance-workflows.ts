@@ -49,7 +49,16 @@ const punchTransitions: Record<PunchStatus, readonly PunchStatus[]> = {
 };
 
 export function canTransition(transition: FieldAssuranceTransition): boolean {
-  return allowedTargets(transition.resource, transition.from).includes(transition.to);
+  switch (transition.resource) {
+    case "inspection":
+      return inspectionTransitions[transition.from].includes(transition.to);
+    case "quality_record":
+      return qualityTransitions[transition.from].includes(transition.to);
+    case "safety_observation":
+      return safetyTransitions[transition.from].includes(transition.to);
+    case "punch_item":
+      return punchTransitions[transition.from].includes(transition.to);
+  }
 }
 
 export function assertTransition(transition: FieldAssuranceTransition): void {
