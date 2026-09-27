@@ -788,3 +788,12 @@ Status: **100% — implemented, merged and runtime-verified through PR #359**
 - PR #356 control-result provenance hardening is already merged on `main`.
 - PR #359 portability contract-version hardening is already merged and runtime-verified.
 - Next Hasan work requires a fresh current-main/open-PR inspection and a concrete missing backend boundary; do not revive stale PRs or duplicate client/provider ownership.
+
+
+### 2026-09-28 — Portfolio Decision Read Contract Version
+Status: **100% — implemented, merged and runtime-verified through PR #361**
+- `PortfolioDecisionRead` now preserves the required `contract_version=1.0` identity from the shared `portfolio-decision-read` v1 contract and rejects unsupported versions.
+- Regression coverage verifies contract identity and fail-closed validation.
+- PR #361 exact implementation head `111121c583915622f4e8eb76e0354b8d3c9b2941` passed ConstructionPM CI **36351931398** and Client Typecheck **36351931153**.
+- Merge commit: `e05364853669171789cbdb20ced42637cd9737da`.
+- No portfolio lifecycle or Shared Core calculation semantics changed.
