@@ -22,11 +22,22 @@ class Cursor:
         return self._rows
 
 
+class Transaction:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+
 class Connection:
     def __init__(self):
         self.revisions = {}
         self.links = {}
         self.audit = []
+
+    def transaction(self):
+        return Transaction()
 
     def execute(self, sql, params=()):
         if sql.startswith("INSERT INTO project_dependency_revisions"):
