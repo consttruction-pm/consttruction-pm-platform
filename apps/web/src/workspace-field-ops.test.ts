@@ -9,6 +9,11 @@ import {
 } from "./workspace-field-ops.js";
 
 const context = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 };
+const audit = {
+  created_by: "user-1",
+  created_at: "2026-09-27T06:00:00Z",
+  updated_at: "2026-09-27T07:00:00Z",
+};
 
 test("timecard projection preserves attendance without recalculation", () => {
   const card = projectTimecard({
@@ -19,6 +24,7 @@ test("timecard projection preserves attendance without recalculation", () => {
     log_date: "2026-09-27",
     workplace_key: "tower-a",
     attendance_status: "present",
+    audit,
     start_at: "2026-09-27T07:30:00Z",
     end_at: "2026-09-27T16:30:00Z",
   }, context);
@@ -38,6 +44,7 @@ test("stale timecards are rejected", () => {
     log_date: "2026-09-27",
     workplace_key: "tower-a",
     attendance_status: "late",
+    audit,
   }, context), /STALE_FIELD_TIMECARD_SCOPE/);
 });
 
@@ -53,6 +60,7 @@ test("equipment projection preserves meter hours as transport text", () => {
     breakdown_cause_key: "hydraulic",
     reported_by: "user-1",
     meter_hours: "1240.50",
+    audit,
   }, context);
 
   assert.equal(report.status, "broken");
@@ -71,5 +79,6 @@ test("invalid equipment meter values are rejected", () => {
     status: "active",
     reported_by: "user-1",
     meter_hours: "-1",
+    audit,
   }, context), /INVALID_EQUIPMENT_METER_HOURS/);
 });
