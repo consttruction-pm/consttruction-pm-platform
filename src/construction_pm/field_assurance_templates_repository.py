@@ -171,6 +171,14 @@ class SQLiteFieldAssuranceTemplateRepository:
     def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
         template = self.get_template(execution.scope, execution.template_id, execution.template_version)
         if template is None:
+            existing = self.connection.execute(
+                """SELECT 1 FROM field_assurance_templates
+                   WHERE tenant_id=? AND project_id=? AND template_id=?
+                   LIMIT 1""",
+                (execution.scope.tenant_id, execution.scope.project_id, execution.template_id),
+            ).fetchone()
+            if existing is not None:
+                raise FieldAssuranceTemplatePersistenceError("TEMPLATE_VERSION_MISMATCH")
             raise FieldAssuranceTemplatePersistenceError("TEMPLATE_NOT_FOUND")
         execution.validate(template)
         payload = json.dumps(execution.as_dict(), sort_keys=True, separators=(",", ":"), default=_json_default)
