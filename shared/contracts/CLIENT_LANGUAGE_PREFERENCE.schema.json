@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Construction PM Client Language Preference",
+  "type":"object",
+  "required":["preferred_language","fallback_chain","installed_packs","offline_preferred"],
+  "properties": {
+    "preferred_language":{"type":"string"},
+    "fallback_chain":{"type":"array","items":{"type":"string"}},
+    "installed_packs":{"type":"array","items":{"type":"object","required":["language_tag","version","active","verified"],"properties":{"language_tag":{"type":"string"},"version":{"type":"string"},"active":{"type":"boolean"},"verified":{"type":"boolean"}}}},
+    "offline_preferred":{"type":"boolean"}
+  }
+}
