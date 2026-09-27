@@ -693,3 +693,13 @@ Status: **100% — final integration/evidence gate runtime-verified**
 - Desktop and Mobile remain intentionally provider-neutral because no concrete runtime/provider dependency is present in those clients; adding an invented provider dependency would violate the existing provider-ownership boundary.
 - Stage 34.3 therefore has no remaining implementation or runtime-evidence gate in the current scope.
 - No backend voice endpoint, Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics were changed by this final reconciliation.
+
+### 2026-09-28 — Stage 87.2 Web Language Pack Lifecycle Integration
+Status: **100% — implemented, merged and runtime-verified through PR #345**
+- Web shell/runtime now exposes the existing shared `LanguagePackClientRuntime` rather than duplicating lifecycle logic.
+- Executable Web regression coverage verifies activation, update, rollback, offline activation, and preservation of the active snapshot when an update fails.
+- PR #345 exact final implementation head `b55869f697dd6fa17aee0df57598984b66bef84f` passed Client Typecheck run `36349629810` and ConstructionPM CI run `36349629807`.
+- PR #345 merged to `main` as `fe626add2c658065af81a9af5e902efbc37f1eb7`.
+- The earlier Web attempt in PR #327 is superseded and remains closed; no duplicate backend/resource-validation boundary was revived.
+- Remaining Issue #89 items are release/distribution certification concerns and are not counted as Stage 87.2 implementation gaps.
+- No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
