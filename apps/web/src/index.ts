@@ -15,3 +15,4 @@ export * from "./workspace-read-api.js";
 export * from "./workspace-change-claim.js";
 
 export * from "./workspace-document.js";
+export * from "./workspace-procurement.js";
