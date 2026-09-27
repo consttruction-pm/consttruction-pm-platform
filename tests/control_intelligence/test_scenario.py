@@ -20,3 +20,54 @@ def test_scenario_proposal_cannot_be_authoritative() -> None:
     assert proposal.authoritative_mutation_allowed is False
     with pytest.raises(ValueError, match="SCENARIO_CANNOT_MUTATE"):
         ScenarioProposal("scenario-1", ControlScope("tenant-1", "project-1", 7), impacts=proposal.impacts, proposed_changes=proposal.proposed_changes, authoritative_mutation_allowed=True)
+
+
+def test_scenario_request_rejects_stale_evidence_revision() -> None:
+    with pytest.raises(ValueError, match="SCENARIO_REQUEST_SOURCE_REVISION_MISMATCH"):
+        ScenarioRequest(
+            "scenario-1",
+            ControlScope("tenant-1", "project-1", 8),
+            "user-1",
+            "scenario.delay_activity",
+            (change(),),
+            source_refs=(source(),),
+        )
+
+
+def test_scenario_request_rejects_change_evidence_revision_drift() -> None:
+    stale_change = ScenarioChange(
+        "change-1",
+        ControlDomain.SCHEDULE,
+        "activity",
+        "A1",
+        "set_start",
+        {"value": "2030-01-01"},
+        (SourceReference("schedule-1", "schedule", "/schedule/schedule-1", 8),),
+    )
+    with pytest.raises(ValueError, match="SCENARIO_CHANGE_SOURCE_REVISION_MISMATCH"):
+        ScenarioRequest(
+            "scenario-1",
+            ControlScope("tenant-1", "project-1", 7),
+            "user-1",
+            "scenario.delay_activity",
+            (stale_change,),
+            source_refs=(source(),),
+        )
+
+
+def test_scenario_proposal_rejects_stale_impact_evidence() -> None:
+    impact = ScenarioImpact(
+        ControlDomain.COST,
+        "commitment",
+        "C1",
+        "potential_increase",
+        "impact.cost.increase",
+        (SourceReference("cost-1", "cost", "/cost/cost-1", 8),),
+    )
+    with pytest.raises(ValueError, match="SCENARIO_IMPACT_SOURCE_REVISION_MISMATCH"):
+        ScenarioProposal(
+            "scenario-1",
+            ControlScope("tenant-1", "project-1", 7),
+            impacts=(impact,),
+            proposed_changes=(change(),),
+        )
