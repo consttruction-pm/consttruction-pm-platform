@@ -117,7 +117,8 @@ def _canonical_json_value(value: Any) -> Any:
 
 
 def dependency_fingerprint(link: DependencyLink) -> str:
-    payload = _canonical_json_value(
+    try:
+        payload = _canonical_json_value(
         {
             "resource_id": link.resource_id,
             "tenant_id": link.tenant_id,
@@ -129,7 +130,9 @@ def dependency_fingerprint(link: DependencyLink) -> str:
             "source_revision": link.source_revision,
             "target_revision": link.target_revision,
         }
-    )
+        )
+    except RecursionError as exc:
+        raise ValueError("INVALID_DEPENDENCY_METADATA") from exc
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
