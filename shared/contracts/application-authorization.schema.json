@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://consttruction-pm.github.io/contracts/v1/application-authorization.json",
+  "title":"Application Authorization Context v1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["contract_version","tenant_id","actor_id","roles"],
+  "properties":{
+    "contract_version":{"const":"1.0"},
+    "tenant_id":{"type":"string","minLength":1},
+    "actor_id":{"type":"string","minLength":1},
+    "roles":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true}
+  }
+}
