@@ -5,7 +5,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .backend_p0.transactions import SQLiteTransactionManager
@@ -88,7 +88,7 @@ class FieldAssuranceExecution:
         }
 
 
-class SQLiteFieldAssuranceTemplateRepository:
+class FieldAssuranceTemplateRepository(Protocol):\n    def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate: ...\n    def get_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None: ...\n    def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution: ...\n    def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None: ...\n\n\nclass SQLiteFieldAssuranceTemplateRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
