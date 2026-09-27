@@ -27,7 +27,7 @@ export function validateLanguagePackResources(manifest:LanguagePackManifest,reso
   validateLanguagePackResourcePath(resource.path);
   if(!(resource.bytes instanceof Uint8Array)) throw new Error("INVALID_LANGUAGE_PACK_RESOURCE");
   if(result.has(resource.path)) throw new Error("DUPLICATE_LANGUAGE_PACK_RESOURCE");
-  result.set(resource.path,resource.bytes);
+  result.set(resource.path,new Uint8Array(resource.bytes));
  }
  for(const path of declaredSet){
   if(!result.has(path)) throw new Error("LANGUAGE_PACK_RESOURCE_MISSING");
