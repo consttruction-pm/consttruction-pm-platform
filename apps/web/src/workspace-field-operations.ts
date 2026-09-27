@@ -147,6 +147,15 @@ export function projectFieldTimecard(
   }
   validateOptionalDateTime(snapshot.start_at);
   validateOptionalDateTime(snapshot.end_at);
+  if (
+    snapshot.start_at !== undefined &&
+    snapshot.start_at !== null &&
+    snapshot.end_at !== undefined &&
+    snapshot.end_at !== null &&
+    Date.parse(snapshot.end_at) < Date.parse(snapshot.start_at)
+  ) {
+    throw new Error("INVALID_FIELD_TIMECARD_RANGE");
+  }
   const allocations = validateAllocations(snapshot.activity_allocations ?? [], "INVALID_FIELD_TIMECARD_ALLOCATION");
 
   return Object.freeze({
@@ -250,11 +259,22 @@ function validateAllocations(
 }
 
 function isDate(value: string): boolean {
-  return /^\\d{4}-\\d{2}-\\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && isRealCalendarDate(value);
 }
 
 function isValidDateTime(value: string): boolean {
-  return Boolean(value) && !Number.isNaN(Date.parse(value));
+  return Boolean(value) && !Number.isNaN(Date.parse(value)) && /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+}
+
+function isRealCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
 }
 
 function validateOptionalDateTime(value: string | null | undefined): void {
@@ -264,11 +284,11 @@ function validateOptionalDateTime(value: string | null | undefined): void {
 }
 
 function isPositiveDecimal(value: string): boolean {
-  return /^(?!0+(?:\\.0+)?$)(?:0|[1-9]\\d*)(?:\\.\\d+)?$/.test(value);
+  return /^(?!0+(?:\.0+)?$)(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value);
 }
 
 function isUnsignedDecimal(value: string): boolean {
-  return /^(?:0|[1-9]\\d*)(?:\\.\\d+)?$/.test(value);
+  return /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value);
 }
 
 function isSeverity(value: string): value is FieldIssueSeverity {
