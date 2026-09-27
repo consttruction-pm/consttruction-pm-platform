@@ -1,7 +1,7 @@
 import pytest
 
 from construction_pm.change_claims import (
-    ChangeClaim, ChangeClaimConflict, ChangeClaimService, ChangeClaimStatus,
+    ChangeClaim, ChangeClaimConflict, ChangeClaimError, ChangeClaimService, ChangeClaimStatus,
     ChangeClaimType, InMemoryChangeClaimRepository,
 )
 
@@ -54,3 +54,15 @@ def test_tenant_isolation_is_preserved():
     service.upsert(resource(tenant="t1"), expected_revision=0, idempotency_key="k1")
     service.upsert(resource(tenant="t2"), expected_revision=0, idempotency_key="k1")
     assert len(repo.resources) == 2
+
+
+def test_contract_version_is_preserved_and_validated():
+    item = resource()
+    assert item.contract_version == "1.0"
+    item.validate()
+
+
+def test_unsupported_contract_version_is_rejected():
+    item = resource(contract_version="2.0")
+    with pytest.raises(ChangeClaimError, match="UNSUPPORTED_CHANGE_CLAIM_CONTRACT_VERSION"):
+        item.validate()
