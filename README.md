@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 85 — Language Pack Manifest & Catalog Boundary**. Stages 34.1 through 34.2.19 and the later Stage 84/85 multilingual boundaries have been integrated through reviewed PR gates. Stage 34.2.10 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point spans **Stage 85+**, with later integrated hardening in Dependency Graph, Project Portability, Typed Reporting, and Web Main Workspace boundaries. Stages 34.1 through 34.2.19 and the later Stage 84/85 multilingual boundaries have been integrated through reviewed PR gates. Stage 34.2.10 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -65,6 +65,11 @@ Recent completed gates:
 - Stage 85 — Language Pack Manifest & Catalog Boundary: versioned language-pack manifest/catalog contracts, deterministic compatibility selection, integrity fields and focused TypeScript tests; integrated through PR #170.
 - P0 Dependency Graph Persistence — project-scoped dependency links now have PostgreSQL revision, idempotency and append-only audit boundaries; scheduling/P6 calculation semantics remain outside this layer.
 - P0 Document Persistence Boundary — versioned document resource contract, PostgreSQL metadata persistence, tenant/project scope, idempotency replay/reuse protection, optimistic revision checks, SHA-256 content-integrity metadata and append-only audit; integrated through PR #174 with ConstructionPM CI and Client Typecheck green.
+- Stage 33.2.5 — Project portability contract: deterministic export/import of versioned project calculation context; integrated through PR #232 and subsequently hardened with strict schema validation.
+- Stage 33.2.6 — Cross-module regression suite: Resource/Cost → EVM bridge, revision conflict, project isolation and deterministic portability reload; integrated through PR #233 with Python and client CI green.
+- Stage 34.3 typed dependency contract hardening — known dependency resource/type validation and explicit RFI/document relation mapping; integrated through PR #238 with Python and client CI green.
+- Stage 32.7 reporting typed dataset foundation — authoritative read-only typed report dataset boundary with separate numeric/date/duration/Boolean fields; integrated through PR #239 with Python and client CI green.
+- Web Main Workspace foundation — shared Web workspace state model and framework-neutral renderer for bilingual RTL/LTR, Jalali/Gregorian mode, Project/WBS, Activity Grid, Gantt and Details panels; integrated through PR #240 with Python and client CI green.
 
 Current Stage 34 focus:
 - Continue construction control backend with the next Portfolio decision/approval implementation and cross-project control actions.
