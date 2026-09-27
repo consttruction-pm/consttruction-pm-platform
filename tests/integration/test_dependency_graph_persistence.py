@@ -140,3 +140,24 @@ def test_mutation_metadata_is_rejected_before_database_mutation(kwargs, message)
 
     assert connection.revisions[("T-1", "P-1")] == 0
     assert connection.audit == []
+
+
+
+@pytest.mark.parametrize(
+    ("overrides", "error"),
+    [
+        ({"source_resource_id": "unknown:task-1"}, "INVALID_DEPENDENCY_SOURCE_RESOURCE_ID"),
+        ({"target_resource_id": "unknown:task-1"}, "INVALID_DEPENDENCY_TARGET_RESOURCE_ID"),
+        ({"dependency_type": "invented_relation"}, "INVALID_DEPENDENCY_TYPE"),
+    ],
+)
+def test_unknown_dependency_contract_values_are_rejected(overrides, error):
+    with pytest.raises(ValueError, match=error):
+        link(**overrides).validate()
+
+
+def test_rfi_resource_identifier_is_valid():
+    link(
+        target_resource_id="rfi:rfi-1",
+        dependency_type="schedule_to_rfi",
+    ).validate()
