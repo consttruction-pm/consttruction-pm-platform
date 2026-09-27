@@ -113,14 +113,14 @@ export class WorkspaceReadClient {
       );
       const projectedDocuments = documentSnapshots.map((snapshot) => {
         const key = `${snapshot.resource_id}:${snapshot.revision}`;
-        return projectDocument(snapshot, toProjectScope(context), ocrByKey.get(key), indexByKey.get(key));
+        return projectDocument(snapshot, toProjectIdentity(context), ocrByKey.get(key), indexByKey.get(key));
       });
       state = setDocumentControl(
         state,
         {
           documents: projectedDocuments,
-          documentOcrResults: (result.data.document_ocr_results ?? []).map((snapshot) => projectOcrResult(snapshot, toProjectScope(context))),
-          documentSearchEntries: (result.data.document_search_entries ?? []).map((snapshot) => projectSearchIndex(snapshot, toProjectScope(context))),
+          documentOcrResults: (result.data.document_ocr_results ?? []).map((snapshot) => projectOcrResult(snapshot, toProjectIdentity(context))),
+          documentSearchEntries: (result.data.document_search_entries ?? []).map((snapshot) => projectSearchIndex(snapshot, toProjectIdentity(context))),
         },
       );
 
@@ -163,11 +163,10 @@ export class WorkspaceReadClient {
   }
 }
 
-function toProjectScope(context: ProjectContext): { tenant_id: string; project_id: string; project_revision: number } {
+function toProjectIdentity(context: ProjectContext): { tenant_id: string; project_id: string } {
   return {
     tenant_id: context.tenant_id,
     project_id: context.project_id,
-    project_revision: context.revision,
   };
 }
 
