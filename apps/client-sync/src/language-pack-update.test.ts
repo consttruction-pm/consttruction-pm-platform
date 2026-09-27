@@ -54,3 +54,20 @@ test("rollback is unavailable before a second validated activation",()=>{
  const store=new UpdateableLanguagePackStore();
  assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
 });
+
+test("same package and version validates without adding rollback history",()=>{
+ const store=new UpdateableLanguagePackStore();
+ store.activate(artifact,manifest("1.0.0"),resources(),()=>true);
+ const result=store.update(artifact,manifest("1.0.0"),resources(),()=>true);
+ assert.equal(result.updated,false);
+ assert.equal(store.getActive()?.manifest.version,"1.0.0");
+ assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
+});
+
+test("same package and version still rejects invalid candidate",()=>{
+ const store=new UpdateableLanguagePackStore();
+ store.activate(artifact,manifest("1.0.0"),resources(),()=>true);
+ assert.throws(()=>store.update(artifact,manifest("1.0.0"),resources(),()=>false));
+ assert.equal(store.getActive()?.manifest.version,"1.0.0");
+ assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
+});

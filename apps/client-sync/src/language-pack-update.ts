@@ -32,8 +32,13 @@ export class UpdateableLanguagePackStore extends AtomicLanguagePackStore{
   verifySignature:LanguagePackSignatureVerifier,
  ):LanguagePackActivationResult{
   const current=this.getActive();
+  if(current?.manifest.package_id===manifest.package_id&&current.manifest.version===manifest.version){
+   // Re-validate the candidate without creating a redundant rollback entry.
+   const active=super.activate(artifact,manifest,resources,verifySignature);
+   return {active,updated:false};
+  }
   const active=this.activate(artifact,manifest,resources,verifySignature);
-  return {active,updated:current?.manifest.version!==active.manifest.version||current?.manifest.package_id!==active.manifest.package_id};
+  return {active,updated:true};
  }
 
  rollback():ActivatedLanguagePack{
