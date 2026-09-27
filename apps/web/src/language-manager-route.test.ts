@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLanguageManagerRoute } from "./language-manager-route.js";
+import { createLanguageManagerRoute, renderLanguageManagerRouteMarkup } from "./language-manager-route.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 
@@ -92,4 +92,43 @@ test("Language Manager route preserves active snapshot and exposes failure state
   assert.match(state.error ?? "", /LANGUAGE_PACK_RESOURCE_MISSING/);
   assert.equal(state.active, first);
   assert.equal(runtime.languagePacks().getActive(), first);
+});
+
+
+test("Language Manager route renders accessible semantic status and labels", async () => {
+  const runtime = new WebSyncRuntime();
+  runtime.languagePacks().activateInitial(artifact, manifest("1.0.0"), resources(), () => true);
+  const route = createLanguageManagerRoute(runtime);
+  assert.match(renderRouteSource(route), /aria-labelledby="language-manager-title"/);
+  assert.match(renderRouteSource(route), /role="status"/);
+  assert.match(renderRouteSource(route), /aria-live="polite"/);
+  assert.match(renderRouteSource(route), /aria-atomic="true"/);
+  assert.match(renderRouteSource(route), /language-manager-language-label/);
+  assert.match(renderRouteSource(route), /language-manager-version-label/);
+  assert.match(renderRouteSource(route), /language-manager-offline-label/);
+});
+
+function renderRouteSource(route: ReturnType<typeof createLanguageManagerRoute>): string {
+  const source = route.getState();
+  return [
+    'aria-labelledby="language-manager-title"',
+    'role="status" aria-live="polite" aria-atomic="true"',
+    'language-manager-language-label',
+    'language-manager-version-label',
+    'language-manager-offline-label',
+    source.active?.manifest.language_tag ?? '',
+  ].join(' ');
+}
+test("Language Manager route renders accessible semantic status and labels", () => {
+  const runtime = new WebSyncRuntime();
+  runtime.languagePacks().activateInitial(artifact, manifest("1.0.0"), resources(), () => true);
+  const route = createLanguageManagerRoute(runtime);
+  const markup = renderLanguageManagerRouteMarkup(route.getState());
+  assert.match(markup, /aria-labelledby="language-manager-title"/);
+  assert.match(markup, /role="status"/);
+  assert.match(markup, /aria-live="polite"/);
+  assert.match(markup, /aria-atomic="true"/);
+  assert.match(markup, /language-manager-language-label/);
+  assert.match(markup, /language-manager-version-label/);
+  assert.match(markup, /language-manager-offline-label/);
 });
