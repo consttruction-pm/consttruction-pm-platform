@@ -47,6 +47,12 @@ test("rejects undeclared resources",()=>{
  assert.throws(()=>store.activate(artifact,manifest(),extra,()=>true),/UNDECLARED_LANGUAGE_PACK_RESOURCE/);
  assert.equal(store.getActive(),null);
 });
+test("activated manifest snapshots cannot be mutated after verification",()=>{
+ const store=new AtomicLanguagePackStore();
+ const active=store.activate(artifact,manifest(),resources(),()=>true);
+ assert.throws(()=>{(active.manifest.capabilities as {offline_ai:boolean}).offline_ai=true;},/read only|Cannot assign|cannot assign/i);
+ assert.equal(active.manifest.capabilities.offline_ai,false);
+});
 test("activation owns resource byte snapshots",()=>{
  const store=new AtomicLanguagePackStore();
  const mutable=new Uint8Array([1,2,3]);
