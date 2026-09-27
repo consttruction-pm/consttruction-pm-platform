@@ -182,3 +182,20 @@ Status: **runtime-verified and merged**
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned contract/application/persistence/integration gap. Do not duplicate the open Web/client work in PR #349 unless a concrete backend-owned dependency is demonstrated.
+
+
+### 2026-09-28 — Change Claim Contract Version Identity (PR #351)
+Status: **runtime-verified and merged**
+- Corrected the concrete Change Claim Application/Persistence boundary gap where the versioned change-claim contract identity was not preserved by the Python model and could be lost across persistence round-trips.
+- `ChangeClaim` now preserves `contract_version=1.0`, includes it in its fingerprint/persisted representation, and rejects unsupported versions fail-closed.
+- Focused regression coverage verifies preservation and unsupported-version rejection; PostgreSQL integration also passed.
+- Final implementation head: `142150ab6e9bc5e04b7805e1bee12294b754c434`.
+- Client Typecheck run `36350690841` succeeded.
+- ConstructionPM CI run `36350690847` succeeded.
+- PostgreSQL Integration run `36350690972` succeeded.
+- PR #351 merged as `aa2690f3e6881819d128291d39fe4e2c1767856c`.
+- No Shared Core calculation, Scheduling/P6, Progress/EVM, Resource/Cost, or financial formula semantics were changed.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned contract/application/persistence/integration gap. Do not duplicate client/provider work in PR #352 unless a concrete backend dependency is demonstrated.
