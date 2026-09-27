@@ -175,5 +175,5 @@
     }
   },
   "additionalProperties": false,
-  "$id": "https://construction-pm.local/contracts/language-pack-manifest.v1.schema.json"
+  "$id": "https://construction-pm.local/v1/contracts/LANGUAGE_PACK_MANIFEST.schema.json"
 }
