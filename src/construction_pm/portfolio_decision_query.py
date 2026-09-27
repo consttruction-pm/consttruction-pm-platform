@@ -48,6 +48,24 @@ class PortfolioDecisionRead:
             raise PortfolioDecisionQueryError("INVALID_PORTFOLIO_DECISION_CROSS_DOMAIN_REFS")
 
 
+class PortfolioDecisionQueryAuthorization(Protocol):
+    def authorize(self, *, tenant_id: str, portfolio_id: str, actor: str, authorization_context: str) -> None: ...
+
+
+class RolePortfolioDecisionQueryAuthorization:
+    """Application-layer read authorization; persistence and domain calculations remain independent."""
+
+    def __init__(self, allowed_contexts: Mapping[str, frozenset[str]]) -> None:
+        self._allowed_contexts = dict(allowed_contexts)
+
+    def authorize(self, *, tenant_id: str, portfolio_id: str, actor: str, authorization_context: str) -> None:
+        for name, value in (("tenant_id", tenant_id), ("portfolio_id", portfolio_id), ("actor", actor), ("authorization_context", authorization_context)):
+            if not isinstance(value, str) or not value.strip():
+                raise PortfolioDecisionQueryError(f"INVALID_PORTFOLIO_DECISION_{name.upper()}")
+        if authorization_context not in self._allowed_contexts.get(actor, frozenset()):
+            raise PortfolioDecisionQueryError("PORTFOLIO_DECISION_QUERY_FORBIDDEN")
+
+
 class PortfolioDecisionQueryRepository(Protocol):
     def list(self, tenant_id: str, portfolio_id: str) -> tuple[PortfolioDecisionRead, ...]: ...
 
@@ -70,3 +88,31 @@ class InMemoryPortfolioDecisionQueryRepository:
         for item in result:
             item.validate()
         return tuple(sorted(result, key=lambda item: (item.revision, item.project_id, item.audit_event_id)))
+
+
+class PortfolioDecisionQueryService:
+    """Application/use-case boundary for authorized portfolio decision reads."""
+
+    def __init__(
+        self,
+        repository: PortfolioDecisionQueryRepository,
+        authorization: PortfolioDecisionQueryAuthorization,
+    ) -> None:
+        self._repository = repository
+        self._authorization = authorization
+
+    def list(
+        self,
+        *,
+        tenant_id: str,
+        portfolio_id: str,
+        actor: str,
+        authorization_context: str,
+    ) -> tuple[PortfolioDecisionRead, ...]:
+        self._authorization.authorize(
+            tenant_id=tenant_id,
+            portfolio_id=portfolio_id,
+            actor=actor,
+            authorization_context=authorization_context,
+        )
+        return self._repository.list(tenant_id, portfolio_id)
