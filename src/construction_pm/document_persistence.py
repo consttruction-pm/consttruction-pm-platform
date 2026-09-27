@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 
@@ -243,10 +243,9 @@ class PostgresDocumentStore:
             raise DocumentApprovalTransitionError(
                 f"DOCUMENT_INVALID_STATUS_TRANSITION:{current.document.status}->{document.status}"
             )
-        if document.as_dict() | {"status": current.document.status}:
-            pass
+        transitioned = replace(current.document, status=document.status)
         return self.update(
-            document,
+            transitioned,
             expected_revision=expected_revision,
             actor_id=actor_id,
             occurred_at=occurred_at,
