@@ -35,6 +35,7 @@ _DOMAIN_BY_PREFIX = {
     "cost": ControlDomain.COST,
     "document": ControlDomain.DOCUMENT,
     "rfi": ControlDomain.DOCUMENT,
+    "rfi": ControlDomain.DOCUMENT,
     "change": ControlDomain.CHANGE,
     "claim": ControlDomain.CLAIM,
     "procurement": ControlDomain.PROCUREMENT,
@@ -55,6 +56,8 @@ _RELATION_BY_TYPE = {
     "cost_to_schedule": DependencyRelation.IMPACTS,
     "change_to_schedule": DependencyRelation.IMPACTS,
     "claim_to_change": DependencyRelation.CLAIMS_AGAINST,
+    "schedule_to_change": DependencyRelation.IMPACTS,
+    "schedule_to_rfi": DependencyRelation.IMPACTS,
     "schedule_to_change": DependencyRelation.IMPACTS,
     "schedule_to_rfi": DependencyRelation.IMPACTS,
 }
