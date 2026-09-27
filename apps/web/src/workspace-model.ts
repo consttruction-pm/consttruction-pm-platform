@@ -1,4 +1,5 @@
 import type { ProjectContext } from "./client.js";
+import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -63,6 +64,7 @@ export type WorkspaceState = {
   selectedActivityId: string | null;
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
+  controlSummary: WorkspaceControlSummary | null;
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -97,6 +99,7 @@ export function createWorkspaceState(
     selectedActivityId: null,
     columns: DEFAULT_WORKSPACE_COLUMNS,
     activities: [],
+    controlSummary: null,
   };
 }
 
@@ -132,6 +135,13 @@ export function setCalendarMode(
   calendarMode: WorkspaceCalendarMode,
 ): WorkspaceState {
   return { ...state, calendarMode };
+}
+
+export function setControlSummary(
+  state: WorkspaceState,
+  controlSummary: WorkspaceControlSummary | null,
+): WorkspaceState {
+  return { ...state, controlSummary };
 }
 
 export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn): WorkspaceState {

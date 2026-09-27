@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها",
   },
 } as const;
 
@@ -34,6 +34,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
       </nav>
       <main class="cp-main">
+        ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -62,6 +63,47 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
+}
+
+function renderControlSummary(
+  summary: WorkspaceState["controlSummary"],
+  summaryLabel: string,
+  metricsLabel: string,
+  findingsLabel: string,
+): string {
+  if (!summary) return "";
+
+  const metrics = Object.entries(summary.metrics)
+    .map(([key, value]) => `<div class="cp-control-metric"><span>${escapeHtml(key)}</span><strong>${escapeHtml(String(value))}</strong></div>`)
+    .join("");
+
+  const findings = summary.findings.length
+    ? summary.findings.map((finding) => `
+        <article class="cp-control-finding is-${finding.severity}">
+          <div class="cp-control-finding-title">${escapeHtml(finding.title_key)}</div>
+          <div class="cp-control-finding-detail">${escapeHtml(finding.detail_key)}</div>
+        </article>`).join("")
+    : "<div class=\"cp-empty\">—</div>";
+
+  return `
+    <section class="cp-panel cp-control-summary" aria-label="${escapeAttribute(summaryLabel)}">
+      <div class="cp-control-heading">
+        <div>
+          <h2>${escapeHtml(summaryLabel)}</h2>
+          <div class="cp-control-result">${escapeHtml(summary.resultId)}</div>
+        </div>
+        <time datetime="${escapeAttribute(summary.generatedAt)}">${escapeHtml(summary.generatedAt)}</time>
+      </div>
+      <div class="cp-control-section">
+        <h3>${escapeHtml(metricsLabel)}</h3>
+        <div class="cp-control-metrics">${metrics || '<div class="cp-empty">—</div>'}</div>
+      </div>
+      <div class="cp-control-section">
+        <h3>${escapeHtml(findingsLabel)}</h3>
+        <div class="cp-control-findings">${findings}</div>
+      </div>
+    </section>
+  `;
 }
 
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
