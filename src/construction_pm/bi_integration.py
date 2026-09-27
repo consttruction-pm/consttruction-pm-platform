@@ -17,6 +17,8 @@ class BIOperation:
     payload: dict[str, object]
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise BIIntegrationError("UNSUPPORTED_BI_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
@@ -37,6 +39,7 @@ class BISyncResult:
     status: str
     external_reference: str | None
     message: str = ""
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
         for name, value in (
