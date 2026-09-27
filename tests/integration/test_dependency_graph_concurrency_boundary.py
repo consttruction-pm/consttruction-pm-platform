@@ -296,3 +296,29 @@ def test_audit_history_is_consistent_with_persisted_graph_revision():
     assert history[0].event_type == "created"
     assert history[0].actor_id == "user-1"
     assert history[0].occurred_at == timestamp()
+
+
+@pytest.mark.parametrize(
+    "overrides, error",
+    [
+        ({"source_resource_id": "unknown:task-1"}, "INVALID_DEPENDENCY_SOURCE_RESOURCE_ID"),
+        ({"target_resource_id": "unknown:task-1"}, "INVALID_DEPENDENCY_TARGET_RESOURCE_ID"),
+        ({"dependency_type": "invented_relation"}, "INVALID_DEPENDENCY_TYPE"),
+    ],
+)
+def test_persistence_rejects_unknown_dependency_contract_values(overrides, error):
+    service, connection = make_service()
+
+    with pytest.raises(ValueError, match=error):
+        service.create(
+            make_link(**overrides),
+            context=context(),
+            expected_graph_revision=0,
+            idempotency_key="idem-invalid",
+            actor_id="user-1",
+            occurred_at=timestamp(),
+        )
+
+    assert connection.revision == 0
+    assert connection.links == {}
+    assert connection.audit == []
