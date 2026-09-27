@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Construction PM Language Pack Catalog",
+  "type":"object",
+  "required":["schema_version","generated_at","default_language","items"],
+  "properties":{
+    "schema_version":{"type":"string"},
+    "generated_at":{"type":"string","format":"date-time"},
+    "default_language":{"type":"string","minLength":2},
+    "items":{"type":"array","items":{"type":"object","required":["package_id","language_tag","version","min_app_version","compressed_size_bytes","download_uri","checksum","signature","capabilities"],"properties":{"package_id":{"type":"string"},"language_tag":{"type":"string"},"version":{"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},"min_app_version":{"type":"string"},"max_app_version":{"type":["string","null"]},"compressed_size_bytes":{"type":"integer","minimum":0},"download_uri":{"type":"string","format":"uri"},"checksum":{"type":"string","pattern":"^sha256:[0-9a-fA-F]{64}$"},"signature":{"type":"string","minLength":1},"capabilities":{"type":"object","required":["ui","help","aiText","voiceInput","voiceOutput","offlineAi"],"additionalProperties":false},"resource_paths":{"type":"object"}},"additionalProperties":false}}
+  },
+  "additionalProperties":false
+}
