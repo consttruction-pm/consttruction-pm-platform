@@ -72,9 +72,14 @@ def test_unknown_relation_is_rejected_at_persistence_boundary():
         link(dependency_type="invented_relation").validate()
 
 
-def test_graph_revision_mismatch_is_rejected():
-    with pytest.raises(DependencyProjectionError, match="DEPENDENCY_GRAPH_REVISION_MISMATCH"):
-        project_dependency_link(link(revision=6), graph_revision=7)
+def test_graph_revision_is_not_conflated_with_project_revision():
+    projected = project_dependency_link(link(revision=6), graph_revision=7)
+
+    assert projected.graph.scope.project_revision == 6
+    assert projected.graph.nodes["schedule:task-1"].revision == 6
+    assert projected.graph.nodes["progress:task-1"].revision == 6
+    assert projected.graph.edges[0].source_revision == 6
+    assert projected.graph.edges[0].target_revision == 6
 
 
 def test_projection_is_deterministic():
