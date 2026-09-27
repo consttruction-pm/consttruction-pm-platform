@@ -6,6 +6,12 @@ from .contracts import ControlScope, SourceReference, require_enum
 from .graph import ControlDomain
 
 
+def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
 class ImpactStatus(str, Enum):
     OBSERVED = "observed"
     POTENTIAL = "potential"
@@ -48,6 +54,7 @@ class ControlImpact:
             raise ValueError("INVALID_CONTROL_IMPACT_TARGET")
         if not isinstance(self.detail_key, str) or not self.detail_key.strip() or not self.source_refs:
             raise ValueError("CONTROL_IMPACT_TRACEABILITY_REQUIRED")
+        _require_source_scope(self.source_refs, self.scope, "CONTROL_IMPACT_SOURCE_REVISION_MISMATCH")
 
 
 @dataclass(frozen=True)
@@ -60,3 +67,6 @@ class ControlImpactSet:
             raise ValueError("INVALID_CONTROL_IMPACT_SET_SCOPE")
         if not self.impacts:
             raise ValueError("CONTROL_IMPACTS_REQUIRED")
+        for impact in self.impacts:
+            if impact.scope != self.scope:
+                raise ValueError("CONTROL_IMPACT_SCOPE_MISMATCH")
