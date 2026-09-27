@@ -57,11 +57,16 @@ class ReferenceEnterpriseIdentityAdapter:
         if not isinstance(claims, Mapping):
             raise EnterpriseIdentityError("INVALID_ENTERPRISE_IDENTITY_CLAIMS")
         subject = claims.get("sub")
+        claimed_tenant_id = claims.get("tenant_id")
         roles = claims.get("roles", ())
         email = claims.get("email")
         display_name = claims.get("name")
         if not isinstance(subject, str) or not subject.strip():
             raise EnterpriseIdentityError("INVALID_ENTERPRISE_IDENTITY_SUBJECT")
+        if not isinstance(claimed_tenant_id, str) or not claimed_tenant_id.strip():
+            raise EnterpriseIdentityError("INVALID_ENTERPRISE_IDENTITY_TENANT_ID")
+        if claimed_tenant_id != self.tenant_id:
+            raise EnterpriseIdentityError("ENTERPRISE_IDENTITY_TENANT_MISMATCH")
         if not isinstance(roles, (list, tuple)) or any(
             not isinstance(role, str) or not role.strip() for role in roles
         ):
