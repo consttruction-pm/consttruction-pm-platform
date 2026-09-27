@@ -8,7 +8,7 @@ export type ActivatedLanguagePack={
 };
 
 export class AtomicLanguagePackStore{
- private active:ActivatedLanguagePack|null=null;
+ protected active:ActivatedLanguagePack|null=null;
 
  getActive():ActivatedLanguagePack|null{return this.active;}
 
