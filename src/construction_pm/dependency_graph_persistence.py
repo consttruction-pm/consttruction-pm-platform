@@ -164,7 +164,15 @@ class PostgresDependencyGraphStore:
         if not isinstance(link.metadata, dict):
             raise ValueError("INVALID_DEPENDENCY_METADATA")
         try:
-            json.dumps(link.metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+            metadata_json = json.dumps(
+                link.metadata,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            if json.loads(metadata_json) != link.metadata:
+                raise ValueError("metadata does not round-trip through JSON")
         except (TypeError, ValueError) as exc:
             raise ValueError("INVALID_DEPENDENCY_METADATA") from exc
         if (
