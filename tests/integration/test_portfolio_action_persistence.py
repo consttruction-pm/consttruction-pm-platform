@@ -30,6 +30,9 @@ class Cursor:
         return self.row
 
     def fetchall(self):
+        return self.row if isinstance(self.row, list) else []
+
+    def fetchall(self):
         return self.rows
 
 
@@ -46,6 +49,8 @@ class RecordingConnection:
             return Cursor(self.rows.get(("idem",) + params))
         if sql.startswith("SELECT revision"):
             return Cursor(self.rows.get(("revision",) + params))
+        if sql.startswith("SELECT event_id"):
+            return Cursor(self.rows.get(("audit",) + params, []))
         if sql.startswith("SELECT event_id"):
             return Cursor(rows=self.rows.get(("audit",) + params, []))
         return Cursor()
@@ -189,3 +194,59 @@ def test_audit_history_reads_append_only_revision_order():
     assert [event.portfolio_revision for event in history] == [1, 2]
     assert [event.event_type for event in history] == ["approved", "implemented"]
     assert history[0].actor_id == "admin-1"
+
+
+def test_transition_writes_one_audit_event_in_same_transaction():
+    connection = RecordingConnection()
+    connection.rows[("revision", "tenant-1", "portfolio-1")] = (0,)
+    store = PostgresPortfolioActionStore(connection)
+    persisted = store.persist_transition(action())
+
+    audit_inserts = [
+        (sql, params)
+        for sql, params in connection.sql
+        if sql.startswith("INSERT INTO portfolio_control_action_audit")
+    ]
+    assert len(audit_inserts) == 1
+    assert audit_inserts[0][1][1:6] == (
+        "tenant-1",
+        "portfolio-1",
+        "action-1",
+        1,
+        "proposed",
+    )
+    assert audit_inserts[0][1][6] == "user-1"
+    assert persisted.portfolio_revision == 1
+
+
+def test_idempotent_replay_does_not_append_duplicate_audit_event():
+    connection = RecordingConnection()
+    persisted = action(portfolio_revision=1).as_dict()
+    import json
+    from construction_pm.portfolio_action_persistence import action_fingerprint
+    connection.rows[("idem", "tenant-1", "portfolio-1", "idem-1")] = (
+        action_fingerprint(action()),
+        json.dumps(persisted),
+    )
+    store = PostgresPortfolioActionStore(connection)
+
+    store.persist_transition(action())
+
+    assert not any(
+        sql.startswith("INSERT INTO portfolio_control_action_audit")
+        for sql, _ in connection.sql
+    )
+
+
+def test_audit_history_is_revision_ordered():
+    connection = RecordingConnection()
+    connection.rows[("audit", "tenant-1", "portfolio-1", "action-1")] = [
+        ("e1", "tenant-1", "portfolio-1", "action-1", 1, "proposed", "user-1", "2026-09-27T13:00:00+00:00", "fp1"),
+        ("e2", "tenant-1", "portfolio-1", "action-1", 2, "approved", "admin-1", "2026-09-27T13:05:00+00:00", "fp1"),
+    ]
+    history = PostgresPortfolioActionStore(connection).audit_history(
+        "tenant-1", "portfolio-1", "action-1"
+    )
+
+    assert [event.portfolio_revision for event in history] == [1, 2]
+    assert [event.event_type for event in history] == ["proposed", "approved"]
