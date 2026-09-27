@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://construction-pm.local/contracts/p0-field-operation.v1.schema.json",
+  "$id": "https://construction-pm.local/contracts/v1/p0-field-operation.schema.json",
   "title": "P0 Field Operation Resource v1",
   "type": "object",
   "additionalProperties": false,
