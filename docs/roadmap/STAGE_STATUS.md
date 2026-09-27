@@ -527,7 +527,7 @@ Status: **verified baseline / documentation reconciled**
 - Job-Step Transaction & Replay Boundary is already runtime-verified through PR #206, covering success, failure/rollback, retry, replay, key reuse, optimistic-lock conflict and same-key concurrency.
 - Existing API/Web-readiness regression coverage verifies ProjectContext/tenant-project isolation, revision/optimistic locking, idempotency, authorization, typed DTOs, transaction rollback and the authoritative Field Assurance write guard.
 - No duplicate implementation of those completed gates is authorized.
-- Current Stage 34.3 remaining gates are voice interaction/speech-to-command UX, cross-client parity, and final integration/runtime evidence reconciliation. Document/RFI/Submittal and Procurement/Commercial slices are already implemented and runtime-verified through PRs #280 and #281; AI Smart Guide/schedule-query request composition is implemented and runtime-verified through PR #283.
+- Current Stage 34.3 remaining gates are voice interaction/speech-to-command UX, cross-client parity, and final integration/runtime evidence reconciliation. Document/RFI/Submittal and Procurement/Commercial slices are already implemented and runtime-verified through PRs #280 and #281; AI Smart Guide/schedule-query request composition is implemented and runtime-verified through PR #283. Current Backend/Application/API inspection found no concrete missing Hasan-owned boundary for the remaining voice/parity gates; provider-specific ASR/TTS and presentation remain client/provider-adapter work under `VOICE_INTERACTION_BOUNDARY.md`.
 - For Hasan's backend track, do not create a duplicate backend boundary for the remaining client/provider-owned gates. Implement backend work only if a concrete authoritative contract/application/persistence gap is demonstrated.
 
 ### 2026-09-27 — Document/RFI/Submittal Application/API Boundary
@@ -591,6 +591,6 @@ Status: **100% — implemented, merged and runtime-verified 2026-09-27**
   - Client Typecheck run `36340776620`
   - ConstructionPM CI run `36340776628`
 - PR #313 was a redundant later reconciliation attempt and was closed without merge; no work from it is required for the Stage 34.4 completion record.
-- Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`.
+- Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `7ea399bbc62a8b6737be06ab837944852ffabfb2`.
 - No client-side Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
 
