@@ -91,3 +91,132 @@ class ProcurementService:
             resource.revision,resource.actor_id,resource.status,idempotency_key,resource.fingerprint())
         self.repository.append_audit(audit); self.repository.put_idempotency(audit)
         return resource
+
+
+from typing import Any
+
+@dataclass(frozen=True)
+class StoredProcurementResource:
+    resource: ProcurementResource
+    project_revision: int
+
+class ProcurementIdempotencyReuse(ProcurementConflict):
+    pass
+
+class ProcurementRevisionConflict(ProcurementConflict):
+    pass
+
+class ProcurementConnection(Protocol):
+    def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
+    def transaction(self): ...
+
+@dataclass
+class PostgresProcurementStore:
+    connection: ProcurementConnection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_procurement_revisions "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, revision BIGINT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_procurement_resources "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, resource_id TEXT NOT NULL, "
+            "idempotency_key TEXT NOT NULL, fingerprint TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "resource_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, resource_id), "
+            "UNIQUE (tenant_id, project_id, idempotency_key))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_procurement_audit "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, resource_id TEXT NOT NULL, "
+            "project_revision BIGINT NOT NULL, actor_id TEXT NOT NULL, status TEXT NOT NULL, "
+            "idempotency_key TEXT NOT NULL, occurred_at TEXT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, resource_id, project_revision))"
+        )
+
+    def ensure_project(self, tenant_id: str, project_id: str) -> None:
+        self.connection.execute(
+            "INSERT INTO project_procurement_revisions (tenant_id, project_id, revision) "
+            "VALUES (%s,%s,0) ON CONFLICT (tenant_id, project_id) DO NOTHING",
+            (tenant_id, project_id),
+        )
+
+    def persist(self, resource: ProcurementResource, *, expected_project_revision: int, idempotency_key: str) -> StoredProcurementResource:
+        resource.validate()
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ProcurementError("INVALID_PROCUREMENT_IDEMPOTENCY_KEY")
+        with self.connection.transaction():
+            row = self.connection.execute(
+                "SELECT revision FROM project_procurement_revisions "
+                "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+                (resource.tenant_id, resource.project_id),
+            ).fetchone()
+            if row is None:
+                raise ProcurementError("PROCUREMENT_PROJECT_NOT_INITIALIZED")
+            existing = self._find_idempotency(resource.tenant_id, resource.project_id, idempotency_key)
+            fingerprint = resource.fingerprint()
+            if existing is not None:
+                old_fingerprint, old_json, old_revision = existing
+                if old_fingerprint != fingerprint:
+                    raise ProcurementIdempotencyReuse("PROCUREMENT_IDEMPOTENCY_KEY_REUSE")
+                return StoredProcurementResource(_from_json(old_json), old_revision)
+            current = row[0]
+            if current != expected_project_revision:
+                raise ProcurementRevisionConflict(
+                    f"PROCUREMENT_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
+                )
+            next_revision = current + 1
+            payload = json.dumps({
+                "tenant_id":resource.tenant_id,"project_id":resource.project_id,
+                "resource_id":resource.resource_id,"revision":resource.revision,
+                "resource_type":resource.resource_type.value,"status":resource.status.value,
+                "actor_id":resource.actor_id,"occurred_at":resource.occurred_at,
+                "payload":dict(resource.payload),
+            },sort_keys=True,separators=(",",":"))
+            self.connection.execute(
+                "UPDATE project_procurement_revisions SET revision=%s "
+                "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
+                (next_revision,resource.tenant_id,resource.project_id,current),
+            )
+            self.connection.execute(
+                "INSERT INTO project_procurement_resources "
+                "(tenant_id,project_id,resource_id,idempotency_key,fingerprint,project_revision,resource_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (resource.tenant_id,resource.project_id,resource.resource_id,idempotency_key,
+                 fingerprint,next_revision,payload),
+            )
+            self.connection.execute(
+                "INSERT INTO project_procurement_audit "
+                "(tenant_id,project_id,resource_id,project_revision,actor_id,status,idempotency_key,occurred_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (resource.tenant_id,resource.project_id,resource.resource_id,next_revision,
+                 resource.actor_id,resource.status.value,idempotency_key,resource.occurred_at),
+            )
+            return StoredProcurementResource(resource,next_revision)
+
+    def get(self, tenant_id: str, project_id: str, resource_id: str) -> StoredProcurementResource | None:
+        row = self.connection.execute(
+            "SELECT resource_json, project_revision FROM project_procurement_resources "
+            "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+            (tenant_id,project_id,resource_id),
+        ).fetchone()
+        if row is None: return None
+        return StoredProcurementResource(_from_json(row[0]),row[1])
+
+    def _find_idempotency(self, tenant_id: str, project_id: str, key: str):
+        row=self.connection.execute(
+            "SELECT fingerprint, resource_json, project_revision FROM project_procurement_resources "
+            "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+            (tenant_id,project_id,key),
+        ).fetchone()
+        return None if row is None else (row[0],row[1],row[2])
+
+def _from_json(payload: str) -> ProcurementResource:
+    data=json.loads(payload)
+    return ProcurementResource(
+        tenant_id=data["tenant_id"],project_id=data["project_id"],resource_id=data["resource_id"],
+        revision=int(data["revision"]),resource_type=ProcurementResourceType(data["resource_type"]),
+        status=ProcurementStatus(data["status"]),actor_id=data["actor_id"],
+        occurred_at=data["occurred_at"],payload=dict(data["payload"]),
+    )
