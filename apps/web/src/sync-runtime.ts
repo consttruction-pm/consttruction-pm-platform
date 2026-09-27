@@ -12,6 +12,11 @@ import { ProjectContextStore, type ProjectContext } from "./project-context.js";
 export class WebSyncRuntime {
   private readonly projectContext = new ProjectContextStore();
   private readonly mutationQueue = new OfflineMutationQueue();
+  private readonly languagePackRuntime = new LanguagePackClientRuntime();
+
+  languagePacks(): LanguagePackClientRuntime {
+    return this.languagePackRuntime;
+  }
 
   openProject(tenant_id: string, project_id: string, revision: number): ProjectContext {
     this.projectContext.set({ tenant_id, project_id, revision });
