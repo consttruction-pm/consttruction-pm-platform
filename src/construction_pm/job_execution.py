@@ -191,6 +191,10 @@ class JobStepTransactionExecutor:
                     )
                 )
                 return JobExecutionOutcome(job_id, JobState.SUCCEEDED, next_revision)
+        except JobOptimisticLockConflict as exc:
+            current = self.repository.get_current(tenant_id, project_id, job_id)
+            revision = 0 if current is None else current.revision
+            return JobExecutionOutcome(job_id, JobState.CONFLICT, revision, str(exc))
         except JobStepFailure as exc:
             state = JobState.RETRYABLE if exc.retryable else JobState.FAILED
             with self.transaction_manager.transaction():
