@@ -96,3 +96,42 @@ def test_application_boundary_enforces_scope_and_actor():
             actor_id="other",
             occurred_at=now,
         )
+
+
+def test_application_boundary_denies_viewer_before_store_mutation():
+    service = DependencyGraphApplicationService(PostgresDependencyGraphStore(Connection()), policy())
+    service.store.initialize()
+    service.store.ensure_project("T-1", "P-1")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(AuthorizationError, match="DEPENDENCY_WRITE_NOT_AUTHORIZED"):
+        service.create(
+            link(),
+            context=ctx(roles=frozenset({"viewer"})),
+            expected_graph_revision=0,
+            idempotency_key="viewer-1",
+            actor_id="u-1",
+            occurred_at=now,
+        )
+
+    assert service.store.connection.revision == 0
+
+
+def test_application_boundary_preserves_expected_revision_and_idempotency_inputs():
+    service = DependencyGraphApplicationService(PostgresDependencyGraphStore(Connection()), policy())
+    service.store.initialize()
+    service.store.ensure_project("T-1", "P-1")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    created = service.create(
+        link(revision=7),
+        context=ctx(),
+        expected_graph_revision=0,
+        idempotency_key="preserve-1",
+        actor_id="u-1",
+        occurred_at=now,
+    )
+
+    assert created.link.revision == 7
+    assert created.graph_revision == 1
+    assert service.store.connection.link[1] == 1
