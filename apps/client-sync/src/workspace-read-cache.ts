@@ -105,8 +105,8 @@ function validateWorkspaceReadEnvelope(snapshot: Record<string, unknown>): void 
 }
 
 function readRevision(value: unknown, errorCode: string): number {
-  if (!Number.isSafeInteger(value) || value < 0) throw new Error(errorCode);
-  return value as number;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(errorCode);
+  return value;
 }
 
 function readNonEmptyString(value: unknown, errorCode: string): string {
