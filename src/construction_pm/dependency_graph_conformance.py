@@ -25,8 +25,6 @@ class DependencyProjection:
     graph: DependencyGraph
 
 
-# Persistence identifiers are deliberately parsed only by this explicit map.
-# Unknown prefixes are rejected instead of being guessed.
 _DOMAIN_BY_PREFIX = {
     "schedule": ControlDomain.SCHEDULE,
     "progress": ControlDomain.PROGRESS,
@@ -57,26 +55,22 @@ _RELATION_BY_TYPE = {
 }
 
 
-def project_dependency_link(
-    link: DependencyLink,
-    *,
-    graph_revision: int,
-) -> DependencyProjection:
+def project_dependency_link(link: DependencyLink, *, graph_revision: int) -> DependencyProjection:
     link.validate()
     if graph_revision < 0:
         raise DependencyProjectionError("INVALID_GRAPH_REVISION")
-    if link.revision != graph_revision:
-        raise DependencyProjectionError("DEPENDENCY_GRAPH_REVISION_MISMATCH")
 
-    source = _node(link.source_resource_id, link.source_revision if link.source_revision is not None else link.revision)
-    target = _node(link.target_resource_id, link.target_revision if link.target_revision is not None else link.revision)
+    source_revision = link.source_revision if link.source_revision is not None else link.revision
+    target_revision = link.target_revision if link.target_revision is not None else link.revision
+    source = _node(link.source_resource_id, source_revision)
+    target = _node(link.target_resource_id, target_revision)
     relation = _relation(link.dependency_type)
 
     graph = DependencyGraph(
         scope=ControlScope(
             tenant_id=link.tenant_id,
             project_id=link.project_id,
-            project_revision=graph_revision,
+            project_revision=link.revision,
         )
     )
     graph.add_node(source)
