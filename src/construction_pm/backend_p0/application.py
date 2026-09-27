@@ -79,6 +79,10 @@ class BackendP0ApplicationService:
                     ),
                     deserialize=self._deserialize_stored_record,
                 )
+        except FieldAssuranceTransitionError as exc:
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION, str(exc), str(exc)
+            ) from exc
         except OptimisticLockError as exc:
             raise BackendApplicationError(
                 ErrorCategory.CONFLICT, "STALE_REVISION", str(exc), retryable=True
