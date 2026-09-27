@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
 import json
-from typing import Mapping, Protocol
+from typing import Any, Mapping, Protocol
 
 
 class FieldOperationType(str, Enum):
@@ -151,8 +152,7 @@ class FieldOperationService:
         if actual_revision != expected_revision:
             raise FieldOperationConflict("FIELD_OPERATION_REVISION_CONFLICT")
 
-        stored = operation
-        self.repository.put(stored)
+        self.repository.put(operation)
         audit = FieldOperationAudit(
             operation.tenant_id,
             operation.project_id,
@@ -164,4 +164,178 @@ class FieldOperationService:
         )
         self.repository.append_audit(audit)
         self.repository.put_idempotency(audit)
-        return stored
+        return operation
+
+
+class FieldOperationIdempotencyReuse(FieldOperationConflict):
+    pass
+
+
+class FieldOperationRevisionConflict(FieldOperationConflict):
+    pass
+
+
+@dataclass(frozen=True)
+class StoredFieldOperation:
+    operation: FieldOperation
+    project_revision: int
+
+
+class FieldOperationConnection(Protocol):
+    def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
+    def transaction(self) -> AbstractContextManager[None]: ...
+
+
+@dataclass
+class PostgresFieldOperationStore:
+    connection: FieldOperationConnection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_field_operation_revisions "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, revision BIGINT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_field_operations "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, operation_id TEXT NOT NULL, "
+            "idempotency_key TEXT NOT NULL, fingerprint TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "operation_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, operation_id), "
+            "UNIQUE (tenant_id, project_id, idempotency_key))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS project_field_operation_audit "
+            "(tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, operation_id TEXT NOT NULL, "
+            "project_revision BIGINT NOT NULL, actor_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, "
+            "occurred_at TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, operation_id, project_revision))"
+        )
+
+    def ensure_project(self, tenant_id: str, project_id: str) -> None:
+        self.connection.execute(
+            "INSERT INTO project_field_operation_revisions (tenant_id, project_id, revision) "
+            "VALUES (%s,%s,0) ON CONFLICT (tenant_id, project_id) DO NOTHING",
+            (tenant_id, project_id),
+        )
+
+    def persist(
+        self,
+        operation: FieldOperation,
+        *,
+        expected_project_revision: int,
+        idempotency_key: str,
+    ) -> StoredFieldOperation:
+        operation.validate()
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise FieldOperationError("INVALID_FIELD_OPERATION_IDEMPOTENCY_KEY")
+
+        with self.connection.transaction():
+            row = self.connection.execute(
+                "SELECT revision FROM project_field_operation_revisions "
+                "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+                (operation.tenant_id, operation.project_id),
+            ).fetchone()
+            if row is None:
+                raise FieldOperationError("FIELD_OPERATION_PROJECT_NOT_INITIALIZED")
+
+            existing = self._find_idempotency(
+                operation.tenant_id, operation.project_id, idempotency_key
+            )
+            fingerprint = operation.fingerprint()
+            if existing is not None:
+                old_fingerprint, old_json, old_revision = existing
+                if old_fingerprint != fingerprint:
+                    raise FieldOperationIdempotencyReuse(
+                        "FIELD_OPERATION_IDEMPOTENCY_KEY_REUSE"
+                    )
+                return StoredFieldOperation(_from_json(old_json), old_revision)
+
+            current = row[0]
+            if current != expected_project_revision:
+                raise FieldOperationRevisionConflict(
+                    f"FIELD_OPERATION_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
+                )
+
+            next_revision = current + 1
+            payload = json.dumps(
+                {
+                    "tenant_id": operation.tenant_id,
+                    "project_id": operation.project_id,
+                    "operation_id": operation.operation_id,
+                    "revision": operation.revision,
+                    "operation_type": operation.operation_type.value,
+                    "occurred_at": operation.occurred_at,
+                    "actor_id": operation.actor_id,
+                    "location_ref": operation.location_ref,
+                    "payload": dict(operation.payload),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            self.connection.execute(
+                "UPDATE project_field_operation_revisions SET revision=%s "
+                "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
+                (next_revision, operation.tenant_id, operation.project_id, current),
+            )
+            self.connection.execute(
+                "INSERT INTO project_field_operations "
+                "(tenant_id, project_id, operation_id, idempotency_key, fingerprint, project_revision, operation_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    operation.tenant_id,
+                    operation.project_id,
+                    operation.operation_id,
+                    idempotency_key,
+                    fingerprint,
+                    next_revision,
+                    payload,
+                ),
+            )
+            self.connection.execute(
+                "INSERT INTO project_field_operation_audit "
+                "(tenant_id, project_id, operation_id, project_revision, actor_id, idempotency_key, occurred_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    operation.tenant_id,
+                    operation.project_id,
+                    operation.operation_id,
+                    next_revision,
+                    operation.actor_id,
+                    idempotency_key,
+                    operation.occurred_at,
+                ),
+            )
+            return StoredFieldOperation(operation, next_revision)
+
+    def get(self, tenant_id: str, project_id: str, operation_id: str) -> StoredFieldOperation | None:
+        row = self.connection.execute(
+            "SELECT operation_json, project_revision FROM project_field_operations "
+            "WHERE tenant_id=%s AND project_id=%s AND operation_id=%s",
+            (tenant_id, project_id, operation_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return StoredFieldOperation(_from_json(row[0]), row[1])
+
+    def _find_idempotency(self, tenant_id: str, project_id: str, key: str):
+        row = self.connection.execute(
+            "SELECT fingerprint, operation_json, project_revision "
+            "FROM project_field_operations "
+            "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+            (tenant_id, project_id, key),
+        ).fetchone()
+        return None if row is None else (row[0], row[1], row[2])
+
+
+def _from_json(payload: str) -> FieldOperation:
+    data = json.loads(payload)
+    return FieldOperation(
+        tenant_id=data["tenant_id"],
+        project_id=data["project_id"],
+        operation_id=data["operation_id"],
+        revision=int(data["revision"]),
+        operation_type=FieldOperationType(data["operation_type"]),
+        occurred_at=data["occurred_at"],
+        actor_id=data["actor_id"],
+        location_ref=data.get("location_ref"),
+        payload=dict(data["payload"]),
+    )

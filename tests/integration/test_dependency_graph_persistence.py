@@ -7,6 +7,7 @@ from construction_pm.dependency_graph_persistence import (
     DependencyRevisionConflict,
     DependencyLink,
     PostgresDependencyGraphStore,
+    dependency_fingerprint,
 )
 
 
