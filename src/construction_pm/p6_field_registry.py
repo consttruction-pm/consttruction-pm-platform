@@ -13,6 +13,15 @@ class P6FieldType(str, Enum):
     PERCENTAGE = "percentage"
     BOOLEAN = "boolean"
     ENUM = "enum"
+    INTEGER = "integer"
+    DOUBLE = "double"
+    COST = "cost"
+    UNIT = "unit"
+    OBJECT_ID = "object-id"
+    OBJECT_ID_ARRAY = "object-id-array"
+    STRING_ARRAY = "string-array"
+    COMPLEX = "complex"
+    SPREAD = "spread"
 
 
 @dataclass(frozen=True)
