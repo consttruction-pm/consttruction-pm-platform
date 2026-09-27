@@ -48,18 +48,14 @@ def _band(score: float) -> RiskBand:
     return RiskBand.LOW
 
 
-def _confidence(indicators: ScheduleRiskIndicators, source_refs: Tuple[SourceReference, ...]) -> RiskBand:
-    # Confidence expresses evidence completeness for this deterministic baseline, not model accuracy.
+def _confidence(source_refs: Tuple[SourceReference, ...]) -> RiskBand:
+    # Confidence expresses evidence completeness for this deterministic baseline,
+    # not model accuracy or the magnitude of any risk indicator. A measured zero
+    # is still valid evidence and must not lower confidence.
     count = len(source_refs)
-    observed = sum(v > 0 for v in (
-        indicators.schedule_variance_ratio,
-        indicators.critical_float_pressure,
-        indicators.overdue_activity_ratio,
-        indicators.resource_variance_ratio,
-    ))
-    if count >= 4 and observed >= 3:
+    if count >= 4:
         return RiskBand.HIGH
-    if count >= 2 and observed >= 1:
+    if count >= 2:
         return RiskBand.MEDIUM
     return RiskBand.LOW
 
@@ -85,7 +81,7 @@ def assess_predictive_schedule_risk(
         horizon_key=horizon_key,
         likelihood=band,
         impact=band,
-        confidence=_confidence(indicators, source_refs),
+        confidence=_confidence(source_refs),
         title_key="predictive.schedule_risk.title",
         detail_key="predictive.schedule_risk.detail",
         affected_domains=(ControlDomain.SCHEDULE, ControlDomain.RESOURCE),
