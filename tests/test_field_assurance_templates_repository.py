@@ -44,7 +44,7 @@ def _service():
 
 def _execution(scope: BackendScope = _scope()) -> FieldAssuranceExecution:
     return FieldAssuranceExecution(
-        "EXEC-1", scope, "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", "12.5"), FieldAssuranceExecutionAnswer("I-2", "pass")),
+        "EXEC-1", scope, "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 12.5), FieldAssuranceExecutionAnswer("I-2", "pass")),
         "user-1", datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
