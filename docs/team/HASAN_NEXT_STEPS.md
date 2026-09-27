@@ -140,3 +140,16 @@ Re-read current `main`, Hasan's execution instructions and open PRs before the n
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Cross-client voice adapter parity is now runtime-verified; remaining Stage 34.3 voice work is provider-specific/client UX work unless a concrete authoritative backend contract/application gap is demonstrated. Do not invent a new numbered roadmap stage or duplicate provider/client-owned work.
+
+
+### 2026-09-27 — Portfolio Query Application/API Boundary (PR #336)
+Status: **100% — merged and runtime-verified**
+- Added the missing Hasan-owned versioned `portfolio-control-snapshot.v1` Application/API boundary over the existing authoritative Portfolio Control Snapshot/read-model provider.
+- The boundary enforces tenant scope and `project.read` authorization, validates provider output, and preserves project/source revisions without recalculating portfolio metrics.
+- PR #336 exact implementation head `a1d81740719827e0ed91ca4a075bf631abc64405` passed Client Typecheck run `36348158270` and ConstructionPM CI run `36348158292`.
+- Merge commit: `181d00bb583d5a523ee0479c72e896caff3df61a`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were moved into the API/application layer.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Portfolio Query Application/API is now runtime-verified; select the next concrete missing Hasan-owned boundary only after reconciling the current contracts, application, persistence and integration state. Do not invent a numbered roadmap stage or duplicate client/provider-owned work.
