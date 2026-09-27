@@ -75,6 +75,18 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
     quality_records: [],
     safety_observations: [],
     punch_items: [],
+    documents: [{
+      document_id: "DOC-1",
+      tenant_id: context.tenant_id,
+      project_id: context.project_id,
+      resource_type: "rfi",
+      title: "RFI — foundation reinforcement",
+      status: "submitted",
+      storage_ref: "object://documents/DOC-1",
+      content_hash: "sha256:" + "a".repeat(64),
+      linked_entity_refs: ["A-101"],
+      revision: context.revision,
+    }],
   };
 }
 
@@ -163,4 +175,17 @@ test("workspace read client rejects unsupported envelope versions", async () => 
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("expected version error");
   assert.equal(result.error.code, "UNSUPPORTED_WORKSPACE_READ_CONTRACT");
+});
+
+
+test("workspace read client hydrates document workflow metadata and links", async () => {
+  const transport = new StubTransport({ ok: true, data: workspaceSnapshot() });
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.equal(result.data.documents[0]?.documentId, "DOC-1");
+  assert.equal(result.data.documents[0]?.resourceType, "rfi");
+  assert.equal(result.data.documents[0]?.status, "submitted");
+  assert.deepEqual(result.data.documents[0]?.linkedEntityRefs, ["A-101"]);
 });
