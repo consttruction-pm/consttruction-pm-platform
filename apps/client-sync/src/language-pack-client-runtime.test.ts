@@ -9,7 +9,7 @@ const manifest=(version:string):LanguagePackManifest=>({
  app_compatibility:{min_version:"0.1.0",max_version:null},
  artifact:{format:"zip",compressed_size_bytes:artifact.byteLength,download_uri:"https://example.invalid/en.zip",delta_from:null},
  resources:{translation:"translation.json",glossary:"glossary.json",help:"help.json",reports:"reports.json",voice_input:null,voice_output:null,offline_ai_model:null},
- integrity:{checksum:"sha256:0f9f0f8f7a6f2d8f6c8a3f2e5b9f6f8e2f8d6c3b4a2e1d0c9b8a7f6e5d4c3b2a1",signature:"sig",signing_key_id:"key-1"},
+ integrity:{checksum:"sha256:c9e4f26d30ca0c895d6a6c85f89af8b310feb4de5a1fda8eed58c75e0135111e",signature:"sig",signing_key_id:"key-1"},
  capabilities:{ui:true,help:true,ai_text:false,voice_input:false,voice_output:false,offline_ai:false},
 });
 const resources=()=>[
