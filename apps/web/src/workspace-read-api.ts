@@ -1,10 +1,11 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setControlSummary, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setControlSummary, setDocuments, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
+import { projectDocument, type DocumentSnapshot } from "./workspace-document.js";
 import { projectTimecard, projectEquipmentStatus, type EquipmentStatusSnapshot, type FieldTimecardSnapshot } from "./workspace-field-ops.js";
 import {
   projectInspection,
@@ -37,6 +38,7 @@ export type WorkspaceControlRoomReadSnapshot = {
   change_cases?: readonly ChangeCaseSnapshot[];
   claims?: readonly ClaimRecordSnapshot[];
   change_claim_impacts?: readonly ChangeClaimImpactSnapshot[];
+  documents?: readonly DocumentSnapshot[];
 };
 
 export type WorkspaceReadOptions = {
@@ -98,6 +100,11 @@ export class WorkspaceReadClient {
           claims: (result.data.claims ?? []).map((snapshot) => projectClaimRecord(snapshot, toProjectScope(context))),
           changeClaimImpacts: (result.data.change_claim_impacts ?? []).map((snapshot) => projectChangeClaimImpact(snapshot, toProjectScope(context))),
         },
+      );
+
+      state = setDocuments(
+        state,
+        (result.data.documents ?? []).map((snapshot) => projectDocument(snapshot, toProjectScope(context))),
       );
 
       state = setFieldAssurance(state, {
@@ -181,6 +188,7 @@ function validateReadEnvelope(
     snapshot.quality_records,
     snapshot.safety_observations,
     snapshot.punch_items,
+    ...(snapshot.documents ?? []),
   ]) {
     if (!Array.isArray(collection)) throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
