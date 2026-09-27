@@ -11,3 +11,4 @@ export * from "./workspace-site-log.js";
 export * from "./workspace-field-ops.js";
 export * from "./workspace-field-issues.js";
 export * from "./workspace-field-assurance.js";
+export * from "./workspace-change-claims.js";
