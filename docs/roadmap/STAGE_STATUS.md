@@ -751,3 +751,14 @@ Status: **runtime-verified and merged**
 - Final head `142150ab6e9bc5e04b7805e1bee12294b754c434` passed Client Typecheck **36350690841**, ConstructionPM CI **36350690847**, and PostgreSQL Integration **36350690972**.
 - Merge commit: `aa2690f3e6881819d128291d39fe4e2c1767856c`.
 - No Shared Core or scheduling/progress/resource/financial calculation semantics changed.
+
+
+### 2026-09-28 — Issue #95 Web Language Manager Keyboard Actions
+Status: **implemented and merged — PR #352**
+- Added native `button type="button"` controls for the existing Use Offline and Rollback actions in the Web Language Manager route.
+- Existing route lifecycle methods remain the single action boundary; click delegation invokes the shared route operations rather than duplicating language-pack logic.
+- Added executable markup regression coverage for both keyboard-focusable action controls.
+- PR #352 final head `745fa80820eafbbe0eb8b69341f2961b0729c493` passed Client Typecheck **36350966019** and ConstructionPM CI **36350965989**.
+- PR #352 merged to `main` as `d12143704ab603ca2475364620006cad639b2439`.
+- This closes the repository-native keyboard-action slice of Issue #95. Full browser accessibility automation, cross-client UI automation, native Windows/mobile host rendering, product-scale localization, and production signing/distribution certification remain separate evidence gates.
+- No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
