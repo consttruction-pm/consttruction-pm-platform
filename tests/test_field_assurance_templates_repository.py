@@ -116,7 +116,7 @@ def test_execution_is_idempotent_and_conflicts_are_rejected():
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_ID_CONFLICT"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-1", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", "99"), FieldAssuranceExecutionAnswer("I-2", "pass")),
+                "EXEC-1", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 99), FieldAssuranceExecutionAnswer("I-2", "pass")),
                 "user-1", datetime.now(timezone.utc),
             ))
     finally:
