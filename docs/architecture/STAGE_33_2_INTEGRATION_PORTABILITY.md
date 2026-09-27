@@ -67,3 +67,7 @@ A context-scoped SQLite resource persistence adapter now makes tenant/company/pr
 
 ## 33.2.3 implementation note
 The context-scoped SQLite resource adapter now participates in an application-owned transaction without committing inside an active transaction. Standalone repository calls retain their commit behavior. Integration tests cover atomic rollback across resource and assignment mutations.
+
+
+## 33.2.4 implementation note
+The Resource API v1 boundary now preserves typed rate data without converting domain values to binary floating-point: Decimal rates remain canonical decimal strings, dates remain ISO-8601 date strings, enum values remain stable strings, and Boolean fields remain JSON booleans. The contract schema documents these representations. No scheduling, duration, Progress/EVM, Resource/Cost calculation semantics were reimplemented at the API boundary.

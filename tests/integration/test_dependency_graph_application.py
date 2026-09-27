@@ -48,6 +48,9 @@ class Connection:
 
     def rollback(self):
         self.rollbacks += 1
+        self.revision = 0
+        self.link = None
+        self.audit = []
 
 
 def policy():
