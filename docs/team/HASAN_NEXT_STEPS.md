@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `c2aa9013f78f564d0fa5d03f811d548359b40beb`
+- Current main baseline at this reconciliation: `e05364853669171789cbdb20ced42637cd9737da`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -223,6 +223,20 @@ Start the next Hasan implementation only after re-reading current main, this fil
 - PR #359 merged to `main` as `c2aa9013f78f564d0fa5d03f811d548359b40beb`.
 - PR #357 was stale after PR #356 advanced `main`; it was closed and not merged as a separate baseline.
 - No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
+
+
+### 2026-09-28 — Portfolio Decision Read Contract Version (PR #361)
+
+- Concrete Hasan-owned gap: `portfolio-decision-read.schema.json` requires `contract_version=1.0`, while the Python `PortfolioDecisionRead` model omitted contract identity.
+- `PortfolioDecisionRead` now preserves the v1 identity and fails closed on unsupported contract versions before query results are accepted.
+- Focused regression coverage verifies the v1 identity and unsupported-version rejection.
+- PR #361 exact implementation head `111121c583915622f4e8eb76e0354b8d3c9b2941` passed ConstructionPM CI `36351931398` and Client Typecheck `36351931153`.
+- Merge commit: `e05364853669171789cbdb20ced42637cd9737da`.
+- No portfolio decision lifecycle, Shared Core calculation, Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 
 ## Next point
 
