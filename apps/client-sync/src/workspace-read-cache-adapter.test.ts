@@ -24,7 +24,13 @@ class MemoryStore implements WorkspaceReadCacheStore {
 class Transport implements WorkspaceControlRoomReadTransport {
   fetches = 0;
   revision = 7;
-  async fetch(): Promise<Record<string, unknown>> { this.fetches += 1; return snapshot(this.revision); }
+  async fetch(context: SyncProjectContext): Promise<Record<string, unknown>> {
+    this.fetches += 1;
+    return {
+      ...snapshot(this.revision),
+      context: { ...context, revision: this.revision },
+    };
+  }
 }
 
 test("uses fresh cache online without refetching", async () => {
