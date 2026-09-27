@@ -2,10 +2,19 @@ import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 import {verifyLanguagePackIntegrity,type LanguagePackSignatureVerifier} from "./language-pack-integrity.ts";
 import {validateLanguagePackResources,type LanguagePackResource,type ValidatedLanguagePackResources} from "./language-pack-resource-validation.ts";
 
+const ACTIVATED_LANGUAGE_PACK_BRAND=Symbol("construction-pm.activated-language-pack");
+
+type ActivatedLanguagePackBrand=typeof ACTIVATED_LANGUAGE_PACK_BRAND;
+
 export type ActivatedLanguagePack={
- manifest:LanguagePackManifest;
- resources:ValidatedLanguagePackResources;
+ readonly manifest:LanguagePackManifest;
+ readonly resources:ValidatedLanguagePackResources;
+ readonly [ACTIVATED_LANGUAGE_PACK_BRAND]:ActivatedLanguagePackBrand;
 };
+
+export function isActivatedLanguagePack(value:unknown):value is ActivatedLanguagePack{
+ return typeof value==="object"&&value!==null&&ACTIVATED_LANGUAGE_PACK_BRAND in value;
+}
 
 export class AtomicLanguagePackStore{
  protected active:ActivatedLanguagePack|null=null;
@@ -23,7 +32,11 @@ export class AtomicLanguagePackStore{
    integrity:Object.freeze({...manifest.integrity}),
    capabilities:Object.freeze({...manifest.capabilities}),
   });
-  const candidate:ActivatedLanguagePack=Object.freeze({manifest:frozenManifest,resources:validatedResources});
+  const candidate:ActivatedLanguagePack=Object.freeze({
+   manifest:frozenManifest,
+   resources:validatedResources,
+   [ACTIVATED_LANGUAGE_PACK_BRAND]:ACTIVATED_LANGUAGE_PACK_BRAND,
+  });
   this.active=candidate;
   return candidate;
  }
