@@ -17,8 +17,6 @@ class BIOperation:
     payload: dict[str, object]
 
     def validate(self) -> None:
-        if self.contract_version != "1.0":
-            raise BIIntegrationError("UNSUPPORTED_BI_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
@@ -42,11 +40,9 @@ class BISyncResult:
     contract_version: str = "1.0"
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise BIIntegrationError("UNSUPPORTED_BI_CONTRACT_VERSION")
         for name, value in (
-            ("tenant_id", self.tenant_id),
-            ("project_id", self.project_id),
-            ("operation_id", self.operation_id),
-        ):
             if not isinstance(value, str) or not value.strip():
                 raise BIIntegrationError(f"INVALID_BI_{name.upper()}")
         if self.status not in {"accepted", "rejected", "retry"}:
