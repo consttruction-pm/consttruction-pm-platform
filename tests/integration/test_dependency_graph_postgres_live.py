@@ -14,6 +14,7 @@ if not DSN:
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.dependency_graph_persistence import (
     DependencyIdempotencyReuse,
+    DependencyResourceConflict,
     DependencyLink,
     DependencyRevisionConflict,
     PostgresDependencyGraphStore,
@@ -154,7 +155,7 @@ def test_dependency_graph_live_transaction_rolls_back_revision_link_and_audit() 
                 raise RuntimeError("FORCED_ROLLBACK")
 
         assert store.get(tenant_id, project_id, resource_id) is None
-        assert store.history(tenant_id, project_id, resource_id) == []
+        assert store.history(tenant_id, project_id, resource_id) == ()
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT revision FROM project_dependency_revisions WHERE tenant_id = %s AND project_id = %s",
