@@ -1,3 +1,12 @@
+### P0 Document Persistence Boundary
+Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
+- Added versioned `p0-document-resource` contract for contract, drawing, correspondence, RFI, submittal, delay-claim and evidence resources.
+- Added PostgreSQL document metadata persistence behind an opaque storage reference.
+- Enforced tenant/project scope, SHA-256 content-integrity metadata, idempotency replay/reuse protection, optimistic revision checks and append-only audit history.
+- Added safe JavaScript revision-ceiling protection and focused contract/persistence regression tests.
+- OCR/search engines, storage-provider implementations and approval policy remain separate boundaries.
+- ConstructionPM CI and Client Typecheck passed on exact merged head for PR #174.
+
 # Project Stage Status
 
 | Stage | Status |
