@@ -74,4 +74,4 @@ The Resource API v1 boundary now preserves typed rate data without converting do
 
 
 ## 33.2.6 implementation note
-A cross-module regression suite now covers Resource assignment -> authoritative Resource/Cost -> EVM bridge values, stale assignment revision rejection, project-context isolation, and deterministic project portability reload. The suite consumes existing calculation authorities and does not duplicate scheduling, Progress/EVM, Resource/Cost or financial formulas. Reporting remains an explicit consumer-only boundary.
+A cross-module regression suite now covers Resource assignment -> authoritative Resource/Cost -> EVM bridge values, stale assignment revision rejection, project-context isolation, and deterministic project portability reload. The suite consumes existing calculation authorities and does not duplicate scheduling, Progress/EVM, Resource/Cost or financial formulas. Reporting remains an explicit consumer-only boundary. The regression suite now verifies calendar-context resolver selection, time-phased resource values against the resource calendar, and pass-through of authoritative portfolio/read-model metrics without formula recomputation.
