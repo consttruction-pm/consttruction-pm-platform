@@ -2,6 +2,7 @@ import type { ProjectContext } from "./client.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
+import type { WorkspaceInspection, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -70,6 +71,9 @@ export type WorkspaceState = {
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
   timecards: readonly WorkspaceTimecard[];
   equipmentReports: readonly WorkspaceEquipmentStatus[];
+  inspections: readonly WorkspaceInspection[];
+  safetyObservations: readonly WorkspaceSafetyObservation[];
+  punchItems: readonly WorkspacePunchItem[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -108,6 +112,9 @@ export function createWorkspaceState(
     siteDailyLogs: [],
     timecards: [],
     equipmentReports: [],
+    inspections: [],
+    safetyObservations: [],
+    punchItems: [],
   };
 }
 
@@ -171,6 +178,20 @@ export function setFieldOperations(
     ...state,
     timecards: timecards.map((card) => Object.freeze({ ...card })),
     equipmentReports: equipmentReports.map((report) => Object.freeze({ ...report })),
+  };
+}
+
+export function setFieldAssurance(
+  state: WorkspaceState,
+  inspections: readonly WorkspaceInspection[],
+  safetyObservations: readonly WorkspaceSafetyObservation[],
+  punchItems: readonly WorkspacePunchItem[],
+): WorkspaceState {
+  return {
+    ...state,
+    inspections: inspections.map((item) => Object.freeze({ ...item, checklist: [...item.checklist] })),
+    safetyObservations: safetyObservations.map((item) => Object.freeze({ ...item, activityIds: [...item.activityIds] })),
+    punchItems: punchItems.map((item) => Object.freeze({ ...item, activityIds: [...item.activityIds] })),
   };
 }
 
