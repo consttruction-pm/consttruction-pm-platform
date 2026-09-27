@@ -24,6 +24,9 @@ class Connection:
         self.revision = 0
         self.links = {}
         self.audit = []
+        self._transaction_snapshot = None
+        self.commits = 0
+        self.rollbacks = 0
         self.fail_audit = False
 
     class Transaction:
@@ -52,10 +55,14 @@ class Connection:
         return self.Transaction(self)
 
     def commit(self):
-        return None
+        self.commits += 1
+        self._transaction_snapshot = None
 
     def rollback(self):
-        return None
+        self.rollbacks += 1
+        if self._transaction_snapshot is not None:
+            self.revision, self.links, self.audit = self._transaction_snapshot
+        self._transaction_snapshot = None
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -77,7 +84,7 @@ class Connection:
             return Cursor(None if row is None else row)
         if sql.startswith("UPDATE project_dependency_revisions"):
             if self._transaction_snapshot is None:
-                self._transaction_snapshot = (self.revision, self.link, list(self.audit))
+                self._transaction_snapshot = (self.revision, deepcopy(self.links), deepcopy(self.audit))
             self.revision = params[0]
             return Cursor()
         if sql.startswith("INSERT INTO project_dependency_links"):
