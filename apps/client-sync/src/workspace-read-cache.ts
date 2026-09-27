@@ -1,4 +1,4 @@
-import type { ProjectContext } from "./api-sync-transport.js";
+import type { SyncProjectContext } from "./api-sync-transport.js";
 
 export const WORKSPACE_CONTROL_ROOM_CACHE_VERSION =
   "workspace-control-room-cache.v1" as const;
@@ -44,7 +44,7 @@ export function createWorkspaceReadCache(
 
 export function classifyWorkspaceReadCache(
   cache: WorkspaceControlRoomReadCache,
-  requestedContext: ProjectContext,
+  requestedContext: SyncProjectContext,
 ): WorkspaceCacheState {
   validateWorkspaceReadCache(cache);
 
@@ -106,7 +106,7 @@ function validateWorkspaceReadEnvelope(snapshot: Record<string, unknown>): void 
 
 function readRevision(value: unknown, errorCode: string): number {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error(errorCode);
-  return value;
+  return value as number;
 }
 
 function readNonEmptyString(value: unknown, errorCode: string): string {
