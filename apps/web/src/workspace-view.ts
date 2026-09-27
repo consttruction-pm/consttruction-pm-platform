@@ -4,13 +4,15 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
+
+type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
@@ -36,7 +38,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       <main class="cp-main">
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
-        ${renderFieldOperations(state.timecards, state.equipmentReports, t.attendance, t.equipment)}
+        ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -142,12 +144,23 @@ function renderSiteDailyLogs(
 }
 
 function renderFieldOperations(
+  fieldIssues: WorkspaceState["fieldIssues"],
   timecards: WorkspaceState["timecards"],
   equipmentReports: WorkspaceState["equipmentReports"],
-  attendanceLabel: string,
-  equipmentLabel: string,
+  t: WorkspaceLabels,
 ): string {
-  if (!timecards.length && !equipmentReports.length) return "";
+  if (!fieldIssues.length && !timecards.length && !equipmentReports.length) return "";
+
+  const issues = fieldIssues.length
+    ? fieldIssues.map((issue) => `
+        <div class="cp-field-card" data-field-issue-id="${escapeAttribute(issue.issueId)}">
+          <strong>${escapeHtml(issue.titleKey)}</strong>
+          <span>${escapeHtml(issue.category)}</span>
+          <span>${escapeHtml(issue.severity)} · ${escapeHtml(issue.status)}</span>
+          <span>${escapeHtml(issue.locationKey ?? "—")}</span>
+          <span>${issue.activityIds.length} activity link(s) · ${issue.evidenceCount} evidence</span>
+        </div>`).join("")
+    : '<div class="cp-empty">—</div>';
 
   const attendance = timecards.length
     ? timecards.map((card) => `
@@ -171,14 +184,18 @@ function renderFieldOperations(
     : '<div class="cp-empty">—</div>';
 
   return `
-    <section class="cp-panel cp-field-ops" aria-label="${escapeAttribute(attendanceLabel + " / " + equipmentLabel)}">
+    <section class="cp-panel cp-field-ops" aria-label="${escapeAttribute(t.issues + " / " + t.attendance + " / " + t.equipment)}">
       <div class="cp-field-grid">
         <div>
-          <h2>${escapeHtml(attendanceLabel)}</h2>
+          <h2>${escapeHtml(t.issues)}</h2>
+          <div class="cp-field-list">${issues}</div>
+        </div>
+        <div>
+          <h2>${escapeHtml(t.attendance)}</h2>
           <div class="cp-field-list">${attendance}</div>
         </div>
         <div>
-          <h2>${escapeHtml(equipmentLabel)}</h2>
+          <h2>${escapeHtml(t.equipment)}</h2>
           <div class="cp-field-list">${equipment}</div>
         </div>
       </div>

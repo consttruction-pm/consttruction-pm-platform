@@ -10,6 +10,7 @@ import {
   setLocale,
   setControlSummary,
   setFieldOperations,
+  setFieldIssues,
   setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
@@ -145,6 +146,25 @@ test("field operations attach to the workspace without changing project identity
   );
   assert.equal(next.timecards[0]?.personId, "person-1");
   assert.equal(next.equipmentReports[0]?.equipmentId, "exc-01");
+  assert.deepEqual(next.context, context);
+});
+
+test("field issues attach without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setFieldIssues(state, [{
+    issueId: "issue-1",
+    category: "safety",
+    severity: "critical",
+    status: "open",
+    titleKey: "issue.title",
+    detailKey: "issue.detail",
+    reportedBy: "user-1",
+    locationKey: "tower-a",
+    activityIds: ["A-101"],
+    evidenceCount: 1,
+    updatedAt: "2026-09-27T10:00:00Z",
+  }]);
+  assert.equal(next.fieldIssues[0]?.issueId, "issue-1");
   assert.deepEqual(next.context, context);
 });
 

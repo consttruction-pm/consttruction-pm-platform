@@ -2,6 +2,7 @@ import type { ProjectContext } from "./client.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
+import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -70,6 +71,7 @@ export type WorkspaceState = {
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
   timecards: readonly WorkspaceTimecard[];
   equipmentReports: readonly WorkspaceEquipmentStatus[];
+  fieldIssues: readonly WorkspaceFieldIssue[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -108,6 +110,7 @@ export function createWorkspaceState(
     siteDailyLogs: [],
     timecards: [],
     equipmentReports: [],
+    fieldIssues: [],
   };
 }
 
@@ -171,6 +174,18 @@ export function setFieldOperations(
     ...state,
     timecards: timecards.map((card) => Object.freeze({ ...card })),
     equipmentReports: equipmentReports.map((report) => Object.freeze({ ...report })),
+  };
+}
+
+export function setFieldIssues(
+  state: WorkspaceState,
+  fieldIssues: readonly WorkspaceFieldIssue[],
+): WorkspaceState {
+  return {
+    ...state,
+    fieldIssues: fieldIssues.map((issue) =>
+      Object.freeze({ ...issue, activityIds: [...issue.activityIds] }),
+    ),
   };
 }
 
