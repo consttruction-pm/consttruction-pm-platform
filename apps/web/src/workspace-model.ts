@@ -4,6 +4,7 @@ import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
+import type { WorkspaceChangeCase, WorkspaceChangeNotice, WorkspaceClaimRecord, WorkspaceChangeClaimImpact } from "./workspace-change-claims.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -77,6 +78,10 @@ export type WorkspaceState = {
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
   punchItems: readonly WorkspacePunchItem[];
+  changeCases: readonly WorkspaceChangeCase[];
+  changeNotices: readonly WorkspaceChangeNotice[];
+  claimRecords: readonly WorkspaceClaimRecord[];
+  changeClaimImpacts: readonly WorkspaceChangeClaimImpact[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -120,6 +125,10 @@ export function createWorkspaceState(
     qualityRecords: [],
     safetyObservations: [],
     punchItems: [],
+    changeCases: [],
+    changeNotices: [],
+    claimRecords: [],
+    changeClaimImpacts: [],
   };
 }
 
@@ -221,6 +230,24 @@ export function setFieldAssurance(
     punchItems: assurance.punchItems.map((item) =>
       Object.freeze({ ...item, activityIds: [...item.activityIds] }),
     ),
+  };
+}
+
+export function setChangeClaims(
+  state: WorkspaceState,
+  value: {
+    changeCases: readonly WorkspaceChangeCase[];
+    changeNotices: readonly WorkspaceChangeNotice[];
+    claimRecords: readonly WorkspaceClaimRecord[];
+    impacts: readonly WorkspaceChangeClaimImpact[];
+  },
+): WorkspaceState {
+  return {
+    ...state,
+    changeCases: value.changeCases.map((item) => Object.freeze({ ...item })),
+    changeNotices: value.changeNotices.map((item) => Object.freeze({ ...item })),
+    claimRecords: value.claimRecords.map((item) => Object.freeze({ ...item })),
+    changeClaimImpacts: value.impacts.map((item) => Object.freeze({ ...item })),
   };
 }
 
