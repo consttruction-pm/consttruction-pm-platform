@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DesktopRuntime } from "./runtime.js";
+import { DesktopRuntime } from "./runtime.ts";
 import type { SyncOutcome } from "../../client-sync/src/mutation-queue.js";
 import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
+import type { WorkspaceReadCacheStore, WorkspaceControlRoomReadTransport } from "../../client-sync/src/workspace-read-cache-adapter.js";
+import type { WorkspaceControlRoomReadCache } from "../../client-sync/src/workspace-read-cache.js";
 
 test("desktop syncOnce uses shared transport and clears acknowledged mutation", async () => {
   const runtime = new DesktopRuntime();
@@ -83,4 +85,53 @@ test("desktop stale retry can be acknowledged after authoritative refresh", asyn
   assert.equal(outcomes[0]?.disposition, "acknowledged");
   assert.equal(runtime.current().revision, 42);
   assert.equal(runtime.pendingMutationCount(), 0);
+});
+
+
+class WorkspaceStore implements WorkspaceReadCacheStore {
+  cache: WorkspaceControlRoomReadCache | null = null;
+  async load() { return this.cache; }
+  async save(cache: WorkspaceControlRoomReadCache) { this.cache = cache; }
+}
+class WorkspaceTransport implements WorkspaceControlRoomReadTransport {
+  calls = 0;
+  async fetch(context: { tenant_id: string; project_id: string; revision: number }) {
+    this.calls += 1;
+    return { contract_version: "workspace-control-room-read.v1", context, workspace: {} };
+  }
+}
+test("Desktop workspace read uses shared cache and exposes offline stale state", async () => {
+  const runtime = new DesktopRuntime();
+  runtime.openProject("t1", "p1", 7, "online");
+  const transport = new WorkspaceTransport();
+  const store = new WorkspaceStore();
+  const adapter = new (await import("../../client-sync/src/workspace-read-cache-adapter.js")).WorkspaceReadCacheAdapter(transport, store);
+  const online = await runtime.readWorkspace(adapter);
+  assert.equal(online.state, "fresh");
+  runtime.setMode("offline");
+  runtime.advanceRevision(8);
+  const offline = await runtime.readWorkspace(adapter);
+  assert.equal(offline.state, "stale");
+  assert.ok(offline.cache);
+  assert.equal(offline.cache.source_revision, 7);
+  assert.equal(transport.calls, 1);
+});
+
+test("Desktop reconciles stale offline workspace after returning online", async () => {
+  const runtime = new DesktopRuntime();
+  runtime.openProject("t1", "p1", 7, "online");
+  const transport = new WorkspaceTransport();
+  const store = new WorkspaceStore();
+  const adapter = new (await import("../../client-sync/src/workspace-read-cache-adapter.js")).WorkspaceReadCacheAdapter(transport, store);
+  await runtime.readWorkspace(adapter);
+  runtime.advanceRevision(8);
+  runtime.setMode("offline");
+  const stale = await runtime.readWorkspace(adapter);
+  assert.equal(stale.state, "stale");
+  transport.calls = 0;
+  runtime.setMode("online");
+  const fresh = await runtime.readWorkspace(adapter);
+  assert.equal(fresh.state, "fresh");
+  assert.equal(fresh.cache.source_revision, 8);
+  assert.equal(transport.calls, 1);
 });
