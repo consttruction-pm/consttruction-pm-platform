@@ -580,3 +580,17 @@ Status: **100% — implemented, merged and runtime-verified**
 - No Stage 87 roadmap artifact currently exists under `docs/roadmap/`.
 - Therefore the next numbered stage must **not be invented from assumption**. The next implementation target requires a new approved roadmap gate based on the existing product completeness program and current architecture/competitive-gap evidence.
 - Stage 35 remains a separate current-main hardening PR (#306) and is not marked merged here.
+
+### Stage 34.4 — Shared Control Room Offline/Read-Cache Parity
+Status: **100% — implemented, merged and runtime-verified 2026-09-27**
+
+- PR #311 merged the Stage 34.4 workspace read-cache/runtime boundary onto current main at merge commit `3ca05d011dfc457f1b45be500b5ebfcb00531cd1`.
+- The implementation provides the versioned `workspace-control-room-cache.v1` contract, shared Client-Sync cache adapter, Web cached-read projection, and Desktop/Mobile workspace-read integration.
+- Runtime coverage verifies tenant/project/revision isolation, immutable snapshots, stale detection, authoritative online refresh, offline last-known behavior, revision-mismatch rejection, and cross-client shared-adapter behavior.
+- Exact implementation-head verification recorded for PR #311:
+  - Client Typecheck run `36340776620`
+  - ConstructionPM CI run `36340776628`
+- PR #313 was a redundant later reconciliation attempt and was closed without merge; no work from it is required for the Stage 34.4 completion record.
+- Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `4df2bafeb4e7e9d399dc6992a5f3ef8a52d5fb48`.
+- No client-side Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+
