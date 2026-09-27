@@ -811,3 +811,16 @@ Status: **100% — implemented, merged and runtime-verified through PR #361**
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
+
+
+### 2026-09-28 — Enterprise Identity tenant binding (PR #365)
+Status: **implemented, merged and runtime-verified**
+- Enterprise Identity resolution now requires a non-empty `tenant_id` claim and rejects cross-tenant claims before identity acceptance.
+- PR #365 exact implementation head `01cd42d9fc623e052c625170935ea93ded8bf3ae` passed Client Typecheck `36352892657` and ConstructionPM CI `36352892636`.
+- Merge commit: `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current Backend Continuation Point
+- Current `main`: `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
+- PR #366 was closed without merge because its branch was based on the previous main and diverged after PR #365; no #366 change is counted as merged.
+- PR #369 is the fresh current-main authorization validation implementation. Head `5396415bd49ed93d07d12ae84939ab22ed596da3` currently has no GitHub Actions run/status, so runtime verification is pending and the change must not be merged until the verification gate is satisfied.
