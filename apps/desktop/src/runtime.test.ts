@@ -3,6 +3,8 @@ import test from "node:test";
 import { DesktopRuntime } from "./runtime.js";
 import type { SyncOutcome } from "../../client-sync/src/mutation-queue.js";
 import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
+import type { WorkspaceReadCacheStore, WorkspaceControlRoomReadTransport } from "../../client-sync/src/workspace-read-cache-adapter.js";
+import type { WorkspaceControlRoomReadCache } from "../../client-sync/src/workspace-read-cache.js";
 
 test("desktop syncOnce uses shared transport and clears acknowledged mutation", async () => {
   const runtime = new DesktopRuntime();
@@ -86,12 +88,12 @@ test("desktop stale retry can be acknowledged after authoritative refresh", asyn
 });
 
 
-class WorkspaceStore implements import("../../client-sync/src/workspace-read-cache-adapter.js").WorkspaceReadCacheStore {
-  cache: import("../../client-sync/src/workspace-read-cache.js").WorkspaceControlRoomReadCache | null = null;
+class WorkspaceStore implements WorkspaceReadCacheStore {
+  cache: WorkspaceControlRoomReadCache | null = null;
   async load() { return this.cache; }
-  async save(cache: import("../../client-sync/src/workspace-read-cache.js").WorkspaceControlRoomReadCache) { this.cache = cache; }
+  async save(cache: WorkspaceControlRoomReadCache) { this.cache = cache; }
 }
-class WorkspaceTransport implements import("../../client-sync/src/workspace-read-cache-adapter.js").WorkspaceControlRoomReadTransport {
+class WorkspaceTransport implements WorkspaceControlRoomReadTransport {
   calls = 0;
   async fetch(context: { tenant_id: string; project_id: string; revision: number }) {
     this.calls += 1;
@@ -110,6 +112,7 @@ test("desktop workspace read uses shared cache and exposes offline stale state",
   runtime.advanceRevision(8);
   const offline = await runtime.readWorkspace(adapter);
   assert.equal(offline.state, "stale");
+  assert.ok(offline.cache);
   assert.equal(offline.cache.source_revision, 7);
   assert.equal(transport.calls, 1);
 });
