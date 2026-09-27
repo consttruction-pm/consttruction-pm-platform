@@ -14,6 +14,7 @@ from construction_pm.field_assurance_templates import (
 from construction_pm.field_assurance_templates_repository import (
     FieldAssuranceExecution,
     FieldAssuranceTemplateApplicationService,
+    FieldAssuranceTemplateRepository,
     FieldAssuranceTemplatePersistenceError,
     SQLiteFieldAssuranceTemplateRepository,
 )
@@ -133,5 +134,31 @@ def test_execution_rollback_leaves_no_partial_row():
         with pytest.raises(FieldAssuranceTemplatePersistenceError):
             service.execute(bad)
         assert service.repository.get_execution(_scope(), "EXEC-ROLLBACK") is None
+    finally:
+        connection.close()
+
+def test_application_service_depends_on_repository_protocol():
+    connection = sqlite3.connect(":memory:")
+    try:
+        sqlite_repository = SQLiteFieldAssuranceTemplateRepository(connection)
+
+        class RepositoryPort:
+            def create_template(self, template):
+                return sqlite_repository.create_template(template)
+
+            def get_template(self, scope, template_id, template_version):
+                return sqlite_repository.get_template(scope, template_id, template_version)
+
+            def create_execution(self, execution):
+                return sqlite_repository.create_execution(execution)
+
+            def get_execution(self, scope, execution_id):
+                return sqlite_repository.get_execution(scope, execution_id)
+
+        service = FieldAssuranceTemplateApplicationService(
+            RepositoryPort(), SQLiteTransactionManager(connection)
+        )
+        service.create_template(_template())
+        assert service.read_template(_scope(), "TPL-1", 2) is not None
     finally:
         connection.close()
