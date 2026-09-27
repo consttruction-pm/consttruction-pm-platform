@@ -8,18 +8,19 @@ export type CachedLanguagePack={artifact:Uint8Array;manifest:LanguagePackManifes
 
 export class OfflineLanguagePackStore{
  private cached:ActivatedLanguagePack|null=null;
+ private readonly verifierStore=new AtomicLanguagePackStore();
 
  cacheVerifiedPack(
   pack:CachedLanguagePack,
   verifySignature:LanguagePackSignatureVerifier,
  ):ActivatedLanguagePack{
-  verifyLanguagePackIntegrity(pack.artifact,pack.manifest,verifySignature);
-  const resources=validateLanguagePackResources(pack.manifest,pack.resources);
-  return this.cacheActivatedPack({manifest:pack.manifest,resources});
+  const active=this.verifierStore.activate(pack.artifact,pack.manifest,pack.resources,verifySignature);
+  return this.cacheActivatedPack(active);
  }
 
  cacheActivatedPack(pack:ActivatedLanguagePack):ActivatedLanguagePack{
-  this.cached=Object.freeze({manifest:pack.manifest,resources:pack.resources});
+  if(!isActivatedLanguagePack(pack)) throw new Error("LANGUAGE_PACK_ACTIVATION_PROVENANCE_INVALID");
+  this.cached=pack;
   return this.cached;
  }
 
