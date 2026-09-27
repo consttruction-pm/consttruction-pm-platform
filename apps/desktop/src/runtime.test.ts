@@ -134,4 +134,15 @@ test("Desktop reconciles stale offline workspace after returning online", async 
   assert.equal(fresh.state, "fresh");
   assert.equal(fresh.cache.source_revision, 8);
   assert.equal(transport.calls, 1);
+})import { createDesktopVoiceAdapters } from "./voice-adapters.ts";
+;
+test("desktop runtime exposes configured voice adapter boundary", () => {
+  const runtime = new DesktopRuntime();
+  const adapters = createDesktopVoiceAdapters({
+    input: { capabilities: { input: true, output: false }, async capture() { throw new Error("not invoked"); } },
+    output: { capabilities: { input: false, output: true }, async speak() {} },
+  });
+  assert.equal(runtime.voiceAdaptersOrNull(), null);
+  runtime.setVoiceAdapters(adapters);
+  assert.equal(runtime.voiceAdaptersOrNull(), adapters);
 });
