@@ -15,6 +15,16 @@ def require_enum(value: object, enum_type: Type[E], error_code: str) -> None:
         raise ValueError(error_code)
 
 
+def _require_source_scope(
+    source_refs: Tuple["SourceReference", ...],
+    scope: "ControlScope",
+    error_code: str,
+) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
 @dataclass(frozen=True)
 class ControlScope:
     tenant_id: str
@@ -113,3 +123,10 @@ class ControlIntelligenceResult:
             raise ValueError("CONTROL_RESULT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
         if not self.source_refs:
             raise ValueError("CONTROL_RESULT_SOURCE_REQUIRED")
+        _require_source_scope(self.source_refs, self.scope, "CONTROL_RESULT_SOURCE_REVISION_MISMATCH")
+        for finding in self.findings:
+            _require_source_scope(finding.source_refs, self.scope, "CONTROL_FINDING_SOURCE_REVISION_MISMATCH")
+        for action in self.proposed_actions:
+            if action.requires_approval and not action.source_refs:
+                raise ValueError("APPROVAL_ACTION_SOURCE_REQUIRED")
+            _require_source_scope(action.source_refs, self.scope, "PROPOSED_ACTION_SOURCE_REVISION_MISMATCH")
