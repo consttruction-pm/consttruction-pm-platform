@@ -12,6 +12,24 @@ PMI's PMBOK Guide — Eighth Edition (November 2025), together with ANSI/PMI 99-
 
 No client, API adapter, external package or AI agent may silently redefine P6/shared calculation semantics.
 
+## Principle 1A — P6 complete-field, calculation and interoperability parity / no silent omission
+
+For every capability applicable to the product's P6-overlap scope, the latest approved P6 baseline is a **completeness floor, not only a semantic reference**. We must not silently omit a P6 field, input option, calendar rule, calculation option, output column, import/export mapping, or user-configurable field capability when an equivalent concept belongs in our product.
+
+The parity surface includes, at minimum:
+- all applicable standard and computed P6 fields by subject area;
+- writable/read-only/filterable/orderable semantics and stable data types;
+- UDF/custom-field support and typed custom columns;
+- column/view capabilities including add, remove, hide/show, reorder, rename, width, pinning where applicable, and persistent layouts;
+- formula fields/columns with safe parsing, type checking, dependency tracking, cycle detection, deterministic evaluation and summary/rollup rules;
+- calendar pools, assignments, inheritance, exceptions, detailed work time and hours-per-time-period conversions;
+- scheduling/calculation options that affect dates, float, criticality, progress treatment, resource leveling, costs and summaries;
+- import/export mappings and round-trip preservation for P6/XER/XML/XLS/XLSX/Microsoft Project and other approved exchange formats.
+
+A requirement may be marked **Outside Scope** only with an explicit documented decision. A feature is not considered P6-compatible merely because a screen or similarly named field exists; the behavior, data type, calculation semantics, portability and interchange contract must be covered.
+
+The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
