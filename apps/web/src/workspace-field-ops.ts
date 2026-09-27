@@ -71,16 +71,7 @@ export type EquipmentStatusSnapshot = {
 };
 
 export function projectTimecard(
-  snapshot: FieldTimecardSnapshot & {
-    timecard_id: string;
-    scope: ProjectScope;
-    person_id: string;
-    log_date: string;
-    workplace_key: string;
-    attendance_status: AttendanceStatus;
-    start_at?: string | null;
-    end_at?: string | null;
-  },
+  snapshot: FieldTimecardSnapshot,
   context: ProjectScope,
 ): WorkspaceTimecard {
   if (snapshot.contract_version !== FIELD_TIMECARD_VERSION) {
@@ -112,17 +103,7 @@ export function projectTimecard(
 }
 
 export function projectEquipmentStatus(
-  snapshot: EquipmentStatusSnapshot & {
-    report_id: string;
-    scope: ProjectScope;
-    equipment_id: string;
-    report_date: string;
-    workplace_key: string;
-    status: EquipmentStatus;
-    breakdown_cause_key?: string | null;
-    reported_by: string;
-    meter_hours?: string | null;
-  },
+  snapshot: EquipmentStatusSnapshot,
   context: ProjectScope,
 ): WorkspaceEquipmentStatus {
   if (snapshot.contract_version !== EQUIPMENT_STATUS_VERSION) {
