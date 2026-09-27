@@ -101,3 +101,17 @@ Select the first **actually missing** Hasan-owned backend boundary supporting th
 Do not revive stale PRs merely because they remain open.
 
 Historical note: the previous version contained stale PR #70/Stage 33.4.70 continuation instructions; those are superseded by this current-main baseline.
+
+
+### Latest reconciliation — Dependency Graph API boundary (PR #328)
+
+- PR #328 is merged to `main` with merge commit `93af2ca34e3143d0e8a1bb456645c4b3282c61b1`.
+- Exact implementation head: `05df8d1d7a6f237cad61514321ff3c336f51db05`.
+- ConstructionPM CI run `36346154172` completed successfully.
+- Client Typecheck run `36346154198` completed successfully.
+- The new `dependency-graph.v1` API adapter delegates authorization, revision, idempotency and transaction semantics to the existing Application boundary and does not introduce Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculations.
+- The previously stale PR #326 is superseded and must not be revived.
+
+## Next point
+
+After PR #328, re-check current `main` and open PRs for the first actually missing Hasan-owned backend boundary. Do not invent a new numbered roadmap stage or duplicate client/provider-owned voice/parity work without a concrete authoritative backend gap.
