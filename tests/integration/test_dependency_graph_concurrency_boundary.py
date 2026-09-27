@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 
 import pytest
@@ -20,6 +21,33 @@ class Connection:
     def __init__(self):
         self.revision = 0
         self.links = {}
+        self.audit = []
+        self.fail_audit = False
+
+    class Transaction:
+        def __init__(self, connection):
+            self.connection = connection
+            self.snapshot = None
+
+        def __enter__(self):
+            self.snapshot = (
+                self.connection.revision,
+                deepcopy(self.connection.links),
+                deepcopy(self.connection.audit),
+            )
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is not None:
+                (
+                    self.connection.revision,
+                    self.connection.links,
+                    self.connection.audit,
+                ) = self.snapshot
+            return False
+
+    def transaction(self):
+        return self.Transaction(self)
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -44,6 +72,11 @@ class Connection:
         if sql.startswith("INSERT INTO project_dependency_links"):
             self.links[params[3]] = (params[4], params[6], params[5])
             return Cursor()
+        if sql.startswith("INSERT INTO project_dependency_audit"):
+            if self.fail_audit:
+                raise RuntimeError("AUDIT_WRITE_FAILED")
+            self.audit.append(params)
+            return Cursor()
         return Cursor()
 
 
@@ -57,9 +90,9 @@ def make_service():
     return DependencyGraphApplicationService(store, policy), connection
 
 
-def make_link(tenant_id="tenant-a", project_id="project-a"):
+def make_link(resource_id="dependency-1", tenant_id="tenant-a", project_id="project-a"):
     return DependencyLink(
-        resource_id="dependency-1",
+        resource_id=resource_id,
         tenant_id=tenant_id,
         project_id=project_id,
         revision=1,
@@ -139,3 +172,22 @@ def test_actor_identity_mismatch_cannot_write_dependency_graph():
 
     assert connection.revision == 0
     assert connection.links == {}
+
+
+def test_link_and_revision_are_rolled_back_when_audit_write_fails():
+    service, connection = make_service()
+    connection.fail_audit = True
+
+    with pytest.raises(RuntimeError, match="AUDIT_WRITE_FAILED"):
+        service.create(
+            make_link(),
+            context=context(),
+            expected_graph_revision=0,
+            idempotency_key="idem-atomic",
+            actor_id="user-1",
+            occurred_at=timestamp(),
+        )
+
+    assert connection.revision == 0
+    assert connection.links == {}
+    assert connection.audit == []
