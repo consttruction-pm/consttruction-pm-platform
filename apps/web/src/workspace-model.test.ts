@@ -148,6 +148,56 @@ test("field operations attach to the workspace without changing project identity
   assert.deepEqual(next.context, context);
 });
 
+
+test("field assurance records attach without changing project identity", () => {
+  const state = createWorkspaceState(context);
+  const next = setFieldAssurance(
+    state,
+    [{
+      inspectionId: "insp-1",
+      inspectionTypeKey: "rebar",
+      subjectType: "activity",
+      subjectId: "A-1",
+      locationKey: "tower-a",
+      inspectionDate: "2026-09-27",
+      inspectorId: "insp-actor",
+      status: "completed",
+      result: "pass",
+      checklist: [],
+    }],
+    [{
+      observationId: "obs-1",
+      categoryKey: "ppe",
+      severity: "high",
+      status: "open",
+      titleKey: "ppe-gap",
+      observedBy: "safety-1",
+      locationKey: "tower-a",
+      activityIds: ["A-1"],
+      immediateActionKey: null,
+      rootCauseKey: null,
+    }],
+    [{
+      punchId: "punch-1",
+      categoryKey: "finish",
+      priority: "medium",
+      status: "open",
+      titleKey: "paint",
+      reportedBy: "qc-1",
+      locationKey: "tower-a",
+      activityIds: ["A-1"],
+      responsiblePartyId: "sub-1",
+      dueDate: null,
+      verificationBy: null,
+      closeoutCodeKey: null,
+    }],
+  );
+  assert.equal(next.inspections[0]?.inspectionId, "insp-1");
+  assert.equal(next.safetyObservations[0]?.severity, "high");
+  assert.equal(next.punchItems[0]?.status, "open");
+  assert.deepEqual(next.context, context);
+});
+
 test("typed activity cells and Gantt data remain server-projected", () => {
   const state = createWorkspaceState(context);
   const next = withActivities(state, [
