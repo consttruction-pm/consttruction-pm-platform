@@ -4,6 +4,7 @@ import { WebSyncRuntime } from "./sync-runtime.js";
 import type { SyncMutation, SyncOutcome } from "../../client-sync/src/mutation-queue.js";
 import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
 
+import { createWebVoiceAdapters } from "./voice-adapters.ts";
 const mutation: SyncMutation = {
   contract_version: "sync-mutation.v1",
   mutation_id: "m1",
@@ -136,4 +137,15 @@ test("web stale retry can be acknowledged after authoritative refresh", async ()
   assert.equal(retried.expected_revision, 42);
   assert.equal(outcomes[0]?.disposition, "acknowledged");
   assert.equal(runtime.pendingMutationCount(), 0);
+});
+
+test("web runtime exposes configured voice adapter boundary", () => {
+  const runtime = new WebSyncRuntime();
+  const adapters = createWebVoiceAdapters({
+    input: { capabilities: { input: true, output: false }, async capture() { throw new Error("not invoked"); } },
+    output: { capabilities: { input: false, output: true }, async speak() {} },
+  });
+  assert.equal(runtime.voiceAdaptersOrNull(), null);
+  runtime.setVoiceAdapters(adapters);
+  assert.equal(runtime.voiceAdaptersOrNull(), adapters);
 });
