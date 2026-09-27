@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
@@ -46,6 +48,8 @@ def execution(*, revision: int = 7, version: int = 1, answers=None, tenant="tena
             if answers is None
             else tuple(answers)
         ),
+        executed_by="user-1",
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
 
