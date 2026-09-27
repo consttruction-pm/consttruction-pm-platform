@@ -97,7 +97,6 @@ class DependencyAuditEvent:
 
 class DependencyConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
-    def transaction(self): ...
 
 
 def dependency_fingerprint(link: DependencyLink) -> str:
@@ -163,51 +162,50 @@ class PostgresDependencyGraphStore:
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
-        # Keep revision, link, and audit mutations in one transaction. The project
-        # revision row is locked before checking idempotency so concurrent writes and
-        # replays for the same project serialize deterministically.
-        with self.connection.transaction():
-            row = self.connection.execute(
-            "SELECT revision FROM project_dependency_revisions "
-            "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
-            (link.tenant_id, link.project_id),
-            ).fetchone()
-            if row is None:
-                raise ValueError("DEPENDENCY_PROJECT_NOT_INITIALIZED")
-            current = row[0]
+        # The application transaction manager owns the transaction boundary. The project
+    # revision row is locked before checking idempotency so concurrent writes and
+    # replays for the same project serialize deterministically.
+        row = self.connection.execute(
+        "SELECT revision FROM project_dependency_revisions "
+        "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+        (link.tenant_id, link.project_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("DEPENDENCY_PROJECT_NOT_INITIALIZED")
+        current = row[0]
 
-            existing = self._find_idempotency(link.tenant_id, link.project_id, idempotency_key)
-            fingerprint = dependency_fingerprint(link)
-            if existing is not None:
-                existing_fingerprint, existing_json, existing_revision = existing
-                if existing_fingerprint != fingerprint:
-                    raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
-                return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
-            if current != expected_graph_revision:
-                raise DependencyRevisionConflict(
-                    f"DEPENDENCY_REVISION_CONFLICT expected={expected_graph_revision} actual={current}"
-                )
+        existing = self._find_idempotency(link.tenant_id, link.project_id, idempotency_key)
+        fingerprint = dependency_fingerprint(link)
+        if existing is not None:
+            existing_fingerprint, existing_json, existing_revision = existing
+            if existing_fingerprint != fingerprint:
+                raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
+            return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
+        if current != expected_graph_revision:
+            raise DependencyRevisionConflict(
+                f"DEPENDENCY_REVISION_CONFLICT expected={expected_graph_revision} actual={current}"
+            )
 
-            next_revision = current + 1
-            payload = json.dumps(link.__dict__, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-            self.connection.execute(
-                "UPDATE project_dependency_revisions SET revision=%s "
-                "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
-                (next_revision, link.tenant_id, link.project_id, current),
-            )
-            self.connection.execute(
-                "INSERT INTO project_dependency_links "
-                "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, graph_revision, link_json) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
-            )
-            self.connection.execute(
-                "INSERT INTO project_dependency_audit "
-                "(tenant_id, project_id, resource_id, graph_revision, event_type, actor_id, occurred_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (link.tenant_id, link.project_id, link.resource_id, next_revision, "created", actor_id, occurred_at.isoformat()),
-            )
-            return StoredDependencyLink(link, next_revision)
+        next_revision = current + 1
+        payload = json.dumps(link.__dict__, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        self.connection.execute(
+            "UPDATE project_dependency_revisions SET revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
+            (next_revision, link.tenant_id, link.project_id, current),
+        )
+        self.connection.execute(
+            "INSERT INTO project_dependency_links "
+            "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, graph_revision, link_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
+        )
+        self.connection.execute(
+            "INSERT INTO project_dependency_audit "
+            "(tenant_id, project_id, resource_id, graph_revision, event_type, actor_id, occurred_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (link.tenant_id, link.project_id, link.resource_id, next_revision, "created", actor_id, occurred_at.isoformat()),
+        )
+        return StoredDependencyLink(link, next_revision)
 
     def get(self, tenant_id: str, project_id: str, resource_id: str) -> StoredDependencyLink | None:
         row = self.connection.execute(
