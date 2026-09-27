@@ -9,6 +9,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .backend_p0.transactions import TransactionManager
 from .field_assurance_execution import (
     FieldAssuranceExecution,
     FieldAssuranceExecutionError,
@@ -27,6 +28,7 @@ class FieldAssuranceApplicationService:
 
     repository: FieldAssuranceRepository
     authorization_policy: AuthorizationPolicy
+    transaction_manager: TransactionManager
 
     @staticmethod
     def _require_actor(context: AuthorizationContext, actor_id: str) -> None:
@@ -80,7 +82,8 @@ class FieldAssuranceApplicationService:
             scope=template.scope,
             expected_project_revision=expected_project_revision,
         )
-        return self.repository.create_template(template)
+        with self.transaction_manager.transaction():
+            return self.repository.create_template(template)
 
     def get_template(
         self,
@@ -95,7 +98,8 @@ class FieldAssuranceApplicationService:
         self._require_revision(scope, project_revision)
         if not self.authorization_policy.is_allowed(context, Permission.PROJECT_READ):
             raise AuthorizationError("FIELD_ASSURANCE_READ_NOT_AUTHORIZED")
-        return self.repository.get_template(scope, template_id, template_version)
+        with self.transaction_manager.transaction():
+            return self.repository.get_template(scope, template_id, template_version)
 
     def execute(
         self,
@@ -111,7 +115,10 @@ class FieldAssuranceApplicationService:
             scope=execution.scope,
             expected_project_revision=expected_project_revision,
         )
-        return self.repository.execute(execution)
+        if execution.executed_by != actor_id:
+            raise AuthorizationError("FIELD_ASSURANCE_EXECUTED_BY_MISMATCH")
+        with self.transaction_manager.transaction():
+            return self.repository.execute(execution)
 
 
 __all__ = [
