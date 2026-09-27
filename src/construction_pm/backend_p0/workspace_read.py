@@ -6,7 +6,15 @@ from typing import Mapping, Protocol
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy, Permission
 
 from .errors import BackendApplicationError, ErrorCategory
-from .models import BackendScope
+from .models import (
+    BackendScope,
+    ProcurementRFQ,
+    ProcurementQuote,
+    ProcurementBidComparison,
+    PurchaseOrder,
+    ProcurementCommitment,
+    ProcurementDelivery,
+)
 from .repository import BackendP0Repository
 
 WORKSPACE_CONTROL_ROOM_READ_VERSION = "workspace-control-room-read.v1"
@@ -75,12 +83,12 @@ class WorkspaceControlRoomReadService:
                 ),
             )
             result.update({
-                "procurement_rfqs": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementRFQ"],
-                "procurement_quotes": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementQuote"],
-                "procurement_bid_comparisons": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementBidComparison"],
-                "purchase_orders": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "PurchaseOrder"],
-                "procurement_commitments": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementCommitment"],
-                "procurement_deliveries": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementDelivery"],
+                "procurement_rfqs": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, ProcurementRFQ)],
+                "procurement_quotes": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, ProcurementQuote)],
+                "procurement_bid_comparisons": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, ProcurementBidComparison)],
+                "purchase_orders": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, PurchaseOrder)],
+                "procurement_commitments": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, ProcurementCommitment)],
+                "procurement_deliveries": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and isinstance(stored.record, ProcurementDelivery)],
             })
         return result
 
