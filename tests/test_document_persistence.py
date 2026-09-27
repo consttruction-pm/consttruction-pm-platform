@@ -160,11 +160,13 @@ def test_document_approval_lifecycle_enforces_allowed_transitions_and_audits_act
     )
     assert approved.document.status == "approved"
     assert approved.revision == 3
-    assert [event.event_type for event in store.history("tenant-1", "project-1", "doc-1")] == [
+    events = store.history("tenant-1", "project-1", "doc-1")
+    assert [event.event_type for event in events] == [
         "created",
-        "status:draft->submitted:ready for review",
-        "status:submitted->approved:accepted",
+        "status_transition",
+        "status_transition",
     ]
+    assert [event.reason for event in events] == ["", "ready for review", "accepted"]
 
 
 def test_document_approval_rejects_invalid_transition_and_does_not_mutate():
