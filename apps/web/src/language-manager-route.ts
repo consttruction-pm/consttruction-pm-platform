@@ -109,6 +109,16 @@ export function createLanguageManagerRoute(
 
     mount: (container) => {
       mounted = container;
+      container.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.dataset.languageManagerAction;
+        if (action === "use-offline") {
+          try { route.useOffline(); } catch { /* state already exposes the failure */ }
+        } else if (action === "rollback") {
+          try { route.rollback(); } catch { /* state already exposes the failure */ }
+        }
+      });
       renderLanguageManagerRoute(container, state);
     },
   };
