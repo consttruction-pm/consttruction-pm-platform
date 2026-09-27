@@ -46,6 +46,10 @@ class WorkingTimeCalendar:
         return self.daily_intervals.get(value.weekday(), ())
 
 
+def _timedelta_microseconds(value: timedelta) -> int:
+    return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
+
+
 class TimeAwareWorkingTimeResolver:
     """Deterministic datetime arithmetic over a WorkingTimeCalendar."""
 
@@ -99,7 +103,7 @@ class TimeAwareWorkingTimeResolver:
                 if not (begin <= cursor < end):
                     continue
 
-                capacity = Decimal(str((end - cursor).total_seconds())) / Decimal(3600)
+                capacity = Decimal(_timedelta_microseconds(end - cursor)) / Decimal(3_600_000_000)
                 if remaining <= capacity:
                     seconds = remaining * Decimal(3600)
                     return cursor + timedelta(microseconds=int(seconds * Decimal(1_000_000)))
@@ -132,7 +136,7 @@ class TimeAwareWorkingTimeResolver:
                 if not (begin < cursor <= end):
                     continue
 
-                capacity = Decimal(str((cursor - begin).total_seconds())) / Decimal(3600)
+                capacity = Decimal(_timedelta_microseconds(cursor - begin)) / Decimal(3_600_000_000)
                 if remaining <= capacity:
                     seconds = remaining * Decimal(3600)
                     return cursor - timedelta(microseconds=int(seconds * Decimal(1_000_000)))
