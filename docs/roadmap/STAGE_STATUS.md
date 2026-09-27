@@ -541,3 +541,13 @@ Status: **100% — runtime-verified through PR #280**
 - PR #280 exact head `3fe0881c9efcc6af1cf2ac2ca548d385338dd204` passed Python 3.11, 3.12, 3.13 and all Web/Desktop/Mobile/Client-Sync typechecks.
 - Merge commit: `cac86817e52b25f956d6366940f76dda5a61ded2`.
 - No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### 2026-09-27 — Procurement/Commercial workspace read materialization
+Status: **runtime-verified through PR #286**
+- PR #286 materialized the existing authoritative Procurement RFQ/Quote/Bid Comparison/PO/Commitment/Delivery records into the versioned `workspace-control-room-read.v1` snapshot.
+- The integration uses scoped `BackendP0Repository.list_records` access and enforces tenant/project scope plus the requested project revision.
+- Existing typed Procurement contracts and decimal values remain authoritative; no duplicate persistence, procurement calculation, pricing, financial formula, or ERP adapter was introduced.
+- Focused backend coverage verifies authoritative materialization and tenant/project isolation.
+- PR #286 exact head `8c5b26a6baca9856f577dec4aa08bbdf91368dc8` passed ConstructionPM CI run `36307286970` (Python 3.11/3.12/3.13) and Client Typecheck run `36307286973`.
+- Merge commit: `754621dbf2b3da01657e8a920fa500d1556ff8a2`.
+- Current main after subsequent repository activity: `793c4dbf3cc92ebca7bad5e421f16547b4964293`.
