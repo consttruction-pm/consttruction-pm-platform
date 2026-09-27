@@ -9,6 +9,7 @@ import {
   setCalendarMode,
   setLocale,
   setControlSummary,
+  setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
 
