@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://construction-pm.local/contracts/v1/p0-procurement-commercial.schema.json",
+  "title":"P0 Procurement / Commercial Resource v1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["tenant_id","project_id","resource_id","revision","resource_type","status","actor_id","occurred_at","payload"],
+  "properties":{
+    "tenant_id":{"type":"string","minLength":1},
+    "project_id":{"type":"string","minLength":1},
+    "resource_id":{"type":"string","minLength":1},
+    "revision":{"type":"integer","minimum":0},
+    "resource_type":{"type":"string","enum":["rfq","quote","bid_comparison","purchase_order","commitment","delivery"]},
+    "status":{"type":"string","enum":["draft","issued","received","evaluated","approved","cancelled","completed"]},
+    "actor_id":{"type":"string","minLength":1},
+    "occurred_at":{"type":"string","minLength":1},
+    "payload":{"type":"object"}
+  }
+}
