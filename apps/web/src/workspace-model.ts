@@ -1,6 +1,7 @@
 import type { ProjectContext } from "./client.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
+import type { WorkspaceEquipmentStatus, WorkspaceFieldIssue, WorkspaceFieldTimecard } from "./workspace-field-operations.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -67,6 +68,9 @@ export type WorkspaceState = {
   activities: readonly WorkspaceActivityRow[];
   controlSummary: WorkspaceControlSummary | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
+  fieldIssues: readonly WorkspaceFieldIssue[];
+  fieldTimecards: readonly WorkspaceFieldTimecard[];
+  equipmentStatuses: readonly WorkspaceEquipmentStatus[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -103,6 +107,9 @@ export function createWorkspaceState(
     activities: [],
     controlSummary: null,
     siteDailyLogs: [],
+    fieldIssues: [],
+    fieldTimecards: [],
+    equipmentStatuses: [],
   };
 }
 
@@ -145,6 +152,22 @@ export function setControlSummary(
   controlSummary: WorkspaceControlSummary | null,
 ): WorkspaceState {
   return { ...state, controlSummary };
+}
+
+export function setFieldOperations(
+  state: WorkspaceState,
+  operations: {
+    fieldIssues: readonly WorkspaceFieldIssue[];
+    fieldTimecards: readonly WorkspaceFieldTimecard[];
+    equipmentStatuses: readonly WorkspaceEquipmentStatus[];
+  },
+): WorkspaceState {
+  return {
+    ...state,
+    fieldIssues: operations.fieldIssues.map((issue) => Object.freeze({ ...issue, activityIds: [...issue.activityIds] })),
+    fieldTimecards: operations.fieldTimecards.map((card) => Object.freeze({ ...card, activityAllocations: [...card.activityAllocations] })),
+    equipmentStatuses: operations.equipmentStatuses.map((report) => Object.freeze({ ...report, activityAllocations: [...report.activityAllocations] })),
+  };
 }
 
 export function setSiteDailyLogs(
