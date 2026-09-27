@@ -188,3 +188,10 @@ def test_audit_timestamp_validation_happens_before_mutation(occurred_at):
 
     assert connection.revisions[("T-1", "P-1")] == 0
     assert connection.audit == []
+
+
+def test_dependency_fingerprint_is_stable_for_metadata_key_order() -> None:
+    first = link(metadata={"b": 2, "a": {"y": 1, "x": 0}})
+    second = link(metadata={"a": {"x": 0, "y": 1}, "b": 2})
+
+    assert dependency_fingerprint(first) == dependency_fingerprint(second)
