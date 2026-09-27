@@ -1,7 +1,16 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 
 export type LanguagePackResource={path:string;bytes:Uint8Array};
-export interface ValidatedLanguagePackResources extends ReadonlyMap<string,Uint8Array>{}
+export interface ValidatedLanguagePackResources{
+ get(path:string):Uint8Array|undefined;
+ has(path:string):boolean;
+ readonly size:number;
+ entries():IterableIterator<[string,Uint8Array]>;
+ keys():IterableIterator<string>;
+ values():IterableIterator<Uint8Array>;
+ [Symbol.iterator]():IterableIterator<[string,Uint8Array]>;
+ forEach(callbackfn:(value:Uint8Array,key:string,map:ValidatedLanguagePackResources)=>void,thisArg?:unknown):void;
+}
 
 const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
  manifest.resources.translation,manifest.resources.glossary,manifest.resources.help,manifest.resources.reports,
