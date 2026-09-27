@@ -11,6 +11,7 @@ import {
   setControlSummary,
   setFieldOperations,
   setFieldIssues,
+  setChangeClaimRecords,
   setFieldAssurance,
   setSiteDailyLogs,
   withActivities,
@@ -235,6 +236,82 @@ test("field assurance attaches without changing project context", () => {
   assert.equal(next.qualityRecords[0]?.recordId, "qr-1");
   assert.equal(next.safetyObservations[0]?.observationId, "obs-1");
   assert.equal(next.punchItems[0]?.punchId, "p-1");
+  assert.deepEqual(next.context, context);
+});
+
+test("change claim records attach without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setChangeClaimRecords(state, {
+    changeNotices: [{
+      noticeId: "N-1",
+      noticeType: "variation",
+      status: "under_review",
+      titleKey: "notice.title",
+      detailKey: null,
+      submittedBy: "user-1",
+      noticeDate: "2026-09-27",
+      scheduleRefs: ["A-1"],
+      costRefs: ["C-1"],
+      dependencyRefs: [],
+      approvalRequired: true,
+      evidenceCount: 1,
+    }],
+    changeCases: [{
+      changeId: "CH-1",
+      changeType: "variation",
+      status: "approved",
+      titleKey: "change.title",
+      detailKey: null,
+      initiatedBy: "user-1",
+      originatingNoticeId: "N-1",
+      scheduleRefs: ["A-1"],
+      costRefs: ["C-1"],
+      dependencyRefs: [],
+      impactLinkIds: ["IMP-1"],
+      implementationActivityIds: ["A-2"],
+      approvalRequired: true,
+      approvedBy: "user-2",
+      approvedAt: "2026-09-27T09:00:00Z",
+      evidenceCount: 1,
+    }],
+    claims: [{
+      claimId: "CL-1",
+      claimType: "extension_of_time",
+      status: "submitted",
+      titleKey: "claim.title",
+      detailKey: null,
+      submittedBy: "user-1",
+      originatingNoticeId: "N-1",
+      changeId: "CH-1",
+      scheduleRefs: ["A-1"],
+      costRefs: ["C-1"],
+      impactLinkIds: ["IMP-2"],
+      entitlementReference: "ENT-1",
+      quantumReference: "Q-1",
+      decisionReference: null,
+      approvalRequired: true,
+      decidedBy: null,
+      decidedAt: null,
+      evidenceCount: 1,
+    }],
+    changeClaimImpacts: [{
+      linkId: "IMP-1",
+      recordType: "change",
+      recordId: "CH-1",
+      impactedDomain: "schedule",
+      impactedEntityType: "activity",
+      impactedEntityId: "A-1",
+      impactType: "potential_delay",
+      scheduleReference: "A-1",
+      costReference: "C-1",
+      requiresApplicationApproval: true,
+      evidenceCount: 1,
+    }],
+  });
+  assert.equal(next.changeNotices[0]?.noticeId, "N-1");
+  assert.equal(next.changeCases[0]?.changeId, "CH-1");
+  assert.equal(next.claims[0]?.claimId, "CL-1");
+  assert.equal(next.changeClaimImpacts[0]?.linkId, "IMP-1");
   assert.deepEqual(next.context, context);
 });
 

@@ -3,6 +3,7 @@ import type { WorkspaceControlSummary } from "./workspace-control-intelligence.j
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
+import type { WorkspaceChangeNotice, WorkspaceChangeCase, WorkspaceClaimRecord, WorkspaceChangeClaimImpact } from "./workspace-change-claim.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
@@ -73,6 +74,10 @@ export type WorkspaceState = {
   timecards: readonly WorkspaceTimecard[];
   equipmentReports: readonly WorkspaceEquipmentStatus[];
   fieldIssues: readonly WorkspaceFieldIssue[];
+  changeNotices: readonly WorkspaceChangeNotice[];
+  changeCases: readonly WorkspaceChangeCase[];
+  claims: readonly WorkspaceClaimRecord[];
+  changeClaimImpacts: readonly WorkspaceChangeClaimImpact[];
   inspections: readonly WorkspaceInspection[];
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
@@ -116,6 +121,10 @@ export function createWorkspaceState(
     timecards: [],
     equipmentReports: [],
     fieldIssues: [],
+    changeNotices: [],
+    changeCases: [],
+    claims: [],
+    changeClaimImpacts: [],
     inspections: [],
     qualityRecords: [],
     safetyObservations: [],
@@ -221,6 +230,24 @@ export function setFieldAssurance(
     punchItems: assurance.punchItems.map((item) =>
       Object.freeze({ ...item, activityIds: [...item.activityIds] }),
     ),
+  };
+}
+
+export function setChangeClaimRecords(
+  state: WorkspaceState,
+  records: {
+    changeNotices: readonly WorkspaceChangeNotice[];
+    changeCases: readonly WorkspaceChangeCase[];
+    claims: readonly WorkspaceClaimRecord[];
+    changeClaimImpacts: readonly WorkspaceChangeClaimImpact[];
+  },
+): WorkspaceState {
+  return {
+    ...state,
+    changeNotices: records.changeNotices.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], dependencyRefs: [...item.dependencyRefs] })),
+    changeCases: records.changeCases.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], dependencyRefs: [...item.dependencyRefs], impactLinkIds: [...item.impactLinkIds], implementationActivityIds: [...item.implementationActivityIds] })),
+    claims: records.claims.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], impactLinkIds: [...item.impactLinkIds] })),
+    changeClaimImpacts: records.changeClaimImpacts.map((item) => Object.freeze({ ...item })),
   };
 }
 
