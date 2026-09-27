@@ -11,6 +11,7 @@ from construction_pm.application.authorization import (
     RoleBasedAuthorizationPolicy,
 )
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.field_assurance_application import (
     FieldAssuranceApplicationError,
     FieldAssuranceApplicationService,
@@ -72,9 +73,12 @@ def service() -> FieldAssuranceApplicationService:
             "viewer": frozenset({Permission.PROJECT_READ}),
         }
     )
+    import sqlite3
+    connection = sqlite3.connect(':memory:')
     return FieldAssuranceApplicationService(
         repository=InMemoryFieldAssuranceRepository(),
         authorization_policy=policy,
+        transaction_manager=SQLiteTransactionManager(connection),
     )
 
 
