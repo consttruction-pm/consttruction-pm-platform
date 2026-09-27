@@ -76,6 +76,8 @@ class Connection:
             row = self.links.get(key)
             return Cursor(None if row is None else row)
         if sql.startswith("UPDATE project_dependency_revisions"):
+            if self._transaction_snapshot is None:
+                self._transaction_snapshot = (self.revision, self.link, list(self.audit))
             self.revision = params[0]
             return Cursor()
         if sql.startswith("INSERT INTO project_dependency_links"):
