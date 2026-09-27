@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `f008f4d20b797b7fc8c7fbe4b9af37fd96d9716d`
+- Current main baseline at this reconciliation: `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -86,6 +86,13 @@ Never move these into API, persistence, Web, Desktop or Mobile:
 - financial formulas.
 
 Shared Core remains authoritative for shared calculation semantics.
+
+## Latest reconciliation — Stage 87
+
+- PR #314 is already merged to `main` with merge commit `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`.
+- Its exact implementation head `cec20048e0eed2f80043d39ef85f5ebc460ac508` passed Client Typecheck run `36342222863` and ConstructionPM CI run `36342222381`.
+- Stage 87 strict language-pack manifest validation, canonical signing-payload verification, integrity-boundary validation and activated-manifest snapshot protection are therefore already present on current `main`.
+- PR #319 was a duplicate rebase attempt and has been closed without merge after current-main inspection proved the Stage 87 implementation was already present.
 
 ## Next point
 

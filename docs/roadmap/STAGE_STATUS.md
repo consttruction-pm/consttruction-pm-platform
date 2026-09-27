@@ -591,6 +591,6 @@ Status: **100% — implemented, merged and runtime-verified 2026-09-27**
   - Client Typecheck run `36340776620`
   - ConstructionPM CI run `36340776628`
 - PR #313 was a redundant later reconciliation attempt and was closed without merge; no work from it is required for the Stage 34.4 completion record.
-- Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `4df2bafeb4e7e9d399dc6992a5f3ef8a52d5fb48`.
+- Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`.
 - No client-side Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
 
