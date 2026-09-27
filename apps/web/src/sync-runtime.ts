@@ -8,14 +8,24 @@ import { ClientSyncRunner } from "../../client-sync/src/sync-runner.js";
 import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/api-sync-transport.js";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 import { ProjectContextStore, type ProjectContext } from "./project-context.js";
+import type { WebVoiceAdapters } from "./voice-adapters.ts";
 
 export class WebSyncRuntime {
   private readonly projectContext = new ProjectContextStore();
   private readonly mutationQueue = new OfflineMutationQueue();
+  private voiceAdapters: WebVoiceAdapters | null = null;
 
   openProject(tenant_id: string, project_id: string, revision: number): ProjectContext {
     this.projectContext.set({ tenant_id, project_id, revision });
     return this.projectContext.get();
+  }
+
+  setVoiceAdapters(adapters: WebVoiceAdapters): void {
+    this.voiceAdapters = adapters;
+  }
+
+  voiceAdaptersOrNull(): WebVoiceAdapters | null {
+    return this.voiceAdapters;
   }
 
   currentProject(): ProjectContext {
