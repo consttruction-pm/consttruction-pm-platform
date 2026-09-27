@@ -68,8 +68,8 @@ def project_dependency_link(
     if link.revision != graph_revision:
         raise DependencyProjectionError("DEPENDENCY_GRAPH_REVISION_MISMATCH")
 
-    source = _node(link.source_resource_id, link.revision)
-    target = _node(link.target_resource_id, link.revision)
+    source = _node(link.source_resource_id, link.source_revision if link.source_revision is not None else link.revision)
+    target = _node(link.target_resource_id, link.target_revision if link.target_revision is not None else link.revision)
     relation = _relation(link.dependency_type)
 
     graph = DependencyGraph(
