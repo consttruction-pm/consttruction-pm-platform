@@ -1,17 +1,179 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "title":"Construction PM Language Pack Manifest",
-  "type":"object",
-  "required":["package_id","language_tag","version","app_compatibility","artifact","resources","integrity","capabilities"],
-  "properties":{
-    "package_id":{"type":"string","minLength":1},
-    "language_tag":{"type":"string","minLength":2},
-    "version":{"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-    "app_compatibility":{"type":"object","required":["min_version"],"properties":{"min_version":{"type":"string"},"max_version":{"type":["string","null"]}},"additionalProperties":false},
-    "artifact":{"type":"object","required":["format","compressed_size_bytes","download_uri"],"properties":{"format":{"enum":["zip","zstd","tar.zst"]},"compressed_size_bytes":{"type":"integer","minimum":0},"download_uri":{"type":"string","format":"uri"},"delta_from":{"type":["string","null"]}},"additionalProperties":false},
-    "resources":{"type":"object","required":["translation","glossary","help","reports"],"properties":{"translation":{"type":"string"},"glossary":{"type":"string"},"help":{"type":"string"},"reports":{"type":"string"},"voice_input":{"type":["string","null"]},"voice_output":{"type":["string","null"]},"offline_ai_model":{"type":["string","null"]}},"additionalProperties":false},
-    "integrity":{"type":"object","required":["checksum","signature"],"properties":{"checksum":{"type":"string","pattern":"^sha256:[0-9a-fA-F]{64}$"},"signature":{"type":"string","minLength":1},"signing_key_id":{"type":["string","null"]}},"additionalProperties":false},
-    "capabilities":{"type":"object","required":["ui","help","ai_text","voice_input","voice_output","offline_ai"],"properties":{"ui":{"type":"boolean"},"help":{"type":"boolean"},"ai_text":{"type":"boolean"},"voice_input":{"type":"boolean"},"voice_output":{"type":"boolean"},"offline_ai":{"type":"boolean"}},"additionalProperties":false}
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Construction PM Language Pack Manifest",
+  "type": "object",
+  "required": [
+    "package_id",
+    "language_tag",
+    "version",
+    "app_compatibility",
+    "artifact",
+    "resources",
+    "integrity",
+    "capabilities"
+  ],
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language_tag": {
+      "type": "string",
+      "minLength": 2
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "app_compatibility": {
+      "type": "object",
+      "required": [
+        "min_version"
+      ],
+      "properties": {
+        "min_version": {
+          "type": "string"
+        },
+        "max_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "format",
+        "compressed_size_bytes",
+        "download_uri"
+      ],
+      "properties": {
+        "format": {
+          "enum": [
+            "zip",
+            "zstd",
+            "tar.zst"
+          ]
+        },
+        "compressed_size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "download_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "delta_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "translation",
+        "glossary",
+        "help",
+        "reports"
+      ],
+      "properties": {
+        "translation": {
+          "type": "string"
+        },
+        "glossary": {
+          "type": "string"
+        },
+        "help": {
+          "type": "string"
+        },
+        "reports": {
+          "type": "string"
+        },
+        "voice_input": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "voice_output": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "offline_ai_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "integrity": {
+      "type": "object",
+      "required": [
+        "checksum",
+        "signature"
+      ],
+      "properties": {
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-fA-F]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signing_key_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "ui",
+        "help",
+        "ai_text",
+        "voice_input",
+        "voice_output",
+        "offline_ai"
+      ],
+      "properties": {
+        "ui": {
+          "type": "boolean"
+        },
+        "help": {
+          "type": "boolean"
+        },
+        "ai_text": {
+          "type": "boolean"
+        },
+        "voice_input": {
+          "type": "boolean"
+        },
+        "voice_output": {
+          "type": "boolean"
+        },
+        "offline_ai": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
   },
-  "additionalProperties":false
+  "additionalProperties": false,
+  "$id": "https://construction-pm.local/contracts/language-pack-manifest.v1.schema.json"
 }
