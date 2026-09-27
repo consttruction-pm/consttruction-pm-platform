@@ -33,6 +33,13 @@ class ScheduleQueryRequest:
 
 
 @dataclass(frozen=True)
+def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
+@dataclass(frozen=True)
 class ScheduleQueryAnswer:
     query_id: str
     scope: ControlScope
@@ -48,3 +55,4 @@ class ScheduleQueryAnswer:
             raise ValueError("INVALID_SCHEDULE_QUERY_ANSWER_SCOPE")
         if not self.source_refs:
             raise ValueError("SCHEDULE_QUERY_SOURCE_REQUIRED")
+        _require_source_scope(self.source_refs, self.scope, "SCHEDULE_QUERY_SOURCE_REVISION_MISMATCH")
