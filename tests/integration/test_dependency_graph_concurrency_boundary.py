@@ -241,3 +241,18 @@ def test_link_and_revision_are_rolled_back_when_audit_write_fails():
     assert connection.revision == 0
     assert connection.links == {}
     assert connection.audit == []
+
+    connection.fail_audit = False
+    stored = service.create(
+        make_link(),
+        context=context(),
+        expected_graph_revision=0,
+        idempotency_key="idem-atomic",
+        actor_id="user-1",
+        occurred_at=timestamp(),
+    )
+
+    assert stored.graph_revision == 1
+    assert connection.revision == 1
+    assert len(connection.links) == 1
+    assert len(connection.audit) == 1
