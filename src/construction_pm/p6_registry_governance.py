@@ -32,13 +32,25 @@ class P6RegistryCompleteness:
     status: P6RegistryStatus
 
     @property
-    def coverage_percent(self) -> float | None:
+    def inventory_coverage_percent(self) -> float | None:
         if self.expected_field_count is None:
             return None
         if self.expected_field_count < 0:
             raise ValueError("expected_field_count must be non-negative")
         return round(
             (self.field_count / self.expected_field_count) * 100,
+            2,
+        ) if self.expected_field_count else 100.0
+
+    @property
+    def coverage_percent(self) -> float | None:
+        """Certification coverage: approved fields divided by expected fields."""
+        if self.expected_field_count is None:
+            return None
+        if self.expected_field_count < 0:
+            raise ValueError("expected_field_count must be non-negative")
+        return round(
+            (self.approved_field_count / self.expected_field_count) * 100,
             2,
         ) if self.expected_field_count else 100.0
 
