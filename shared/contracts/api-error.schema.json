@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://consttruction-pm.github.io/contracts/v1/api-error.json",
+  "title":"Application API Error v1",
+  "type":"object","additionalProperties":false,
+  "required":["contract_version","category","code","message","retryable"],
+  "properties":{
+    "contract_version":{"const":"1.0"},
+    "category":{"enum":["validation","context","conflict","authorization","persistence"]},
+    "code":{"type":"string","minLength":1},"message":{"type":"string","minLength":1},
+    "retryable":{"type":"boolean"}
+  }
+}
