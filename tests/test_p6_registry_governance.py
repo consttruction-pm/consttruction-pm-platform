@@ -19,6 +19,7 @@ def test_seeded_registry_reports_unknown_coverage_until_reference_count_is_known
         expected_field_count=None,
         fields=[field("activity.name", P6FieldDisposition.SEEDED_NOT_CERTIFIED)],
     )
+    assert result.inventory_coverage_percent is None
     assert result.coverage_percent is None
     assert result.certification_ready is False
     assert result.approved_field_count == 0
@@ -48,6 +49,7 @@ def test_certification_accepts_implemented_superset_and_explicit_out_of_scope():
         ],
     )
     assert result.certification_ready is True
+    assert result.inventory_coverage_percent == 100.0
     assert result.coverage_percent == 100.0
 
 
