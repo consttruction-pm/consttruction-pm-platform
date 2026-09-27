@@ -494,23 +494,29 @@ Status: **current implementation track through 34.2.14 completed/merged; documen
 Boundary rule: Portfolio Control remains a cross-project read/decision layer and does not duplicate authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations. Portfolio decisions/actions do not directly execute project mutations; application/API authorization and mutation boundaries remain authoritative.
 
 ### Stage 34.3 — Web/Site Experience: Control Room + Field Foundations
-Status: **~90% — runtime-verified implementation track through 2026-09-27**
-- PR #248 — Main Workspace WBS/Activity Grid/Gantt rendering: merged; CI runtime-verified.
-- PR #249 — versioned `workspace-control-room.v1` snapshot contract and Web runtime-test gate: merged; CI runtime-verified.
-- PR #252 — Web projection of existing `control-intelligence-result.v1`: merged; CI runtime-verified.
-- PR #253 — Control Summary rendering with authoritative metrics/findings: merged; CI runtime-verified.
-- PR #255 — `field-daily-log.v1` Web projection and Daily Log rendering: merged; CI runtime-verified.
-- PR #256 — `field-timecard.v1` and `equipment-status-report.v1` Web projections and Control Room panels: merged; CI runtime-verified.
-- PR #259 — `field-issue.v1` Web projection and issue panel: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #261 — Inspection / Quality-NCR / Safety Observation / Punch-Closeout Web projections and Field Assurance Control Room: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #262 — versioned `workspace-control-room-read.v1` Web + Backend read integration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #264 — Change Notice / Change Case / Claim / Change-Claim Impact Web workflow and additive read-envelope hydration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #271 — Document revision boundary correction: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #280 — Document/RFI/Submittal application/API boundary: merged; runtime-verified.
-- PR #281 — Procurement RFQ/Quote/Bid Comparison/PO/Commitment/Delivery Web workflow: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- PR #283 — approval-safe AI Smart Guide + `schedule-query.v1` request composer: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- Web remains presentation/state-only; authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost and financial semantics stay outside the client.
-- AI proposals remain traceable and approval-aware; no client-side consequential action execution is permitted.
+Status: **100% — implementation gates runtime-verified through 2026-09-27**
+- Main Workspace: WBS / Activity Grid / Gantt / Details.
+- Control Room: authoritative Control Intelligence summary/findings/metrics.
+- Field: Daily Log, Issues, Timecards/Attendance, Equipment.
+- Field Assurance: Inspection, Quality/NCR, Safety Observation, Punch/Closeout.
+- Commercial: Change Notice, Change Case, Claim, Change/Claim Impact traceability.
+- Document Control: Contract, Drawing, Correspondence, RFI, Submittal, Delay Claim, Evidence; revision, OCR/search metadata and document-scope correction.
+- Procurement: RFQ, Quote, Bid Comparison, Purchase Order, Commitment, Delivery.
+- AI Smart Guide: traceable findings, approval-aware proposed actions, deterministic Schedule Query request composer.
+- Voice foundation: versioned transcript envelope, capability guards, authoritative project-scope binding, transcript -> Schedule Query bridge.
+- Versioned Control Room Read API hydrates the complete P0 snapshot without client-side authoritative calculations.
+- Final integrated Control Room regression verifies the complete envelope and malformed-collection rejection.
+- Client Typecheck and ConstructionPM CI were runtime-verified on the final gates; Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync passed on their respective final PR heads.
+- AI consequential actions remain Application-layer authorized/approved; ASR/TTS providers remain adapters.
+- Stage 34.3 is closed unless a new regression is introduced.
+
+### Stage 34.4 — Desktop / Mobile / Cross-Client Parity
+Status: **initial audit started 2026-09-27**
+Next P0 gate:
+- Shared Control Room read-cache/offline snapshot boundary with tenant/project/revision validation.
+- Web/Desktop/Mobile must consume the same versioned read semantics.
+- Offline snapshot persistence and restore must not alter authoritative calculations.
+- Cross-client parity regression must cover the same Control Room collections, revision conflicts and localization state.
 
 ### Stage 34.3 remaining gates
 - Voice interaction / speech-to-command UX against versioned query/action contracts.
