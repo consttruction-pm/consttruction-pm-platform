@@ -83,6 +83,34 @@
     "change_claim_impacts": {
       "type": "array",
       "items": { "$ref": "https://construction-pm.local/contracts/v1/change-claim-impact.v1" }
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id", "tenant_id", "project_id", "resource_type", "title",
+          "status", "storage_ref", "content_hash", "linked_entity_refs", "revision"
+        ],
+        "properties": {
+          "document_id": { "type": "string", "minLength": 1 },
+          "tenant_id": { "type": "string", "minLength": 1 },
+          "project_id": { "type": "string", "minLength": 1 },
+          "resource_type": {
+            "enum": ["contract", "drawing", "correspondence", "rfi", "submittal", "delay_claim", "evidence"]
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["draft", "submitted", "approved", "rejected", "superseded"] },
+          "storage_ref": { "type": "string", "minLength": 1 },
+          "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
+          "linked_entity_refs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+        }
+      }
     }
   }
 }
