@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `76dc682c7418c2d3769bcf5b9334a49586d6b050`
+- Current main baseline at this reconciliation: `793c4dbf3cc92ebca7bad5e421f16547b4964293`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -90,7 +90,7 @@ Shared Core remains authoritative for shared calculation semantics.
 
 ## Next point
 
-Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Document/RFI/Submittal backend Application/API boundary is now implemented and runtime-verified through PR #280. The next Hasan-owned selection is therefore the first actually missing Procurement/Commercial Application/API integration required by the remaining Stage 34.3 Web workflow; do not duplicate the existing procurement persistence/core contract.
+Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Document/RFI/Submittal backend Application/API boundary is now implemented and runtime-verified through PR #280. The Procurement/Commercial read integration is now implemented and runtime-verified through PR #286; do not duplicate the existing procurement persistence/core contract. The next selection must be the first actually missing Hasan-owned backend boundary supporting the remaining Stage 34.3 gates after reconciling current main and open PRs.
 
 Do not revive stale PRs merely because they remain open.
 
