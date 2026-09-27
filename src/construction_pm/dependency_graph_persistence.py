@@ -11,7 +11,7 @@ from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
 
 _KNOWN_DEPENDENCY_DOMAINS = frozenset({
     "schedule", "progress", "evm", "resource", "cost",
-    "document", "change", "claim", "procurement", "field",
+    "document", "rfi", "change", "claim", "procurement", "field",
 })
 _KNOWN_DEPENDENCY_TYPES = frozenset({
     "depends_on", "impacts", "supports", "evidences", "derived_from",
