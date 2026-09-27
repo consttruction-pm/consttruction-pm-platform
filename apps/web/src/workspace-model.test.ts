@@ -11,6 +11,7 @@ import {
   setControlSummary,
   setFieldOperations,
   setFieldIssues,
+  setFieldAssurance,
   setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
@@ -165,6 +166,75 @@ test("field issues attach without changing project context", () => {
     updatedAt: "2026-09-27T10:00:00Z",
   }]);
   assert.equal(next.fieldIssues[0]?.issueId, "issue-1");
+  assert.deepEqual(next.context, context);
+});
+
+test("field assurance attaches without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setFieldAssurance(state, {
+    inspections: [{
+      inspectionId: "insp-1",
+      inspectionTypeKey: "rebar",
+      subjectType: "activity",
+      subjectId: "A-10",
+      locationKey: "tower-a",
+      inspectionDate: "2026-09-27",
+      inspectorId: "user-1",
+      status: "completed",
+      result: "pass",
+      checklist: [{
+        itemId: "item-1",
+        criterionKey: "cover",
+        result: "pass",
+        commentKey: null,
+      }],
+    }],
+    qualityRecords: [{
+      recordId: "qr-1",
+      categoryKey: "concrete",
+      severity: "high",
+      status: "pending_verification",
+      titleKey: "ncr.concrete",
+      detailKey: null,
+      reportedBy: "qc-1",
+      locationKey: "tower-a",
+      activityIds: ["A-10"],
+      inspectionId: "insp-1",
+      specificationReference: "SPEC-09",
+      correctiveActionKey: "repair",
+      dispositionKey: null,
+      evidenceCount: 1,
+    }],
+    safetyObservations: [{
+      observationId: "obs-1",
+      categoryKey: "ppe",
+      severity: "medium",
+      status: "open",
+      titleKey: "ppe.gap",
+      observedBy: "safety-1",
+      locationKey: "tower-a",
+      activityIds: ["A-10"],
+      immediateActionKey: null,
+      rootCauseKey: null,
+    }],
+    punchItems: [{
+      punchId: "p-1",
+      categoryKey: "finish",
+      priority: "medium",
+      status: "open",
+      titleKey: "door.hardware",
+      reportedBy: "qc-1",
+      locationKey: "tower-a",
+      activityIds: ["A-10"],
+      responsiblePartyId: "sub-1",
+      dueDate: "2026-10-05",
+      verificationBy: null,
+      closeoutCodeKey: null,
+    }],
+  });
+  assert.equal(next.qualityRecords[0]?.recordId, "qr-1");
+  assert.equal(next.safetyObservations[0]?.observationId, "obs-1");
+  assert.equal(next.punchItems[0]?.punchId, "p-1");
   assert.deepEqual(next.context, context);
 });
 
