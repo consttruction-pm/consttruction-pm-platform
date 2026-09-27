@@ -7,6 +7,7 @@ import {
 import { ClientSyncRunner } from "../../client-sync/src/sync-runner.js";
 import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/api-sync-transport.js";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
+import { LanguagePackClientRuntime } from "../../client-sync/src/language-pack-client-runtime.js";
 import { ProjectContextStore, type ProjectContext } from "./project-context.js";
 
 export class WebSyncRuntime {
