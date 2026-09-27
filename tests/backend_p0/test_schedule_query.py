@@ -63,13 +63,14 @@ def answer(
     query_id: str = "Q-1",
     scope: ControlScope | None = None,
 ) -> ScheduleQueryAnswer:
+    effective_scope = scope or ControlScope("tenant-1", "project-1", 7)
     return ScheduleQueryAnswer(
         query_id,
-        scope or ControlScope("tenant-1", "project-1", 7),
+        effective_scope,
         "schedule.query.result",
         data={"count": 2},
         source_refs=(
-            SourceReference("S-1", "schedule", "/schedule/A-1", 7),
+            SourceReference("S-1", "schedule", "/schedule/A-1", effective_scope.project_revision),
         ),
     )
 
