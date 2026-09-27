@@ -190,7 +190,7 @@ function validateOcrSnapshot(
 
 function validateIndexSnapshot(
   snapshot: DocumentSearchIndexSnapshot,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
   document: DocumentResourceSnapshot,
 ): void {
   const result = projectSearchIndex(snapshot, context);
@@ -206,7 +206,7 @@ function assertScope(
   tenantId: string,
   projectId: string,
   revision: number,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
 ): void {
   if (
     tenantId !== context.tenant_id ||
