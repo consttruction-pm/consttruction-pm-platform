@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://consttruction-pm.github.io/contracts/v1/ai-action-proposal.json",
+  "title":"AI Action Proposal v1","type":"object","additionalProperties":false,
+  "required":["contract_version","tenant_id","project_id","proposal_id","tool_name","action","requires_human_approval"],
+  "properties":{
+    "contract_version":{"const":"1.0"},
+    "tenant_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},
+    "proposal_id":{"type":"string","minLength":1},"tool_name":{"type":"string","minLength":1},
+    "action":{"type":"string","minLength":1},"requires_human_approval":{"type":"boolean"},
+    "requested_by":{"type":["string","null"]},"evidence_refs":{"type":"array","items":{"type":"string","minLength":1}}
+  }
+}
