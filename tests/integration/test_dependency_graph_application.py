@@ -15,6 +15,7 @@ class Connection:
         self.audit = []
         self.commits = 0
         self.rollbacks = 0
+        self.fail_on_audit = False
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -36,6 +37,8 @@ class Connection:
             self.link = (params[6], params[5])
             return Cursor()
         if sql.startswith("INSERT INTO project_dependency_audit"):
+            if self.fail_on_audit:
+                raise RuntimeError("AUDIT_WRITE_FAILED")
             self.audit.append(params)
             return Cursor()
         return Cursor()
@@ -108,3 +111,29 @@ def test_application_boundary_enforces_scope_and_actor():
             actor_id="other",
             occurred_at=now,
         )
+
+
+def test_application_boundary_rolls_back_failed_mutation():
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    service = DependencyGraphApplicationService(store, policy(), PostgresTransactionManager(connection))
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+    service.store.initialize()
+    service.store.ensure_project("T-1", "P-1")
+    connection.fail_on_audit = True
+
+    with pytest.raises(RuntimeError, match="AUDIT_WRITE_FAILED"):
+        service.create(
+            link(),
+            context=ctx(),
+            expected_graph_revision=0,
+            idempotency_key="rollback-1",
+            actor_id="u-1",
+            occurred_at=now,
+        )
+
+    assert connection.rollbacks == 1
+    assert connection.commits == 0
+    assert connection.revision == 0
+    assert connection.link is None
+    assert connection.audit == []
