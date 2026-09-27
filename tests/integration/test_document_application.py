@@ -131,6 +131,34 @@ def test_cross_project_and_viewer_write_are_rejected():
         assert str(exc) == "DOCUMENT_PERMISSION_DENIED"
 
 
+def test_update_stale_revision_maps_to_versioned_conflict():
+    _, svc = service()
+    svc.create(document(), context=context(), idempotency_key="k-stale", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    api = DocumentAPI(svc)
+    result = api.update(
+        document(title="changed"),
+        expected_revision=0,
+        context=context(),
+        actor_id="u-1",
+        occurred_at=datetime.now(timezone.utc),
+    )
+    assert result["contract_version"] == "1.0"
+    assert result["category"] == "conflict"
+    assert result["code"] == "DOCUMENT_REVISION_CONFLICT"
+    assert result["retryable"] is True
+
+
+def test_idempotency_reuse_is_rejected_at_application_boundary():
+    _, svc = service()
+    svc.create(document(), context=context(), idempotency_key="k-reuse", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    try:
+        svc.create(document(title="different"), context=context(), idempotency_key="k-reuse", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    except Exception as exc:
+        assert str(exc) == "DOCUMENT_IDEMPOTENCY_KEY_REUSE"
+    else:
+        raise AssertionError("expected idempotency-key reuse rejection")
+
+
 def test_submittal_transition_requires_approver_and_revision():
     _, svc = service()
     created = svc.create(document(resource_type="submittal"), context=context(), idempotency_key="k-4", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
@@ -139,3 +167,14 @@ def test_submittal_transition_requires_approver_and_revision():
         svc.transition_status(submitted, expected_revision=1, context=context(), actor_id="u-1", occurred_at=datetime.now(timezone.utc))
     except Exception as exc:
         assert str(exc) == "DOCUMENT_TRANSITION_FORBIDDEN"
+
+
+def test_submittal_can_be_submitted_and_approved_with_expected_revision():
+    _, svc = service()
+    svc.create(document(resource_type="submittal"), context=context(), idempotency_key="k-submit", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    submitted = document(resource_type="submittal", status="submitted")
+    svc.transition_status(submitted, expected_revision=1, context=context(), actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    approved = document(resource_type="submittal", status="approved")
+    result = svc.transition_status(approved, expected_revision=2, context=context(), actor_id="u-approver", occurred_at=datetime.now(timezone.utc))
+    assert result.revision == 3
+    assert result.document.status == "approved"
