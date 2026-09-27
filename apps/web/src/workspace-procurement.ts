@@ -226,7 +226,7 @@ function validateActivityIds(values: readonly string[] | undefined): readonly st
 }
 
 function validateQuantity(value: string, errorCode: string): void {
-  if (!/^(?!0+(?:\\.0+)?$)(?:0|[1-9]\\d*)(?:\\.\\d+)?$/.test(value)) {
+  if (!/^(?!0+(?:\.0+)?$)(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
     throw new Error(errorCode);
   }
 }
