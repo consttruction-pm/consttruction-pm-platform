@@ -5,8 +5,8 @@ import {
   WorkspaceReadCacheAdapter,
   type WorkspaceControlRoomReadTransport,
   type WorkspaceReadCacheStore,
-} from "./workspace-read-cache-adapter.js";
-import type { WorkspaceControlRoomReadCache } from "./workspace-read-cache.js";
+} from "./workspace-read-cache-adapter.ts";
+import type { WorkspaceControlRoomReadCache } from "./workspace-read-cache.ts";
 
 const context: SyncProjectContext = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
 
