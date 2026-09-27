@@ -187,3 +187,21 @@ def test_canonical_application_service_accepts_production_sqlite_repository():
         assert stored.as_dict() == saved.as_dict()
     finally:
         connection.close()
+
+def test_canonical_execution_round_trip_preserves_audit_metadata_and_answers():
+    connection, service = _service()
+    try:
+        service.create_template(_template())
+        original = _execution()
+        saved = service.execute(original)
+        restored = service.repository.get_execution(_scope(), "EXEC-1")
+        assert restored is not None
+        assert restored.executed_by == "user-1"
+        assert restored.executed_at == original.executed_at
+        assert restored.answers == original.answers
+        assert restored.template_id == original.template_id
+        assert restored.template_version == original.template_version
+        assert restored.scope == original.scope
+        assert restored.as_dict() == saved.as_dict()
+    finally:
+        connection.close()
