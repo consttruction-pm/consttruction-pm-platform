@@ -168,6 +168,39 @@ def test_concurrent_same_key_replays_after_revision_lock():
     assert connection.transaction_commits == 1
 
 
+
+def test_expected_project_revision_safe_boundary_is_enforced():
+    connection = Connection()
+    store = PostgresFieldResourceStore(connection)
+    store.initialize()
+    store.ensure_project("T-1", "P-1")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="INVALID_EXPECTED_PROJECT_REVISION"):
+        store.persist(
+            resource(),
+            expected_project_revision=9007199254740992,
+            idempotency_key="k-unsafe",
+            actor_id="u-1",
+            occurred_at=now,
+        )
+
+
+def test_project_revision_ceiling_cannot_overflow_safe_integer():
+    connection = Connection()
+    connection.revisions[("T-1", "P-1")] = 9007199254740991
+    store = PostgresFieldResourceStore(connection)
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="FIELD_PROJECT_REVISION_EXHAUSTED"):
+        store.persist(
+            resource(),
+            expected_project_revision=9007199254740991,
+            idempotency_key="k-max",
+            actor_id="u-1",
+            occurred_at=now,
+        )
+
 def test_stale_revision_and_idempotency_reuse_are_rejected():
     connection = Connection()
     store = PostgresFieldResourceStore(connection)
