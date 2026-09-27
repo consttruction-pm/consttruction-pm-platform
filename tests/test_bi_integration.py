@@ -4,6 +4,7 @@ from construction_pm.bi_integration import (
     BIIntegrationError,
     BIOperation,
     ReferenceBIAdapter,
+    BISyncResult,
 )
 
 
@@ -52,3 +53,15 @@ def test_bi_result_accepts_versioned_sync_statuses(status):
 def test_bi_result_rejects_unknown_status():
     with pytest.raises(BIIntegrationError, match="INVALID_BI_STATUS"):
         ReferenceBIAdapter(status="unknown").sync(operation())
+
+
+def test_bi_result_preserves_contract_version():
+    result = ReferenceBIAdapter().sync(operation())
+    assert result.contract_version == "1.0"
+
+
+def test_bi_result_rejects_unsupported_contract_version():
+    result = ReferenceBIAdapter().sync(operation())
+    values = {**result.__dict__, "contract_version": "2.0"}
+    with pytest.raises(BIIntegrationError, match="UNSUPPORTED_BI_CONTRACT_VERSION"):
+        BISyncResult(**values).validate()
