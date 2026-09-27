@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SyncSyncProjectContext } from "./api-sync-transport.js";
+import type { SyncProjectContext } from "./api-sync-transport.js";
 import {
   WorkspaceReadCacheAdapter,
   type WorkspaceControlRoomReadTransport,
