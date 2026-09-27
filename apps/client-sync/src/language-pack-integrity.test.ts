@@ -11,6 +11,14 @@ const manifest=(checksum=digest(),signature="sig"):LanguagePackManifest=>({packa
 test("rejects a checksum mismatch",()=>assert.equal(verifyLanguagePackChecksum(artifact,manifest("sha256:"+"0".repeat(64))),false));
 test("accepts the exact SHA-256 digest",()=>assert.equal(verifyLanguagePackChecksum(artifact,manifest()),true));
 test("requires checksum before signature",()=>assert.throws(()=>verifyLanguagePackIntegrity(artifact,manifest("sha256:"+"0".repeat(64)),()=>true),/LANGUAGE_PACK_CHECKSUM_MISMATCH/));
+test("integrity verification rejects runtime-invalid manifests before signature verification",()=>{
+ const value=structuredClone(manifest()) as unknown as Record<string,unknown>;
+ value.untrusted_extra="tampered";
+ let verifierCalled=false;
+ assert.throws(()=>verifyLanguagePackIntegrity(artifact,value as never,()=>{verifierCalled=true;return true;}),/INVALID_LANGUAGE_PACK_MANIFEST/);
+ assert.equal(verifierCalled,false);
+});
+
 test("rejects invalid signature result",()=>assert.throws(()=>verifyLanguagePackIntegrity(artifact,manifest(),()=>false),/LANGUAGE_PACK_SIGNATURE_INVALID/));
 test("passes when checksum and signature verify",()=>assert.doesNotThrow(()=>verifyLanguagePackIntegrity(artifact,manifest(),()=>true)));
 
