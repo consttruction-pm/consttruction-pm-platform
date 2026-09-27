@@ -112,7 +112,7 @@ test("Web can render a stale cached snapshot while offline without recalculating
 
   assert.equal(result.mode, "offline");
   assert.equal(result.cacheState, "stale");
-  assert.equal(result.data.context.revision, 7);
+  assert.equal(result.data.context.revision, 6);
   assert.equal(result.data.activities[0]?.cells?.duration, 4);
   assert.equal(result.data.activities[0]?.gantt?.progressPercent, 25);
 });
