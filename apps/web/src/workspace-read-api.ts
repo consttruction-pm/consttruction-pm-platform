@@ -163,6 +163,14 @@ export class WorkspaceReadClient {
   }
 }
 
+function toProjectScope(context: ProjectContext): { tenant_id: string; project_id: string; project_revision: number } {
+  return {
+    tenant_id: context.tenant_id,
+    project_id: context.project_id,
+    project_revision: context.revision,
+  };
+}
+
 function toProjectIdentity(context: ProjectContext): { tenant_id: string; project_id: string } {
   return {
     tenant_id: context.tenant_id,
