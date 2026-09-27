@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`
+- Current main baseline at this reconciliation: `8c923118034b4ad36770be4467901b1c4b29fe37`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -199,3 +199,16 @@ Status: **runtime-verified and merged**
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned contract/application/persistence/integration gap. Do not duplicate client/provider work in PR #352 unless a concrete backend dependency is demonstrated.
+
+
+### 2026-09-28 — Current-main reconciliation after PR #352
+
+- Current main is 8c923118034b4ad36770be4467901b1c4b29fe37, following the documentation reconciliation commit after PR #352.
+- PR #352 is merged as d12143704ab603ca2475364620006cad639b2439; its exact implementation head 745fa80820eafbbe0eb8b69341f2961b0729c493 passed Client Typecheck 36350966019 and ConstructionPM CI 36350965989.
+- No open PRs are currently present.
+- Current-main inspection confirms the Hasan-owned Field Operations, Dependency Graph, Portfolio Query, ERP/Accounting, AI Action and Change Claim backend/application boundaries already exist on main and have runtime evidence recorded in STAGE_STATUS.md.
+- The remaining open items in Offline AI/Voice Issue #94 are provider/native inference, STT/TTS, lifecycle concurrency, device benchmarks, privacy/provenance/audit end-to-end certification, and release certification. These must not be converted into a duplicate backend boundary unless a concrete authoritative Application/API/Persistence contract gap is demonstrated.
+
+## Next point
+
+Start the next Hasan implementation only after re-reading current main, this file, docs/roadmap/STAGE_STATUS.md, and open PRs. Select only a concrete missing Backend/Database/Application/API/Enterprise Integration boundary. If no such gap exists, do not invent a feature or numbered stage; record the verified blocker/ownership boundary instead.
