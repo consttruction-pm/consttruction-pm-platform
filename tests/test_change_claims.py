@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from construction_pm.change_claims import (
@@ -63,6 +65,7 @@ def test_contract_version_is_preserved_and_validated():
 
 
 def test_unsupported_contract_version_is_rejected():
-    item = resource(contract_version="2.0")
+    item = resource()
+    item = replace(item, contract_version="2.0")
     with pytest.raises(ChangeClaimError, match="UNSUPPORTED_CHANGE_CLAIM_CONTRACT_VERSION"):
         item.validate()
