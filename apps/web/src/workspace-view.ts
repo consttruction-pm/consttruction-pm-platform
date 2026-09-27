@@ -12,6 +12,8 @@ const labels = {
   },
 } as const;
 
+type WorkspaceLabels = Record<keyof typeof labels.en, string>;
+
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
