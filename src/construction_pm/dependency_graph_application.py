@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
+from .client_sync.postgres_transaction import PostgresTransactionManager
 from .dependency_graph_persistence import DependencyLink, PostgresDependencyGraphStore, StoredDependencyLink
 
 
@@ -11,6 +12,7 @@ from .dependency_graph_persistence import DependencyLink, PostgresDependencyGrap
 class DependencyGraphApplicationService:
     store: PostgresDependencyGraphStore
     authorization_policy: AuthorizationPolicy
+    transaction_manager: PostgresTransactionManager
 
     def create(
         self,
@@ -28,10 +30,11 @@ class DependencyGraphApplicationService:
             raise AuthorizationError("DEPENDENCY_ACTOR_MISMATCH")
         if not self.authorization_policy.is_allowed(context, Permission.PROJECT_WRITE):
             raise AuthorizationError("DEPENDENCY_WRITE_NOT_AUTHORIZED")
-        return self.store.persist(
-            link,
-            expected_graph_revision=expected_graph_revision,
-            idempotency_key=idempotency_key,
-            actor_id=actor_id,
-            occurred_at=occurred_at,
-        )
+        with self.transaction_manager.transaction():
+            return self.store.persist(
+                link,
+                expected_graph_revision=expected_graph_revision,
+                idempotency_key=idempotency_key,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
