@@ -37,6 +37,6 @@ jobs:
         run: npm run typecheck
 
       - name: Runtime tests
-        if: matrix.package == 'apps/client-sync' || matrix.package == 'apps/web'
+        if: matrix.package == 'apps/client-sync' || matrix.package == 'apps/web' || matrix.package == 'apps/desktop' || matrix.package == 'apps/mobile'
         working-directory: ${{ matrix.package }}
         run: npm test
