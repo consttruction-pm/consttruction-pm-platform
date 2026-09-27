@@ -773,3 +773,18 @@ Status: **100% — implemented, hardened and runtime-verified through PR #353**
 - PR #353 merged to `main` as `a043a956956b9276c640f426b7342cf859f65a2e`.
 - Native/production ML adapters, device-specific benchmarking and broader release certification are separate gates and are not claimed by this implementation slice.
 - No P6 Scheduling, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were moved into the risk engine.
+
+
+### 2026-09-28 — Project Portability Contract Version Hardening
+Status: **100% — implemented, merged and runtime-verified through PR #359**
+- `ProjectPortabilitySnapshot` now accepts only the authoritative `project-portability.v1` schema version and fails closed on unsupported versions.
+- Regression coverage verifies both import rejection and direct snapshot validation for unsupported schema versions.
+- PR #359 exact implementation head `225985af42a7075fb9280384864ccafcea8baca5` passed Client Typecheck **36351611141** and ConstructionPM CI **36351611127**.
+- Merge commit: `c2aa9013f78f564d0fa5d03f811d548359b40beb`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### 2026-09-28 — Current Backend Continuation Point
+- Current `main` is `c2aa9013f78f564d0fa5d03f811d548359b40beb`.
+- PR #356 control-result provenance hardening is already merged on `main`.
+- PR #359 portability contract-version hardening is already merged and runtime-verified.
+- Next Hasan work requires a fresh current-main/open-PR inspection and a concrete missing backend boundary; do not revive stale PRs or duplicate client/provider ownership.
