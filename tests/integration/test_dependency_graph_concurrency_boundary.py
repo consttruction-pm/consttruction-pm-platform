@@ -52,14 +52,15 @@ class Connection:
 
     def execute(self, sql, params=()):
         class Cursor:
-            def __init__(self, row=None):
+            def __init__(self, row=None, rows=None):
                 self.row = row
+                self.rows = rows or []
 
             def fetchone(self):
                 return self.row
 
             def fetchall(self):
-                return ()
+                return self.rows
 
         if sql.startswith("SELECT revision"):
             return Cursor((self.revision,))
@@ -78,6 +79,14 @@ class Connection:
                 raise RuntimeError("AUDIT_WRITE_FAILED")
             self.audit.append(params)
             return Cursor()
+        if sql.startswith("SELECT graph_revision, event_type, actor_id, occurred_at"):
+            rows = [
+                (event[3], event[4], event[5], event[6])
+                for event in self.audit
+                if event[0] == params[0] and event[1] == params[1] and event[2] == params[2]
+            ]
+            rows.sort(key=lambda row: row[0])
+            return Cursor(rows=rows)
         return Cursor()
 
 
@@ -267,3 +276,23 @@ def test_link_and_revision_are_rolled_back_when_audit_write_fails():
     assert connection.revision == 1
     assert len(connection.links) == 1
     assert len(connection.audit) == 1
+
+
+def test_audit_history_is_consistent_with_persisted_graph_revision():
+    service, connection = make_service()
+    service.create(
+        make_link(),
+        context=context(),
+        expected_graph_revision=0,
+        idempotency_key="idem-audit",
+        actor_id="user-1",
+        occurred_at=timestamp(),
+    )
+
+    history = service.store.history("tenant-a", "project-a", "dependency-1")
+
+    assert len(history) == 1
+    assert history[0].graph_revision == 1
+    assert history[0].event_type == "created"
+    assert history[0].actor_id == "user-1"
+    assert history[0].occurred_at == timestamp()
