@@ -32,7 +32,8 @@ function snapshot(revision = 7): Record<string, unknown> {
 }
 
 test("creates an immutable cache entry with authoritative scope", () => {
-  const entry = createWorkspaceReadCache(snapshot(), {
+  const source = snapshot();
+  const entry = createWorkspaceReadCache(source, {
     snapshot_id: "snapshot-7",
     cached_at: "2026-09-27T16:00:00Z",
   });
@@ -44,6 +45,8 @@ test("creates an immutable cache entry with authoritative scope", () => {
   assert.equal(classifyWorkspaceReadCache(entry, context), "fresh");
   assert.equal(Object.isFrozen(entry), true);
   assert.equal(Object.isFrozen(entry.workspace_read), true);
+  assert.notEqual(entry.workspace_read, source);
+  assert.equal(Object.isFrozen(source), false);
 });
 
 test("classifies a revision change as stale", () => {
@@ -107,18 +110,11 @@ test("rejects an unsupported cache contract", () => {
   );
 });
 
-test("does not accept a cache snapshot from a different project revision", () => {
-  assert.throws(
-    () =>
-      createWorkspaceReadCache(snapshot(6), {
-        snapshot_id: "snapshot-6",
-        cached_at: "2026-09-27T16:00:00Z",
-      }),
-    () => false,
-  );
+test("allows historical snapshots but marks them stale for a newer requested revision", () => {
   const entry = createWorkspaceReadCache(snapshot(6), {
     snapshot_id: "snapshot-6",
     cached_at: "2026-09-27T16:00:00Z",
   });
+
   assert.equal(classifyWorkspaceReadCache(entry, context), "stale");
 });
