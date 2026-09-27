@@ -7,6 +7,7 @@ from construction_pm.application.authorization import (
     Permission,
     RoleBasedAuthorizationPolicy,
 )
+from construction_pm.backend_p0.errors import ErrorCategory
 from construction_pm.backend_p0.schedule_query import (
     SCHEDULE_QUERY_RESULT_VERSION,
     ScheduleQueryAPI,
@@ -87,17 +88,21 @@ def test_application_delegates_to_provider_and_preserves_scope() -> None:
 def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
     service = ScheduleQueryApplicationService(Provider(answer()), policy())
 
-    with pytest.raises(PermissionError, match="CROSS_SCOPE_ACCESS"):
+    with pytest.raises(Exception) as cross_scope:
         service.execute(
             request(),
             auth_context=auth(tenant_id="tenant-2"),
         )
+    assert getattr(cross_scope.value, "category") == ErrorCategory.AUTHORIZATION
+    assert getattr(cross_scope.value, "code") == "CROSS_SCOPE_ACCESS"
 
-    with pytest.raises(PermissionError, match="FORBIDDEN"):
+    with pytest.raises(Exception) as forbidden:
         service.execute(
             request(),
             auth_context=auth(role="unknown-role"),
         )
+    assert getattr(forbidden.value, "category") == ErrorCategory.AUTHORIZATION
+    assert getattr(forbidden.value, "code") == "FORBIDDEN"
 
 
 @pytest.mark.parametrize(
@@ -116,8 +121,10 @@ def test_application_rejects_provider_result_mismatch(
 ) -> None:
     service = ScheduleQueryApplicationService(Provider(bad_answer), policy())
 
-    with pytest.raises(ValueError, match=error):
+    with pytest.raises(Exception) as exc:
         service.execute(request(), auth_context=auth())
+    assert getattr(exc.value, "category") == ErrorCategory.CONFLICT
+    assert getattr(exc.value, "code") == error
 
 
 def test_api_returns_versioned_source_backed_result() -> None:
@@ -144,14 +151,14 @@ def test_api_maps_authorization_and_validation_errors() -> None:
         auth_context=auth(role="unknown-role"),
     )
     assert forbidden["error"]["code"] == "FORBIDDEN"
+    assert forbidden["error"]["category"] == ErrorCategory.AUTHORIZATION.value
 
-    invalid = api.execute(
-        ScheduleQueryRequest(
-            "Q-1",
-            ControlScope("tenant-1", "project-1", 7),
-            "user-1",
-            "Which activities are at risk?",
-        ),
-        auth_context=auth(),
-    )
-    assert "error" not in invalid
+    class InvalidProvider:
+        def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+            return object()  # type: ignore[return-value]
+
+    invalid = ScheduleQueryAPI(
+        ScheduleQueryApplicationService(InvalidProvider(), policy())
+    ).execute(request(), auth_context=auth())
+    assert invalid["error"]["code"] == "INVALID_SCHEDULE_QUERY_RESULT"
+    assert invalid["error"]["category"] == ErrorCategory.VALIDATION.value
