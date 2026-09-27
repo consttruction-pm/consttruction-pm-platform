@@ -46,6 +46,7 @@ class JobExecution:
     state: JobState
     idempotency_key: str
     fingerprint: str
+    error: str | None = None
 
     def validate(self) -> None:
         for name, value in (
@@ -94,8 +95,7 @@ class InMemoryJobExecutionRepository:
         self._lock.acquire()
 
     def unlock_idempotency(self) -> None:
-        if self._lock._is_owned():  # type: ignore[attr-defined]
-            self._lock.release()
+        self._lock.release()
 
     def get_by_idempotency(self, tenant_id: str, project_id: str, key: str) -> JobExecution | None:
         return self._idempotency.get((tenant_id, project_id, key))
@@ -105,8 +105,8 @@ class InMemoryJobExecutionRepository:
 
     def put(self, execution: JobExecution) -> None:
         execution.validate()
-        key = (execution.tenant_id, execution.project_id, execution.job_id)
-        self._records[key] = execution
+        job_key = (execution.tenant_id, execution.project_id, execution.job_id)
+        self._records[job_key] = execution
         self._idempotency[
             (execution.tenant_id, execution.project_id, execution.idempotency_key)
         ] = execution
@@ -155,51 +155,55 @@ class JobStepTransactionExecutor:
         steps: Sequence[Callable[[], None]],
     ) -> JobExecutionOutcome:
         fingerprint = _fingerprint(job_id, expected_revision, len(steps))
-        with self.transaction_manager.transaction():
-            self.repository.lock_idempotency(tenant_id, project_id, idempotency_key)
-            existing = self.repository.get_by_idempotency(tenant_id, project_id, idempotency_key)
-            if existing is not None:
-                if existing.fingerprint != fingerprint:
-                    raise JobIdempotencyConflict("JOB_IDEMPOTENCY_KEY_REUSE")
-                return JobExecutionOutcome(
-                    job_id=existing.job_id,
-                    state=JobState.REPLAYED,
-                    revision=existing.revision,
-                    error=None,
+        try:
+            with self.transaction_manager.transaction():
+                self.repository.lock_idempotency(tenant_id, project_id, idempotency_key)
+                existing = self.repository.get_by_idempotency(
+                    tenant_id, project_id, idempotency_key
+                )
+                if existing is not None:
+                    if existing.fingerprint != fingerprint:
+                        raise JobIdempotencyConflict("JOB_IDEMPOTENCY_KEY_REUSE")
+                    return JobExecutionOutcome(
+                        existing.job_id, JobState.REPLAYED, existing.revision, existing.error
+                    )
+
+                current = self.repository.get_current(tenant_id, project_id, job_id)
+                actual_revision = 0 if current is None else current.revision
+                if actual_revision != expected_revision:
+                    raise JobOptimisticLockConflict("JOB_REVISION_CONFLICT")
+
+                self.repository.put(
+                    JobExecution(
+                        tenant_id, project_id, job_id, actual_revision,
+                        JobState.RUNNING, idempotency_key, fingerprint,
+                    )
                 )
 
-            current = self.repository.get_current(tenant_id, project_id, job_id)
-            actual_revision = 0 if current is None else current.revision
-            if actual_revision != expected_revision:
-                raise JobOptimisticLockConflict("JOB_REVISION_CONFLICT")
-
-            running = JobExecution(
-                tenant_id, project_id, job_id, actual_revision,
-                JobState.RUNNING, idempotency_key, fingerprint,
-            )
-            self.repository.put(running)
-
-            try:
                 for step in steps:
                     step()
-            except JobStepFailure as exc:
-                state = JobState.RETRYABLE if exc.retryable else JobState.FAILED
-                raise _RollbackJobFailure(state, str(exc), actual_revision, fingerprint) from exc
 
-            completed = JobExecution(
-                tenant_id, project_id, job_id, actual_revision + 1,
-                JobState.SUCCEEDED, idempotency_key, fingerprint,
-            )
-            self.repository.put(completed)
-            return JobExecutionOutcome(job_id, JobState.SUCCEEDED, actual_revision + 1)
-
-
-class _RollbackJobFailure(RuntimeError):
-    def __init__(self, state: JobState, error: str, revision: int, fingerprint: str) -> None:
-        super().__init__(error)
-        self.state = state
-        self.revision = revision
-        self.fingerprint = fingerprint
+                next_revision = actual_revision + 1
+                self.repository.put(
+                    JobExecution(
+                        tenant_id, project_id, job_id, next_revision,
+                        JobState.SUCCEEDED, idempotency_key, fingerprint,
+                    )
+                )
+                return JobExecutionOutcome(job_id, JobState.SUCCEEDED, next_revision)
+        except JobStepFailure as exc:
+            state = JobState.RETRYABLE if exc.retryable else JobState.FAILED
+            with self.transaction_manager.transaction():
+                self.repository.lock_idempotency(tenant_id, project_id, idempotency_key)
+                current = self.repository.get_current(tenant_id, project_id, job_id)
+                revision = 0 if current is None else current.revision
+                self.repository.put(
+                    JobExecution(
+                        tenant_id, project_id, job_id, revision,
+                        JobState.ROLLED_BACK, idempotency_key, fingerprint, str(exc),
+                    )
+                )
+            return JobExecutionOutcome(job_id, state, revision, str(exc))
 
 
 def _fingerprint(job_id: str, expected_revision: int, step_count: int) -> str:
