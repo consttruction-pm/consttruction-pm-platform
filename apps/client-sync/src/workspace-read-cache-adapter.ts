@@ -1,4 +1,4 @@
-import type { SyncSyncProjectContext } from "./api-sync-transport.js";
+import type { SyncProjectContext } from "./api-sync-transport.js";
 import {
   classifyWorkspaceReadCache,
   createWorkspaceReadCache,
