@@ -50,7 +50,7 @@ class DocumentApplicationService:
         document_id: str,
         context: AuthorizationContext,
     ) -> StoredDocument:
-        self._authorize_context(context, tenant_id, project_id, Permission.PROJECT_READ)
+        self._check_permission(context, tenant_id, project_id, Permission.PROJECT_READ)
         return self.store.get(tenant_id, project_id, document_id)
 
     def update(
@@ -101,20 +101,6 @@ class DocumentApplicationService:
             occurred_at=occurred_at,
             reason=reason,
         )
-
-    @staticmethod
-    def _authorize_context(
-        context: AuthorizationContext,
-        tenant_id: str,
-        project_id: str,
-        permission: Permission,
-    ) -> None:
-        if context.tenant_id != tenant_id or context.project_id != project_id:
-            raise DocumentAuthorizationError("DOCUMENT_CROSS_SCOPE")
-        if not context.user_id.strip():
-            raise DocumentAuthorizationError("DOCUMENT_ACTOR_REQUIRED")
-        # The policy is supplied by the service; this branch is replaced by _check_permission.
-        raise RuntimeError("DOCUMENT_INTERNAL_AUTHORIZATION_HELPER")
 
     def _check_permission(
         self,
