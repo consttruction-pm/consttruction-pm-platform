@@ -123,15 +123,15 @@ export function renderLanguageManagerRoute(
   const status = state.error ?? state.status;
 
   container.innerHTML = `
-    <section data-language-manager-route aria-label="Language Manager">
+    <section data-language-manager-route aria-labelledby="language-manager-title">
       <header>
         <h1>Language Manager</h1>
         <div data-language-pack-status>${escapeHtml(status)}</div>
       </header>
       <dl>
-        <div><dt>Language</dt><dd data-language-tag>${escapeHtml(language)}</dd></div>
-        <div><dt>Version</dt><dd data-language-version>${escapeHtml(version)}</dd></div>
-        <div><dt>Offline</dt><dd data-language-offline>${state.offline ? "true" : "false"}</dd></div>
+        <div><dt id="language-manager-language-label">Language</dt><dd data-language-tag aria-labelledby="language-manager-language-label">${escapeHtml(language)}</dd></div>
+        <div><dt id="language-manager-version-label">Version</dt><dd data-language-version aria-labelledby="language-manager-version-label">${escapeHtml(version)}</dd></div>
+        <div><dt id="language-manager-offline-label">Offline</dt><dd data-language-offline aria-labelledby="language-manager-offline-label">${state.offline ? "true" : "false"}</dd></div>
       </dl>
     </section>
   `;
