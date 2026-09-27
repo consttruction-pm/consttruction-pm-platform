@@ -10,23 +10,21 @@ const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
 
 class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources{
  private readonly values:Map<string,Uint8Array>;
- constructor(values:ReadonlyMap<string,Uint8Array>){
-  this.values=new Map(values);
- }
+ constructor(values:ReadonlyMap<string,Uint8Array>){this.values=new Map(values);}
  get size():number{return this.values.size;}
  get(path:string):Uint8Array|undefined{
   const value=this.values.get(path);
   return value?new Uint8Array(value):undefined;
  }
  has(path:string):boolean{return this.values.has(path);}
- entries():MapIterator<[string,Uint8Array]>{
-  return this.values.entries().map(([path,bytes])=>[path,new Uint8Array(bytes)] as [string,Uint8Array]);
+ *entries():IterableIterator<[string,Uint8Array]>{
+  for(const [path,bytes] of this.values) yield [path,new Uint8Array(bytes)];
  }
- keys():MapIterator<string>{return this.values.keys();}
- values():MapIterator<Uint8Array>{
-  return this.values.values().map(bytes=>new Uint8Array(bytes));
+ keys():IterableIterator<string>{return this.values.keys();}
+ *values():IterableIterator<Uint8Array>{
+  for(const bytes of this.values.values()) yield new Uint8Array(bytes);
  }
- [Symbol.iterator]():MapIterator<[string,Uint8Array]>{return this.entries();}
+ [Symbol.iterator]():IterableIterator<[string,Uint8Array]>{return this.entries();}
  forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
   for(const [key,value] of this.values) callbackfn.call(thisArg,new Uint8Array(value),key,this);
  }
