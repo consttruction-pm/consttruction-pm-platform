@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment", assurance: "Field Assurance",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات", assurance: "کنترل کیفیت و ایمنی",
   },
 } as const;
 
@@ -37,6 +37,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.timecards, state.equipmentReports, t.attendance, t.equipment)}
+        ${renderFieldAssurance(state.inspections, state.safetyObservations, state.punchItems, t.assurance)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -180,6 +181,53 @@ function renderFieldOperations(
         <div>
           <h2>${escapeHtml(equipmentLabel)}</h2>
           <div class="cp-field-list">${equipment}</div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderFieldAssurance(
+  inspections: WorkspaceState["inspections"],
+  safetyObservations: WorkspaceState["safetyObservations"],
+  punchItems: WorkspaceState["punchItems"],
+  label: string,
+): string {
+  if (!inspections.length && !safetyObservations.length && !punchItems.length) return "";
+
+  return `
+    <section class="cp-panel cp-field-assurance" aria-label="${escapeAttribute(label)}">
+      <h2>${escapeHtml(label)}</h2>
+      <div class="cp-field-assurance-grid">
+        <div>
+          <h3>Inspections</h3>
+          ${inspections.length ? inspections.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.inspectionTypeKey)}</strong>
+              <span>${escapeHtml(item.subjectId)}</span>
+              <span>${escapeHtml(item.result)}</span>
+              <span>${escapeHtml(item.status)}</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+        <div>
+          <h3>Safety</h3>
+          ${safetyObservations.length ? safetyObservations.map((item) => `
+            <article class="cp-field-card is-${item.severity}">
+              <strong>${escapeHtml(item.titleKey)}</strong>
+              <span>${escapeHtml(item.categoryKey)}</span>
+              <span>${escapeHtml(item.severity)}</span>
+              <span>${escapeHtml(item.status)}</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+        <div>
+          <h3>Punch / Closeout</h3>
+          ${punchItems.length ? punchItems.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.titleKey)}</strong>
+              <span>${escapeHtml(item.priority)}</span>
+              <span>${escapeHtml(item.status)}</span>
+              ${item.dueDate ? `<span>${escapeHtml(item.dueDate)}</span>` : ""}
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
     </section>
