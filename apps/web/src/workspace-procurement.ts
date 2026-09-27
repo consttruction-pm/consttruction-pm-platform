@@ -225,7 +225,8 @@ function validateActivityIds(values: readonly string[] | undefined): readonly st
   return ids;
 }
 
-// Quantities are decimal strings; zero and leading-zero forms are rejected.\nfunction validateQuantity(value: string, errorCode: string): void {
+// Quantities are decimal strings; zero and leading-zero forms are rejected.
+function validateQuantity(value: string, errorCode: string): void {
   if (!/^(?!0+(?:\.0+)?$)(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
     throw new Error(errorCode);
   }
