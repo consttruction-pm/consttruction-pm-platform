@@ -255,3 +255,20 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
+
+
+### 2026-09-28 — Enterprise Identity tenant binding (PR #365)
+
+- Concrete Hasan-owned integration gap: the Enterprise Identity adapter accepted a subject and roles without requiring the versioned enterprise identity claim's tenant binding.
+- PR #365 now requires a non-empty `tenant_id` claim and rejects claims whose tenant differs from the configured tenant boundary.
+- Exact implementation head: `01cd42d9fc623e052c625170935ea93ded8bf3ae`.
+- Client Typecheck run `36352892657` and ConstructionPM CI run `36352892636` completed successfully.
+- PR #365 merged to `main` as `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current continuation point
+
+- Current `main` is `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
+- PR #366 was closed without merge after its original branch diverged from the newly advanced `main`; its authorization validation change remains unmerged.
+- A fresh current-main implementation is tracked in PR #369. Its exact head is `5396415bd49ed93d07d12ae84939ab22ed596da3`; GitHub Actions has not yet produced a run/status for this head, so it must not be marked runtime-verified or merged until evidence appears.
+- Next action: verify PR #369 Actions. If a concrete CI failure appears, fix only that failure; if no workflow is emitted, investigate the repository Actions trigger/status rather than bypassing the verification gate.
