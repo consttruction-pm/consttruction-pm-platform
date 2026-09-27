@@ -57,13 +57,14 @@ def test_dependency_graph_round_trip_persists_revision_and_audit() -> None:
         loaded = store.get(tenant_id, project_id, resource_id)
         assert loaded == persisted
 
-        replay = store.persist(
-            link,
-            expected_graph_revision=0,
-            idempotency_key=idempotency_key,
-            actor_id="requester-1",
-            occurred_at=created_at,
-        )
+        with PostgresTransactionManager(connection).transaction():
+            replay = store.persist(
+                link,
+                expected_graph_revision=0,
+                idempotency_key=idempotency_key,
+                actor_id="requester-1",
+                occurred_at=created_at,
+            )
         assert replay == persisted
 
         history = store.history(tenant_id, project_id, resource_id)
