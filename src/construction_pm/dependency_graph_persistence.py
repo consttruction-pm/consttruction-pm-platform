@@ -184,7 +184,7 @@ class PostgresDependencyGraphStore:
                 (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
             )
         except Exception as exc:
-            if getattr(exc, "sqlstate", None) == "23505" and "project_dependency_links_pkey" in str(getattr(exc, "diag", "")):
+            if getattr(exc, "sqlstate", None) == "23505" and getattr(getattr(exc, "diag", None), "constraint_name", None) == "project_dependency_links_pkey":
                 raise DependencyResourceConflict("DEPENDENCY_RESOURCE_ALREADY_EXISTS") from exc
             raise
         self.connection.execute(
