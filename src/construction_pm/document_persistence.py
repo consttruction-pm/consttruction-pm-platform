@@ -23,6 +23,19 @@ class DocumentIdempotencyReuse(ValueError):
     pass
 
 
+class DocumentApprovalTransitionError(ValueError):
+    pass
+
+
+DOCUMENT_APPROVAL_TRANSITIONS = {
+    "draft": {"submitted"},
+    "submitted": {"approved", "rejected"},
+    "rejected": {"submitted"},
+    "approved": {"superseded"},
+    "superseded": set(),
+}
+
+
 @dataclass(frozen=True)
 class DocumentRecord:
     document_id: str
@@ -213,6 +226,32 @@ class PostgresDocumentStore:
             ),
         )
         return StoredDocument(document, next_revision)
+
+    def transition_status(
+        self,
+        document: DocumentRecord,
+        *,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str = "",
+    ) -> StoredDocument:
+        """Apply one explicit document lifecycle transition under optimistic locking."""
+        current = self.get(document.tenant_id, document.project_id, document.document_id)
+        allowed = DOCUMENT_APPROVAL_TRANSITIONS.get(current.document.status, set())
+        if document.status not in allowed:
+            raise DocumentApprovalTransitionError(
+                f"DOCUMENT_INVALID_STATUS_TRANSITION:{current.document.status}->{document.status}"
+            )
+        if document.as_dict() | {"status": current.document.status}:
+            pass
+        return self.update(
+            document,
+            expected_revision=expected_revision,
+            actor_id=actor_id,
+            occurred_at=occurred_at,
+            event_type=f"status:{current.document.status}->{document.status}" + (f":{reason.strip()}" if reason.strip() else ""),
+        )
 
     def history(self, tenant_id: str, project_id: str, document_id: str):
         rows = self.connection.execute(
