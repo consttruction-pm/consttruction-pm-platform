@@ -3,6 +3,7 @@ import type { WorkspaceControlSummary } from "./workspace-control-intelligence.j
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
+import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -72,6 +73,10 @@ export type WorkspaceState = {
   timecards: readonly WorkspaceTimecard[];
   equipmentReports: readonly WorkspaceEquipmentStatus[];
   fieldIssues: readonly WorkspaceFieldIssue[];
+  inspections: readonly WorkspaceInspection[];
+  qualityRecords: readonly WorkspaceQualityRecord[];
+  safetyObservations: readonly WorkspaceSafetyObservation[];
+  punchItems: readonly WorkspacePunchItem[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -111,6 +116,10 @@ export function createWorkspaceState(
     timecards: [],
     equipmentReports: [],
     fieldIssues: [],
+    inspections: [],
+    qualityRecords: [],
+    safetyObservations: [],
+    punchItems: [],
   };
 }
 
@@ -185,6 +194,32 @@ export function setFieldIssues(
     ...state,
     fieldIssues: fieldIssues.map((issue) =>
       Object.freeze({ ...issue, activityIds: [...issue.activityIds] }),
+    ),
+  };
+}
+
+export function setFieldAssurance(
+  state: WorkspaceState,
+  assurance: {
+    inspections: readonly WorkspaceInspection[];
+    qualityRecords: readonly WorkspaceQualityRecord[];
+    safetyObservations: readonly WorkspaceSafetyObservation[];
+    punchItems: readonly WorkspacePunchItem[];
+  },
+): WorkspaceState {
+  return {
+    ...state,
+    inspections: assurance.inspections.map((item) =>
+      Object.freeze({ ...item, checklist: item.checklist.map((entry) => Object.freeze({ ...entry })) }),
+    ),
+    qualityRecords: assurance.qualityRecords.map((item) =>
+      Object.freeze({ ...item, activityIds: [...item.activityIds] }),
+    ),
+    safetyObservations: assurance.safetyObservations.map((item) =>
+      Object.freeze({ ...item, activityIds: [...item.activityIds] }),
+    ),
+    punchItems: assurance.punchItems.map((item) =>
+      Object.freeze({ ...item, activityIds: [...item.activityIds] }),
     ),
   };
 }
