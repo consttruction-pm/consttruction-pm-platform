@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.dependency_graph_persistence import (
     DependencyIdempotencyReuse,
     DependencyRevisionConflict,
@@ -35,9 +36,18 @@ class Connection:
         self.revisions = {}
         self.links = {}
         self.audit = []
+        self._transaction_snapshot = None
 
     def transaction(self):
         return Transaction()
+
+    def commit(self):
+        self._transaction_snapshot = None
+
+    def rollback(self):
+        if self._transaction_snapshot is not None:
+            self.revisions, self.links, self.audit = self._transaction_snapshot
+        self._transaction_snapshot = None
 
     def execute(self, sql, params=()):
         if sql.startswith("INSERT INTO project_dependency_revisions"):
@@ -46,6 +56,8 @@ class Connection:
         if sql.startswith("SELECT revision FROM project_dependency_revisions"):
             return Cursor((self.revisions.get((params[0], params[1])),))
         if sql.startswith("UPDATE project_dependency_revisions"):
+            if self._transaction_snapshot is None:
+                self._transaction_snapshot = (dict(self.revisions), dict(self.links), list(self.audit))
             key = (params[1], params[2])
             if self.revisions.get(key) == params[3]:
                 self.revisions[key] = params[0]
@@ -84,6 +96,11 @@ def link(**overrides):
     return DependencyLink(**values)
 
 
+def persist(store, connection, link_value, **kwargs):
+    with PostgresTransactionManager(connection).transaction():
+        return store.persist(link_value, **kwargs)
+
+
 def test_persist_replay_and_readback():
     connection = Connection()
     store = PostgresDependencyGraphStore(connection)
@@ -91,8 +108,8 @@ def test_persist_replay_and_readback():
     store.ensure_project("T-1", "P-1")
     now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
 
-    created = store.persist(link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
-    replay = store.persist(link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
+    created = persist(store, connection, link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
+    replay = persist(store, connection, link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
 
     assert created.graph_revision == 1
     assert replay == created
@@ -106,13 +123,13 @@ def test_stale_revision_and_idempotency_reuse_are_rejected():
     store.initialize()
     store.ensure_project("T-1", "P-1")
     now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
-    store.persist(link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
+    persist(store, connection, link(), expected_graph_revision=0, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
 
     with pytest.raises(DependencyRevisionConflict):
-        store.persist(link(resource_id="dep-2"), expected_graph_revision=0, idempotency_key="k-2", actor_id="u-1", occurred_at=now)
+        persist(store, connection, link(resource_id="dep-2"), expected_graph_revision=0, idempotency_key="k-2", actor_id="u-1", occurred_at=now)
 
     with pytest.raises(DependencyIdempotencyReuse):
-        store.persist(link(metadata={"relation": "depends_on"}), expected_graph_revision=1, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
+        persist(store, connection, link(metadata={"relation": "depends_on"}), expected_graph_revision=1, idempotency_key="k-1", actor_id="u-1", occurred_at=now)
 
 
 def test_self_reference_is_rejected():
