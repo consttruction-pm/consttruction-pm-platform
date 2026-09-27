@@ -18,8 +18,11 @@ class AIActionProposal:
     requires_human_approval: bool
     requested_by: str | None = None
     evidence_refs: tuple[str, ...] = ()
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise AIActionBoundaryError("UNSUPPORTED_AI_ACTION_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
