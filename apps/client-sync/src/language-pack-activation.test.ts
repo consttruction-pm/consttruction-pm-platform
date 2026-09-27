@@ -41,3 +41,5 @@ test("resource validation occurs before activation commit",()=>{
  assert.throws(()=>store.activate(artifact,manifest(),[{path:"../escape.json",bytes:new Uint8Array([9])}],()=>true),/INVALID_LANGUAGE_PACK_RESOURCE_PATH/);
  assert.equal(store.getActive()?.manifest.version,"1.0.0");
 });
+
+test("activation owns resource byte snapshots",()=>{\n const store=new AtomicLanguagePackStore();\n const mutable=new Uint8Array([1,2,3]);\n const input=[\n  {path:"translation.json",bytes:mutable},{path:"glossary.json",bytes:new Uint8Array([2])},\n  {path:"help.json",bytes:new Uint8Array([3])},{path:"reports.json",bytes:new Uint8Array([4])},\n ];\n const active=store.activate(artifact,manifest(),input,()=>true);\n mutable[0]=9;\n assert.deepEqual([...active.resources.get("translation.json")!],[1,2,3]);\n assert.notEqual(active.resources.get("translation.json"),mutable);\n});\n
