@@ -63,3 +63,7 @@ Stage 33.2 is complete only when the integration contracts and regression covera
 
 ## 33.2.2 implementation note
 A context-scoped SQLite resource persistence adapter now makes tenant/company/project scope explicit for Resource and ResourceAssignment records. Revision checks are enforced per context and invalid context is rejected before database access; the legacy single-context SQLite adapter remains unchanged for compatibility.
+
+
+## 33.2.3 implementation note
+The context-scoped SQLite resource adapter now participates in an application-owned transaction without committing inside an active transaction. Standalone repository calls retain their commit behavior. Integration tests cover atomic rollback across resource and assignment mutations.
