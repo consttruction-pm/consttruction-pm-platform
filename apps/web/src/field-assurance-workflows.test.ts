@@ -41,6 +41,13 @@ test("all terminal states reject further transitions", () => {
   assert.equal(canTransition({ resource: "punch_item", from: "cancelled", to: "open" }), false);
 });
 
+test("assertTransition accepts every documented legal transition", () => {
+  assert.doesNotThrow(() => assertTransition({ resource: "inspection", from: "draft", to: "scheduled" }));
+  assert.doesNotThrow(() => assertTransition({ resource: "quality_record", from: "pending_verification", to: "accepted" }));
+  assert.doesNotThrow(() => assertTransition({ resource: "safety_observation", from: "resolved", to: "closed" }));
+  assert.doesNotThrow(() => assertTransition({ resource: "punch_item", from: "ready_for_verification", to: "rejected" }));
+});
+
 test("invalid transitions fail with a stable workflow error", () => {
   assert.throws(
     () => assertTransition({
