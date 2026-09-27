@@ -19,13 +19,35 @@ const resources=()=>[
  {path:"help.json",bytes:new Uint8Array([3])},{path:"reports.json",bytes:new Uint8Array([4])},
 ];
 
-test("updates and rolls back to the validated previous pack",()=>{
+test("updates and rolls back through validated previous packs",()=>{
  const store=new UpdateableLanguagePackStore();
  store.activate(artifact,manifest("1.0.0"),resources(),()=>true);
- const result=store.update(artifact,manifest("2.0.0"),resources(),()=>true);
- assert.equal(result.updated,true);
- assert.equal(store.getActive()?.manifest.version,"2.0.0");
+ store.update(artifact,manifest("2.0.0"),resources(),()=>true);
+ store.update(artifact,manifest("3.0.0"),resources(),()=>true);
+ assert.equal(store.getActive()?.manifest.version,"3.0.0");
+ assert.equal(store.rollback().manifest.version,"2.0.0");
  assert.equal(store.rollback().manifest.version,"1.0.0");
+});
+
+test("rollback history is bounded",()=>{
+ const store=new UpdateableLanguagePackStore();
+ for(let version=1;version<=7;version++){
+  store.activate(artifact,manifest(version.toFixed(1)+".0"),resources(),()=>true);
+ }
+ assert.equal(store.rollback().manifest.version,"6.0.0");
+ assert.equal(store.rollback().manifest.version,"5.0.0");
+ assert.equal(store.rollback().manifest.version,"4.0.0");
+ assert.equal(store.rollback().manifest.version,"3.0.0");
+ assert.equal(store.rollback().manifest.version,"2.0.0");
+ assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
+});
+
+test("failed activation does not add a rollback entry",()=>{
+ const store=new UpdateableLanguagePackStore();
+ store.activate(artifact,manifest("1.0.0"),resources(),()=>true);
+ assert.throws(()=>store.update(artifact,manifest("2.0.0"),resources(),()=>false));
+ assert.equal(store.getActive()?.manifest.version,"1.0.0");
+ assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
 });
 
 test("rollback is unavailable before a second validated activation",()=>{
