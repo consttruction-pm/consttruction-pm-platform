@@ -9,24 +9,24 @@ const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
 ].filter((path):path is string=>path!==null);
 
 class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources{
- private readonly values:Map<string,Uint8Array>;
- constructor(values:ReadonlyMap<string,Uint8Array>){this.values=new Map(values);}
- get size():number{return this.values.size;}
+ private readonly store:Map<string,Uint8Array>;
+ constructor(values:ReadonlyMap<string,Uint8Array>){this.store=new Map(values);}
+ get size():number{return this.store.size;}
  get(path:string):Uint8Array|undefined{
-  const value=this.values.get(path);
+  const value=this.store.get(path);
   return value?new Uint8Array(value):undefined;
  }
- has(path:string):boolean{return this.values.has(path);}
+ has(path:string):boolean{return this.store.has(path);}
  *entries():IterableIterator<[string,Uint8Array]>{
-  for(const [path,bytes] of this.values) yield [path,new Uint8Array(bytes)];
+  for(const [path,bytes] of this.store yield [path,new Uint8Array(bytes)];
  }
- keys():IterableIterator<string>{return this.values.keys();}
+ keys():IterableIterator<string>{return this.store.keys();}
  *values():IterableIterator<Uint8Array>{
-  for(const bytes of this.values.values()) yield new Uint8Array(bytes);
+  for(const bytes of this.store.values()) yield new Uint8Array(bytes);
  }
  [Symbol.iterator]():IterableIterator<[string,Uint8Array]>{return this.entries();}
  forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
-  for(const [key,value] of this.values) callbackfn.call(thisArg,new Uint8Array(value),key,this);
+  for(const [key,value] of this.store callbackfn.call(thisArg,new Uint8Array(value),key,this);
  }
 }
 
