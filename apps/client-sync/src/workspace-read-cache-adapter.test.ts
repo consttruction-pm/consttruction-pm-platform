@@ -102,3 +102,32 @@ test("stale cache is never relabeled as fresh when requested revision is newer",
   assert.equal(result.state, "stale");
   assert.equal(result.cache.source_revision, 7);
 });
+
+test("reconciles an offline stale snapshot when returning online", async () => {
+  const store = new MemoryStore(); const transport = new Transport();
+  const adapter = new WorkspaceReadCacheAdapter(transport, store);
+  await adapter.read(context, true);
+  const offline = await adapter.read({ ...context, revision: 8 }, false);
+  assert.equal(offline.state, "stale");
+  assert.equal(offline.cache.source_revision, 7);
+  transport.revision = 8;
+  const online = await adapter.read({ ...context, revision: 8 }, true);
+  assert.equal(online.mode, "online");
+  assert.equal(online.state, "fresh");
+  assert.equal(online.cache.source_revision, 8);
+  assert.equal(store.cache?.source_revision, 8);
+  assert.equal(transport.fetches, 2);
+});
+test("returning online does not promote a stale snapshot without authoritative refresh", async () => {
+  const store = new MemoryStore(); const transport = new Transport();
+  const adapter = new WorkspaceReadCacheAdapter(transport, store);
+  await adapter.read(context, true);
+  const offline = await adapter.read({ ...context, revision: 8 }, false);
+  assert.equal(offline.state, "stale");
+  transport.revision = 7;
+  await assert.rejects(
+    () => adapter.read({ ...context, revision: 8 }, true),
+    /WORKSPACE_READ_REFRESH_SCOPE_MISMATCH/,
+  );
+  assert.equal(store.cache?.source_revision, 7);
+});
