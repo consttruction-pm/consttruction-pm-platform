@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment", procurement: "Procurement",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات", procurement: "تدارکات",
   },
 } as const;
 
@@ -41,6 +41,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
+        ${renderProcurement(state.procurementRecords, t.procurement)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
