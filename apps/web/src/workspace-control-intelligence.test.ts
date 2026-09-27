@@ -74,3 +74,14 @@ test("non-finite metrics are rejected", () => {
     /INVALID_CONTROL_INTELLIGENCE_METRIC/,
   );
 });
+
+test("stale control intelligence source revision is rejected", () => {
+  const broken = {
+    ...snapshot(),
+    source_refs: [{ ...source, revision: 11 }],
+  };
+  assert.throws(
+    () => projectControlIntelligence(broken, context),
+    /STALE_CONTROL_INTELLIGENCE_SOURCE/,
+  );
+});
