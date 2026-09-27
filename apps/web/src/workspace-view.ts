@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
