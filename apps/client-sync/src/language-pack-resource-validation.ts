@@ -1,7 +1,7 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 
 export type LanguagePackResource={path:string;bytes:Uint8Array};
-export type ValidatedLanguagePackResources=Readonly<Record<string,Uint8Array>>;
+export type ValidatedLanguagePackResources=ReadonlyMap<string,Uint8Array>;
 
 const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
  manifest.resources.translation,manifest.resources.glossary,manifest.resources.help,manifest.resources.reports,
@@ -22,15 +22,15 @@ export function validateLanguagePackResources(manifest:LanguagePackManifest,reso
  const declared=declaredResourcePaths(manifest);
  const declaredSet=new Set(declared);
  if(declaredSet.size!==declared.length) throw new Error("DUPLICATE_LANGUAGE_PACK_RESOURCE");
- const result:Record<string,Uint8Array>={};
+ const result=new Map<string,Uint8Array>();
  for(const resource of resources){
   validateLanguagePackResourcePath(resource.path);
   if(!(resource.bytes instanceof Uint8Array)) throw new Error("INVALID_LANGUAGE_PACK_RESOURCE");
-  if(resource.path in result) throw new Error("DUPLICATE_LANGUAGE_PACK_RESOURCE");
-  result[resource.path]=resource.bytes;
+  if(result.has(resource.path)) throw new Error("DUPLICATE_LANGUAGE_PACK_RESOURCE");
+  result.set(resource.path,resource.bytes);
  }
  for(const path of declaredSet){
-  if(!(path in result)) throw new Error("LANGUAGE_PACK_RESOURCE_MISSING");
+  if(!result.has(path)) throw new Error("LANGUAGE_PACK_RESOURCE_MISSING");
  }
- return Object.freeze(result);
+ return result;
 }
