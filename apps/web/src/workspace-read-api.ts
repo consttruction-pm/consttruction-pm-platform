@@ -82,8 +82,8 @@ export class WorkspaceReadClient {
       );
       state = setFieldOperations(
         state,
-        result.data.field_timecards.map((snapshot) => projectTimecard(snapshot)),
-        result.data.equipment_status_reports.map((snapshot) => projectEquipmentStatus(snapshot)),
+        result.data.field_timecards.map((snapshot) => projectTimecard(snapshot, toProjectScope(context))),
+        result.data.equipment_status_reports.map((snapshot) => projectEquipmentStatus(snapshot, toProjectScope(context))),
       );
       state = setFieldAssurance(state, {
         inspections: result.data.inspections.map((snapshot) => projectInspection(snapshot, {
@@ -122,6 +122,14 @@ export class WorkspaceReadClient {
       };
     }
   }
+}
+
+function toProjectScope(context: ProjectContext): { tenant_id: string; project_id: string; project_revision: number } {
+  return {
+    tenant_id: context.tenant_id,
+    project_id: context.project_id,
+    project_revision: context.revision,
+  };
 }
 
 function validateReadEnvelope(
