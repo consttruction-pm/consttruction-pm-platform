@@ -7,6 +7,7 @@ def test_p6_business_object_registry_is_versioned_and_unique():
     assert data["reference_version"] == "P6 Professional Version 26 / P6 EPPM 26.4"
     assert data["status"] == "inventory"
     objects = data["objects"]
-    assert len(objects) == 91
+    assert data["object_count"] == 136
+    assert len(objects) == 136
     assert len(objects) == len(set(objects))
-    assert {"Activity", "Calendar", "Project", "Resource", "ResourceAssignment", "ScheduleOptions", "UDFType", "WBS"} <= set(objects)
+    assert {"Activity", "Calendar", "Project", "Resource", "ResourceAssignment", "ScheduleOptions", "UDFType", "WBS", "WbsReviewers"} <= set(objects)
