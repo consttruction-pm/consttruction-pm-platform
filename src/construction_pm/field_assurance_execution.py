@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol
 
 from .backend_p0.models import BackendScope
@@ -45,6 +46,8 @@ class FieldAssuranceExecution:
     template_id: str
     template_version: int
     answers: tuple[FieldAssuranceExecutionAnswer, ...]
+    executed_by: str
+    executed_at: datetime
     contract_version: str = "field-assurance-execution.v1"
 
     def validate_against(self, template: FieldAssuranceTemplate) -> None:
@@ -52,6 +55,10 @@ class FieldAssuranceExecution:
             raise FieldAssuranceExecutionError("UNSUPPORTED_EXECUTION_CONTRACT_VERSION")
         if not isinstance(self.execution_id, str) or not self.execution_id.strip():
             raise FieldAssuranceExecutionError("INVALID_EXECUTION_ID")
+        if not isinstance(self.executed_by, str) or not self.executed_by.strip():
+            raise FieldAssuranceExecutionError("INVALID_EXECUTED_BY")
+        if self.executed_at.tzinfo is None or self.executed_at.utcoffset() is None:
+            raise FieldAssuranceExecutionError("EXECUTED_AT_MUST_BE_TIMEZONE_AWARE")
         self.scope.validate()
         if self.scope != template.scope:
             raise FieldAssuranceExecutionError("EXECUTION_SCOPE_MISMATCH")
@@ -96,6 +103,8 @@ class FieldAssuranceExecution:
                 {"item_id": answer.item_id, "value": answer.value}
                 for answer in self.answers
             ],
+            "executed_by": self.executed_by,
+            "executed_at": self.executed_at.isoformat(),
         }
 
 
