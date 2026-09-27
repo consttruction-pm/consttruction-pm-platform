@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `8c923118034b4ad36770be4467901b1c4b29fe37`
+- Current main baseline at this reconciliation: `c2aa9013f78f564d0fa5d03f811d548359b40beb`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -212,3 +212,18 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 ## Next point
 
 Start the next Hasan implementation only after re-reading current main, this file, docs/roadmap/STAGE_STATUS.md, and open PRs. Select only a concrete missing Backend/Database/Application/API/Enterprise Integration boundary. If no such gap exists, do not invent a feature or numbered stage; record the verified blocker/ownership boundary instead.
+
+
+### 2026-09-28 — Project Portability Contract Version Hardening (PR #359)
+
+- Concrete Hasan-owned gap: `ProjectPortabilitySnapshot` accepted arbitrary `schema_version` values even though the authoritative portability contract is `project-portability.v1`.
+- The portability boundary now fails closed with `UNSUPPORTED_SCHEMA_VERSION` for unsupported versions.
+- Focused regression coverage verifies rejection during import and direct snapshot validation.
+- PR #359 exact implementation head `225985af42a7075fb9280384864ccafcea8baca5` passed Client Typecheck `36351611141` and ConstructionPM CI `36351611127`.
+- PR #359 merged to `main` as `c2aa9013f78f564d0fa5d03f811d548359b40beb`.
+- PR #357 was stale after PR #356 advanced `main`; it was closed and not merged as a separate baseline.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
