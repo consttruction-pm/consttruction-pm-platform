@@ -74,3 +74,45 @@ test("non-finite metrics are rejected", () => {
     /INVALID_CONTROL_INTELLIGENCE_METRIC/,
   );
 });
+
+test("stale top-level control intelligence source revision is rejected", () => {
+  const broken = {
+    ...snapshot(),
+    source_refs: [{ ...source, revision: 11 }],
+  };
+  assert.throws(
+    () => projectControlIntelligence(broken, context),
+    /STALE_CONTROL_INTELLIGENCE_SOURCE/,
+  );
+});
+
+test("stale finding evidence revision is rejected", () => {
+  const broken = {
+    ...snapshot(),
+    findings: [{
+      ...snapshot().findings[0],
+      source_refs: [{ ...source, revision: 11 }],
+    }],
+  };
+  assert.throws(
+    () => projectControlIntelligence(broken, context),
+    /STALE_CONTROL_INTELLIGENCE_SOURCE/,
+  );
+});
+
+test("stale proposed action evidence revision is rejected", () => {
+  const broken = {
+    ...snapshot(),
+    proposed_actions: [{
+      action_id: "action-1",
+      action_type: "review",
+      title_key: "action.review",
+      source_refs: [{ ...source, revision: 11 }],
+      requires_approval: true,
+    }],
+  };
+  assert.throws(
+    () => projectControlIntelligence(broken, context),
+    /STALE_CONTROL_INTELLIGENCE_SOURCE/,
+  );
+});
