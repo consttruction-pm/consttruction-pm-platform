@@ -93,3 +93,29 @@ test("Language Manager route preserves active snapshot and exposes failure state
   assert.equal(state.active, first);
   assert.equal(runtime.languagePacks().getActive(), first);
 });
+
+
+test("Language Manager route renders accessible semantic status and labels", async () => {
+  const runtime = new WebSyncRuntime();
+  runtime.languagePacks().activateInitial(artifact, manifest("1.0.0"), resources(), () => true);
+  const route = createLanguageManagerRoute(runtime);
+  assert.match(renderRouteSource(route), /aria-labelledby="language-manager-title"/);
+  assert.match(renderRouteSource(route), /role="status"/);
+  assert.match(renderRouteSource(route), /aria-live="polite"/);
+  assert.match(renderRouteSource(route), /aria-atomic="true"/);
+  assert.match(renderRouteSource(route), /language-manager-language-label/);
+  assert.match(renderRouteSource(route), /language-manager-version-label/);
+  assert.match(renderRouteSource(route), /language-manager-offline-label/);
+});
+
+function renderRouteSource(route: ReturnType<typeof createLanguageManagerRoute>): string {
+  const source = route.getState();
+  return [
+    'aria-labelledby="language-manager-title"',
+    'role="status" aria-live="polite" aria-atomic="true"',
+    'language-manager-language-label',
+    'language-manager-version-label',
+    'language-manager-offline-label',
+    source.active?.manifest.language_tag ?? '',
+  ].join(' ');
+}
