@@ -45,8 +45,7 @@ type WebSpeechProviderOptions = Readonly<{
 }>;
 
 function browserSpeech(): BrowserWindowSpeech {
-  if (typeof window === "undefined") return {};
-  return window as unknown as BrowserWindowSpeech;
+  return globalThis as unknown as BrowserWindowSpeech;
 }
 
 export function createWebSpeechInputAdapter(
