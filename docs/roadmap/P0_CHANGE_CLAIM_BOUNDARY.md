@@ -16,3 +16,7 @@ This boundary persists tenant/project-scoped change, variation, notice, and clai
 
 ## Next integration point
 Add a PostgreSQL repository/transaction adapter using the existing transaction and idempotency primitives. Do not introduce a second transaction model.
+
+
+## PostgreSQL persistence
+The application boundary now has a PostgreSQL adapter with explicit transaction scope, tenant/project revision locking, idempotency replay/reuse protection, append-only audit rows, and round-trip reconstruction. Pricing, entitlement, schedule, EVM, resource/cost and financial calculations remain outside this boundary.
