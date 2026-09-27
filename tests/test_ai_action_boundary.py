@@ -45,3 +45,15 @@ def test_rejection_can_be_audited_without_approval_actor():
     decision=svc.decide(proposal(), actor_id="user-7", approved=False)
     assert decision.decision == "rejected"
     assert len(sink.records) == 1
+
+
+def test_contract_version_is_preserved_and_validated():
+    item = proposal()
+    assert item.contract_version == "1.0"
+    item.validate()
+
+
+def test_unsupported_contract_version_is_rejected():
+    item = AIActionProposal("tenant-1", "project-1", "proposal-1", "document.search", "search", True, evidence_refs=("doc-1",), contract_version="2.0")
+    with pytest.raises(AIActionBoundaryError, match="UNSUPPORTED_AI_ACTION_CONTRACT_VERSION"):
+        item.validate()
