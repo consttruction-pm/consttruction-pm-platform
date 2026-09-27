@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   FIELD_INSPECTION_VERSION,
+  QUALITY_RECORD_VERSION,
   PUNCH_ITEM_VERSION,
   SAFETY_OBSERVATION_VERSION,
   projectInspection,
+  projectQualityRecord,
   projectPunchItem,
   projectSafetyObservation,
 } from "./workspace-field-assurance.js";
@@ -35,6 +37,37 @@ test("inspection projection preserves checklist results", () => {
 
   assert.equal(inspection.result, "pass");
   assert.equal(inspection.checklist[0]?.criterionKey, "cover");
+});
+
+test("quality record projection preserves NCR evidence and corrective references", () => {
+  const record = projectQualityRecord({
+    contract_version: QUALITY_RECORD_VERSION,
+    record_id: "qr-1",
+    scope: context,
+    category_key: "concrete",
+    severity: "high",
+    status: "pending_verification",
+    title_key: "ncr.concrete",
+    reported_by: "qc-1",
+    detail_key: "ncr.detail",
+    location_key: "tower-a",
+    activity_ids: ["A-10"],
+    inspection_id: "insp-1",
+    specification_reference: "SPEC-09",
+    corrective_action_key: "repair-and-retest",
+    disposition_key: "conditional_acceptance",
+    evidence_refs: [{
+      source_id: "photo-2",
+      source_type: "photo",
+      locator: "/photos/2",
+      revision: 9,
+    }],
+  }, context);
+
+  assert.equal(record.status, "pending_verification");
+  assert.equal(record.inspectionId, "insp-1");
+  assert.equal(record.evidenceCount, 1);
+  assert.deepEqual(record.activityIds, ["A-10"]);
 });
 
 test("safety observation projection preserves activity links", () => {
