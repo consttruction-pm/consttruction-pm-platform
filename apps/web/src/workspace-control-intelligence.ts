@@ -112,6 +112,26 @@ export function projectControlIntelligence(
     }
   }
 
+  for (const ref of snapshot.source_refs) {
+    if (!Number.isInteger(ref.revision) || ref.revision !== context.revision) {
+      throw new Error("STALE_CONTROL_INTELLIGENCE_SOURCE");
+    }
+  }
+  for (const finding of snapshot.findings) {
+    for (const ref of finding.source_refs) {
+      if (!Number.isInteger(ref.revision) || ref.revision !== context.revision) {
+        throw new Error("STALE_CONTROL_INTELLIGENCE_SOURCE");
+      }
+    }
+  }
+  for (const action of snapshot.proposed_actions) {
+    for (const ref of action.source_refs) {
+      if (!Number.isInteger(ref.revision) || ref.revision !== context.revision) {
+        throw new Error("STALE_CONTROL_INTELLIGENCE_SOURCE");
+      }
+    }
+  }
+
   return Object.freeze({
     resultId: snapshot.result_id,
     generatedAt: snapshot.generated_at,
