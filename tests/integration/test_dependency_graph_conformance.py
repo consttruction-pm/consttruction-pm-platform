@@ -83,3 +83,18 @@ def test_projection_is_deterministic():
     second = project_dependency_link(link(), graph_revision=7)
 
     assert first == second
+
+
+def test_projection_preserves_distinct_source_and_target_revisions():
+    projected = project_dependency_link(link(source_revision=11, target_revision=13), graph_revision=7)
+    assert projected.graph.nodes["schedule:task-1"].revision == 11
+    assert projected.graph.nodes["progress:task-1"].revision == 13
+    assert projected.graph.edges[0].source_revision == 11
+    assert projected.graph.edges[0].target_revision == 13
+
+
+def test_invalid_source_or_target_revision_is_rejected():
+    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_SOURCE_REVISION"):
+        link(source_revision=-1).validate()
+    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_TARGET_REVISION"):
+        link(target_revision=9007199254740992).validate()

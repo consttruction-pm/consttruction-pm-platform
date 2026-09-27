@@ -27,6 +27,8 @@ class DependencyLink:
     target_resource_id: str
     dependency_type: str
     metadata: dict[str, Any]
+    source_revision: int | None = None
+    target_revision: int | None = None
 
     def validate(self) -> None:
         if not all(
@@ -43,6 +45,9 @@ class DependencyLink:
             raise ValueError("INVALID_DEPENDENCY_LINK")
         if self.source_resource_id == self.target_resource_id:
             raise ValueError("DEPENDENCY_SELF_REFERENCE")
+        for name, value in (("source_revision", self.source_revision), ("target_revision", self.target_revision)):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > MAX_SAFE_PROJECT_REVISION):
+                raise ValueError(f"INVALID_DEPENDENCY_{name.upper()}")
         if (
             isinstance(self.revision, bool)
             or not isinstance(self.revision, int)
@@ -82,6 +87,8 @@ def dependency_fingerprint(link: DependencyLink) -> str:
         "target_resource_id": link.target_resource_id,
         "dependency_type": link.dependency_type,
         "metadata": link.metadata,
+        "source_revision": link.source_revision,
+        "target_revision": link.target_revision,
     }
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
@@ -223,4 +230,6 @@ def _link_from_json(payload: str) -> DependencyLink:
         target_resource_id=data["target_resource_id"],
         dependency_type=data["dependency_type"],
         metadata=dict(data["metadata"]),
+        source_revision=data.get("source_revision"),
+        target_revision=data.get("target_revision"),
     )

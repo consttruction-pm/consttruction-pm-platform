@@ -9,3 +9,11 @@ Supported dependency types are contract labels only. This module does not calcul
 Repositories own persistence mechanics; the application service owns transaction/idempotency orchestration. PostgreSQL integration must reuse existing transaction/idempotency primitives.
 
 Next integration point: PostgreSQL repository and transaction tests.
+
+
+## Shared Core conformance
+The persistence adapter projects explicitly typed dependency domains/relations through `dependency_graph_conformance.py`. Unknown domain/relation values are rejected rather than inferred. The projection preserves tenant/project scope, project graph revision, and independent source/target node revisions.
+
+Conformance coverage includes schedule→progress→EVM, resource/cost→schedule, change/claim links, invalid domain/relation rejection, revision mismatch rejection, and deterministic projection.
+
+Authoritative scheduling, progress/EVM, resource/cost and financial semantics remain in Shared Core.
