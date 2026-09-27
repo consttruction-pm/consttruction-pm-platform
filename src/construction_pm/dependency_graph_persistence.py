@@ -184,8 +184,13 @@ class PostgresDependencyGraphStore:
                 (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
             )
         except Exception as exc:
-            if getattr(exc, "sqlstate", None) == "23505" and getattr(getattr(exc, "diag", None), "constraint_name", None) == "project_dependency_links_pkey":
-                raise DependencyResourceConflict("DEPENDENCY_RESOURCE_ALREADY_EXISTS") from exc
+            sqlstate = getattr(exc, "sqlstate", None)
+            constraint_name = getattr(getattr(exc, "diag", None), "constraint_name", None)
+            if sqlstate == "23505":
+                if constraint_name == "project_dependency_links_pkey":
+                    raise DependencyResourceConflict("DEPENDENCY_RESOURCE_ALREADY_EXISTS") from exc
+                if constraint_name == "project_dependency_links_tenant_id_project_id_idempotency_key_key":
+                    raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE") from exc
             raise
         self.connection.execute(
             "INSERT INTO project_dependency_audit "
