@@ -2,28 +2,29 @@
 
 ## Status
 
-Stage 34.4 final gate is prepared on branch `stage-34-4-8-final-ci-runtime`.
+Stage 34.4 is **implemented, merged, and runtime-verified** on current `main`.
 
-## Required runtime gates
+## Implementation
 
-- Client Sync typecheck and runtime tests
-- Web typecheck and runtime tests
-- Desktop typecheck and runtime tests
-- Mobile typecheck and runtime tests
-- ConstructionPM repository CI
+PR #311 — `stage-34-4: reconcile read-cache final gate on current main` — merged at commit `3ca05d011dfc457f1b45be500b5ebfcb00531cd1`.
 
-## Verified baseline
+The merged boundary includes:
 
-The cross-client regression commit `581fcb66b7e6e14e0b198577a76a5811e50e40e3` passed:
+- versioned `workspace-control-room-cache.v1` contract;
+- shared Client-Sync `WorkspaceReadCacheAdapter`;
+- Web cached workspace-read projection;
+- Desktop and Mobile workspace-read integration;
+- focused cache, adapter, Web, Desktop and Mobile regression tests;
+- runtime coverage for online refresh and offline last-known snapshots.
 
-- Client Typecheck workflow run `36335272788`
-- ConstructionPM CI workflow run `36335272907`
+## Verified runtime gates
 
-Client Typecheck jobs passed for all four client packages.
+Exact PR #311 implementation-head verification:
 
-## Acceptance constraints
+- Client Typecheck: **36340776620** — passed.
+- ConstructionPM CI: **36340776628** — passed.
 
-The final gate must preserve:
+The acceptance evidence covers:
 
 1. tenant/project/revision scope isolation;
 2. immutable versioned workspace read-cache snapshots;
@@ -34,4 +35,8 @@ The final gate must preserve:
 7. Web/Desktop/Mobile parity through the shared adapter;
 8. no client-side Scheduling/P6, Progress/EVM, Resource/Cost, or financial calculation.
 
-No merge is implied by this gate; merge remains a separate repository operation.
+## Reconciliation note
+
+PR #313 was a later redundant reconciliation attempt and was closed without merge. It is not required for the Stage 34.4 completion record.
+
+Current `main` after subsequent CI workflow commits is `4df2bafeb4e7e9d399dc6992a5f3ef8a52d5fb48`.
