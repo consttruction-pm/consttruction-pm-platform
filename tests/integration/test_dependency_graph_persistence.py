@@ -107,3 +107,36 @@ def test_stale_revision_and_idempotency_reuse_are_rejected():
 def test_self_reference_is_rejected():
     with pytest.raises(ValueError, match="SELF_REFERENCE"):
         link(target_resource_id="schedule:task-1").validate()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"expected_graph_revision": True}, "INVALID_DEPENDENCY_EXPECTED_GRAPH_REVISION"),
+        ({"expected_graph_revision": -1}, "INVALID_DEPENDENCY_EXPECTED_GRAPH_REVISION"),
+        ({"idempotency_key": ""}, "INVALID_DEPENDENCY_IDEMPOTENCY_KEY"),
+        ({"idempotency_key": None}, "INVALID_DEPENDENCY_IDEMPOTENCY_KEY"),
+        ({"actor_id": ""}, "INVALID_DEPENDENCY_ACTOR_ID"),
+        ({"actor_id": None}, "INVALID_DEPENDENCY_ACTOR_ID"),
+    ],
+)
+def test_mutation_metadata_is_rejected_before_database_mutation(kwargs, message):
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    store.initialize()
+    store.ensure_project("T-1", "P-1")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    params = {
+        "expected_graph_revision": 0,
+        "idempotency_key": "valid-key",
+        "actor_id": "u-1",
+        "occurred_at": now,
+    }
+    params.update(kwargs)
+
+    with pytest.raises(ValueError, match=message):
+        store.persist(link(), **params)
+
+    assert connection.revisions[("T-1", "P-1")] == 0
+    assert connection.audit == []
