@@ -53,6 +53,51 @@ This document defines the current three-person division of responsibilities for 
 
 **Boundary:** Javad does not create a separate scheduling/calculation engine. Authoritative calculations come from the Shared Domain/Calculation Core and approved API contracts.
 
+
+## 6. P6 26.4 No-Omission Parity Workstream
+
+This workstream is a mandatory cross-team requirement under Product Principle 1A and Issue #389.
+
+### Jalal — Shared Core / P6 semantics / calculation authority
+**GitHub task:** #391
+- P6 26.4 field and calculation-option inventory and disposition.
+- Canonical Field Registry semantics.
+- P6 Schedule Options and calculation behavior.
+- Calendar parity: global/project/resource pools, inheritance, exceptions, detailed work time and hours-per-period.
+- Formula/Calculated Column engine in Shared Core.
+- Dependency graph, type checking, circular-dependency detection and deterministic rollups.
+- P6 semantic conformance and non-regression tests.
+
+### Javad — Columns / Layouts / Field UX
+**GitHub task:** #392
+- Web/Desktop/Mobile Field Chooser and complete shared field presentation.
+- Add/remove/hide/show/reorder/rename/width/alignment/pin/freeze.
+- Persistent user/project/global layouts and migration.
+- Typed standard/UDF editors and display formatting.
+- Formula editor UX and validation/dependency visualization.
+- Grid sort/group/filter/report/print field selection.
+- Cross-client presentation parity.
+
+Javad consumes the Shared Core Formula Engine and Field Registry; he must not implement independent P6 calculations.
+
+### Hasan — Persistence / API / Import-Export
+**GitHub task:** #393
+- Persistence/versioning/tenant-project scoping for Field Registry, UDF, Column/Layout and Formula definitions.
+- Typed API contracts for field catalogs, layouts, formulas and schedule/calendar options.
+- XER/XML/XLS/XLSX/Microsoft Project mapping work as approved by the parity registry.
+- Explicit unsupported-field handling; no silent data loss.
+- Financial-period, resource-spread, baseline and code persistence required by the registry.
+- Database transaction, revision/concurrency and round-trip verification.
+
+Hasan consumes Shared Core semantics and must not create a competing scheduling/calendar/formula engine.
+
+### P6 parity sequence and ownership flow
+1. **Jalal** freezes/dispositions semantics and contracts.
+2. **Hasan** persists/exposes those contracts and builds interchange adapters.
+3. **Javad** consumes those contracts for client grids, layouts and editors.
+4. **Jalal** performs semantic integration/conformance acceptance.
+5. **All three** participate in cross-client/import-export regression where their boundary is affected.
+
 ## 4. Shared Working Rules
 
 1. GitHub/Codex is the canonical development, execution and test environment.
