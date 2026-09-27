@@ -3,7 +3,6 @@ import type { ProjectContext } from "./client.js";
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
-
 export type WorkspaceMenuKey =
   | "project"
   | "schedule"
@@ -23,6 +22,8 @@ export type WorkspaceColumnDataType =
   | "duration"
   | "boolean";
 
+export type WorkspaceCellValue = string | number | boolean | null;
+
 export type WorkspaceColumn = {
   id: string;
   label: string;
@@ -32,11 +33,23 @@ export type WorkspaceColumn = {
   width: number;
 };
 
+export type WorkspaceGanttData = {
+  /** ISO-8601 values already resolved by the authoritative schedule engine. */
+  start: string;
+  finish: string;
+  progressPercent: number;
+  critical: boolean;
+};
+
 export type WorkspaceActivityRow = {
   id: string;
   wbsId: string;
   code: string;
   name: string;
+  /** Display-ready typed values; the Web client never evaluates formulas. */
+  cells?: Readonly<Record<string, WorkspaceCellValue>>;
+  /** Display-only schedule result projected from Shared Core. */
+  gantt?: WorkspaceGanttData;
 };
 
 export type WorkspaceState = {
@@ -54,10 +67,12 @@ export type WorkspaceState = {
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
   { id: "activity_id", label: "Activity ID", dataType: "text", editable: false, formula: null, width: 120 },
+  { id: "activity_code", label: "Code", dataType: "text", editable: false, formula: null, width: 100 },
   { id: "activity_name", label: "Activity Name", dataType: "text", editable: true, formula: null, width: 260 },
   { id: "start", label: "Start", dataType: "date", editable: false, formula: null, width: 120 },
   { id: "finish", label: "Finish", dataType: "date", editable: false, formula: null, width: 120 },
   { id: "duration", label: "Duration", dataType: "duration", editable: false, formula: null, width: 110 },
+  { id: "progress", label: "Progress", dataType: "decimal", editable: false, formula: null, width: 100 },
 ];
 
 export function createWorkspaceState(
@@ -123,10 +138,6 @@ export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn)
   if (column.formula === null || !column.formula.trim()) {
     throw new Error("FORMULA_REQUIRED");
   }
-  if (column.dataType === "text" && column.formula.includes("=")) {
-    // Formula expressions remain presentation metadata here; the authoritative
-    // calculation engine owns evaluation. The client never computes formula values.
-  }
   if (state.columns.some((existing) => existing.id === column.id)) {
     throw new Error("COLUMN_ALREADY_EXISTS");
   }
@@ -142,18 +153,32 @@ export function withActivities(
 ): WorkspaceState {
   const ids = new Set<string>();
   for (const activity of activities) {
-    if (ids.has(activity.id) || !activity.id || !activity.wbsId) {
+    if (ids.has(activity.id) || !activity.id || !activity.wbsId || !activity.name) {
       throw new Error("INVALID_ACTIVITY_ROWS");
     }
     ids.add(activity.id);
+    if (activity.gantt) {
+      validateGanttData(activity.gantt);
+    }
+    if (activity.cells) {
+      validateCells(activity.cells);
+    }
   }
+
   const selectedActivityId =
     state.selectedActivityId && ids.has(state.selectedActivityId)
       ? state.selectedActivityId
       : null;
+
   return {
     ...state,
-    activities: activities.map((activity) => Object.freeze({ ...activity })),
+    activities: activities.map((activity) =>
+      Object.freeze({
+        ...activity,
+        cells: activity.cells ? Object.freeze({ ...activity.cells }) : undefined,
+        gantt: activity.gantt ? Object.freeze({ ...activity.gantt }) : undefined,
+      }),
+    ),
     selectedActivityId,
   };
 }
@@ -166,5 +191,42 @@ function validateContext(context: ProjectContext): void {
     context.revision < 0
   ) {
     throw new Error("INVALID_PROJECT_CONTEXT");
+  }
+}
+
+function validateGanttData(gantt: WorkspaceGanttData): void {
+  const start = Date.parse(gantt.start);
+  const finish = Date.parse(gantt.finish);
+  if (
+    !gantt.start ||
+    !gantt.finish ||
+    Number.isNaN(start) ||
+    Number.isNaN(finish) ||
+    finish < start ||
+    !Number.isFinite(gantt.progressPercent) ||
+    gantt.progressPercent < 0 ||
+    gantt.progressPercent > 100 ||
+    typeof gantt.critical !== "boolean"
+  ) {
+    throw new Error("INVALID_GANTT_DATA");
+  }
+}
+
+function validateCells(cells: Readonly<Record<string, WorkspaceCellValue>>): void {
+  for (const [key, value] of Object.entries(cells)) {
+    if (!key.trim()) {
+      throw new Error("INVALID_ACTIVITY_CELL");
+    }
+    if (
+      value !== null &&
+      typeof value !== "string" &&
+      typeof value !== "number" &&
+      typeof value !== "boolean"
+    ) {
+      throw new Error("INVALID_ACTIVITY_CELL");
+    }
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new Error("INVALID_ACTIVITY_CELL");
+    }
   }
 }
