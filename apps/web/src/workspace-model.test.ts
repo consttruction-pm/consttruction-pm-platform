@@ -12,6 +12,7 @@ import {
   setFieldOperations,
   setFieldIssues,
   setFieldAssurance,
+  setChangeClaims,
   setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
@@ -286,4 +287,82 @@ test("invalid Gantt geometry is rejected at the workspace boundary", () => {
       ]),
     /INVALID_GANTT_DATA/,
   );
+});
+
+
+test("change, notice, claim and impact records attach without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setChangeClaims(state, {
+    changeCases: [{
+      changeId: "chg-1",
+      changeType: "variation",
+      status: "under_review",
+      titleKey: "change.title",
+      detailKey: null,
+      initiatedBy: "user-1",
+      originatingNoticeId: "notice-1",
+      scheduleRefCount: 1,
+      costRefCount: 1,
+      dependencyRefCount: 0,
+      impactLinkCount: 1,
+      implementationActivityCount: 2,
+      approvalRequired: true,
+      approvedBy: null,
+      evidenceCount: 1,
+      updatedAt: "2026-09-27T10:00:00Z",
+    }],
+    changeNotices: [{
+      noticeId: "notice-1",
+      noticeType: "delay_notice",
+      status: "submitted",
+      titleKey: "notice.delay",
+      detailKey: "notice.detail",
+      submittedBy: "user-1",
+      noticeDate: "2026-09-27",
+      scheduleRefCount: 1,
+      costRefCount: 0,
+      dependencyRefCount: 0,
+      approvalRequired: true,
+      evidenceCount: 1,
+      updatedAt: "2026-09-27T10:00:00Z",
+    }],
+    claimRecords: [{
+      claimId: "claim-1",
+      claimType: "extension_of_time",
+      status: "under_review",
+      titleKey: "claim.eot",
+      detailKey: null,
+      submittedBy: "user-1",
+      originatingNoticeId: "notice-1",
+      changeId: "chg-1",
+      scheduleRefCount: 1,
+      costRefCount: 1,
+      impactLinkCount: 1,
+      entitlementReference: "ENT-1",
+      quantumReference: "Q-1",
+      decisionReference: null,
+      approvalRequired: true,
+      decidedBy: null,
+      evidenceCount: 1,
+      updatedAt: "2026-09-27T10:00:00Z",
+    }],
+    impacts: [{
+      linkId: "impact-1",
+      recordType: "claim",
+      recordId: "claim-1",
+      impactedDomain: "schedule",
+      impactedEntityType: "activity",
+      impactedEntityId: "A-10",
+      impactType: "delay",
+      scheduleReference: "A-10",
+      costReference: null,
+      requiresApplicationApproval: true,
+      evidenceCount: 1,
+    }],
+  });
+
+  assert.equal(next.changeCases[0]?.changeId, "chg-1");
+  assert.equal(next.claimRecords[0]?.claimId, "claim-1");
+  assert.equal(next.changeClaimImpacts[0]?.impactedEntityId, "A-10");
+  assert.deepEqual(next.context, context);
 });
