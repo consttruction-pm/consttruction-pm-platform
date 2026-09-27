@@ -33,3 +33,11 @@ test("invalid cached pack is not made available offline",()=>{
  assert.throws(()=>store.cacheVerifiedPack({artifact,manifest:invalid,resources:resources()},()=>true),/LANGUAGE_PACK_CHECKSUM_MISMATCH/);
  assert.throws(()=>store.activateOffline(),/LANGUAGE_PACK_OFFLINE_CACHE_UNAVAILABLE/);
 });
+test("failed cache replacement preserves the previous verified offline snapshot",()=>{
+ const store=new OfflineLanguagePackStore();
+ store.cacheVerifiedPack({artifact,manifest,resources:resources()},()=>true);
+ const invalid={...manifest,version:"3.0.0",integrity:{...manifest.integrity,checksum:"sha256:"+"0".repeat(64)}};
+ assert.throws(()=>store.cacheVerifiedPack({artifact,manifest:invalid,resources:resources()},()=>true),/LANGUAGE_PACK_CHECKSUM_MISMATCH/);
+ assert.equal(store.activateOffline().manifest.version,"2.0.0");
+ assert.equal(store.hasVerifiedCache(manifest.package_id,"2.0.0"),true);
+});
