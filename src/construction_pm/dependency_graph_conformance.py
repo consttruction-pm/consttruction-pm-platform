@@ -65,9 +65,6 @@ def project_dependency_link(
     link.validate()
     if graph_revision < 0:
         raise DependencyProjectionError("INVALID_GRAPH_REVISION")
-    if link.revision != graph_revision:
-        raise DependencyProjectionError("DEPENDENCY_GRAPH_REVISION_MISMATCH")
-
     source = _node(link.source_resource_id, link.revision)
     target = _node(link.target_resource_id, link.revision)
     relation = _relation(link.dependency_type)
@@ -76,7 +73,7 @@ def project_dependency_link(
         scope=ControlScope(
             tenant_id=link.tenant_id,
             project_id=link.project_id,
-            project_revision=graph_revision,
+            project_revision=link.revision,
         )
     )
     graph.add_node(source)
