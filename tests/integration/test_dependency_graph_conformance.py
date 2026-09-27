@@ -32,6 +32,8 @@ def link(**overrides):
         ("cost:cost-1", "schedule:task-1", "cost_to_schedule", ControlDomain.COST, ControlDomain.SCHEDULE, DependencyRelation.IMPACTS),
         ("change:chg-1", "schedule:task-1", "change_to_schedule", ControlDomain.CHANGE, ControlDomain.SCHEDULE, DependencyRelation.IMPACTS),
         ("claim:claim-1", "change:chg-1", "claim_to_change", ControlDomain.CLAIM, ControlDomain.CHANGE, DependencyRelation.CLAIMS_AGAINST),
+        ("schedule:task-1", "change:chg-1", "schedule_to_change", ControlDomain.SCHEDULE, ControlDomain.CHANGE, DependencyRelation.IMPACTS),
+        ("schedule:task-1", "rfi:rfi-1", "schedule_to_rfi", ControlDomain.SCHEDULE, ControlDomain.DOCUMENT, DependencyRelation.IMPACTS),
     ],
 )
 def test_persistence_projection_is_typed_and_lossless(
@@ -60,17 +62,14 @@ def test_persistence_projection_is_typed_and_lossless(
     assert graph.edges[0].target_revision == 7
 
 
-def test_unknown_domain_is_rejected_without_inference():
-    with pytest.raises(DependencyProjectionError, match="UNMAPPABLE_DEPENDENCY_DOMAIN"):
-        project_dependency_link(
-            link(source_resource_id="unknown:task-1"),
-            graph_revision=7,
-        )
+def test_unknown_domain_is_rejected_at_persistence_validation():
+    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_SOURCE_RESOURCE_ID"):
+        link(source_resource_id="unknown:task-1").validate()
 
 
-def test_unknown_relation_is_rejected_without_inference():
-    with pytest.raises(DependencyProjectionError, match="UNMAPPABLE_DEPENDENCY_RELATION"):
-        project_dependency_link(link(dependency_type="invented_relation"), graph_revision=7)
+def test_unknown_relation_is_rejected_at_persistence_validation():
+    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_TYPE"):
+        link(dependency_type="invented_relation").validate()
 
 
 def test_graph_revision_mismatch_is_rejected():
@@ -98,3 +97,16 @@ def test_invalid_source_or_target_revision_is_rejected():
         link(source_revision=-1).validate()
     with pytest.raises(ValueError, match="INVALID_DEPENDENCY_TARGET_REVISION"):
         link(target_revision=9007199254740992).validate()
+
+
+@pytest.mark.parametrize("domain", list(ControlDomain))
+def test_every_shared_control_domain_has_an_explicit_resource_prefix(domain):
+    projected = project_dependency_link(
+        link(
+            source_resource_id=f"{domain.value}:entity-1",
+            target_resource_id="schedule:task-1",
+        ),
+        graph_revision=7,
+    )
+
+    assert projected.graph.nodes[f"{domain.value}:entity-1"].domain is domain
