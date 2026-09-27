@@ -12,6 +12,8 @@ const labels = {
   },
 } as const;
 
+type WorkspaceLabels = Record<keyof typeof labels.en, string>;
+
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
@@ -141,7 +143,7 @@ function renderSiteDailyLogs(
   `;
 }
 
-function renderFieldOperations(state: WorkspaceState, t: typeof labels.en): string {
+function renderFieldOperations(state: WorkspaceState, t: WorkspaceLabels): string {
   if (!state.fieldIssues.length && !state.fieldTimecards.length && !state.equipmentStatuses.length) return "";
 
   const issues = state.fieldIssues.length
