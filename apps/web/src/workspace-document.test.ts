@@ -33,10 +33,22 @@ test("document projection preserves typed lifecycle metadata and links", () => {
   assert.deepEqual(projected.linkedEntityRefs, ["A-101", "RFI-1"]);
 });
 
-test("document projection rejects stale project scope", () => {
+test("document revision is independent from project revision", () => {
+  const projected = projectDocument({ ...snapshot, revision: 4 }, scope);
+  assert.equal(projected.revision, 4);
+});
+
+test("document projection rejects stale tenant or project scope", () => {
   assert.throws(
-    () => projectDocument({ ...snapshot, revision: 4 }, scope),
+    () => projectDocument({ ...snapshot, tenant_id: "tenant-2" }, scope),
     /STALE_DOCUMENT_SCOPE/,
+  );
+});
+
+test("document projection rejects invalid revision values", () => {
+  assert.throws(
+    () => projectDocument({ ...snapshot, revision: -1 }, scope),
+    /INVALID_DOCUMENT_REVISION/,
   );
 });
 
