@@ -48,13 +48,20 @@ def template(revision: int = 7, tenant: str = "tenant-1", project: str = "projec
     )
 
 
-def execution(revision: int = 7, tenant: str = "tenant-1", project: str = "project-1") -> FieldAssuranceExecution:
+def execution(
+    revision: int = 7,
+    tenant: str = "tenant-1",
+    project: str = "project-1",
+    executed_by: str = "user-1",
+) -> FieldAssuranceExecution:
     return FieldAssuranceExecution(
         execution_id="EX-1",
         scope=scope(revision, tenant, project),
         template_id="TPL-1",
         template_version=1,
         answers=(FieldAssuranceExecutionAnswer("I-1", True),),
+        executed_by=executed_by,
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
 
@@ -165,6 +172,18 @@ def test_get_template_requires_read_permission() -> None:
         )
 
 
+def test_execution_actor_must_match_authorized_actor() -> None:
+    app = service()
+    app.repository.create_template(template())
+    with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_EXECUTED_BY_MISMATCH"):
+        app.execute(
+            execution(executed_by="user-2"),
+            context=context(),
+            expected_project_revision=7,
+            actor_id="user-1",
+        )
+
+
 def test_repository_execution_validation_remains_authoritative() -> None:
     app = service()
     app.repository.create_template(template())
@@ -174,6 +193,8 @@ def test_repository_execution_validation_remains_authoritative() -> None:
         template_id="TPL-1",
         template_version=1,
         answers=(),
+        executed_by="user-1",
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
     with pytest.raises(FieldAssuranceExecutionError, match="MISSING_REQUIRED_EXECUTION_ANSWERS"):
         app.execute(
