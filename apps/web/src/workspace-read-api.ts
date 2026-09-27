@@ -181,12 +181,22 @@ function toProjectScope(context: ProjectContext): { tenant_id: string; project_i
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function validateReadEnvelope(
   snapshot: WorkspaceControlRoomReadSnapshot,
   context: ProjectContext,
 ): void {
+  if (!isRecord(snapshot)) {
+    throw new Error("INVALID_WORKSPACE_READ_ENVELOPE");
+  }
   if (snapshot.contract_version !== WORKSPACE_CONTROL_ROOM_READ_VERSION) {
     throw new Error("UNSUPPORTED_WORKSPACE_READ_CONTRACT");
+  }
+  if (!isRecord(snapshot.context)) {
+    throw new Error("INVALID_WORKSPACE_READ_CONTEXT");
   }
   if (
     snapshot.context.tenant_id !== context.tenant_id ||
@@ -195,10 +205,14 @@ function validateReadEnvelope(
   ) {
     throw new Error("STALE_WORKSPACE_READ_SCOPE");
   }
+  if (!isRecord(snapshot.workspace)) {
+    throw new Error("INVALID_WORKSPACE_READ_WORKSPACE");
+  }
   if (snapshot.workspace.contract_version !== "workspace-control-room.v1") {
     throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
   }
   if (
+    !isRecord(snapshot.workspace.context) ||
     snapshot.workspace.context.tenant_id !== context.tenant_id ||
     snapshot.workspace.context.project_id !== context.project_id ||
     snapshot.workspace.context.revision !== context.revision

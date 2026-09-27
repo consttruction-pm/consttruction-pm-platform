@@ -177,6 +177,39 @@ test("workspace read client rejects unsupported envelope versions", async () => 
   assert.equal(result.error.code, "UNSUPPORTED_WORKSPACE_READ_CONTRACT");
 });
 
+test("workspace read client rejects malformed read context with a stable error", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      context: null,
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid context error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_READ_CONTEXT");
+});
+
+test("workspace read client rejects malformed workspace with a stable error", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      workspace: null,
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid workspace error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_READ_WORKSPACE");
+});
 
 test("workspace read client hydrates document workflow metadata and links", async () => {
   const transport = new StubTransport({ ok: true, data: workspaceSnapshot() });
@@ -189,7 +222,6 @@ test("workspace read client hydrates document workflow metadata and links", asyn
   assert.equal(result.data.documents[0]?.status, "submitted");
   assert.deepEqual(result.data.documents[0]?.linkedEntityRefs, ["A-101"]);
 });
-
 
 test("workspace read client rejects malformed document collection", async () => {
   const snapshot = workspaceSnapshot();
@@ -224,4 +256,3 @@ test("workspace read client rejects malformed procurement collection", async () 
   if (result.ok) throw new Error("expected invalid procurement collection error");
   assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
 });
-
