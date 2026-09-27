@@ -8,14 +8,18 @@ import {
 } from "./voice-provider-adapter.ts";
 import type { AILanguageContext } from "./ai-language-contract.ts";
 
-const aiLanguage = {
-  language_tag: "fa-IR",
-  capabilities: {
-    voice_input: true,
-    voice_output: true,
-    offline_ai: true,
-  },
-} as AILanguageContext;
+const aiLanguage: AILanguageContext = {
+  input_language: "fa-IR",
+  output_language: "fa-IR",
+  project_language: "fa-IR",
+  terminology_profile: "construction-default",
+  locale: "fa-IR",
+  voice_language: "fa-IR",
+  text_capable: true,
+  voice_input_capable: true,
+  voice_output_capable: true,
+  offline_ai_capable: true,
+};
 
 const scope = {
   tenant_id: "tenant-1",
