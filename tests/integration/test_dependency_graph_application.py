@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
+from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.dependency_graph_application import DependencyGraphApplicationService
 from construction_pm.dependency_graph_persistence import DependencyLink, PostgresDependencyGraphStore
 
@@ -20,9 +21,20 @@ class Connection:
         self.revision = 0
         self.link = None
         self.audit = []
+        self._transaction_snapshot = None
+        self.commits = 0
+        self.rollbacks = 0
+        self.fail_on_audit = False
 
-    def transaction(self):
-        return Transaction()
+    def commit(self):
+        self.commits += 1
+        self._transaction_snapshot = None
+
+    def rollback(self):
+        self.rollbacks += 1
+        if self._transaction_snapshot is not None:
+            self.revision, self.link, self.audit = self._transaction_snapshot
+        self._transaction_snapshot = None
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -46,6 +58,8 @@ class Connection:
             self.link = (params[6], params[5])
             return Cursor()
         if sql.startswith("INSERT INTO project_dependency_audit"):
+            if self.fail_on_audit:
+                raise RuntimeError("AUDIT_WRITE_FAILED")
             self.audit.append(params)
             return Cursor()
         return Cursor()
@@ -75,7 +89,8 @@ def ctx(**overrides):
 
 
 def test_application_boundary_enforces_scope_and_actor():
-    service = DependencyGraphApplicationService(PostgresDependencyGraphStore(Connection()), policy())
+    connection = Connection()
+    service = DependencyGraphApplicationService(PostgresDependencyGraphStore(connection), policy(), PostgresTransactionManager(connection))
     now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
     service.store.initialize()
     service.store.ensure_project("T-1", "P-1")
