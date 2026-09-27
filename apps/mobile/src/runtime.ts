@@ -6,6 +6,7 @@ import {
 } from "../../client-sync/src/mutation-queue.js";
 import { ClientSyncRunner } from "../../client-sync/src/sync-runner.js";
 import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/api-sync-transport.js";
+import { LanguagePackClientRuntime } from "../../client-sync/src/language-pack-client-runtime.ts";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 
 export type MobileMode = "offline" | "online";
@@ -14,6 +15,9 @@ export type MobileProjectState = { tenant_id: string; project_id: string; revisi
 export class MobileRuntime {
   private state: MobileProjectState | null = null;
   private readonly mutationQueue = new OfflineMutationQueue();
+  private readonly languagePackRuntime = new LanguagePackClientRuntime();
+  languagePacks(): LanguagePackClientRuntime { return this.languagePackRuntime; }
+
   openProject(tenant_id: string, project_id: string, revision: number, mode: MobileMode = "offline"): MobileProjectState {
     if (!tenant_id || !project_id || revision < 0) throw new Error("INVALID_PROJECT_CONTEXT");
     this.state = Object.freeze({ tenant_id, project_id, revision, mode }); return this.state;
