@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLanguageManagerRoute } from "./language-manager-route.js";
+import { createLanguageManagerRoute, renderLanguageManagerRouteMarkup } from "./language-manager-route.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 
@@ -118,4 +118,4 @@ function renderRouteSource(route: ReturnType<typeof createLanguageManagerRoute>)
     'language-manager-offline-label',
     source.active?.manifest.language_tag ?? '',
   ].join(' ');
-}
+}\ntest("Language Manager route renders accessible semantic status and labels", () => {\n  const runtime = new WebSyncRuntime();\n  runtime.languagePacks().activateInitial(artifact, manifest("1.0.0"), resources(), () => true);\n  const route = createLanguageManagerRoute(runtime);\n  const markup = renderLanguageManagerRouteMarkup(route.getState());\n  assert.match(markup, /aria-labelledby="language-manager-title"/);\n  assert.match(markup, /role="status"/);\n  assert.match(markup, /aria-live="polite"/);\n  assert.match(markup, /aria-atomic="true"/);\n  assert.match(markup, /language-manager-language-label/);\n  assert.match(markup, /language-manager-version-label/);\n  assert.match(markup, /language-manager-offline-label/);\n});\n
