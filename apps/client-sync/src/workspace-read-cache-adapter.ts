@@ -1,4 +1,4 @@
-import type { ProjectContext } from "./api-sync-transport.js";
+import type { SyncSyncProjectContext } from "./api-sync-transport.js";
 import {
   classifyWorkspaceReadCache,
   createWorkspaceReadCache,
@@ -12,11 +12,11 @@ export type WorkspaceReadResult =
   | { mode: "online"; state: "stale"; cache: WorkspaceControlRoomReadCache | null };
 
 export interface WorkspaceControlRoomReadTransport {
-  fetch(context: ProjectContext): Promise<Record<string, unknown>>;
+  fetch(context: SyncProjectContext): Promise<Record<string, unknown>>;
 }
 
 export interface WorkspaceReadCacheStore {
-  load(context: ProjectContext): Promise<WorkspaceControlRoomReadCache | null>;
+  load(context: SyncProjectContext): Promise<WorkspaceControlRoomReadCache | null>;
   save(cache: WorkspaceControlRoomReadCache): Promise<void>;
 }
 
@@ -27,7 +27,7 @@ export class WorkspaceReadCacheAdapter {
   ) {}
 
   async read(
-    context: ProjectContext,
+    context: SyncProjectContext,
     online: boolean,
     now = new Date().toISOString(),
   ): Promise<WorkspaceReadResult> {
@@ -58,7 +58,7 @@ export class WorkspaceReadCacheAdapter {
   }
 }
 
-function createSnapshotId(snapshot: Record<string, unknown>, context: ProjectContext): string {
+function createSnapshotId(snapshot: Record<string, unknown>, context: SyncProjectContext): string {
   const snapshotContext = isRecord(snapshot.context) ? snapshot.context : undefined;
   return `workspace:${context.tenant_id}:${context.project_id}:${snapshotContext?.revision ?? context.revision}`;
 }
