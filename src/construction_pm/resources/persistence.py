@@ -357,7 +357,14 @@ class ContextScopedSQLiteResourceRepository:
     def save_resource(self,c:ProjectContext,r:Resource,expected_revision:int|None=None)->Resource:
         self._validate(c); k=(c.tenant_id,c.company_id,c.project_id,r.id); row=self.connection.execute("SELECT revision FROM context_resources WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?",k).fetchone(); cur=None if row is None else int(row[0])
         if expected_revision is not None and cur!=expected_revision: raise OptimisticLockError(f"Stale resource revision for {r.id}: expected {expected_revision}")
-        rev=1 if cur is None else cur+1; self.connection.execute("INSERT INTO context_resources VALUES (?,?,?,?,?,?) ON CONFLICT(tenant_id,company_id,project_id,resource_id) DO UPDATE SET resource_json=excluded.resource_json,revision=excluded.revision",(*k,self._rjson(r),rev)); if not self.connection.in_transaction:
+        rev=1 if cur is None else cur+1
+        self.connection.execute(
+            "INSERT INTO context_resources VALUES (?,?,?,?,?,?) "
+            "ON CONFLICT(tenant_id,company_id,project_id,resource_id) DO UPDATE SET "
+            "resource_json=excluded.resource_json,revision=excluded.revision",
+            (*k, self._rjson(r), rev),
+        )
+        if not self.connection.in_transaction:
             self.connection.commit()
         return r
     def get_resource(self,c:ProjectContext,resource_id:str)->Resource|None:
@@ -369,7 +376,14 @@ class ContextScopedSQLiteResourceRepository:
     def save_assignment(self,c:ProjectContext,a:ResourceAssignment,expected_revision:int|None=None)->ResourceAssignment:
         self._validate(c); k=(c.tenant_id,c.company_id,c.project_id,a.activity_id,a.resource_id); row=self.connection.execute("SELECT revision FROM context_resource_assignments WHERE tenant_id=? AND company_id=? AND project_id=? AND activity_id=? AND resource_id=?",k).fetchone(); cur=None if row is None else int(row[0])
         if expected_revision is not None and cur!=expected_revision: raise OptimisticLockError(f"Stale assignment revision for {a.activity_id}/{a.resource_id}: expected {expected_revision}")
-        rev=1 if cur is None else cur+1; self.connection.execute("INSERT INTO context_resource_assignments VALUES (?,?,?,?,?,?,?) ON CONFLICT(tenant_id,company_id,project_id,activity_id,resource_id) DO UPDATE SET assignment_json=excluded.assignment_json,revision=excluded.revision",(*k,self._ajson(a),rev)); if not self.connection.in_transaction:
+        rev=1 if cur is None else cur+1
+        self.connection.execute(
+            "INSERT INTO context_resource_assignments VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(tenant_id,company_id,project_id,activity_id,resource_id) DO UPDATE SET "
+            "assignment_json=excluded.assignment_json,revision=excluded.revision",
+            (*k, self._ajson(a), rev),
+        )
+        if not self.connection.in_transaction:
             self.connection.commit()
         return a
     def get_assignment_revision(self,c:ProjectContext,activity_id:str,resource_id:str)->int|None:
