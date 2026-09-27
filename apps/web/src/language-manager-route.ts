@@ -149,6 +149,10 @@ export function renderLanguageManagerRouteMarkup(state: LanguageManagerRouteStat
         <div><dt id="language-manager-version-label">Version</dt><dd data-language-version aria-labelledby="language-manager-version-label">${escapeHtml(version)}</dd></div>
         <div><dt id="language-manager-offline-label">Offline</dt><dd data-language-offline aria-labelledby="language-manager-offline-label">${state.offline ? "true" : "false"}</dd></div>
       </dl>
+      <div data-language-manager-actions>
+        <button type="button" data-language-manager-action="use-offline">Use offline</button>
+        <button type="button" data-language-manager-action="rollback">Rollback</button>
+      </div>
     </section>
   `;
 }
