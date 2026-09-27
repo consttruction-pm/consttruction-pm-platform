@@ -53,6 +53,14 @@ class FieldAssuranceTemplateItem:
         if self.input_type is not FieldAssuranceTemplateInputType.SELECT and self.options:
             raise FieldAssuranceTemplateError("OPTIONS_ONLY_ALLOWED_FOR_SELECT")
 
+    def require_scope(self, expected_scope: BackendScope) -> None:
+        self.validate()
+        if not isinstance(expected_scope, BackendScope):
+            raise FieldAssuranceTemplateError("INVALID_EXPECTED_TEMPLATE_SCOPE")
+        expected_scope.validate()
+        if self.scope != expected_scope:
+            raise FieldAssuranceTemplateError("TEMPLATE_SCOPE_MISMATCH")
+
     def as_dict(self) -> dict[str, Any]:
         self.validate()
         return {
