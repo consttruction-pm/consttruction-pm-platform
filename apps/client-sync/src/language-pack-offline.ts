@@ -1,5 +1,5 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
-import type {LanguagePackResource,ValidatedLanguagePackResources} from "./language-pack-resource-validation.ts";
+import type {LanguagePackResource} from "./language-pack-resource-validation.ts";
 import {verifyLanguagePackIntegrity,type LanguagePackSignatureVerifier} from "./language-pack-integrity.ts";
 import {validateLanguagePackResources} from "./language-pack-resource-validation.ts";
 import type {ActivatedLanguagePack} from "./language-pack-activation.ts";
@@ -15,7 +15,11 @@ export class OfflineLanguagePackStore{
  ):ActivatedLanguagePack{
   verifyLanguagePackIntegrity(pack.artifact,pack.manifest,verifySignature);
   const resources=validateLanguagePackResources(pack.manifest,pack.resources);
-  this.cached=Object.freeze({manifest:pack.manifest,resources});
+  return this.cacheActivatedPack({manifest:pack.manifest,resources});
+ }
+
+ cacheActivatedPack(pack:ActivatedLanguagePack):ActivatedLanguagePack{
+  this.cached=Object.freeze({manifest:pack.manifest,resources:pack.resources});
   return this.cached;
  }
 
