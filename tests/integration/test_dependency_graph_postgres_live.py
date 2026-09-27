@@ -382,3 +382,61 @@ def test_dependency_graph_live_concurrent_commit_allows_only_one_stale_writer() 
     finally:
         first.close()
         second.close()
+
+
+def test_dependency_graph_live_resource_conflict_is_domain_error() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"resource-conflict-tenant-{suffix}"
+    project_id = f"resource-conflict-project-{suffix}"
+    resource_id = f"same-resource-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    link = DependencyLink(
+        resource_id=resource_id,
+        tenant_id=tenant_id,
+        project_id=project_id,
+        revision=1,
+        source_resource_id=f"schedule:first-{suffix}",
+        target_resource_id=f"rfi:first-{suffix}",
+        dependency_type="schedule_to_rfi",
+        metadata={"relation": "blocks"},
+    )
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDependencyGraphStore(connection)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        connection.commit()
+
+        with PostgresTransactionManager(connection).transaction():
+            store.persist(
+                link,
+                expected_graph_revision=0,
+                idempotency_key=f"resource-first-{suffix}",
+                actor_id="requester-1",
+                occurred_at=created_at,
+            )
+
+        with PostgresTransactionManager(connection).transaction():
+            with pytest.raises(DependencyResourceConflict, match="DEPENDENCY_RESOURCE_ALREADY_EXISTS"):
+                store.persist(
+                    DependencyLink(
+                        resource_id=resource_id,
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        revision=1,
+                        source_resource_id=f"schedule:second-{suffix}",
+                        target_resource_id=f"rfi:second-{suffix}",
+                        dependency_type="schedule_to_rfi",
+                        metadata={"relation": "different"},
+                    ),
+                    expected_graph_revision=1,
+                    idempotency_key=f"resource-second-{suffix}",
+                    actor_id="requester-2",
+                    occurred_at=created_at,
+                )
+
+        loaded = store.get(tenant_id, project_id, resource_id)
+        assert loaded is not None
+        assert loaded.graph_revision == 1
+        assert len(store.history(tenant_id, project_id, resource_id)) == 1
