@@ -207,3 +207,21 @@ test("workspace read client rejects malformed document collection", async () => 
   if (result.ok) throw new Error("expected invalid collection error");
   assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
 });
+
+test("workspace read client rejects malformed procurement collection", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      procurement_quotes: { invalid: true },
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid procurement collection error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
+});
+
