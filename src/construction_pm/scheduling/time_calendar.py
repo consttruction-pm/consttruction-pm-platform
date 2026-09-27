@@ -46,6 +46,10 @@ class WorkingTimeCalendar:
         return self.daily_intervals.get(value.weekday(), ())
 
 
+def _timedelta_microseconds(value: timedelta) -> int:
+    return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
+
+
 class TimeAwareWorkingTimeResolver:
     """Deterministic datetime arithmetic over a WorkingTimeCalendar."""
 
@@ -87,7 +91,7 @@ class TimeAwareWorkingTimeResolver:
         if units < 0:
             raise ValueError("hours must be non-negative")
         cursor = self.normalize_start(start)
-        remaining = units
+        remaining_microseconds = int(units * Decimal(3_600_000_000))
         for _ in range(3660):
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
@@ -99,11 +103,10 @@ class TimeAwareWorkingTimeResolver:
                 if not (begin <= cursor < end):
                     continue
 
-                capacity = Decimal(str((end - cursor).total_seconds())) / Decimal(3600)
-                if remaining <= capacity:
-                    seconds = remaining * Decimal(3600)
-                    return cursor + timedelta(microseconds=int(seconds * Decimal(1_000_000)))
-                remaining -= capacity
+                capacity_microseconds = _timedelta_microseconds(end - cursor)
+                if remaining_microseconds <= capacity_microseconds:
+                    return cursor + timedelta(microseconds=remaining_microseconds)
+                remaining_microseconds -= capacity_microseconds
                 progressed = True
                 cursor = end
 
@@ -120,7 +123,7 @@ class TimeAwareWorkingTimeResolver:
         if units < 0:
             raise ValueError("hours must be non-negative")
         cursor = self.normalize_finish(finish)
-        remaining = units
+        remaining_microseconds = int(units * Decimal(3_600_000_000))
         for _ in range(3660):
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
@@ -132,11 +135,10 @@ class TimeAwareWorkingTimeResolver:
                 if not (begin < cursor <= end):
                     continue
 
-                capacity = Decimal(str((cursor - begin).total_seconds())) / Decimal(3600)
-                if remaining <= capacity:
-                    seconds = remaining * Decimal(3600)
-                    return cursor - timedelta(microseconds=int(seconds * Decimal(1_000_000)))
-                remaining -= capacity
+                capacity_microseconds = _timedelta_microseconds(cursor - begin)
+                if remaining_microseconds <= capacity_microseconds:
+                    return cursor - timedelta(microseconds=remaining_microseconds)
+                remaining_microseconds -= capacity_microseconds
                 progressed = True
                 cursor = begin
 
