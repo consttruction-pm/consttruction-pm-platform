@@ -841,3 +841,18 @@ Status: **implemented and runtime-verified through PRs #377, #379 and #380**
 - Current `main`: `428a2686598ec9fb149a0e39e5af5926b95d2ffc`.
 - Completed Stage 34.5.1/.2/.3 work must not be repeated.
 - The next Hasan action is a fresh current-main inspection for a concrete Backend/Database/Application/API/Enterprise Integration gap. Do not invent a numbered Stage 34.5.4, reopen stale PRs, or duplicate client/provider-owned work.
+
+
+### 2026-09-28 — Field Assurance PostgreSQL production boundary (PR #383)
+Status: **implemented, merged and runtime-verified**
+- Added PostgreSQL persistence for versioned Field Assurance templates and executions using the existing application-owned transaction pattern.
+- Preserves tenant/project scope, immutable template versions, exact template-version execution binding, deterministic replay and execution-id conflict rejection.
+- Added live PostgreSQL integration coverage for replay/conflict and rollback, wired into the existing PostgreSQL integration workflow.
+- PR #383 exact head `c73540d1d7ebc477d78878e10d76c273649eb0b8` passed ConstructionPM CI #1641, Client Typecheck #1344 and PostgreSQL Integration #112.
+- Merge commit: `2d2f7a485609edbd8e2729cdd153f86e4e78accf`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current Backend Continuation Point
+- Current `main`: `2d2f7a485609edbd8e2729cdd153f86e4e78accf`.
+- Field Assurance contract, SQLite persistence, authorization/repository boundary and PostgreSQL production persistence are now covered; do not repeat them.
+- Next Hasan action remains a fresh current-main inspection for the first concrete missing Backend/Database/Application/API/Enterprise Integration boundary. Do not invent a new numbered Stage or duplicate client/provider work.
