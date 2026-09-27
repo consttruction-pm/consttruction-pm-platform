@@ -76,9 +76,9 @@ def test_revision_mismatch_is_rejected() -> None:
 def test_tenant_and_project_are_isolated() -> None:
     repo = InMemoryFieldAssuranceRepository()
     repo.create_template(template())
-    with pytest.raises(FieldAssuranceExecutionError, match="EXECUTION_SCOPE_MISMATCH"):
+    with pytest.raises(FieldAssuranceExecutionError, match="TEMPLATE_NOT_FOUND"):
         repo.execute(execution(tenant="tenant-2"))
-    with pytest.raises(FieldAssuranceExecutionError, match="EXECUTION_SCOPE_MISMATCH"):
+    with pytest.raises(FieldAssuranceExecutionError, match="TEMPLATE_NOT_FOUND"):
         repo.execute(execution(project="project-2"))
 
 
