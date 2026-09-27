@@ -59,3 +59,17 @@ test("activation owns resource byte snapshots",()=>{
  assert.deepEqual([...active.resources.get("translation.json")!],[1,2,3]);
  assert.notEqual(active.resources.get("translation.json"),mutable);
 });
+test("published resource reads are isolated from mutation",()=>{
+ const store=new AtomicLanguagePackStore();
+ const active=store.activate(artifact,manifest(),resources(),()=>true);
+ const published=active.resources.get("translation.json")!;
+ published[0]=9;
+ assert.deepEqual([...active.resources.get("translation.json")!],[1]);
+});
+test("published resource iteration is isolated from mutation",()=>{
+ const store=new AtomicLanguagePackStore();
+ const active=store.activate(artifact,manifest(),resources(),()=>true);
+ const iterated=Array.from(active.resources.values())[0];
+ iterated[0]=9;
+ assert.deepEqual([...active.resources.get("translation.json")!],[1]);
+});
