@@ -4,27 +4,95 @@
   "title": "P6 Field Registry v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["registry_version","reference_product","reference_version","status","fields"],
+  "required": [
+    "registry_version",
+    "reference_product",
+    "reference_version",
+    "status",
+    "fields"
+  ],
   "properties": {
-    "registry_version": {"const":"p6-field-registry.v1"},
-    "reference_product": {"const":"Oracle Primavera P6 Professional"},
-    "reference_version": {"type":"string","minLength":1},
-    "status": {"enum":["seeded_core_catalog","complete_catalog","certified"]},
+    "registry_version": {
+      "const": "p6-field-registry.v1"
+    },
+    "reference_product": {
+      "const": "Oracle Primavera P6 Professional"
+    },
+    "reference_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "seeded_core_catalog",
+        "complete_catalog",
+        "certified"
+      ]
+    },
     "fields": {
-      "type":"array",
-      "items":{
-        "type":"object",
-        "additionalProperties":false,
-        "required":["field_id","subject_area","p6_field","display_name","data_type","writable","computed"],
-        "properties":{
-          "field_id":{"type":"string","minLength":1},
-          "subject_area":{"type":"string","minLength":1},
-          "p6_field":{"type":"string","minLength":1},
-          "display_name":{"type":"string","minLength":1},
-          "data_type":{"enum":["string","date","datetime","duration","decimal","percentage","boolean","enum"]},
-          "writable":{"type":"boolean"},
-          "computed":{"type":"boolean"},
-          "unit":{"type":["string","null"]}
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field_id",
+          "subject_area",
+          "p6_field",
+          "display_name",
+          "data_type",
+          "writable",
+          "computed"
+        ],
+        "properties": {
+          "field_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subject_area": {
+            "type": "string",
+            "minLength": 1
+          },
+          "p6_field": {
+            "type": "string",
+            "minLength": 1
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "data_type": {
+            "enum": [
+              "string",
+              "date",
+              "datetime",
+              "duration",
+              "decimal",
+              "percentage",
+              "boolean",
+              "enum",
+              "integer",
+              "double",
+              "cost",
+              "unit",
+              "object-id",
+              "object-id-array",
+              "string-array",
+              "complex",
+              "spread"
+            ]
+          },
+          "writable": {
+            "type": "boolean"
+          },
+          "computed": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     }

@@ -49,3 +49,14 @@ def test_subject_filter_is_deterministic():
     assert [field.field_id for field in activities] == [
         field.field_id for field in fields_by_subject("Activity")
     ]
+
+
+def test_registry_supports_native_p6_types_beyond_simple_scalars():
+    assert P6FieldType.OBJECT_ID.value == "object-id"
+    assert P6FieldType.STRING_ARRAY.value == "string-array"
+    assert P6FieldType.COST.value == "cost"
+    assert P6FieldType.UNIT.value == "unit"
+    assert P6FieldType.INTEGER.value == "integer"
+    assert P6FieldType.DOUBLE.value == "double"
+    assert P6FieldType.COMPLEX.value == "complex"
+    assert P6FieldType.SPREAD.value == "spread"

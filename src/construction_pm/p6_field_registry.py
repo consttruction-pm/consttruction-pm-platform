@@ -13,6 +13,15 @@ class P6FieldType(str, Enum):
     PERCENTAGE = "percentage"
     BOOLEAN = "boolean"
     ENUM = "enum"
+    INTEGER = "integer"
+    DOUBLE = "double"
+    COST = "cost"
+    UNIT = "unit"
+    OBJECT_ID = "object-id"
+    OBJECT_ID_ARRAY = "object-id-array"
+    STRING_ARRAY = "string-array"
+    COMPLEX = "complex"
+    SPREAD = "spread"
 
 
 @dataclass(frozen=True)
@@ -123,6 +132,38 @@ _ROWS = (
     ("financial_period.name","Financial Period","FinancialPeriodName","Financial Period","string",True,False,None),
     ("financial_period.actual_cost","Financial Period","ActualThisPeriodCost","Actual This Period Cost","decimal",False,True,"currency"),
     ("financial_period.actual_units","Financial Period","ActualThisPeriodUnits","Actual This Period Units","decimal",False,True,"units"),
+    ("schedule_options.calculate_float_based_on_finish_date","ScheduleOptions","CalculateFloatBasedOnFinishDate","Calculate Float Based on Finish Date","boolean",True,False,None),
+    ("schedule_options.compute_total_float_type","ScheduleOptions","ComputeTotalFloatType","Compute Total Float Type","enum",True,False,None),
+    ("schedule_options.create_date","ScheduleOptions","CreateDate","Create Date","datetime",False,False,None),
+    ("schedule_options.create_user","ScheduleOptions","CreateUser","Create User","string",False,False,None),
+    ("schedule_options.critical_activity_float_threshold","ScheduleOptions","CriticalActivityFloatThreshold","Critical Activity Float Threshold","duration",True,False,"working-time"),
+    ("schedule_options.critical_activity_path_type","ScheduleOptions","CriticalActivityPathType","Critical Activity Path Type","enum",True,False,None),
+    ("schedule_options.external_project_priority_limit","ScheduleOptions","ExternalProjectPriorityLimit","External Project Priority Limit","integer",True,False,None),
+    ("schedule_options.ignore_other_project_relationships","ScheduleOptions","IgnoreOtherProjectRelationships","Ignore Other Project Relationships","boolean",True,False,None),
+    ("schedule_options.include_external_res_ass","ScheduleOptions","IncludeExternalResAss","Include External Resource Assignments","boolean",True,False,None),
+    ("schedule_options.last_update_date","ScheduleOptions","LastUpdateDate","Last Update Date","datetime",False,False,None),
+    ("schedule_options.last_update_user","ScheduleOptions","LastUpdateUser","Last Update User","string",False,False,None),
+    ("schedule_options.level_all_resources","ScheduleOptions","LevelAllResources","Level All Resources","boolean",True,False,None),
+    ("schedule_options.level_within_float","ScheduleOptions","LevelWithinFloat","Level Within Float","boolean",True,False,None),
+    ("schedule_options.make_open_ended_activities_critical","ScheduleOptions","MakeOpenEndedActivitiesCritical","Make Open-Ended Activities Critical","boolean",True,False,None),
+    ("schedule_options.maximum_multiple_float_paths","ScheduleOptions","MaximumMultipleFloatPaths","Maximum Multiple Float Paths","integer",True,False,None),
+    ("schedule_options.min_float_to_preserve","ScheduleOptions","MinFloatToPreserve","Minimum Float to Preserve","integer",True,False,None),
+    ("schedule_options.multiple_float_paths_enabled","ScheduleOptions","MultipleFloatPathsEnabled","Multiple Float Paths Enabled","boolean",True,False,None),
+    ("schedule_options.multiple_float_paths_ending_activity_object_id","ScheduleOptions","MultipleFloatPathsEndingActivityObjectId","Multiple Float Paths Ending Activity","object-id",True,False,None),
+    ("schedule_options.multiple_float_paths_ending_activity_short_name","ScheduleOptions","MultipleFloatPathsEndingActivityShortName","Multiple Float Paths Ending Activity Short Name","string",True,False,None),
+    ("schedule_options.multiple_float_paths_use_total_float","ScheduleOptions","MultipleFloatPathsUseTotalFloat","Multiple Float Paths Use Total Float","boolean",True,False,None),
+    ("schedule_options.out_of_sequence_schedule_type","ScheduleOptions","OutOfSequenceScheduleType","Out of Sequence Schedule Type","enum",True,False,None),
+    ("schedule_options.over_allocation_percentage","ScheduleOptions","OverAllocationPercentage","Over Allocation Percentage","double",True,False,"percent"),
+    ("schedule_options.preserve_scheduled_early_and_late_dates","ScheduleOptions","PreserveScheduledEarlyAndLateDates","Preserve Scheduled Early and Late Dates","boolean",True,False,None),
+    ("schedule_options.priority_list","ScheduleOptions","PriorityList","Priority List","string-array",True,False,None),
+    ("schedule_options.project_id","ScheduleOptions","ProjectId","Project ID","string",False,False,None),
+    ("schedule_options.project_object_id","ScheduleOptions","ProjectObjectId","Project Object ID","object-id",False,False,None),
+    ("schedule_options.relationship_lag_calendar","ScheduleOptions","RelationshipLagCalendar","Relationship Lag Calendar","enum",True,False,None),
+    ("schedule_options.resource_list","ScheduleOptions","ResourceList","Resource List","string-array",True,False,None),
+    ("schedule_options.start_to_start_lag_calculation_type","ScheduleOptions","StartToStartLagCalculationType","Start-to-Start Lag Calculation Type","boolean",True,False,None),
+    ("schedule_options.use_expected_finish_dates","ScheduleOptions","UseExpectedFinishDates","Use Expected Finish Dates","boolean",True,False,None),
+    ("schedule_options.user_name","ScheduleOptions","UserName","User Name","string",False,False,None),
+    ("schedule_options.user_object_id","ScheduleOptions","UserObjectId","User Object ID","object-id",False,False,None),
 )
 
 
@@ -167,7 +208,7 @@ def validate_catalog() -> None:
 
     required = {
         "Activity", "WBS", "Project", "Resource/Assignment",
-        "Activity Step", "Expense", "Codes", "Baseline", "Financial Period",
+        "Activity Step", "Expense", "Codes", "Baseline", "Financial Period", "ScheduleOptions",
     }
     actual = {field.subject_area for field in P6_FIELD_CATALOG}
     missing = required.difference(actual)
