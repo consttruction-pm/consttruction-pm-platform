@@ -3,11 +3,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 
 const labels = {
   en: {
-    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
+    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings",
     wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
-    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
+    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
     wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
@@ -41,6 +41,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
+        ${renderProcurement(state.procurementRecords, t.procurement)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -258,6 +259,37 @@ function renderFieldAssurance(
               <span>Due: ${escapeHtml(item.dueDate ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderProcurement(
+  records: WorkspaceState["procurementRecords"],
+  label: string,
+): string {
+  if (!records.length) return "";
+
+  return `
+    <section class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}">
+      <div class="cp-control-heading">
+        <div><h2>${escapeHtml(label)}</h2></div>
+      </div>
+      <div class="cp-field-list">
+        ${records.map((record) => `
+          <article class="cp-field-card" data-procurement-id="${escapeAttribute(record.id)}">
+            <div class="cp-field-card-meta">
+              <strong>${escapeHtml(record.id)}</strong>
+              <span>${escapeHtml(record.type)}</span>
+              <span>${escapeHtml(record.status)}</span>
+            </div>
+            ${record.supplierId ? `<div>Supplier: ${escapeHtml(record.supplierId)}</div>` : ""}
+            ${record.referenceId ? `<div>Ref: ${escapeHtml(record.referenceId)}</div>` : ""}
+            ${record.amount !== null ? `<div>Amount: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
+            <div>${record.itemCount} item(s) · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
+            ${record.approvalRef ? `<div>Approval: ${escapeHtml(record.approvalRef)}</div>` : ""}
+            ${record.date ? `<div>Date: ${escapeHtml(record.date)}</div>` : ""}
+          </article>`).join("")}
       </div>
     </section>
   `;
