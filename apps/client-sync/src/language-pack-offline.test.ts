@@ -41,3 +41,21 @@ test("failed cache replacement preserves the previous verified offline snapshot"
  assert.equal(store.activateOffline().manifest.version,"2.0.0");
  assert.equal(store.hasVerifiedCache(manifest.package_id,"2.0.0"),true);
 });
+
+test("rejects an unbranded activated snapshot at the cache boundary",()=>{
+ const store=new OfflineLanguagePackStore();
+ const forged={
+  manifest:Object.freeze({...manifest}),
+  resources:Object.freeze(resources()),
+ } as unknown as import("./language-pack-activation.ts").ActivatedLanguagePack;
+ assert.throws(()=>store.cacheActivatedPack(forged),/LANGUAGE_PACK_ACTIVATION_PROVENANCE_INVALID/);
+ assert.throws(()=>store.activateOffline(),/LANGUAGE_PACK_OFFLINE_CACHE_UNAVAILABLE/);
+});
+
+test("cached activated snapshots remain the exact immutable validated snapshot",()=>{
+ const store=new OfflineLanguagePackStore();
+ const active=store.cacheVerifiedPack({artifact,manifest,resources:resources()},()=>true);
+ assert.equal(store.activateOffline(),active);
+ assert.throws(()=>{(active.manifest as {version:string}).version="9.9.9";},/read only|Cannot assign|TypeError/);
+ assert.equal(store.activateOffline().manifest.version,"2.0.0");
+});
