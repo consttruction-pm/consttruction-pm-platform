@@ -39,7 +39,9 @@ test("refreshes stale cache online from authoritative transport", async () => {
   const adapter = new WorkspaceReadCacheAdapter(transport, store);
   await adapter.read(context, true); transport.revision = 8;
   const result = await adapter.read({ ...context, revision: 8 }, true);
-  assert.equal(result.state, "fresh"); assert.equal(result.cache.source_revision, 8);
+  assert.equal(result.state, "fresh");
+  assert.ok(result.cache);
+  assert.equal(result.cache.source_revision, 8);
   assert.equal(transport.fetches, 2); assert.equal(store.saves, 2);
 });
 
