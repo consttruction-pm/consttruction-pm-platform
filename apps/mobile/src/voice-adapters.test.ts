@@ -5,8 +5,16 @@ import type { AILanguageContext } from "../../client-sync/src/ai-language-contra
 
 const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 } as const;
 const aiLanguage: AILanguageContext = {
-  language_tag: "fa-IR",
-  capabilities: { voice_input: true, voice_output: true, offline_ai: true },
+  input_language: "fa-IR",
+  output_language: "fa-IR",
+  project_language: "fa-IR",
+  terminology_profile: "construction",
+  locale: "fa-IR",
+  voice_language: "fa-IR",
+  text_capable: true,
+  voice_input_capable: true,
+  voice_output_capable: true,
+  offline_ai_capable: true,
 };
 
 function adapters(input = true, output = true) {
