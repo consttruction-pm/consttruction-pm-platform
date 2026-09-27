@@ -7,6 +7,7 @@ from construction_pm.application.authorization import AuthorizationContext, Auth
 
 from .errors import BackendApplicationError, ErrorCategory
 from .models import BackendScope
+from .repository import BackendP0Repository
 
 WORKSPACE_CONTROL_ROOM_READ_VERSION = "workspace-control-room-read.v1"
 WORKSPACE_CONTROL_ROOM_READ_PATH = "/api/v1/workspace/control-room/read"
@@ -30,6 +31,7 @@ class InMemoryWorkspaceReadProvider:
 class WorkspaceControlRoomReadService:
     provider: WorkspaceReadProvider
     authorization_policy: AuthorizationPolicy
+    procurement_repository: BackendP0Repository | None = None
 
     def read(
         self,
@@ -58,7 +60,29 @@ class WorkspaceControlRoomReadService:
         if snapshot is None:
             return None
         self._validate_snapshot(snapshot, scope)
-        return dict(snapshot)
+        result = dict(snapshot)
+        if self.procurement_repository is not None:
+            procurement = self.procurement_repository.list_records(
+                scope.tenant_id,
+                scope.project_id,
+                (
+                    "procurement_rfq",
+                    "procurement_quote",
+                    "procurement_bid_comparison",
+                    "purchase_order",
+                    "procurement_commitment",
+                    "procurement_delivery",
+                ),
+            )
+            result.update({
+                "procurement_rfqs": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementRFQ"],
+                "procurement_quotes": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementQuote"],
+                "procurement_bid_comparisons": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementBidComparison"],
+                "purchase_orders": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "PurchaseOrder"],
+                "procurement_commitments": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementCommitment"],
+                "procurement_deliveries": [stored.record.as_dict() for stored in procurement if stored.record.scope.project_revision == scope.project_revision and stored.record.__class__.__name__ == "ProcurementDelivery"],
+            })
+        return result
 
     @staticmethod
     def _validate_snapshot(
