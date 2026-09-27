@@ -65,7 +65,7 @@ def export_project(snapshot: ProjectPortabilitySnapshot) -> bytes:
 def import_project(data: bytes | str) -> ProjectPortabilitySnapshot:
     try:
         payload = json.loads(data.decode("utf-8") if isinstance(data, bytes) else data)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ProjectPortabilityError("INVALID_PROJECT_EXPORT") from exc
     if not isinstance(payload, dict):
         raise ProjectPortabilityError("INVALID_PROJECT_EXPORT")
