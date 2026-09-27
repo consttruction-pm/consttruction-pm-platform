@@ -9,6 +9,8 @@ from construction_pm.application.authorization import (
     Permission,
 )
 from construction_pm.control_intelligence.contracts import ControlScope
+
+from .errors import BackendApplicationError, ErrorCategory
 from construction_pm.control_intelligence.query import (
     ScheduleQueryAnswer,
     ScheduleQueryRequest,
@@ -43,11 +45,23 @@ class ScheduleQueryApplicationService:
         self._authorize(request.scope, auth_context)
         answer = self.provider.execute(request)
         if not isinstance(answer, ScheduleQueryAnswer):
-            raise ValueError("INVALID_SCHEDULE_QUERY_RESULT")
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "INVALID_SCHEDULE_QUERY_RESULT",
+                "Schedule query provider returned an invalid result",
+            )
         if answer.query_id != request.query_id:
-            raise ValueError("SCHEDULE_QUERY_RESULT_ID_MISMATCH")
+            raise BackendApplicationError(
+                ErrorCategory.CONFLICT,
+                "SCHEDULE_QUERY_RESULT_ID_MISMATCH",
+                "Schedule query result id does not match the request",
+            )
         if answer.scope != request.scope:
-            raise ValueError("SCHEDULE_QUERY_RESULT_SCOPE_MISMATCH")
+            raise BackendApplicationError(
+                ErrorCategory.CONFLICT,
+                "SCHEDULE_QUERY_RESULT_SCOPE_MISMATCH",
+                "Schedule query result scope does not match the request",
+            )
         return answer
 
     def _authorize(
@@ -59,11 +73,19 @@ class ScheduleQueryApplicationService:
             auth_context.tenant_id != scope.tenant_id
             or auth_context.project_id != scope.project_id
         ):
-            raise PermissionError("CROSS_SCOPE_ACCESS")
+            raise BackendApplicationError(
+                ErrorCategory.AUTHORIZATION,
+                "CROSS_SCOPE_ACCESS",
+                "Authorization context does not match the query scope",
+            )
         if not self.authorization_policy.is_allowed(
             auth_context, Permission.PROJECT_READ
         ):
-            raise PermissionError("FORBIDDEN")
+            raise BackendApplicationError(
+                ErrorCategory.AUTHORIZATION,
+                "FORBIDDEN",
+                "Operation is not authorized",
+            )
 
 
 @dataclass(frozen=True)
@@ -78,22 +100,8 @@ class ScheduleQueryAPI:
     ) -> dict[str, object]:
         try:
             answer = self.service.execute(request, auth_context=auth_context)
-        except PermissionError as exc:
-            return {
-                "error": {
-                    "category": "authorization",
-                    "code": str(exc),
-                    "message": str(exc),
-                }
-            }
-        except ValueError as exc:
-            return {
-                "error": {
-                    "category": "validation",
-                    "code": str(exc),
-                    "message": str(exc),
-                }
-            }
+        except BackendApplicationError as exc:
+            return exc.to_dto()
 
         return {
             "contract_version": SCHEDULE_QUERY_RESULT_VERSION,
