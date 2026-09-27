@@ -23,15 +23,53 @@ class ScheduleMode(str, Enum):
     ALAP = "ALAP"
 
 
+class TotalFloatCalculationType(str, Enum):
+    START_FLOAT = "START_FLOAT"
+    FINISH_FLOAT = "FINISH_FLOAT"
+    SMALLER_FLOAT = "SMALLER_FLOAT"
+
+
+class CriticalActivityPathType(str, Enum):
+    CRITICAL_FLOAT = "CRITICAL_FLOAT"
+    LONGEST_PATH = "LONGEST_PATH"
+
+
 @dataclass(frozen=True)
 class ScheduleOptions:
-    """Explicit scheduling-output options."""
+    """Shared scheduling options with P6-compatible semantics.
+
+    Only options with implemented semantics are applied by this slice.
+    Unimplemented P6 options remain explicit in the P6 registry and must not
+    be silently ignored by the scheduler.
+    """
 
     mode: ScheduleMode = ScheduleMode.EARLIEST
+    compute_total_float_type: TotalFloatCalculationType = (
+        TotalFloatCalculationType.START_FLOAT
+    )
+    critical_activity_float_threshold: int = 0
+    critical_activity_path_type: CriticalActivityPathType = (
+        CriticalActivityPathType.CRITICAL_FLOAT
+    )
+    make_open_ended_activities_critical: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.mode, ScheduleMode):
             raise ValueError("mode must be a ScheduleMode")
+        if not isinstance(self.compute_total_float_type, TotalFloatCalculationType):
+            raise ValueError(
+                "compute_total_float_type must be a TotalFloatCalculationType"
+            )
+        if not isinstance(self.critical_activity_path_type, CriticalActivityPathType):
+            raise ValueError(
+                "critical_activity_path_type must be a CriticalActivityPathType"
+            )
+        if isinstance(self.critical_activity_float_threshold, bool):
+            raise ValueError("critical_activity_float_threshold must be an integer")
+        if not isinstance(self.critical_activity_float_threshold, int):
+            raise ValueError("critical_activity_float_threshold must be an integer")
+        if self.critical_activity_float_threshold < 0:
+            raise ValueError("critical_activity_float_threshold must be non-negative")
 
 
 @dataclass(frozen=True)
@@ -272,8 +310,15 @@ def calculate_floats(
     early_schedule: Mapping[str, ScheduledActivity],
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    options: ScheduleOptions | None = None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
+    selected_options = options or ScheduleOptions()
+    if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
+        raise NotImplementedError(
+            "LONGEST_PATH criticality is registered but not yet implemented by this scheduler slice"
+        )
+
     activity_map = {activity.id: activity for activity in activities}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationships:
@@ -283,11 +328,16 @@ def calculate_floats(
     for activity_id in sorted(activity_map):
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
-        raw_total = _working_delay_between(early.start, late.start, resolver)
-        # P6 permits negative total float. A negative value indicates the
-        # schedule is already behind a required date/project finish and is
-        # reportable rather than an invalid calculation.
-        total = raw_total
+        start_float = _working_delay_between(early.start, late.start, resolver)
+        finish_float = _working_delay_between(early.finish, late.finish, resolver)
+        # P6 can calculate total float from Start Float, Finish Float, or the
+        # smaller of the two. Negative float remains a valid reportable value.
+        if selected_options.compute_total_float_type is TotalFloatCalculationType.FINISH_FLOAT:
+            total = finish_float
+        elif selected_options.compute_total_float_type is TotalFloatCalculationType.SMALLER_FLOAT:
+            total = min(start_float, finish_float)
+        else:
+            total = start_float
         free = _free_float(
             activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
         )
@@ -300,9 +350,13 @@ def calculate_floats(
             late_finish=late.finish,
             total_float=total,
             free_float=free,
-            # The default critical-float threshold is zero; negative float
-            # is critical as well.
-            critical=total <= 0,
+            critical=(
+                total <= selected_options.critical_activity_float_threshold
+                or (
+                    selected_options.make_open_ended_activities_critical
+                    and not outgoing[activity_id]
+                )
+            ),
         )
     return result
 
@@ -330,7 +384,14 @@ def schedule(
     late = backward_pass(
         activity_list, relationship_list, early, project_finish, resolver, constraint_list
     )
-    floats = calculate_floats(activity_list, relationship_list, early, late, resolver)
+    floats = calculate_floats(
+        activity_list,
+        relationship_list,
+        early,
+        late,
+        resolver,
+        selected_options,
+    )
 
     effective_finish = resolver.normalize_finish(
         project_finish or max(item.finish for item in early.values())
