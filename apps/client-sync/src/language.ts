@@ -6,7 +6,12 @@ export interface LanguagePreference { preferredLanguage:string; fallbackChain:st
 export interface ResolvedLanguage { languageTag:string; source:"preferred"|"fallback"|"default"; direction:LanguageDirection; locale:string; packVersion:string|null; offline:boolean; }
 
 export class ClientLanguageManager {
- constructor(private readonly registry:readonly LanguageRegistryEntry[], private readonly defaultLanguage:string, private preference:LanguagePreference) {}
+ private readonly registry:readonly LanguageRegistryEntry[];
+ private readonly defaultLanguage:string;
+ private preference:LanguagePreference;
+ constructor(registry:readonly LanguageRegistryEntry[], defaultLanguage:string, preference:LanguagePreference) {
+  this.registry=registry; this.defaultLanguage=defaultLanguage; this.preference=preference;
+ }
  getPreference():LanguagePreference { return {preferredLanguage:this.preference.preferredLanguage,fallbackChain:[...this.preference.fallbackChain],installedPacks:this.preference.installedPacks.map(p=>({...p})),offlinePreferred:this.preference.offlinePreferred}; }
  setPreferredLanguage(languageTag:string):ResolvedLanguage { this.preference={...this.preference,preferredLanguage:languageTag}; return this.resolve(); }
  syncInstalledPackState(installedPacks:readonly {languageTag:string;version:string;verified:boolean}[]):ResolvedLanguage {
