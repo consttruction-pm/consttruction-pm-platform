@@ -83,6 +83,18 @@
     "change_claim_impacts": {
       "type": "array",
       "items": { "$ref": "https://construction-pm.local/contracts/v1/change-claim-impact.v1" }
+    },
+    "documents": {
+      "type": "array",
+      "items": { "$ref": "https://consttruction-pm.github.io/contracts/v1/p0-document-resource.json" }
+    },
+    "document_ocr_results": {
+      "type": "array",
+      "items": { "$ref": "https://consttruction-pm.github.io/contracts/v1/p0-document-ocr-result.json" }
+    },
+    "document_search_entries": {
+      "type": "array",
+      "items": { "$ref": "https://consttruction-pm.github.io/contracts/v1/p0-document-search-index.json" }
     }
   }
 }
