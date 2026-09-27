@@ -34,7 +34,7 @@ class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources
   for(const bytes of this.store.values()) yield new Uint8Array(bytes);
  }
  [Symbol.iterator]():IterableIterator<[string,Uint8Array]>{return this.entries();}
- forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
+ forEach(callbackfn:(value:Uint8Array,key:string,map:ValidatedLanguagePackResources)=>void,thisArg?:unknown):void{
   for(const [key,value] of this.store) callbackfn.call(thisArg,new Uint8Array(value),key,this);
  }
 }
