@@ -440,3 +440,54 @@ def test_dependency_graph_live_resource_conflict_is_domain_error() -> None:
         assert loaded is not None
         assert loaded.graph_revision == 1
         assert len(store.history(tenant_id, project_id, resource_id)) == 1
+
+
+def test_dependency_graph_live_idempotency_unique_conflict_maps_to_reuse_error() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"unique-tenant-{suffix}"
+    project_id = f"unique-project-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+    link = DependencyLink(
+        resource_id=f"unique-resource-{suffix}",
+        tenant_id=tenant_id,
+        project_id=project_id,
+        revision=1,
+        source_resource_id=f"schedule:unique-{suffix}",
+        target_resource_id=f"rfi:unique-{suffix}",
+        dependency_type="schedule_to_rfi",
+        metadata={"relation": "blocks"},
+    )
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDependencyGraphStore(connection)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        connection.commit()
+
+        with PostgresTransactionManager(connection).transaction():
+            store.persist(
+                link,
+                expected_graph_revision=0,
+                idempotency_key=f"unique-key-{suffix}",
+                actor_id="requester-1",
+                occurred_at=created_at,
+            )
+
+        with pytest.raises(DependencyIdempotencyReuse, match="IDEMPOTENCY_KEY_REUSE"):
+            with PostgresTransactionManager(connection).transaction():
+                store.persist(
+                    DependencyLink(
+                        resource_id=f"unique-resource-other-{suffix}",
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        revision=1,
+                        source_resource_id=f"schedule:unique-other-{suffix}",
+                        target_resource_id=f"rfi:unique-other-{suffix}",
+                        dependency_type="schedule_to_rfi",
+                        metadata={"relation": "different"},
+                    ),
+                    expected_graph_revision=1,
+                    idempotency_key=f"unique-key-{suffix}",
+                    actor_id="requester-1",
+                    occurred_at=created_at,
+                )
