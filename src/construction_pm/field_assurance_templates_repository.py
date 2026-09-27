@@ -216,7 +216,8 @@ def _execution_from_dict(payload: Mapping[str, Any]) -> FieldAssuranceExecution:
         template_version=int(payload["template_version"]),
         answers=tuple(
             FieldAssuranceExecutionAnswer(item_id, value)
-            for item_id, value in payload.get("answers", {}).items()
+            for item in payload.get("answers", [])
+            for item_id, value in [(item["item_id"], item["value"])]
         ),
         executed_by=str(payload["executed_by"]),
         executed_at=datetime.fromisoformat(str(payload["executed_at"])),
