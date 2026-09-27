@@ -5,6 +5,12 @@ from .contracts import ControlScope, SourceReference, require_enum
 from .graph import ControlDomain
 
 
+def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
 @dataclass(frozen=True)
 class ScenarioChange:
     change_id: str
