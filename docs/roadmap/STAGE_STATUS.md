@@ -743,3 +743,11 @@ Status: **implemented and merged — PR #350**
 - PR #350 merged to `main` as `eec94f4a9b96bf24012fb95193cbbbf5c658472f`.
 - Browser accessibility automation and cross-client UI automation remain separate Issue #92 evidence gates because no browser/native automation harness has been established in the repository.
 - No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+
+### 2026-09-28 — Change Claim Contract Version Identity (PR #351)
+Status: **runtime-verified and merged**
+- Change Claim now preserves and validates the existing versioned contract identity (`contract_version=1.0`) through the Application/Persistence boundary.
+- Final head `142150ab6e9bc5e04b7805e1bee12294b754c434` passed Client Typecheck **36350690841**, ConstructionPM CI **36350690847**, and PostgreSQL Integration **36350690972**.
+- Merge commit: `aa2690f3e6881819d128291d39fe4e2c1767856c`.
+- No Shared Core or scheduling/progress/resource/financial calculation semantics changed.
