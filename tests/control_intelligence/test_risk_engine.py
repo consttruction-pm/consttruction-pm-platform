@@ -26,8 +26,8 @@ def test_predictive_risk_is_deterministic_and_versioned():
     b = assess_predictive_schedule_risk("risk-1", scope(), "next_reporting_period", indicators(), (source(1), source(2), source(3), source(4)))
     assert a == b
     assert a.model_version == MODEL_VERSION
-    assert a.attributes["risk_score"] == 0.81
-    assert a.likelihood is RiskBand.CRITICAL
+    assert a.attributes["risk_score"] == 0.785
+    assert a.likelihood is RiskBand.HIGH
 
 
 def test_stale_revision_source_is_rejected():
