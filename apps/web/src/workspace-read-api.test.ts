@@ -273,3 +273,23 @@ test("workspace read client rejects null optional collections", async () => {
   if (result.ok) throw new Error("expected invalid optional collection error");
   assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
 });
+
+test("workspace read client rejects document revision drift", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      documents: [{
+        ...snapshot.documents?.[0],
+        revision: context.revision - 1,
+      }],
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected stale document scope error");
+  assert.equal(result.error.code, "STALE_DOCUMENT_SCOPE");
+});
