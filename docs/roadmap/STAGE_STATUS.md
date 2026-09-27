@@ -577,7 +577,7 @@ Status: **100% — implemented, merged and runtime-verified**
 
 ### Current Roadmap Reconciliation Result
 - The repository already contains implemented and merged Stage 84, Stage 85 and Stage 86 multilingual/language-pack boundaries.
-- No Stage 87 roadmap artifact currently exists under `docs/roadmap/`.
+- Stage 87 strict language-pack manifest runtime validation is implemented and merged through PR #314 with merge commit `d7c5e8231ab3b25b3c283ee8901b068577fa25c7`. Exact implementation head `cec20048e0eed2f80043d39ef85f5ebc460ac508` passed Client Typecheck `36342222863` and ConstructionPM CI `36342222381`.
 - Therefore the next numbered stage must **not be invented from assumption**. The next implementation target requires a new approved roadmap gate based on the existing product completeness program and current architecture/competitive-gap evidence.
 - Stage 35 hardening PR #306 is already merged and must not be reopened unless a new regression is demonstrated.
 
