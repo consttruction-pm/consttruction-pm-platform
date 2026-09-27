@@ -121,6 +121,32 @@
         },
         "default_relationship_lag_calendar": {
           "$ref": "#/$defs/calendar_reference"
+        },
+        "schedule_options": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "compute_total_float_type": {
+              "enum": [
+                "START_FLOAT",
+                "FINISH_FLOAT",
+                "SMALLER_FLOAT"
+              ]
+            },
+            "critical_activity_float_threshold": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "critical_activity_path_type": {
+              "enum": [
+                "CRITICAL_FLOAT",
+                "LONGEST_PATH"
+              ]
+            },
+            "make_open_ended_activities_critical": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
