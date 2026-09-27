@@ -41,7 +41,11 @@ def execution(*, revision: int = 7, version: int = 1, answers=None, tenant="tena
         scope=scope(revision, tenant, project),
         template_id="TPL-1",
         template_version=version,
-        answers=(\n            (FieldAssuranceExecutionAnswer("I-1", True),)\n            if answers is None\n            else tuple(answers)\n        ),
+        answers=(
+            (FieldAssuranceExecutionAnswer("I-1", True),)
+            if answers is None
+            else tuple(answers)
+        ),
     )
 
 
@@ -65,16 +69,16 @@ def test_required_answer_is_enforced() -> None:
 def test_revision_mismatch_is_rejected() -> None:
     repo = InMemoryFieldAssuranceRepository()
     repo.create_template(template(revision=7))
-    with pytest.raises(FieldAssuranceExecutionError, match="TEMPLATE_NOT_FOUND"):
+    with pytest.raises(FieldAssuranceExecutionError, match="EXECUTION_SCOPE_MISMATCH"):
         repo.execute(execution(revision=8))
 
 
 def test_tenant_and_project_are_isolated() -> None:
     repo = InMemoryFieldAssuranceRepository()
     repo.create_template(template())
-    with pytest.raises(FieldAssuranceExecutionError, match="TEMPLATE_NOT_FOUND"):
+    with pytest.raises(FieldAssuranceExecutionError, match="EXECUTION_SCOPE_MISMATCH"):
         repo.execute(execution(tenant="tenant-2"))
-    with pytest.raises(FieldAssuranceExecutionError, match="TEMPLATE_NOT_FOUND"):
+    with pytest.raises(FieldAssuranceExecutionError, match="EXECUTION_SCOPE_MISMATCH"):
         repo.execute(execution(project="project-2"))
 
 
