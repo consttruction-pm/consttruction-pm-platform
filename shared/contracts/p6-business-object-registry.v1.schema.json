@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"constructionpm://contracts/p6-business-object-registry/v1",
+  "title":"P6 Business Object Registry v1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["registry_version","reference_version","status","objects"],
+  "properties":{
+    "registry_version":{"const":"p6-business-object-registry.v1"},
+    "reference_version":{"const":"P6 Professional Version 26 / P6 EPPM 26.4"},
+    "status":{"enum":["inventory","complete","certified"]},
+    "objects":{"type":"array","items":{"type":"string","minLength":1}}
+  }
+}
