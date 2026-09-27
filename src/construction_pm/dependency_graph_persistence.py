@@ -17,7 +17,7 @@ _KNOWN_DEPENDENCY_TYPES = frozenset({
     "depends_on", "impacts", "supports", "evidences", "derived_from",
     "allocates", "claims_against", "schedule_to_progress", "progress_to_evm",
     "resource_to_schedule", "cost_to_schedule", "change_to_schedule",
-    "claim_to_change",
+    "claim_to_change", "schedule_to_change", "schedule_to_rfi",
 })
 
 
