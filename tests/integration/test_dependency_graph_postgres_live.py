@@ -114,3 +114,48 @@ def test_dependency_graph_round_trip_persists_revision_and_audit() -> None:
                 )
 
         connection.rollback()
+
+
+def test_dependency_graph_live_transaction_rolls_back_revision_link_and_audit() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"rollback-tenant-{suffix}"
+    project_id = f"rollback-project-{suffix}"
+    resource_id = f"rollback-dependency-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+    link = DependencyLink(
+        resource_id=resource_id,
+        tenant_id=tenant_id,
+        project_id=project_id,
+        revision=1,
+        source_resource_id=f"schedule:task-{suffix}",
+        target_resource_id=f"rfi:rfi-{suffix}",
+        dependency_type="schedule_to_rfi",
+        metadata={"relation": "blocks"},
+    )
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDependencyGraphStore(connection)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        connection.commit()
+
+        with pytest.raises(RuntimeError, match="FORCED_ROLLBACK"):
+            with PostgresTransactionManager(connection).transaction():
+                persisted = store.persist(
+                    link,
+                    expected_graph_revision=0,
+                    idempotency_key=f"rollback-idem-{suffix}",
+                    actor_id="requester-rollback",
+                    occurred_at=created_at,
+                )
+                assert persisted.graph_revision == 1
+                raise RuntimeError("FORCED_ROLLBACK")
+
+        assert store.get(tenant_id, project_id, resource_id) is None
+        assert store.history(tenant_id, project_id, resource_id) == []
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT revision FROM project_dependency_revisions WHERE tenant_id = %s AND project_id = %s",
+                (tenant_id, project_id),
+            )
+            assert cursor.fetchone()[0] == 0
