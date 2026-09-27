@@ -1,3 +1,5 @@
+"""Regression coverage for fail-closed application authorization context validation."""
+
 from construction_pm.application.authorization import (
     AuthorizationContext,
     AuthorizationError,
