@@ -12,6 +12,10 @@ export type ActivatedLanguagePack={
  readonly [ACTIVATED_LANGUAGE_PACK_BRAND]:ActivatedLanguagePackBrand;
 };
 
+export function isActivatedLanguagePack(value:unknown):value is ActivatedLanguagePack{
+ return typeof value==="object"&&value!==null&&ACTIVATED_LANGUAGE_PACK_BRAND in value;
+}
+
 export class AtomicLanguagePackStore{
  protected active:ActivatedLanguagePack|null=null;
 
