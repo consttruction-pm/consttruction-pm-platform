@@ -1,11 +1,12 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setControlSummary, setDocuments, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
 import { projectDocument, type DocumentSnapshot } from "./workspace-document.js";
+import { projectProcurementRFQ, projectProcurementQuote, projectProcurementBidComparison, projectPurchaseOrder, projectProcurementCommitment, projectProcurementDelivery, type ProcurementRFQSnapshot, type ProcurementQuoteSnapshot, type ProcurementBidComparisonSnapshot, type PurchaseOrderSnapshot, type ProcurementCommitmentSnapshot, type ProcurementDeliverySnapshot } from "./workspace-procurement.js";
 import { projectTimecard, projectEquipmentStatus, type EquipmentStatusSnapshot, type FieldTimecardSnapshot } from "./workspace-field-ops.js";
 import {
   projectInspection,
@@ -39,6 +40,12 @@ export type WorkspaceControlRoomReadSnapshot = {
   claims?: readonly ClaimRecordSnapshot[];
   change_claim_impacts?: readonly ChangeClaimImpactSnapshot[];
   documents?: readonly DocumentSnapshot[];
+  procurement_rfqs?: readonly ProcurementRFQSnapshot[];
+  procurement_quotes?: readonly ProcurementQuoteSnapshot[];
+  procurement_bid_comparisons?: readonly ProcurementBidComparisonSnapshot[];
+  purchase_orders?: readonly PurchaseOrderSnapshot[];
+  procurement_commitments?: readonly ProcurementCommitmentSnapshot[];
+  procurement_deliveries?: readonly ProcurementDeliverySnapshot[];
 };
 
 export type WorkspaceReadOptions = {
@@ -106,6 +113,16 @@ export class WorkspaceReadClient {
         state,
         (result.data.documents ?? []).map((snapshot) => projectDocument(snapshot, toProjectScope(context))),
       );
+
+      const procurementScope = toProjectScope(context);
+      state = setProcurementRecords(state, [
+        ...(result.data.procurement_rfqs ?? []).map((snapshot) => projectProcurementRFQ(snapshot, procurementScope)),
+        ...(result.data.procurement_quotes ?? []).map((snapshot) => projectProcurementQuote(snapshot, procurementScope)),
+        ...(result.data.procurement_bid_comparisons ?? []).map((snapshot) => projectProcurementBidComparison(snapshot, procurementScope)),
+        ...(result.data.purchase_orders ?? []).map((snapshot) => projectPurchaseOrder(snapshot, procurementScope)),
+        ...(result.data.procurement_commitments ?? []).map((snapshot) => projectProcurementCommitment(snapshot, procurementScope)),
+        ...(result.data.procurement_deliveries ?? []).map((snapshot) => projectProcurementDelivery(snapshot, procurementScope)),
+      ]);
 
       state = setFieldAssurance(state, {
         inspections: result.data.inspections.map((snapshot) => projectInspection(snapshot, {
@@ -189,6 +206,12 @@ function validateReadEnvelope(
     snapshot.safety_observations,
     snapshot.punch_items,
     ...(snapshot.documents ?? []),
+    ...(snapshot.procurement_rfqs ?? []),
+    ...(snapshot.procurement_quotes ?? []),
+    ...(snapshot.procurement_bid_comparisons ?? []),
+    ...(snapshot.purchase_orders ?? []),
+    ...(snapshot.procurement_commitments ?? []),
+    ...(snapshot.procurement_deliveries ?? []),
   ]) {
     if (!Array.isArray(collection)) throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
