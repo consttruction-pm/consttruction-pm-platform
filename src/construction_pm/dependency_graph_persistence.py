@@ -9,6 +9,18 @@ from typing import Any, Protocol
 from .client_sync.revision_limits import MAX_SAFE_PROJECT_REVISION
 
 
+_KNOWN_DEPENDENCY_DOMAINS = frozenset({
+    "schedule", "progress", "evm", "resource", "cost",
+    "document", "change", "claim", "procurement", "field",
+})
+_KNOWN_DEPENDENCY_TYPES = frozenset({
+    "depends_on", "impacts", "supports", "evidences", "derived_from",
+    "allocates", "claims_against", "schedule_to_progress", "progress_to_evm",
+    "resource_to_schedule", "cost_to_schedule", "change_to_schedule",
+    "claim_to_change",
+})
+
+
 class DependencyRevisionConflict(RuntimeError):
     """Raised when the project dependency graph revision is stale."""
 
@@ -45,6 +57,15 @@ class DependencyLink:
             raise ValueError("INVALID_DEPENDENCY_LINK")
         if self.source_resource_id == self.target_resource_id:
             raise ValueError("DEPENDENCY_SELF_REFERENCE")
+        for field_name, resource_id in (
+            ("source_resource_id", self.source_resource_id),
+            ("target_resource_id", self.target_resource_id),
+        ):
+            prefix, separator, entity_id = resource_id.partition(":")
+            if not separator or prefix not in _KNOWN_DEPENDENCY_DOMAINS or not entity_id.strip():
+                raise ValueError(f"INVALID_DEPENDENCY_{field_name.upper()}")
+        if self.dependency_type not in _KNOWN_DEPENDENCY_TYPES:
+            raise ValueError("INVALID_DEPENDENCY_TYPE")
         for name, value in (("source_revision", self.source_revision), ("target_revision", self.target_revision)):
             if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > MAX_SAFE_PROJECT_REVISION):
                 raise ValueError(f"INVALID_DEPENDENCY_{name.upper()}")
