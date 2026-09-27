@@ -53,6 +53,17 @@ class Connection:
             def __exit__(self, exc_type, exc, tb): return False
         return Tx()
 
+    def close(self):
+        pass
+
+
+class TransactionManager:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def transaction(self):
+        return self.connection.transaction()
+
 
 def context(role="planner", project="P-1"):
     return AuthorizationContext("T-1", project, "u-1", frozenset({role}))
@@ -89,6 +100,7 @@ def service():
         store,
         policy(),
         RoleDocumentLifecycleAuthorizer({"u-approver"}),
+        TransactionManager(connection),
     )
 
 
@@ -98,6 +110,11 @@ def test_rfi_create_and_read_are_context_scoped_and_versioned():
     assert created.revision == 1
     read = svc.read(tenant_id="T-1", project_id="P-1", document_id="DOC-1", context=context())
     assert read.document.resource_type == "rfi"
+    api = DocumentAPI(svc)
+    dto = api.read(tenant_id="T-1", project_id="P-1", document_id="DOC-1", context=context())
+    assert dto["contract_version"] == "1.0"
+    assert dto["resource_type"] == "rfi"
+    assert dto["revision"] == 1
     assert svc.error_dto(Exception("x")).category is APIErrorCategory.VALIDATION
     connection.close()
 
