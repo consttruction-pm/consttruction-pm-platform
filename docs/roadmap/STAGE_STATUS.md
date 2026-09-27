@@ -1,3 +1,10 @@
+### Document Approval Lifecycle Boundary
+Status: **100% — implemented; runtime-verified 2026-09-27 through PR #177**
+- Added explicit draft/submitted/approved/rejected/superseded lifecycle transitions.
+- Every transition requires expected revision and records actor, timestamp and optional reason in append-only audit history.
+- Invalid transitions are rejected without mutation and status transitions preserve the persisted document payload.
+- Role authorization, OCR/search and storage-provider behavior remain separate boundaries.
+
 ### P0 Document Persistence Boundary
 Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 - Added versioned `p0-document-resource` contract for contract, drawing, correspondence, RFI, submittal, delay-claim and evidence resources.
