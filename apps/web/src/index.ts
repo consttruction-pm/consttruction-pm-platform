@@ -10,3 +10,4 @@ export * from "./workspace-control-intelligence.js";
 export * from "./workspace-site-log.js";
 export * from "./workspace-field-ops.js";
 export * from "./workspace-field-issues.js";
+export * from "./workspace-field-assurance.js";
