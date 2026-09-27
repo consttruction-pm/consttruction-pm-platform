@@ -48,7 +48,7 @@ def _service():
 def _execution(scope: BackendScope = _scope()) -> FieldAssuranceExecution:
     return FieldAssuranceExecution(
         "EXEC-1", scope, "TPL-1", 2,
-        (("I-1", "12.5"), ("I-2", "pass")),
+        (FieldAssuranceExecutionAnswer("I-1", 12.5), FieldAssuranceExecutionAnswer("I-2", "pass")),
         "user-1", datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
@@ -84,7 +84,7 @@ def test_execution_requires_exact_template_version_and_required_answers():
         service.create_template(_template())
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="MISSING_REQUIRED_ANSWER"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-MISSING", _scope(), "TPL-1", 2, (("I-2", "pass"),),
+                "EXEC-MISSING", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-2", "pass"),),
                 "user-1", datetime.now(timezone.utc),
             ))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_VERSION_MISMATCH"):
@@ -132,7 +132,7 @@ def test_execution_rollback_leaves_no_partial_row():
     try:
         service.create_template(_template())
         bad = FieldAssuranceExecution(
-            "EXEC-ROLLBACK", _scope(), "TPL-1", 2, (("I-1", "12.5"),),
+            "EXEC-ROLLBACK", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 12.5),),
             "user-1", datetime.now(timezone.utc),
         )
         with pytest.raises(FieldAssuranceTemplatePersistenceError):
