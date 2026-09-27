@@ -65,8 +65,8 @@ class TransactionManager:
         return self.connection.transaction()
 
 
-def context(role="planner", project="P-1"):
-    return AuthorizationContext("T-1", project, "u-1", frozenset({role}))
+def context(role="planner", project="P-1", user="u-1"):
+    return AuthorizationContext("T-1", project, user, frozenset({role}))
 
 
 def policy():
@@ -175,6 +175,6 @@ def test_submittal_can_be_submitted_and_approved_with_expected_revision():
     submitted = document(resource_type="submittal", status="submitted")
     svc.transition_status(submitted, expected_revision=1, context=context(), actor_id="u-1", occurred_at=datetime.now(timezone.utc))
     approved = document(resource_type="submittal", status="approved")
-    result = svc.transition_status(approved, expected_revision=2, context=context(), actor_id="u-approver", occurred_at=datetime.now(timezone.utc))
+    result = svc.transition_status(approved, expected_revision=2, context=context(user="u-approver"), actor_id="u-approver", occurred_at=datetime.now(timezone.utc))
     assert result.revision == 3
     assert result.document.status == "approved"
