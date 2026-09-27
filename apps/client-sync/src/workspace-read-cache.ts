@@ -31,12 +31,12 @@ export function createWorkspaceReadCache(
 
   const entry: WorkspaceControlRoomReadCache = {
     contract_version: WORKSPACE_CONTROL_ROOM_CACHE_VERSION,
-    snapshot_id: metadata.snapshot_id,
+    snapshot_id: readNonEmptyString(metadata.snapshot_id, "INVALID_WORKSPACE_READ_CACHE_METADATA"),
     tenant_id: readNonEmptyString(context.tenant_id, "INVALID_WORKSPACE_READ_CONTEXT"),
     project_id: readNonEmptyString(context.project_id, "INVALID_WORKSPACE_READ_CONTEXT"),
     source_revision: readRevision(context.revision, "INVALID_WORKSPACE_READ_CONTEXT"),
     cached_at: readDateTime(metadata.cached_at),
-    workspace_read: deepFreeze({ ...snapshot }),
+    workspace_read: deepFreeze(deepClone(snapshot)),
   };
 
   return Object.freeze(entry);
@@ -125,10 +125,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function deepClone<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item)) as T;
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, deepClone(child)]),
+    ) as T;
+  }
+  return value;
+}
+
 function deepFreeze<T>(value: T): T {
   if (typeof value !== "object" || value === null) return value;
-  for (const child of Object.values(value as Record<string, unknown>)) {
-    deepFreeze(child);
+  if (Array.isArray(value)) {
+    for (const child of value) deepFreeze(child);
+  } else {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreeze(child);
+    }
   }
   return Object.freeze(value);
 }
