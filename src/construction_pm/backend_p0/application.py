@@ -10,7 +10,7 @@ from construction_pm.application.authorization import (
 )
 
 from .errors import BackendApplicationError, ErrorCategory, OptimisticLockError
-from ..field_assurance_workflow import assert_transition
+from ..field_assurance_workflow import FieldAssuranceTransitionError, assert_transition
 from .idempotency import IdempotencyStore, fingerprint
 from .models import Record, record_id, resource_type
 from .persistence import _record_from_payload
