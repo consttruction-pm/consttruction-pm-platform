@@ -83,6 +83,30 @@
     "change_claim_impacts": {
       "type": "array",
       "items": { "$ref": "https://construction-pm.local/contracts/v1/change-claim-impact.v1" }
+    },
+    "procurement_rfqs": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/procurement-rfq.v1" }
+    },
+    "procurement_quotes": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/procurement-quote.v1" }
+    },
+    "procurement_bid_comparisons": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/procurement-bid-comparison.v1" }
+    },
+    "purchase_orders": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/purchase-order.v1" }
+    },
+    "procurement_commitments": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/procurement-commitment.v1" }
+    },
+    "procurement_deliveries": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/procurement-delivery.v1" }
     }
   }
 }
