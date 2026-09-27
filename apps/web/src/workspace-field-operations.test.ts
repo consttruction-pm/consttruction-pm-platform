@@ -11,6 +11,7 @@ import {
 } from "./workspace-field-operations.js";
 
 const context = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
+const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 };
 
 const evidence = [{ source_id: "photo-1", source_type: "photo", locator: "/photos/1", revision: 7 }];
 
@@ -19,7 +20,7 @@ test("field issue projection preserves scope, evidence and activity links", () =
     {
       contract_version: FIELD_ISSUE_VERSION,
       issue_id: "issue-1",
-      scope: context,
+      scope,
       category: "quality",
       severity: "high",
       status: "open",
@@ -45,7 +46,7 @@ test("field issue rejects missing evidence", () => {
         {
           contract_version: FIELD_ISSUE_VERSION,
           issue_id: "issue-1",
-          scope: context,
+          scope,
           category: "quality",
           severity: "high",
           status: "open",
@@ -64,7 +65,7 @@ test("field timecard projection preserves string quantities", () => {
     {
       contract_version: FIELD_TIMECARD_VERSION,
       timecard_id: "tc-1",
-      scope: context,
+      scope,
       person_id: "person-1",
       log_date: "2026-09-27",
       workplace_key: "tower-a",
@@ -84,7 +85,7 @@ test("field timecard rejects invalid calendar dates and reversed ranges", () => 
   const base = {
     contract_version: FIELD_TIMECARD_VERSION,
     timecard_id: "tc-1",
-    scope: context,
+    scope,
     person_id: "person-1",
     workplace_key: "tower-a",
     attendance_status: "present" as const,
@@ -115,7 +116,7 @@ test("equipment projection preserves breakdown and meter values without calculat
     {
       contract_version: EQUIPMENT_STATUS_VERSION,
       report_id: "equipment-report-1",
-      scope: context,
+      scope,
       equipment_id: "excavator-01",
       report_date: "2026-09-27",
       workplace_key: "north-zone",
@@ -138,7 +139,7 @@ test("field operation projections reject stale or unsupported snapshots", () => 
   const issue = {
     contract_version: FIELD_ISSUE_VERSION as typeof FIELD_ISSUE_VERSION,
     issue_id: "issue-1",
-    scope: context,
+    scope,
     category: "safety",
     severity: "critical" as const,
     status: "open" as const,
@@ -148,7 +149,7 @@ test("field operation projections reject stale or unsupported snapshots", () => 
   };
 
   assert.throws(
-    () => projectFieldIssue({ ...issue, scope: { ...context, revision: 6 } }, context),
+    () => projectFieldIssue({ ...issue, scope: { ...scope, project_revision: 6 } }, context),
     /STALE_FIELD_OPERATION_SCOPE/,
   );
 
