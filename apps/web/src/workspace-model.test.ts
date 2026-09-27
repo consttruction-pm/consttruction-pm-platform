@@ -8,6 +8,7 @@ import {
   selectWbs,
   setCalendarMode,
   setLocale,
+  setControlSummary,
   withActivities,
 } from "./workspace-model.js";
 
@@ -81,6 +82,22 @@ test("duplicate activity ids are rejected", () => {
       ]),
     /INVALID_ACTIVITY_ROWS/,
   );
+});
+
+
+test("control summary can be attached without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const summary = {
+    resultId: "result-1",
+    generatedAt: "2026-09-27T08:00:00Z",
+    summaryKey: "control.summary",
+    metrics: Object.freeze({ progress_percent: 63 }),
+    findings: [],
+    proposedActions: [],
+  };
+  const next = setControlSummary(state, summary);
+  assert.equal(next.controlSummary?.resultId, "result-1");
+  assert.deepEqual(next.context, context);
 });
 
 test("typed activity cells and Gantt data remain server-projected", () => {
