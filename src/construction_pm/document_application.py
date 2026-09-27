@@ -70,11 +70,11 @@ class DocumentApplicationService:
         self._authorize_write(document, context, actor_id)
         with self.transaction_manager.transaction():
             return self.store.update(
-            document,
-            expected_revision=expected_revision,
-            actor_id=actor_id,
-            occurred_at=occurred_at,
-            event_type=event_type,
+                document,
+                expected_revision=expected_revision,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+                event_type=event_type,
                 audit_reason=audit_reason,
             )
 
@@ -142,8 +142,8 @@ class DocumentApplicationService:
             return conflict_error("DOCUMENT_REVISION_CONFLICT", str(exc), retryable=True)
         if isinstance(exc, DocumentIdempotencyReuse):
             return conflict_error("DOCUMENT_IDEMPOTENCY_KEY_REUSE", str(exc))
-        if isinstance(exc, (DocumentApprovalTransitionError, ValueError)):
-            return validation_error(type(exc).__name__, str(exc))
         if isinstance(exc, DocumentAuthorizationError):
             return authorization_error(str(exc), str(exc))
+        if isinstance(exc, (DocumentApprovalTransitionError, ValueError)):
+            return validation_error(type(exc).__name__, str(exc))
         return validation_error(type(exc).__name__, str(exc))
