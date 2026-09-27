@@ -1,7 +1,6 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 import type {LanguagePackResource} from "./language-pack-resource-validation.ts";
-import {verifyLanguagePackIntegrity,type LanguagePackSignatureVerifier} from "./language-pack-integrity.ts";
-import {validateLanguagePackResources} from "./language-pack-resource-validation.ts";
+import type {LanguagePackSignatureVerifier} from "./language-pack-integrity.ts";
 import type {ActivatedLanguagePack} from "./language-pack-activation.ts";
 
 export type CachedLanguagePack={artifact:Uint8Array;manifest:LanguagePackManifest;resources:readonly LanguagePackResource[]};
