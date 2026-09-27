@@ -100,6 +100,10 @@ def test_authorization_denial_precedes_repository_read():
 def test_query_contract_version_is_preserved_and_fail_closed():
     value = item()
     assert value.contract_version == "1.0"
-    value = PortfolioDecisionRead("portfolio-decision.v2", *tuple(value)[1:])
+    value = PortfolioDecisionRead(
+        "portfolio-decision.v2", value.tenant_id, value.portfolio_id, value.project_id,
+        value.revision, value.actor, value.authorization_context, value.lifecycle_state,
+        value.as_of, value.audit_revision, value.audit_event_id, value.cross_domain_refs,
+    )
     with pytest.raises(PortfolioDecisionQueryError, match="UNSUPPORTED_PORTFOLIO_DECISION_CONTRACT_VERSION"):
         value.validate()
