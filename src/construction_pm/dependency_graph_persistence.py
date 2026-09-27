@@ -178,7 +178,7 @@ class PostgresDependencyGraphStore:
             raise ValueError("INVALID_DEPENDENCY_IDEMPOTENCY_KEY")
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise ValueError("INVALID_DEPENDENCY_ACTOR_ID")
-        if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+        if not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
         # Lock the project revision before checking idempotency. This serializes
