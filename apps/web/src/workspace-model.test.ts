@@ -9,6 +9,7 @@ import {
   setCalendarMode,
   setLocale,
   setControlSummary,
+  setSmartGuide,
   setFieldOperations,
   setFieldIssues,
   setChangeClaimRecords,
@@ -106,6 +107,25 @@ test("control summary can be attached without changing project context", () => {
   assert.deepEqual(next.context, context);
 });
 
+
+test("smart guide attaches without changing project identity", () => {
+  const state = createWorkspaceState(context);
+  const next = setSmartGuide(state, {
+    contractVersion: "smart-guide.v1",
+    module: "schedule",
+    locale: "fa",
+    resultId: "result-1",
+    generatedAt: "2026-09-27T08:00:00Z",
+    summaryKey: "control.summary",
+    findings: [],
+    proposedActions: [],
+    sourceCount: 1,
+    approvalRequiredCount: 0,
+  });
+  assert.equal(next.smartGuide?.module, "schedule");
+  assert.equal(next.smartGuide?.locale, "fa");
+  assert.deepEqual(next.context, context);
+});
 
 test("site daily logs attach to the same project workspace", () => {
   const state = createWorkspaceState(context);

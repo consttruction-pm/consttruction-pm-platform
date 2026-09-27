@@ -1,7 +1,8 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
+import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
@@ -81,6 +82,12 @@ export class WorkspaceReadClient {
         ? projectControlIntelligence(result.data.control_intelligence, context)
         : null;
       state = setControlSummary(state, summary);
+      state = setSmartGuide(
+        state,
+        result.data.control_intelligence
+          ? projectSmartGuide(result.data.control_intelligence, context, "control-room", locale)
+          : null,
+      );
 
       state = setSiteDailyLogs(
         state,

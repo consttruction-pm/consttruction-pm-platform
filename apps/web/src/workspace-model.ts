@@ -7,6 +7,7 @@ import type { WorkspaceChangeNotice, WorkspaceChangeCase, WorkspaceClaimRecord, 
 import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
+import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -72,6 +73,7 @@ export type WorkspaceState = {
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
   controlSummary: WorkspaceControlSummary | null;
+  smartGuide: WorkspaceSmartGuide | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
   timecards: readonly WorkspaceTimecard[];
   equipmentReports: readonly WorkspaceEquipmentStatus[];
@@ -121,6 +123,7 @@ export function createWorkspaceState(
     columns: DEFAULT_WORKSPACE_COLUMNS,
     activities: [],
     controlSummary: null,
+    smartGuide: null,
     siteDailyLogs: [],
     timecards: [],
     equipmentReports: [],
@@ -170,6 +173,13 @@ export function setCalendarMode(
   calendarMode: WorkspaceCalendarMode,
 ): WorkspaceState {
   return { ...state, calendarMode };
+}
+
+export function setSmartGuide(
+  state: WorkspaceState,
+  smartGuide: WorkspaceSmartGuide | null,
+): WorkspaceState {
+  return { ...state, smartGuide };
 }
 
 export function setControlSummary(
