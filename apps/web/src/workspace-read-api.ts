@@ -74,6 +74,17 @@ export class WorkspaceReadClient {
       const locale = options.locale ?? "en";
       const calendarMode = options.calendarMode ?? "gregorian";
       let state = createWorkspaceState(context, locale, calendarMode);
+      state = {
+        ...state,
+        columns: result.data.workspace.columns.map((column) => ({
+          id: column.id,
+          label: column.label,
+          dataType: column.data_type,
+          editable: column.editable,
+          formula: column.formula,
+          width: column.width,
+        })),
+      };
 
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
       state = withActivities(state, activities);
