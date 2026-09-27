@@ -11,6 +11,7 @@ import {
   setControlSummary,
   setFieldOperations,
   setFieldIssues,
+  setDocumentControl,
   setChangeClaimRecords,
   setFieldAssurance,
   setSiteDailyLogs,
