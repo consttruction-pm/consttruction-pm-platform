@@ -162,3 +162,8 @@ def test_application_service_depends_on_repository_protocol():
         assert service.read_template(_scope(), "TPL-1", 2) is not None
     finally:
         connection.close()
+
+
+def test_postgres_repository_round_trip_is_exported():
+    from construction_pm.field_assurance_templates_repository import PostgresFieldAssuranceTemplateRepository
+    assert PostgresFieldAssuranceTemplateRepository is not None
