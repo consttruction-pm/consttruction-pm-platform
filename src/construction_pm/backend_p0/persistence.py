@@ -133,6 +133,23 @@ class SQLiteBackendP0Repository(BackendP0Repository):
             return None
         return StoredRecord(_record_from_payload(json.loads(row[0])), int(row[1]))
 
+    def list_records(self, tenant_id: str, project_id: str, record_types: tuple[str, ...] = ()) -> tuple[StoredRecord, ...]:
+        if record_types:
+            placeholders = ",".join("?" for _ in record_types)
+            rows = self.connection.execute(
+                "SELECT payload_json, record_revision FROM backend_p0_records "
+                f"WHERE tenant_id=? AND project_id=? AND record_type IN ({placeholders}) "
+                "ORDER BY record_type, record_id",
+                (tenant_id, project_id, *record_types),
+            ).fetchall()
+        else:
+            rows = self.connection.execute(
+                "SELECT payload_json, record_revision FROM backend_p0_records "
+                "WHERE tenant_id=? AND project_id=? ORDER BY record_type, record_id",
+                (tenant_id, project_id),
+            ).fetchall()
+        return tuple(StoredRecord(_record_from_payload(json.loads(payload)), int(revision)) for payload, revision in rows)
+
 
 
 def _record_status(payload: dict) -> str:

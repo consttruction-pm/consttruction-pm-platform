@@ -16,6 +16,7 @@ class StoredRecord:
 class BackendP0Repository(Protocol):
     def save(self, record: Record, expected_revision: int | None = None) -> StoredRecord: ...
     def get(self, tenant_id: str, project_id: str, record_type: str, record_id: str) -> StoredRecord | None: ...
+    def list_records(self, tenant_id: str, project_id: str, record_types: tuple[str, ...] = ()) -> tuple[StoredRecord, ...]: ...
 
 
 class InMemoryBackendP0Repository:
@@ -45,6 +46,14 @@ class InMemoryBackendP0Repository:
 
     def get(self, tenant_id: str, project_id: str, record_type: str, record_id: str) -> StoredRecord | None:
         return self._records.get((tenant_id, project_id, record_type, record_id))
+
+    def list_records(self, tenant_id: str, project_id: str, record_types: tuple[str, ...] = ()) -> tuple[StoredRecord, ...]:
+        allowed = set(record_types)
+        return tuple(
+            stored
+            for (t, p, rtype, _), stored in self._records.items()
+            if t == tenant_id and p == project_id and (not allowed or rtype in allowed)
+        )
 
 
 def _record_type(record: Record) -> str:
