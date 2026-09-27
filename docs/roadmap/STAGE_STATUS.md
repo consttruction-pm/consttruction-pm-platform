@@ -494,7 +494,7 @@ Status: **current implementation track through 34.2.14 completed/merged; documen
 Boundary rule: Portfolio Control remains a cross-project read/decision layer and does not duplicate authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculations. Portfolio decisions/actions do not directly execute project mutations; application/API authorization and mutation boundaries remain authoritative.
 
 ### Stage 34.3 — Web/Site Experience: Control Room + Field Foundations
-Status: **runtime-verified through 2026-09-27**
+Status: **~90% — runtime-verified implementation track through 2026-09-27**
 - PR #248 — Main Workspace WBS/Activity Grid/Gantt rendering: merged; CI runtime-verified.
 - PR #249 — versioned `workspace-control-room.v1` snapshot contract and Web runtime-test gate: merged; CI runtime-verified.
 - PR #252 — Web projection of existing `control-intelligence-result.v1`: merged; CI runtime-verified.
@@ -505,19 +505,19 @@ Status: **runtime-verified through 2026-09-27**
 - PR #261 — Inspection / Quality-NCR / Safety Observation / Punch-Closeout Web projections and Field Assurance Control Room: merged; Client Typecheck + ConstructionPM CI runtime-verified.
 - PR #262 — versioned `workspace-control-room-read.v1` Web + Backend read integration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
 - PR #264 — Change Notice / Change Case / Claim / Change-Claim Impact Web workflow and additive read-envelope hydration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
-- Web client remains presentation/state-only. No P6/Scheduling, Calendar, Progress/EVM, Resource/Cost or financial calculation authority is duplicated in the client.
-- Attendance, equipment, issue, assurance, commercial and Control Intelligence data remain linked to authoritative tenant/project/revision/evidence contracts.
+- PR #271 — Document revision boundary correction: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- PR #280 — Document/RFI/Submittal application/API boundary: merged; runtime-verified.
+- PR #281 — Procurement RFQ/Quote/Bid Comparison/PO/Commitment/Delivery Web workflow: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- PR #283 — approval-safe AI Smart Guide + `schedule-query.v1` request composer: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- Web remains presentation/state-only; authoritative Scheduling/P6, Calendar, Progress/EVM, Resource/Cost and financial semantics stay outside the client.
+- AI proposals remain traceable and approval-aware; no client-side consequential action execution is permitted.
 
-Current remaining Stage 34.3 gates:
-- Document / RFI / Submittal / document-linkage Web workflow.
-- Procurement / Commercial Commitments Web workflow.
-- AI Copilot / Smart Guide / voice presentation against the existing authoritative contracts.
-- Web/Desktop/Mobile parity for the newly integrated Control Room workflows.
+### Stage 34.3 remaining gates
+- Voice interaction / speech-to-command UX against versioned query/action contracts.
+- Cross-client parity for the expanded Control Room workflows.
 - Final Stage 34.3 integration/regression gate and runtime evidence reconciliation.
 
-Stale PR note:
-- Earlier Stage 34.3 PRs whose content is already represented by merged current-main gates must not be re-implemented or merged again merely because their branches remain open.
-
+Percentage note: the ~90% figure is an engineering workflow estimate based on completed Stage 34.3 gates; it is not a claim of commercial product completeness or market superiority.
 
 ### 2026-09-27 — Backend Continuation Reconciliation After PR #273
 Status: **verified baseline / documentation reconciled**
