@@ -77,3 +77,13 @@ def test_invalid_confidence_is_rejected_by_predictive_risk_contract():
             source_refs=(source(),),
             model_version=MODEL_VERSION,
         )
+
+
+def test_confidence_reflects_evidence_even_when_indicators_are_zero():
+    refs = (source(1), source(2), source(3), source(4, source_type="resource"))
+    result = assess_predictive_schedule_risk(
+        "risk-zero", scope(), "next", ScheduleRiskIndicators(0.0, 0.0, 0.0, 0.0), refs
+    )
+    assert result.confidence is RiskBand.HIGH
+    assert result.attributes["risk_score"] == 0.0
+    assert result.likelihood is RiskBand.LOW
