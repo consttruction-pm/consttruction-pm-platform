@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/workspace-*.test.js"
+    "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.0.0"
   }
 }
