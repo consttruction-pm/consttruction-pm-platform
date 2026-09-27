@@ -15,8 +15,11 @@ class ERPAccountingOperation:
     operation_id: str
     operation_type: str
     payload: dict[str, object]
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise ERPAccountingIntegrationError("UNSUPPORTED_ERP_ACCOUNTING_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
@@ -37,8 +40,11 @@ class ERPAccountingSyncResult:
     status: str
     external_reference: str | None
     message: str = ""
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise ERPAccountingIntegrationError("UNSUPPORTED_ERP_ACCOUNTING_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
