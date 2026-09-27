@@ -44,7 +44,8 @@ def _service():
 
 def _execution(scope: BackendScope = _scope()) -> FieldAssuranceExecution:
     return FieldAssuranceExecution(
-        "EXEC-1", "TPL-1", 2, scope, (("I-1", "12.5"), ("I-2", "pass")),
+        "EXEC-1", scope, "TPL-1", 2,
+        (("I-1", "12.5"), ("I-2", "pass")),
         "user-1", datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
@@ -80,12 +81,12 @@ def test_execution_requires_exact_template_version_and_required_answers():
         service.create_template(_template())
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="MISSING_REQUIRED_ANSWER"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-MISSING", "TPL-1", 2, _scope(), (("I-2", "pass"),),
+                "EXEC-MISSING", _scope(), "TPL-1", 2, (("I-2", "pass"),),
                 "user-1", datetime.now(timezone.utc),
             ))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_VERSION_MISMATCH"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-OLD", "TPL-1", 1, _scope(), (("I-1", "12.5"), ("I-2", "pass")),
+                "EXEC-OLD", _scope(), "TPL-1", 1, (("I-1", "12.5"), ("I-2", "pass")),
                 "user-1", datetime.now(timezone.utc),
             ))
     finally:
@@ -100,7 +101,7 @@ def test_execution_rejects_scope_mismatch():
             service.execute(_execution(_scope(5)))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-TENANT", "TPL-1", 2, BackendScope("tenant-2", "project-1", 4),
+                "EXEC-TENANT", BackendScope("tenant-2", "project-1", 4), "TPL-1", 2,
                 (("I-1", "12.5"), ("I-2", "pass")), "user-1", datetime.now(timezone.utc),
             ))
     finally:
@@ -116,7 +117,7 @@ def test_execution_is_idempotent_and_conflicts_are_rejected():
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_ID_CONFLICT"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-1", "TPL-1", 2, _scope(), (("I-1", "99"), ("I-2", "pass")),
+                "EXEC-1", _scope(), "TPL-1", 2, (("I-1", "99"), ("I-2", "pass")),
                 "user-1", datetime.now(timezone.utc),
             ))
     finally:
@@ -128,7 +129,7 @@ def test_execution_rollback_leaves_no_partial_row():
     try:
         service.create_template(_template())
         bad = FieldAssuranceExecution(
-            "EXEC-ROLLBACK", "TPL-1", 2, _scope(), (("I-1", "12.5"),),
+            "EXEC-ROLLBACK", _scope(), "TPL-1", 2, (("I-1", "12.5"),),
             "user-1", datetime.now(timezone.utc),
         )
         with pytest.raises(FieldAssuranceTemplatePersistenceError):
