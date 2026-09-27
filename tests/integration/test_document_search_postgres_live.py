@@ -36,10 +36,13 @@ def test_document_search_postgres_live_scope_revision_and_removal() -> None:
 
         adapter.index(entry)
         connection.commit()
-        assert [item.document_id for item in adapter.search(entry.tenant_id, entry.project_id, "LEVEL 2")] == ["doc-1"]
+        adapter.index(make_entry(suffix, revision=2, text="current revision"))
+        connection.commit()
+        assert adapter.search(entry.tenant_id, entry.project_id, "LEVEL 2") == ()
+        assert [item.document_id for item in adapter.search(entry.tenant_id, entry.project_id, "current")] == ["doc-1"]
 
         with pytest.raises(DocumentSearchRevisionConflict, match="DOCUMENT_SEARCH_STALE_REVISION"):
-            adapter.index(make_entry(suffix, revision=0, text="stale"))
+            adapter.index(make_entry(suffix, revision=1, text="stale"))
         connection.rollback()
 
         other_project = DocumentSearchEntry(
@@ -60,6 +63,6 @@ def test_document_search_postgres_live_scope_revision_and_removal() -> None:
             adapter.remove(entry.tenant_id, entry.project_id, entry.document_id, expected_revision=0)
         connection.rollback()
 
-        adapter.remove(entry.tenant_id, entry.project_id, entry.document_id, expected_revision=1)
+        adapter.remove(entry.tenant_id, entry.project_id, entry.document_id, expected_revision=2)
         connection.commit()
         assert adapter.search(entry.tenant_id, entry.project_id, "structural") == ()
