@@ -69,3 +69,12 @@ test("package, version, checksum, and signing key changes invalidate the signed 
   );
  }
 });
+
+test("rejects legacy artifact-only signature payloads",()=>{
+ const payload=new TextEncoder().encode(JSON.stringify({legacy:"artifact-only"}));
+ assert.throws(()=>verifyLanguagePackIntegrity(artifact,manifest(),(received)=>{
+  assert.notDeepEqual([...received],[...artifact]);
+  assert.notDeepEqual([...received],[...payload]);
+  return false;
+ }),/LANGUAGE_PACK_SIGNATURE_INVALID/);
+});
