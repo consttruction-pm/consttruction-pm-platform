@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
@@ -183,7 +182,6 @@ class StoredFieldOperation:
 
 class FieldOperationConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
-    def transaction(self) -> AbstractContextManager[None]: ...
 
 
 @dataclass
@@ -228,8 +226,7 @@ class PostgresFieldOperationStore:
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             raise FieldOperationError("INVALID_FIELD_OPERATION_IDEMPOTENCY_KEY")
 
-        with self.connection.transaction():
-            row = self.connection.execute(
+        row = self.connection.execute(
                 "SELECT revision FROM project_field_operation_revisions "
                 "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
                 (operation.tenant_id, operation.project_id),
