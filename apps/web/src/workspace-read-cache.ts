@@ -1,7 +1,6 @@
 import type { ProjectContext } from "./client.js";
 import {
   WorkspaceReadClient,
-  type WorkspaceControlRoomReadSnapshot,
   type WorkspaceReadOptions,
 } from "./workspace-read-api.js";
 import type { WorkspaceState } from "./workspace-model.js";
@@ -34,27 +33,11 @@ export type WorkspaceCachedReadResult = {
 };
 
 export class CachedWorkspaceReadClient {
-  private readonly readClient: WorkspaceReadClient;
-
-  constructor(private readonly cacheReader: WorkspaceReadCacheReader) {
-    this.readClient = new WorkspaceReadClient({
-      async get<T>(
-        _path: string,
-        _context: ProjectContext,
-      ) {
-        throw new Error("CACHED_WORKSPACE_READ_TRANSPORT_GET_NOT_EXPECTED");
-      },
-      async post<TRequest, TResponse>() {
-        throw new Error("CACHED_WORKSPACE_READ_TRANSPORT_POST_NOT_EXPECTED");
-      },
-    });
-  }
-
   async load(
     context: ProjectContext,
     online: boolean,
     options: WorkspaceReadOptions = {},
-  ): Promise<CachedWorkspaceReadResult> {
+  ): Promise<WorkspaceCachedReadResult> {
     const cached = await this.cacheReader.read(context, online);
 
     const transport = {
@@ -83,14 +66,6 @@ export class CachedWorkspaceReadClient {
       cacheState: cached.state,
     };
   }
-}
 
-/**
- * Explicitly narrows the shared cache payload to the Web read envelope at the
- * single presentation boundary. Validation remains owned by WorkspaceReadClient.
- */
-export function isWorkspaceControlRoomReadSnapshot(
-  value: unknown,
-): value is WorkspaceControlRoomReadSnapshot {
-  return typeof value === "object" && value !== null;
+  constructor(private readonly cacheReader: WorkspaceReadCacheReader) {}
 }
