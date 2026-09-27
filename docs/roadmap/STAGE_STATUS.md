@@ -703,3 +703,12 @@ Status: **100% — implemented, merged and runtime-verified through PR #345**
 - The earlier Web attempt in PR #327 is superseded and remains closed; no duplicate backend/resource-validation boundary was revived.
 - Remaining Issue #89 items are release/distribution certification concerns and are not counted as Stage 87.2 implementation gaps.
 - No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### 2026-09-28 — Issue #92 Web Complete Test Suite / CI Hardening
+Status: **implemented and merged — PR #347**
+- PR #347 completed the Web CI correction so the complete Web test suite is typechecked and executed through the existing CI boundary.
+- The initial full-suite run exposed a real Web validation defect: procurement quantity validation rejected valid decimal-string quantities. The validation regex was corrected without changing Shared Core/P6 calculation semantics.
+- A follow-up CI attempt exposed a temporary source-syntax defect in the explanatory comment; it was corrected before final verification.
+- Final head `d90d18ce58a8508d540a9a682d3abedb6457e2a2` passed Client Typecheck run `36350058224` and ConstructionPM CI run `36350058222`.
+- PR #347 merged to `main` as `9c9c0d9042f5bccf6e6fb8443374476cea70561a`.
+- This closes the repository-native Web test-suite CI slice of Issue #92; browser/native UI automation, accessibility automation, performance benchmarks, and release certification remain separate evidence gates.
