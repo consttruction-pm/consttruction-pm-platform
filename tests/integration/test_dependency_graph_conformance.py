@@ -118,3 +118,18 @@ def test_invalid_source_or_target_revision_is_rejected():
         link(source_revision=-1).validate()
     with pytest.raises(ValueError, match="INVALID_DEPENDENCY_TARGET_REVISION"):
         link(target_revision=9007199254740992).validate()
+
+
+def test_rfi_identifier_is_explicitly_projected_to_document_domain():
+    projected = project_dependency_link(
+        link(
+            source_resource_id="schedule:task-1",
+            target_resource_id="rfi:rfi-1",
+            dependency_type="schedule_to_rfi",
+        ),
+        graph_revision=7,
+    )
+
+    assert projected.graph.nodes["rfi:rfi-1"].domain is ControlDomain.DOCUMENT
+    assert projected.graph.nodes["rfi:rfi-1"].entity_type == "rfi"
+    assert projected.graph.nodes["rfi:rfi-1"].entity_id == "rfi-1"
