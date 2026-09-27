@@ -723,3 +723,12 @@ Status: **implemented and merged — PR #349**
 - PR #349 merged to `main` as `9b2235dd6e9835856be7c55746840b4908cbdd22`.
 - This closes the concrete Web shell/route integration slice of Issue #95. Actual Windows/mobile native-host rendering, browser accessibility automation, cross-client UI automation and production distribution certification remain separate evidence gates.
 - No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+
+### 2026-09-28 — AI Action Contract Version Identity (PR #348)
+Status: **runtime-verified and merged**
+- The AI Action Application boundary now preserves and validates the existing `ai-action-proposal` contract identity (`contract_version=1.0`).
+- Unsupported contract versions fail closed before permission/decision processing.
+- PR #348 exact implementation head `00449763b2d17fc2733e2c202b6d1485861f6d8e` passed Client Typecheck run **36350201852** and ConstructionPM CI run **36350201964**.
+- Merge commit: `4e269ab95f55159e6c36b763761e83c730bdd19d`.
+- This is a contract/application boundary correction only; no AI provider execution, Shared Core calculation, Scheduling/P6, Progress/EVM, Resource/Cost or financial formula semantics changed.
