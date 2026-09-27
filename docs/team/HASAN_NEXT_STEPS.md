@@ -4,7 +4,7 @@
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Branch: `main`
-- Current main baseline at this reconciliation: `793c4dbf3cc92ebca7bad5e421f16547b4964293`
+- Current main baseline at this reconciliation: `f008f4d20b797b7fc8c7fbe4b9af37fd96d9716d`
 - Latest completed backend change in the preceding baseline: PR #273, merged after its exact-head CI passed.
 - PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
 - Exact-head checks for PR #273 passed:
@@ -90,7 +90,7 @@ Shared Core remains authoritative for shared calculation semantics.
 
 ## Next point
 
-Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Document/RFI/Submittal backend Application/API boundary is now implemented and runtime-verified through PR #280. The Procurement/Commercial read integration is now implemented and runtime-verified through PR #286; do not duplicate the existing procurement persistence/core contract. The next selection must be the first actually missing Hasan-owned backend boundary supporting the remaining Stage 34.3 gates after reconciling current main and open PRs.
+Select the first **actually missing** Hasan-owned backend boundary supporting the remaining Stage 34.3 gates. Document/RFI/Submittal backend Application/API boundary is now implemented and runtime-verified through PR #280. The Procurement/Commercial read integration is implemented and runtime-verified through PR #286. The Schedule Query Application/API boundary is now implemented and runtime-verified through PR #295. For the remaining Stage 34.3 voice/presentation and cross-client parity gates, first verify whether the missing work is client/provider-adapter ownership per `VOICE_INTERACTION_BOUNDARY.md`; do not create a backend duplicate unless a concrete authoritative contract/application gap is found.
 
 Do not revive stale PRs merely because they remain open.
 
