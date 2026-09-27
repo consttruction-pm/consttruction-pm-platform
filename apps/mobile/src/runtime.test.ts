@@ -132,4 +132,15 @@ test("Mobile reconciles stale offline workspace after returning online", async (
   assert.equal(fresh.state, "fresh");
   assert.equal(fresh.cache.source_revision, 8);
   assert.equal(transport.calls, 1);
+})import { createMobileVoiceAdapters } from "./voice-adapters.ts";
+;
+test("mobile runtime exposes configured voice adapter boundary", () => {
+  const runtime = new MobileRuntime();
+  const adapters = createMobileVoiceAdapters({
+    input: { capabilities: { input: true, output: false }, async capture() { throw new Error("not invoked"); } },
+    output: { capabilities: { input: false, output: true }, async speak() {} },
+  });
+  assert.equal(runtime.voiceAdaptersOrNull(), null);
+  runtime.setVoiceAdapters(adapters);
+  assert.equal(runtime.voiceAdaptersOrNull(), adapters);
 });
