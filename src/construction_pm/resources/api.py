@@ -20,6 +20,17 @@ def resource_to_dto(resource: Resource) -> dict[str, Any]:
         "unit": resource.unit,
         "calendar_id": resource.calendar_id,
         "active": resource.active,
+        "rates": [
+            {
+                "rate": str(rate.rate),
+                "basis": rate.basis.value,
+                "currency": rate.currency,
+                "effective_from": None if rate.effective_from is None else rate.effective_from.isoformat(),
+                "effective_to": None if rate.effective_to is None else rate.effective_to.isoformat(),
+                "version": rate.version,
+            }
+            for rate in resource.rates
+        ],
     }
 
 
