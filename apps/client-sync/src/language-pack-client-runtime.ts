@@ -1,9 +1,9 @@
-import type {LanguagePackManifest} from "./language-pack-manifest.ts";
-import type {LanguagePackResource} from "./language-pack-resource-validation.ts";
-import type {LanguagePackSignatureVerifier} from "./language-pack-integrity.ts";
-import {LanguagePackLifecycle} from "./language-pack-lifecycle.ts";
-import type {LanguagePackActivationResult} from "./language-pack-update.ts";
-import type {ActivatedLanguagePack} from "./language-pack-activation.ts";
+import type {LanguagePackManifest} from "./language-pack-manifest.js";
+import type {LanguagePackResource} from "./language-pack-resource-validation.js";
+import type {LanguagePackSignatureVerifier} from "./language-pack-integrity.js";
+import {LanguagePackLifecycle} from "./language-pack-lifecycle.js";
+import type {LanguagePackActivationResult} from "./language-pack-update.js";
+import type {ActivatedLanguagePack} from "./language-pack-activation.js";
 
 export class LanguagePackClientRuntime {
   private readonly lifecycle = new LanguagePackLifecycle();
