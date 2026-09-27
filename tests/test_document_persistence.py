@@ -65,7 +65,7 @@ class FakeConnection:
         if sql.startswith("SELECT revision, event_type, actor_id, occurred_at"):
             tenant, project, document_id = params
             rows = [
-                (r[3], r[4], r[5], r[6])
+                (r[3], r[4], r[5], r[6], r[7] if len(r) > 7 else "")
                 for r in self.audit
                 if r[0] == tenant and r[1] == project and r[2] == document_id
             ]
