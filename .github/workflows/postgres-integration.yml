@@ -39,6 +39,7 @@ on:
       - "src/construction_pm/document_persistence.py"
       - "tests/integration/test_postgres_*.py"
       - "tests/integration/test_portfolio_decision_persistence.py"
+      - "tests/integration/test_portfolio_decision_postgres_live.py"
       - "tests/integration/test_dependency_graph_postgres_live.py"
       - "tests/integration/test_field_operations_postgres_live.py"
       - "tests/integration/test_change_claim_postgres_live.py"
