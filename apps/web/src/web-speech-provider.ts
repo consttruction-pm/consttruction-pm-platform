@@ -30,6 +30,7 @@ interface BrowserSpeechSynthesisUtterance {
   lang: string;
   text: string;
   onerror: (() => void) | null;
+  onend: (() => void) | null;
 }
 
 interface BrowserWindowSpeech {
@@ -115,8 +116,8 @@ export function createWebSpeechOutputAdapter(
       utterance.lang = context.language;
       await new Promise<void>((resolve, reject) => {
         utterance.onerror = () => reject(new Error("VOICE_OUTPUT_FAILED"));
+        utterance.onend = () => resolve();
         provider.speechSynthesis!.speak(utterance);
-        resolve();
       });
     },
   };
