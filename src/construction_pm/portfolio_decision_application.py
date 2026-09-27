@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
-from .control_intelligence.portfolio_decision import PortfolioDecisionBoundary, approve_portfolio_decision
+from .control_intelligence.portfolio_decision import (
+    PortfolioDecisionBoundary,
+    approve_portfolio_decision,
+    cancel_portfolio_decision,
+    close_portfolio_decision,
+    mark_portfolio_decision_implemented,
+    reject_portfolio_decision,
+)
 from .portfolio_decision_persistence import PostgresPortfolioDecisionStore, StoredPortfolioDecision
 
 
@@ -60,6 +67,74 @@ class PortfolioDecisionApplicationService:
             actor_id=context.user_id,
             occurred_at=approved_at,
             event_type="approved",
+        )
+
+
+    def reject(self, decision, *, context, expected_decision_revision, occurred_at):
+        return self._transition(
+            reject_portfolio_decision(decision),
+            context=context,
+            expected_decision_revision=expected_decision_revision,
+            occurred_at=occurred_at,
+            event_type="rejected",
+        )
+
+    def cancel(self, decision, *, context, expected_decision_revision, occurred_at):
+        return self._transition(
+            cancel_portfolio_decision(decision),
+            context=context,
+            expected_decision_revision=expected_decision_revision,
+            occurred_at=occurred_at,
+            event_type="cancelled",
+        )
+
+    def implement(
+        self,
+        decision,
+        *,
+        context,
+        expected_decision_revision,
+        implementation_reference,
+        implemented_at,
+    ):
+        return self._transition(
+            mark_portfolio_decision_implemented(
+                decision,
+                implementation_reference=implementation_reference,
+                implemented_at=implemented_at,
+            ),
+            context=context,
+            expected_decision_revision=expected_decision_revision,
+            occurred_at=implemented_at,
+            event_type="implemented",
+        )
+
+    def close(self, decision, *, context, expected_decision_revision, occurred_at):
+        return self._transition(
+            close_portfolio_decision(decision),
+            context=context,
+            expected_decision_revision=expected_decision_revision,
+            occurred_at=occurred_at,
+            event_type="closed",
+        )
+
+    def _transition(
+        self,
+        decision,
+        *,
+        context,
+        expected_decision_revision,
+        occurred_at,
+        event_type,
+    ):
+        self._authorize_scope(decision, context)
+        self._require(context, Permission.PROJECT_ADMIN)
+        return self.store.transition(
+            decision,
+            expected_decision_revision=expected_decision_revision,
+            actor_id=context.user_id,
+            occurred_at=occurred_at,
+            event_type=event_type,
         )
 
     @staticmethod
