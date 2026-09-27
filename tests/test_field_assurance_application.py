@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from dataclasses import replace
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
@@ -173,7 +174,7 @@ def test_execution_actor_must_match_authorized_actor():
     app = service()
     app.repository.create_template(template())
     with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_EXECUTED_BY_MISMATCH"):
-        app.execute(execution(), context=context(), expected_project_revision=7, actor_id="user-2")
+        app.execute(replace(execution(), executed_by="user-2"), context=context(), expected_project_revision=7, actor_id="user-1")
 
 
 def test_repository_execution_validation_remains_authoritative() -> None:
