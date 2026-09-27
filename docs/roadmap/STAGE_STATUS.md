@@ -551,3 +551,12 @@ Status: **runtime-verified through PR #286**
 - PR #286 exact head `8c5b26a6baca9856f577dec4aa08bbdf91368dc8` passed ConstructionPM CI run `36307286970` (Python 3.11/3.12/3.13) and Client Typecheck run `36307286973`.
 - Merge commit: `754621dbf2b3da01657e8a920fa500d1556ff8a2`.
 - Current main after subsequent repository activity: `793c4dbf3cc92ebca7bad5e421f16547b4964293`.
+
+### 2026-09-27 — Schedule Query Application/API Boundary
+Status: **runtime-verified through PR #295**
+- Added the missing Hasan-owned backend Application/API boundary for the existing Core `schedule-query.v1` and `schedule-query-result.v1` contracts.
+- The boundary enforces tenant/project authorization and exact query/result scope and revision identity.
+- Query evaluation remains delegated to an injected provider; no Scheduling/P6, calendar, Progress/EVM, Resource/Cost or financial calculation was added to API/persistence.
+- Source-backed answers and approval-aware proposed actions are preserved in the versioned result envelope.
+- PR #295 exact head `7ee2f6a99d053e560284310b9c63b967b4e26341` passed ConstructionPM CI run `36307602845` (Python 3.11/3.12/3.13) and Client Typecheck run `36307602866`.
+- Merge commit: `f008f4d20b797b7fc8c7fbe4b9af37fd96d9716d`.
