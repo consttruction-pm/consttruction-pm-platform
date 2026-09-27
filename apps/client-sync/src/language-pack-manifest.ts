@@ -22,7 +22,7 @@ export function validateLanguagePackManifest(value: unknown): LanguagePackManife
 
   const artifact = requireRecord(value.artifact, "INVALID_LANGUAGE_PACK_ARTIFACT");
   if (artifact.format !== "zip" && artifact.format !== "zstd" && artifact.format !== "tar.zst") throw new Error("INVALID_LANGUAGE_PACK_ARTIFACT");
-  if (!Number.isSafeInteger(artifact.compressed_size_bytes) || artifact.compressed_size_bytes < 0) throw new Error("INVALID_LANGUAGE_PACK_ARTIFACT");
+  const compressedSize = artifact.compressed_size_bytes;\n  if (typeof compressedSize !== "number" || !Number.isSafeInteger(compressedSize) || compressedSize < 0) throw new Error("INVALID_LANGUAGE_PACK_ARTIFACT");
   requireString(artifact.download_uri, "INVALID_LANGUAGE_PACK_ARTIFACT");
   try { new URL(artifact.download_uri); } catch { throw new Error("INVALID_LANGUAGE_PACK_ARTIFACT"); }
   requireStringOrNull(artifact.delta_from, "INVALID_LANGUAGE_PACK_ARTIFACT");
