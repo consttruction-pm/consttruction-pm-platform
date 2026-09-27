@@ -17,6 +17,10 @@ class DependencyIdempotencyReuse(ValueError):
     """Raised when an idempotency key is reused for different dependency input."""
 
 
+class DependencyResourceConflict(ValueError):
+    """Raised when a dependency resource already exists under another idempotency key."""
+
+
 @dataclass(frozen=True)
 class DependencyLink:
     resource_id: str
@@ -172,12 +176,17 @@ class PostgresDependencyGraphStore:
             "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
             (next_revision, link.tenant_id, link.project_id, current),
         )
-        self.connection.execute(
-            "INSERT INTO project_dependency_links "
-            "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, graph_revision, link_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-            (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
-        )
+        try:
+            self.connection.execute(
+                "INSERT INTO project_dependency_links "
+                "(tenant_id, project_id, resource_id, idempotency_key, fingerprint, graph_revision, link_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (link.tenant_id, link.project_id, link.resource_id, idempotency_key, fingerprint, next_revision, payload),
+            )
+        except Exception as exc:
+            if getattr(exc, "sqlstate", None) == "23505" and "project_dependency_links_pkey" in str(getattr(exc, "diag", "")):
+                raise DependencyResourceConflict("DEPENDENCY_RESOURCE_ALREADY_EXISTS") from exc
+            raise
         self.connection.execute(
             "INSERT INTO project_dependency_audit "
             "(tenant_id, project_id, resource_id, graph_revision, event_type, actor_id, occurred_at) "
