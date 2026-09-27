@@ -5,6 +5,7 @@ import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
+import { projectDocument, projectOcrResult, projectSearchIndex, type DocumentResourceSnapshot, type DocumentOcrSnapshot, type DocumentSearchIndexSnapshot } from "./workspace-document-control.js";
 import { projectTimecard, projectEquipmentStatus, type EquipmentStatusSnapshot, type FieldTimecardSnapshot } from "./workspace-field-ops.js";
 import {
   projectInspection,
@@ -37,6 +38,9 @@ export type WorkspaceControlRoomReadSnapshot = {
   change_cases?: readonly ChangeCaseSnapshot[];
   claims?: readonly ClaimRecordSnapshot[];
   change_claim_impacts?: readonly ChangeClaimImpactSnapshot[];
+  documents?: readonly DocumentResourceSnapshot[];
+  document_ocr_results?: readonly DocumentOcrSnapshot[];
+  document_search_entries?: readonly DocumentSearchIndexSnapshot[];
 };
 
 export type WorkspaceReadOptions = {
@@ -97,6 +101,26 @@ export class WorkspaceReadClient {
           changeCases: (result.data.change_cases ?? []).map((snapshot) => projectChangeCase(snapshot, toProjectScope(context))),
           claims: (result.data.claims ?? []).map((snapshot) => projectClaimRecord(snapshot, toProjectScope(context))),
           changeClaimImpacts: (result.data.change_claim_impacts ?? []).map((snapshot) => projectChangeClaimImpact(snapshot, toProjectScope(context))),
+        },
+      );
+
+      const documentSnapshots = result.data.documents ?? [];
+      const ocrByKey = new Map(
+        (result.data.document_ocr_results ?? []).map((snapshot) => [`${snapshot.document_id}:${snapshot.revision}`, snapshot]),
+      );
+      const indexByKey = new Map(
+        (result.data.document_search_entries ?? []).map((snapshot) => [`${snapshot.document_id}:${snapshot.revision}`, snapshot]),
+      );
+      const projectedDocuments = documentSnapshots.map((snapshot) => {
+        const key = `${snapshot.resource_id}:${snapshot.revision}`;
+        return projectDocument(snapshot, toProjectScope(context), ocrByKey.get(key), indexByKey.get(key));
+      });
+      state = setDocumentControl(
+        state,
+        {
+          documents: projectedDocuments,
+          documentOcrResults: (result.data.document_ocr_results ?? []).map((snapshot) => projectOcrResult(snapshot, toProjectScope(context))),
+          documentSearchEntries: (result.data.document_search_entries ?? []).map((snapshot) => projectSearchIndex(snapshot, toProjectScope(context))),
         },
       );
 
