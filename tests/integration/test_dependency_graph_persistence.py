@@ -157,9 +157,11 @@ def test_unknown_dependency_contract_values_are_rejected(overrides, error):
         link(**overrides).validate()
 
 
-def test_rfi_resource_identifier_is_rejected_as_outside_authoritative_contract():
-    with pytest.raises(ValueError, match="INVALID_DEPENDENCY_TARGET_RESOURCE_ID"):
-        link(target_resource_id="rfi:rfi-1", dependency_type="schedule_to_change").validate()
+def test_rfi_resource_identifier_is_valid():
+    link(
+        target_resource_id="rfi:rfi-1",
+        dependency_type="schedule_to_rfi",
+    ).validate()
 
 
 @pytest.mark.parametrize(
