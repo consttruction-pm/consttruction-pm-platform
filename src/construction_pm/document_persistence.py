@@ -296,8 +296,6 @@ class DocumentLifecycleService:
             to_status=document.status,
         )
         return self.store.transition_status(document, expected_revision=expected_revision, actor_id=actor_id, occurred_at=occurred_at, reason=reason)
-
-
     def history(self, tenant_id: str, project_id: str, document_id: str):
         rows = self.connection.execute(
             "SELECT revision, event_type, actor_id, occurred_at, reason "
