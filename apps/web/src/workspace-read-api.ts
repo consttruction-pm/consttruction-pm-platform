@@ -4,6 +4,7 @@ import { workspaceActivitiesFromSnapshot, type WorkspaceControlRoomSnapshot } fr
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
+import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
 import { projectTimecard, projectEquipmentStatus, type EquipmentStatusSnapshot, type FieldTimecardSnapshot } from "./workspace-field-ops.js";
 import {
   projectInspection,
@@ -32,6 +33,10 @@ export type WorkspaceControlRoomReadSnapshot = {
   quality_records: readonly QualityRecordSnapshot[];
   safety_observations: readonly SafetyObservationSnapshot[];
   punch_items: readonly PunchItemSnapshot[];
+  change_notices?: readonly ChangeNoticeSnapshot[];
+  change_cases?: readonly ChangeCaseSnapshot[];
+  claims?: readonly ClaimRecordSnapshot[];
+  change_claim_impacts?: readonly ChangeClaimImpactSnapshot[];
 };
 
 export type WorkspaceReadOptions = {
@@ -85,6 +90,16 @@ export class WorkspaceReadClient {
         result.data.field_timecards.map((snapshot) => projectTimecard(snapshot, toProjectScope(context))),
         result.data.equipment_status_reports.map((snapshot) => projectEquipmentStatus(snapshot, toProjectScope(context))),
       );
+      state = setChangeClaimRecords(
+        state,
+        {
+          changeNotices: (result.data.change_notices ?? []).map((snapshot) => projectChangeNotice(snapshot, toProjectScope(context))),
+          changeCases: (result.data.change_cases ?? []).map((snapshot) => projectChangeCase(snapshot, toProjectScope(context))),
+          claims: (result.data.claims ?? []).map((snapshot) => projectClaimRecord(snapshot, toProjectScope(context))),
+          changeClaimImpacts: (result.data.change_claim_impacts ?? []).map((snapshot) => projectChangeClaimImpact(snapshot, toProjectScope(context))),
+        },
+      );
+
       state = setFieldAssurance(state, {
         inspections: result.data.inspections.map((snapshot) => projectInspection(snapshot, {
           tenant_id: context.tenant_id,
