@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from construction_pm.document_persistence import (
+    DocumentApprovalTransitionError,
     DocumentIdempotencyReuse,
     DocumentRecord,
     DocumentRevisionConflict,
@@ -130,3 +131,73 @@ def test_revision_safe_ceiling_is_enforced():
     connection.documents[("tenant-1", "project-1", "doc-1")]["revision"] = 9_007_199_254_740_991
     with pytest.raises(ValueError, match="DOCUMENT_REVISION_EXHAUSTED"):
         store.update(make_document(status="submitted"), expected_revision=9_007_199_254_740_991, actor_id="user-2", occurred_at=NOW)
+
+
+def test_document_approval_lifecycle_enforces_allowed_transitions_and_audits_actor():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-1", actor_id="user-1", occurred_at=NOW)
+
+    submitted = store.transition_status(
+        make_document(status="submitted"),
+        expected_revision=created.revision,
+        actor_id="reviewer-1",
+        occurred_at=NOW,
+        reason="ready for review",
+    )
+    assert submitted.document.status == "submitted"
+    assert submitted.revision == 2
+
+    approved = store.transition_status(
+        make_document(status="approved"),
+        expected_revision=submitted.revision,
+        actor_id="approver-1",
+        occurred_at=NOW,
+        reason="accepted",
+    )
+    assert approved.document.status == "approved"
+    assert approved.revision == 3
+    assert [event.event_type for event in store.history("tenant-1", "project-1", "doc-1")] == [
+        "created",
+        "status:draft->submitted:ready for review",
+        "status:submitted->approved:accepted",
+    ]
+
+
+def test_document_approval_rejects_invalid_transition_and_does_not_mutate():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-1", actor_id="user-1", occurred_at=NOW)
+
+    with pytest.raises(
+        DocumentApprovalTransitionError,
+        match="DOCUMENT_INVALID_STATUS_TRANSITION:draft->approved",
+    ):
+        store.transition_status(
+            make_document(status="approved"),
+            expected_revision=created.revision,
+            actor_id="approver-1",
+            occurred_at=NOW,
+        )
+
+    current = store.get("tenant-1", "project-1", "doc-1")
+    assert current.document.status == "draft"
+    assert current.revision == 1
+    assert len(store.history("tenant-1", "project-1", "doc-1")) == 1
+
+
+def test_document_approval_uses_current_document_payload_not_caller_mutations():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-1", actor_id="user-1", occurred_at=NOW)
+
+    store.transition_status(
+        make_document(status="submitted", title="tampered title", storage_ref="object://tampered"),
+        expected_revision=created.revision,
+        actor_id="reviewer-1",
+        occurred_at=NOW,
+    )
+    current = store.get("tenant-1", "project-1", "doc-1")
+    assert current.document.status == "submitted"
+    assert current.document.title == "Structural drawing"
+    assert current.document.storage_ref == "object://documents/doc-1/rev-1"
