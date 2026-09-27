@@ -256,3 +256,20 @@ test("workspace read client rejects malformed procurement collection", async () 
   if (result.ok) throw new Error("expected invalid procurement collection error");
   assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
 });
+
+test("workspace read client rejects null optional collections", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      documents: null,
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid optional collection error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
+});
