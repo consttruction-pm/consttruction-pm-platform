@@ -33,7 +33,7 @@ from .models import (
 from .persistence import SQLiteBackendP0Repository
 from .transactions import SQLiteTransactionManager
 from .resource_envelope import resource_family_for_record, resource_type_for_record, to_resource_envelope
-from .workspace_read import (
+from ..field_assurance_templates_repository import (\n    FieldAssuranceExecution,\n    FieldAssuranceTemplateApplicationService,\n    FieldAssuranceTemplatePersistenceError,\n    SQLiteFieldAssuranceTemplateRepository,\n)\nfrom .workspace_read import (
     WORKSPACE_CONTROL_ROOM_READ_PATH,
     WORKSPACE_CONTROL_ROOM_READ_VERSION,
     WorkspaceControlRoomReadService,
@@ -77,7 +77,7 @@ __all__ = [
     "resource_family_for_record",
     "resource_type_for_record",
     "to_resource_envelope",
-    "WORKSPACE_CONTROL_ROOM_READ_PATH",
+    "FieldAssuranceExecution",\n    "FieldAssuranceTemplateApplicationService",\n    "FieldAssuranceTemplatePersistenceError",\n    "SQLiteFieldAssuranceTemplateRepository",\n    "WORKSPACE_CONTROL_ROOM_READ_PATH",
     "WORKSPACE_CONTROL_ROOM_READ_VERSION",
     "WorkspaceControlRoomReadService",
     "WorkspaceReadProvider",
