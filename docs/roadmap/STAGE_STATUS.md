@@ -513,9 +513,9 @@ Status: **~90% — runtime-verified implementation track through 2026-09-27**
 - AI proposals remain traceable and approval-aware; no client-side consequential action execution is permitted.
 
 ### Stage 34.3 remaining gates
-- Voice interaction / speech-to-command UX against versioned query/action contracts.
-- Cross-client parity for the expanded Control Room workflows.
+- Provider-specific voice UX/integration (ASR/TTS, microphone/device integration, codecs and presentation) behind the existing provider-neutral `VOICE_INTERACTION_BOUNDARY.md`; no backend duplicate is required unless a concrete authoritative contract gap is demonstrated.
 - Final Stage 34.3 integration/regression gate and runtime evidence reconciliation.
+- Cross-client voice adapter parity and regression coverage are already runtime-verified through PRs #334 and #338 and are no longer an open Stage 34.3 gate.
 
 Percentage note: the ~90% figure is an engineering workflow estimate based on completed Stage 34.3 gates; it is not a claim of commercial product completeness or market superiority.
 
@@ -659,3 +659,13 @@ Status: **runtime-verified through PR #339**
 - PR #339 exact implementation head `1aa5216f67336a2a9365ad2e2ebff52aa80a3190` passed Client Typecheck run **36348391907** and ConstructionPM CI run **36348391989**.
 - Merge commit: `c8076792dbc5896d6fb2c6fc667322a17da58c31`.
 - No accounting formulas, AP/AR semantics or financial calculations were introduced.
+
+
+### 2026-09-28 — Stage 34.3 Gate Reconciliation After PR #338
+Status: **documentation reconciled with current main evidence**
+- Cross-client voice adapter parity is closed by PR #334 and its runtime verification; PR #338 subsequently hardened the Web/Desktop/Mobile regression matrix and also passed Client Typecheck and ConstructionPM CI on its exact implementation head.
+- Portfolio Query Application/API boundary is runtime-verified through PR #336, including tenant scope and project-read authorization.
+- Dependency Graph API boundary and revision provenance are runtime-verified through PRs #328 and #331.
+- ERP/accounting contract-version identity is runtime-verified through PR #339.
+- Therefore the previous roadmap wording that listed cross-client parity as an open Stage 34.3 gate was stale. The remaining Stage 34.3 implementation work is provider-specific voice UX/integration plus the final integration/evidence reconciliation; provider-specific ASR/TTS remains outside the backend/application boundary.
+- No new numbered stage is created by this reconciliation.
