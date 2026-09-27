@@ -6,6 +6,12 @@ from .contracts import ControlScope, SourceReference, require_enum
 from .graph import ControlDomain
 
 
+def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
 class RiskBand(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
@@ -45,3 +51,4 @@ class PredictiveScheduleRisk:
             require_enum(domain, ControlDomain, "INVALID_PREDICTIVE_RISK_DOMAIN")
         if not self.source_refs:
             raise ValueError("PREDICTIVE_RISK_SOURCE_REQUIRED")
+        _require_source_scope(self.source_refs, self.scope, "PREDICTIVE_RISK_SOURCE_REVISION_MISMATCH")
