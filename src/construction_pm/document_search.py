@@ -82,3 +82,87 @@ class InMemoryDocumentSearchAdapter:
             and entry.project_id == project_id
             and normalized in entry.text.casefold()
         )
+
+
+@dataclass
+class PostgresDocumentSearchAdapter:
+    """PostgreSQL reference persistence; search-engine-specific indexing stays external."""
+
+    connection: object
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_document_search_index (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                document_id TEXT NOT NULL,
+                revision BIGINT NOT NULL,
+                content_hash TEXT NOT NULL,
+                text_content TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, document_id)
+            )"""
+        )
+
+    def index(self, entry: DocumentSearchEntry) -> None:
+        entry.validate()
+        row = self.connection.execute(
+            "SELECT revision FROM project_document_search_index "
+            "WHERE tenant_id=%s AND project_id=%s AND document_id=%s",
+            (entry.tenant_id, entry.project_id, entry.document_id),
+        ).fetchone()
+        if row is not None and entry.revision < row[0]:
+            raise DocumentSearchRevisionConflict("DOCUMENT_SEARCH_STALE_REVISION")
+        self.connection.execute(
+            "INSERT INTO project_document_search_index "
+            "(tenant_id, project_id, document_id, revision, content_hash, text_content) "
+            "VALUES (%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id, project_id, document_id) DO UPDATE SET "
+            "revision=EXCLUDED.revision, content_hash=EXCLUDED.content_hash, text_content=EXCLUDED.text_content "
+            "WHERE project_document_search_index.revision <= EXCLUDED.revision",
+            (
+                entry.tenant_id, entry.project_id, entry.document_id,
+                entry.revision, entry.content_hash, entry.text,
+            ),
+        )
+
+    def remove(self, tenant_id: str, project_id: str, document_id: str, expected_revision: int) -> None:
+        row = self.connection.execute(
+            "SELECT revision FROM project_document_search_index "
+            "WHERE tenant_id=%s AND project_id=%s AND document_id=%s",
+            (tenant_id, project_id, document_id),
+        ).fetchone()
+        if row is None:
+            return
+        if expected_revision != row[0]:
+            raise DocumentSearchRevisionConflict("DOCUMENT_SEARCH_STALE_REVISION")
+        self.connection.execute(
+            "DELETE FROM project_document_search_index "
+            "WHERE tenant_id=%s AND project_id=%s AND document_id=%s AND revision=%s",
+            (tenant_id, project_id, document_id, expected_revision),
+        )
+
+    def search(self, tenant_id: str, project_id: str, query: str) -> tuple[DocumentSearchEntry, ...]:
+        if not isinstance(query, str):
+            raise DocumentSearchIndexError("INVALID_DOCUMENT_SEARCH_QUERY")
+        normalized = query.strip().casefold()
+        if not normalized:
+            return ()
+        rows = self.connection.execute(
+            "SELECT document_id, revision, content_hash, text_content "
+            "FROM project_document_search_index "
+            "WHERE tenant_id=%s AND project_id=%s "
+            "AND LOWER(text_content) LIKE %s "
+            "ORDER BY document_id, revision",
+            (tenant_id, project_id, f"%{normalized}%"),
+        ).fetchall()
+        return tuple(
+            DocumentSearchEntry(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                document_id=row[0],
+                revision=row[1],
+                content_hash=row[2],
+                text=row[3],
+            )
+            for row in rows
+        )
