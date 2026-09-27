@@ -160,3 +160,62 @@ def test_dependency_graph_live_transaction_rolls_back_revision_link_and_audit() 
                 (tenant_id, project_id),
             )
             assert cursor.fetchone()[0] == 0
+
+
+def test_dependency_graph_live_idempotency_reuse_does_not_advance_revision() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"reuse-tenant-{suffix}"
+    project_id = f"reuse-project-{suffix}"
+    resource_id = f"reuse-dependency-{suffix}"
+    key = f"reuse-idem-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+    link = DependencyLink(
+        resource_id=resource_id,
+        tenant_id=tenant_id,
+        project_id=project_id,
+        revision=1,
+        source_resource_id=f"schedule:task-{suffix}",
+        target_resource_id=f"rfi:rfi-{suffix}",
+        dependency_type="schedule_to_rfi",
+        metadata={"relation": "blocks"},
+    )
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDependencyGraphStore(connection)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        connection.commit()
+
+        with PostgresTransactionManager(connection).transaction():
+            store.persist(
+                link,
+                expected_graph_revision=0,
+                idempotency_key=key,
+                actor_id="requester-1",
+                occurred_at=created_at,
+            )
+
+        with PostgresTransactionManager(connection).transaction():
+            with pytest.raises(DependencyIdempotencyReuse):
+                store.persist(
+                    DependencyLink(
+                        resource_id=f"{resource_id}-other",
+                        tenant_id=tenant_id,
+                        project_id=project_id,
+                        revision=1,
+                        source_resource_id=f"schedule:other-{suffix}",
+                        target_resource_id=f"rfi:other-{suffix}",
+                        dependency_type="schedule_to_rfi",
+                        metadata={"relation": "different"},
+                    ),
+                    expected_graph_revision=1,
+                    idempotency_key=key,
+                    actor_id="requester-1",
+                    occurred_at=created_at,
+                )
+
+        loaded = store.get(tenant_id, project_id, resource_id)
+        assert loaded is not None
+        assert loaded.graph_revision == 1
+        assert store.get(tenant_id, project_id, f"{resource_id}-other") is None
+        assert len(store.history(tenant_id, project_id, resource_id)) == 1
