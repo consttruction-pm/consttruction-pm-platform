@@ -82,7 +82,7 @@ class SQLiteP6FieldRegistryRepository:
         payload = json.dumps(_record_payload(record), sort_keys=True, separators=(",", ":"))
         row = self.connection.execute(
             """
-            SELECT payload_json
+            SELECT project_revision, payload_json
             FROM p6_field_registry
             WHERE tenant_id=? AND project_id=? AND registry_version=? AND field_id=?
             """,
@@ -94,7 +94,9 @@ class SQLiteP6FieldRegistryRepository:
             ),
         ).fetchone()
         if row is not None:
-            if row[0] != payload:
+            if int(row[0]) != record.scope.project_revision:
+                raise P6FieldRegistryPersistenceError("REVISION_CONFLICT")
+            if row[1] != payload:
                 raise P6FieldRegistryPersistenceError("IMMUTABLE_FIELD_DEFINITION")
             return record
 
@@ -137,12 +139,14 @@ class SQLiteP6FieldRegistryRepository:
             SELECT project_revision, field_id, subject_area, p6_field,
                    display_name, data_type, writable, computed, unit
             FROM p6_field_registry
-            WHERE tenant_id=? AND project_id=? AND registry_version=? AND field_id=?
+            WHERE tenant_id=? AND project_id=? AND registry_version=? AND project_revision=? AND field_id=?
             """,
             (scope.tenant_id, scope.project_id, registry_version, field_id),
         ).fetchone()
         if row is None:
             return None
+        if int(row[0]) != scope.project_revision:
+            raise P6FieldRegistryPersistenceError("REVISION_CONFLICT")
         return _record_from_row(scope, registry_version, row)
 
     def list_fields(
@@ -168,6 +172,7 @@ class SQLiteP6FieldRegistryRepository:
             scope.tenant_id,
             scope.project_id,
             registry_version,
+            scope.project_revision,
         )
         if subject_area is not None:
             query += " AND subject_area=?"
