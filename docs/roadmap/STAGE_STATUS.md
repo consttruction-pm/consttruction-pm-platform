@@ -669,3 +669,14 @@ Status: **documentation reconciled with current main evidence**
 - ERP/accounting contract-version identity is runtime-verified through PR #339.
 - Therefore the previous roadmap wording that listed cross-client parity as an open Stage 34.3 gate was stale. The remaining Stage 34.3 implementation work is provider-specific voice UX/integration plus the final integration/evidence reconciliation; provider-specific ASR/TTS remains outside the backend/application boundary.
 - No new numbered stage is created by this reconciliation.
+
+
+### 2026-09-27 — Stage 34.3 Web Speech provider integration
+Status: **runtime-verified through PR #341**
+- Added the first concrete Web provider-specific voice integration behind the existing shared client-sync voice boundary.
+- Browser `SpeechRecognition`/`webkitSpeechRecognition` input and `speechSynthesis` output remain isolated in the Web provider adapter; normalized commands continue through the existing `voice-command.v1` contract.
+- Added fail-closed provider capability coverage and corrected Web typecheck compatibility by resolving browser speech globals through the provider-owned runtime boundary.
+- PR #341 exact implementation head `916df2d2dd2936b6e8aa16afac327ff777daa307` passed Client Typecheck run **36348589560** and ConstructionPM CI run **36348589595**.
+- Merge commit: `a7d2486a3355a6455b0f779c036399bef336eb46`.
+- No backend voice endpoint, scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+- Remaining Stage 34.3 work is limited to provider-specific UX/integration and final evidence reconciliation for client/provider ownership boundaries not yet concretely covered.
