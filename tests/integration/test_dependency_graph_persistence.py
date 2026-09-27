@@ -23,11 +23,33 @@ class Cursor:
         return self._rows
 
 
+class Transaction:
+    def __init__(self, connection):
+        self.connection = connection
+        self.snapshot = None
+
+    def __enter__(self):
+        self.snapshot = (
+            dict(self.connection.revisions),
+            dict(self.connection.links),
+            list(self.connection.audit),
+        )
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            self.connection.revisions, self.connection.links, self.connection.audit = self.snapshot
+        return False
+
+
 class Connection:
     def __init__(self):
         self.revisions = {}
         self.links = {}
         self.audit = []
+
+    def transaction(self):
+        return Transaction(self)
 
     def execute(self, sql, params=()):
         if sql.startswith("INSERT INTO project_dependency_revisions"):
@@ -236,3 +258,26 @@ def test_dependency_metadata_nested_array_order_changes_fingerprint() -> None:
     first = link(metadata={"outer": {"items": [{"id": 1}, {"id": 2}]}})
     second = link(metadata={"outer": {"items": [{"id": 2}, {"id": 1}]}})
     assert dependency_fingerprint(first) != dependency_fingerprint(second)
+
+
+def test_persistence_rolls_back_revision_and_resource_on_audit_failure():
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    store.initialize()
+    store.ensure_project("T-1", "P-1")
+    original_execute = connection.execute
+
+    def failing_execute(sql, params=()):
+        if sql.startswith("INSERT INTO project_dependency_audit"):
+            raise RuntimeError("audit write failed")
+        return original_execute(sql, params)
+
+    connection.execute = failing_execute
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(RuntimeError, match="audit write failed"):
+        store.persist(link(), expected_graph_revision=0, idempotency_key="rollback", actor_id="u-1", occurred_at=now)
+
+    assert connection.revisions[("T-1", "P-1")] == 0
+    assert connection.links == {}
+    assert connection.audit == []
