@@ -34,6 +34,7 @@ _DOMAIN_BY_PREFIX = {
     "resource": ControlDomain.RESOURCE,
     "cost": ControlDomain.COST,
     "document": ControlDomain.DOCUMENT,
+    "rfi": ControlDomain.DOCUMENT,
     "change": ControlDomain.CHANGE,
     "claim": ControlDomain.CLAIM,
     "procurement": ControlDomain.PROCUREMENT,
