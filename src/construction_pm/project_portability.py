@@ -12,6 +12,8 @@ class ProjectPortabilityError(ValueError):
 
 @dataclass(frozen=True)
 class ProjectPortabilitySnapshot:
+    SUPPORTED_SCHEMA_VERSION = "project-portability.v1"
+
     schema_version: str
     tenant_id: str
     project_id: str
@@ -23,8 +25,8 @@ class ProjectPortabilitySnapshot:
     module_refs: Mapping[str, Any]
 
     def validate(self) -> None:
-        if not isinstance(self.schema_version, str) or not self.schema_version.strip():
-            raise ProjectPortabilityError("INVALID_SCHEMA_VERSION")
+        if self.schema_version != self.SUPPORTED_SCHEMA_VERSION:
+            raise ProjectPortabilityError("UNSUPPORTED_SCHEMA_VERSION")
         for name, value in (("tenant_id", self.tenant_id), ("project_id", self.project_id)):
             if not isinstance(value, str) or not value.strip():
                 raise ProjectPortabilityError(f"INVALID_{name.upper()}")
