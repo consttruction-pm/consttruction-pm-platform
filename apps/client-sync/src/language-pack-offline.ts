@@ -18,6 +18,11 @@ export class OfflineLanguagePackStore{
   return this.cacheActivatedPack({manifest:pack.manifest,resources});
  }
 
+ cacheActivatedPack(pack:ActivatedLanguagePack):ActivatedLanguagePack{
+  this.cached=Object.freeze({manifest:pack.manifest,resources:pack.resources});
+  return this.cached;
+ }
+
  activateOffline():ActivatedLanguagePack{
   if(!this.cached) throw new Error("LANGUAGE_PACK_OFFLINE_CACHE_UNAVAILABLE");
   return this.cached;
