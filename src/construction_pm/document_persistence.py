@@ -4,15 +4,19 @@ import hashlib
 import json
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 
 MAX_SAFE_REVISION = 9_007_199_254_740_991
-DOCUMENT_TYPES = {
-    "contract", "drawing", "correspondence", "rfi",
-    "submittal", "delay_claim", "evidence",
-}
+DOCUMENT_TYPES = {"contract", "drawing", "correspondence", "rfi", "submittal", "delay_claim", "evidence"}
 DOCUMENT_STATUSES = {"draft", "submitted", "approved", "rejected", "superseded"}
+DOCUMENT_APPROVAL_TRANSITIONS = {
+    "draft": {"submitted"},
+    "submitted": {"approved", "rejected"},
+    "rejected": {"submitted"},
+    "approved": {"superseded"},
+    "superseded": set(),
+}
 
 
 class DocumentRevisionConflict(ValueError):
@@ -27,13 +31,41 @@ class DocumentApprovalTransitionError(ValueError):
     pass
 
 
-DOCUMENT_APPROVAL_TRANSITIONS = {
-    "draft": {"submitted"},
-    "submitted": {"approved", "rejected"},
-    "rejected": {"submitted"},
-    "approved": {"superseded"},
-    "superseded": set(),
-}
+class DocumentAuthorizationError(ValueError):
+    pass
+
+
+class DocumentLifecycleAuthorizer(Protocol):
+    def authorize_transition(
+        self,
+        *,
+        actor_id: str,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        from_status: str,
+        to_status: str,
+    ) -> None: ...
+
+
+class RoleDocumentLifecycleAuthorizer:
+    """Application-boundary authorization; persistence remains role-agnostic."""
+
+    def __init__(self, approver_actor_ids: set[str]) -> None:
+        self.approver_actor_ids = frozenset(approver_actor_ids)
+
+    def authorize_transition(
+        self,
+        *,
+        actor_id: str,
+        tenant_id: str,
+        project_id: str,
+        document_id: str,
+        from_status: str,
+        to_status: str,
+    ) -> None:
+        if to_status in {"approved", "rejected"} and actor_id not in self.approver_actor_ids:
+            raise DocumentAuthorizationError("DOCUMENT_TRANSITION_FORBIDDEN")
 
 
 @dataclass(frozen=True)
@@ -97,6 +129,7 @@ class DocumentAuditEvent:
     event_type: str
     actor_id: str
     occurred_at: datetime
+    reason: str = ""
 
 
 class PostgresDocumentStore:
@@ -128,8 +161,12 @@ class PostgresDocumentStore:
                 event_type TEXT NOT NULL,
                 actor_id TEXT NOT NULL,
                 occurred_at TIMESTAMPTZ NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (tenant_id, project_id, document_id, revision)
             )"""
+        )
+        self.connection.execute(
+            "ALTER TABLE project_document_audit ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT ''"
         )
 
     def persist(
@@ -161,9 +198,9 @@ class PostgresDocumentStore:
         )
         self.connection.execute(
             "INSERT INTO project_document_audit "
-            "(tenant_id, project_id, document_id, revision, event_type, actor_id, occurred_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-            (document.tenant_id, document.project_id, document.document_id, 1, "created", actor_id, occurred_at),
+            "(tenant_id, project_id, document_id, revision, event_type, actor_id, occurred_at, reason) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            (document.tenant_id, document.project_id, document.document_id, 1, "created", actor_id, occurred_at, ""),
         )
         return StoredDocument(document, 1)
 
@@ -185,6 +222,7 @@ class PostgresDocumentStore:
         actor_id: str,
         occurred_at: datetime,
         event_type: str = "updated",
+        audit_reason: str = "",
     ) -> StoredDocument:
         document.validate()
         self._validate_metadata(event_type, actor_id, occurred_at)
@@ -218,11 +256,11 @@ class PostgresDocumentStore:
         )
         self.connection.execute(
             "INSERT INTO project_document_audit "
-            "(tenant_id, project_id, document_id, revision, event_type, actor_id, occurred_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            "(tenant_id, project_id, document_id, revision, event_type, actor_id, occurred_at, reason) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 document.tenant_id, document.project_id, document.document_id,
-                next_revision, event_type, actor_id, occurred_at,
+                next_revision, event_type, actor_id, occurred_at, audit_reason,
             ),
         )
         return StoredDocument(document, next_revision)
@@ -236,7 +274,6 @@ class PostgresDocumentStore:
         occurred_at: datetime,
         reason: str = "",
     ) -> StoredDocument:
-        """Apply one explicit document lifecycle transition under optimistic locking."""
         current = self.get(document.tenant_id, document.project_id, document.document_id)
         allowed = DOCUMENT_APPROVAL_TRANSITIONS.get(current.document.status, set())
         if document.status not in allowed:
@@ -249,18 +286,19 @@ class PostgresDocumentStore:
             expected_revision=expected_revision,
             actor_id=actor_id,
             occurred_at=occurred_at,
-            event_type=f"status:{current.document.status}->{document.status}" + (f":{reason.strip()}" if reason.strip() else ""),
+            event_type="status_transition",
+            audit_reason=reason,
         )
 
     def history(self, tenant_id: str, project_id: str, document_id: str):
         rows = self.connection.execute(
-            "SELECT revision, event_type, actor_id, occurred_at "
+            "SELECT revision, event_type, actor_id, occurred_at, reason "
             "FROM project_document_audit "
             "WHERE tenant_id=%s AND project_id=%s AND document_id=%s ORDER BY revision",
             (tenant_id, project_id, document_id),
         ).fetchall()
         return tuple(
-            DocumentAuditEvent(document_id, int(row[0]), row[1], row[2], row[3])
+            DocumentAuditEvent(document_id, int(row[0]), row[1], row[2], row[3], row[4])
             for row in rows
         )
 
@@ -300,4 +338,38 @@ class PostgresDocumentStore:
             storage_ref=data["storage_ref"],
             content_hash=data["content_hash"],
             linked_entity_refs=tuple(data.get("linked_entity_refs", ())),
+        )
+
+
+class DocumentLifecycleService:
+    """Application/use-case authorization boundary around the persistence store."""
+
+    def __init__(self, store: PostgresDocumentStore, authorizer: DocumentLifecycleAuthorizer) -> None:
+        self.store = store
+        self.authorizer = authorizer
+
+    def transition_status(
+        self,
+        document: DocumentRecord,
+        *,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str = "",
+    ) -> StoredDocument:
+        current = self.store.get(document.tenant_id, document.project_id, document.document_id)
+        self.authorizer.authorize_transition(
+            actor_id=actor_id,
+            tenant_id=document.tenant_id,
+            project_id=document.project_id,
+            document_id=document.document_id,
+            from_status=current.document.status,
+            to_status=document.status,
+        )
+        return self.store.transition_status(
+            document,
+            expected_revision=expected_revision,
+            actor_id=actor_id,
+            occurred_at=occurred_at,
+            reason=reason,
         )

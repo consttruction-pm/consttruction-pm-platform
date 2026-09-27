@@ -6,6 +6,9 @@ import pytest
 
 from construction_pm.document_persistence import (
     DocumentApprovalTransitionError,
+    DocumentAuthorizationError,
+    DocumentLifecycleService,
+    RoleDocumentLifecycleAuthorizer,
     DocumentIdempotencyReuse,
     DocumentRecord,
     DocumentRevisionConflict,
@@ -30,7 +33,7 @@ class FakeConnection:
         self.audit = []
 
     def execute(self, sql, params=()):
-        if sql.startswith("CREATE TABLE"):
+        if sql.startswith("CREATE TABLE") or sql.startswith("ALTER TABLE"):
             return FakeResult()
         if sql.startswith("INSERT INTO project_documents"):
             key = params[:3]
@@ -62,7 +65,7 @@ class FakeConnection:
         if sql.startswith("SELECT revision, event_type, actor_id, occurred_at"):
             tenant, project, document_id = params
             rows = [
-                (r[3], r[4], r[5], r[6])
+                (r[3], r[4], r[5], r[6], r[7] if len(r) > 7 else "")
                 for r in self.audit
                 if r[0] == tenant and r[1] == project and r[2] == document_id
             ]
@@ -157,11 +160,13 @@ def test_document_approval_lifecycle_enforces_allowed_transitions_and_audits_act
     )
     assert approved.document.status == "approved"
     assert approved.revision == 3
-    assert [event.event_type for event in store.history("tenant-1", "project-1", "doc-1")] == [
+    events = store.history("tenant-1", "project-1", "doc-1")
+    assert [event.event_type for event in events] == [
         "created",
-        "status:draft->submitted:ready for review",
-        "status:submitted->approved:accepted",
+        "status_transition",
+        "status_transition",
     ]
+    assert [event.reason for event in events] == ["", "ready for review", "accepted"]
 
 
 def test_document_approval_rejects_invalid_transition_and_does_not_mutate():
@@ -201,3 +206,58 @@ def test_document_approval_uses_current_document_payload_not_caller_mutations():
     assert current.document.status == "submitted"
     assert current.document.title == "Structural drawing"
     assert current.document.storage_ref == "object://documents/doc-1/rev-1"
+
+
+def test_document_lifecycle_authorization_is_application_boundary():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-auth", actor_id="user-1", occurred_at=NOW)
+    service = DocumentLifecycleService(
+        store,
+        RoleDocumentLifecycleAuthorizer({"approver-1"}),
+    )
+    with pytest.raises(DocumentAuthorizationError, match="DOCUMENT_TRANSITION_FORBIDDEN"):
+        service.transition_status(
+            make_document(status="approved"),
+            expected_revision=created.revision,
+            actor_id="reviewer-1",
+            occurred_at=NOW,
+        )
+    assert store.get("tenant-1", "project-1", "doc-1").revision == 1
+
+
+def test_document_lifecycle_stale_concurrent_transition_is_rejected():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-concurrent", actor_id="user-1", occurred_at=NOW)
+    service = DocumentLifecycleService(store, RoleDocumentLifecycleAuthorizer({"approver-1", "approver-2"}))
+    first = service.transition_status(
+        make_document(status="submitted"),
+        expected_revision=created.revision,
+        actor_id="approver-1",
+        occurred_at=NOW,
+    )
+    assert first.revision == 2
+    with pytest.raises(DocumentRevisionConflict, match="DOCUMENT_REVISION_CONFLICT"):
+        service.transition_status(
+            make_document(status="rejected"),
+            expected_revision=created.revision,
+            actor_id="approver-2",
+            occurred_at=NOW,
+        )
+
+
+def test_document_audit_reason_is_structured_and_event_type_stays_stable():
+    connection = FakeConnection()
+    store = PostgresDocumentStore(connection)
+    created = store.persist(make_document(), idempotency_key="idem-reason", actor_id="user-1", occurred_at=NOW)
+    store.transition_status(
+        make_document(status="submitted"),
+        expected_revision=created.revision,
+        actor_id="approver-1",
+        occurred_at=NOW,
+        reason="line 1 -> line 2\nmanual-review",
+    )
+    event = store.history("tenant-1", "project-1", "doc-1")[1]
+    assert event.event_type == "status_transition"
+    assert event.reason == "line 1 -> line 2\nmanual-review"
