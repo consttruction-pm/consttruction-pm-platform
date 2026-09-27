@@ -53,10 +53,16 @@ export function projectDocument(
 ): WorkspaceDocument {
   if (
     snapshot.tenant_id !== scope.tenant_id ||
-    snapshot.project_id !== scope.project_id ||
-    snapshot.revision !== scope.project_revision
+    snapshot.project_id !== scope.project_id
   ) {
     throw new Error("STALE_DOCUMENT_SCOPE");
+  }
+  if (
+    !Number.isInteger(snapshot.revision) ||
+    snapshot.revision < 0 ||
+    snapshot.revision > 9_007_199_254_740_991
+  ) {
+    throw new Error("INVALID_DOCUMENT_REVISION");
   }
   if (
     !Number.isInteger(snapshot.revision) ||
