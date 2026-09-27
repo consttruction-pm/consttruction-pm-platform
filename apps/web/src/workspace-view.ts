@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", documents: "Document Control", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", documents: "کنترل اسناد", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
@@ -41,6 +41,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
+        ${renderDocumentControl(state.documents, state.documentOcrResults, state.documentSearchEntries, t.documents)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -325,6 +326,44 @@ function renderChangeClaimControl(
               <span>Approval: ${item.requiresApplicationApproval ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderDocumentControl(
+  documents: WorkspaceState["documents"],
+  ocrResults: WorkspaceState["documentOcrResults"],
+  searchEntries: WorkspaceState["documentSearchEntries"],
+  label: string,
+): string {
+  if (!documents.length) return "";
+
+  const ocrIds = new Set(ocrResults.map((item) => `${item.documentId}:${item.revision}`));
+  const indexIds = new Set(searchEntries.map((item) => `${item.documentId}:${item.revision}`));
+
+  return `
+    <section class="cp-panel cp-document-control" aria-label="${escapeAttribute(label)}">
+      <h2>${escapeHtml(label)}</h2>
+      <div class="cp-document-list">
+        ${documents.map((document) => {
+          const key = `${document.resourceId}:${document.revision}`;
+          return `
+            <article class="cp-field-card" data-document-id="${escapeAttribute(document.resourceId)}">
+              <div class="cp-field-card-meta">
+                <strong>${escapeHtml(document.title)}</strong>
+                <span>${escapeHtml(document.resourceType)}</span>
+                <span>Rev ${document.revision}</span>
+              </div>
+              <div class="cp-field-card-title">${escapeHtml(document.status)}</div>
+              <div class="cp-field-card-detail">
+                Links: ${document.linkedEntityRefs.length ? document.linkedEntityRefs.map((value) => escapeHtml(value)).join(", ") : "—"}
+              </div>
+              <div class="cp-field-card-foot">
+                OCR: ${ocrIds.has(key) ? "available" : "—"} · Search: ${indexIds.has(key) ? "indexed" : "—"} · Hash: ${document.contentHash ? "verified" : "—"}
+              </div>
+            </article>`;
+        }).join("")}
       </div>
     </section>
   `;
