@@ -784,10 +784,11 @@ Status: **100% — implemented, merged and runtime-verified through PR #359**
 - No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 
 ### 2026-09-28 — Current Backend Continuation Point
-- Current `main` is `c2aa9013f78f564d0fa5d03f811d548359b40beb`.
-- PR #356 control-result provenance hardening is already merged on `main`.
-- PR #359 portability contract-version hardening is already merged and runtime-verified.
-- Next Hasan work requires a fresh current-main/open-PR inspection and a concrete missing backend boundary; do not revive stale PRs or duplicate client/provider ownership.
+- Current `main` is `4fe0524b8df1fa45a4a7bb105fcceed13d383bd0`.
+- PR #356 control-result provenance hardening, PR #359 portability contract-version hardening, PR #361 portfolio decision contract-version hardening, PR #363 dependency-graph schema reconciliation, PR #365 enterprise-identity tenant binding, and PR #371 authorization-scope validation are merged and runtime-verified.
+- PR #369 was superseded by the current-main rebased PR #371 and is not part of the baseline.
+- Current-main check runs for `4fe0524b8df1fa45a4a7bb105fcceed13d383bd0` are green: Python 3.11/3.12/3.13, Web/Desktop/Mobile/client-sync typechecks, and PostgreSQL sync.
+- No open PRs remain. Next Hasan work requires a fresh current-main inspection and a concrete missing Backend/Database/Application/API/Enterprise Integration boundary; do not revive stale PRs or duplicate client/provider ownership.
 
 
 ### 2026-09-28 — Portfolio Decision Read Contract Version
