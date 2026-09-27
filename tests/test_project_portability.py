@@ -69,3 +69,36 @@ def test_import_rejects_negative_revision():
     payload["project_revision"] = -1
     with pytest.raises(ProjectPortabilityError, match="INVALID_PROJECT_REVISION"):
         import_project(json.dumps(payload))
+
+
+def test_import_rejects_unexpected_context():
+    payload = snapshot().to_payload()
+    payload["unexpected"] = True
+    with pytest.raises(ProjectPortabilityError, match="UNEXPECTED_PORTABILITY_CONTEXT"):
+        import_project(json.dumps(payload))
+
+
+def test_import_rejects_non_standard_json_number():
+    payload = snapshot().to_payload()
+    payload["project_revision"] = float("nan")
+    with pytest.raises(ProjectPortabilityError, match="INVALID_PROJECT_EXPORT"):
+        import_project(json.dumps(payload))
+
+
+def test_export_rejects_non_standard_json_number():
+    payload = snapshot().to_payload()
+    payload["module_refs"] = {"value": float("inf")}
+    with pytest.raises(ValueError):
+        export_project(
+            ProjectPortabilitySnapshot(
+                schema_version=payload["schema_version"],
+                tenant_id=payload["tenant_id"],
+                project_id=payload["project_id"],
+                project_revision=payload["project_revision"],
+                calendar_context=payload["calendar_context"],
+                scheduling_settings=payload["scheduling_settings"],
+                calculation_settings=payload["calculation_settings"],
+                resource_cost_config=payload["resource_cost_config"],
+                module_refs=payload["module_refs"],
+            )
+        )
