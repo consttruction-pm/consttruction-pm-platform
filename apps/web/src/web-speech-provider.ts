@@ -60,9 +60,10 @@ export function createWebSpeechInputAdapter(
       if (!Recognition || !aiLanguage.voice_input_capable || !aiLanguage.voice_language) {
         throw new Error("VOICE_INPUT_UNAVAILABLE");
       }
+      const voiceLanguage = aiLanguage.voice_language;
       return new Promise((resolve, reject) => {
         const recognition = new Recognition();
-        recognition.lang = aiLanguage.voice_language;
+        recognition.lang = voiceLanguage;
         recognition.continuous = false;
         recognition.interimResults = false;
         let settled = false;
@@ -80,7 +81,7 @@ export function createWebSpeechInputAdapter(
               voice_command_id: `web-speech-${capturedAt}`,
               scope: expectedScope,
               requested_by: "client",
-              input_language: aiLanguage.voice_language!,
+              input_language: voiceLanguage,
               transcript: result.transcript.trim(),
               query_kind: "fact",
               captured_at: capturedAt,
@@ -111,7 +112,7 @@ export function createWebSpeechOutputAdapter(
     speak: async (text, context) => {
       if (!provider.speechSynthesis || !Utterance) throw new Error("VOICE_OUTPUT_UNAVAILABLE");
       if (!text.trim() || !context.language.trim()) throw new Error("INVALID_VOICE_OUTPUT");
-      const utterance = (options.createUtterance ?? ((value) => new Utterance(value)))(text);
+      const utterance = ((options.createUtterance ?? ((value) => new Utterance(value)))(text)) as BrowserSpeechSynthesisUtterance;
       utterance.lang = context.language;
       await new Promise<void>((resolve, reject) => {
         utterance.onerror = () => reject(new Error("VOICE_OUTPUT_FAILED"));
