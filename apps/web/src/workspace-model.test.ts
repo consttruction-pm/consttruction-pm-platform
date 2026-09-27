@@ -9,6 +9,7 @@ import {
   setCalendarMode,
   setLocale,
   setControlSummary,
+  setFieldOperations,
   setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
@@ -114,6 +115,49 @@ test("site daily logs attach to the same project workspace", () => {
   };
   const next = setSiteDailyLogs(state, [log]);
   assert.equal(next.siteDailyLogs[0]?.logId, "log-1");
+  assert.deepEqual(next.context, context);
+});
+
+test("field operations attach without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setFieldOperations(state, {
+    fieldIssues: [{
+      issueId: "issue-1",
+      category: "quality",
+      severity: "high",
+      status: "open",
+      titleKey: "issue.title",
+      detailKey: null,
+      reportedBy: "user-1",
+      locationKey: "tower-a",
+      activityIds: ["A-101"],
+      evidenceCount: 1,
+    }],
+    fieldTimecards: [{
+      timecardId: "tc-1",
+      personId: "person-1",
+      logDate: "2026-09-27",
+      workplaceKey: "tower-a",
+      attendanceStatus: "on_site",
+      startAt: null,
+      endAt: null,
+      activityAllocations: [{ activityId: "A-101", quantity: "8.00", unit: "hr" }],
+    }],
+    equipmentStatuses: [{
+      reportId: "eq-1",
+      equipmentId: "excavator-01",
+      reportDate: "2026-09-27",
+      workplaceKey: "tower-a",
+      status: "active",
+      breakdownCauseKey: null,
+      reportedBy: "user-2",
+      activityAllocations: [],
+      meterHours: "120.00",
+    }],
+  });
+  assert.equal(next.fieldIssues[0]?.issueId, "issue-1");
+  assert.equal(next.fieldTimecards[0]?.activityAllocations[0]?.quantity, "8.00");
+  assert.equal(next.equipmentStatuses[0]?.equipmentId, "excavator-01");
   assert.deepEqual(next.context, context);
 });
 
