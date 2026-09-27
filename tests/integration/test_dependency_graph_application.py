@@ -4,6 +4,7 @@ import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, Permission, RoleBasedAuthorizationPolicy
 from construction_pm.dependency_graph_application import DependencyGraphApplicationService
+from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.dependency_graph_persistence import DependencyLink, PostgresDependencyGraphStore
 
 
@@ -12,6 +13,8 @@ class Connection:
         self.revision = 0
         self.link = None
         self.audit = []
+        self.commits = 0
+        self.rollbacks = 0
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -36,6 +39,12 @@ class Connection:
             self.audit.append(params)
             return Cursor()
         return Cursor()
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
 
 
 def policy():
@@ -62,7 +71,9 @@ def ctx(**overrides):
 
 
 def test_application_boundary_enforces_scope_and_actor():
-    service = DependencyGraphApplicationService(PostgresDependencyGraphStore(Connection()), policy())
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    service = DependencyGraphApplicationService(store, policy(), PostgresTransactionManager(connection))
     now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
     service.store.initialize()
     service.store.ensure_project("T-1", "P-1")
@@ -76,6 +87,7 @@ def test_application_boundary_enforces_scope_and_actor():
         occurred_at=now,
     )
     assert created.graph_revision == 1
+    assert (connection.commits, connection.rollbacks) == (1, 0)
 
     with pytest.raises(AuthorizationError, match="CROSS_PROJECT"):
         service.create(
