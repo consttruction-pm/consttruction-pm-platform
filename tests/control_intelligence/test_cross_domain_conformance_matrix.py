@@ -31,30 +31,12 @@ def test_cross_domain_conformance_matrix_accepts_typed_links(
 ) -> None:
     scope = ControlScope("tenant-1", "project-1", 11)
     graph = DependencyGraph(scope=scope)
-    source = DependencyNode(
-        f"{source_domain.value}:source",
-        source_domain,
-        "entity",
-        "source",
-        11,
-    )
-    target = DependencyNode(
-        f"{target_domain.value}:target",
-        target_domain,
-        "entity",
-        "target",
-        11,
-    )
+    source = DependencyNode(f"{source_domain.value}:source", source_domain, "entity", "source", 11)
+    target = DependencyNode(f"{target_domain.value}:target", target_domain, "entity", "target", 11)
     graph.add_node(source)
     graph.add_node(target)
     graph.add_edge(
-        DependencyEdge(
-            source.node_id,
-            target.node_id,
-            relation,
-            source.revision,
-            target.revision,
-        )
+        DependencyEdge(source.node_id, target.node_id, relation, source.revision, target.revision)
     )
 
     graph.validate()
@@ -64,7 +46,7 @@ def test_cross_domain_conformance_matrix_accepts_typed_links(
     assert graph.nodes[target.node_id].domain is target_domain
 
 
-def test_conformance_matrix_rejects_revision_drift_across_domains() -> None:
+def test_conformance_matrix_rejects_edge_revision_drift_across_domains() -> None:
     scope = ControlScope("tenant-1", "project-1", 11)
     graph = DependencyGraph(scope=scope)
     source = DependencyNode("schedule:source", ControlDomain.SCHEDULE, "activity", "A-1", 11)
@@ -77,7 +59,7 @@ def test_conformance_matrix_rejects_revision_drift_across_domains() -> None:
             target.node_id,
             DependencyRelation.IMPACTS,
             source.revision,
-            target.revision,
+            11,
         )
     )
 
@@ -92,10 +74,12 @@ def test_conformance_matrix_is_typed_not_string_based() -> None:
     graph.add_node(DependencyNode("progress:target", ControlDomain.PROGRESS, "progress", "A-1", 11))
 
     with pytest.raises(ValueError, match="INVALID_DEPENDENCY_RELATION"):
-        graph.add_edge(DependencyEdge(
-            "schedule:source",
-            "progress:target",
-            "schedule_to_progress",  # type: ignore[arg-type]
-            11,
-            11,
-        ))
+        graph.add_edge(
+            DependencyEdge(
+                "schedule:source",
+                "progress:target",
+                "schedule_to_progress",  # type: ignore[arg-type]
+                11,
+                11,
+            )
+        )
