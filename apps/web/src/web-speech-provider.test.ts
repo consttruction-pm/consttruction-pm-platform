@@ -28,7 +28,8 @@ test("web speech adapters fail closed when browser providers are unavailable", a
 
 
 test("web speech input maps a provider result into the shared snapshot", async () => {
-  const original = globalThis.SpeechRecognition;
+  const browserRuntime = globalThis as typeof globalThis & { SpeechRecognition?: unknown };
+  const original = browserRuntime.SpeechRecognition;
   const fake = class {
     lang = "";
     continuous = false;
@@ -41,7 +42,7 @@ test("web speech input maps a provider result into the shared snapshot", async (
     }
     stop() {}
   };
-  Object.assign(globalThis, { SpeechRecognition: fake });
+  Object.assign(browserRuntime, { SpeechRecognition: fake });
   try {
     const adapter = createWebSpeechInputAdapter({ now: () => new Date("2026-09-27T18:00:00Z") });
     const capture = await adapter.capture({ aiLanguage, expectedScope: scope });
@@ -50,7 +51,7 @@ test("web speech input maps a provider result into the shared snapshot", async (
     assert.equal(capture.snapshot.confidence, 1);
     assert.deepEqual(capture.snapshot.scope, scope);
   } finally {
-    Object.assign(globalThis, { SpeechRecognition: original });
+    Object.assign(browserRuntime, { SpeechRecognition: original });
   }
 });
 
