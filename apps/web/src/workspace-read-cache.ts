@@ -93,4 +93,3 @@ function readProjectContext(
     revision: (value as Record<string, number>).revision,
   };
 }
-}
