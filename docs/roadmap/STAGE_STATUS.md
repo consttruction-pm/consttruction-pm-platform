@@ -620,3 +620,13 @@ Status: **100% — merged and runtime-verified through PR #331**
 - PR #331 exact implementation head `869e17ae406a5d5e03257c47fe3786202678f31d` passed ConstructionPM CI run `36346728936` and Client Typecheck run `36346728879`.
 - Merge commit: `0c713bac98e1ec3939c0368bd77941b578865103`.
 - This was a targeted correction of a demonstrated gap; stale PR #222 was not revived wholesale.
+
+
+### 2026-09-27 — Stage 34.3 Cross-Client Voice Adapter Parity
+Status: **runtime-verified through PR #334**
+- Added Desktop and Mobile provider-neutral voice adapter wrappers over the existing shared voice boundary.
+- Both clients delegate voice-command normalization, tenant/project/revision scope validation and output-capability checks to the shared client-sync contract.
+- PR #334 exact implementation head `3e58a0c1744ad92fa6a8a62d68b78741cb567f72` passed Client Typecheck run **36347809502** and ConstructionPM CI run **36347809550**.
+- Merge commit: `3942d9fd2df466e8c9c09157a80a0b979b12b9da`.
+- The cross-client parity gate is therefore runtime-verified. Remaining Stage 34.3 work is provider-specific voice UX/integration and final integration/regression evidence reconciliation.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
