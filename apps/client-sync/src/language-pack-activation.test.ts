@@ -42,4 +42,15 @@ test("resource validation occurs before activation commit",()=>{
  assert.equal(store.getActive()?.manifest.version,"1.0.0");
 });
 
-test("activation owns resource byte snapshots",()=>{\n const store=new AtomicLanguagePackStore();\n const mutable=new Uint8Array([1,2,3]);\n const input=[\n  {path:"translation.json",bytes:mutable},{path:"glossary.json",bytes:new Uint8Array([2])},\n  {path:"help.json",bytes:new Uint8Array([3])},{path:"reports.json",bytes:new Uint8Array([4])},\n ];\n const active=store.activate(artifact,manifest(),input,()=>true);\n mutable[0]=9;\n assert.deepEqual([...active.resources.get("translation.json")!],[1,2,3]);\n assert.notEqual(active.resources.get("translation.json"),mutable);\n});\n
+test("activation owns resource byte snapshots",()=>{
+ const store=new AtomicLanguagePackStore();
+ const mutable=new Uint8Array([1,2,3]);
+ const input=[
+  {path:"translation.json",bytes:mutable},{path:"glossary.json",bytes:new Uint8Array([2])},
+  {path:"help.json",bytes:new Uint8Array([3])},{path:"reports.json",bytes:new Uint8Array([4])},
+ ];
+ const active=store.activate(artifact,manifest(),input,()=>true);
+ mutable[0]=9;
+ assert.deepEqual([...active.resources.get("translation.json")!],[1,2,3]);
+ assert.notEqual(active.resources.get("translation.json"),mutable);
+});
