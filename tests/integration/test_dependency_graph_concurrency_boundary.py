@@ -11,6 +11,7 @@ from construction_pm.application.authorization import (
 )
 from construction_pm.dependency_graph_application import DependencyGraphApplicationService
 from construction_pm.dependency_graph_persistence import (
+    DependencyIdempotencyReuse,
     DependencyLink,
     DependencyRevisionConflict,
     PostgresDependencyGraphStore,
@@ -153,6 +154,16 @@ def test_cross_tenant_or_project_context_cannot_reach_persistence():
             occurred_at=timestamp(),
         )
 
+    with pytest.raises(AuthorizationError, match="CROSS_PROJECT_DEPENDENCY"):
+        service.create(
+            make_link(),
+            context=context(project_id="project-b"),
+            expected_graph_revision=0,
+            idempotency_key="idem-cross-project",
+            actor_id="user-1",
+            occurred_at=timestamp(),
+        )
+
     assert connection.revision == 0
     assert connection.links == {}
 
@@ -209,7 +220,7 @@ def test_same_idempotency_key_with_different_payload_is_rejected_without_mutatio
         occurred_at=timestamp(),
     )
 
-    with pytest.raises(ValueError, match="IDEMPOTENCY_KEY_REUSE"):
+    with pytest.raises(DependencyIdempotencyReuse, match="IDEMPOTENCY_KEY_REUSE"):
         service.create(
             make_link(resource_id="dependency-2"),
             context=context(),
