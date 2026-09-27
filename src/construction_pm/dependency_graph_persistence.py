@@ -140,8 +140,17 @@ class PostgresDependencyGraphStore:
         occurred_at: datetime,
     ) -> StoredDependencyLink:
         link.validate()
-        if not idempotency_key.strip() or not actor_id.strip():
-            raise ValueError("INVALID_DEPENDENCY_METADATA")
+        if (
+            isinstance(expected_graph_revision, bool)
+            or not isinstance(expected_graph_revision, int)
+            or expected_graph_revision < 0
+            or expected_graph_revision > MAX_SAFE_PROJECT_REVISION
+        ):
+            raise ValueError("INVALID_DEPENDENCY_EXPECTED_GRAPH_REVISION")
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("INVALID_DEPENDENCY_IDEMPOTENCY_KEY")
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise ValueError("INVALID_DEPENDENCY_ACTOR_ID")
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
