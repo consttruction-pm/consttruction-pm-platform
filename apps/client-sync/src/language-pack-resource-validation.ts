@@ -1,16 +1,7 @@
 import type {LanguagePackManifest} from "./language-pack-manifest.ts";
 
 export type LanguagePackResource={path:string;bytes:Uint8Array};
-export interface ValidatedLanguagePackResources{
- get(path:string):Uint8Array|undefined;
- has(path:string):boolean;
- readonly size:number;
- entries():IterableIterator<[string,Uint8Array]>;
- keys():IterableIterator<string>;
- values():IterableIterator<Uint8Array>;
- [Symbol.iterator]():IterableIterator<[string,Uint8Array]>;
- forEach(callbackfn:(value:Uint8Array,key:string,map:ValidatedLanguagePackResources)=>void,thisArg?:unknown):void;
-}
+export interface ValidatedLanguagePackResources extends ReadonlyMap<string,Uint8Array>{}
 
 const declaredResourcePaths=(manifest:LanguagePackManifest):string[]=>[
  manifest.resources.translation,manifest.resources.glossary,manifest.resources.help,manifest.resources.reports,
@@ -34,7 +25,7 @@ class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources
   for(const bytes of this.store.values()) yield new Uint8Array(bytes);
  }
  [Symbol.iterator]():IterableIterator<[string,Uint8Array]>{return this.entries();}
- forEach(callbackfn:(value:Uint8Array,key:string,map:ValidatedLanguagePackResources)=>void,thisArg?:unknown):void{
+ forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
   for(const [key,value] of this.store) callbackfn.call(thisArg,new Uint8Array(value),key,this);
  }
 }
