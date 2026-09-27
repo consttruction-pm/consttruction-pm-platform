@@ -45,7 +45,7 @@ test("contract adapter rejects duplicate activity identities", () => {
     ],
   };
   assert.throws(
-    () => workspaceActivitiesFromSnapshot(broken),
+    () => workspaceActivitiesFromSnapshot(broken as never),
     /DUPLICATE_WORKSPACE_ACTIVITY/,
   );
 });
@@ -54,7 +54,7 @@ test("contract adapter rejects unknown contract versions", () => {
   const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
   const broken = { ...snapshot, contract_version: "workspace-control-room.v99" };
   assert.throws(
-    () => workspaceActivitiesFromSnapshot(broken),
+    () => workspaceActivitiesFromSnapshot(broken as never),
     /UNSUPPORTED_WORKSPACE_CONTRACT/,
   );
 });
