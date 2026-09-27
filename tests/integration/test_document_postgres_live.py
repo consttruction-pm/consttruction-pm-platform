@@ -10,10 +10,13 @@ if not DSN:
     pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is not configured", allow_module_level=True)
 
 from construction_pm.document_persistence import (
+    DocumentAuthorizationError,
     DocumentIdempotencyReuse,
+    DocumentLifecycleService,
     DocumentRecord,
     DocumentRevisionConflict,
     PostgresDocumentStore,
+    RoleDocumentLifecycleAuthorizer,
 )
 
 
@@ -96,3 +99,70 @@ def test_document_live_round_trip_replay_update_conflict_and_audit() -> None:
         )
         assert [event.revision for event in history] == [1, 2]
         assert [event.event_type for event in history] == ["created", "updated"]
+
+
+def test_document_approval_live_authorization_revision_and_audit() -> None:
+    suffix = uuid.uuid4().hex
+    document = make_document(suffix)
+    occurred = datetime.now(timezone.utc)
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDocumentStore(connection)
+        store.initialize()
+        connection.commit()
+
+        store.persist(
+            document,
+            idempotency_key=f"approval-create-{suffix}",
+            actor_id="author",
+            occurred_at=occurred,
+        )
+        connection.commit()
+
+        service = DocumentLifecycleService(
+            store,
+            RoleDocumentLifecycleAuthorizer({"approver"}),
+        )
+        submitted = DocumentRecord(**{**document.__dict__, "status": "submitted"})
+        service.transition_status(
+            submitted,
+            expected_revision=1,
+            actor_id="author",
+            occurred_at=occurred,
+            reason="submit for approval",
+        )
+        connection.commit()
+
+        approved = DocumentRecord(**{**document.__dict__, "status": "approved"})
+        with pytest.raises(DocumentAuthorizationError):
+            service.transition_status(
+                approved,
+                expected_revision=2,
+                actor_id="author",
+                occurred_at=occurred,
+                reason="unauthorized approval",
+            )
+        connection.rollback()
+
+        approved_result = service.transition_status(
+            approved,
+            expected_revision=2,
+            actor_id="approver",
+            occurred_at=occurred,
+            reason="approved by authorized actor",
+        )
+        connection.commit()
+
+        assert approved_result.revision == 3
+        assert approved_result.document.status == "approved"
+        history = store.history(
+            document.tenant_id, document.project_id, document.document_id
+        )
+        assert [event.event_type for event in history] == [
+            "created",
+            "status_transition",
+            "status_transition",
+        ]
+        assert history[1].reason == "submit for approval"
+        assert history[2].reason == "approved by authorized actor"
+        assert history[2].actor_id == "approver"
