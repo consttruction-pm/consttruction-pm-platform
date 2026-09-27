@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install TypeScript
+      - name: Install dependencies
         working-directory: ${{ matrix.package }}
         run: npm install --no-package-lock
 
