@@ -79,7 +79,7 @@ export type DocumentSearchIndexSnapshot = {
 
 export function projectDocument(
   snapshot: DocumentResourceSnapshot,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
   ocr?: DocumentOcrSnapshot,
   index?: DocumentSearchIndexSnapshot,
 ): WorkspaceDocument {
@@ -127,15 +127,14 @@ export function projectDocument(
 
 export function projectOcrResult(
   snapshot: DocumentOcrSnapshot,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
 ): WorkspaceOcrResult {
   if (snapshot.contract_version !== DOCUMENT_OCR_VERSION) {
     throw new Error("UNSUPPORTED_DOCUMENT_OCR_CONTRACT");
   }
   if (
     snapshot.tenant_id !== context.tenant_id ||
-    snapshot.project_id !== context.project_id ||
-    snapshot.revision !== context.revision
+    snapshot.project_id !== context.project_id
   ) {
     throw new Error("STALE_DOCUMENT_OCR_SCOPE");
   }
@@ -152,15 +151,14 @@ export function projectOcrResult(
 
 export function projectSearchIndex(
   snapshot: DocumentSearchIndexSnapshot,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
 ): WorkspaceSearchIndexEntry {
   if (snapshot.contract_version !== DOCUMENT_SEARCH_INDEX_VERSION) {
     throw new Error("UNSUPPORTED_DOCUMENT_SEARCH_CONTRACT");
   }
   if (
     snapshot.tenant_id !== context.tenant_id ||
-    snapshot.project_id !== context.project_id ||
-    snapshot.revision !== context.revision
+    snapshot.project_id !== context.project_id
   ) {
     throw new Error("STALE_DOCUMENT_SEARCH_SCOPE");
   }
@@ -181,7 +179,7 @@ export function projectSearchIndex(
 
 function validateOcrSnapshot(
   snapshot: DocumentOcrSnapshot,
-  context: { tenant_id: string; project_id: string; revision: number },
+  context: { tenant_id: string; project_id: string },
   document: DocumentResourceSnapshot,
 ): void {
   const result = projectOcrResult(snapshot, context);
@@ -212,8 +210,7 @@ function assertScope(
 ): void {
   if (
     tenantId !== context.tenant_id ||
-    projectId !== context.project_id ||
-    revision !== context.revision
+    projectId !== context.project_id
   ) {
     throw new Error("STALE_DOCUMENT_RESOURCE_SCOPE");
   }
