@@ -8,5 +8,10 @@
     "outDir": ".test-dist",
     "rootDir": "src",
     "sourceMap": false
-  }
+  },
+  "include": [
+    "src/workspace-model.test.ts",
+    "src/workspace-gantt.test.ts",
+    "src/workspace-contract.test.ts"
+  ]
 }
