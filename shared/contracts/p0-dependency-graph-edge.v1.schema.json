@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://construction-pm.local/contracts/v1/p0-dependency-graph-edge.schema.json",
+  "title":"P0 Dependency Graph Edge v1",
+  "type":"object","additionalProperties":false,
+  "required":["tenant_id","project_id","edge_id","revision","source_ref","target_ref","dependency_type","actor_id"],
+  "properties":{
+    "tenant_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},
+    "edge_id":{"type":"string","minLength":1},"revision":{"type":"integer","minimum":0},
+    "source_ref":{"type":"string","minLength":1},"target_ref":{"type":"string","minLength":1},
+    "dependency_type":{"type":"string","enum":["finish_to_start","start_to_start","finish_to_finish","start_to_finish"]},
+    "actor_id":{"type":"string","minLength":1}
+  }
+}
