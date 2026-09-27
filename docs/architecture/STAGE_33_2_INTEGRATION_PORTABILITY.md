@@ -71,3 +71,7 @@ The context-scoped SQLite resource adapter now participates in an application-ow
 
 ## 33.2.4 implementation note
 The Resource API v1 boundary now preserves typed rate data without converting domain values to binary floating-point: Decimal rates remain canonical decimal strings, dates remain ISO-8601 date strings, enum values remain stable strings, and Boolean fields remain JSON booleans. The contract schema documents these representations. No scheduling, duration, Progress/EVM, Resource/Cost calculation semantics were reimplemented at the API boundary.
+
+
+## 33.2.6 implementation note
+A cross-module regression suite now covers Resource assignment -> authoritative Resource/Cost -> EVM bridge values, stale assignment revision rejection, project-context isolation, and deterministic project portability reload. The suite consumes existing calculation authorities and does not duplicate scheduling, Progress/EVM, Resource/Cost or financial formulas. Reporting remains an explicit consumer-only boundary.
