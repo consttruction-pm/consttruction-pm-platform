@@ -1,9 +1,11 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
+import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.ts";
+import { voiceCommandToScheduleQuery } from "../../client-sync/src/voice-command.ts";
 import { createMobileVoiceAdapters, normalizeMobileVoiceCapture, requireMobileVoiceOutput } from "./voice-adapters.ts";
 
 const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 } as const;
-const aiLanguage = {
+const aiLanguage: AILanguageContext = {
   input_language: "fa-IR",
   output_language: "fa-IR",
   project_language: "fa-IR",
@@ -16,10 +18,10 @@ const aiLanguage = {
   offline_ai_capable: true,
 };
 
-test("mobile voice adapter uses shared normalization boundary", async () => {
-  const adapters = createMobileVoiceAdapters({
+function adapters(input = true, output = true) {
+  return createMobileVoiceAdapters({
     input: {
-      capabilities: { input: true, output: false },
+      capabilities: { input, output: false },
       async capture() {
         return { snapshot: {
           contract_version: "voice-command.v1",
@@ -35,17 +37,43 @@ test("mobile voice adapter uses shared normalization boundary", async () => {
         } };
       },
     },
-    output: { capabilities: { input: false, output: true }, async speak() {} },
+    output: { capabilities: { input: false, output }, async speak() {} },
   });
+}
 
-  const command = normalizeMobileVoiceCapture(
-    adapters,
-    await adapters.input.capture({ aiLanguage, expectedScope: scope }),
-    aiLanguage,
-    scope,
-  );
-
+test("mobile voice adapter preserves shared command and query contracts", async () => {
+  const value = adapters();
+  const command = normalizeMobileVoiceCapture(value, await value.input.capture({ aiLanguage, expectedScope: scope }), aiLanguage, scope);
+  const query = voiceCommandToScheduleQuery(command);
   assert.equal(command.voice_command_id, "mobile-1");
-  assert.equal(command.scope.project_revision, 7);
-  assert.doesNotThrow(() => requireMobileVoiceOutput(adapters, "fa-IR", scope));
+  assert.equal(query.contract_version, "schedule-query.v1");
+  assert.equal(query.query_text, command.transcript);
+  assert.deepEqual(query.scope, scope);
+  assert.doesNotThrow(() => requireMobileVoiceOutput(value, "fa-IR", scope));
+});
+
+test("mobile voice adapter fails closed when provider input is unavailable", async () => {
+  const value = adapters(false);
+  await assert.rejects(
+    async () => normalizeMobileVoiceCapture(value, await value.input.capture({ aiLanguage, expectedScope: scope }), aiLanguage, scope),
+    /VOICE_INPUT_UNAVAILABLE/,
+  );
+});
+
+test("mobile voice adapter propagates shared scope and contract validation", async () => {
+  const value = adapters();
+  const capture = await value.input.capture({ aiLanguage, expectedScope: scope });
+  assert.throws(
+    () => normalizeMobileVoiceCapture(value, capture, aiLanguage, { ...scope, project_revision: 8 }),
+    /VOICE_COMMAND_SCOPE_MISMATCH/,
+  );
+  assert.throws(
+    () => normalizeMobileVoiceCapture(value, { snapshot: { ...capture.snapshot, contract_version: "voice-command.v99" as never } }, aiLanguage, scope),
+    /UNSUPPORTED_VOICE_COMMAND_CONTRACT/,
+  );
+});
+
+test("mobile voice adapter enforces output capability", () => {
+  const value = adapters(true, false);
+  assert.throws(() => requireMobileVoiceOutput(value, "fa-IR", scope), /VOICE_OUTPUT_UNAVAILABLE/);
 });
