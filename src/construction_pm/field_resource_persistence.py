@@ -133,6 +133,13 @@ class PostgresFieldResourceStore:
         occurred_at: datetime,
     ) -> StoredFieldResource:
         resource.validate()
+        if (
+            isinstance(expected_project_revision, bool)
+            or not isinstance(expected_project_revision, int)
+            or expected_project_revision < 0
+            or expected_project_revision > MAX_SAFE_PROJECT_REVISION
+        ):
+            raise ValueError("INVALID_EXPECTED_PROJECT_REVISION")
         if not idempotency_key.strip() or not actor_id.strip():
             raise ValueError("INVALID_FIELD_RESOURCE_METADATA")
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
@@ -170,6 +177,9 @@ class PostgresFieldResourceStore:
                 raise FieldResourceRevisionConflict(
                     f"FIELD_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
                 )
+
+            if current >= MAX_SAFE_PROJECT_REVISION:
+                raise ValueError("FIELD_PROJECT_REVISION_EXHAUSTED")
 
             next_revision = current + 1
             payload = json.dumps(
