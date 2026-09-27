@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import test from "node:test";
 
 import {
   addFormulaColumn,
@@ -16,68 +17,68 @@ const context = {
   revision: 4,
 };
 
-describe("workspace model", () => {
-  it("creates a shared Main Workspace state without calculating domain values", () => {
-    const state = createWorkspaceState(context, "fa", "jalali");
+test("workspace model creates a bilingual Main Workspace state", () => {
+  const state = createWorkspaceState(context, "fa", "jalali");
 
-    expect(state.direction).toBe("rtl");
-    expect(state.calendarMode).toBe("jalali");
-    expect(state.activeMenu).toBe("schedule");
-    expect(state.visiblePanels.activity_grid).toBe(true);
-    expect(state.columns.find((column) => column.id === "duration")?.dataType).toBe("duration");
+  assert.equal(state.direction, "rtl");
+  assert.equal(state.calendarMode, "jalali");
+  assert.equal(state.activeMenu, "schedule");
+  assert.equal(state.visiblePanels.activity_grid, true);
+  assert.equal(state.columns.find((column) => column.id === "duration")?.dataType, "duration");
+});
+
+test("WBS selection clears Activity selection", () => {
+  let state = createWorkspaceState(context);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Foundation" },
+    { id: "A-2", wbsId: "W-2", code: "02", name: "Structure" },
+  ]);
+  state = selectActivity(state, "A-1");
+  assert.equal(state.selectedActivityId, "A-1");
+
+  state = selectWbs(state, "W-2");
+  assert.equal(state.selectedWbsId, "W-2");
+  assert.equal(state.selectedActivityId, null);
+});
+
+test("activity selection rejects activities that are not loaded", () => {
+  const state = createWorkspaceState(context);
+  assert.throws(() => selectActivity(state, "missing"), /ACTIVITY_NOT_FOUND/);
+});
+
+test("locale and calendar switches preserve project context", () => {
+  let state = createWorkspaceState(context);
+  state = setLocale(state, "fa");
+  state = setCalendarMode(state, "jalali");
+
+  assert.equal(state.direction, "rtl");
+  assert.equal(state.calendarMode, "jalali");
+  assert.deepEqual(state.context, context);
+});
+
+test("formula columns remain metadata and do not calculate client values", () => {
+  const state = createWorkspaceState(context);
+  const next = addFormulaColumn(state, {
+    id: "variance",
+    label: "Variance",
+    dataType: "decimal",
+    editable: false,
+    formula: "[EV] - [PV]",
+    width: 120,
   });
 
-  it("keeps WBS and Activity selection mutually scoped", () => {
-    let state = createWorkspaceState(context);
-    state = withActivities(state, [
-      { id: "A-1", wbsId: "W-1", code: "01", name: "Foundation" },
-      { id: "A-2", wbsId: "W-2", code: "02", name: "Structure" },
-    ]);
-    state = selectActivity(state, "A-1");
-    expect(state.selectedActivityId).toBe("A-1");
+  assert.equal(next.columns.at(-1)?.formula, "[EV] - [PV]");
+  assert.equal(next.columns.at(-1)?.dataType, "decimal");
+});
 
-    state = selectWbs(state, "W-2");
-    expect(state.selectedWbsId).toBe("W-2");
-    expect(state.selectedActivityId).toBeNull();
-  });
-
-  it("rejects selection of an activity that is not loaded", () => {
-    const state = createWorkspaceState(context);
-    expect(() => selectActivity(state, "missing")).toThrow("ACTIVITY_NOT_FOUND");
-  });
-
-  it("switches locale direction without mutating project context", () => {
-    let state = createWorkspaceState(context);
-    state = setLocale(state, "fa");
-    state = setCalendarMode(state, "jalali");
-
-    expect(state.direction).toBe("rtl");
-    expect(state.calendarMode).toBe("jalali");
-    expect(state.context).toEqual(context);
-  });
-
-  it("keeps formula columns as metadata only", () => {
-    const state = createWorkspaceState(context);
-    const next = addFormulaColumn(state, {
-      id: "variance",
-      label: "Variance",
-      dataType: "decimal",
-      editable: false,
-      formula: "[EV] - [PV]",
-      width: 120,
-    });
-
-    expect(next.columns.at(-1)?.formula).toBe("[EV] - [PV]");
-    expect(next.columns.at(-1)?.dataType).toBe("decimal");
-  });
-
-  it("rejects duplicate activity ids", () => {
-    const state = createWorkspaceState(context);
-    expect(() =>
+test("duplicate activity ids are rejected", () => {
+  const state = createWorkspaceState(context);
+  assert.throws(
+    () =>
       withActivities(state, [
         { id: "A-1", wbsId: "W-1", code: "01", name: "One" },
         { id: "A-1", wbsId: "W-1", code: "02", name: "Two" },
       ]),
-    ).toThrow("INVALID_ACTIVITY_ROWS");
-  });
+    /INVALID_ACTIVITY_ROWS/,
+  );
 });
