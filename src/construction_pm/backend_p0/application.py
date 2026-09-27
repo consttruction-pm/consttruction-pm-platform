@@ -10,6 +10,7 @@ from construction_pm.application.authorization import (
 )
 
 from .errors import BackendApplicationError, ErrorCategory, OptimisticLockError
+from ..field_assurance_workflow import assert_transition
 from .idempotency import IdempotencyStore, fingerprint
 from .models import Record, record_id, resource_type
 from .persistence import _record_from_payload
@@ -42,6 +43,18 @@ class BackendP0ApplicationService:
         })
 
         def mutation() -> StoredRecord:
+            current = self.repository.get(
+                record.scope.tenant_id,
+                record.scope.project_id,
+                resource_type(record),
+                record_id(record),
+            )
+            if current is not None and expected_revision is not None and expected_revision != current.record_revision:
+                raise OptimisticLockError(
+                    f"Stale record revision: expected {expected_revision}, current {current.record_revision}"
+                )
+            if current is not None:
+                assert_transition(current.record, record)
             return self.repository.save(record, expected_revision=expected_revision)
 
         try:
