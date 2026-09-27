@@ -71,3 +71,12 @@ test("same package and version still rejects invalid candidate",()=>{
  assert.equal(store.getActive()?.manifest.version,"1.0.0");
  assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
 });
+
+test("failed rollback attempt preserves the last validated active snapshot",()=>{
+ const store=new UpdateableLanguagePackStore();
+ store.activate(artifact,manifest("1.0.0"),resources(),()=>true);
+ store.update(artifact,manifest("2.0.0"),resources(),()=>true);
+ assert.equal(store.rollback().manifest.version,"1.0.0");
+ assert.throws(()=>store.rollback(),/LANGUAGE_PACK_ROLLBACK_UNAVAILABLE/);
+ assert.equal(store.getActive()?.manifest.version,"1.0.0");
+});
