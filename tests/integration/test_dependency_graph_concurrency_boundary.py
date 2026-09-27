@@ -174,6 +174,56 @@ def test_actor_identity_mismatch_cannot_write_dependency_graph():
     assert connection.links == {}
 
 
+def test_idempotent_replay_does_not_advance_revision_or_duplicate_audit():
+    service, connection = make_service()
+    first = service.create(
+        make_link(),
+        context=context(),
+        expected_graph_revision=0,
+        idempotency_key="idem-replay",
+        actor_id="user-1",
+        occurred_at=timestamp(),
+    )
+    replay = service.create(
+        make_link(),
+        context=context(),
+        expected_graph_revision=0,
+        idempotency_key="idem-replay",
+        actor_id="user-1",
+        occurred_at=timestamp(),
+    )
+
+    assert replay == first
+    assert connection.revision == 1
+    assert len(connection.audit) == 1
+
+
+def test_same_idempotency_key_with_different_payload_is_rejected_without_mutation():
+    service, connection = make_service()
+    service.create(
+        make_link(),
+        context=context(),
+        expected_graph_revision=0,
+        idempotency_key="idem-reuse",
+        actor_id="user-1",
+        occurred_at=timestamp(),
+    )
+
+    with pytest.raises(ValueError, match="IDEMPOTENCY_KEY_REUSE"):
+        service.create(
+            make_link(resource_id="dependency-2"),
+            context=context(),
+            expected_graph_revision=1,
+            idempotency_key="idem-reuse",
+            actor_id="user-1",
+            occurred_at=timestamp(),
+        )
+
+    assert connection.revision == 1
+    assert len(connection.links) == 1
+    assert len(connection.audit) == 1
+
+
 def test_link_and_revision_are_rolled_back_when_audit_write_fails():
     service, connection = make_service()
     connection.fail_audit = True
