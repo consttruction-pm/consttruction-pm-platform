@@ -610,3 +610,55 @@ def test_dependency_graph_live_idempotency_reuse_rolls_back_revision_increment()
                 (tenant_id, project_id),
             )
             assert cursor.fetchone()[0] == 1
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"value": float("nan")},
+        {"value": float("inf")},
+        {1: "non-string-key"},
+    ],
+)
+def test_dependency_graph_live_rejects_non_contract_metadata_before_mutation(metadata) -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"metadata-tenant-{suffix}"
+    project_id = f"metadata-project-{suffix}"
+    resource_id = f"metadata-resource-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    link = DependencyLink(
+        resource_id=resource_id,
+        tenant_id=tenant_id,
+        project_id=project_id,
+        revision=1,
+        source_resource_id=f"schedule:{suffix}",
+        target_resource_id=f"rfi:{suffix}",
+        dependency_type="schedule_to_rfi",
+        metadata=metadata,
+    )
+
+    with psycopg.connect(DSN) as connection:
+        store = PostgresDependencyGraphStore(connection)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        connection.commit()
+
+        with pytest.raises(ValueError, match="INVALID_DEPENDENCY_METADATA"):
+            with PostgresTransactionManager(connection).transaction():
+                store.persist(
+                    link,
+                    expected_graph_revision=0,
+                    idempotency_key=f"metadata-invalid-{suffix}",
+                    actor_id="requester-validation",
+                    occurred_at=created_at,
+                )
+
+        assert store.get(tenant_id, project_id, resource_id) is None
+        assert store.history(tenant_id, project_id, resource_id) == ()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT revision FROM project_dependency_revisions WHERE tenant_id = %s AND project_id = %s",
+                (tenant_id, project_id),
+            )
+            assert cursor.fetchone()[0] == 0
