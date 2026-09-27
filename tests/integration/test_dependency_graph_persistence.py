@@ -224,3 +224,15 @@ def test_dependency_metadata_rejects_non_standard_json_numbers(metadata):
 
     assert connection.revisions[("T-1", "P-1")] == 0
     assert connection.audit == []
+
+
+def test_dependency_metadata_nested_structures_are_canonicalized_without_reordering_arrays() -> None:
+    first = link(metadata={"outer": {"z": [{"b": 2, "a": 1}], "a": {"nested": True}}})
+    second = link(metadata={"a": {"nested": True}, "outer": {"z": [{"a": 1, "b": 2}]}})
+    assert dependency_fingerprint(first) == dependency_fingerprint(second)
+
+
+def test_dependency_metadata_nested_array_order_changes_fingerprint() -> None:
+    first = link(metadata={"outer": {"items": [{"id": 1}, {"id": 2}]}})
+    second = link(metadata={"outer": {"items": [{"id": 2}, {"id": 1}]}})
+    assert dependency_fingerprint(first) != dependency_fingerprint(second)
