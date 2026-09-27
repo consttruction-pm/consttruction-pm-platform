@@ -10,12 +10,12 @@ class ERPAccountingIntegrationError(ValueError):
 
 @dataclass(frozen=True)
 class ERPAccountingOperation:
-    contract_version: str = "1.0"
     tenant_id: str
     project_id: str
     operation_id: str
     operation_type: str
     payload: dict[str, object]
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
         if self.contract_version != "1.0":
@@ -34,13 +34,13 @@ class ERPAccountingOperation:
 
 @dataclass(frozen=True)
 class ERPAccountingSyncResult:
-    contract_version: str = "1.0"
     tenant_id: str
     project_id: str
     operation_id: str
     status: str
     external_reference: str | None
     message: str = ""
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
         if self.contract_version != "1.0":
