@@ -78,7 +78,7 @@ def test_execution_requires_exact_template_version_and_required_answers():
     connection, service = _service()
     try:
         service.create_template(_template())
-        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="MISSING_REQUIRED_ANSWER"):
+        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="MISSING_REQUIRED_EXECUTION_ANSWERS"):
             service.execute(FieldAssuranceExecution(
                 "EXEC-MISSING", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-2", "pass"),),
                 "user-1", datetime.now(timezone.utc),
@@ -96,7 +96,7 @@ def test_execution_rejects_scope_mismatch():
     connection, service = _service()
     try:
         service.create_template(_template())
-        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_SCOPE_MISMATCH"):
+        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_SCOPE_MISMATCH"):
             service.execute(_execution(_scope(5)))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
             service.execute(FieldAssuranceExecution(
