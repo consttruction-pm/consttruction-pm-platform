@@ -5,6 +5,12 @@ from .contracts import ControlScope, SourceReference, require_enum
 from .graph import ControlDomain
 
 
+def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
+    for source in source_refs:
+        if source.revision != scope.project_revision:
+            raise ValueError(error_code)
+
+
 @dataclass(frozen=True)
 class ScenarioChange:
     change_id: str
@@ -42,6 +48,9 @@ class ScenarioRequest:
             raise ValueError("SCENARIO_CHANGES_REQUIRED")
         if not self.source_refs:
             raise ValueError("SCENARIO_REQUEST_SOURCE_REQUIRED")
+        _require_source_scope(self.source_refs, self.scope, "SCENARIO_REQUEST_SOURCE_REVISION_MISMATCH")
+        for change in self.changes:
+            _require_source_scope(change.source_refs, self.scope, "SCENARIO_CHANGE_SOURCE_REVISION_MISMATCH")
 
 
 @dataclass(frozen=True)
@@ -78,3 +87,7 @@ class ScenarioProposal:
             raise ValueError("INVALID_SCENARIO_MUTATION_FLAG")
         if self.authoritative_mutation_allowed:
             raise ValueError("SCENARIO_CANNOT_MUTATE_AUTHORITATIVE_STATE")
+        for impact in self.impacts:
+            _require_source_scope(impact.source_refs, self.base_scope, "SCENARIO_IMPACT_SOURCE_REVISION_MISMATCH")
+        for change in self.proposed_changes:
+            _require_source_scope(change.source_refs, self.base_scope, "SCENARIO_PROPOSAL_CHANGE_SOURCE_REVISION_MISMATCH")
