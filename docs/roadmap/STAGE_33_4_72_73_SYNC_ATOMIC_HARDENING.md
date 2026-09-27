@@ -1,6 +1,6 @@
 # Stage 33.4.72–33.4.73 — Sync Atomic Idempotency Hardening
 
-Status: **implemented — exact-head CI/runtime verification pending**
+Status: **100% — runtime-verified 2026-09-27 through PR #171**
 
 ## Stage 33.4.72
 PostgreSQL transaction-scoped advisory locks derive their identity from tenant, project and idempotency key using length-prefixed components. The SQL boundary remains parameterized through `hashtextextended` and `pg_advisory_xact_lock`.
@@ -14,6 +14,12 @@ PostgreSQL transaction-scoped advisory locks derive their identity from tenant, 
 - PostgreSQL, SQLite and in-memory gateway tests cover the atomic path.
 
 ## Verification boundary
-The release gate remains pending until the exact merged head has successful CI and, where configured, real PostgreSQL-backed runtime verification.
+Runtime verification is complete for PR #171 head `93d1a3b620a68a8a55e0fe1e504a2bac41b17139`.
+
+- ConstructionPM CI run **36296471378** succeeded.
+- Client Typecheck run **36296471377** succeeded.
+- PostgreSQL Sync State Integration run **36296471403** succeeded; its live `postgres-sync` job completed the configured live sync-state tests.
+- PostgreSQL Integration run **36296471450** succeeded; its `postgres` job ran `tests/integration/test_postgres_*.py` and `tests/integration/test_portfolio_decision_postgres_live.py` with **16 passed**.
+- The PostgreSQL service was a real PostgreSQL 16 container in GitHub Actions, so this is runtime evidence rather than source inspection.
 
 No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
