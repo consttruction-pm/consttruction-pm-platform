@@ -7,6 +7,7 @@ import {
 import { ClientSyncRunner } from "../../client-sync/src/sync-runner.js";
 import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/api-sync-transport.js";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
+import { WorkspaceReadCacheAdapter, type WorkspaceReadResult } from "../../client-sync/src/workspace-read-cache-adapter.js";
 
 export type MobileMode = "offline" | "online";
 export type MobileProjectState = { tenant_id: string; project_id: string; revision: number; mode: MobileMode };
@@ -25,6 +26,13 @@ export class MobileRuntime {
   pendingMutationCount(): number { return this.mutationQueue.size(); }
   acknowledgeMutation(mutationId: string): void { this.mutationQueue.acknowledge(mutationId); }
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> { return new ClientSyncRunner(this.mutationQueue, new ApiSyncTransport(api)).runOnce(); }
+  async readWorkspace(adapter: WorkspaceReadCacheAdapter): Promise<WorkspaceReadResult> {
+    const current = this.current();
+    return adapter.read(
+      { tenant_id: current.tenant_id, project_id: current.project_id, revision: current.revision },
+      current.mode === "online",
+    );
+  }
   presentConflict(mutation: SyncMutation, outcome: SyncOutcome): SyncConflictPresentation | null { return presentSyncConflict(mutation, outcome); }
   async refreshRevision(api: VersionedSyncRevisionApi): Promise<MobileProjectState> {
     const current = this.current();
