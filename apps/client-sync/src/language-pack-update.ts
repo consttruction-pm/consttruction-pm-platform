@@ -37,7 +37,7 @@ export class UpdateableLanguagePackStore extends AtomicLanguagePackStore{
   const restored=this.previous;
   this.previous=current;
   // Publish only a previously validated immutable snapshot.
-  (this as {active?:ActivatedLanguagePack}).active=restored;
+  this.active=restored;
   return restored;
  }
 }
