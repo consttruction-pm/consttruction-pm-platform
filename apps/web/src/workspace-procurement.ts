@@ -225,6 +225,12 @@ function validateActivityIds(values: readonly string[] | undefined): readonly st
   return ids;
 }
 
+function validateQuantity(value: string, errorCode: string): void {
+  if (!/^(?!0+(?:\\.0+)?$)(?:0|[1-9]\\d*)(?:\\.\\d+)?$/.test(value)) {
+    throw new Error(errorCode);
+  }
+}
+
 function validateStringAmount(value: string | null, errorCode: string): void {
   if (
     value !== null &&
@@ -288,6 +294,7 @@ export function projectProcurementRFQ(
 ): WorkspaceProcurementRecord {
   validateBase(snapshot, scope, "procurement-rfq.v1", "rfq");
   validateDateTime(snapshot.due_at, "INVALID_PROCUREMENT_DUE_AT");
+  for (const item of snapshot.items) validateQuantity(item.quantity, "INVALID_PROCUREMENT_QUANTITY");
   const activityIds = snapshot.items.flatMap((item) => validateActivityIds(item.activity_ids));
   return record(snapshot, snapshot.rfq_id, "rfq", snapshot.status, null, null, null, null, snapshot.items.length, activityIds, null, snapshot.due_at ?? null);
 }
@@ -298,6 +305,10 @@ export function projectProcurementQuote(
 ): WorkspaceProcurementRecord {
   validateBase(snapshot, scope, "procurement-quote.v1", "quote");
   validateDate(snapshot.valid_until, "INVALID_PROCUREMENT_VALID_UNTIL");
+  for (const item of snapshot.items) {
+    validateQuantity(item.quantity, "INVALID_PROCUREMENT_QUANTITY");
+    validateStringAmount(item.unit_price, "INVALID_PROCUREMENT_UNIT_PRICE");
+  }
   const activityIds = snapshot.items.flatMap((item) => validateActivityIds(item.activity_ids));
   return record(snapshot, snapshot.quote_id, "quote", snapshot.status, snapshot.supplier_id, snapshot.rfq_id, snapshot.currency, null, snapshot.items.length, activityIds, null, snapshot.valid_until);
 }
@@ -319,6 +330,10 @@ export function projectPurchaseOrder(
   validateBase(snapshot, scope, "purchase-order.v1", "purchase_order");
   validateDate(snapshot.order_date, "INVALID_PROCUREMENT_ORDER_DATE");
   validateDate(snapshot.required_delivery_date, "INVALID_PROCUREMENT_REQUIRED_DELIVERY_DATE");
+  for (const item of snapshot.items) {
+    validateQuantity(item.quantity, "INVALID_PROCUREMENT_QUANTITY");
+    validateStringAmount(item.unit_price, "INVALID_PROCUREMENT_UNIT_PRICE");
+  }
   const activityIds = snapshot.items.flatMap((item) => validateActivityIds(item.activity_ids));
   return record(snapshot, snapshot.po_id, "purchase_order", snapshot.status, snapshot.supplier_id, snapshot.rfq_id ?? snapshot.quote_id ?? null, snapshot.currency, null, snapshot.items.length, activityIds, snapshot.approval_reference ?? null, snapshot.required_delivery_date ?? snapshot.order_date ?? null);
 }
@@ -338,5 +353,6 @@ export function projectProcurementDelivery(
 ): WorkspaceProcurementRecord {
   validateBase(snapshot, scope, "procurement-delivery.v1", "delivery");
   validateDate(snapshot.delivery_date, "INVALID_PROCUREMENT_DELIVERY_DATE");
+  for (const item of snapshot.items) validateQuantity(item.quantity_received, "INVALID_PROCUREMENT_QUANTITY");
   return record(snapshot, snapshot.delivery_id, "delivery", snapshot.status, snapshot.supplier_id, snapshot.po_id, null, null, snapshot.items.length, [], snapshot.receipt_reference ?? null, snapshot.delivery_date);
 }
