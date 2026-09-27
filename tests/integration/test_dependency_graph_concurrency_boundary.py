@@ -9,6 +9,7 @@ from construction_pm.application.authorization import (
     Permission,
     RoleBasedAuthorizationPolicy,
 )
+from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.dependency_graph_application import DependencyGraphApplicationService
 from construction_pm.dependency_graph_persistence import (
     DependencyIdempotencyReuse,
@@ -49,6 +50,12 @@ class Connection:
 
     def transaction(self):
         return self.Transaction(self)
+
+    def commit(self):
+        return None
+
+    def rollback(self):
+        return None
 
     def execute(self, sql, params=()):
         class Cursor:
@@ -97,7 +104,7 @@ def make_service():
         {"planner": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE})}
     )
     store.ensure_project("tenant-a", "project-a")
-    return DependencyGraphApplicationService(store, policy), connection
+    return DependencyGraphApplicationService(store, policy, PostgresTransactionManager(connection)), connection
 
 
 def make_link(resource_id="dependency-1", tenant_id="tenant-a", project_id="project-a", source_resource_id="schedule:task-1", target_resource_id="progress:task-1", dependency_type="schedule_to_progress"):
