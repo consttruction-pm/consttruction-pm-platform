@@ -13,6 +13,7 @@ class Connection:
         self.revision = 0
         self.link = None
         self.audit = []
+        self._transaction_snapshot = None
         self.commits = 0
         self.rollbacks = 0
         self.fail_on_audit = False
@@ -29,6 +30,8 @@ class Connection:
         if sql.startswith("SELECT revision"):
             return Cursor((self.revision,))
         if sql.startswith("UPDATE project_dependency_revisions"):
+            if self._transaction_snapshot is None:
+                self._transaction_snapshot = (self.revision, self.link, list(self.audit))
             self.revision = params[0]
             return Cursor()
         if sql.startswith("SELECT fingerprint"):
@@ -45,9 +48,13 @@ class Connection:
 
     def commit(self):
         self.commits += 1
+        self._transaction_snapshot = None
 
     def rollback(self):
         self.rollbacks += 1
+        if self._transaction_snapshot is not None:
+            self.revision, self.link, self.audit = self._transaction_snapshot
+        self._transaction_snapshot = None
 
 
 def policy():
