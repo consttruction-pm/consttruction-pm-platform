@@ -64,6 +64,7 @@ Recent completed gates:
 - Stage 84 — Multilingual Core Boundary: shared language registry, client language preference, Python AI language context, translation coverage and TypeScript client language resolution; integrated through PR #166.
 - Stage 85 — Language Pack Manifest & Catalog Boundary: versioned language-pack manifest/catalog contracts, deterministic compatibility selection, integrity fields and focused TypeScript tests; integrated through PR #170.
 - P0 Dependency Graph Persistence — project-scoped dependency links now have PostgreSQL revision, idempotency and append-only audit boundaries; scheduling/P6 calculation semantics remain outside this layer.
+- P0 Document Persistence Boundary — versioned document resource contract, PostgreSQL metadata persistence, tenant/project scope, idempotency replay/reuse protection, optimistic revision checks, SHA-256 content-integrity metadata and append-only audit; integrated through PR #174 with ConstructionPM CI and Client Typecheck green.
 
 Current Stage 34 focus:
 - Continue construction control backend with the next Portfolio decision/approval implementation and cross-project control actions.
