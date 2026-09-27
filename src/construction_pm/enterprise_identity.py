@@ -10,7 +10,6 @@ class EnterpriseIdentityError(ValueError):
 
 @dataclass(frozen=True)
 class EnterpriseIdentityClaims:
-    contract_version: str = "1.0"
     subject: str
     issuer: str
     auth_method: str
@@ -18,6 +17,7 @@ class EnterpriseIdentityClaims:
     roles: tuple[str, ...]
     email: str | None = None
     display_name: str | None = None
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
         if self.contract_version != "1.0":
