@@ -29,4 +29,4 @@ def test_fractional_hour_subtraction_preserves_microsecond_precision(resolver):
 def test_calculate_working_hours_across_split_intervals_preserves_fractional_precision(resolver):
     start = datetime(2026, 9, 22, 10, 15, 30, 250000)
     finish = datetime(2026, 9, 22, 15, 45, 30, 750000)
-    assert resolver.calculate_working_hours(start, finish) == Decimal("4.5")
+    assert resolver.calculate_working_hours(start, finish) == Decimal("4.500138888888888888888888889")
