@@ -5,6 +5,7 @@ from datetime import datetime
 
 from .api_errors import APIError, authorization_error, conflict_error, validation_error
 from .application.authorization import AuthorizationContext, AuthorizationPolicy, Permission
+from .backend_p0.transactions import TransactionManager
 from .document_persistence import (
     DocumentApprovalTransitionError,
     DocumentAuthorizationError,
@@ -24,6 +25,7 @@ class DocumentApplicationService:
     store: PostgresDocumentStore
     authorization_policy: AuthorizationPolicy
     lifecycle_authorizer: DocumentLifecycleAuthorizer
+    transaction_manager: TransactionManager
 
     def create(
         self,
@@ -35,12 +37,13 @@ class DocumentApplicationService:
         occurred_at: datetime,
     ) -> StoredDocument:
         self._authorize_write(document, context, actor_id)
-        return self.store.persist(
-            document,
-            idempotency_key=idempotency_key,
-            actor_id=actor_id,
-            occurred_at=occurred_at,
-        )
+        with self.transaction_manager.transaction():
+            return self.store.persist(
+                document,
+                idempotency_key=idempotency_key,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
 
     def read(
         self,
@@ -65,14 +68,15 @@ class DocumentApplicationService:
         audit_reason: str = "",
     ) -> StoredDocument:
         self._authorize_write(document, context, actor_id)
-        return self.store.update(
+        with self.transaction_manager.transaction():
+            return self.store.update(
             document,
             expected_revision=expected_revision,
             actor_id=actor_id,
             occurred_at=occurred_at,
             event_type=event_type,
-            audit_reason=audit_reason,
-        )
+                audit_reason=audit_reason,
+            )
 
     def transition_status(
         self,
@@ -85,22 +89,23 @@ class DocumentApplicationService:
         reason: str = "",
     ) -> StoredDocument:
         self._authorize_write(document, context, actor_id)
-        current = self.store.get(document.tenant_id, document.project_id, document.document_id)
-        self.lifecycle_authorizer.authorize_transition(
-            actor_id=actor_id,
-            tenant_id=document.tenant_id,
-            project_id=document.project_id,
-            document_id=document.document_id,
-            from_status=current.document.status,
-            to_status=document.status,
-        )
-        return self.store.transition_status(
-            document,
-            expected_revision=expected_revision,
-            actor_id=actor_id,
-            occurred_at=occurred_at,
-            reason=reason,
-        )
+        with self.transaction_manager.transaction():
+            current = self.store.get(document.tenant_id, document.project_id, document.document_id)
+            self.lifecycle_authorizer.authorize_transition(
+                actor_id=actor_id,
+                tenant_id=document.tenant_id,
+                project_id=document.project_id,
+                document_id=document.document_id,
+                from_status=current.document.status,
+                to_status=document.status,
+            )
+            return self.store.transition_status(
+                document,
+                expected_revision=expected_revision,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+                reason=reason,
+            )
 
     def _check_permission(
         self,
