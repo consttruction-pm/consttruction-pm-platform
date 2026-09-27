@@ -10,7 +10,7 @@ const manifest=(version:string):LanguagePackManifest=>({
  app_compatibility:{min_version:"1.0.0",max_version:null},
  artifact:{format:"zip",compressed_size_bytes:3,download_uri:"https://example.test/en.zip",delta_from:null},
  resources:{translation:"translation.json",glossary:"glossary.json",help:"help.json",reports:"reports.json",voice_input:null,voice_output:null,offline_ai_model:null},
- integrity:{checksum:"sha256:"+"a".repeat(64),signature:"sig",signing_key_id:"key-1"},
+ integrity:{checksum:version==="1.0.0"?"sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81":"sha256:787c798e39a5bc1910355bae6d0cd87a36b2e10fd0202a83e3bb6b005da83472",signature:"sig",signing_key_id:"key-1"},
  capabilities:{ui:true,help:true,ai_text:false,voice_input:false,voice_output:false,offline_ai:false},
 });
 
