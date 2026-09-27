@@ -58,14 +58,21 @@ class ProjectPortabilitySnapshot:
 def export_project(snapshot: ProjectPortabilitySnapshot) -> bytes:
     """Serialize portability context deterministically; no domain calculations occur here."""
     return json.dumps(
-        snapshot.to_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        snapshot.to_payload(),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
     ).encode("utf-8")
 
 
 def import_project(data: bytes | str) -> ProjectPortabilitySnapshot:
     try:
-        payload = json.loads(data.decode("utf-8") if isinstance(data, bytes) else data)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        payload = json.loads(
+            data.decode("utf-8") if isinstance(data, bytes) else data,
+            parse_constant=_reject_non_standard_json_number,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ProjectPortabilityError("INVALID_PROJECT_EXPORT") from exc
     if not isinstance(payload, dict):
         raise ProjectPortabilityError("INVALID_PROJECT_EXPORT")
@@ -74,8 +81,12 @@ def import_project(data: bytes | str) -> ProjectPortabilitySnapshot:
         "calendar_context", "scheduling_settings", "calculation_settings",
         "resource_cost_config", "module_refs",
     )
-    if any(key not in payload for key in required):
+    missing = set(required).difference(payload)
+    if missing:
         raise ProjectPortabilityError("MISSING_PORTABILITY_CONTEXT")
+    unexpected = set(payload).difference(required)
+    if unexpected:
+        raise ProjectPortabilityError("UNEXPECTED_PORTABILITY_CONTEXT")
     snapshot = ProjectPortabilitySnapshot(
         schema_version=payload["schema_version"],
         tenant_id=payload["tenant_id"],
@@ -101,3 +112,7 @@ def _plain(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_plain(item) for item in value]
     return value
+
+
+def _reject_non_standard_json_number(value: str) -> None:
+    raise ValueError(f"non-standard JSON number: {value}")
