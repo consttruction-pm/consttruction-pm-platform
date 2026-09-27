@@ -611,3 +611,12 @@ Status: **100% — merged and runtime-verified through PR #328**
 - Inspect open PRs and current contracts/application/persistence state to identify the first concrete missing Hasan-owned boundary.
 - For remaining Stage 34.3 voice/presentation and cross-client parity gates, do not add a backend duplicate when the missing work belongs to client/provider adapters under `VOICE_INTERACTION_BOUNDARY.md`.
 - Do not invent a new numbered stage without an approved roadmap gate.
+
+
+### 2026-09-27 — Dependency Graph API Revision Provenance
+Status: **100% — merged and runtime-verified through PR #331**
+- Corrected the concrete API gap left by PR #328: `source_revision` and `target_revision` are now carried through the versioned request/application/persistence path and returned in the API envelope.
+- Added focused validation for non-negative source/target revisions and regression coverage proving both fields survive the API boundary.
+- PR #331 exact implementation head `869e17ae406a5d5e03257c47fe3786202678f31d` passed ConstructionPM CI run `36346728936` and Client Typecheck run `36346728879`.
+- Merge commit: `0c713bac98e1ec3939c0368bd77941b578865103`.
+- This was a targeted correction of a demonstrated gap; stale PR #222 was not revived wholesale.
