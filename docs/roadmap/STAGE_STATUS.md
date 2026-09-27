@@ -732,3 +732,14 @@ Status: **runtime-verified and merged**
 - PR #348 exact implementation head `00449763b2d17fc2733e2c202b6d1485861f6d8e` passed Client Typecheck run **36350201852** and ConstructionPM CI run **36350201964**.
 - Merge commit: `4e269ab95f55159e6c36b763761e83c730bdd19d`.
 - This is a contract/application boundary correction only; no AI provider execution, Shared Core calculation, Scheduling/P6, Progress/EVM, Resource/Cost or financial formula semantics changed.
+
+
+### 2026-09-28 — Issue #95 Web Language Manager Accessibility Semantics
+Status: **implemented and merged — PR #350**
+- Strengthened the existing framework-neutral Web Language Manager route with semantic heading association and an accessible live status region.
+- Added explicit label/value associations for language, version and offline state.
+- Added executable markup-contract regression coverage; this is repository-native semantic evidence, not a claim of full browser accessibility automation.
+- PR #350 final head `6604047da84d8a4508c456a2284fadbc56bd5427` passed Client Typecheck run `36350461365` and ConstructionPM CI run `36350461362`.
+- PR #350 merged to `main` as `eec94f4a9b96bf24012fb95193cbbbf5c658472f`.
+- Browser accessibility automation and cross-client UI automation remain separate Issue #92 evidence gates because no browser/native automation harness has been established in the repository.
+- No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
