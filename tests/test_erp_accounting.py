@@ -38,3 +38,25 @@ def test_adapter_can_express_retry_without_vendor_specific_statuses():
     result = ReferenceERPAccountingAdapter(status="retry", external_reference=None).sync(op())
     assert result.status == "retry"
     assert result.external_reference is None
+
+
+def test_erp_contract_version_is_preserved_and_validated():
+    result = ReferenceERPAccountingAdapter().sync(op())
+    assert result.contract_version == "1.0"
+
+
+def test_erp_contract_version_rejects_unknown_version():
+    bad = ERPAccountingOperation(
+        tenant_id="tenant-1",
+        project_id="project-1",
+        operation_id="op-1",
+        operation_type="commitment.upsert",
+        payload={},
+        contract_version="2.0",
+    )
+    try:
+        ReferenceERPAccountingAdapter().sync(bad)
+    except ERPAccountingIntegrationError as exc:
+        assert str(exc) == "UNSUPPORTED_ERP_ACCOUNTING_CONTRACT_VERSION"
+    else:
+        raise AssertionError("unsupported contract version must be rejected")
