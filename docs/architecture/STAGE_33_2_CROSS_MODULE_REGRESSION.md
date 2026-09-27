@@ -15,6 +15,12 @@ The tests consume existing authoritative Resource/Cost and EVM implementations. 
 
 A future integration change must preserve the existing calculation outputs and pass these boundary tests. Cross-module references remain typed/opaque at the portability boundary; authoritative modules retain ownership of their calculations.
 
+## Covered integration contracts
+
+- Versioned Scheduling CalendarContext resolves to the authoritative Shared Core calendar resolver.
+- Resource calendar capacity is preserved alongside time-phased resource values; the integration layer does not recalculate those values.
+- Portfolio/reporting read models pass through authoritative calculated metrics without recomputing formulas.
+
 ## Remaining verification
 
-Reporting/read models must continue to consume authoritative calculated datasets rather than recomputing domain formulas in API/client layers.
+PostgreSQL runtime coverage should continue to exercise the same boundaries where a production gate is available.
