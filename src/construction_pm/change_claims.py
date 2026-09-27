@@ -42,6 +42,7 @@ class ChangeClaim:
     occurred_at: str
     payload: Mapping[str, object]
     evidence_refs: tuple[str, ...] = ()
+    contract_version: str = "1.0"
 
     def fingerprint(self) -> str:
         canonical = json.dumps({
@@ -49,11 +50,13 @@ class ChangeClaim:
             "resource_id": self.resource_id, "revision": self.revision,
             "resource_type": self.resource_type.value, "status": self.status.value,
             "actor_id": self.actor_id, "occurred_at": self.occurred_at,
-            "payload": dict(self.payload), "evidence_refs": list(self.evidence_refs),
+            "payload": dict(self.payload), "evidence_refs": list(self.evidence_refs), "contract_version": self.contract_version,
         }, sort_keys=True, separators=(",", ":"))
         return sha256(canonical.encode("utf-8")).hexdigest()
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise ChangeClaimError("UNSUPPORTED_CHANGE_CLAIM_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id), ("project_id", self.project_id),
             ("resource_id", self.resource_id), ("actor_id", self.actor_id),
@@ -242,6 +245,7 @@ class PostgresChangeClaimStore:
                     "resource_type": resource.resource_type.value, "status": resource.status.value,
                     "actor_id": resource.actor_id, "occurred_at": resource.occurred_at,
                     "payload": dict(resource.payload), "evidence_refs": list(resource.evidence_refs),
+                    "contract_version": resource.contract_version,
                 },
                 sort_keys=True, separators=(",", ":")
             )
@@ -294,4 +298,5 @@ def _from_json(payload: str) -> ChangeClaim:
         status=ChangeClaimStatus(data["status"]),
         actor_id=data["actor_id"], occurred_at=data["occurred_at"],
         payload=dict(data["payload"]), evidence_refs=tuple(data.get("evidence_refs", ())),
+        contract_version=data.get("contract_version", "1.0"),
     )
