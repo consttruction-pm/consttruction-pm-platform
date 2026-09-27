@@ -650,3 +650,12 @@ Status: **runtime-verified through PR #338**
 - Merge commit: `c2126691773735a389850b05f62bd26bba43234d`.
 - This is a test/evidence hardening change only; no backend voice endpoint, provider, device permission, codec, cloud endpoint, or Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
 - Remaining Stage 34.3 work stays limited to provider-specific voice UX/integration and final evidence reconciliation where not already covered by the existing client/provider ownership boundary.
+
+
+### 2026-09-27 — ERP/Accounting Contract Version Identity
+Status: **runtime-verified through PR #339**
+- The Python ERP/accounting integration boundary now preserves and validates the existing `erp-accounting-sync-result` v1 contract identity (`contract_version=1.0`).
+- Unsupported contract versions are rejected before adapter execution.
+- PR #339 exact implementation head `1aa5216f67336a2a9365ad2e2ebff52aa80a3190` passed Client Typecheck run **36348391907** and ConstructionPM CI run **36348391989**.
+- Merge commit: `c8076792dbc5896d6fb2c6fc667322a17da58c31`.
+- No accounting formulas, AP/AR semantics or financial calculations were introduced.
