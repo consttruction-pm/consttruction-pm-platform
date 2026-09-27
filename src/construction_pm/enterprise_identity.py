@@ -10,6 +10,7 @@ class EnterpriseIdentityError(ValueError):
 
 @dataclass(frozen=True)
 class EnterpriseIdentityClaims:
+    contract_version: str = "1.0"
     subject: str
     issuer: str
     auth_method: str
@@ -19,6 +20,8 @@ class EnterpriseIdentityClaims:
     display_name: str | None = None
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise EnterpriseIdentityError("UNSUPPORTED_ENTERPRISE_IDENTITY_CONTRACT_VERSION")
         for name, value in (
             ("subject", self.subject),
             ("issuer", self.issuer),
