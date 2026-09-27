@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه",
   },
 } as const;
 
@@ -35,6 +35,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       </nav>
       <main class="cp-main">
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
+        ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -101,6 +102,39 @@ function renderControlSummary(
       <div class="cp-control-section">
         <h3>${escapeHtml(findingsLabel)}</h3>
         <div class="cp-control-findings">${findings}</div>
+      </div>
+    </section>
+  `;
+}
+
+function renderSiteDailyLogs(
+  logs: WorkspaceState["siteDailyLogs"],
+  label: string,
+): string {
+  if (!logs.length) return "";
+
+  return `
+    <section class="cp-panel cp-site-logs" aria-label="${escapeAttribute(label)}">
+      <div class="cp-control-heading">
+        <div><h2>${escapeHtml(label)}</h2></div>
+      </div>
+      <div class="cp-site-log-list">
+        ${logs.map((log) => `
+          <article class="cp-site-log" data-log-id="${escapeAttribute(log.logId)}">
+            <div class="cp-site-log-meta">
+              <strong>${escapeHtml(log.locationKey)}</strong>
+              <span>${escapeHtml(log.logDate)}</span>
+              <span>${escapeHtml(log.status)}</span>
+            </div>
+            <div class="cp-site-log-entries">
+              ${log.entries.map((entry) => `
+                <div class="cp-site-log-entry">
+                  <span>${escapeHtml(entry.category)}</span>
+                  <span>${escapeHtml(entry.text_key)}</span>
+                  ${entry.quantity !== null ? `<span>${escapeHtml(entry.quantity)} ${escapeHtml(entry.unit ?? "")}</span>` : ""}
+                </div>`).join("")}
+            </div>
+          </article>`).join("")}
       </div>
     </section>
   `;
