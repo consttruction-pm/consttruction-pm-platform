@@ -72,8 +72,32 @@ def test_portfolio_decision_round_trip_persists_revision_and_audit() -> None:
 
         assert transitioned.decision_revision == 2
         assert transitioned.decision.status == "approved"
+        implemented_at = datetime(2026, 9, 27, 15, 10, tzinfo=timezone.utc)
+        with PostgresTransactionManager(connection).transaction():
+            implemented = PortfolioDecisionBoundary(
+                **{**approved.__dict__, "status": "implemented",
+                   "implemented_at": implemented_at,
+                   "implementation_reference": f"IMPL-{suffix}"}
+            )
+            implemented_stored = store.transition(
+                implemented, expected_decision_revision=2, actor_id="executor-1",
+                occurred_at=implemented_at, event_type="implemented",
+            )
+        assert implemented_stored.decision_revision == 3
+
+        closed_at = datetime(2026, 9, 27, 15, 15, tzinfo=timezone.utc)
+        with PostgresTransactionManager(connection).transaction():
+            closed = PortfolioDecisionBoundary(**{**implemented.__dict__, "status": "closed"})
+            closed_stored = store.transition(
+                closed, expected_decision_revision=3, actor_id="closer-1",
+                occurred_at=closed_at, event_type="closed",
+            )
+        assert closed_stored.decision_revision == 4
+
         history = store.history(tenant_id, portfolio_id, decision_id)
         assert [(event.decision_revision, event.event_type, event.actor_id) for event in history] == [
             (1, "proposed", "requester-1"),
             (2, "approved", "approver-1"),
+            (3, "implemented", "executor-1"),
+            (4, "closed", "closer-1"),
         ]
