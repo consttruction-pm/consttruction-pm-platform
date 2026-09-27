@@ -10,6 +10,22 @@ from construction_pm.field_resource_persistence import (
 )
 
 
+class Transaction:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __enter__(self):
+        self.connection.transaction_entries += 1
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None:
+            self.connection.transaction_commits += 1
+        else:
+            self.connection.transaction_rollbacks += 1
+        return False
+
+
 class Cursor:
     def __init__(self, row=None, rows=None):
         self.row = row
@@ -27,6 +43,12 @@ class Connection:
         self.revisions = {}
         self.resources = {}
         self.audit = []
+        self.transaction_entries = 0
+        self.transaction_commits = 0
+        self.transaction_rollbacks = 0
+
+    def transaction(self):
+        return Transaction(self)
 
     def execute(self, sql, params=()):
         if sql.startswith("INSERT INTO project_field_revisions"):
@@ -102,6 +124,49 @@ def test_persist_replay_readback_and_audit():
     assert replay == created
     assert store.get("T-1", "P-1", "field-1") == created
     assert store.history("T-1", "P-1", "field-1")[0][1] == "created"
+    assert connection.transaction_entries == 2
+    assert connection.transaction_commits == 2
+
+
+from construction_pm.field_resource_persistence import field_resource_fingerprint
+
+
+class ConcurrentReplayConnection(Connection):
+    def __init__(self, existing):
+        super().__init__()
+        self.existing = existing
+        self.revision_selects = 0
+
+    def execute(self, sql, params=()):
+        if sql.startswith("SELECT fingerprint, resource_json") and self.revision_selects == 1:
+            return Cursor(self.existing)
+        if sql.startswith("SELECT revision FROM project_field_revisions"):
+            self.revision_selects += 1
+            return Cursor((1,))
+        return super().execute(sql, params)
+
+
+def test_concurrent_same_key_replays_after_revision_lock():
+    original = resource()
+    payload = json.dumps(
+        original.__dict__, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    fingerprint = field_resource_fingerprint(original)
+    connection = ConcurrentReplayConnection((fingerprint, payload, 1))
+    store = PostgresFieldResourceStore(connection)
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    replay = store.persist(
+        original,
+        expected_project_revision=0,
+        idempotency_key="k-1",
+        actor_id="u-1",
+        occurred_at=now,
+    )
+
+    assert replay.project_revision == 1
+    assert replay.resource == original
+    assert connection.transaction_commits == 1
 
 
 def test_stale_revision_and_idempotency_reuse_are_rejected():
