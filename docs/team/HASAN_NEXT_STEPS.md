@@ -166,3 +166,19 @@ Status: **runtime-verified and merged**
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete contract/application/persistence gap; do not duplicate the existing ERP, BI or Enterprise Identity provider-neutral seams.
+
+
+### 2026-09-28 — AI Action Contract Version Identity (PR #348)
+Status: **runtime-verified and merged**
+- Corrected the concrete Application-boundary gap where the existing versioned `ai-action-proposal` contract required `contract_version=1.0`, while `AIActionProposal` did not preserve or validate that identity.
+- `AIActionProposal` now preserves `contract_version` and rejects unsupported versions before permission/decision processing.
+- Focused regression coverage verifies preservation of `1.0` and fail-closed rejection of unsupported versions.
+- Exact implementation head: `00449763b2d17fc2733e2c202b6d1485861f6d8e`.
+- Client Typecheck run `36350201852` completed successfully.
+- ConstructionPM CI run `36350201964` completed successfully.
+- PR #348 merged to `main` as `4e269ab95f55159e6c36b763761e83c730bdd19d`.
+- No AI provider execution, tool implementation semantics, Shared Core calculations, Scheduling/P6, Progress/EVM, Resource/Cost or financial formulas were introduced.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned contract/application/persistence/integration gap. Do not duplicate the open Web/client work in PR #349 unless a concrete backend-owned dependency is demonstrated.
