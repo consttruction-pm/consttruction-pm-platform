@@ -26,8 +26,8 @@ class PortfolioActionAuditEvent:
     portfolio_revision: int
     event_type: str
     actor_id: str
-    occurred_at: str
-    action_fingerprint: str
+    occurred_at: datetime
+    action_json: str
 
 
 class PortfolioActionConnection(Protocol):
@@ -35,25 +35,17 @@ class PortfolioActionConnection(Protocol):
 
 
 def action_fingerprint(action: PortfolioControlAction) -> str:
-    """Fingerprint the caller-owned action intent, excluding authoritative revision."""
+    """Fingerprint caller-owned intent; authoritative portfolio revision is excluded."""
     payload = action.as_dict()
     payload.pop("portfolio_revision", None)
     return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
     ).hexdigest()
-
-
-@dataclass(frozen=True)
-class PortfolioActionAuditEvent:
-    event_id: str
-    tenant_id: str
-    portfolio_id: str
-    action_id: str
-    portfolio_revision: int
-    event_type: str
-    actor_id: str
-    occurred_at: datetime
-    action_json: str
 
 
 @dataclass
@@ -67,19 +59,19 @@ class PostgresPortfolioActionStore:
             "PRIMARY KEY (tenant_id, portfolio_id))"
         )
         self.connection.execute(
-            "CREATE TABLE IF NOT EXISTS portfolio_control_action_audit "
-            "(event_id TEXT NOT NULL, tenant_id TEXT NOT NULL, portfolio_id TEXT NOT NULL, "
-            "action_id TEXT NOT NULL, portfolio_revision BIGINT NOT NULL, event_type TEXT NOT NULL, "
-            "actor_id TEXT NOT NULL, occurred_at TEXT NOT NULL, action_json TEXT NOT NULL, "
-            "PRIMARY KEY (event_id), UNIQUE (tenant_id, portfolio_id, action_id, portfolio_revision))"
-        )
-        self.connection.execute(
             "CREATE TABLE IF NOT EXISTS portfolio_control_actions "
             "(tenant_id TEXT NOT NULL, portfolio_id TEXT NOT NULL, action_id TEXT NOT NULL, "
             "idempotency_key TEXT NOT NULL, fingerprint TEXT NOT NULL, expected_revision BIGINT NOT NULL, "
             "portfolio_revision BIGINT NOT NULL, status TEXT NOT NULL, action_json TEXT NOT NULL, "
             "PRIMARY KEY (tenant_id, portfolio_id, action_id), "
             "UNIQUE (tenant_id, portfolio_id, idempotency_key))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS portfolio_control_action_audit "
+            "(event_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, portfolio_id TEXT NOT NULL, "
+            "action_id TEXT NOT NULL, portfolio_revision BIGINT NOT NULL, event_type TEXT NOT NULL, "
+            "actor_id TEXT NOT NULL, occurred_at TEXT NOT NULL, action_json TEXT NOT NULL, "
+            "UNIQUE (tenant_id, portfolio_id, action_id, portfolio_revision))"
         )
 
     def ensure_portfolio(self, tenant_id: str, portfolio_id: str) -> None:
@@ -92,7 +84,12 @@ class PostgresPortfolioActionStore:
     def persist_transition(self, action: PortfolioControlAction) -> PortfolioControlAction:
         action.validate()
         fingerprint = action_fingerprint(action)
-        existing = self._find_by_idempotency(action.tenant_id, action.portfolio_id, action.idempotency_key)
+
+        existing = self._find_by_idempotency(
+            action.tenant_id,
+            action.portfolio_id,
+            action.idempotency_key,
+        )
         if existing is not None:
             existing_fingerprint, existing_json = existing
             if existing_fingerprint != fingerprint:
@@ -106,35 +103,31 @@ class PostgresPortfolioActionStore:
         ).fetchone()
         if row is None:
             raise ValueError("PORTFOLIO_REVISION_NOT_INITIALIZED")
+
         current_revision = row[0]
         if current_revision != action.expected_portfolio_revision:
             raise PortfolioRevisionConflict(
-                f"PORTFOLIO_REVISION_CONFLICT expected={action.expected_portfolio_revision} actual={current_revision}"
+                "PORTFOLIO_REVISION_CONFLICT "
+                f"expected={action.expected_portfolio_revision} actual={current_revision}"
             )
 
         persisted = replace(action, portfolio_revision=current_revision + 1)
         persisted.validate()
-        payload = json.dumps(persisted.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload = json.dumps(
+            persisted.as_dict(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
 
         self.connection.execute(
             "UPDATE portfolio_control_revisions SET revision=%s "
             "WHERE tenant_id=%s AND portfolio_id=%s AND revision=%s",
-            (persisted.portfolio_revision, action.tenant_id, action.portfolio_id, current_revision),
-        )
-        self.connection.execute(
-            "INSERT INTO portfolio_control_action_audit "
-            "(event_id, tenant_id, portfolio_id, action_id, portfolio_revision, event_type, actor_id, occurred_at, action_fingerprint) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
-                _audit_event_id(persisted),
-                persisted.tenant_id,
-                persisted.portfolio_id,
-                persisted.action_id,
                 persisted.portfolio_revision,
-                persisted.status.value,
-                persisted.decided_by or persisted.requested_by,
-                (persisted.decided_at or persisted.requested_at).isoformat(),
-                fingerprint,
+                action.tenant_id,
+                action.portfolio_id,
+                current_revision,
             ),
         )
         self.connection.execute(
@@ -155,9 +148,8 @@ class PostgresPortfolioActionStore:
         )
         self.connection.execute(
             "INSERT INTO portfolio_control_action_audit "
-            "(event_id, tenant_id, portfolio_id, action_id, portfolio_revision, event_type, actor_id, occurred_at, action_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-            "ON CONFLICT (tenant_id, portfolio_id, action_id, portfolio_revision) DO NOTHING",
+            "(event_id, tenant_id, portfolio_id, action_id, portfolio_revision, event_type, "
+            "actor_id, occurred_at, action_json) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 _audit_event_id(persisted),
                 persisted.tenant_id,
@@ -172,9 +164,6 @@ class PostgresPortfolioActionStore:
         )
         return persisted
 
-
-
-
     def audit_history(
         self,
         tenant_id: str,
@@ -182,7 +171,8 @@ class PostgresPortfolioActionStore:
         action_id: str,
     ) -> tuple[PortfolioActionAuditEvent, ...]:
         rows = self.connection.execute(
-            "SELECT event_id, portfolio_revision, event_type, actor_id, occurred_at, action_json "
+            "SELECT event_id, tenant_id, portfolio_id, action_id, portfolio_revision, "
+            "event_type, actor_id, occurred_at, action_json "
             "FROM portfolio_control_action_audit "
             "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
             "ORDER BY portfolio_revision ASC",
@@ -191,33 +181,23 @@ class PostgresPortfolioActionStore:
         return tuple(
             PortfolioActionAuditEvent(
                 event_id=row[0],
-                tenant_id=tenant_id,
-                portfolio_id=portfolio_id,
-                action_id=action_id,
-                portfolio_revision=int(row[1]),
-                event_type=row[2],
-                actor_id=row[3],
-                occurred_at=datetime.fromisoformat(row[4]),
-                action_json=row[5],
+                tenant_id=row[1],
+                portfolio_id=row[2],
+                action_id=row[3],
+                portfolio_revision=int(row[4]),
+                event_type=row[5],
+                actor_id=row[6],
+                occurred_at=datetime.fromisoformat(row[7]),
+                action_json=row[8],
             )
             for row in rows
         )
 
-    def audit_history(
-        self, tenant_id: str, portfolio_id: str, action_id: str
-    ) -> tuple[PortfolioActionAuditEvent, ...]:
-        rows = self.connection.execute(
-            "SELECT event_id, tenant_id, portfolio_id, action_id, portfolio_revision, "
-            "event_type, actor_id, occurred_at, action_fingerprint "
-            "FROM portfolio_control_action_audit "
-            "WHERE tenant_id=%s AND portfolio_id=%s AND action_id=%s "
-            "ORDER BY portfolio_revision ASC",
-            (tenant_id, portfolio_id, action_id),
-        ).fetchall()
-        return tuple(PortfolioActionAuditEvent(*row) for row in rows)
-
     def _find_by_idempotency(
-        self, tenant_id: str, portfolio_id: str, key: str
+        self,
+        tenant_id: str,
+        portfolio_id: str,
+        key: str,
     ) -> tuple[str, str] | None:
         row = self.connection.execute(
             "SELECT fingerprint, action_json FROM portfolio_control_actions "
@@ -228,14 +208,25 @@ class PostgresPortfolioActionStore:
 
 
 def _audit_event_id(action: PortfolioControlAction) -> str:
-    material = "|".join((action.tenant_id, action.portfolio_id, action.action_id, str(action.portfolio_revision), action.status.value))
-    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+    parts = (
+        action.tenant_id,
+        action.portfolio_id,
+        action.action_id,
+        str(action.portfolio_revision),
+        action.status.value,
+        action.decided_by or action.requested_by,
+        (action.decided_at or action.requested_at).isoformat(),
+    )
+    canonical = b"".join(
+        len(part.encode("utf-8")).to_bytes(4, "big") + part.encode("utf-8")
+        for part in parts
+    )
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _action_from_json(payload: str) -> PortfolioControlAction:
     from .control_intelligence.contracts import SourceReference
     from .portfolio_control_actions import PortfolioActionStatus, PortfolioActionType
-    from datetime import datetime
 
     data = json.loads(payload)
     evidence = tuple(SourceReference(**item) for item in data["evidence_refs"])
@@ -259,20 +250,3 @@ def _action_from_json(payload: str) -> PortfolioControlAction:
         decided_by=data["decided_by"],
         decided_at=datetime.fromisoformat(data["decided_at"]) if data["decided_at"] else None,
     )
-
-
-def _audit_event_id(action: PortfolioControlAction) -> str:
-    parts = (
-        action.tenant_id,
-        action.portfolio_id,
-        action.action_id,
-        str(action.portfolio_revision),
-        action.status.value,
-        action.decided_by or action.requested_by,
-        (action.decided_at or action.requested_at).isoformat(),
-    )
-    canonical = b"".join(
-        len(part.encode("utf-8")).to_bytes(4, "big") + part.encode("utf-8")
-        for part in parts
-    )
-    return hashlib.sha256(canonical).hexdigest()
