@@ -51,19 +51,22 @@ export type VoiceCommandSnapshot = {
 export function normalizeVoiceCommand(
   snapshot: VoiceCommandSnapshot,
   aiLanguage: AILanguageContext,
+  expectedScope: VoiceCommand["scope"],
 ): VoiceCommand {
   requireVoiceInput(aiLanguage);
 
   if (snapshot.contract_version !== VOICE_COMMAND_VERSION) {
     throw new Error("UNSUPPORTED_VOICE_COMMAND_CONTRACT");
   }
+  validateScope(snapshot.scope);
+  validateScope(expectedScope);
   if (
-    snapshot.scope.tenant_id !== aiLanguage.provenance_context?.tenant_id &&
-    aiLanguage.provenance_context?.tenant_id !== undefined
+    snapshot.scope.tenant_id !== expectedScope.tenant_id ||
+    snapshot.scope.project_id !== expectedScope.project_id ||
+    snapshot.scope.project_revision !== expectedScope.project_revision
   ) {
     throw new Error("VOICE_COMMAND_SCOPE_MISMATCH");
   }
-  validateScope(snapshot.scope);
   if (
     !snapshot.voice_command_id.trim() ||
     !snapshot.requested_by.trim() ||
