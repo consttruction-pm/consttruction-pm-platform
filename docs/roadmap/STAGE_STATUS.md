@@ -680,3 +680,16 @@ Status: **runtime-verified through PR #341**
 - Merge commit: `a7d2486a3355a6455b0f779c036399bef336eb46`.
 - No backend voice endpoint, scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
 - Remaining Stage 34.3 work is limited to provider-specific UX/integration and final evidence reconciliation for client/provider ownership boundaries not yet concretely covered.
+
+
+### 2026-09-28 — Stage 34.3 Final Voice Evidence Reconciliation
+Status: **100% — final integration/evidence gate runtime-verified**
+- Web Speech provider production completion was corrected after evidence review: output now resolves only after the browser speech provider emits completion, while provider errors remain fail-closed.
+- Final production correction commit: `e330929aa50b5a69d643c9401fd429cfb7889135`.
+- A follow-up test-only TypeScript boundary correction was applied in `web-speech-provider.test.ts`; no production semantics changed. Commit: `6f100006d77703e8d4bb877ec245bbf3bf41c2d7`.
+- Client Typecheck run `36348752575` completed successfully for Web, Desktop, Mobile and Client-Sync typecheck/runtime jobs.
+- ConstructionPM CI run `36348752556` completed successfully.
+- PostgreSQL Sync State Integration run `36348752538` completed successfully; live sync-state tests passed.
+- Desktop and Mobile remain intentionally provider-neutral because no concrete runtime/provider dependency is present in those clients; adding an invented provider dependency would violate the existing provider-ownership boundary.
+- Stage 34.3 therefore has no remaining implementation or runtime-evidence gate in the current scope.
+- No backend voice endpoint, Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics were changed by this final reconciliation.
