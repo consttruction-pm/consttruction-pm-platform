@@ -36,7 +36,7 @@ def test_document_search_postgres_live_scope_revision_and_removal() -> None:
 
         adapter.index(entry)
         connection.commit()
-        adapter.index(make_entry(suffix, revision=2, text="current revision"))
+        adapter.index(make_entry(suffix, revision=2, text="current structural revision"))
         connection.commit()
         assert adapter.search(entry.tenant_id, entry.project_id, "LEVEL 2") == ()
         assert [item.document_id for item in adapter.search(entry.tenant_id, entry.project_id, "current")] == ["doc-1"]
