@@ -501,11 +501,14 @@ Status: **runtime-verified through 2026-09-27**
 - PR #253 — Control Summary rendering with authoritative metrics/findings: merged; CI runtime-verified.
 - PR #255 — `field-daily-log.v1` Web projection and Daily Log rendering: merged; CI runtime-verified.
 - PR #256 — `field-timecard.v1` and `equipment-status-report.v1` Web projections and Control Room panels: merged; CI runtime-verified.
+- PR #259 — `field-issue.v1` Web projection and Field Issue Control Room experience: merged; CI runtime-verified.
+- PR #261 — inspection/quality/safety/punch Web projections and Field Assurance Control Room views: merged; CI runtime-verified.
+- Current branch gate — Change/Notice/Claim/Impact Web projection and Control Room slice: implementation in progress; focused TypeScript tests added, runtime CI verification pending.
 - Web client continues to consume authoritative contracts; no P6/Scheduling, Progress/EVM, Resource/Cost or financial calculations are implemented in the client.
 
 Next Stage 34.3 implementation gates:
+- complete and runtime-verify Change/Notice/Claim/Impact Web workflow;
+- Document and Procurement Web workflows against versioned authoritative contracts;
 - versioned read/API integration for Control Room and field projections;
-- inspection/quality/safety/punch workflows;
-- Change/Claim/Document/Procurement Web workflows;
 - AI Copilot/Smart Guide/voice presentation against existing authoritative contracts;
-- Web/Desktop/Mobile parity for the new field workflows.
+- Web/Desktop/Mobile parity for the new field and commercial workflows.
