@@ -31,7 +31,7 @@ The current three-person development ownership model is documented in [`docs/tea
 - **Javad** — Frontend / Web / Desktop / Mobile / UX; client applications, UI, localization, offline/client integration and cross-client parity.
 
 ## Current documented implementation point
-The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 34.2.19 — Portfolio Decision Lifecycle Application Boundary**. Stage 34.1 through Stage 34.2.19 have been integrated through reviewed PR gates. Stage 34.2.10 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
+The project has progressed beyond the original Stage 33.4.30 time-aware CPM milestone. The current implementation point is **Stage 85 — Language Pack Manifest & Catalog Boundary**. Stages 34.1 through 34.2.19 and the later Stage 84/85 multilingual boundaries have been integrated through reviewed PR gates. Stage 34.2.10 passed the full Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync runtime gates before merge.
 
 Recent completed gates:
 - Stage 33.4.65 — Final Time-Aware P6 Certification & CI Runtime Gate: runtime-verified.
@@ -61,6 +61,8 @@ Recent completed gates:
 - Stage 34.2.17 — Portfolio Decision PostgreSQL Runtime Verification: DSN-gated live PostgreSQL round-trip coverage for persistence, read-back, approval revision transition and append-only audit history; integrated with Python 3.11/3.12/3.13 and client typecheck gates green.
 - Stage 34.2.18 — Portfolio Decision Application Boundary: application-layer authorization, tenant scope, actor integrity, creation and approval orchestration over the authoritative Portfolio Decision domain/persistence boundaries.
 - Stage 34.2.19 — Portfolio Decision Lifecycle Application Boundary: reject/cancel/implement/close lifecycle orchestration with tenant/admin authorization, domain transition validation, implementation-reference enforcement and persisted revision/idempotency/audit boundaries; integrated and runtime-verified.
+- Stage 84 — Multilingual Core Boundary: shared language registry, client language preference, Python AI language context, translation coverage and TypeScript client language resolution; integrated through PR #166.
+- Stage 85 — Language Pack Manifest & Catalog Boundary: versioned language-pack manifest/catalog contracts, deterministic compatibility selection, integrity fields and focused TypeScript tests; integrated through PR #170.
 - P0 Dependency Graph Persistence — project-scoped dependency links now have PostgreSQL revision, idempotency and append-only audit boundaries; scheduling/P6 calculation semantics remain outside this layer.
 
 Current Stage 34 focus:
