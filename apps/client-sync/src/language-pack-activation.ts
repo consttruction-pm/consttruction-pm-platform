@@ -15,7 +15,15 @@ export class AtomicLanguagePackStore{
  activate(artifact:Uint8Array,manifest:LanguagePackManifest,resources:readonly LanguagePackResource[],verifySignature:LanguagePackSignatureVerifier):ActivatedLanguagePack{
   verifyLanguagePackIntegrity(artifact,manifest,verifySignature);
   const validatedResources=validateLanguagePackResources(manifest,resources);
-  const frozenManifest:LanguagePackManifest=Object.freeze({\n   ...manifest,\n   app_compatibility:Object.freeze({...manifest.app_compatibility}),\n   artifact:Object.freeze({...manifest.artifact}),\n   resources:Object.freeze({...manifest.resources}),\n   integrity:Object.freeze({...manifest.integrity}),\n   capabilities:Object.freeze({...manifest.capabilities}),\n  });\n  const candidate:ActivatedLanguagePack=Object.freeze({manifest:frozenManifest,resources:validatedResources});
+  const frozenManifest:LanguagePackManifest=Object.freeze({
+   ...manifest,
+   app_compatibility:Object.freeze({...manifest.app_compatibility}),
+   artifact:Object.freeze({...manifest.artifact}),
+   resources:Object.freeze({...manifest.resources}),
+   integrity:Object.freeze({...manifest.integrity}),
+   capabilities:Object.freeze({...manifest.capabilities}),
+  });
+  const candidate:ActivatedLanguagePack=Object.freeze({manifest:frozenManifest,resources:validatedResources});
   this.active=candidate;
   return candidate;
  }
