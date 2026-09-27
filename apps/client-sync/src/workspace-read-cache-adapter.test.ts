@@ -8,7 +8,7 @@ import {
 } from "./workspace-read-cache-adapter.js";
 import type { WorkspaceControlRoomReadCache } from "./workspace-read-cache.js";
 
-const context: SyncProjectContext = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
+const context: SyncSyncProjectContext = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
 
 function snapshot(revision = 7): Record<string, unknown> {
   return { contract_version: "workspace-control-room-read.v1", context: { ...context, revision }, workspace: {} };
