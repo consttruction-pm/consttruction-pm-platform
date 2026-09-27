@@ -1,5 +1,3 @@
-import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.ts";
-import type { VoiceCommand } from "../../client-sync/src/voice-command.ts";
 import type { VoiceInputAdapter, VoiceOutputAdapter } from "../../client-sync/src/voice-provider-adapter.ts";
 
 type BrowserSpeechResult = { readonly 0: { readonly transcript: string; readonly confidence: number } };
@@ -24,6 +22,9 @@ interface BrowserRecognitionConstructor {
 interface BrowserSpeechSynthesis {
   speak(utterance: BrowserSpeechSynthesisUtterance): void;
 }
+interface BrowserSpeechSynthesisUtteranceConstructor {
+  new (text: string): BrowserSpeechSynthesisUtterance;
+}
 
 interface BrowserSpeechSynthesisUtterance {
   lang: string;
@@ -35,6 +36,7 @@ interface BrowserWindowSpeech {
   readonly SpeechRecognition?: BrowserRecognitionConstructor;
   readonly webkitSpeechRecognition?: BrowserRecognitionConstructor;
   readonly speechSynthesis?: BrowserSpeechSynthesis;
+  readonly SpeechSynthesisUtterance?: BrowserSpeechSynthesisUtteranceConstructor;
 }
 
 type WebSpeechProviderOptions = Readonly<{
@@ -103,12 +105,13 @@ export function createWebSpeechOutputAdapter(
   options: WebSpeechProviderOptions = {},
 ): VoiceOutputAdapter {
   const provider = browserSpeech();
+  const Utterance = provider.SpeechSynthesisUtterance;
   return {
-    capabilities: { input: false, output: Boolean(provider.speechSynthesis) },
+    capabilities: { input: false, output: Boolean(provider.speechSynthesis && Utterance) },
     speak: async (text, context) => {
-      if (!provider.speechSynthesis) throw new Error("VOICE_OUTPUT_UNAVAILABLE");
+      if (!provider.speechSynthesis || !Utterance) throw new Error("VOICE_OUTPUT_UNAVAILABLE");
       if (!text.trim() || !context.language.trim()) throw new Error("INVALID_VOICE_OUTPUT");
-      const utterance = (options.createUtterance ?? ((value) => new SpeechSynthesisUtterance(value)))(text);
+      const utterance = (options.createUtterance ?? ((value) => new Utterance(value)))(text);
       utterance.lang = context.language;
       await new Promise<void>((resolve, reject) => {
         utterance.onerror = () => reject(new Error("VOICE_OUTPUT_FAILED"));
