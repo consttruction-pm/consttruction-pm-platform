@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from construction_pm.application.authorization import (
@@ -9,6 +11,7 @@ from construction_pm.application.authorization import (
     RoleBasedAuthorizationPolicy,
 )
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.field_assurance_application import (
     FieldAssuranceApplicationError,
     FieldAssuranceApplicationService,
@@ -53,6 +56,8 @@ def execution(revision: int = 7, tenant: str = "tenant-1", project: str = "proje
         template_id="TPL-1",
         template_version=1,
         answers=(FieldAssuranceExecutionAnswer("I-1", True),),
+        executed_by="user-1",
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
 
 
@@ -66,6 +71,7 @@ def service() -> FieldAssuranceApplicationService:
     return FieldAssuranceApplicationService(
         repository=InMemoryFieldAssuranceRepository(),
         authorization_policy=policy,
+        transaction_manager=SQLiteTransactionManager(__import__('sqlite3').connect(':memory:')),
     )
 
 
@@ -163,6 +169,13 @@ def test_get_template_requires_read_permission() -> None:
         )
 
 
+def test_execution_actor_must_match_authorized_actor():
+    app = service()
+    app.repository.create_template(template())
+    with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_EXECUTED_BY_MISMATCH"):
+        app.execute(execution(), context=context(), expected_project_revision=7, actor_id="user-2")
+
+
 def test_repository_execution_validation_remains_authoritative() -> None:
     app = service()
     app.repository.create_template(template())
@@ -172,6 +185,8 @@ def test_repository_execution_validation_remains_authoritative() -> None:
         template_id="TPL-1",
         template_version=1,
         answers=(),
+        executed_by="user-1",
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
     with pytest.raises(FieldAssuranceExecutionError, match="MISSING_REQUIRED_EXECUTION_ANSWERS"):
         app.execute(
