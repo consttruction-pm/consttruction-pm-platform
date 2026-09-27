@@ -67,6 +67,22 @@
     "punch_items": {
       "type": "array",
       "items": { "$ref": "https://construction-pm.local/contracts/v1/punch-item.v1" }
+    },
+    "change_notices": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/change-notice.v1" }
+    },
+    "change_cases": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/change-case.v1" }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/claim-record.v1" }
+    },
+    "change_claim_impacts": {
+      "type": "array",
+      "items": { "$ref": "https://construction-pm.local/contracts/v1/change-claim-impact.v1" }
     }
   }
 }
