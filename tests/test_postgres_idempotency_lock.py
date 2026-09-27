@@ -19,7 +19,7 @@ def test_postgres_idempotency_lock_uses_transaction_scoped_advisory_lock():
     sql, params = connection.calls[0]
     assert "pg_advisory_xact_lock" in sql
     assert "hashtextextended" in sql
-    assert params == ("[\"tenant\",\"project\",\"mutation-key\"]",)
+    assert params == ("6:tenant|7:project|12:mutation-key",)
 
 
 def test_postgres_idempotency_lock_key_includes_tenant_project_and_key():
