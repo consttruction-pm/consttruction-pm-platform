@@ -118,15 +118,19 @@ export function renderLanguageManagerRoute(
   container: HTMLElement,
   state: LanguageManagerRouteState,
 ): void {
+  container.innerHTML = renderLanguageManagerRouteMarkup(state);
+}
+
+export function renderLanguageManagerRouteMarkup(state: LanguageManagerRouteState): string {
   const version = state.active?.manifest.version ?? "—";
   const language = state.active?.manifest.language_tag ?? "—";
   const status = state.error ?? state.status;
 
-  container.innerHTML = `
+  return `
     <section data-language-manager-route aria-labelledby="language-manager-title">
       <header>
-        <h1>Language Manager</h1>
-        <div data-language-pack-status>${escapeHtml(status)}</div>
+        <h1 id="language-manager-title">Language Manager</h1>
+        <div data-language-pack-status role="status" aria-live="polite" aria-atomic="true">${escapeHtml(status)}</div>
       </header>
       <dl>
         <div><dt id="language-manager-language-label">Language</dt><dd data-language-tag aria-labelledby="language-manager-language-label">${escapeHtml(language)}</dd></div>
