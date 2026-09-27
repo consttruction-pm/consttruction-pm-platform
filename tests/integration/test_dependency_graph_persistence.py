@@ -195,3 +195,10 @@ def test_dependency_fingerprint_is_stable_for_metadata_key_order() -> None:
     second = link(metadata={"a": {"x": 0, "y": 1}, "b": 2})
 
     assert dependency_fingerprint(first) == dependency_fingerprint(second)
+
+
+def test_dependency_fingerprint_preserves_metadata_array_order() -> None:
+    first = link(metadata={"items": ["alpha", "beta"]})
+    second = link(metadata={"items": ["beta", "alpha"]})
+
+    assert dependency_fingerprint(first) != dependency_fingerprint(second)
