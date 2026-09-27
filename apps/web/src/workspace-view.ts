@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
@@ -40,6 +40,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -255,6 +256,73 @@ function renderFieldAssurance(
               <span>${escapeHtml(item.priority)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(item.locationKey ?? "—")}</span>
               <span>Due: ${escapeHtml(item.dueDate ?? "—")}</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderChangeClaimControl(
+  notices: WorkspaceState["changeNotices"],
+  changes: WorkspaceState["changeCases"],
+  claims: WorkspaceState["claims"],
+  impacts: WorkspaceState["changeClaimImpacts"],
+  label: string,
+): string {
+  if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
+
+  const renderRefs = (values: readonly string[]) =>
+    values.length ? values.map((value) => `<span class="cp-ref">${escapeHtml(value)}</span>`).join(" ") : "—";
+
+  return `
+    <section class="cp-panel cp-change-claim" aria-label="${escapeAttribute(label)}">
+      <h2>${escapeHtml(label)}</h2>
+      <div class="cp-change-claim-grid">
+        <div>
+          <h3>Notices</h3>
+          ${notices.length ? notices.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.titleKey)}</strong>
+              <span>${escapeHtml(item.noticeType)} · ${escapeHtml(item.status)}</span>
+              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
+              <span>Cost: ${renderRefs(item.costRefs)}</span>
+              <span>${item.evidenceCount} evidence · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+        <div>
+          <h3>Change Cases</h3>
+          ${changes.length ? changes.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.titleKey)}</strong>
+              <span>${escapeHtml(item.changeType)} · ${escapeHtml(item.status)}</span>
+              <span>Notice: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
+              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
+              <span>Impact links: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+        <div>
+          <h3>Claims</h3>
+          ${claims.length ? claims.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.titleKey)}</strong>
+              <span>${escapeHtml(item.claimType)} · ${escapeHtml(item.status)}</span>
+              <span>Change: ${escapeHtml(item.changeId ?? "—")}</span>
+              <span>Entitlement: ${escapeHtml(item.entitlementReference ?? "—")}</span>
+              <span>Decision: ${escapeHtml(item.decisionReference ?? "—")}</span>
+              <span>${item.evidenceCount} evidence</span>
+            </article>`).join("") : '<div class="cp-empty">—</div>'}
+        </div>
+        <div>
+          <h3>Impact Links</h3>
+          ${impacts.length ? impacts.map((item) => `
+            <article class="cp-field-card">
+              <strong>${escapeHtml(item.recordType)} · ${escapeHtml(item.recordId)}</strong>
+              <span>${escapeHtml(item.impactedDomain)} / ${escapeHtml(item.impactedEntityType)} / ${escapeHtml(item.impactedEntityId)}</span>
+              <span>${escapeHtml(item.impactType)}</span>
+              <span>Schedule: ${escapeHtml(item.scheduleReference ?? "—")}</span>
+              <span>Cost: ${escapeHtml(item.costReference ?? "—")}</span>
+              <span>Approval: ${item.requiresApplicationApproval ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
