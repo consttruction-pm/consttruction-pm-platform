@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
@@ -36,6 +36,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
       </nav>
       <main class="cp-main">
+        ${renderSmartGuide(state.smartGuide, t.smartGuide)}
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
@@ -70,6 +71,68 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
+}
+
+function renderSmartGuide(
+  guide: WorkspaceState["smartGuide"],
+  label: string,
+): string {
+  if (!guide) return "";
+
+  const findings = guide.findings.length
+    ? guide.findings
+        .slice(0, 5)
+        .map((finding) =>
+          `<article class="cp-control-finding is-${escapeAttribute(finding.severity)}">
+            <div class="cp-control-finding-title">${escapeHtml(finding.title_key)}</div>
+            <div class="cp-control-finding-detail">${escapeHtml(finding.detail_key)}</div>
+          </article>`,
+        )
+        .join("")
+    : '<div class="cp-empty">—</div>';
+
+  const actions = guide.proposedActions.length
+    ? guide.proposedActions
+        .map(
+          (action) =>
+            `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
+              <strong>${escapeHtml(action.titleKey)}</strong>
+              <span>${escapeHtml(action.actionType)}</span>
+              <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
+              <span>${action.sourceCount} source(s)</span>
+            </article>`,
+        )
+        .join("")
+    : '<div class="cp-empty">—</div>';
+
+  return `
+    <section class="cp-panel cp-smart-guide" aria-label="${escapeAttribute(label)}">
+      <div class="cp-control-heading">
+        <div>
+          <h2>${escapeHtml(label)}</h2>
+          <div class="cp-control-result">${escapeHtml(guide.summaryKey)}</div>
+        </div>
+        <span>${escapeHtml(guide.locale)} · ${escapeHtml(guide.module)}</span>
+      </div>
+      <div class="cp-field-grid">
+        <div>
+          <h3>Findings</h3>
+          <div class="cp-field-list">${findings}</div>
+        </div>
+        <div>
+          <h3>Proposed Actions</h3>
+          <div class="cp-field-list">${actions}</div>
+        </div>
+        <div>
+          <h3>Traceability</h3>
+          <div class="cp-control-metrics">
+            <div class="cp-control-metric"><span>Sources</span><strong>${guide.sourceCount}</strong></div>
+            <div class="cp-control-metric"><span>Approval Required</span><strong>${guide.approvalRequiredCount}</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function renderControlSummary(
