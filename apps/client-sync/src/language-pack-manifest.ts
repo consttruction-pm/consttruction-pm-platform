@@ -11,6 +11,7 @@ const REQUIRED = ["package_id", "language_tag", "version", "app_compatibility", 
 
 export function validateLanguagePackManifest(value: unknown): LanguagePackManifest {
   if (!isRecord(value) || REQUIRED.some((key) => !(key in value))) throw new Error("INVALID_LANGUAGE_PACK_MANIFEST");
+  rejectUnknown(value, REQUIRED, "INVALID_LANGUAGE_PACK_MANIFEST");
   requireString(value.package_id, "INVALID_LANGUAGE_PACK_PACKAGE_ID");
   requireString(value.language_tag, "INVALID_LANGUAGE_PACK_LANGUAGE_TAG");
   requirePattern(value.version, /^\d+\.\d+\.\d+$/, "INVALID_LANGUAGE_PACK_VERSION");
