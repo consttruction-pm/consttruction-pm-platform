@@ -64,6 +64,7 @@
               "resource",
               "cost",
               "document",
+              "rfi",
               "change",
               "claim",
               "procurement",
