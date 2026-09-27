@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from contextlib import AbstractContextManager
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -101,6 +102,7 @@ class DependencyAuditEvent:
 
 class DependencyConnection(Protocol):
     def execute(self, sql: str, params: tuple[Any, ...] = ()): ...
+    def transaction(self) -> AbstractContextManager[None]: ...
 
 
 def dependency_fingerprint(link: DependencyLink) -> str:
@@ -189,6 +191,24 @@ class PostgresDependencyGraphStore:
         if not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
+        with self.connection.transaction():
+            return self._persist_transactional(
+                link,
+                expected_graph_revision=expected_graph_revision,
+                idempotency_key=idempotency_key,
+                actor_id=actor_id,
+                occurred_at=occurred_at,
+            )
+
+    def _persist_transactional(
+        self,
+        link: DependencyLink,
+        *,
+        expected_graph_revision: int,
+        idempotency_key: str,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> StoredDependencyLink:
         # Lock the project revision before checking idempotency. This serializes
         # concurrent writes/replays for one project and prevents a same-key race
         # from reaching the unique constraint as a transaction error.
