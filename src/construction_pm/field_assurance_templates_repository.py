@@ -13,6 +13,7 @@ from .field_assurance_execution import (
     FieldAssuranceExecution,
     FieldAssuranceExecutionAnswer,
     FieldAssuranceExecutionError,
+    FieldAssuranceRepository,
 )
 from .field_assurance_templates import (
     FieldAssuranceTemplate,
@@ -27,7 +28,7 @@ class FieldAssuranceTemplatePersistenceError(ValueError):
     pass
 
 
-class FieldAssuranceTemplateRepository(Protocol):
+class FieldAssuranceTemplateRepository(FieldAssuranceRepository, Protocol):
     def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate: ...
     def get_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None: ...
     def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution: ...
