@@ -1,4 +1,4 @@
-import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.js";
+import { ApiRevisionTransport, type VersionedSyncRevisionApi } from "../../client-sync/src/revision-transport.ts";
 import {
   OfflineMutationQueue,
   type SyncMutation,
