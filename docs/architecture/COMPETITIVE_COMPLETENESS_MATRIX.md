@@ -14,6 +14,7 @@ Foundation = architecture/specification exists; Implemented = source implementat
 | Domain | Current state | Required next maturity | Release gate |
 |---|---|---|---|
 | P6 scheduling / CPM | Implemented + verified foundation | Continue parity edge packs and production UI | Gate A |
+| P6 fields / columns / UDF / formulas / layouts | Architecture baseline + gap inventory | Build complete field registry, column/layout engine, safe formula engine and conformance fixtures | Gate A |
 | Time/calendar/duration | Implemented + verified | Expand rich calendar configuration | Gate A |
 | Progress / EVM / Earned Schedule | Implemented foundation | Connect field/commercial evidence and forecasts | A + B |
 | Resource / Cost | Implemented foundation | Extend commitments, procurement and commercial forecasting | A + B |
