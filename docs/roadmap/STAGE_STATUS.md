@@ -501,11 +501,19 @@ Status: **runtime-verified through 2026-09-27**
 - PR #253 — Control Summary rendering with authoritative metrics/findings: merged; CI runtime-verified.
 - PR #255 — `field-daily-log.v1` Web projection and Daily Log rendering: merged; CI runtime-verified.
 - PR #256 — `field-timecard.v1` and `equipment-status-report.v1` Web projections and Control Room panels: merged; CI runtime-verified.
-- Web client continues to consume authoritative contracts; no P6/Scheduling, Progress/EVM, Resource/Cost or financial calculations are implemented in the client.
+- PR #259 — `field-issue.v1` Web projection and issue panel: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- PR #261 — Inspection / Quality-NCR / Safety Observation / Punch-Closeout Web projections and Field Assurance Control Room: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- PR #262 — versioned `workspace-control-room-read.v1` Web + Backend read integration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- PR #264 — Change Notice / Change Case / Claim / Change-Claim Impact Web workflow and additive read-envelope hydration: merged; Client Typecheck + ConstructionPM CI runtime-verified.
+- Web client remains presentation/state-only. No P6/Scheduling, Calendar, Progress/EVM, Resource/Cost or financial calculation authority is duplicated in the client.
+- Attendance, equipment, issue, assurance, commercial and Control Intelligence data remain linked to authoritative tenant/project/revision/evidence contracts.
 
-Next Stage 34.3 implementation gates:
-- versioned read/API integration for Control Room and field projections;
-- inspection/quality/safety/punch workflows;
-- Change/Claim/Document/Procurement Web workflows;
-- AI Copilot/Smart Guide/voice presentation against existing authoritative contracts;
-- Web/Desktop/Mobile parity for the new field workflows.
+Current remaining Stage 34.3 gates:
+- Document / RFI / Submittal / document-linkage Web workflow.
+- Procurement / Commercial Commitments Web workflow.
+- AI Copilot / Smart Guide / voice presentation against the existing authoritative contracts.
+- Web/Desktop/Mobile parity for the newly integrated Control Room workflows.
+- Final Stage 34.3 integration/regression gate and runtime evidence reconciliation.
+
+Stale PR note:
+- Earlier Stage 34.3 PRs whose content is already represented by merged current-main gates must not be re-implemented or merged again merely because their branches remain open.
