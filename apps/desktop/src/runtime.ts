@@ -9,6 +9,7 @@ import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/a
 import { LanguagePackClientRuntime } from "../../client-sync/src/language-pack-client-runtime.ts";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 import { WorkspaceReadCacheAdapter, type WorkspaceReadResult } from "../../client-sync/src/workspace-read-cache-adapter.js";
+import type { DesktopVoiceAdapters } from "./voice-adapters.ts";
 
 export type OfflineMode = "offline" | "online";
 export type DesktopProjectState = { tenant_id: string; project_id: string; revision: number; mode: OfflineMode };
@@ -17,7 +18,10 @@ export class DesktopRuntime {
   private state: DesktopProjectState | null = null;
   private readonly mutationQueue = new OfflineMutationQueue();
   private readonly languagePackRuntime = new LanguagePackClientRuntime();
+  private voiceAdapters: DesktopVoiceAdapters | null = null;
   languagePacks(): LanguagePackClientRuntime { return this.languagePackRuntime; }
+  setVoiceAdapters(adapters: DesktopVoiceAdapters): void { this.voiceAdapters = adapters; }
+  voiceAdaptersOrNull(): DesktopVoiceAdapters | null { return this.voiceAdapters; }
 
   openProject(tenant_id: string, project_id: string, revision: number, mode: OfflineMode = "offline"): DesktopProjectState {
     if (!tenant_id || !project_id || revision < 0) throw new Error("INVALID_PROJECT_CONTEXT");
