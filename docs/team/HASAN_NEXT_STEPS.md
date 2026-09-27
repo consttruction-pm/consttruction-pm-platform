@@ -1,186 +1,95 @@
-# CURRENT STATUS OVERRIDE — 2026-09-25
+# Hasan — Current Continuation / Backend Track
 
-- Latest main checked: `9e2907380bfea63d00b0ac90df868046de2d4db5`.
-- PR #70 latest reconciled head: `11b8adfeb00260ce4c97979c305a7692190e7684`.
-- PR #70 compare: **ahead 1 / behind 0**; diff remains limited to the two intended client-sync files.
-- PR #70 has a fresh **APPROVED** review anchored to the reconciled head.
-- Latest ConstructionPM CI run: `36094238842` — failure before any workflow step, jobs report `runner_id=0`.
-- Latest Client Typecheck run: `36094238846` — same pre-step failure pattern.
-- Therefore CI failure is **not being interpreted as a code-test failure** until a runner executes actual steps.
-- Stage 33.4.70 is **95% implementation-complete; runtime verification pending**.
-- Main already contains the client-side authoritative refresh/retry flow.
-- PR #71 is the Draft backend completion PR for `sync-project-revision.v1`, the authoritative revision endpoint, and integration coverage.
-- Do not merge PR #70 or PR #71 solely on the current CI state; first obtain normal runner-backed execution and successful verification.
-
-# Hasan — Next Steps / Continuation Note
-
-## Purpose
-
-This file is the authoritative continuation note for Hasan (Developer 2 / Client Integration track). It records exactly where to continue after PR #70 and prevents repeating completed client-sync work.
-
-## Current repository state
+## Current baseline — 2026-09-27
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
-- Main branch: `main`
-- Latest checked main commit: `e6b266432d36b11b8a4b18c63b0c9ad7e7560e89`
-- Current project stage: **Stage 33.4 — System Integration & Platform Hardening**
-- Latest documented completed gate: **Stage 33.4.69 — End-to-End Client Sync Outcome Regression**
-- Stage 33.4.69 is documented as **100% runtime-verified**.
-- The next documented gate is:
-  **validate conflict/revision behavior against the real Application/API mutation boundary and ensure Web/Desktop/Mobile runtime adapters consume the same versioned outcome contract.**
+- Branch: `main`
+- Current main: `b74a761ad3993cef19dffccb509d53552621fedf`
+- Latest completed backend change: PR #273, merged with main at the current baseline.
+- PR #273 added authoritative Field Assurance transition enforcement at the backend application write boundary.
+- PR #273 exact-head checks passed:
+  - ConstructionPM CI run `36306525146`
+  - Client Typecheck run `36306525137`
+- Stage 33.4.72–33.4.73 atomic sync/idempotency hardening is already runtime-verified through PR #171.
+- Job-Step Transaction & Replay Boundary is already runtime-verified through PR #206.
 
-## PR #70 status
+## Do not repeat
 
-PR #70:
-- Title: `feat(client-sync): add authoritative outcome adapter boundary`
-- Author: Hasan
-- URL: https://github.com/consttruction-pm/consttruction-pm-platform/pull/70
-- PR purpose: bridge `sync-outcome.v1` to authoritative `client-sync-outcome.v1` without duplicating business logic.
-- Conflict was resolved once by reconciling the branch with the then-current `main`.
-- Latest reconciled head commit: `cd8d0de596b520306f643c21c681b3ed47cd7632`.
-- The PR remains open, ready for review, and has an `APPROVED` review from Jalal.
-- Current GitHub comparison: `main...feature/javad/client-sync-adapter-v1` = **ahead by 7 / behind by 0**, status **ahead**.
-- Current head CI is running:
-  - ConstructionPM CI: run `36093339982` (Python 3.11/3.12/3.13)
-  - Client Typecheck: run `36093340145` (Web/Desktop/Mobile/Client-Sync)
+Do not restart or reimplement:
+- PR #70/client-sync queue work.
+- Stage 33.4.69 end-to-end sync outcome work.
+- Stage 33.4.70 authoritative revision refresh work.
+- Stage 33.4.72–33.4.73 PostgreSQL/SQLite atomic idempotency hardening.
+- PR #273 Field Assurance write-boundary guard.
+- Existing Field Operations / Field Assurance persistence contracts.
 
-### Current PR #70 reconciliation
+Open historical PRs are not part of the current baseline unless they are first reconciled against current `main` and their changes are proven still missing.
 
-The branch was reconciled again against the latest `main` at `e6b266432d36b11b8a4b18c63b0c9ad7e7560e89`.
+## Current ownership
 
-A fresh comparison currently shows:
-- `main` is behind Hasan's branch by **7 commits**.
-- Hasan's branch is **0 commits behind** `main`.
-- Status: **ahead** (no merge conflict / no stale-base divergence).
-- The PR diff is confined to the two intended client-sync queue files.
+Hasan owns Backend / Database / Application / API / Enterprise Integration.
 
-The reconciled tree preserves the latest `main` state and adds only PR #70's authoritative adapter/test changes.
+The backend must:
+- preserve tenant/project context;
+- preserve revision and optimistic-lock semantics;
+- preserve idempotency and replay behavior;
+- preserve transaction and audit boundaries;
+- expose versioned typed contracts;
+- keep authoritative business calculations in Shared Core;
+- provide persistence/API support for Web/Desktop/Mobile without duplicating client calculations.
 
-### Current verification state
+## Current Stage 34.3 backend support
 
-The new head `cd8d0de596b520306f643c21c681b3ed47cd7632` has GitHub Actions checks running. Do not treat the PR as CI-verified until all checks conclude successfully.
+Stage 34.3 Web/Site Experience is runtime-verified through 2026-09-27 for the completed Control Room and Field workflow slices.
 
-## Do not change
+Remaining product gates recorded in `docs/roadmap/STAGE_STATUS.md` include:
+1. Document / RFI / Submittal / document-linkage Web workflow.
+2. Procurement / Commercial Commitments Web workflow.
+3. AI Copilot / Smart Guide / voice presentation.
+4. Web/Desktop/Mobile parity for newly integrated Control Room workflows.
+5. Final Stage 34.3 integration/regression and runtime evidence reconciliation.
 
-Hasan must not redefine or duplicate:
-- Scheduling/P6 semantics
-- Shared calendar arithmetic
-- Progress/EVM calculations
-- Resource/Cost calculations
-- authoritative business calculations inside Web/Desktop/Mobile clients
-- Application/API/Repository boundary responsibilities
-- versioned shared contract meanings
+For Hasan, the backend action is to provide or verify the authoritative contracts/persistence/application boundaries required by those client slices, not to duplicate UI behavior.
 
-Client code remains an integration/presentation/transport consumer of the Shared Core and versioned contracts.
+## Current verified API/Web-readiness baseline
 
-## Next development gate after PR #70
+The current backend already has regression coverage for:
+- ProjectContext and tenant/project scope;
+- optimistic revision conflicts;
+- idempotency replay and key-reuse rejection;
+- authorization allow/deny and cross-scope rejection;
+- typed/versioned resource DTOs;
+- transaction rollback;
+- Field Assurance transition validation at the authoritative write boundary;
+- sync conflict/revision refresh contracts.
 
-### Stage 33.4.70 — Real Application/API Conflict + Revision Boundary
+PR #273 confirms that invalid Field Assurance transitions are rejected before persistence while stale-revision behavior remains a conflict and idempotent replay remains safe.
 
-Goal:
+## Immediate next execution rule
 
-Connect the already-tested client conflict/outcome adapters to the real versioned Application/API mutation path.
-
-Required sequence:
-
-### A. Real conflict contract verification
-Verify that a stale revision from the Application layer reaches the clients as the expected versioned outcome:
-- mutation identity preserved
-- tenant/project identity preserved
-- expected revision preserved
-- actual/server revision represented where the authoritative contract provides it
-- stable `STALE_REVISION` error mapping preserved
-- conflict action semantics preserved
-
-### B. Retry semantics
-The client must not invent a new retry protocol.
-
-Use the existing shared semantics:
-- `ACKNOWLEDGED` / authoritative `applied` or `replayed` => remove pending mutation
-- `RETRY` => retain mutation and retry according to the existing retry policy
-- `CONFLICT` => retain mutation and require refresh/reconciliation
-- `REJECTED` => retain enough state for user-visible resolution/audit according to existing application rules
-
-A lossy status mapping must fail explicitly rather than silently changing semantics.
-
-### C. Revision refresh path
-Implement/test the client flow:
-
-`pending mutation -> API submit -> STALE_REVISION -> refresh authoritative revision/context -> explicit retry`
-
-The refresh step must obtain authoritative project state; it must not locally guess or increment the revision.
-
-### D. Cross-client parity
-The same authoritative outcome contract must be consumed consistently by:
-- Web
-- Desktop
-- Mobile
-
-Add parity tests proving that all three clients preserve the same:
-- status/disposition
-- error code
-- mutation identity
-- operation
-- idempotency identity
-- revision context
-- available conflict actions
-
-Only UI presentation may differ.
-
-### E. End-to-end tests
-Add deterministic tests for at least:
-1. successful apply
-2. idempotent replay
-3. transient retry
-4. stale revision conflict
-5. rejected mutation
-6. conflict followed by authoritative refresh and retry
-7. wrong tenant/project context rejection
-8. idempotency-key mismatch
-9. operation mismatch
-10. no duplicate business calculation in any client
-
-## Expected implementation boundaries
-
-Preferred path:
-
-- Shared contract: `shared/contracts/`
-- Client sync adapter/runtime: `apps/client-sync/`
-- Web integration: `apps/web/`
-- Desktop integration: `apps/desktop/`
-- Mobile integration: `apps/mobile/`
-- Application/API authority: `src/construction_pm/client_sync/`
-- Regression tests: `tests/integration/` and client package tests
-
-Do not move authoritative conflict/revision reconciliation into a UI component.
-
-## Working rules for Hasan
-
-Before every task:
-1. Read this file.
-2. Read `docs/roadmap/STAGE_STATUS.md`.
-3. Fetch the current `main` SHA.
+Before starting another feature:
+1. Read this file and `docs/roadmap/STAGE_STATUS.md`.
+2. Fetch current `main` SHA.
+3. Check open PRs for whether the required behavior already exists.
 4. Fetch the current file SHA before editing an existing file.
-5. Check whether another developer already implemented the required behavior.
-6. Make the smallest coherent change.
-7. Add tests with the implementation.
-8. Update Stage Status when the gate is actually completed and verified by CI.
+5. Implement only the first missing Hasan-owned backend boundary.
+6. Add focused tests and documentation with the implementation.
+7. Require GitHub Actions runtime verification before marking the gate complete.
+8. Update this file and Stage Status with the exact verified commit/run identifiers.
 
-## Definition of Done for Stage 33.4.70
+## Hard boundaries
 
-Stage 33.4.70 is complete only when:
-- PR #70 is reconciled with the latest `main`.
-- Existing PR #70 semantics remain intact.
-- Real Application/API stale-revision behavior is covered end-to-end.
-- Web/Desktop/Mobile consume the same versioned outcome semantics.
-- Refresh-before-retry is authoritative and deterministic.
-- No client duplicates Shared Core business calculations.
-- Required Python and TypeScript tests pass.
-- GitHub Actions runtime verification succeeds.
-- `docs/roadmap/STAGE_STATUS.md` is updated with the verified commit/run identifiers.
+Never move these into API, persistence, Web, Desktop or Mobile:
+- Primavera P6 scheduling semantics;
+- calendar/duration calculations;
+- Progress/EVM calculations;
+- Resource/Cost calculations;
+- financial formulas.
 
-## Immediate next step
+For shared semantics, Shared Core remains authoritative.
 
-**PR #70 is already reconciled with the latest `main`. Keep Stage 33.4.70 blocked until the current CI checks finish successfully.**
+## Next point
 
-After PR #70 is CI-verified, begin Stage 33.4.70 from the real Application/API conflict + revision boundary, not from another queue rewrite.
+The next Hasan-owned work should be selected from the first **actually missing** backend boundary supporting the remaining Stage 34.3 gates. Prefer Document/RFI/Submittal backend linkage or Procurement/Commercial backend integration only where current `main` does not already provide the required contract. Do not revive stale PRs merely because they remain open.
+
+Historical note: the previous version of this continuation file contained stale PR #70/Stage 33.4.70 instructions; those instructions are superseded by this current-main baseline.
