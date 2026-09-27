@@ -66,3 +66,39 @@ test("rejects refresh response bound to another revision", async () => {
     /WORKSPACE_READ_REFRESH_SCOPE_MISMATCH/,
   );
 });
+
+test("does not reuse a cache from another tenant or project", async () => {
+  const store = new MemoryStore(); const transport = new Transport();
+  const adapter = new WorkspaceReadCacheAdapter(transport, store);
+  await adapter.read(context, true);
+  const result = await adapter.read(
+    { tenant_id: "tenant-2", project_id: "project-2", revision: 7 },
+    true,
+  );
+  assert.equal(result.state, "fresh");
+  assert.equal(result.cache.tenant_id, "tenant-2");
+  assert.equal(result.cache.project_id, "project-2");
+  assert.equal(transport.fetches, 2);
+});
+
+test("online stale cache is replaced only by an authoritative snapshot at the requested revision", async () => {
+  const store = new MemoryStore(); const transport = new Transport();
+  const adapter = new WorkspaceReadCacheAdapter(transport, store);
+  await adapter.read(context, true);
+  transport.revision = 8;
+  const result = await adapter.read({ ...context, revision: 8 }, true);
+  assert.equal(result.mode, "online");
+  assert.equal(result.state, "fresh");
+  assert.equal(result.cache.source_revision, 8);
+  assert.equal(result.cache.workspace_read.context.revision, 8);
+  assert.equal(store.cache?.source_revision, 8);
+});
+
+test("stale cache is never relabeled as fresh when requested revision is newer", async () => {
+  const store = new MemoryStore(); const transport = new Transport();
+  const adapter = new WorkspaceReadCacheAdapter(transport, store);
+  await adapter.read(context, true);
+  const result = await adapter.read({ ...context, revision: 9 }, false);
+  assert.equal(result.state, "stale");
+  assert.equal(result.cache.source_revision, 7);
+});
