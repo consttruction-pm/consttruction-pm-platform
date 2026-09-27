@@ -5,6 +5,7 @@ import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-fi
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
 import type { WorkspaceChangeNotice, WorkspaceChangeCase, WorkspaceClaimRecord, WorkspaceChangeClaimImpact } from "./workspace-change-claim.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
+import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
@@ -80,6 +81,7 @@ export type WorkspaceState = {
   claims: readonly WorkspaceClaimRecord[];
   changeClaimImpacts: readonly WorkspaceChangeClaimImpact[];
   documents: readonly WorkspaceDocument[];
+  procurementRecords: readonly WorkspaceProcurementRecord[];
   inspections: readonly WorkspaceInspection[];
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
@@ -128,6 +130,7 @@ export function createWorkspaceState(
     claims: [],
     changeClaimImpacts: [],
     documents: [],
+    procurementRecords: [],
     inspections: [],
     qualityRecords: [],
     safetyObservations: [],
@@ -267,6 +270,13 @@ export function setDocuments(
       }),
     ),
   };
+}
+
+export function setProcurementRecords(
+  state: WorkspaceState,
+  procurementRecords: readonly WorkspaceProcurementRecord[],
+): WorkspaceState {
+  return { ...state, procurementRecords: procurementRecords.map((record) => Object.freeze({ ...record, activityIds: [...record.activityIds] })) };
 }
 
 export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn): WorkspaceState {
