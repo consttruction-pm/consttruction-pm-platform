@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://consttruction-pm.github.io/contracts/v1/portfolio-decision-read.json",
+  "title":"Portfolio Decision Read v1",
+  "type":"object","additionalProperties":false,
+  "required":["contract_version","tenant_id","portfolio_id","project_id","revision","actor","authorization_context","lifecycle_state","as_of","audit_revision","audit_event_id","cross_domain_refs"],
+  "properties":{
+    "contract_version":{"const":"1.0"},
+    "tenant_id":{"type":"string","minLength":1},"portfolio_id":{"type":"string","minLength":1},
+    "project_id":{"type":"string","minLength":1},"revision":{"type":"integer","minimum":1},
+    "actor":{"type":"string","minLength":1},"authorization_context":{"type":"string","minLength":1},
+    "lifecycle_state":{"type":"string","minLength":1},"as_of":{"type":"string","minLength":1},
+    "audit_revision":{"type":"integer","minimum":1},"audit_event_id":{"type":"string","minLength":1},
+    "cross_domain_refs":{"type":"object","additionalProperties":{"type":"string","minLength":1}}
+  }
+}
