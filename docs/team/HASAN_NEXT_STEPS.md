@@ -266,9 +266,23 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 - PR #365 merged to `main` as `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
 - No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 
-### Current continuation point
+### 2026-09-28 — Authorization Scope Validation (PR #371)
 
-- Current `main` is `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
-- PR #366 was closed without merge after its original branch diverged from the newly advanced `main`; its authorization validation change remains unmerged.
-- A fresh current-main implementation is tracked in PR #369. Its exact head is `5396415bd49ed93d07d12ae84939ab22ed596da3`; GitHub Actions has not yet produced a run/status for this head, so it must not be marked runtime-verified or merged until evidence appears.
-- Next action: verify PR #369 Actions. If a concrete CI failure appears, fix only that failure; if no workflow is emitted, investigate the repository Actions trigger/status rather than bypassing the verification gate.
+- PR #371 is the current-main implementation of the application authorization-context validation gap identified after PR #365.
+- It validates tenant_id, project_id and user_id as non-empty strings and validates the role set before authorization decisions are evaluated.
+- Focused regression coverage was added for valid viewer/planner/admin contexts and invalid scope/role inputs.
+- Exact implementation head: `90355ed7bddd3e928c38dd629a691430f7b98a70`.
+- ConstructionPM CI run `1608` and Client Typecheck run `1311` completed successfully on that exact head.
+- PR #371 was squash-merged to `main` as `4fe0524b8df1fa45a4a7bb105fcceed13d383bd0`.
+- PRs #367, #368 and #369 were stale/duplicate authorization variants and were closed without merge; do not revive them.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+## Next point
+
+- Current `main` baseline: `4fe0524b8df1fa45a4a7bb105fcceed13d383bd0`.
+- The 2026-09-27 Hasan daily queue (#202) is completed; its PostgreSQL atomic/idempotency and Job-Step transaction/replay gates are already runtime-verified and must not be reimplemented.
+- Current Stage 34.3 remaining product gates are voice/presentation, cross-client parity and final integration/runtime reconciliation; existing backend boundaries for Document/RFI/Submittal, Procurement/Commercial, Schedule Query, Portfolio Query, ERP/Accounting, AI Action, Change Claim, Dependency Graph and Enterprise Identity have already been reconciled on current main.
+- Before another implementation, re-read current main, this file, `docs/roadmap/STAGE_STATUS.md`, and open PRs. Select only a concrete missing Hasan-owned Backend/Database/Application/API/Enterprise Integration boundary.
+- If the remaining gap is provider/client-owned voice or parity work, record the ownership boundary rather than creating a duplicate backend implementation.
+
+Do not revive stale PRs merely because their branches remain present.
