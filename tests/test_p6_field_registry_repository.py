@@ -65,6 +65,26 @@ def test_field_registry_rejects_version_mismatch() -> None:
         )
 
 
+def test_field_registry_rejects_stale_revision_reads() -> None:
+    repository = SQLiteP6FieldRegistryRepository(sqlite3.connect(":memory:"))
+    repository.upsert_field(_record(BackendScope("tenant-a", "project-a", 3)))
+
+    with pytest.raises(P6FieldRegistryPersistenceError, match="REVISION_CONFLICT"):
+        repository.get_field(
+            BackendScope("tenant-a", "project-a", 4),
+            "p6-field-registry.v1",
+            "activity.activity_id",
+        )
+
+
+def test_field_registry_rejects_revision_change_for_same_definition() -> None:
+    repository = SQLiteP6FieldRegistryRepository(sqlite3.connect(":memory:"))
+    repository.upsert_field(_record(BackendScope("tenant-a", "project-a", 3)))
+
+    with pytest.raises(P6FieldRegistryPersistenceError, match="REVISION_CONFLICT"):
+        repository.upsert_field(_record(BackendScope("tenant-a", "project-a", 4)))
+
+
 def test_field_registry_definitions_are_immutable() -> None:
     repository = SQLiteP6FieldRegistryRepository(sqlite3.connect(":memory:"))
     scope = BackendScope("tenant-a", "project-a", 3)
