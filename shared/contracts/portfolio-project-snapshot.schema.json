@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://consttruction-pm.github.io/contracts/v1/portfolio-project-snapshot.json",
+  "title":"Portfolio Project Snapshot v1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["contract_version","tenant_id","project_id","as_of","status","metrics"],
+  "properties":{
+    "contract_version":{"const":"1.0"},
+    "tenant_id":{"type":"string","minLength":1},
+    "project_id":{"type":"string","minLength":1},
+    "as_of":{"type":"string","minLength":1},
+    "status":{"type":"string","minLength":1},
+    "metrics":{"type":"object"}
+  }
+}
