@@ -75,3 +75,40 @@ def test_stale_revision_rejected():
     approved=approve_portfolio_decision(d,approved_by="admin-1",approved_at=datetime(2026,9,27,14,0,tzinfo=timezone.utc))
     with pytest.raises(PortfolioDecisionRevisionConflict):
         s.transition(approved,expected_decision_revision=0,actor_id="admin-1",occurred_at=approved.approved_at,event_type="approved")
+
+
+def test_implemented_and_closed_can_be_audited_by_a_different_admin():
+    c=Connection(); s=PostgresPortfolioDecisionStore(c); d=decision()
+    first=s.persist(d,idempotency_key="k-1",actor_id="actor-1",occurred_at=datetime.now(timezone.utc))
+    approved_at=datetime(2026,9,27,14,0,tzinfo=timezone.utc)
+    approved=approve_portfolio_decision(d,approved_by="approver-1",approved_at=approved_at)
+    approved_stored=s.transition(approved,expected_decision_revision=first.decision_revision,actor_id="approver-1",occurred_at=approved_at,event_type="approved")
+    implemented=decision(status="implemented",approved_by="approver-1",approved_at=approved_at,
+                         implemented_at=datetime(2026,9,27,14,30,tzinfo=timezone.utc),
+                         implementation_reference="IMPL-1")
+    implemented_stored=s.transition(implemented,expected_decision_revision=approved_stored.decision_revision,
+                                    actor_id="executor-1",occurred_at=implemented.implemented_at,event_type="implemented")
+    closed=decision(status="closed",approved_by="approver-1",approved_at=approved_at,
+                    implemented_at=implemented.implemented_at,implementation_reference="IMPL-1")
+    closed_stored=s.transition(closed,expected_decision_revision=implemented_stored.decision_revision,
+                               actor_id="closer-1",occurred_at=datetime(2026,9,27,15,0,tzinfo=timezone.utc),event_type="closed")
+    assert implemented_stored.decision_revision == 3
+    assert closed_stored.decision_revision == 4
+
+
+def test_approval_audit_requires_authoritative_actor_and_timestamp():
+    c=Connection(); s=PostgresPortfolioDecisionStore(c); d=decision()
+    first=s.persist(d,idempotency_key="k-1",actor_id="actor-1",occurred_at=datetime.now(timezone.utc))
+    approved_at=datetime(2026,9,27,14,0,tzinfo=timezone.utc)
+    approved=approve_portfolio_decision(d,approved_by="approver-1",approved_at=approved_at)
+    with pytest.raises(ValueError, match="AUDIT_ACTOR_MISMATCH"):
+        s.transition(approved,expected_decision_revision=first.decision_revision,actor_id="other",occurred_at=approved_at,event_type="approved")
+    with pytest.raises(ValueError, match="AUDIT_TIMESTAMP_MISMATCH"):
+        s.transition(approved,expected_decision_revision=first.decision_revision,actor_id="approver-1",
+                     occurred_at=datetime(2026,9,27,14,1,tzinfo=timezone.utc),event_type="approved")
+
+
+def test_non_datetime_audit_timestamp_is_rejected_as_project_error():
+    c=Connection(); s=PostgresPortfolioDecisionStore(c)
+    with pytest.raises(ValueError, match="INVALID_PORTFOLIO_DECISION_AUDIT_TIMESTAMP"):
+        s.persist(decision(),idempotency_key="k-1",actor_id="actor-1",occurred_at="2026-09-27T14:00:00Z")
