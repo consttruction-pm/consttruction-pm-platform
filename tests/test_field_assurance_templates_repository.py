@@ -105,7 +105,7 @@ def test_execution_rejects_scope_mismatch():
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
             service.execute(FieldAssuranceExecution(
                 "EXEC-TENANT", BackendScope("tenant-2", "project-1", 4), "TPL-1", 2,
-                (("I-1", "12.5"), ("I-2", "pass")), "user-1", datetime.now(timezone.utc),
+                (FieldAssuranceExecutionAnswer("I-1", 12.5), FieldAssuranceExecutionAnswer("I-2", "pass")), "user-1", datetime.now(timezone.utc),
             ))
     finally:
         connection.close()
