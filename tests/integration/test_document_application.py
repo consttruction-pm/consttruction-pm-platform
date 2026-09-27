@@ -134,10 +134,17 @@ def test_cross_project_and_viewer_write_are_rejected():
 def test_update_stale_revision_maps_to_versioned_conflict():
     _, svc = service()
     svc.create(document(), context=context(), idempotency_key="k-stale", actor_id="u-1", occurred_at=datetime.now(timezone.utc))
+    svc.update(
+        document(title="first update"),
+        expected_revision=1,
+        context=context(),
+        actor_id="u-1",
+        occurred_at=datetime.now(timezone.utc),
+    )
     api = DocumentAPI(svc)
     result = api.update(
-        document(title="changed"),
-        expected_revision=0,
+        document(title="stale update"),
+        expected_revision=1,
         context=context(),
         actor_id="u-1",
         occurred_at=datetime.now(timezone.utc),
