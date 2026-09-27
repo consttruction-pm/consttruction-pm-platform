@@ -71,3 +71,22 @@ def test_scenario_proposal_rejects_stale_impact_evidence() -> None:
             impacts=(impact,),
             proposed_changes=(change(),),
         )
+
+
+def test_scenario_proposal_rejects_stale_proposed_change_evidence() -> None:
+    stale_change = ScenarioChange(
+        "change-1",
+        ControlDomain.SCHEDULE,
+        "activity",
+        "A1",
+        "set_start",
+        {"value": "2030-01-01"},
+        (SourceReference("schedule-1", "schedule", "/schedule/schedule-1", 8),),
+    )
+    with pytest.raises(ValueError, match="SCENARIO_PROPOSAL_CHANGE_SOURCE_REVISION_MISMATCH"):
+        ScenarioProposal(
+            "scenario-1",
+            ControlScope("tenant-1", "project-1", 7),
+            impacts=(),
+            proposed_changes=(stale_change,),
+        )
