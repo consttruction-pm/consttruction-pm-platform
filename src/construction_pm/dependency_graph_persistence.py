@@ -140,6 +140,12 @@ class PostgresDependencyGraphStore:
         occurred_at: datetime,
     ) -> StoredDependencyLink:
         link.validate()
+        if not isinstance(link.metadata, dict):
+            raise ValueError("INVALID_DEPENDENCY_METADATA")
+        try:
+            json.dumps(link.metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("INVALID_DEPENDENCY_METADATA") from exc
         if (
             isinstance(expected_graph_revision, bool)
             or not isinstance(expected_graph_revision, int)
