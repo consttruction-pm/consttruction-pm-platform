@@ -104,12 +104,14 @@ export type ProcurementDeliverySnapshot = BaseSnapshot & Readonly<{
   delivery_date: string;
   location_key?: string | null;
   receipt_reference?: string | null;
-  items: readonly (ProcurementItem & {
+  items: readonly {
+    item_id: string;
     quantity_received: string;
+    unit: string;
     inspection_id?: string | null;
     punch_id?: string | null;
     acceptance_status?: "pending" | "accepted" | "rejected" | "partial";
-  })[];
+  }[];
 }>;
 
 export type ProcurementRecordType =
