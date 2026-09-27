@@ -13,7 +13,6 @@ import {
 const context = {
   tenant_id: "tenant-1",
   project_id: "project-1",
-  revision: 5,
 };
 
 const document = {
@@ -22,7 +21,7 @@ const document = {
   resource_id: "RFI-001",
   tenant_id: "tenant-1",
   project_id: "project-1",
-  revision: 5,
+  revision: 2,
   payload: {
     title: "RFI — structural opening",
     status: "submitted" as const,
@@ -37,7 +36,7 @@ const ocr = {
   tenant_id: "tenant-1",
   project_id: "project-1",
   document_id: "RFI-001",
-  revision: 5,
+  revision: 2,
   text: "Please confirm the structural opening detail.",
   provider: "reference-ocr",
 };
@@ -47,7 +46,7 @@ const index = {
   tenant_id: "tenant-1",
   project_id: "project-1",
   document_id: "RFI-001",
-  revision: 5,
+  revision: 2,
   content_hash: "sha256:" + "a".repeat(64),
   text: "Please confirm the structural opening detail.",
 };
@@ -78,7 +77,7 @@ test("OCR and index projectors preserve typed transport semantics", () => {
 
 test("document projection rejects stale scope, revision mismatch and hash mismatch", () => {
   assert.throws(
-    () => projectDocument(document, { ...context, revision: 4 }),
+    () => projectDocument(document, { ...context, tenant_id: "tenant-2" }),
     /STALE_DOCUMENT_RESOURCE_SCOPE/,
   );
 
