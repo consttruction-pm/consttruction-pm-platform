@@ -856,3 +856,19 @@ Status: **implemented, merged and runtime-verified**
 - Current `main`: `2d2f7a485609edbd8e2729cdd153f86e4e78accf`.
 - Field Assurance contract, SQLite persistence, authorization/repository boundary and PostgreSQL production persistence are now covered; do not repeat them.
 - Next Hasan action remains a fresh current-main inspection for the first concrete missing Backend/Database/Application/API/Enterprise Integration boundary. Do not invent a new numbered Stage or duplicate client/provider work.
+
+### 2026-09-28 — Field Assurance canonical execution reconciliation (PR #386)
+Status: **implemented, merged and CI-verified**
+- PR #386 rebuilt the valid Field Assurance execution/repository reconciliation from current `main`, preserving the PostgreSQL persistence delivered by PR #383.
+- Canonical `FieldAssuranceExecution` now carries persisted actor/timestamp audit metadata; SQLite/PostgreSQL adapters consume the canonical repository boundary.
+- The application service owns the transaction boundary and enforces execution actor == authorization actor.
+- The final regression fixture uses typed numeric answers, including the execution-ID conflict path, so conflict detection is exercised after payload validation rather than being masked by an invalid input type.
+- Exact final head `78c7f61b9e81cca041bfe3a408584fde7de4a1e8` passed ConstructionPM CI #1649 and Client Typecheck #1352.
+- PR #386 squash merge commit: `710e12d585d0e59824c2fb7820114601c684004b`.
+- PR #384 was not merged because it was stale against current `main` and lacked CI evidence; #386 is the current-main reconciliation.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current Backend Continuation Point
+- Current `main` includes PR #386; do not repeat Field Assurance canonical execution, repository-port, SQLite/PostgreSQL persistence, authorization, or replay/conflict work already covered above.
+- Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap.
+- Do not invent a numbered Stage, reopen stale PRs, or duplicate client/provider-owned work.
