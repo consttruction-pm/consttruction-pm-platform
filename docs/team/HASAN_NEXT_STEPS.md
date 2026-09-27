@@ -241,3 +241,17 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
+
+
+### 2026-09-28 — Dependency Graph Schema/Conformance Reconciliation (PR #363)
+
+- Concrete gap: persistence/conformance already supported the `rfi` compatibility prefix and explicitly projected it to the authoritative `document` Shared Core domain, while `dependency-graph.v1` schema omitted `rfi` from its domain enum.
+- PR #363 aligned the shared schema with the existing explicit conformance contract; persistence support was preserved rather than removed.
+- The initial implementation attempt exposed the mismatch through CI; the final correction restored the documented RFI compatibility path and added `rfi` to the schema enum.
+- Exact final head `60291d045b0ec423f9c36b245613335c5338e397` passed ConstructionPM CI `36352316751` and Client Typecheck `36352316741`.
+- Merge commit: `089a846d62ad121bfb346256e3ac2a468cefce59`.
+- No scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Do not duplicate client/provider work or invent a numbered stage.
