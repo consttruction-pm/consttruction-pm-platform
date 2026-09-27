@@ -7,8 +7,10 @@ from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.schedule import (
+    CriticalActivityPathType,
     ScheduleMode,
     ScheduleOptions,
+    TotalFloatCalculationType,
     _relationship_holds,
     backward_pass,
     schedule,
@@ -264,3 +266,49 @@ def test_alap_does_not_mutate_early_schedule_when_constraint_moves_late_schedule
     assert result.floats["A"].total_float == _working_float_days(
         result.early_activities["A"].start, result.late_activities["A"].start, resolver
     )
+
+
+def test_p6_total_float_option_can_use_finish_float(resolver):
+    result = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(
+            compute_total_float_type=TotalFloatCalculationType.FINISH_FLOAT
+        ),
+    )
+    assert result.floats["A"].total_float == 4
+
+
+def test_p6_critical_float_threshold_is_applied(resolver):
+    default = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 22),
+    )
+    threshold = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 22),
+        options=ScheduleOptions(critical_activity_float_threshold=1),
+    )
+    assert default.floats["A"].total_float == 1
+    assert default.floats["A"].critical is False
+    assert threshold.floats["A"].critical is True
+
+
+def test_p6_open_ended_activity_can_be_marked_critical(resolver):
+    result = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(make_open_ended_activities_critical=True),
+    )
+    assert result.floats["A"].total_float > 0
+    assert result.floats["A"].critical is True
+
+
+def test_longest_path_is_explicitly_rejected_until_implemented(resolver):
+    with pytest.raises(NotImplementedError):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            options=ScheduleOptions(
+                critical_activity_path_type=CriticalActivityPathType.LONGEST_PATH
+            ),
+        )
