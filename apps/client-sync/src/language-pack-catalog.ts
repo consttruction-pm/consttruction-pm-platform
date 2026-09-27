@@ -9,7 +9,7 @@ function compareVersions(a:string,b:string):number {
  const av=parse(a),bv=parse(b);
  for(let i=0;i<Math.max(av.length,bv.length);i++){const x=av[i]??0,y=bv[i]??0;if(x!==y)return x-y;} return 0;
 }
-function parse(v:string):number[]{const core=v.trim().split("+")[0].split("-")[0];if(!/^\\d+(\\.\\d+)*$/.test(core))throw new Error("INVALID_VERSION");return core.split(".").map(Number);}
+function parse(v:string):number[]{const core=v.trim().split("+")[0].split("-")[0];if(!/^\d+(\.\d+)*$/.test(core))throw new Error("INVALID_VERSION");return core.split(".").map(Number);}
 export function isNewerPackAvailable(installedVersion:string|null,candidateVersion:string|null):boolean {
  return candidateVersion!==null && (installedVersion===null||compareVersions(candidateVersion,installedVersion)>0);
 }
