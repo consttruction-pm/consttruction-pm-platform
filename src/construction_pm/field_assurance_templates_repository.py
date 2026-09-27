@@ -88,7 +88,14 @@ class FieldAssuranceExecution:
         }
 
 
-class FieldAssuranceTemplateRepository(Protocol):\n    def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate: ...\n    def get_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None: ...\n    def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution: ...\n    def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None: ...\n\n\nclass SQLiteFieldAssuranceTemplateRepository:
+class FieldAssuranceTemplateRepository(Protocol):
+    def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate: ...
+    def get_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None: ...
+    def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution: ...
+    def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None: ...
+
+
+class SQLiteFieldAssuranceTemplateRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
