@@ -33,7 +33,7 @@ class FakeConnection:
         self.audit = []
 
     def execute(self, sql, params=()):
-        if sql.startswith("CREATE TABLE"):
+        if sql.startswith("CREATE TABLE") or sql.startswith("ALTER TABLE"):
             return FakeResult()
         if sql.startswith("INSERT INTO project_documents"):
             key = params[:3]
