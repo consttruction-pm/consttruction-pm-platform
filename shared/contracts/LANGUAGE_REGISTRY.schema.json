@@ -2,20 +2,94 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Construction PM Global Language Registry",
   "type": "object",
-  "required": ["schema_version", "default_language", "languages"],
+  "required": [
+    "schema_version",
+    "default_language",
+    "languages"
+  ],
   "properties": {
-    "schema_version": {"type": "string"},
-    "default_language": {"type": "string", "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"},
-    "languages": {"type": "array", "items": {"type": "object", "required": ["language_tag","enabled","direction","locale","fallback_chain","capabilities"], "properties": {
-      "language_tag": {"type": "string"},
-      "display_names": {"type": "object", "additionalProperties": {"type": "string"}},
-      "enabled": {"type": "boolean"},
-      "direction": {"enum": ["ltr","rtl"]},
-      "locale": {"type": "string"},
-      "fallback_chain": {"type": "array", "items": {"type": "string"}},
-      "capabilities": {"type": "object", "required": ["ui","help","ai_text","voice_input","voice_output","offline_ai"], "properties": {
-        "ui": {"type": "boolean"}, "help": {"type": "boolean"}, "ai_text": {"type": "boolean"}, "voice_input": {"type": "boolean"}, "voice_output": {"type": "boolean"}, "offline_ai": {"type": "boolean"}
-      }}
-    }}}
-  }
+    "schema_version": {
+      "type": "string"
+    },
+    "default_language": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "language_tag",
+          "enabled",
+          "direction",
+          "locale",
+          "fallback_chain",
+          "capabilities"
+        ],
+        "properties": {
+          "language_tag": {
+            "type": "string"
+          },
+          "display_names": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "direction": {
+            "enum": [
+              "ltr",
+              "rtl"
+            ]
+          },
+          "locale": {
+            "type": "string"
+          },
+          "fallback_chain": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "ui",
+              "help",
+              "ai_text",
+              "voice_input",
+              "voice_output",
+              "offline_ai"
+            ],
+            "properties": {
+              "ui": {
+                "type": "boolean"
+              },
+              "help": {
+                "type": "boolean"
+              },
+              "ai_text": {
+                "type": "boolean"
+              },
+              "voice_input": {
+                "type": "boolean"
+              },
+              "voice_output": {
+                "type": "boolean"
+              },
+              "offline_ai": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$id": "https://construction-pm.local/contracts/language-registry.v1.schema.json",
+  "x-contract-version": "1.0"
 }
