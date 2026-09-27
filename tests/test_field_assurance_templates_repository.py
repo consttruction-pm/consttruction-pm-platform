@@ -89,7 +89,7 @@ def test_execution_requires_exact_template_version_and_required_answers():
             ))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_VERSION_MISMATCH"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-OLD", _scope(), "TPL-1", 1, (("I-1", "12.5"), ("I-2", "pass")),
+                "EXEC-OLD", _scope(), "TPL-1", 1, (FieldAssuranceExecutionAnswer("I-1", 12.5), FieldAssuranceExecutionAnswer("I-2", "pass")),
                 "user-1", datetime.now(timezone.utc),
             ))
     finally:
@@ -120,7 +120,7 @@ def test_execution_is_idempotent_and_conflicts_are_rejected():
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_ID_CONFLICT"):
             service.execute(FieldAssuranceExecution(
-                "EXEC-1", _scope(), "TPL-1", 2, (("I-1", "99"), ("I-2", "pass")),
+                "EXEC-1", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 99), FieldAssuranceExecutionAnswer("I-2", "pass")),
                 "user-1", datetime.now(timezone.utc),
             ))
     finally:
