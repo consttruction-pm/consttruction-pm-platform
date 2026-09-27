@@ -132,8 +132,10 @@ class PostgresPortfolioDecisionStore:
             raise ValueError("PORTFOLIO_DECISION_EVENT_MISMATCH")
         if event_type == "closed" and decision.status != "closed":
             raise ValueError("PORTFOLIO_DECISION_EVENT_MISMATCH")
-        if decision.status in {"approved", "implemented", "closed"} and decision.approved_by != actor_id:
+        if event_type == "approved" and decision.approved_by != actor_id:
             raise ValueError("PORTFOLIO_DECISION_AUDIT_ACTOR_MISMATCH")
+        if event_type == "approved" and decision.approved_at != occurred_at:
+            raise ValueError("PORTFOLIO_DECISION_AUDIT_TIMESTAMP_MISMATCH")
         next_revision = current + 1
         payload = json.dumps(decision.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         self.connection.execute(
@@ -164,6 +166,8 @@ class PostgresPortfolioDecisionStore:
             raise ValueError("INVALID_PORTFOLIO_DECISION_IDEMPOTENCY_KEY")
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise ValueError("INVALID_PORTFOLIO_DECISION_ACTOR")
+        if not isinstance(occurred_at, datetime):
+            raise ValueError("INVALID_PORTFOLIO_DECISION_AUDIT_TIMESTAMP")
         if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
             raise ValueError("PORTFOLIO_DECISION_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
 
