@@ -17,8 +17,11 @@ class EnterpriseIdentityClaims:
     roles: tuple[str, ...]
     email: str | None = None
     display_name: str | None = None
+    contract_version: str = "1.0"
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise EnterpriseIdentityError("UNSUPPORTED_ENTERPRISE_IDENTITY_CONTRACT_VERSION")
         for name, value in (
             ("subject", self.subject),
             ("issuer", self.issuer),
