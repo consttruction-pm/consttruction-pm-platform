@@ -101,6 +101,7 @@ test("stale cache is never relabeled as fresh when requested revision is newer",
   await adapter.read(context, true);
   const result = await adapter.read({ ...context, revision: 9 }, false);
   assert.equal(result.state, "stale");
+  assert.ok(result.cache);
   assert.equal(result.cache.source_revision, 7);
 });
 
