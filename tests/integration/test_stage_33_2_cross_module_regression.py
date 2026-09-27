@@ -11,7 +11,7 @@ from construction_pm.project_portability import (
 )
 from construction_pm.resources.calculator import calculate_assignment_control
 from construction_pm.resources.evm_bridge import ResourceEVMInput, build_resource_evm_result
-from construction_pm.resources.models import CostBasis, Resource, ResourceAssignment, ResourceRate
+from construction_pm.resources.models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
 from construction_pm.resources.persistence import ContextScopedSQLiteResourceRepository, OptimisticLockError
 from construction_pm.resources.context import ProjectContext
 
@@ -24,7 +24,7 @@ def _resource() -> Resource:
         id="R-1",
         code="LAB-01",
         name="Labor",
-        resource_type="labor",
+        resource_type=ResourceType.LABOR,
         unit="hour",
         rates=[ResourceRate(Decimal("25.00"), CostBasis.PER_HOUR, effective_from=AS_OF)],
         calendar_id="calendar-1",
