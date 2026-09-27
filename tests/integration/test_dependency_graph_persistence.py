@@ -161,3 +161,30 @@ def test_rfi_resource_identifier_is_valid():
         target_resource_id="rfi:rfi-1",
         dependency_type="schedule_to_rfi",
     ).validate()
+
+
+@pytest.mark.parametrize(
+    "occurred_at",
+    [
+        datetime(2026, 9, 27, 15, 0),
+        None,
+        "2026-09-27T15:00:00Z",
+    ],
+)
+def test_audit_timestamp_validation_happens_before_mutation(occurred_at):
+    connection = Connection()
+    store = PostgresDependencyGraphStore(connection)
+    store.initialize()
+    store.ensure_project("T-1", "P-1")
+
+    with pytest.raises(ValueError, match="DEPENDENCY_AUDIT_TIMESTAMP_MUST_BE_TIMEZONE_AWARE"):
+        store.persist(
+            link(),
+            expected_graph_revision=0,
+            idempotency_key="timestamp-invalid",
+            actor_id="u-1",
+            occurred_at=occurred_at,
+        )
+
+    assert connection.revisions[("T-1", "P-1")] == 0
+    assert connection.audit == []
