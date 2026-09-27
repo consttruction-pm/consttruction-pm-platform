@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import os
 import uuid
+import threading
 
 import pytest
 
@@ -247,12 +248,32 @@ def test_dependency_graph_live_concurrent_writes_serialize_on_project_revision()
 
     first = psycopg.connect(DSN)
     second = psycopg.connect(DSN)
-    try:
-        first_store = PostgresDependencyGraphStore(first)
-        second_store = PostgresDependencyGraphStore(second)
+    second_started = threading.Event()
+    second_done = threading.Event()
+    second_result: list[object] = []
 
+    def run_second() -> None:
+        try:
+            second.execute("BEGIN")
+            second_started.set()
+            stored = PostgresDependencyGraphStore(second).persist(
+                make_link("second"),
+                expected_graph_revision=0,
+                idempotency_key=f"concurrent-second-{suffix}",
+                actor_id="requester-2",
+                occurred_at=created_at,
+            )
+            second.commit()
+            second_result.append(stored)
+        except Exception as exc:
+            second.rollback()
+            second_result.append(exc)
+        finally:
+            second_done.set()
+
+    try:
         first.execute("BEGIN")
-        first_store.persist(
+        PostgresDependencyGraphStore(first).persist(
             make_link("first"),
             expected_graph_revision=0,
             idempotency_key=f"concurrent-first-{suffix}",
@@ -260,18 +281,20 @@ def test_dependency_graph_live_concurrent_writes_serialize_on_project_revision()
             occurred_at=created_at,
         )
 
-        second.execute("BEGIN")
-        second_store.persist(
-            make_link("second"),
-            expected_graph_revision=0,
-            idempotency_key=f"concurrent-second-{suffix}",
-            actor_id="requester-2",
-            occurred_at=created_at,
-        )
-        second.commit()
+        worker = threading.Thread(target=run_second)
+        worker.start()
+        assert second_started.wait(timeout=5)
+        assert not second_done.wait(timeout=0.2)
 
         first.rollback()
-        assert second_store.get(tenant_id, project_id, f"dependency-second-{suffix}") is not None
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+        assert len(second_result) == 1
+        assert not isinstance(second_result[0], Exception)
+        assert second_result[0].graph_revision == 1
+        assert PostgresDependencyGraphStore(second).get(
+            tenant_id, project_id, f"dependency-second-{suffix}"
+        ) is not None
     finally:
         first.close()
         second.close()
