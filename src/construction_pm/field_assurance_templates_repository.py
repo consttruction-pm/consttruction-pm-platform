@@ -9,6 +9,7 @@ from typing import Any, Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .backend_p0.transactions import SQLiteTransactionManager
+from .client_sync.postgres_transaction import PostgresTransactionManager
 from .field_assurance_templates import (
     FieldAssuranceTemplate,
     FieldAssuranceTemplateError,
@@ -212,10 +213,90 @@ class SQLiteFieldAssuranceTemplateRepository:
         return None if row is None else _execution_from_dict(json.loads(row[0]))
 
 
+class PostgresFieldAssuranceTemplateRepository:
+    def __init__(self, connection: Any) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS field_assurance_templates ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "template_id TEXT NOT NULL, template_version BIGINT NOT NULL, contract_version TEXT NOT NULL, "
+            "payload_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, template_id, template_version))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS field_assurance_executions ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "execution_id TEXT NOT NULL, template_id TEXT NOT NULL, template_version BIGINT NOT NULL, "
+            "payload_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, execution_id), "
+            "FOREIGN KEY (tenant_id, project_id, template_id, template_version) REFERENCES "
+            "field_assurance_templates (tenant_id, project_id, template_id, template_version))"
+        )
+
+    def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate:
+        template.validate()
+        payload = json.dumps(template.as_dict(), sort_keys=True, separators=(",", ":"))
+        row = self.connection.execute(
+            "SELECT payload_json FROM field_assurance_templates WHERE tenant_id=%s AND project_id=%s AND template_id=%s AND template_version=%s",
+            (template.scope.tenant_id, template.scope.project_id, template.template_id, template.template_version),
+        ).fetchone()
+        if row is not None:
+            if row[0] != payload:
+                raise FieldAssuranceTemplatePersistenceError("IMMUTABLE_TEMPLATE_VERSION")
+            return template
+        self.connection.execute(
+            "INSERT INTO field_assurance_templates (tenant_id, project_id, project_revision, template_id, template_version, contract_version, payload_json) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (template.scope.tenant_id, template.scope.project_id, template.scope.project_revision, template.template_id, template.template_version, template.contract_version, payload),
+        )
+        return template
+
+    def get_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT payload_json FROM field_assurance_templates WHERE tenant_id=%s AND project_id=%s AND template_id=%s AND template_version=%s",
+            (scope.tenant_id, scope.project_id, template_id, template_version),
+        ).fetchone()
+        return None if row is None else _template_from_dict(json.loads(row[0]))
+
+    def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
+        template = self.get_template(execution.scope, execution.template_id, execution.template_version)
+        if template is None:
+            existing = self.connection.execute(
+                "SELECT 1 FROM field_assurance_templates WHERE tenant_id=%s AND project_id=%s AND template_id=%s LIMIT 1",
+                (execution.scope.tenant_id, execution.scope.project_id, execution.template_id),
+            ).fetchone()
+            if existing is not None:
+                raise FieldAssuranceTemplatePersistenceError("TEMPLATE_VERSION_MISMATCH")
+            raise FieldAssuranceTemplatePersistenceError("TEMPLATE_NOT_FOUND")
+        execution.validate(template)
+        payload = json.dumps(execution.as_dict(), sort_keys=True, separators=(",", ":"), default=_json_default)
+        row = self.connection.execute(
+            "SELECT payload_json FROM field_assurance_executions WHERE tenant_id=%s AND project_id=%s AND execution_id=%s",
+            (execution.scope.tenant_id, execution.scope.project_id, execution.execution_id),
+        ).fetchone()
+        if row is not None:
+            if row[0] != payload:
+                raise FieldAssuranceTemplatePersistenceError("EXECUTION_ID_CONFLICT")
+            return execution
+        self.connection.execute(
+            "INSERT INTO field_assurance_executions (tenant_id, project_id, project_revision, execution_id, template_id, template_version, payload_json) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (execution.scope.tenant_id, execution.scope.project_id, execution.scope.project_revision, execution.execution_id, execution.template_id, execution.template_version, payload),
+        )
+        return execution
+
+    def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT payload_json FROM field_assurance_executions WHERE tenant_id=%s AND project_id=%s AND execution_id=%s",
+            (scope.tenant_id, scope.project_id, execution_id),
+        ).fetchone()
+        return None if row is None else _execution_from_dict(json.loads(row[0]))
+
+
 @dataclass(frozen=True)
 class FieldAssuranceTemplateApplicationService:
     repository: FieldAssuranceTemplateRepository
-    transaction_manager: SQLiteTransactionManager
+    transaction_manager: Any
 
     def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate:
         with self.transaction_manager.transaction():
