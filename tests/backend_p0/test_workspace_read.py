@@ -5,7 +5,16 @@ import pytest
 from construction_pm.application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.errors import ErrorCategory
-from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.models import (
+    BackendScope,
+    AuditMetadata,
+    ProcurementQuote,
+    ProcurementQuoteItem,
+    EvidenceRef,
+)
+from decimal import Decimal
+from datetime import date, datetime, timezone
+from construction_pm.backend_p0.persistence import SQLiteBackendP0Repository
 from construction_pm.backend_p0.workspace_read import (
     WORKSPACE_CONTROL_ROOM_READ_PATH,
     WORKSPACE_CONTROL_ROOM_READ_VERSION,
@@ -102,6 +111,58 @@ def test_workspace_read_service_rejects_unsupported_version_and_stale_context() 
     with pytest.raises(Exception) as exc:
         service.read(BackendScope("tenant-1", "project-1", 7), auth_context=auth())
     assert getattr(exc.value, "code") == "STALE_WORKSPACE_READ_SCOPE"
+
+
+def test_workspace_read_materializes_authoritative_procurement_records() -> None:
+    import sqlite3
+    connection = sqlite3.connect(":memory:")
+    try:
+        repository = SQLiteBackendP0Repository(connection)
+        scope = BackendScope("tenant-1", "project-1", 7)
+        audit = AuditMetadata("user-1", datetime(2026, 9, 27, 8, tzinfo=timezone.utc), datetime(2026, 9, 27, 8, tzinfo=timezone.utc))
+        quote = ProcurementQuote(
+            "Q-READ", scope, "RFQ-1", "SUP-1", "submitted", "USD", date(2026, 10, 5),
+            (ProcurementQuoteItem("I-1", "concrete", Decimal("10.5000"), "m3", Decimal("125.2500"), activity_ids=("A-1",)),),
+            audit, evidence_refs=(EvidenceRef("DOC-1", "document", "/doc/1", 7),),
+        )
+        repository.save(quote)
+        service = WorkspaceControlRoomReadService(
+            InMemoryWorkspaceReadProvider({("tenant-1", "project-1", 7): snapshot()}),
+            policy(),
+            procurement_repository=repository,
+        )
+        result = service.read(scope, auth_context=auth())
+        assert result is not None
+        assert result["procurement_quotes"][0]["quote_id"] == "Q-READ"
+        assert result["procurement_quotes"][0]["contract_version"] == "procurement-quote.v1"
+        assert result["procurement_quotes"][0]["items"][0]["unit_price"] == "125.2500"
+    finally:
+        connection.close()
+
+
+def test_workspace_read_materialization_keeps_project_scope_isolated() -> None:
+    import sqlite3
+    connection = sqlite3.connect(":memory:")
+    try:
+        repository = SQLiteBackendP0Repository(connection)
+        scope = BackendScope("tenant-2", "project-1", 7)
+        audit = AuditMetadata("user-1", datetime(2026, 9, 27, 8, tzinfo=timezone.utc), datetime(2026, 9, 27, 8, tzinfo=timezone.utc))
+        quote = ProcurementQuote(
+            "Q-OTHER", scope, "RFQ-1", "SUP-1", "submitted", "USD", date(2026, 10, 5),
+            (ProcurementQuoteItem("I-1", "concrete", Decimal("10"), "m3", Decimal("100"), activity_ids=("A-1",)),),
+            audit, evidence_refs=(EvidenceRef("DOC-1", "document", "/doc/1", 7),),
+        )
+        repository.save(quote)
+        service = WorkspaceControlRoomReadService(
+            InMemoryWorkspaceReadProvider({("tenant-1", "project-1", 7): snapshot()}),
+            policy(),
+            procurement_repository=repository,
+        )
+        result = service.read(BackendScope("tenant-1", "project-1", 7), auth_context=auth())
+        assert result is not None
+        assert result["procurement_quotes"] == []
+    finally:
+        connection.close()
 
 
 def test_backend_api_exposes_the_same_versioned_read_boundary() -> None:
