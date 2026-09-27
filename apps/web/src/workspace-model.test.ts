@@ -9,6 +9,7 @@ import {
   setCalendarMode,
   setLocale,
   setControlSummary,
+  setFieldOperations,
   setSiteDailyLogs,
   withActivities,
 } from "./workspace-model.js";
@@ -114,6 +115,36 @@ test("site daily logs attach to the same project workspace", () => {
   };
   const next = setSiteDailyLogs(state, [log]);
   assert.equal(next.siteDailyLogs[0]?.logId, "log-1");
+  assert.deepEqual(next.context, context);
+});
+
+
+test("field operations attach to the workspace without changing project identity", () => {
+  const state = createWorkspaceState(context);
+  const next = setFieldOperations(
+    state,
+    [{
+      timecardId: "tc-1",
+      personId: "person-1",
+      logDate: "2026-09-27",
+      workplaceKey: "tower-a",
+      attendanceStatus: "present",
+      startAt: "2026-09-27T07:30:00Z",
+      endAt: "2026-09-27T16:30:00Z",
+    }],
+    [{
+      reportId: "eqr-1",
+      equipmentId: "exc-01",
+      reportDate: "2026-09-27",
+      workplaceKey: "tower-a",
+      status: "active",
+      breakdownCauseKey: null,
+      reportedBy: "user-1",
+      meterHours: "120.50",
+    }],
+  );
+  assert.equal(next.timecards[0]?.personId, "person-1");
+  assert.equal(next.equipmentReports[0]?.equipmentId, "exc-01");
   assert.deepEqual(next.context, context);
 });
 

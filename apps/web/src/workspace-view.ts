@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
@@ -36,6 +36,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       <main class="cp-main">
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
+        ${renderFieldOperations(state.timecards, state.equipmentReports, t.attendance, t.equipment)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -135,6 +136,51 @@ function renderSiteDailyLogs(
                 </div>`).join("")}
             </div>
           </article>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFieldOperations(
+  timecards: WorkspaceState["timecards"],
+  equipmentReports: WorkspaceState["equipmentReports"],
+  attendanceLabel: string,
+  equipmentLabel: string,
+): string {
+  if (!timecards.length && !equipmentReports.length) return "";
+
+  const attendance = timecards.length
+    ? timecards.map((card) => `
+        <div class="cp-field-card" data-timecard-id="${escapeAttribute(card.timecardId)}">
+          <strong>${escapeHtml(card.personId)}</strong>
+          <span>${escapeHtml(card.workplaceKey)}</span>
+          <span>${escapeHtml(card.attendanceStatus)}</span>
+          <span>${escapeHtml(card.logDate)}</span>
+        </div>`).join("")
+    : '<div class="cp-empty">—</div>';
+
+  const equipment = equipmentReports.length
+    ? equipmentReports.map((report) => `
+        <div class="cp-field-card" data-equipment-report-id="${escapeAttribute(report.reportId)}">
+          <strong>${escapeHtml(report.equipmentId)}</strong>
+          <span>${escapeHtml(report.workplaceKey)}</span>
+          <span>${escapeHtml(report.status)}</span>
+          ${report.breakdownCauseKey ? `<span>${escapeHtml(report.breakdownCauseKey)}</span>` : ""}
+          ${report.meterHours !== null ? `<span>${escapeHtml(report.meterHours)} h</span>` : ""}
+        </div>`).join("")
+    : '<div class="cp-empty">—</div>';
+
+  return `
+    <section class="cp-panel cp-field-ops" aria-label="${escapeAttribute(attendanceLabel + " / " + equipmentLabel)}">
+      <div class="cp-field-grid">
+        <div>
+          <h2>${escapeHtml(attendanceLabel)}</h2>
+          <div class="cp-field-list">${attendance}</div>
+        </div>
+        <div>
+          <h2>${escapeHtml(equipmentLabel)}</h2>
+          <div class="cp-field-list">${equipment}</div>
+        </div>
       </div>
     </section>
   `;
