@@ -1,6 +1,7 @@
 import pytest
 
 from construction_pm.control_intelligence.contracts import ControlScope, SourceReference
+from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.risk import PredictiveScheduleRisk, RiskBand
 from construction_pm.control_intelligence.risk_engine import (
     MODEL_VERSION,
@@ -72,7 +73,7 @@ def test_invalid_confidence_is_rejected_by_predictive_risk_contract():
             confidence="high",
             title_key="predictive.schedule_risk.title",
             detail_key="predictive.schedule_risk.detail",
-            affected_domains=(),
+            affected_domains=(ControlDomain.SCHEDULE,),
             source_refs=(source(),),
             model_version=MODEL_VERSION,
         )
