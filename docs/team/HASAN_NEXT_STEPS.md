@@ -128,3 +128,15 @@ After PR #328, re-check current `main` and open PRs for the first actually missi
 ## Next point
 
 Re-read current `main`, Hasan's execution instructions and open PRs before the next implementation. Treat stale PRs as evidence only; implement only a concrete missing authoritative backend boundary.
+
+
+### Latest reconciliation — Stage 34.3 cross-client voice adapter parity (PR #334)
+
+- PR #334 is merged to `main` with merge commit `3942d9fd2df466e8c9c09157a80a0b979b12b9da`.
+- Exact implementation head `3e58a0c1744ad92fa6a8a62d68b78741cb567f72` passed Client Typecheck run `36347809502` and ConstructionPM CI run `36347809550`.
+- Desktop and Mobile now expose provider-neutral voice adapter wrappers that delegate normalization, scope validation and voice-output capability checks to the shared client-sync boundary.
+- No backend voice endpoint, ASR/TTS provider, device permission, codec, cloud endpoint or Scheduling/P6 calculation was introduced.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Cross-client voice adapter parity is now runtime-verified; remaining Stage 34.3 voice work is provider-specific/client UX work unless a concrete authoritative backend contract/application gap is demonstrated. Do not invent a new numbered roadmap stage or duplicate provider/client-owned work.
