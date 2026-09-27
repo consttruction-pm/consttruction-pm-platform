@@ -84,3 +84,27 @@ test("desktop stale retry can be acknowledged after authoritative refresh", asyn
   assert.equal(runtime.current().revision, 42);
   assert.equal(runtime.pendingMutationCount(), 0);
 });
+
+import type {LanguagePackManifest} from "../../client-sync/src/language-pack-manifest.ts";
+
+const desktopLanguageManifest:LanguagePackManifest={
+ package_id:"en-US",language_tag:"en-US",version:"1.0.0",
+ app_compatibility:{min_version:"1.0.0",max_version:null},
+ artifact:{format:"zip",compressed_size_bytes:3,download_uri:"https://example.test/en.zip",delta_from:null},
+ resources:{translation:"translation.json",glossary:"glossary.json",help:"help.json",reports:"reports.json",voice_input:null,voice_output:null,offline_ai_model:null},
+ integrity:{checksum:"sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",signature:"sig",signing_key_id:"key-1"},
+ capabilities:{ui:true,help:true,ai_text:false,voice_input:false,voice_output:false,offline_ai:false},
+};
+
+test("desktop runtime exposes shared language-pack activation lifecycle",()=>{
+ const runtime=new DesktopRuntime();
+ const active=runtime.languagePacks().activateInitial(new Uint8Array([1,2,3]),desktopLanguageManifest,[
+  {path:"translation.json",bytes:new Uint8Array([1])},
+  {path:"glossary.json",bytes:new Uint8Array([2])},
+  {path:"help.json",bytes:new Uint8Array([3])},
+  {path:"reports.json",bytes:new Uint8Array([4])},
+ ],()=>true);
+ assert.equal(active.manifest.package_id,"en-US");
+ assert.equal(runtime.languagePacks().getActive(),active);
+ assert.equal(runtime.languagePacks().activateOffline(),active);
+});
