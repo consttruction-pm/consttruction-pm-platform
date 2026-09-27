@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import Callable, Protocol, Sequence
+from typing import Callable, Mapping, Protocol, Sequence
 
 
 class JobState(str, Enum):
@@ -152,9 +152,10 @@ class JobStepTransactionExecutor:
         job_id: str,
         expected_revision: int,
         idempotency_key: str,
+        payload: Mapping[str, object],
         steps: Sequence[Callable[[], None]],
     ) -> JobExecutionOutcome:
-        fingerprint = _fingerprint(job_id, expected_revision, len(steps))
+        fingerprint = _fingerprint(job_id, expected_revision, payload, len(steps))
         try:
             with self.transaction_manager.transaction():
                 self.repository.lock_idempotency(tenant_id, project_id, idempotency_key)
@@ -210,9 +211,9 @@ class JobStepTransactionExecutor:
             return JobExecutionOutcome(job_id, state, revision, str(exc))
 
 
-def _fingerprint(job_id: str, expected_revision: int, step_count: int) -> str:
+def _fingerprint(job_id: str, expected_revision: int, payload: Mapping[str, object], step_count: int) -> str:
     payload = json.dumps(
-        {"job_id": job_id, "expected_revision": expected_revision, "step_count": step_count},
+        {"job_id": job_id, "expected_revision": expected_revision, "payload": dict(payload), "step_count": step_count},
         sort_keys=True,
         separators=(",", ":"),
     )
