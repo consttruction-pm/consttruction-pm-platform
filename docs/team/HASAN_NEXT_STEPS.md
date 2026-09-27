@@ -115,3 +115,16 @@ Historical note: the previous version contained stale PR #70/Stage 33.4.70 conti
 ## Next point
 
 After PR #328, re-check current `main` and open PRs for the first actually missing Hasan-owned backend boundary. Do not invent a new numbered roadmap stage or duplicate client/provider-owned voice/parity work without a concrete authoritative backend gap.
+
+
+### Latest reconciliation — Dependency Graph revision provenance (PR #331)
+
+- PR #331 is merged to `main` with merge commit `0c713bac98e1ec3939c0368bd77941b578865103`.
+- Exact implementation head: `869e17ae406a5d5e03257c47fe3786202678f31d`.
+- ConstructionPM CI run `36346728936` completed successfully.
+- Client Typecheck run `36346728879` completed successfully.
+- The API now preserves `source_revision` and `target_revision` already supported by the authoritative DependencyLink persistence model, with focused validation and regression coverage.
+
+## Next point
+
+Re-read current `main`, Hasan's execution instructions and open PRs before the next implementation. Treat stale PRs as evidence only; implement only a concrete missing authoritative backend boundary.
