@@ -298,3 +298,87 @@ def test_dependency_graph_live_concurrent_writes_serialize_on_project_revision()
     finally:
         first.close()
         second.close()
+
+
+def test_dependency_graph_live_concurrent_commit_allows_only_one_stale_writer() -> None:
+    suffix = uuid.uuid4().hex
+    tenant_id = f"commit-race-tenant-{suffix}"
+    project_id = f"commit-race-project-{suffix}"
+    created_at = datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc)
+
+    def make_link(name: str) -> DependencyLink:
+        return DependencyLink(
+            resource_id=f"dependency-{name}-{suffix}",
+            tenant_id=tenant_id,
+            project_id=project_id,
+            revision=1,
+            source_resource_id=f"schedule:{name}-{suffix}",
+            target_resource_id=f"rfi:{name}-{suffix}",
+            dependency_type="schedule_to_rfi",
+            metadata={"relation": "blocks"},
+        )
+
+    with psycopg.connect(DSN) as setup:
+        store = PostgresDependencyGraphStore(setup)
+        store.initialize()
+        store.ensure_project(tenant_id, project_id)
+        setup.commit()
+
+    first = psycopg.connect(DSN)
+    second = psycopg.connect(DSN)
+    second_started = threading.Event()
+    second_done = threading.Event()
+    second_result: list[object] = []
+
+    def run_second() -> None:
+        try:
+            second.execute("BEGIN")
+            second_started.set()
+            try:
+                second_result.append(
+                    PostgresDependencyGraphStore(second).persist(
+                        make_link("second"),
+                        expected_graph_revision=0,
+                        idempotency_key=f"commit-race-second-{suffix}",
+                        actor_id="requester-2",
+                        occurred_at=created_at,
+                    )
+                )
+                second.commit()
+            except Exception as exc:
+                second.rollback()
+                second_result.append(exc)
+        finally:
+            second_done.set()
+
+    try:
+        first.execute("BEGIN")
+        first_result = PostgresDependencyGraphStore(first).persist(
+            make_link("first"),
+            expected_graph_revision=0,
+            idempotency_key=f"commit-race-first-{suffix}",
+            actor_id="requester-1",
+            occurred_at=created_at,
+        )
+        assert first_result.graph_revision == 1
+
+        worker = threading.Thread(target=run_second)
+        worker.start()
+        assert second_started.wait(timeout=5)
+        assert not second_done.wait(timeout=0.2)
+
+        first.commit()
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+        assert len(second_result) == 1
+        assert isinstance(second_result[0], DependencyRevisionConflict)
+
+        assert PostgresDependencyGraphStore(second).get(
+            tenant_id, project_id, f"dependency-first-{suffix}"
+        ) is not None
+        assert PostgresDependencyGraphStore(second).get(
+            tenant_id, project_id, f"dependency-second-{suffix}"
+        ) is None
+    finally:
+        first.close()
+        second.close()
