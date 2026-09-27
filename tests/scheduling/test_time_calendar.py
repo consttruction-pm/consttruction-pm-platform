@@ -77,7 +77,7 @@ def test_add_then_subtract_preserves_working_cursor_for_fractional_hours(resolve
     start = datetime(2026, 9, 22, 10, 15, 30, 123456)
     duration = Decimal("2.375")
     finish = resolver.add_working_hours(start, duration)
-    assert finish == datetime(2026, 9, 22, 13, 37, 30, 123456)
+    assert finish == datetime(2026, 9, 22, 13, 38, 0, 123456)
     assert resolver.subtract_working_hours(finish, duration) == start
 
 
