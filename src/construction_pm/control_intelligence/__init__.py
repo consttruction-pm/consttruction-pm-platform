@@ -13,6 +13,7 @@ from .portfolio import PortfolioControlSnapshot, PortfolioProjectControlInput, b
 from .portfolio_decision import PortfolioDecisionBoundary, approve_portfolio_decision, mark_portfolio_decision_implemented
 from .query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from .risk import PredictiveScheduleRisk, RiskBand
+from .risk_engine import MODEL_VERSION, ScheduleRiskIndicators, assess_predictive_schedule_risk
 from .scenario import ScenarioChange, ScenarioImpact, ScenarioProposal, ScenarioRequest
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "approve_portfolio_decision","mark_portfolio_decision_implemented","PortfolioProjectControlInput",
     "build_portfolio_control_snapshot","ControlScope","DependencyEdge","DependencyGraph","DependencyNode",
     "DependencyRelation","FindingSeverity","ImpactSeverity","ImpactStatus","PredictiveScheduleRisk",
-    "ProposedAction","RiskBand","ScenarioChange","ScenarioImpact","ScenarioProposal","ScenarioRequest",
+    "ProposedAction","RiskBand","MODEL_VERSION","ScheduleRiskIndicators","assess_predictive_schedule_risk",
+    "ScenarioChange","ScenarioImpact","ScenarioProposal","ScenarioRequest",
     "ScheduleQueryAnswer","ScheduleQueryKind","ScheduleQueryRequest","SourceReference",
 ]
