@@ -220,7 +220,7 @@ function validateReadEnvelope(
     throw new Error("STALE_WORKSPACE_SNAPSHOT_SCOPE");
   }
 
-  for (const collection of [
+  const requiredCollections = [
     snapshot.field_daily_logs,
     snapshot.field_issues,
     snapshot.field_timecards,
@@ -229,18 +229,25 @@ function validateReadEnvelope(
     snapshot.quality_records,
     snapshot.safety_observations,
     snapshot.punch_items,
-    snapshot.change_notices ?? [],
-    snapshot.change_cases ?? [],
-    snapshot.claims ?? [],
-    snapshot.change_claim_impacts ?? [],
-    snapshot.documents ?? [],
-    snapshot.procurement_rfqs ?? [],
-    snapshot.procurement_quotes ?? [],
-    snapshot.procurement_bid_comparisons ?? [],
-    snapshot.purchase_orders ?? [],
-    snapshot.procurement_commitments ?? [],
-    snapshot.procurement_deliveries ?? [],
-  ]) {
-    if (!Array.isArray(collection)) throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
+  ];
+  if (requiredCollections.some((collection) => !Array.isArray(collection))) {
+    throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
+  }
+
+  const optionalCollections = [
+    snapshot.change_notices,
+    snapshot.change_cases,
+    snapshot.claims,
+    snapshot.change_claim_impacts,
+    snapshot.documents,
+    snapshot.procurement_rfqs,
+    snapshot.procurement_quotes,
+    snapshot.procurement_bid_comparisons,
+    snapshot.purchase_orders,
+    snapshot.procurement_commitments,
+    snapshot.procurement_deliveries,
+  ];
+  if (optionalCollections.some((collection) => collection !== undefined && !Array.isArray(collection))) {
+    throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
 }
