@@ -102,3 +102,27 @@ def test_import_rejects_negative_revision():
     payload["project_revision"] = -1
     with pytest.raises(ProjectPortabilityError, match="INVALID_PROJECT_REVISION"):
         import_project(json.dumps(payload))
+
+
+def test_rejects_unsupported_schema_version():
+    payload = snapshot().to_payload()
+    payload["schema_version"] = "project-portability.v2"
+    with pytest.raises(ProjectPortabilityError, match="UNSUPPORTED_SCHEMA_VERSION"):
+        import_project(json.dumps(payload))
+
+
+def test_export_rejects_unsupported_schema_version():
+    base = snapshot()
+    invalid = ProjectPortabilitySnapshot(
+        schema_version="project-portability.v2",
+        tenant_id=base.tenant_id,
+        project_id=base.project_id,
+        project_revision=base.project_revision,
+        calendar_context=base.calendar_context,
+        scheduling_settings=base.scheduling_settings,
+        calculation_settings=base.calculation_settings,
+        resource_cost_config=base.resource_cost_config,
+        module_refs=base.module_refs,
+    )
+    with pytest.raises(ProjectPortabilityError, match="UNSUPPORTED_SCHEMA_VERSION"):
+        invalid.validate()
