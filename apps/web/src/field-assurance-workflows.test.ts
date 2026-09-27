@@ -34,6 +34,13 @@ test("punch workflow requires verification readiness before closeout", () => {
   assert.equal(canTransition({ resource: "punch_item", from: "ready_for_verification", to: "closed" }), true);
 });
 
+test("all terminal states reject further transitions", () => {
+  assert.equal(canTransition({ resource: "inspection", from: "cancelled", to: "draft" }), false);
+  assert.equal(canTransition({ resource: "quality_record", from: "closed", to: "open" }), false);
+  assert.equal(canTransition({ resource: "safety_observation", from: "closed", to: "resolved" }), false);
+  assert.equal(canTransition({ resource: "punch_item", from: "cancelled", to: "open" }), false);
+});
+
 test("invalid transitions fail with a stable workflow error", () => {
   assert.throws(
     () => assertTransition({
