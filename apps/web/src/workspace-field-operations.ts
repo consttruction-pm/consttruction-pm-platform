@@ -8,6 +8,12 @@ type WorkspaceContext = {
   revision: number;
 };
 
+type ContractScope = {
+  tenant_id: string;
+  project_id: string;
+  project_revision: number;
+};
+
 type EvidenceRef = {
   source_id: string;
   source_type: string;
@@ -59,7 +65,7 @@ export type WorkspaceEquipmentStatus = Readonly<{
 export type FieldIssueSnapshot = {
   contract_version: typeof FIELD_ISSUE_VERSION;
   issue_id: string;
-  scope: WorkspaceContext;
+  scope: ContractScope;
   category: string;
   severity: FieldIssueSeverity;
   status: FieldIssueStatus;
@@ -74,7 +80,7 @@ export type FieldIssueSnapshot = {
 export type FieldTimecardSnapshot = {
   contract_version: typeof FIELD_TIMECARD_VERSION;
   timecard_id: string;
-  scope: WorkspaceContext;
+  scope: ContractScope;
   person_id: string;
   log_date: string;
   workplace_key: string;
@@ -87,7 +93,7 @@ export type FieldTimecardSnapshot = {
 export type EquipmentStatusSnapshot = {
   contract_version: typeof EQUIPMENT_STATUS_VERSION;
   report_id: string;
-  scope: WorkspaceContext;
+  scope: ContractScope;
   equipment_id: string;
   report_date: string;
   workplace_key: string;
@@ -209,7 +215,7 @@ export function projectEquipmentStatus(
 function assertContractAndScope(
   actualVersion: string,
   expectedVersion: string,
-  snapshotScope: WorkspaceContext,
+  snapshotScope: ContractScope,
   context: WorkspaceContext,
 ): void {
   if (actualVersion !== expectedVersion) {
@@ -218,7 +224,7 @@ function assertContractAndScope(
   if (
     snapshotScope.tenant_id !== context.tenant_id ||
     snapshotScope.project_id !== context.project_id ||
-    snapshotScope.revision !== context.revision
+    snapshotScope.project_revision !== context.revision
   ) {
     throw new Error("STALE_FIELD_OPERATION_SCOPE");
   }
