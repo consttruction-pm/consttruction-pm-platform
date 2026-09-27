@@ -113,3 +113,22 @@ test("desktop workspace read uses shared cache and exposes offline stale state",
   assert.equal(offline.cache.source_revision, 7);
   assert.equal(transport.calls, 1);
 });
+
+test("desktop reconciles stale offline workspace after returning online", async () => {
+  const runtime = new DesktopRuntime();
+  runtime.openProject("t1", "p1", 7, "online");
+  const transport = new WorkspaceTransport();
+  const store = new WorkspaceStore();
+  const adapter = new (await import("../../client-sync/src/workspace-read-cache-adapter.js")).WorkspaceReadCacheAdapter(transport, store);
+  await runtime.readWorkspace(adapter);
+  runtime.advanceRevision(8);
+  runtime.setMode("offline");
+  const stale = await runtime.readWorkspace(adapter);
+  assert.equal(stale.state, "stale");
+  transport.calls = 0;
+  runtime.setMode("online");
+  const fresh = await runtime.readWorkspace(adapter);
+  assert.equal(fresh.state, "fresh");
+  assert.equal(fresh.cache.source_revision, 8);
+  assert.equal(transport.calls, 1);
+});
