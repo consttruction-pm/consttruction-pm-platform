@@ -820,7 +820,10 @@ Status: **implemented, merged and runtime-verified**
 - Merge commit: `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
 - No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
 
-### Current Backend Continuation Point
-- Current `main`: `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
-- PR #366 was closed without merge because its branch was based on the previous main and diverged after PR #365; no #366 change is counted as merged.
-- PR #369 is the fresh current-main authorization validation implementation. Head `5396415bd49ed93d07d12ae84939ab22ed596da3` currently has no GitHub Actions run/status, so runtime verification is pending and the change must not be merged until the verification gate is satisfied.
+### 2026-09-28 — Current Backend Continuation Point
+- Current `main`: `4fe0524b8df1fa45a4a7bb105fcceed13d383bd0`.
+- PR #371 is merged and runtime-verified. Its exact implementation head was `90355ed7bddd3e928c38dd629a691430f7b98a70`; ConstructionPM CI run `1608` and Client Typecheck run `1311` succeeded.
+- PRs #367, #368 and #369 are stale/duplicate authorization variants and are not part of the baseline.
+- The Hasan daily queue #202 P0 PostgreSQL atomic/idempotency and Job-Step transaction/replay gates are already runtime-verified and are not to be reimplemented.
+- The next Hasan action is a fresh current-main inspection for a concrete missing Backend/Database/Application/API/Enterprise Integration boundary. Existing Document/RFI/Submittal, Procurement/Commercial, Schedule Query, Portfolio Query, ERP/Accounting, AI Action, Change Claim, Dependency Graph, Enterprise Identity and authorization boundaries are already reconciled on current main.
+- If no concrete backend gap exists, record the ownership/evidence blocker rather than inventing a feature or duplicating client/provider work.
