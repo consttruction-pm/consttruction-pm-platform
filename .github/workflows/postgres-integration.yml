@@ -16,6 +16,7 @@ on:
       - "src/construction_pm/change_claims.py"
       - "src/construction_pm/procurement.py"
       - "src/construction_pm/document_persistence.py"
+      - "src/construction_pm/document_search.py"
       - "tests/integration/test_postgres_*.py"
       - "tests/integration/test_portfolio_decision_persistence.py"
       - "tests/integration/test_dependency_graph_postgres_live.py"
@@ -23,6 +24,7 @@ on:
       - "tests/integration/test_change_claim_postgres_live.py"
       - "tests/integration/test_procurement_postgres_live.py"
       - "tests/integration/test_document_postgres_live.py"
+      - "tests/integration/test_document_search_postgres_live.py"
       - ".github/workflows/postgres-integration.yml"
   pull_request:
     paths:
