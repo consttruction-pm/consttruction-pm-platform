@@ -639,3 +639,14 @@ Status: **runtime-verified through PR #336**
 - PR #336 exact implementation head `a1d81740719827e0ed91ca4a075bf631abc64405` passed Client Typecheck run **36348158270** and ConstructionPM CI run **36348158292**.
 - Merge commit: `181d00bb583d5a523ee0479c72e896caff3df61a`.
 - No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+
+
+### 2026-09-27 — Stage 34.3 cross-client voice regression hardening
+Status: **runtime-verified through PR #338**
+- Hardened Web/Desktop/Mobile voice adapter regression coverage against the existing shared voice boundary.
+- Removed the Web test fixture's `any` escape hatch and aligned all three client fixtures with the authoritative `AILanguageContext` type.
+- Regression coverage now verifies `voice-command.v1 → schedule-query.v1` preservation, provider input capability failure, scope mismatch, unsupported contract version, and provider output capability failure on all three clients.
+- PR #338 exact implementation head `cf38d95213a149770d1ab24005584613968ff19f` passed Client Typecheck run **36348339658** and ConstructionPM CI run **36348339671**.
+- Merge commit: `c2126691773735a389850b05f62bd26bba43234d`.
+- This is a test/evidence hardening change only; no backend voice endpoint, provider, device permission, codec, cloud endpoint, or Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+- Remaining Stage 34.3 work stays limited to provider-specific voice UX/integration and final evidence reconciliation where not already covered by the existing client/provider ownership boundary.
