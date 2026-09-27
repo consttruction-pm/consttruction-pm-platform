@@ -18,7 +18,7 @@ class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources
  }
  has(path:string):boolean{return this.store.has(path);}
  *entries():IterableIterator<[string,Uint8Array]>{
-  for(const [path,bytes] of this.store yield [path,new Uint8Array(bytes)];
+  for(const [path,bytes] of this.store) yield [path,new Uint8Array(bytes)];
  }
  keys():IterableIterator<string>{return this.store.keys();}
  *values():IterableIterator<Uint8Array>{
@@ -26,7 +26,7 @@ class ImmutableLanguagePackResourceMap implements ValidatedLanguagePackResources
  }
  [Symbol.iterator]():IterableIterator<[string,Uint8Array]>{return this.entries();}
  forEach(callbackfn:(value:Uint8Array,key:string,map:ReadonlyMap<string,Uint8Array>)=>void,thisArg?:unknown):void{
-  for(const [key,value] of this.store callbackfn.call(thisArg,new Uint8Array(value),key,this);
+  for(const [key,value] of this.store) callbackfn.call(thisArg,new Uint8Array(value),key,this);
  }
 }
 
