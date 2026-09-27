@@ -76,7 +76,7 @@ export function projectDocument(
   if (!snapshot.storage_ref.trim()) {
     throw new Error("INVALID_DOCUMENT_STORAGE_REF");
   }
-  if (!snapshot.content_hash.startsWith("sha256:") || snapshot.content_hash.length !== 71) {
+  if (!/^sha256:[0-9a-fA-F]{64}$/.test(snapshot.content_hash)) {
     throw new Error("INVALID_DOCUMENT_CONTENT_HASH");
   }
   if (!Array.isArray(snapshot.linked_entity_refs) || !snapshot.linked_entity_refs.every((ref) => typeof ref === "string" && ref.trim())) {
