@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WebSyncRuntime } from "./sync-runtime.js";
-import type {LanguagePackManifest} from "../../client-sync/src/language-pack-manifest.ts";
+import type {LanguagePackManifest} from "../../client-sync/src/language-pack-manifest.js";
 
 const artifact=new TextEncoder().encode("stage-87-client");
 const manifest=(version:string):LanguagePackManifest=>({
