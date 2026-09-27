@@ -3,7 +3,18 @@ import { test } from "node:test";
 import { createMobileVoiceAdapters, normalizeMobileVoiceCapture, requireMobileVoiceOutput } from "./voice-adapters.ts";
 
 const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 } as const;
-const aiLanguage = { language_tag: "fa-IR", capabilities: { voice_input: true, voice_output: true, offline_ai: true } } as any;
+const aiLanguage = {
+  input_language: "fa-IR",
+  output_language: "fa-IR",
+  project_language: "fa-IR",
+  terminology_profile: "construction-default",
+  locale: "fa-IR",
+  voice_language: "fa-IR",
+  text_capable: true,
+  voice_input_capable: true,
+  voice_output_capable: true,
+  offline_ai_capable: true,
+};
 
 test("mobile voice adapter uses shared normalization boundary", async () => {
   const adapters = createMobileVoiceAdapters({
