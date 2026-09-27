@@ -32,7 +32,6 @@ class ScheduleQueryRequest:
             raise ValueError("INVALID_QUERY_LANGUAGE")
 
 
-@dataclass(frozen=True)
 def _require_source_scope(source_refs: Tuple[SourceReference, ...], scope: ControlScope, error_code: str) -> None:
     for source in source_refs:
         if source.revision != scope.project_revision:
