@@ -269,8 +269,23 @@ function renderChangeClaimControl(
   claims: WorkspaceState["claims"],
   impacts: WorkspaceState["changeClaimImpacts"],
   label: string,
+  documents: WorkspaceState["documents"] = [],
 ): string {
   if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
+
+  const documentSection = documents.length === 0
+    ? ""
+    : `<section class="control-room-section" data-section="documents">
+      <h2>Documents</h2>
+      <div class="control-room-cards">
+        ${documents.map((document) => `<article class="control-room-card">
+          <strong>${escapeHtml(document.documentId)}</strong>
+          <span>${escapeHtml(document.title)}</span>
+          <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
+          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? "stored" : "no storage"}</small>
+        </article>`).join("")}
+      </div>
+    </section>`;
 
   const renderRefs = (values: readonly string[]) =>
     values.length ? values.map((value) => `<span class="cp-ref">${escapeHtml(value)}</span>`).join(" ") : "—";

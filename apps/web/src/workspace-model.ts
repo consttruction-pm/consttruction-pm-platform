@@ -4,6 +4,7 @@ import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
 import type { WorkspaceChangeNotice, WorkspaceChangeCase, WorkspaceClaimRecord, WorkspaceChangeClaimImpact } from "./workspace-change-claim.js";
+import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
@@ -78,6 +79,7 @@ export type WorkspaceState = {
   changeCases: readonly WorkspaceChangeCase[];
   claims: readonly WorkspaceClaimRecord[];
   changeClaimImpacts: readonly WorkspaceChangeClaimImpact[];
+  documents: readonly WorkspaceDocument[];
   inspections: readonly WorkspaceInspection[];
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
@@ -125,6 +127,7 @@ export function createWorkspaceState(
     changeCases: [],
     claims: [],
     changeClaimImpacts: [],
+    documents: [],
     inspections: [],
     qualityRecords: [],
     safetyObservations: [],
@@ -248,6 +251,21 @@ export function setChangeClaimRecords(
     changeCases: records.changeCases.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], dependencyRefs: [...item.dependencyRefs], impactLinkIds: [...item.impactLinkIds], implementationActivityIds: [...item.implementationActivityIds] })),
     claims: records.claims.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], impactLinkIds: [...item.impactLinkIds] })),
     changeClaimImpacts: records.changeClaimImpacts.map((item) => Object.freeze({ ...item })),
+  };
+}
+
+export function setDocuments(
+  state: WorkspaceState,
+  documents: readonly WorkspaceDocument[],
+): WorkspaceState {
+  return {
+    ...state,
+    documents: documents.map((document) =>
+      Object.freeze({
+        ...document,
+        linkedEntityRefs: Object.freeze([...document.linkedEntityRefs]),
+      }),
+    ),
   };
 }
 
