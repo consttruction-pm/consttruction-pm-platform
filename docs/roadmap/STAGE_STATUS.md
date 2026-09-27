@@ -521,14 +521,14 @@ Percentage note: the ~90% figure is an engineering workflow estimate based on co
 
 ### 2026-09-27 — Backend Continuation Reconciliation After PR #273
 Status: **verified baseline / documentation reconciled**
-- Current main baseline at this reconciliation: `0da09c3732f01b38a739a0400a0353dd59425348`.
+- Current main baseline at this reconciliation: `1b1ffe040fba36b557cbfaabff9407472d106384`.
 - PR #273 (Field Assurance authoritative write guard) is merged; its exact head passed ConstructionPM CI run `36306525146` and Client Typecheck run `36306525137`.
 - Stage 33.4.72–33.4.73 atomic idempotency execution hardening is already runtime-verified through PR #171, including live PostgreSQL same-key serialization and distinct-key concurrency.
 - Job-Step Transaction & Replay Boundary is already runtime-verified through PR #206, covering success, failure/rollback, retry, replay, key reuse, optimistic-lock conflict and same-key concurrency.
 - Existing API/Web-readiness regression coverage verifies ProjectContext/tenant-project isolation, revision/optimistic locking, idempotency, authorization, typed DTOs, transaction rollback and the authoritative Field Assurance write guard.
 - No duplicate implementation of those completed gates is authorized.
 - Current Stage 34.3 remaining gates are voice interaction/speech-to-command UX, cross-client parity, and final integration/runtime evidence reconciliation. Document/RFI/Submittal and Procurement/Commercial slices are already implemented and runtime-verified through PRs #280 and #281; AI Smart Guide/schedule-query request composition is implemented and runtime-verified through PR #283.
-- For Hasan's backend track, the next implementation must be the first missing backend contract/persistence/application boundary required by those remaining gates, starting from current main and only after checking that the needed capability is not already implemented.
+- For Hasan's backend track, do not create a duplicate backend boundary for the remaining client/provider-owned gates. Implement backend work only if a concrete authoritative contract/application/persistence gap is demonstrated.
 
 ### 2026-09-27 — Document/RFI/Submittal Application/API Boundary
 Status: **100% — runtime-verified through PR #280**
@@ -550,7 +550,7 @@ Status: **runtime-verified through PR #286**
 - Focused backend coverage verifies authoritative materialization and tenant/project isolation.
 - PR #286 exact head `8c5b26a6baca9856f577dec4aa08bbdf91368dc8` passed ConstructionPM CI run `36307286970` (Python 3.11/3.12/3.13) and Client Typecheck run `36307286973`.
 - Merge commit: `754621dbf2b3da01657e8a920fa500d1556ff8a2`.
-- Current main after subsequent repository activity: `793c4dbf3cc92ebca7bad5e421f16547b4964293`.
+- Current main after subsequent repository activity: `1b1ffe040fba36b557cbfaabff9407472d106384`.
 
 ### 2026-09-27 — Schedule Query Application/API Boundary
 Status: **runtime-verified through PR #295**
@@ -579,7 +579,7 @@ Status: **100% — implemented, merged and runtime-verified**
 - The repository already contains implemented and merged Stage 84, Stage 85 and Stage 86 multilingual/language-pack boundaries.
 - No Stage 87 roadmap artifact currently exists under `docs/roadmap/`.
 - Therefore the next numbered stage must **not be invented from assumption**. The next implementation target requires a new approved roadmap gate based on the existing product completeness program and current architecture/competitive-gap evidence.
-- Stage 35 remains a separate current-main hardening PR (#306) and is not marked merged here.
+- Stage 35 hardening PR #306 is already merged and must not be reopened unless a new regression is demonstrated.
 
 ### Stage 34.4 — Shared Control Room Offline/Read-Cache Parity
 Status: **100% — implemented, merged and runtime-verified 2026-09-27**
