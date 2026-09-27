@@ -9,7 +9,11 @@ from typing import Any, Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .backend_p0.transactions import SQLiteTransactionManager
-from .field_assurance_execution import FieldAssuranceExecution, FieldAssuranceExecutionError
+from .field_assurance_execution import (
+    FieldAssuranceExecution,
+    FieldAssuranceExecutionAnswer,
+    FieldAssuranceExecutionError,
+)
 from .field_assurance_templates import (
     FieldAssuranceTemplate,
     FieldAssuranceTemplateError,
@@ -210,7 +214,7 @@ def _execution_from_dict(payload: Mapping[str, Any]) -> FieldAssuranceExecution:
         template_id=str(payload["template_id"]),
         template_version=int(payload["template_version"]),
         answers=tuple(
-            __import__("construction_pm.field_assurance_execution", fromlist=["FieldAssuranceExecutionAnswer"]).FieldAssuranceExecutionAnswer(item_id, value)
+            FieldAssuranceExecutionAnswer(item_id, value)
             for item_id, value in payload.get("answers", {}).items()
         ),
         executed_by=str(payload["executed_by"]),
