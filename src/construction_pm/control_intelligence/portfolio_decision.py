@@ -99,3 +99,24 @@ def mark_portfolio_decision_implemented(decision: PortfolioDecisionBoundary, *, 
     if not isinstance(implemented_at, datetime) or implemented_at.tzinfo is None or implemented_at.utcoffset() is None:
         raise ValueError("IMPLEMENTATION_TIMESTAMP_MUST_BE_TIMEZONE_AWARE")
     return PortfolioDecisionBoundary(**{**decision.__dict__,"status":"implemented","implemented_at":implemented_at,"implementation_reference":implementation_reference})
+
+
+def reject_portfolio_decision(decision: PortfolioDecisionBoundary) -> PortfolioDecisionBoundary:
+    decision.validate()
+    if decision.status not in {"proposed", "under_review"}:
+        raise ValueError("PORTFOLIO_DECISION_CANNOT_BE_REJECTED_FROM_CURRENT_STATUS")
+    return PortfolioDecisionBoundary(**{**decision.__dict__, "status": "rejected"})
+
+
+def cancel_portfolio_decision(decision: PortfolioDecisionBoundary) -> PortfolioDecisionBoundary:
+    decision.validate()
+    if decision.status in {"implemented", "closed", "cancelled"}:
+        raise ValueError("PORTFOLIO_DECISION_CANNOT_BE_CANCELLED_FROM_CURRENT_STATUS")
+    return PortfolioDecisionBoundary(**{**decision.__dict__, "status": "cancelled"})
+
+
+def close_portfolio_decision(decision: PortfolioDecisionBoundary) -> PortfolioDecisionBoundary:
+    decision.validate()
+    if decision.status != "implemented":
+        raise ValueError("MUST_BE_IMPLEMENTED_BEFORE_CLOSE")
+    return PortfolioDecisionBoundary(**{**decision.__dict__, "status": "closed"})
