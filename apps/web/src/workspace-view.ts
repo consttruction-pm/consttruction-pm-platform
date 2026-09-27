@@ -4,11 +4,11 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", fieldOps: "Field Operations", issues: "Issues", timecards: "Attendance", equipment: "Equipment", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", siteLogs: "Daily Field Logs",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", fieldOps: "عملیات کارگاه", issues: "مسائل کارگاه", timecards: "حضور و ثبت زمان", equipment: "ماشین‌آلات", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", siteLogs: "گزارش‌های روزانه کارگاه",
   },
 } as const;
 
@@ -36,6 +36,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       <main class="cp-main">
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
+        ${renderFieldOperations(state, t)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -135,6 +136,53 @@ function renderSiteDailyLogs(
                 </div>`).join("")}
             </div>
           </article>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFieldOperations(state: WorkspaceState, t: typeof labels.en): string {
+  if (!state.fieldIssues.length && !state.fieldTimecards.length && !state.equipmentStatuses.length) return "";
+
+  const issues = state.fieldIssues.length
+    ? state.fieldIssues.map((issue) => `
+        <article class="cp-field-card cp-field-issue is-${escapeAttribute(issue.severity)}">
+          <div class="cp-field-card-meta"><strong>${escapeHtml(issue.category)}</strong><span>${escapeHtml(issue.status)}</span></div>
+          <div class="cp-field-card-title">${escapeHtml(issue.titleKey)}</div>
+          <div class="cp-field-card-detail">${escapeHtml(issue.detailKey ?? "—")}</div>
+          <div class="cp-field-card-foot">${escapeHtml(issue.locationKey ?? "—")} · ${issue.activityIds.length} activity link(s) · ${issue.evidenceCount} evidence</div>
+        </article>`).join("")
+    : `<div class="cp-empty">—</div>`;
+
+  const timecards = state.fieldTimecards.length
+    ? state.fieldTimecards.map((card) => `
+        <article class="cp-field-card">
+          <div class="cp-field-card-meta"><strong>${escapeHtml(card.personId)}</strong><span>${escapeHtml(card.attendanceStatus)}</span></div>
+          <div class="cp-field-card-title">${escapeHtml(card.workplaceKey)} · ${escapeHtml(card.logDate)}</div>
+          <div class="cp-field-card-detail">${card.activityAllocations.length} activity allocation(s)</div>
+          <div class="cp-field-card-foot">${escapeHtml(card.startAt ?? "—")} → ${escapeHtml(card.endAt ?? "—")}</div>
+        </article>`).join("")
+    : `<div class="cp-empty">—</div>`;
+
+  const equipment = state.equipmentStatuses.length
+    ? state.equipmentStatuses.map((report) => `
+        <article class="cp-field-card cp-field-equipment is-${escapeAttribute(report.status)}">
+          <div class="cp-field-card-meta"><strong>${escapeHtml(report.equipmentId)}</strong><span>${escapeHtml(report.status)}</span></div>
+          <div class="cp-field-card-title">${escapeHtml(report.workplaceKey)} · ${escapeHtml(report.reportDate)}</div>
+          <div class="cp-field-card-detail">${escapeHtml(report.breakdownCauseKey ?? "—")}</div>
+          <div class="cp-field-card-foot">Meter: ${escapeHtml(report.meterHours ?? "—")} · ${report.activityAllocations.length} activity allocation(s)</div>
+        </article>`).join("")
+    : `<div class="cp-empty">—</div>`;
+
+  return `
+    <section class="cp-panel cp-field-operations" aria-label="${escapeAttribute(t.fieldOps)}">
+      <div class="cp-control-heading">
+        <div><h2>${escapeHtml(t.fieldOps)}</h2></div>
+      </div>
+      <div class="cp-field-columns">
+        <section class="cp-field-column" aria-label="${escapeAttribute(t.issues)}"><h3>${escapeHtml(t.issues)}</h3>${issues}</section>
+        <section class="cp-field-column" aria-label="${escapeAttribute(t.timecards)}"><h3>${escapeHtml(t.timecards)}</h3>${timecards}</section>
+        <section class="cp-field-column" aria-label="${escapeAttribute(t.equipment)}"><h3>${escapeHtml(t.equipment)}</h3>${equipment}</section>
       </div>
     </section>
   `;
