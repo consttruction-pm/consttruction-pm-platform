@@ -85,6 +85,37 @@ def test_projection_is_deterministic():
     assert first == second
 
 
+@pytest.mark.parametrize("resource_prefix", [domain.value for domain in ControlDomain])
+def test_all_control_domains_have_explicit_resource_prefix(resource_prefix):
+    projected = project_dependency_link(
+        link(source_resource_id=f"{resource_prefix}:entity-1"),
+        graph_revision=7,
+    )
+
+    assert projected.graph.nodes[f"{resource_prefix}:entity-1"].domain.value == resource_prefix
+
+
+@pytest.mark.parametrize(
+    ("dependency_type", "relation"),
+    [
+        ("depends_on", DependencyRelation.DEPENDS_ON),
+        ("impacts", DependencyRelation.IMPACTS),
+        ("supports", DependencyRelation.SUPPORTS),
+        ("evidences", DependencyRelation.EVIDENCES),
+        ("derived_from", DependencyRelation.DERIVED_FROM),
+        ("allocates", DependencyRelation.ALLOCATES),
+        ("claims_against", DependencyRelation.CLAIMS_AGAINST),
+    ],
+)
+def test_all_shared_dependency_relations_have_explicit_mapping(dependency_type, relation):
+    projected = project_dependency_link(
+        link(dependency_type=dependency_type),
+        graph_revision=7,
+    )
+
+    assert projected.graph.edges[0].relation is relation
+
+
 def test_projection_preserves_distinct_source_and_target_revisions():
     projected = project_dependency_link(link(source_revision=11, target_revision=13), graph_revision=7)
     assert projected.graph.nodes["schedule:task-1"].revision == 11
