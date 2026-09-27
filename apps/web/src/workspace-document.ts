@@ -53,7 +53,8 @@ export function projectDocument(
 ): WorkspaceDocument {
   if (
     snapshot.tenant_id !== scope.tenant_id ||
-    snapshot.project_id !== scope.project_id
+    snapshot.project_id !== scope.project_id ||
+    snapshot.revision !== scope.project_revision
   ) {
     throw new Error("STALE_DOCUMENT_SCOPE");
   }
