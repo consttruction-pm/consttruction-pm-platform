@@ -762,3 +762,14 @@ Status: **implemented and merged — PR #352**
 - PR #352 merged to `main` as `d12143704ab603ca2475364620006cad639b2439`.
 - This closes the repository-native keyboard-action slice of Issue #95. Full browser accessibility automation, cross-client UI automation, native Windows/mobile host rendering, product-scale localization, and production signing/distribution certification remain separate evidence gates.
 - No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+
+### 2026-09-28 — P0 Predictive Schedule Risk Intelligence
+Status: **100% — implemented, hardened and runtime-verified through PR #353**
+- The existing Shared Core predictive-risk boundary was completed as a deterministic, versioned baseline over authoritative schedule/project-control indicators.
+- Scope and source provenance are revision-safe; stale evidence is rejected and risk output cannot mutate authoritative schedule state.
+- PR #353 hardened confidence semantics so evidence completeness is independent of indicator magnitude; measured zero indicators remain valid evidence.
+- Final implementation head `96ee701f784e46244021aa442089d9861a95c7d7` passed Client Typecheck **36351184700** and ConstructionPM CI **36351184648**.
+- PR #353 merged to `main` as `a043a956956b9276c640f426b7342cf859f65a2e`.
+- Native/production ML adapters, device-specific benchmarking and broader release certification are separate gates and are not claimed by this implementation slice.
+- No P6 Scheduling, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were moved into the risk engine.
