@@ -1,5 +1,5 @@
-import {createHash} from "node:crypto";
 import {validateLanguagePackManifest,type LanguagePackManifest} from "./language-pack-manifest.ts";
+import {sha256Hex} from "./sha256.ts";
 
 export type LanguagePackSignatureVerifier=(payload:Uint8Array,signature:string,keyId:string|null)=>boolean;
 
@@ -49,7 +49,7 @@ export function canonicalizeLanguagePackSigningPayload(manifest:LanguagePackMani
 export function verifyLanguagePackChecksum(artifact:Uint8Array,manifest:LanguagePackManifest):boolean {
  const expected=manifest.integrity.checksum;
  if(!/^sha256:[0-9a-fA-F]{64}$/.test(expected)) throw new Error("INVALID_LANGUAGE_PACK_CHECKSUM");
- const actual="sha256:"+createHash("sha256").update(artifact).digest("hex");
+ const actual="sha256:"+sha256Hex(artifact);
  return actual.toLowerCase()===expected.toLowerCase();
 }
 
