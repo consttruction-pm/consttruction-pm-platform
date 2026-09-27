@@ -1,9 +1,19 @@
 export const FIELD_INSPECTION_VERSION = "field-inspection.v1" as const;
+export const QUALITY_RECORD_VERSION = "quality-record.v1" as const;
 export const SAFETY_OBSERVATION_VERSION = "safety-observation.v1" as const;
 export const PUNCH_ITEM_VERSION = "punch-item.v1" as const;
 
 export type InspectionStatus = "draft" | "scheduled" | "in_progress" | "completed" | "cancelled";
 export type InspectionResult = "pass" | "fail" | "conditional" | "na";
+export type QualitySeverity = "low" | "medium" | "high" | "critical";
+export type QualityStatus =
+  | "open"
+  | "in_progress"
+  | "pending_verification"
+  | "accepted"
+  | "rejected"
+  | "closed"
+  | "cancelled";
 export type SafetySeverity = "low" | "medium" | "high" | "critical";
 export type SafetyStatus = "open" | "in_progress" | "resolved" | "closed" | "cancelled";
 export type PunchPriority = SafetySeverity;
@@ -20,6 +30,23 @@ type ProjectScope = {
   project_id: string;
   project_revision: number;
 };
+
+export type WorkspaceQualityRecord = Readonly<{
+  recordId: string;
+  categoryKey: string;
+  severity: QualitySeverity;
+  status: QualityStatus;
+  titleKey: string;
+  detailKey: string | null;
+  reportedBy: string;
+  locationKey: string | null;
+  activityIds: readonly string[];
+  inspectionId: string | null;
+  specificationReference: string | null;
+  correctiveActionKey: string | null;
+  dispositionKey: string | null;
+  evidenceCount: number;
+}>;
 
 export type WorkspaceInspection = Readonly<{
   inspectionId: string;
@@ -120,6 +147,64 @@ export function projectInspection(
       result: item.result,
       commentKey: item.comment_key ?? null,
     })),
+  });
+}
+
+export function projectQualityRecord(
+  snapshot: {
+    contract_version: typeof QUALITY_RECORD_VERSION;
+    record_id: string;
+    scope: ProjectScope;
+    category_key: string;
+    severity: QualitySeverity;
+    status: QualityStatus;
+    title_key: string;
+    reported_by: string;
+    detail_key?: string | null;
+    location_key?: string | null;
+    activity_ids?: readonly string[];
+    inspection_id?: string | null;
+    specification_reference?: string | null;
+    corrective_action_key?: string | null;
+    disposition_key?: string | null;
+    evidence_refs: readonly { source_id: string; source_type: string; locator: string; revision: number }[];
+  },
+  context: ProjectScope,
+): WorkspaceQualityRecord {
+  assertVersion(snapshot.contract_version, QUALITY_RECORD_VERSION, "UNSUPPORTED_QUALITY_RECORD_CONTRACT");
+  assertScope(snapshot.scope, context, "STALE_QUALITY_RECORD_SCOPE");
+  if (
+    !snapshot.record_id ||
+    !snapshot.category_key ||
+    !snapshot.title_key ||
+    !snapshot.reported_by ||
+    !["low", "medium", "high", "critical"].includes(snapshot.severity) ||
+    !["open", "in_progress", "pending_verification", "accepted", "rejected", "closed", "cancelled"].includes(snapshot.status) ||
+    !Array.isArray(snapshot.evidence_refs) ||
+    snapshot.evidence_refs.length < 1
+  ) {
+    throw new Error("INVALID_QUALITY_RECORD");
+  }
+  for (const ref of snapshot.evidence_refs) {
+    if (!ref.source_id || !ref.source_type || !ref.locator || !Number.isInteger(ref.revision) || ref.revision < 0) {
+      throw new Error("INVALID_QUALITY_RECORD_EVIDENCE");
+    }
+  }
+  return Object.freeze({
+    recordId: snapshot.record_id,
+    categoryKey: snapshot.category_key,
+    severity: snapshot.severity,
+    status: snapshot.status,
+    titleKey: snapshot.title_key,
+    detailKey: snapshot.detail_key ?? null,
+    reportedBy: snapshot.reported_by,
+    locationKey: snapshot.location_key ?? null,
+    activityIds: [...(snapshot.activity_ids ?? [])],
+    inspectionId: snapshot.inspection_id ?? null,
+    specificationReference: snapshot.specification_reference ?? null,
+    correctiveActionKey: snapshot.corrective_action_key ?? null,
+    dispositionKey: snapshot.disposition_key ?? null,
+    evidenceCount: snapshot.evidence_refs.length,
   });
 }
 
