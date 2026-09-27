@@ -153,3 +153,16 @@ Status: **100% — merged and runtime-verified**
 ## Next point
 
 Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Portfolio Query Application/API is now runtime-verified; select the next concrete missing Hasan-owned boundary only after reconciling the current contracts, application, persistence and integration state. Do not invent a numbered roadmap stage or duplicate client/provider-owned work.
+
+
+### 2026-09-27 — ERP/Accounting Contract Version Identity (PR #339)
+Status: **runtime-verified and merged**
+- Corrected the concrete integration-boundary gap where the Python ERP/accounting operation/result models did not preserve the existing `erp-accounting-sync-result` v1 contract identity.
+- `contract_version` is now preserved and validated as `1.0`; unsupported versions fail closed before adapter execution.
+- PR #339 exact implementation head `1aa5216f67336a2a9365ad2e2ebff52aa80a3190` passed Client Typecheck run `36348391907` and ConstructionPM CI run `36348391989`.
+- Merge commit: `c8076792dbc5896d6fb2c6fc667322a17da58c31`.
+- No accounting formulas, AP/AR semantics, vendor SDK behavior or financial calculations were introduced.
+
+## Next point
+
+Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete contract/application/persistence gap; do not duplicate the existing ERP, BI or Enterprise Identity provider-neutral seams.
