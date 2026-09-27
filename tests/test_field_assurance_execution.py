@@ -41,7 +41,7 @@ def execution(*, revision: int = 7, version: int = 1, answers=None, tenant="tena
         scope=scope(revision, tenant, project),
         template_id="TPL-1",
         template_version=version,
-        answers=tuple(answers or (FieldAssuranceExecutionAnswer("I-1", True),)),
+        answers=(\n            (FieldAssuranceExecutionAnswer("I-1", True),)\n            if answers is None\n            else tuple(answers)\n        ),
     )
 
 
