@@ -4,6 +4,7 @@ import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
 import type { WorkspaceFieldIssue } from "./workspace-field-issues.js";
 import type { WorkspaceChangeNotice, WorkspaceChangeCase, WorkspaceClaimRecord, WorkspaceChangeClaimImpact } from "./workspace-change-claim.js";
+import type { WorkspaceDocument, WorkspaceOcrResult, WorkspaceSearchIndexEntry } from "./workspace-document-control.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 
 export type WorkspaceLocale = "fa" | "en";
@@ -82,6 +83,9 @@ export type WorkspaceState = {
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
   punchItems: readonly WorkspacePunchItem[];
+  documents: readonly WorkspaceDocument[];
+  documentOcrResults: readonly WorkspaceOcrResult[];
+  documentSearchEntries: readonly WorkspaceSearchIndexEntry[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -129,6 +133,9 @@ export function createWorkspaceState(
     qualityRecords: [],
     safetyObservations: [],
     punchItems: [],
+    documents: [],
+    documentOcrResults: [],
+    documentSearchEntries: [],
   };
 }
 
@@ -248,6 +255,22 @@ export function setChangeClaimRecords(
     changeCases: records.changeCases.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], dependencyRefs: [...item.dependencyRefs], impactLinkIds: [...item.impactLinkIds], implementationActivityIds: [...item.implementationActivityIds] })),
     claims: records.claims.map((item) => Object.freeze({ ...item, scheduleRefs: [...item.scheduleRefs], costRefs: [...item.costRefs], impactLinkIds: [...item.impactLinkIds] })),
     changeClaimImpacts: records.changeClaimImpacts.map((item) => Object.freeze({ ...item })),
+  };
+}
+
+export function setDocumentControl(
+  state: WorkspaceState,
+  records: {
+    documents: readonly WorkspaceDocument[];
+    documentOcrResults: readonly WorkspaceOcrResult[];
+    documentSearchEntries: readonly WorkspaceSearchIndexEntry[];
+  },
+): WorkspaceState {
+  return {
+    ...state,
+    documents: records.documents.map((item) => Object.freeze({ ...item, linkedEntityRefs: [...item.linkedEntityRefs] })),
+    documentOcrResults: records.documentOcrResults.map((item) => Object.freeze({ ...item })),
+    documentSearchEntries: records.documentSearchEntries.map((item) => Object.freeze({ ...item })),
   };
 }
 
