@@ -135,7 +135,7 @@ def test_workspace_read_materializes_authoritative_procurement_records() -> None
         assert result is not None
         assert result["procurement_quotes"][0]["quote_id"] == "Q-READ"
         assert result["procurement_quotes"][0]["contract_version"] == "procurement-quote.v1"
-        assert result["procurement_quotes"][0]["items"][0]["unit_price"] == "125.2500"
+        assert result["procurement_quotes"][0]["items"][0]["unit_price"] == Decimal("125.2500")
     finally:
         connection.close()
 
