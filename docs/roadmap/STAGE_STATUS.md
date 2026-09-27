@@ -712,3 +712,14 @@ Status: **implemented and merged — PR #347**
 - Final head `d90d18ce58a8508d540a9a682d3abedb6457e2a2` passed Client Typecheck run `36350058224` and ConstructionPM CI run `36350058222`.
 - PR #347 merged to `main` as `9c9c0d9042f5bccf6e6fb8443374476cea70561a`.
 - This closes the repository-native Web test-suite CI slice of Issue #92; browser/native UI automation, accessibility automation, performance benchmarks, and release certification remain separate evidence gates.
+
+
+### 2026-09-28 — Issue #95 Web Language Manager Shell/Route Integration
+Status: **implemented and merged — PR #349**
+- Added a framework-neutral Web Language Manager shell/route boundary that binds route state and DOM presentation to the existing shared `WebSyncRuntime.languagePacks()` lifecycle.
+- The route exposes Use Offline, Update and Rollback operations while preserving the shared client-sync lifecycle as the single validation/extraction/activation boundary; no duplicate language-pack processing was introduced.
+- Added regression coverage for successful lifecycle transitions and failed-update snapshot preservation.
+- PR #349 head `58dfbf88a9ee81c05f1d5535fcfceb5798496337` passed Client Typecheck run `36350248451` and ConstructionPM CI run `36350248477`.
+- PR #349 merged to `main` as `9b2235dd6e9835856be7c55746840b4908cbdd22`.
+- This closes the concrete Web shell/route integration slice of Issue #95. Actual Windows/mobile native-host rendering, browser accessibility automation, cross-client UI automation and production distribution certification remain separate evidence gates.
+- No Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
