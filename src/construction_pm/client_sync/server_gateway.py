@@ -10,14 +10,10 @@ class IdempotentMutationGateway:
     store: InMemoryServerIdempotencyStore
 
     def execute(self, mutation: OfflineMutation, outcome: SyncOutcome) -> SyncOutcome:
-        existing = self.store.lookup(mutation)
-        if existing is not None:
-            if existing.outcome.mutation_id != mutation.mutation_id:
-                raise ValueError("IDEMPOTENCY_KEY_REUSE")
-            return existing.outcome
+        def producer() -> SyncOutcome:
+            return outcome
 
-        self.store.remember(mutation, outcome)
-        return outcome
+        return self.store.execute_once(mutation, producer)
 
     def execute_lazy(self, mutation: OfflineMutation, producer) -> SyncOutcome:
         return self.store.execute_once(mutation, producer)
