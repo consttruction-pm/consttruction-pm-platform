@@ -100,7 +100,7 @@ def test_execution_rejects_scope_mismatch():
     connection, service = _service()
     try:
         service.create_template(_template())
-        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_SCOPE_MISMATCH"):
+        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_SCOPE_MISMATCH"):
             service.execute(_execution(_scope(5)))
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
             service.execute(FieldAssuranceExecution(
