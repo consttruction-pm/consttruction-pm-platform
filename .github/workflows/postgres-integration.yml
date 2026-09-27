@@ -15,12 +15,14 @@ on:
       - "src/construction_pm/field_operations.py"
       - "src/construction_pm/change_claims.py"
       - "src/construction_pm/procurement.py"
+      - "src/construction_pm/document_persistence.py"
       - "tests/integration/test_postgres_*.py"
       - "tests/integration/test_portfolio_decision_persistence.py"
       - "tests/integration/test_dependency_graph_postgres_live.py"
       - "tests/integration/test_field_operations_postgres_live.py"
       - "tests/integration/test_change_claim_postgres_live.py"
       - "tests/integration/test_procurement_postgres_live.py"
+      - "tests/integration/test_document_postgres_live.py"
       - ".github/workflows/postgres-integration.yml"
   pull_request:
     paths:
@@ -31,12 +33,14 @@ on:
       - "src/construction_pm/field_operations.py"
       - "src/construction_pm/change_claims.py"
       - "src/construction_pm/procurement.py"
+      - "src/construction_pm/document_persistence.py"
       - "tests/integration/test_postgres_*.py"
       - "tests/integration/test_portfolio_decision_persistence.py"
       - "tests/integration/test_dependency_graph_postgres_live.py"
       - "tests/integration/test_field_operations_postgres_live.py"
       - "tests/integration/test_change_claim_postgres_live.py"
       - "tests/integration/test_procurement_postgres_live.py"
+      - "tests/integration/test_document_postgres_live.py"
       - ".github/workflows/postgres-integration.yml"
 
 jobs:
@@ -66,4 +70,4 @@ jobs:
       - name: Run live PostgreSQL integration
         env:
           CONSTRUCTION_PM_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/construction_pm
-        run: python -m pytest -q tests/integration/test_postgres_*.py tests/integration/test_portfolio_decision_postgres_live.py tests/integration/test_dependency_graph_postgres_live.py tests/integration/test_field_operations_postgres_live.py tests/integration/test_change_claim_postgres_live.py tests/integration/test_procurement_postgres_live.py
+        run: python -m pytest -q tests/integration/test_postgres_*.py tests/integration/test_portfolio_decision_postgres_live.py tests/integration/test_dependency_graph_postgres_live.py tests/integration/test_field_operations_postgres_live.py tests/integration/test_change_claim_postgres_live.py tests/integration/test_procurement_postgres_live.py tests/integration/test_document_postgres_live.py
