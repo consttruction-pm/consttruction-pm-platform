@@ -1,5 +1,6 @@
 import type { ProjectContext } from "./client.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
+import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -65,6 +66,7 @@ export type WorkspaceState = {
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
   controlSummary: WorkspaceControlSummary | null;
+  siteDailyLogs: readonly WorkspaceSiteDailyLog[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -100,6 +102,7 @@ export function createWorkspaceState(
     columns: DEFAULT_WORKSPACE_COLUMNS,
     activities: [],
     controlSummary: null,
+    siteDailyLogs: [],
   };
 }
 
@@ -142,6 +145,16 @@ export function setControlSummary(
   controlSummary: WorkspaceControlSummary | null,
 ): WorkspaceState {
   return { ...state, controlSummary };
+}
+
+export function setSiteDailyLogs(
+  state: WorkspaceState,
+  siteDailyLogs: readonly WorkspaceSiteDailyLog[],
+): WorkspaceState {
+  return {
+    ...state,
+    siteDailyLogs: siteDailyLogs.map((log) => Object.freeze({ ...log, entries: [...log.entries] })),
+  };
 }
 
 export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn): WorkspaceState {
