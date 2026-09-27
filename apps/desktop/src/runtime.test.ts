@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DesktopRuntime } from "./runtime.js";
+import { DesktopRuntime } from "./runtime.ts";
 import type { SyncOutcome } from "../../client-sync/src/mutation-queue.js";
 import type { SyncProjectContext } from "../../client-sync/src/api-sync-transport.js";
 import type { WorkspaceReadCacheStore, WorkspaceControlRoomReadTransport } from "../../client-sync/src/workspace-read-cache-adapter.js";
