@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "outDir": ".test-dist",
+    "rootDir": "src",
+    "sourceMap": false
+  },
+  "include": [
+    "src/workspace-model.test.ts",
+    "src/workspace-gantt.test.ts",
+    "src/workspace-contract.test.ts"
+  ]
+}

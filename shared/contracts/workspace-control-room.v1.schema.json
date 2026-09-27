@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/workspace-control-room/v1",
+  "title": "Construction PM Web Control Room v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "context", "columns", "activities"],
+  "properties": {
+    "contract_version": {"const": "workspace-control-room.v1"},
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "data_type", "editable", "formula", "width"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "label": {"type": "string", "minLength": 1},
+          "data_type": {"enum": ["text", "integer", "decimal", "date", "duration", "boolean"]},
+          "editable": {"type": "boolean"},
+          "formula": {"type": ["string", "null"]},
+          "width": {"type": "number", "exclusiveMinimum": 0}
+        }
+      }
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "wbs_id", "code", "name", "cells", "gantt"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "wbs_id": {"type": "string", "minLength": 1},
+          "code": {"type": "string"},
+          "name": {"type": "string", "minLength": 1},
+          "cells": {
+            "type": "object",
+            "additionalProperties": {"type": ["string", "number", "boolean", "null"]}
+          },
+          "gantt": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["start", "finish", "progress_percent", "critical"],
+            "properties": {
+              "start": {"type": "string", "format": "date-time"},
+              "finish": {"type": "string", "format": "date-time"},
+              "progress_percent": {"type": "number", "minimum": 0, "maximum": 100},
+              "critical": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
