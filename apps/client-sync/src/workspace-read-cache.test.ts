@@ -7,7 +7,7 @@ import {
   classifyWorkspaceReadCache,
   createWorkspaceReadCache,
   validateWorkspaceReadCache,
-} from "./workspace-read-cache.js";
+} from "./workspace-read-cache.ts";
 
 const context: SyncProjectContext = {
   tenant_id: "tenant-1",
