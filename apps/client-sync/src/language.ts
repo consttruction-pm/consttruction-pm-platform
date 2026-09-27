@@ -19,9 +19,10 @@ export class ClientLanguageManager {
  }
  resolve():ResolvedLanguage {
   const candidates=[{tag:this.preference.preferredLanguage,source:"preferred" as const},...this.preference.fallbackChain.map(tag=>({tag,source:"fallback" as const})),{tag:this.defaultLanguage,source:"default" as const}];
-  let firstRegistered:ResolvedLanguage|null=null;
-  for(const candidate of candidates){const entry=this.registry.find(i=>i.languageTag===candidate.tag); if(!entry)continue; const pack=this.preference.installedPacks.find(i=>i.languageTag===candidate.tag&&i.verified); if(pack)return {languageTag:entry.languageTag,source:candidate.source,direction:entry.direction,locale:entry.locale,packVersion:pack.version,offline:true}; if(!firstRegistered)firstRegistered={languageTag:entry.languageTag,source:candidate.source,direction:entry.direction,locale:entry.locale,packVersion:null,offline:false};}
-  if(firstRegistered)return firstRegistered; throw new Error("no registered language is available");
+  for(const candidate of candidates){const entry=this.registry.find(i=>i.languageTag===candidate.tag); if(!entry)continue; const pack=this.preference.installedPacks.find(i=>i.languageTag===candidate.tag&&i.verified); if(pack)return {languageTag:entry.languageTag,source:candidate.source,direction:entry.direction,locale:entry.locale,packVersion:pack.version,offline:true};}
+  const defaultEntry=this.registry.find(i=>i.languageTag===this.defaultLanguage);
+  if(defaultEntry)return {languageTag:defaultEntry.languageTag,source:"default",direction:defaultEntry.direction,locale:defaultEntry.locale,packVersion:null,offline:false};
+  throw new Error("no registered language is available");
  }
  canRunOffline(languageTag:string):boolean { const entry=this.registry.find(i=>i.languageTag===languageTag); const pack=this.preference.installedPacks.find(i=>i.languageTag===languageTag&&i.verified); return Boolean(entry?.capabilities.ui&&pack?.capabilities.ui); }
 }
