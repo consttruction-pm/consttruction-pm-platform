@@ -59,9 +59,7 @@ def execution(revision: int = 7, tenant: str = "tenant-1", project: str = "proje
 def service() -> FieldAssuranceApplicationService:
     policy = RoleBasedAuthorizationPolicy(
         {
-            "planner": frozenset(
-                {Permission.PROJECT_READ, Permission.PROJECT_WRITE}
-            ),
+            "planner": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE}),
             "viewer": frozenset({Permission.PROJECT_READ}),
         }
     )
@@ -72,7 +70,10 @@ def service() -> FieldAssuranceApplicationService:
 
 
 def context(
-    tenant: str = "tenant-1", project: str = "project-1", user: str = "user-1", role: str = "planner"
+    tenant: str = "tenant-1",
+    project: str = "project-1",
+    user: str = "user-1",
+    role: str = "planner",
 ) -> AuthorizationContext:
     return AuthorizationContext(tenant, project, user, frozenset({role}))
 
@@ -80,10 +81,7 @@ def context(
 def test_create_template_requires_write_permission_and_preserves_repository_boundary() -> None:
     app = service()
     saved = app.create_template(
-        template(),
-        context=context(),
-        expected_project_revision=7,
-        actor_id="user-1",
+        template(), context=context(), expected_project_revision=7, actor_id="user-1"
     )
     assert saved.template_id == "TPL-1"
     assert app.repository.get_template(scope(), "TPL-1", 1) == saved
@@ -93,19 +91,13 @@ def test_viewer_cannot_create_or_execute() -> None:
     app = service()
     with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_WRITE_NOT_AUTHORIZED"):
         app.create_template(
-            template(),
-            context=context(role="viewer"),
-            expected_project_revision=7,
-            actor_id="user-1",
+            template(), context=context(role="viewer"), expected_project_revision=7, actor_id="user-1"
         )
 
     app.repository.create_template(template())
     with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_WRITE_NOT_AUTHORIZED"):
         app.execute(
-            execution(),
-            context=context(role="viewer"),
-            expected_project_revision=7,
-            actor_id="user-1",
+            execution(), context=context(role="viewer"), expected_project_revision=7, actor_id="user-1"
         )
 
 
@@ -113,10 +105,7 @@ def test_actor_must_match_authorization_context() -> None:
     app = service()
     with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_ACTOR_MISMATCH"):
         app.create_template(
-            template(),
-            context=context(user="user-1"),
-            expected_project_revision=7,
-            actor_id="user-2",
+            template(), context=context(), expected_project_revision=7, actor_id="user-2"
         )
 
 
@@ -124,8 +113,8 @@ def test_cross_tenant_and_project_access_is_rejected_before_repository_call() ->
     app = service()
     with pytest.raises(AuthorizationError, match="CROSS_PROJECT_FIELD_ASSURANCE"):
         app.create_template(
-            template(tenant="tenant-1", project="project-2"),
-            context=context(tenant="tenant-1", project="project-1"),
+            template(project="project-2"),
+            context=context(),
             expected_project_revision=7,
             actor_id="user-1",
         )
@@ -134,30 +123,20 @@ def test_cross_tenant_and_project_access_is_rejected_before_repository_call() ->
 def test_expected_project_revision_is_enforced_at_application_boundary() -> None:
     app = service()
     with pytest.raises(
-        FieldAssuranceApplicationError,
-        match="FIELD_ASSURANCE_PROJECT_REVISION_MISMATCH",
+        FieldAssuranceApplicationError, match="FIELD_ASSURANCE_PROJECT_REVISION_MISMATCH"
     ):
         app.create_template(
-            template(revision=8),
-            context=context(),
-            expected_project_revision=7,
-            actor_id="user-1",
+            template(revision=8), context=context(), expected_project_revision=7, actor_id="user-1"
         )
 
 
 def test_execution_keeps_exact_scope_and_template_version_contract() -> None:
     app = service()
     app.create_template(
-        template(),
-        context=context(),
-        expected_project_revision=7,
-        actor_id="user-1",
+        template(), context=context(), expected_project_revision=7, actor_id="user-1"
     )
     saved = app.execute(
-        execution(),
-        context=context(),
-        expected_project_revision=7,
-        actor_id="user-1",
+        execution(), context=context(), expected_project_revision=7, actor_id="user-1"
     )
     assert saved.template_id == "TPL-1"
     assert saved.template_version == 1
@@ -177,10 +156,10 @@ def test_get_template_requires_read_permission() -> None:
 
     with pytest.raises(AuthorizationError, match="FIELD_ASSURANCE_READ_NOT_AUTHORIZED"):
         app.get_template(
-            context=context(role="planner"),
+            context=context(role="unknown"),
             template_id="TPL-1",
             template_version=1,
-            project_revision=8,
+            project_revision=7,
         )
 
 
@@ -196,8 +175,5 @@ def test_repository_execution_validation_remains_authoritative() -> None:
     )
     with pytest.raises(FieldAssuranceExecutionError, match="MISSING_REQUIRED_EXECUTION_ANSWERS"):
         app.execute(
-            bad,
-            context=context(),
-            expected_project_revision=7,
-            actor_id="user-1",
+            bad, context=context(), expected_project_revision=7, actor_id="user-1"
         )
