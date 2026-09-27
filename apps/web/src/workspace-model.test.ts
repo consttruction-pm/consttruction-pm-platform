@@ -12,6 +12,7 @@ import {
   setFieldOperations,
   setFieldIssues,
   setChangeClaimRecords,
+  setDocuments,
   setFieldAssurance,
   setSiteDailyLogs,
   withActivities,
@@ -363,4 +364,24 @@ test("invalid Gantt geometry is rejected at the workspace boundary", () => {
       ]),
     /INVALID_GANTT_DATA/,
   );
+});
+
+
+test("documents attach to the workspace without changing project context", () => {
+  const state = createWorkspaceState(context);
+  const next = setDocuments(state, [{
+    documentId: "DOC-1",
+    resourceType: "rfi",
+    title: "RFI — foundation reinforcement",
+    status: "submitted",
+    revision: 4,
+    contentHash: "sha256:" + "a".repeat(64),
+    linkedEntityRefs: ["A-101"],
+    hasStorageRef: true,
+  }]);
+
+  assert.equal(next.documents[0]?.documentId, "DOC-1");
+  assert.equal(next.documents[0]?.resourceType, "rfi");
+  assert.deepEqual(next.documents[0]?.linkedEntityRefs, ["A-101"]);
+  assert.deepEqual(next.context, context);
 });
