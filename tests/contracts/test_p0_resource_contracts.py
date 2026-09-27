@@ -12,6 +12,7 @@ CONTRACTS = (
     "p0-change-resource.schema.json",
     "p0-procurement-resource.schema.json",
     "p0-dependency-resource.schema.json",
+    "p0-document-resource.schema.json",
 )
 
 
@@ -45,6 +46,10 @@ def test_p0_resource_families_have_explicit_resource_types() -> None:
         "p0-procurement-resource.schema.json": {
             "rfq", "quote", "bid_comparison", "purchase_order",
             "commitment", "delivery",
+        },
+        "p0-document-resource.schema.json": {
+            "contract", "drawing", "correspondence", "rfi",
+            "submittal", "delay_claim", "evidence",
         },
     }
     for filename, resource_types in expected.items():
