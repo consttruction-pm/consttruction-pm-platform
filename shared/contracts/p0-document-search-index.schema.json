@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://consttruction-pm.github.io/contracts/v1/p0-document-search-index.json",
+  "title": "P0 Document Search Index Entry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version","tenant_id","project_id","document_id","revision","content_hash","text"],
+  "properties": {
+    "contract_version": {"const": "1.0"},
+    "tenant_id": {"type": "string","minLength": 1},
+    "project_id": {"type": "string","minLength": 1},
+    "document_id": {"type": "string","minLength": 1},
+    "revision": {"type": "integer","minimum": 1,"maximum": 9007199254740991},
+    "content_hash": {"type": "string","pattern": "^sha256:[0-9a-f]{64}$"},
+    "text": {"type": "string"}
+  }
+}
