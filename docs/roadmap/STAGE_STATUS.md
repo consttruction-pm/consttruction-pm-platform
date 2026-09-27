@@ -560,3 +560,23 @@ Status: **runtime-verified through PR #295**
 - Source-backed answers and approval-aware proposed actions are preserved in the versioned result envelope.
 - PR #295 exact head `7ee2f6a99d053e560284310b9c63b967b4e26341` passed ConstructionPM CI run `36307602845` (Python 3.11/3.12/3.13) and Client Typecheck run `36307602866`.
 - Merge commit: `f008f4d20b797b7fc8c7fbe4b9af37fd96d9716d`.
+
+
+### 2026-09-27 — Roadmap Reconciliation: Stage 86
+Status: **100% — implemented, merged and runtime-verified**
+
+- Stage 86 — Language Pack Integrity Verification is implemented on current `main`.
+- Language-pack artifacts are verified with SHA-256 before signature acceptance.
+- Checksum mismatch blocks signature verification.
+- Signature verification is an injected trust-boundary adapter; no private key or signing policy is embedded in the client.
+- Regression coverage verifies valid checksum, checksum mismatch, checksum-before-signature ordering, invalid signature rejection and successful checksum+signature acceptance.
+- PR #172 was merged to `main` with merge commit `cc10886d7f6fd8794e7632b9d9b86778232ff48d`.
+- Exact implementation head `c1c81119a1f68061c7f2548efd617e525a81c8ec` passed ConstructionPM CI run **36296632796** and Client Typecheck run **36296632820**.
+- Activation, rollback, key rotation and revocation remain separate lifecycle concerns; existing activation/lifecycle code is not counted as part of the Stage 86 integrity boundary.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current Roadmap Reconciliation Result
+- The repository already contains implemented and merged Stage 84, Stage 85 and Stage 86 multilingual/language-pack boundaries.
+- No Stage 87 roadmap artifact currently exists under `docs/roadmap/`.
+- Therefore the next numbered stage must **not be invented from assumption**. The next implementation target requires a new approved roadmap gate based on the existing product completeness program and current architecture/competitive-gap evidence.
+- Stage 35 remains a separate current-main hardening PR (#306) and is not marked merged here.
