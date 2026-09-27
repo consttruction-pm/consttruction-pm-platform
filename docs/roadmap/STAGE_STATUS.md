@@ -825,3 +825,19 @@ Status: **implemented, merged and runtime-verified**
 - Current `main`: `f2ea99a1a097a5b3592d8cb362a84161fa17d776`.
 - PR #366 was closed without merge because its branch was based on the previous main and diverged after PR #365; no #366 change is counted as merged.
 - PR #369 is the fresh current-main authorization validation implementation. Head `5396415bd49ed93d07d12ae84939ab22ed596da3` currently has no GitHub Actions run/status, so runtime verification is pending and the change must not be merged until the verification gate is satisfied.
+
+
+### 2026-09-28 — Stage 34.5 Field Assurance continuation
+Status: **implemented and runtime-verified through PRs #377, #379 and #380**
+- PR #377 added versioned Field Assurance template persistence/execution with immutable template versions, exact execution-version binding, scope/revision validation, deterministic replay/conflict handling and application transaction ownership.
+- PR #379 added the application authorization boundary: actor validation, tenant/project scope enforcement, expected project revision checks and repository-port isolation.
+- PR #380 closed the remaining application dependency-inversion gap by making FieldAssuranceTemplateApplicationService depend on the FieldAssuranceTemplateRepository protocol rather than the SQLite concrete repository; a regression verifies the application service accepts a repository-port implementation.
+- Exact PR #380 head `37bd9ed03e2f183334b95c331cc3cbc2d2b1cb46` passed ConstructionPM CI #1637 and Client Typecheck #1340.
+- PR #380 merge commit: `428a2686598ec9fb149a0e39e5af5926b95d2ffc`.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+- No new PostgreSQL implementation is claimed by PR #380; production persistence remains a separate concrete gap only if a project-authorized task requires it.
+
+### Current Backend Continuation Point
+- Current `main`: `428a2686598ec9fb149a0e39e5af5926b95d2ffc`.
+- Completed Stage 34.5.1/.2/.3 work must not be repeated.
+- The next Hasan action is a fresh current-main inspection for a concrete Backend/Database/Application/API/Enterprise Integration gap. Do not invent a numbered Stage 34.5.4, reopen stale PRs, or duplicate client/provider-owned work.
