@@ -53,7 +53,7 @@ export function createLanguageManagerRoute(
     return state;
   };
 
-  return {
+  const route: LanguageManagerRoute = {
     getState: () => state,
 
     useOffline: () => {
@@ -122,6 +122,8 @@ export function createLanguageManagerRoute(
       renderLanguageManagerRoute(container, state);
     },
   };
+
+  return route;
 }
 
 export function renderLanguageManagerRoute(
