@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"constructionpm://contracts/p6-field-parity-entry/v1",
+  "title":"P6 Field Parity Entry v1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["field_id","subject_area","p6_field","display_name","data_type","writable","computed","disposition"],
+  "properties":{
+    "field_id":{"type":"string","minLength":1},
+    "subject_area":{"type":"string","minLength":1},
+    "p6_field":{"type":"string","minLength":1},
+    "display_name":{"type":"string","minLength":1},
+    "data_type":{"enum":["string","date","datetime","duration","decimal","percentage","boolean","enum"]},
+    "writable":{"type":"boolean"},
+    "computed":{"type":"boolean"},
+    "unit":{"type":["string","null"]},
+    "disposition":{"enum":["seeded_not_certified","implemented","equivalent_superset","outside_scope","pending"]},
+    "evidence_url":{"type":["string","null"],"format":"uri"}
+  }
+}
