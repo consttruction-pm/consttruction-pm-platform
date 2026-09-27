@@ -53,7 +53,7 @@ export function createLanguageManagerRoute(
     return state;
   };
 
-  return {
+  const route: LanguageManagerRoute = {
     getState: () => state,
 
     useOffline: () => {
@@ -109,9 +109,21 @@ export function createLanguageManagerRoute(
 
     mount: (container) => {
       mounted = container;
+      container.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.dataset.languageManagerAction;
+        if (action === "use-offline") {
+          try { route.useOffline(); } catch { /* state already exposes the failure */ }
+        } else if (action === "rollback") {
+          try { route.rollback(); } catch { /* state already exposes the failure */ }
+        }
+      });
       renderLanguageManagerRoute(container, state);
     },
   };
+
+  return route;
 }
 
 export function renderLanguageManagerRoute(
@@ -137,6 +149,10 @@ export function renderLanguageManagerRouteMarkup(state: LanguageManagerRouteStat
         <div><dt id="language-manager-version-label">Version</dt><dd data-language-version aria-labelledby="language-manager-version-label">${escapeHtml(version)}</dd></div>
         <div><dt id="language-manager-offline-label">Offline</dt><dd data-language-offline aria-labelledby="language-manager-offline-label">${state.offline ? "true" : "false"}</dd></div>
       </dl>
+      <div data-language-manager-actions>
+        <button type="button" data-language-manager-action="use-offline">Use offline</button>
+        <button type="button" data-language-manager-action="rollback">Rollback</button>
+      </div>
     </section>
   `;
 }

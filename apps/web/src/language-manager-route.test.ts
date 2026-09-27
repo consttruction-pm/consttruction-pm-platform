@@ -131,4 +131,6 @@ test("Language Manager route renders accessible semantic status and labels", () 
   assert.match(markup, /language-manager-language-label/);
   assert.match(markup, /language-manager-version-label/);
   assert.match(markup, /language-manager-offline-label/);
+  assert.match(markup, /<button type="button" data-language-manager-action="use-offline">Use offline<\/button>/);
+  assert.match(markup, /<button type="button" data-language-manager-action="rollback">Rollback<\/button>/);
 });
