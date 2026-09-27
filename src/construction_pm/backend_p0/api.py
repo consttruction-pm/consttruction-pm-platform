@@ -7,7 +7,7 @@ from typing import Any
 from construction_pm.application.authorization import AuthorizationContext
 
 from .application import BackendP0ApplicationService
-from .errors import BackendApplicationError
+from .errors import BackendApplicationError, ErrorCategory
 from .models import Record
 from .resource_envelope import to_resource_envelope
 from .workspace_read import WorkspaceControlRoomReadService
@@ -80,7 +80,7 @@ class BackendP0API:
     ) -> dict[str, Any] | None:
         if self.workspace_read_service is None:
             raise BackendApplicationError(
-                __import__("construction_pm.backend_p0.errors", fromlist=["ErrorCategory"]).ErrorCategory.VALIDATION,
+                ErrorCategory.VALIDATION,
                 "WORKSPACE_READ_NOT_CONFIGURED",
                 "Workspace control-room read service is not configured",
             )
