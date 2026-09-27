@@ -189,3 +189,21 @@ test("workspace read client hydrates document workflow metadata and links", asyn
   assert.equal(result.data.documents[0]?.status, "submitted");
   assert.deepEqual(result.data.documents[0]?.linkedEntityRefs, ["A-101"]);
 });
+
+
+test("workspace read client rejects malformed document collection", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      documents: { invalid: true },
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid collection error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_READ_COLLECTION");
+});
