@@ -594,3 +594,20 @@ Status: **100% — implemented, merged and runtime-verified 2026-09-27**
 - Subsequent main commits only advanced CI workflow configuration; current main at this reconciliation is `7ea399bbc62a8b6737be06ab837944852ffabfb2`.
 - No client-side Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
 
+
+
+### 2026-09-27 — Dependency Graph API Application/API Boundary
+Status: **100% — merged and runtime-verified through PR #328**
+- Added the missing Hasan-owned versioned `dependency-graph.v1` API adapter over the existing Dependency Graph Application/Persistence boundaries.
+- The API validates the transport contract version and timezone-aware audit timestamp, preserves tenant/project scope and distinct project `revision` versus `graph_revision`, and delegates authorization, idempotency, transaction and revision semantics to the Application boundary.
+- Added focused integration coverage for the versioned envelope, unsupported contract version, audit timestamp validation, and distinct revision fields.
+- PR #328 exact implementation head `05df8d1d7a6f237cad61514321ff3c336f51db05` passed ConstructionPM CI run `36346154172` and Client Typecheck run `36346154198`.
+- Merge commit: `93af2ca34e3143d0e8a1bb456645c4b3282c61b1`.
+- Stale PR #326 was superseded and closed; no duplicate implementation is required.
+- No Scheduling/P6, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were moved into API/persistence/client layers.
+
+### Current Backend Continuation Point
+- Re-read `HASAN_NEXT_STEPS.md` and current `main` before the next implementation.
+- Inspect open PRs and current contracts/application/persistence state to identify the first concrete missing Hasan-owned boundary.
+- For remaining Stage 34.3 voice/presentation and cross-client parity gates, do not add a backend duplicate when the missing work belongs to client/provider adapters under `VOICE_INTERACTION_BOUNDARY.md`.
+- Do not invent a new numbered stage without an approved roadmap gate.
