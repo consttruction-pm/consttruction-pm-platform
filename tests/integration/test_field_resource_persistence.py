@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -7,6 +8,7 @@ from construction_pm.field_resource_persistence import (
     FieldResourceIdempotencyReuse,
     FieldResourceRevisionConflict,
     PostgresFieldResourceStore,
+    field_resource_fingerprint,
 )
 
 
@@ -126,9 +128,6 @@ def test_persist_replay_readback_and_audit():
     assert store.history("T-1", "P-1", "field-1")[0][1] == "created"
     assert connection.transaction_entries == 2
     assert connection.transaction_commits == 2
-
-
-from construction_pm.field_resource_persistence import field_resource_fingerprint
 
 
 class ConcurrentReplayConnection(Connection):
