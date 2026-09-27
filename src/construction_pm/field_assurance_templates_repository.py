@@ -214,7 +214,7 @@ class SQLiteFieldAssuranceTemplateRepository:
 
 @dataclass(frozen=True)
 class FieldAssuranceTemplateApplicationService:
-    repository: SQLiteFieldAssuranceTemplateRepository
+    repository: FieldAssuranceTemplateRepository
     transaction_manager: SQLiteTransactionManager
 
     def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate:
