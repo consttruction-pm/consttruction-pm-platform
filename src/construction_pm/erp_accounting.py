@@ -10,6 +10,7 @@ class ERPAccountingIntegrationError(ValueError):
 
 @dataclass(frozen=True)
 class ERPAccountingOperation:
+    contract_version: str = "1.0"
     tenant_id: str
     project_id: str
     operation_id: str
@@ -17,6 +18,8 @@ class ERPAccountingOperation:
     payload: dict[str, object]
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise ERPAccountingIntegrationError("UNSUPPORTED_ERP_ACCOUNTING_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
@@ -31,6 +34,7 @@ class ERPAccountingOperation:
 
 @dataclass(frozen=True)
 class ERPAccountingSyncResult:
+    contract_version: str = "1.0"
     tenant_id: str
     project_id: str
     operation_id: str
@@ -39,6 +43,8 @@ class ERPAccountingSyncResult:
     message: str = ""
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise ERPAccountingIntegrationError("UNSUPPORTED_ERP_ACCOUNTING_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("project_id", self.project_id),
