@@ -10,6 +10,7 @@ class PortfolioDecisionQueryError(ValueError):
 
 @dataclass(frozen=True)
 class PortfolioDecisionRead:
+    contract_version: str
     tenant_id: str
     portfolio_id: str
     project_id: str
@@ -23,6 +24,8 @@ class PortfolioDecisionRead:
     cross_domain_refs: Mapping[str, str]
 
     def validate(self) -> None:
+        if self.contract_version != "1.0":
+            raise PortfolioDecisionQueryError("UNSUPPORTED_PORTFOLIO_DECISION_CONTRACT_VERSION")
         for name, value in (
             ("tenant_id", self.tenant_id),
             ("portfolio_id", self.portfolio_id),
