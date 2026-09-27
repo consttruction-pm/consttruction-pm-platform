@@ -227,81 +227,81 @@ class PostgresFieldOperationStore:
             raise FieldOperationError("INVALID_FIELD_OPERATION_IDEMPOTENCY_KEY")
 
         row = self.connection.execute(
-                "SELECT revision FROM project_field_operation_revisions "
-                "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
-                (operation.tenant_id, operation.project_id),
-            ).fetchone()
-            if row is None:
-                raise FieldOperationError("FIELD_OPERATION_PROJECT_NOT_INITIALIZED")
+            "SELECT revision FROM project_field_operation_revisions "
+            "WHERE tenant_id=%s AND project_id=%s FOR UPDATE",
+            (operation.tenant_id, operation.project_id),
+        ).fetchone()
+        if row is None:
+            raise FieldOperationError("FIELD_OPERATION_PROJECT_NOT_INITIALIZED")
 
-            existing = self._find_idempotency(
-                operation.tenant_id, operation.project_id, idempotency_key
-            )
-            fingerprint = operation.fingerprint()
-            if existing is not None:
-                old_fingerprint, old_json, old_revision = existing
-                if old_fingerprint != fingerprint:
-                    raise FieldOperationIdempotencyReuse(
-                        "FIELD_OPERATION_IDEMPOTENCY_KEY_REUSE"
-                    )
-                return StoredFieldOperation(_from_json(old_json), old_revision)
-
-            current = row[0]
-            if current != expected_project_revision:
-                raise FieldOperationRevisionConflict(
-                    f"FIELD_OPERATION_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
+        existing = self._find_idempotency(
+            operation.tenant_id, operation.project_id, idempotency_key
+        )
+        fingerprint = operation.fingerprint()
+        if existing is not None:
+            old_fingerprint, old_json, old_revision = existing
+            if old_fingerprint != fingerprint:
+                raise FieldOperationIdempotencyReuse(
+                    "FIELD_OPERATION_IDEMPOTENCY_KEY_REUSE"
                 )
+            return StoredFieldOperation(_from_json(old_json), old_revision)
 
-            next_revision = current + 1
-            payload = json.dumps(
-                {
-                    "tenant_id": operation.tenant_id,
-                    "project_id": operation.project_id,
-                    "operation_id": operation.operation_id,
-                    "revision": operation.revision,
-                    "operation_type": operation.operation_type.value,
-                    "occurred_at": operation.occurred_at,
-                    "actor_id": operation.actor_id,
-                    "location_ref": operation.location_ref,
-                    "payload": dict(operation.payload),
-                },
-                sort_keys=True,
-                separators=(",", ":"),
+        current = row[0]
+        if current != expected_project_revision:
+            raise FieldOperationRevisionConflict(
+                f"FIELD_OPERATION_REVISION_CONFLICT expected={expected_project_revision} actual={current}"
             )
-            self.connection.execute(
-                "UPDATE project_field_operation_revisions SET revision=%s "
-                "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
-                (next_revision, operation.tenant_id, operation.project_id, current),
-            )
-            self.connection.execute(
-                "INSERT INTO project_field_operations "
-                "(tenant_id, project_id, operation_id, idempotency_key, fingerprint, project_revision, operation_json) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (
-                    operation.tenant_id,
-                    operation.project_id,
-                    operation.operation_id,
-                    idempotency_key,
-                    fingerprint,
-                    next_revision,
-                    payload,
-                ),
-            )
-            self.connection.execute(
-                "INSERT INTO project_field_operation_audit "
-                "(tenant_id, project_id, operation_id, project_revision, actor_id, idempotency_key, occurred_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (
-                    operation.tenant_id,
-                    operation.project_id,
-                    operation.operation_id,
-                    next_revision,
-                    operation.actor_id,
-                    idempotency_key,
-                    operation.occurred_at,
-                ),
-            )
-            return StoredFieldOperation(operation, next_revision)
+
+        next_revision = current + 1
+        payload = json.dumps(
+            {
+                "tenant_id": operation.tenant_id,
+                "project_id": operation.project_id,
+                "operation_id": operation.operation_id,
+                "revision": operation.revision,
+                "operation_type": operation.operation_type.value,
+                "occurred_at": operation.occurred_at,
+                "actor_id": operation.actor_id,
+                "location_ref": operation.location_ref,
+                "payload": dict(operation.payload),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        self.connection.execute(
+            "UPDATE project_field_operation_revisions SET revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND revision=%s",
+            (next_revision, operation.tenant_id, operation.project_id, current),
+        )
+        self.connection.execute(
+            "INSERT INTO project_field_operations "
+            "(tenant_id, project_id, operation_id, idempotency_key, fingerprint, project_revision, operation_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (
+                operation.tenant_id,
+                operation.project_id,
+                operation.operation_id,
+                idempotency_key,
+                fingerprint,
+                next_revision,
+                payload,
+            ),
+        )
+        self.connection.execute(
+            "INSERT INTO project_field_operation_audit "
+            "(tenant_id, project_id, operation_id, project_revision, actor_id, idempotency_key, occurred_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (
+                operation.tenant_id,
+                operation.project_id,
+                operation.operation_id,
+                next_revision,
+                operation.actor_id,
+                idempotency_key,
+                operation.occurred_at,
+            ),
+        )
+        return StoredFieldOperation(operation, next_revision)
 
     def get(self, tenant_id: str, project_id: str, operation_id: str) -> StoredFieldOperation | None:
         row = self.connection.execute(
