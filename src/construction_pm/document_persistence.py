@@ -152,6 +152,9 @@ class PostgresDocumentStore:
                 PRIMARY KEY (tenant_id, project_id, document_id, revision)
             )"""
         )
+        self.connection.execute(
+            "ALTER TABLE project_document_audit ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT ''"
+        )
 
     def persist(
         self,
