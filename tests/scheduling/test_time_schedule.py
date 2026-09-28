@@ -650,6 +650,8 @@ def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
     assert result.early_activities["B"].start == datetime(2026, 9, 22, 15)
 
 
+# P6 RelationshipLagCalendar regression coverage.
+
 def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_calendar():
     resolver = CalendarResolverRegistry().resolve_relationship_lag(
         SchedulingCalendarContext(
