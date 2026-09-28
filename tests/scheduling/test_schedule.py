@@ -5,7 +5,11 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
-from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
+from construction_pm.scheduling.schedule_options import (
+    StartToStartLagCalculationType,
+    start_to_start_lag_type_from_p6,
+    start_to_start_lag_type_to_p6,
+)
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.schedule import (
     CriticalActivityPathType,
@@ -505,3 +509,20 @@ def test_start_to_start_out_of_sequence_requires_data_date(resolver):
                 start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START
             ),
         )
+
+
+@pytest.mark.parametrize(
+    ("p6_value", "typed"),
+    [
+        (False, StartToStartLagCalculationType.EARLY_START),
+        (True, StartToStartLagCalculationType.ACTUAL_START),
+    ],
+)
+def test_start_to_start_p6_boolean_mapping_is_explicit(p6_value, typed):
+    assert start_to_start_lag_type_from_p6(p6_value) is typed
+    assert start_to_start_lag_type_to_p6(typed) is p6_value
+
+
+def test_start_to_start_p6_boolean_mapping_rejects_non_boolean():
+    with pytest.raises(TypeError):
+        start_to_start_lag_type_from_p6("TRUE")
