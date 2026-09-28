@@ -25,5 +25,72 @@
     "Add authoritative registry rows for every applicable official Activity field with typed metadata.",
     "Collect separate semantic evidence for API type, mutability, computed/stored status, filter/order support, and calculation meaning.",
     "Only then move fields from seeded_not_certified to an explicit disposition with regression evidence."
-  ]
+  ],
+  "confirmed_name_mapping_candidates": [
+    {
+      "registry_name": "ActivityId",
+      "p6_field": "Id",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "2185-2190",
+      "reason": "Oracle defines Id as the short activity ID; do not equate to ObjectId without interchange/semantic verification."
+    },
+    {
+      "registry_name": "ActivityName",
+      "p6_field": "Name",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "643-645",
+      "reason": "Oracle defines Name as the activity name."
+    },
+    {
+      "registry_name": "ActivityOwner",
+      "p6_field": "ActivityOwnerUserId",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "102-104;1058-1064",
+      "reason": "Oracle exposes the activity owner as a user ID; current registry uses string and therefore requires type/mapping verification."
+    },
+    {
+      "registry_name": "ActivityStatus",
+      "p6_field": "Status",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "926-928;3191-3197",
+      "reason": "Oracle defines Status as the current activity status."
+    },
+    {
+      "registry_name": "ActivityType",
+      "p6_field": "Type",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "1000-1003;3381-3389",
+      "reason": "Oracle defines Type as the activity type with six documented values."
+    },
+    {
+      "registry_name": "Calendar",
+      "p6_field": "CalendarName",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "1751-1753",
+      "reason": "Oracle exposes CalendarName as the calendar name; Calendar remains unresolved as a canonical P6 field."
+    },
+    {
+      "registry_name": "RemainingFinishDate",
+      "p6_field": "RemainingFinishDate",
+      "mapping_kind": "inventory_name_requires_source_reconciliation",
+      "evidence_lines": "837-842",
+      "reason": "Official Activity read page documents remaining finish semantics; export inventory mismatch must be reconciled separately."
+    },
+    {
+      "registry_name": "RemainingStartDate",
+      "p6_field": "RemainingEarlyStartDate",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "820-822;841-842",
+      "reason": "Oracle documents RemainingEarlyStartDate as scheduler-derived remaining start behavior; exact interchange naming must be verified before registry remapping."
+    },
+    {
+      "registry_name": "UpdateUser",
+      "p6_field": "LastUpdateUser",
+      "mapping_kind": "candidate_alias",
+      "evidence_lines": "2348-2354",
+      "reason": "Oracle Release 26 uses LastUpdateUser for the user who last updated the activity; UpdateUser is not present on the Activity page."
+    }
+  ],
+  "confirmed_mapping_status": "candidate_only_not_certified",
+  "mapping_rule": "Candidate mappings are evidence-backed reconciliation hypotheses only. They must not change registry P6 field identity, disposition, type, mutability, computed status, or implementation certification until interchange and regression evidence is complete."
 }
