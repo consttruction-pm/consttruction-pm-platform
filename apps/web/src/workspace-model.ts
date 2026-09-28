@@ -465,6 +465,19 @@ function defaultWorkspaceTypography(languageTag: WorkspaceLocale): WorkspaceTypo
       fontKerning: "auto",
     };
   }
+  if (base === "ja" || base === "zh" || base === "ko") {
+    return {
+      fontFamily: "Noto Sans CJK",
+      fallbackFamilies: ["Noto Sans", "Yu Gothic", "Meiryo", "Arial", "sans-serif"],
+      fontStyle: "normal",
+      fontWeight: 400,
+      lineHeight: "1.55",
+      letterSpacing: "normal",
+      fontFeatureSettings: "normal",
+      fontVariantLigatures: "common-ligatures",
+      fontKerning: "auto",
+    };
+  }
   return {
     fontFamily: "Inter",
     fallbackFamilies: ["Segoe UI", "Arial", "sans-serif"],
