@@ -113,4 +113,3 @@ function installToolbar(): void {
 installToolbar();
 render();
 
-void (document as Document & { __constructionPmBetaReady?: boolean }).constructor;
