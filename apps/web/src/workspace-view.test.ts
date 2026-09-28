@@ -48,6 +48,6 @@ test("main workspace localizes the document section in Persian", () => {
   }]);
   const container = { innerHTML: "", querySelectorAll: () => [] } as unknown as HTMLElement;
   renderMainWorkspace(container, state);
-  assert.match(container.innerHTML, /<h2>اسناد<\\/h2>/);
+  assert.match(container.innerHTML, /<h2>اسناد<\/h2>/);
   assert.match(container.innerHTML, /نسخه 4/);
 });
