@@ -38,6 +38,8 @@ Those responsibilities remain in the Shared Formula Core, dependency graph and l
 
 For the same compiled formulas, input values and changed set, the recalculation plan and results are deterministic. Formula evaluation stops on the first calculation error; no partial result object is returned.
 
-## Current limitation
+## External field changes
 
-The v1 contract accepts changed formula IDs. Changes to external/base fields will require a later dependency-index extension so a field change can invalidate the formulas that reference it without pretending the field itself is a formula node.
+The recalculation graph now indexes every referenced dependency identifier. A change to an external/base field can therefore invalidate the directly dependent formulas and their full transitive dependent closure without treating the external field as a formula node.
+
+The contract now exposes `recalculate_changes(...)` for this use case. Changes to unrelated fields produce an empty deterministic plan.
