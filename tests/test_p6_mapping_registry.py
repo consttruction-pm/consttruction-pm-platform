@@ -38,8 +38,12 @@ def test_round_trip_and_deterministic_list() -> None:
 def test_immutable_and_stale_revision() -> None:
     repo = SQLiteP6MappingRegistryRepository(sqlite3.connect(":memory:"))
     repo.upsert_mapping(record())
+    changed = record(mapping_id="activity.code")
+    changed = PersistedP6Mapping(scope=changed.scope, definition=P6MappingDefinition(
+        **{**changed.definition.__dict__, "canonical_field": "activity.code.changed"}
+    ))
     with pytest.raises(P6MappingRegistryError, match="IMMUTABLE_MAPPING_DEFINITION"):
-        repo.upsert_mapping(record(mapping_id="activity.code"))
+        repo.upsert_mapping(changed)
     with pytest.raises(P6MappingRegistryError, match="REVISION_CONFLICT"):
         repo.get_mapping(scope(2), "activity.code")
 
