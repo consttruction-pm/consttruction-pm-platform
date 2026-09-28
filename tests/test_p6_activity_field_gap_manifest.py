@@ -31,3 +31,16 @@ def test_activity_gap_report_exposes_partial_materialization():
     assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 123
     assert report["unmaterialized_inventory_count"] == 122
     assert report["gap_manifest_coverage_status"] == "partial"
+
+
+def test_release_26_activity_inventory_is_complete_and_uncertified():
+    with open("docs/architecture/P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json", encoding="utf-8") as handle:
+        data = json.load(handle)
+    assert data["inventory_field_count"] == 275
+    assert len(data["fields"]) == 275
+    assert len({entry["p6_field"] for entry in data["fields"]}) == 275
+    assert all(entry["subject_area"] == "Activity" for entry in data["fields"])
+    assert all(entry["disposition"] == "pending_reconciliation" for entry in data["fields"])
+    assert all(entry["data_type"] is None for entry in data["fields"])
+    assert all(entry["writable"] is None for entry in data["fields"])
+    assert all(entry["computed"] is None for entry in data["fields"])
