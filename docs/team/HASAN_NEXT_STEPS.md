@@ -365,3 +365,22 @@ Status: **implemented, PostgreSQL runtime-verified, merged**
 ## Next point
 
 Reconcile current main and open P6 work again. Resource-spread persistence is complete; remaining Hasan-owned P6 working-data candidates include codes/code scopes and baseline persistence, plus applicable interchange/conformance gaps. Implement only the first concrete missing boundary and do not duplicate Jalal/Farmj22002 work.
+
+
+### 2026-09-28 — P6 code scope persistence (PR #435)
+
+Status: **implemented, PostgreSQL runtime-verified, merged**
+
+- Fresh main reconciliation found no existing P6 code-scope persistence and no duplicate open implementation.
+- PR #435 added tenant/project/revision-scoped code definitions with explicit GLOBAL, PROJECT and EPS scope kinds and immutable typed code values.
+- Identical writes replay idempotently; changed definitions and stale revisions fail closed; deterministic listing is preserved.
+- SQLite and PostgreSQL repository boundaries plus application-owned transaction support were added.
+- PostgreSQL workflow triggers were extended to execute the live P6 code persistence test.
+- Exact implementation head: 63d1c3f68cc8a8d66c3819bdb31a2cbf183630c7.
+- ConstructionPM CI 1800, Client Typecheck 1503, PostgreSQL Integration 139 all passed on the exact head.
+- PR #435 merged as 8501456c12e3458e6133839d0da45be499658ee6.
+- No code assignment/inheritance calculation, Scheduling/P6 calculation, Resource/Cost or financial semantics were introduced.
+
+## Next point
+
+Reconcile baseline support against current Shared Core contracts. Baseline persistence must preserve authoritative snapshot/version identity but must not implement schedule comparison/calculation semantics in Backend/API.
