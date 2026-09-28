@@ -18,3 +18,16 @@ def test_activity_gap_manifest_does_not_duplicate_seed_registry():
     with open("shared/contracts/p6-activity-field-gap-manifest.v1.json", encoding="utf-8") as handle:
         data = json.load(handle)
     assert seed.isdisjoint({entry["p6_field"] for entry in data["entries"]})
+
+
+def test_activity_gap_report_exposes_partial_materialization():
+    with open("docs/architecture/P6_ACTIVITY_FIELD_GAP_REPORT_2026-09-28.json", encoding="utf-8") as handle:
+        report = json.load(handle)
+    with open("shared/contracts/p6-activity-field-gap-manifest.v1.json", encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    assert report["inventory_field_count"] == 275
+    assert report["exact_matches"] == 30
+    assert report["missing_from_registry_count"] == 245
+    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 123
+    assert report["unmaterialized_inventory_count"] == 122
+    assert report["gap_manifest_coverage_status"] == "partial"
