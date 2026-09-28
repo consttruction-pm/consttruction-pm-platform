@@ -26,6 +26,7 @@ export type WorkspaceControlRoomColumn = {
   editable: boolean;
   formula: string | null;
   width: number;
+  text_direction: WorkspaceColumn["textDirection"];
 };
 
 export type WorkspaceControlRoomActivity = {
@@ -35,6 +36,7 @@ export type WorkspaceControlRoomActivity = {
   name: string;
   cells: Readonly<Record<string, WorkspaceCellValue>>;
   gantt: WorkspaceGanttData | null;
+  cell_directions: Readonly<Record<string, WorkspaceActivityRow["cellDirections"] extends infer _T ? string : string>>;
 };
 
 export function createWorkspaceControlRoomSnapshot(
@@ -54,6 +56,7 @@ export function createWorkspaceControlRoomSnapshot(
       editable: column.editable,
       formula: column.formula,
       width: column.width,
+      text_direction: column.textDirection,
     })),
     activities: state.activities.map((activity) => ({
       id: activity.id,
@@ -69,6 +72,7 @@ export function createWorkspaceControlRoomSnapshot(
             critical: activity.gantt.critical,
           })
         : null,
+      cell_directions: Object.freeze({ ...(activity.cellDirections ?? {}) }),
     })),
   };
 }
@@ -95,6 +99,7 @@ export function workspaceActivitiesFromSnapshot(
     code: activity.code,
     name: activity.name,
     cells: Object.freeze({ ...activity.cells }),
+    cellDirections: Object.freeze({ ...(activity.cell_directions ?? {}) }),
     gantt: activity.gantt
       ? Object.freeze({
           start: activity.gantt.start,
