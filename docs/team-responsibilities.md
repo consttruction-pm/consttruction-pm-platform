@@ -120,3 +120,58 @@ Hasan consumes Shared Core semantics and must not create a competing scheduling/
 - **Client impact review:** Javad, only where synchronization contracts or client behavior are affected.
 - **Release gate:** Stage 33.4.73 remains pending until actual PostgreSQL-backed runtime verification succeeds.
 
+
+
+## 7. V1 Full Audit + Functional Web Beta Sprint — Issue #459
+
+**Release priority:** Web-first V1 Beta. Desktop/Mobile and advanced app packaging move to V2; Shared Core/API contracts remain reusable for V2.
+
+### Jalal — Core/P6/Integration Owner
+- Master audit matrix across the whole product.
+- Oracle P6 Release 26 evidence reconciliation for fields, options, calculations and shared Business Objects.
+- Shared Domain/Calculation Core is the only authority for scheduling, calendar arithmetic, relationships, float/critical path, Progress/EVM and Formula evaluation.
+- Identify and eliminate duplicated calculation/business-rule paths.
+- Define the authoritative contracts consumed by Backend and Web.
+- Final cross-module integration, regression strategy and V1 technical acceptance.
+- V1 blockers are resolved before new scope is added.
+
+### Hasan — Backend/Data/Interchange Owner
+- PostgreSQL schema, persistence and migrations for V1 surfaces.
+- API/application/repository contracts for the audited fields/options/screens.
+- Persistence for Field Registry, UDF, layouts, formulas and Schedule/Calendar options.
+- Permission/authentication enforcement.
+- P6 interchange implementation according to the approved registry: XER/XML/XLS/XLSX/MS Project mapping where in V1 scope; explicit unsupported-field handling and no silent loss.
+- Revision, optimistic locking, idempotency, transaction and round-trip verification.
+- Beta seed/demo data and database-backed runtime verification.
+- Consume Jalal's calculation contracts; do not implement a competing calculation engine.
+
+### Javad — Web Beta/UX Owner
+- Functional V1 Web shell and complete menu/submenu navigation.
+- Main Workspace, Project/WBS, Activity Grid, Gantt, Details and major forms.
+- Field Chooser/Column Manager: add/remove/show/hide/reorder/rename/width/alignment/pin/freeze.
+- Formula editor UX that delegates validation/evaluation to Shared Core/API.
+- Schedule, Progress, Resource, Cost, Documents, Reports and Control screens at the agreed Beta depth.
+- Persian/English, RTL/LTR, Jalali/Gregorian presentation and responsive UX.
+- Accessibility and consistent interaction behavior.
+- Desktop/Mobile are V2; no V1 time is spent on platform-specific shells unless required to preserve shared contracts.
+
+### Shared execution order
+1. Jalal freezes the audit findings and authoritative semantics/contracts.
+2. Hasan persists/exposes the required contracts and verification surfaces.
+3. Javad connects the Web Beta UI to those contracts.
+4. Jalal performs integration/conformance acceptance.
+5. All three run boundary-specific regression tests for affected areas.
+
+### V1 Definition of Ready
+A V1 screen/option is not considered complete merely because it exists visually. It must have a real navigation path and, where its implementation is partial, an explicit status of **Implemented**, **Partial**, or **Preview**. Shared calculations must come from the authoritative Core; client-only duplicate calculations are not accepted.
+
+### V1 Definition of Done
+- Audit matrix updated.
+- Menu/submenu/screen matrix updated.
+- Required fields/options mapped to authoritative contracts.
+- Focused tests exist for the changed boundary.
+- Regression checks cover adjacent behavior.
+- Runtime verification is recorded where the environment supports it.
+- No known material V1 blocker remains hidden behind a placeholder.
+
+Reference: Oracle Primavera P6 EPPM REST API Release 26 official documentation.
