@@ -17,6 +17,7 @@ test("control-room snapshot is versioned and round-trips typed activity data", (
     wbsId: "W-1",
     code: "01",
     name: "Foundation",
+    cellDirections: { name: "rtl", activity_code: "ltr" },
     cells: { start: "2026-09-01T08:00:00Z", duration: 4, progress: 25 },
     gantt: {
       start: "2026-09-01T08:00:00Z",
@@ -30,8 +31,11 @@ test("control-room snapshot is versioned and round-trips typed activity data", (
   assert.equal(snapshot.contract_version, WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION);
   assert.equal(snapshot.context.project_id, "project-1");
   assert.equal(snapshot.columns[0]?.data_type, "text");
+  assert.equal(snapshot.columns[0]?.text_direction, "auto");
+  assert.equal(snapshot.activities[0]?.cell_directions.name, "rtl");
   const activities = workspaceActivitiesFromSnapshot(snapshot);
   assert.equal(activities[0]?.cells?.duration, 4);
+  assert.equal(activities[0]?.cellDirections?.name, "rtl");
   assert.equal(activities[0]?.gantt?.critical, true);
 });
 
