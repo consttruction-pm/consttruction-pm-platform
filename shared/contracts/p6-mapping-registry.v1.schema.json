@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://constructionpm.dev/contracts/p6-mapping-registry.v1.schema.json",
+  "title": "P6 Mapping Registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "mapping_id",
+    "registry_version",
+    "format",
+    "subject_area",
+    "source_field",
+    "canonical_field",
+    "status"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "mapping_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "registry_version": {
+      "const": "p6-field-registry.v1"
+    },
+    "format": {
+      "enum": [
+        "XER_PROJECT",
+        "XER_RESOURCE_ONLY",
+        "XER_ROLE_ONLY",
+        "PRIMAVERA_XML",
+        "XLS",
+        "XLSX",
+        "MSPROJECT_XML",
+        "MPX"
+      ]
+    },
+    "subject_area": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_field": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_field": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "SUPPORTED",
+        "UNSUPPORTED_PRESERVE",
+        "UNSUPPORTED_REJECT"
+      ]
+    },
+    "source_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "canonical_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
