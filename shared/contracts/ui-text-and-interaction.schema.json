@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/ui-text-and-interaction.schema.json",
+  "title": "Construction PM Multilingual Text and Interaction Contract",
+  "type": "object",
+  "required": [
+    "language_tag",
+    "text_direction",
+    "mouse_interaction",
+    "keyboard_interaction"
+  ],
+  "properties": {
+    "language_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "text_direction": {
+      "enum": [
+        "auto",
+        "ltr",
+        "rtl"
+      ]
+    },
+    "mouse_interaction": {
+      "type": "object",
+      "required": [
+        "left_click",
+        "right_click"
+      ],
+      "properties": {
+        "left_click": {
+          "const": "activate"
+        },
+        "right_click": {
+          "const": "context-menu"
+        }
+      },
+      "additionalProperties": false
+    },
+    "keyboard_interaction": {
+      "type": "object",
+      "required": [
+        "activation_keys"
+      ],
+      "properties": {
+        "activation_keys": {
+          "const": [
+            "Enter",
+            "Space"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "translation_scope": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "menu",
+          "submenu",
+          "field",
+          "field_value",
+          "tooltip",
+          "help",
+          "validation",
+          "report",
+          "dialog",
+          "command",
+          "status",
+          "error"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}
