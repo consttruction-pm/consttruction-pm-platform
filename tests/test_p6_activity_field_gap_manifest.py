@@ -44,3 +44,12 @@ def test_release_26_activity_inventory_is_complete_and_uncertified():
     assert all(entry["data_type"] is None for entry in data["fields"])
     assert all(entry["writable"] is None for entry in data["fields"])
     assert all(entry["computed"] is None for entry in data["fields"])
+
+
+def test_activity_reconciliation_candidates_remain_uncertified():
+    with open("docs/architecture/P6_ACTIVITY_FIELD_RECONCILIATION_2026-09-28.json", encoding="utf-8") as handle:
+        data = json.load(handle)
+    assert data["status"] == "candidate_reconciliation_not_certified"
+    assert len(data["candidates"]) == 9
+    assert "Id and ObjectId remain distinct until interchange evidence proves equivalence." in data["rules"]
+    assert "ActivityOwner" in data["unresolved_registry_fields"]
