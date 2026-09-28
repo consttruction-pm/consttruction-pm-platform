@@ -929,3 +929,18 @@ Status: **implemented and runtime-verified**
 - PR #411 is the current Jalal-owned Shared/Core formula field-type bridge. Exact head `1b053f8f5e20c63c1fafc8d81cc45b89b2a5f41e` passed ConstructionPM CI **1713** and Client Typecheck **1416** and is mergeable, but remains unmerged.
 - Hasan formula persistence/API implementation remains intentionally gated on the merged authoritative Shared/Core contract. No duplicate formula semantics are introduced in Backend/API.
 - PR #395 remains an older non-mergeable Field Registry prerequisite and is not revived.
+
+
+### 2026-09-28 — P6 resource-spread persistence (PR #434)
+
+Status: **100% — implemented; runtime-verified and merged**
+
+- Added typed future-period resource-spread bucket persistence with tenant/project/project-revision scope and immutable bucket identity.
+- Added SQLite and PostgreSQL repositories plus application-owned transaction boundary.
+- Preserved Decimal precision and explicit unit/currency metadata without performing conversion or resource/cost calculations.
+- Added deterministic round-trip, scope isolation, stale-revision, replay/immutability and PostgreSQL rollback coverage.
+- PostgreSQL Integration workflow was updated to trigger and execute the new live resource-spread test.
+- Exact head: 0634a385f287963e8cfa134c85ac1da3e44b6d0d.
+- ConstructionPM CI 1793, Client Typecheck 1496, PostgreSQL Integration 137: all passed.
+- Merge commit: 76628e5ddb995551fcf1b63eecf14bc15af71bfa.
+- Remaining P6-393 working-data candidates must be re-audited from current main before implementation; resource-spread is no longer a gap.
