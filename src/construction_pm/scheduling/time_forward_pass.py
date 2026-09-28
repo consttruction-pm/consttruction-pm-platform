@@ -10,6 +10,7 @@ from .calendar_context import (
     RelationshipLagCalendar,
     SchedulingCalendarContext,
 )
+from .schedule_options import StartToStartLagCalculationType
 from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
@@ -21,10 +22,13 @@ class TimeActivity:
     id: str
     duration: TimeQuantity
     calendar_context: SchedulingCalendarContext | None = None
+    actual_start: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
             raise ValueError("activity id is required")
+        if self.actual_start is not None and not isinstance(self.actual_start, datetime):
+            raise TypeError("actual_start must be a datetime or None")
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,39 @@ def _add_duration(
     return resolver.add_working_hours(start, duration.value)
 
 
+
+def _ss_successor_start(
+    predecessor: TimeActivity,
+    predecessor_scheduled: TimeScheduledActivity,
+    relationship: TimeRelationship,
+    resolver: TimeAwareWorkingTimeResolver | object,
+    data_date: datetime | None,
+    calculation_type: StartToStartLagCalculationType,
+) -> datetime:
+    if (
+        predecessor.actual_start is not None
+        and predecessor.actual_start > predecessor_scheduled.start
+    ):
+        if data_date is None:
+            raise ValueError(
+                "data_date is required for an out-of-sequence start-to-start relationship"
+            )
+        if data_date < predecessor.actual_start:
+            raise ValueError(
+                "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
+            )
+        elapsed = resolver.calculate_working_hours(
+            predecessor.actual_start, data_date
+        )
+        remaining_lag = max(Decimal("0"), relationship.lag.value - elapsed)
+        anchor = (
+            data_date
+            if calculation_type is StartToStartLagCalculationType.ACTUAL_START
+            else predecessor_scheduled.start
+        )
+        return resolver.add_working_hours(anchor, remaining_lag)
+    return _add_signed_lag(predecessor_scheduled.start, relationship.lag, resolver)
+
 def time_forward_pass(
     activities: Iterable[TimeActivity],
     relationships: Iterable[TimeRelationship],
@@ -95,6 +132,8 @@ def time_forward_pass(
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
+    start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
+    data_date: datetime | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     """Earliest-start pass for the explicit working-hour scheduling contract.
 
@@ -187,7 +226,17 @@ def time_forward_pass(
                 RelationshipType.FF: predecessor.finish,
                 RelationshipType.SF: predecessor.start,
             }[rel.type]
-            target = _add_signed_lag(anchor, rel.lag, lag_resolver)
+            if rel.type is RelationshipType.SS:
+                target = _ss_successor_start(
+                    activity_map[rel.predecessor_id],
+                    predecessor,
+                    rel,
+                    lag_resolver,
+                    data_date,
+                    start_to_start_lag_calculation_type,
+                )
+            else:
+                target = _add_signed_lag(anchor, rel.lag, lag_resolver)
             if rel.type in {RelationshipType.FF, RelationshipType.SF}:
                 candidate = _subtract_duration(target, activity.duration, resolver)
             else:
