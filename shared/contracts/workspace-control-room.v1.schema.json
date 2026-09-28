@@ -4,17 +4,38 @@
   "title": "Construction PM Web Control Room v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract_version", "context", "columns", "activities"],
+  "required": [
+    "contract_version",
+    "context",
+    "columns",
+    "activities"
+  ],
   "properties": {
-    "contract_version": {"const": "workspace-control-room.v1"},
+    "contract_version": {
+      "const": "workspace-control-room.v1"
+    },
     "context": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tenant_id", "project_id", "revision"],
+      "required": [
+        "tenant_id",
+        "project_id",
+        "revision"
+      ],
       "properties": {
-        "tenant_id": {"type": "string", "minLength": 1},
-        "project_id": {"type": "string", "minLength": 1},
-        "revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
       }
     },
     "columns": {
@@ -22,14 +43,54 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "label", "data_type", "editable", "formula", "width"],
+        "required": [
+          "id",
+          "label",
+          "data_type",
+          "editable",
+          "formula",
+          "width",
+          "text_direction"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
-          "label": {"type": "string", "minLength": 1},
-          "data_type": {"enum": ["text", "integer", "decimal", "date", "duration", "boolean"]},
-          "editable": {"type": "boolean"},
-          "formula": {"type": ["string", "null"]},
-          "width": {"type": "number", "exclusiveMinimum": 0}
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "data_type": {
+            "enum": [
+              "text",
+              "integer",
+              "decimal",
+              "date",
+              "duration",
+              "boolean"
+            ]
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "formula": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "text_direction": {
+            "enum": [
+              "auto",
+              "ltr",
+              "rtl"
+            ]
+          }
         }
       }
     },
@@ -38,25 +99,81 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "wbs_id", "code", "name", "cells", "gantt"],
+        "required": [
+          "id",
+          "wbs_id",
+          "code",
+          "name",
+          "cells",
+          "gantt",
+          "cell_directions"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
-          "wbs_id": {"type": "string", "minLength": 1},
-          "code": {"type": "string"},
-          "name": {"type": "string", "minLength": 1},
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "wbs_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "cells": {
             "type": "object",
-            "additionalProperties": {"type": ["string", "number", "boolean", "null"]}
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
           },
           "gantt": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["start", "finish", "progress_percent", "critical"],
+            "required": [
+              "start",
+              "finish",
+              "progress_percent",
+              "critical"
+            ],
             "properties": {
-              "start": {"type": "string", "format": "date-time"},
-              "finish": {"type": "string", "format": "date-time"},
-              "progress_percent": {"type": "number", "minimum": 0, "maximum": 100},
-              "critical": {"type": "boolean"}
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "finish": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "progress_percent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "critical": {
+                "type": "boolean"
+              }
+            }
+          },
+          "cell_directions": {
+            "type": "object",
+            "additionalProperties": {
+              "enum": [
+                "auto",
+                "ltr",
+                "rtl"
+              ]
             }
           }
         }
