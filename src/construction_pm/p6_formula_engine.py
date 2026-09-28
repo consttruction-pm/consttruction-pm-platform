@@ -573,7 +573,6 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
                     })
                 else:
                     unit = None
-ns
 
 from dataclasses import dataclass
 from datetime import date, datetime
