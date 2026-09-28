@@ -489,9 +489,7 @@ function fontCssFamily(
   typography: WorkspaceState["typography"],
   column: WorkspaceState["columns"][number],
 ): string {
-  return column.textDirection === "rtl" || column.id === "activity_name"
-    ? ["Vazirmatn", "Noto Sans Arabic", ...typography.fallbackFamilies].join(", ")
-    : [typography.fontFamily, ...typography.fallbackFamilies].join(", ");
+  return [typography.fontFamily, ...typography.fallbackFamilies].join(", ");
 }
 
 function typographyStyle(typography: WorkspaceState["typography"]): string {
