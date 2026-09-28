@@ -35,12 +35,29 @@ class P6FieldDefinition:
     computed: bool
     unit: str | None = None
     source: str = "Oracle P6 Version 26 / 26.4"
+    reference_url: str = (
+        "https://docs.oracle.com/cd/F51303_01/English/Integration/"
+        "p6_pro_api_reference/FieldSummary.html"
+    )
+    read_only: bool | None = None
+    filterable: bool | None = None
+    orderable: bool | None = None
+    nullable: bool | None = None
+    disposition: str = "seeded_not_certified"
 
     def __post_init__(self) -> None:
         if not all((self.field_id, self.subject_area, self.p6_field, self.display_name)):
             raise ValueError("field identity and display name are required")
         if self.writable and self.computed:
             raise ValueError("a field cannot be both writable and computed")
+        if self.disposition not in {
+            "seeded_not_certified",
+            "implemented",
+            "equivalent_superset",
+            "outside_scope",
+            "pending",
+        }:
+            raise ValueError(f"invalid field disposition: {self.disposition}")
 
 
 # Core seed catalog. This is intentionally versioned and incomplete until
