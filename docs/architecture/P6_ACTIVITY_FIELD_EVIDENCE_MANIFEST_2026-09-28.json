@@ -7,51 +7,284 @@
   "certification_status": "not_certified",
   "rule": "Evidence presence never implies implementation certification. A registry field may become implemented/equivalent_superset/outside_scope only after semantics, mutability, canonical mapping, interchange mapping, and regression evidence are completed.",
   "verified_fields": [
-    {"p6_field":"ActualDuration","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"1067-1074","notes":"Working time; activity calendar dependent."},
-    {"p6_field":"ActualFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"1085-1089"},
-    {"p6_field":"ActualStartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"1090-1094"},
-    {"p6_field":"DurationPercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"414-416"},
-    {"p6_field":"Duration1Variance","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"407-412"},
-    {"p6_field":"DurationType","oracle_type":"string","semantic_type":"enum","evidence_lines":"421-423"},
-    {"p6_field":"EarlyFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"428-430"},
-    {"p6_field":"EarlyStartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"432-433"},
-    {"p6_field":"ExpectedFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"455-456","notes":"Manual expected finish according to progress."},
-    {"p6_field":"FinishDateVariance","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"501-502"},
-    {"p6_field":"FloatPath","oracle_type":"integer(int32)","semantic_type":"integer","evidence_lines":"504-506"},
-    {"p6_field":"FloatPathOrder","oracle_type":"integer(int32)","semantic_type":"integer","evidence_lines":"508-510"},
-    {"p6_field":"FreeFloat","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"511-513"},
-    {"p6_field":"IsCritical","oracle_type":"boolean","semantic_type":"boolean","evidence_lines":"530-532"},
-    {"p6_field":"IsLongestPath","oracle_type":"boolean","semantic_type":"boolean","evidence_lines":"534-536"},
-    {"p6_field":"LateFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"596-601"},
-    {"p6_field":"LateStartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"596-601"},
-    {"p6_field":"LevelingPriority","oracle_type":"string","semantic_type":"enum","evidence_lines":"602-604"},
-    {"p6_field":"Name","oracle_type":"string","semantic_type":"string","evidence_lines":"643-645"},
-    {"p6_field":"ObjectId","oracle_type":"integer(int32)","semantic_type":"object-id","evidence_lines":"686-688"},
-    {"p6_field":"PercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"697-699"},
-    {"p6_field":"PercentCompleteType","oracle_type":"string","semantic_type":"enum","evidence_lines":"701-703"},
-    {"p6_field":"PerformancePercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"705-706"},
-    {"p6_field":"PhysicalPercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"709-711"},
-    {"p6_field":"PlannedDuration","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"713-715","notes":"Working time computed using activity calendar."},
-    {"p6_field":"PlannedFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"720-721"},
-    {"p6_field":"PlannedStartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"739-741"},
-    {"p6_field":"PlannedTotalCost","oracle_type":"number(double)","semantic_type":"cost","evidence_lines":"742-744"},
-    {"p6_field":"PlannedTotalUnits","oracle_type":"number(double)","semantic_type":"unit","evidence_lines":"746-747"},
-    {"p6_field":"PlannedValueCost","oracle_type":"number(double)","semantic_type":"cost","evidence_lines":"749-750"},
-    {"p6_field":"PrimaryConstraintDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"773-775"},
-    {"p6_field":"PrimaryConstraintType","oracle_type":"string","semantic_type":"enum","evidence_lines":"777-778"},
-    {"p6_field":"PrimaryResourceName","oracle_type":"string","semantic_type":"string","evidence_lines":"783-785"},
-    {"p6_field":"RemainingFinishDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"837-842"},
-    {"p6_field":"RemainingStartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"841-842"},
-    {"p6_field":"SchedulePercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"875-877"},
-    {"p6_field":"SchedulePerformanceIndex","oracle_type":"number(double)","semantic_type":"number","evidence_lines":"878-880"},
-    {"p6_field":"ScheduleVariance","oracle_type":"number(double)","semantic_type":"number","evidence_lines":"885-887"},
-    {"p6_field":"StartDate","oracle_type":"string(date-time)","semantic_type":"datetime","evidence_lines":"908-910"},
-    {"p6_field":"Status","oracle_type":"string","semantic_type":"enum","evidence_lines":"926-928"},
-    {"p6_field":"TotalFloat","oracle_type":"number(double)","semantic_type":"duration","evidence_lines":"959-961"},
-    {"p6_field":"Type","oracle_type":"string","semantic_type":"enum","evidence_lines":"1000-1003"},
-    {"p6_field":"UnitsPercentComplete","oracle_type":"number(double)","semantic_type":"percentage","evidence_lines":"1004-1006"},
-    {"p6_field":"WBSCode","oracle_type":"string","semantic_type":"string","evidence_lines":"1012-1013"},
-    {"p6_field":"WBSName","oracle_type":"string","semantic_type":"string","evidence_lines":"1015-1017"},
-    {"p6_field":"WBSObjectId","oracle_type":"integer(int32)","semantic_type":"object-id","evidence_lines":"1021-1023"}
+    {
+      "p6_field": "ActualDuration",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "1067-1074",
+      "notes": "Working time; activity calendar dependent."
+    },
+    {
+      "p6_field": "ActualFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "1085-1089"
+    },
+    {
+      "p6_field": "ActualStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "1090-1094"
+    },
+    {
+      "p6_field": "DurationPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "414-416"
+    },
+    {
+      "p6_field": "Duration1Variance",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "407-412"
+    },
+    {
+      "p6_field": "DurationType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "421-423"
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "428-430"
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "432-433"
+    },
+    {
+      "p6_field": "ExpectedFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "455-456",
+      "notes": "Manual expected finish according to progress."
+    },
+    {
+      "p6_field": "FinishDateVariance",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "501-502"
+    },
+    {
+      "p6_field": "FloatPath",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "integer",
+      "evidence_lines": "504-506"
+    },
+    {
+      "p6_field": "FloatPathOrder",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "integer",
+      "evidence_lines": "508-510"
+    },
+    {
+      "p6_field": "FreeFloat",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "511-513"
+    },
+    {
+      "p6_field": "IsCritical",
+      "oracle_type": "boolean",
+      "semantic_type": "boolean",
+      "evidence_lines": "530-532"
+    },
+    {
+      "p6_field": "IsLongestPath",
+      "oracle_type": "boolean",
+      "semantic_type": "boolean",
+      "evidence_lines": "534-536"
+    },
+    {
+      "p6_field": "LateFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "596-601"
+    },
+    {
+      "p6_field": "LateStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "596-601"
+    },
+    {
+      "p6_field": "LevelingPriority",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "602-604"
+    },
+    {
+      "p6_field": "Name",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "643-645"
+    },
+    {
+      "p6_field": "ObjectId",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "object-id",
+      "evidence_lines": "686-688"
+    },
+    {
+      "p6_field": "PercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "697-699"
+    },
+    {
+      "p6_field": "PercentCompleteType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "701-703"
+    },
+    {
+      "p6_field": "PerformancePercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "705-706"
+    },
+    {
+      "p6_field": "PhysicalPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "709-711"
+    },
+    {
+      "p6_field": "PlannedDuration",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "713-715",
+      "notes": "Working time computed using activity calendar."
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "720-721"
+    },
+    {
+      "p6_field": "PlannedStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "739-741"
+    },
+    {
+      "p6_field": "PlannedTotalCost",
+      "oracle_type": "number(double)",
+      "semantic_type": "cost",
+      "evidence_lines": "742-744"
+    },
+    {
+      "p6_field": "PlannedTotalUnits",
+      "oracle_type": "number(double)",
+      "semantic_type": "unit",
+      "evidence_lines": "746-747"
+    },
+    {
+      "p6_field": "PlannedValueCost",
+      "oracle_type": "number(double)",
+      "semantic_type": "cost",
+      "evidence_lines": "749-750"
+    },
+    {
+      "p6_field": "PrimaryConstraintDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "773-775"
+    },
+    {
+      "p6_field": "PrimaryConstraintType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "777-778"
+    },
+    {
+      "p6_field": "PrimaryResourceName",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "783-785"
+    },
+    {
+      "p6_field": "RemainingFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "837-842"
+    },
+    {
+      "p6_field": "RemainingStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "841-842"
+    },
+    {
+      "p6_field": "SchedulePercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "875-877"
+    },
+    {
+      "p6_field": "SchedulePerformanceIndex",
+      "oracle_type": "number(double)",
+      "semantic_type": "number",
+      "evidence_lines": "878-880"
+    },
+    {
+      "p6_field": "ScheduleVariance",
+      "oracle_type": "number(double)",
+      "semantic_type": "number",
+      "evidence_lines": "885-887"
+    },
+    {
+      "p6_field": "StartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "908-910"
+    },
+    {
+      "p6_field": "Status",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "926-928"
+    },
+    {
+      "p6_field": "TotalFloat",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "959-961"
+    },
+    {
+      "p6_field": "Type",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "1000-1003"
+    },
+    {
+      "p6_field": "UnitsPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "1004-1006"
+    },
+    {
+      "p6_field": "WBSCode",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "1012-1013"
+    },
+    {
+      "p6_field": "WBSName",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "1015-1017"
+    },
+    {
+      "p6_field": "WBSObjectId",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "object-id",
+      "evidence_lines": "1021-1023"
+    }
   ]
 }
