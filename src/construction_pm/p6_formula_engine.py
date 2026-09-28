@@ -483,6 +483,16 @@ def _format_unit(factors: Mapping[str, int]) -> str | None:
 def _canonical_unit(unit: str | None) -> str | None:
     return _format_unit(_parse_unit(unit))
 
+def _constant_decimal(node: ExpressionNode) -> Decimal | None:
+    if isinstance(node, LiteralNode) and node.value.type is FormulaType.NUMBER:
+        return node.value.value  # type: ignore[return-value]
+    if isinstance(node, UnaryNode) and node.operator in {"+", "-"}:
+        value = _constant_decimal(node.operand)
+        if value is not None:
+            return value if node.operator == "+" else -value
+    return None
+
+
 
 def _require_same_numeric_unit(left: _TypeInfo, right: _TypeInfo) -> str | None:
     left_unit = _canonical_unit(left.unit)
