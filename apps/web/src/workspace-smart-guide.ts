@@ -18,12 +18,13 @@ export type SmartGuideModule =
   | "commercial"
   | "procurement";
 
-export type SmartGuideLocale = "fa" | "en";
+export type SmartGuideLocale = string;
 
 export type WorkspaceSmartGuide = Readonly<{
   contractVersion: typeof SMART_GUIDE_VERSION;
   module: SmartGuideModule;
   locale: SmartGuideLocale;
+  textDirection: "auto" | "ltr" | "rtl";
   resultId: string;
   generatedAt: string;
   summaryKey: string;
@@ -61,13 +62,14 @@ export function projectSmartGuide(
   context: { tenant_id: string; project_id: string; revision: number },
   module: SmartGuideModule,
   locale: SmartGuideLocale,
+  textDirection: "auto" | "ltr" | "rtl" = "auto",
 ): WorkspaceSmartGuide {
   const summary = projectControlIntelligence(snapshot, context);
 
   if (!module) {
     throw new Error("INVALID_SMART_GUIDE_MODULE");
   }
-  if (locale !== "fa" && locale !== "en") {
+  if (!locale.trim()) {
     throw new Error("INVALID_SMART_GUIDE_LOCALE");
   }
 
@@ -85,6 +87,7 @@ export function projectSmartGuide(
     contractVersion: SMART_GUIDE_VERSION,
     module,
     locale,
+    textDirection,
     resultId: summary.resultId,
     generatedAt: summary.generatedAt,
     summaryKey: summary.summaryKey,
