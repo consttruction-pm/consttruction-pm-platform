@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping, Sequence
 
@@ -68,6 +68,7 @@ class P6InterchangeMapper:
             seen_canonical.add(canonical_key)
 
     def import_row(self, row: P6InterchangeRow) -> P6InterchangeResult:
+        self._validate_scope(row.scope)
         self._validate_format(row.format)
         canonical: dict[str, Any] = {}
         extensions = dict(row.extensions)
@@ -104,6 +105,7 @@ class P6InterchangeMapper:
         self,
         row: P6InterchangeRow,
     ) -> P6InterchangeResult:
+        self._validate_scope(row.scope)
         self._validate_format(row.format)
         source_values: dict[str, Any] = {}
         extensions = dict(row.extensions)
@@ -135,6 +137,10 @@ class P6InterchangeMapper:
                 warnings.append(f"PRESERVED_UNKNOWN_CANONICAL_FIELD:{canonical}")
 
         return P6InterchangeResult(source_values, extensions, tuple(sorted(set(warnings))))
+
+    def _validate_scope(self, scope: BackendScope) -> None:
+        if scope != self._scope:
+            raise P6InterchangeCompatibilityError("ROW_SCOPE_MISMATCH")
 
     def _validate_format(self, format: P6MappingFormat) -> None:
         if not isinstance(format, P6MappingFormat):
