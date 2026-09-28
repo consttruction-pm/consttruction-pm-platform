@@ -13,6 +13,19 @@ import type { UiTextDirection } from "./ui-interaction.js";
 export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
 export type WorkspaceTextDirection = "auto" | "ltr" | "rtl";
+export type WorkspaceFontStyle = "normal" | "italic" | "oblique";
+export type WorkspaceFontKerning = "auto" | "normal" | "none";
+export type WorkspaceTypography = {
+  fontFamily: string;
+  fallbackFamilies: readonly string[];
+  fontStyle: WorkspaceFontStyle;
+  fontWeight: number;
+  lineHeight: string;
+  letterSpacing: string;
+  fontFeatureSettings: string;
+  fontVariantLigatures: string;
+  fontKerning: WorkspaceFontKerning;
+};
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
@@ -69,6 +82,7 @@ export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
   direction: WorkspaceTextDirection;
+  typography: WorkspaceTypography;
   calendarMode: WorkspaceCalendarMode;
   activeMenu: WorkspaceMenuKey;
   visiblePanels: Record<WorkspacePanel, boolean>;
@@ -109,6 +123,7 @@ export function createWorkspaceState(
   locale: WorkspaceLocale = "en",
   calendarMode: WorkspaceCalendarMode = "gregorian",
   direction: WorkspaceTextDirection = "auto",
+  typography: WorkspaceTypography = defaultWorkspaceTypography(locale),
 ): WorkspaceState {
   validateContext(context);
   return {
@@ -177,6 +192,10 @@ export function setLocale(
   };
 }
 
+
+export function setTypography(state: WorkspaceState, typography: WorkspaceTypography): WorkspaceState {
+  return { ...state, typography: normalizeTypography(typography) };
+}
 
 export function setCalendarMode(
   state: WorkspaceState,
@@ -405,3 +424,56 @@ function validateCells(cells: Readonly<Record<string, WorkspaceCellValue>>): voi
   }
 }
 
+
+
+function normalizeTypography(typography: WorkspaceTypography): WorkspaceTypography {
+  if (!typography.fontFamily.trim()) throw new Error("INVALID_FONT_FAMILY");
+  if (!Number.isInteger(typography.fontWeight) || typography.fontWeight < 1 || typography.fontWeight > 1000) {
+    throw new Error("INVALID_FONT_WEIGHT");
+  }
+  return Object.freeze({
+    ...typography,
+    fallbackFamilies: Object.freeze([...typography.fallbackFamilies]),
+  });
+}
+
+function defaultWorkspaceTypography(languageTag: WorkspaceLocale): WorkspaceTypography {
+  const base = languageTag.trim().toLowerCase().split("-")[0];
+  if (base === "fa" || base === "ar" || base === "ur" || base === "ps") {
+    return {
+      fontFamily: "Vazirmatn",
+      fallbackFamilies: ["Noto Sans Arabic", "Tahoma", "Arial", "sans-serif"],
+      fontStyle: "normal",
+      fontWeight: 400,
+      lineHeight: "1.7",
+      letterSpacing: "normal",
+      fontFeatureSettings: "normal",
+      fontVariantLigatures: "common-ligatures",
+      fontKerning: "auto",
+    };
+  }
+  if (base === "he") {
+    return {
+      fontFamily: "Noto Sans Hebrew",
+      fallbackFamilies: ["Arial", "sans-serif"],
+      fontStyle: "normal",
+      fontWeight: 400,
+      lineHeight: "1.55",
+      letterSpacing: "normal",
+      fontFeatureSettings: "normal",
+      fontVariantLigatures: "common-ligatures",
+      fontKerning: "auto",
+    };
+  }
+  return {
+    fontFamily: "Inter",
+    fallbackFamilies: ["Segoe UI", "Arial", "sans-serif"],
+    fontStyle: "normal",
+    fontWeight: 400,
+    lineHeight: "1.5",
+    letterSpacing: "normal",
+    fontFeatureSettings: "normal",
+    fontVariantLigatures: "common-ligatures",
+    fontKerning: "auto",
+  };
+}
