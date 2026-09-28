@@ -606,7 +606,7 @@ def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
         activities,
         relationships,
         datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 23, 17),
         registry,
         options=TimeScheduleOptions(relationship_lag_calendar=option),
     )
@@ -644,7 +644,7 @@ def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
         ],
         [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))],
         datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 23, 17),
         registry,
     )
     assert result.early_activities["B"].start == datetime(2026, 9, 22, 16)
