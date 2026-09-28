@@ -45,10 +45,14 @@ class P6MappingDefinition:
     notes: str | None = None
 
     def validate(self) -> None:
+        if not isinstance(self.mapping_id, str) or not isinstance(self.subject_area, str):
+            raise P6MappingRegistryError("INVALID_MAPPING_ID_OR_SUBJECT")
         if not self.mapping_id.strip() or not self.subject_area.strip():
             raise P6MappingRegistryError("INVALID_MAPPING_ID_OR_SUBJECT")
         if self.registry_version != "p6-field-registry.v1":
             raise P6MappingRegistryError("UNSUPPORTED_REGISTRY_VERSION")
+        if not isinstance(self.source_field, str) or not isinstance(self.canonical_field, str):
+            raise P6MappingRegistryError("INVALID_FIELD_MAPPING")
         if not self.source_field.strip() or not self.canonical_field.strip():
             raise P6MappingRegistryError("INVALID_FIELD_MAPPING")
 
