@@ -122,7 +122,7 @@ class SQLiteP6MappingRegistryRepository:
             return record
         d = record.definition
         self.connection.execute(
-            "INSERT INTO p6_mapping_registry VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO p6_mapping_registry VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (record.scope.tenant_id, record.scope.project_id, record.scope.project_revision,
              d.mapping_id, d.registry_version, d.format.value, d.subject_area, d.source_field,
              d.canonical_field, d.status.value, d.source_type, d.canonical_type, d.unit, d.notes, payload),
