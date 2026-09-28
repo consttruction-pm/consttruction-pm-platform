@@ -20,6 +20,21 @@
         "voice_input": true,
         "voice_output": true,
         "offline_ai": false
+      },
+      "typography": {
+        "font_family": "Inter",
+        "fallback_families": [
+          "Segoe UI",
+          "Arial",
+          "sans-serif"
+        ],
+        "font_style": "normal",
+        "font_weight": 400,
+        "line_height": "1.5",
+        "letter_spacing": "normal",
+        "font_feature_settings": "normal",
+        "font_variant_ligatures": "common-ligatures",
+        "font_kerning": "auto"
       }
     },
     {
@@ -41,6 +56,22 @@
         "voice_input": true,
         "voice_output": true,
         "offline_ai": false
+      },
+      "typography": {
+        "font_family": "Vazirmatn",
+        "fallback_families": [
+          "Noto Sans Arabic",
+          "Tahoma",
+          "Arial",
+          "sans-serif"
+        ],
+        "font_style": "normal",
+        "font_weight": 400,
+        "line_height": "1.7",
+        "letter_spacing": "normal",
+        "font_feature_settings": "normal",
+        "font_variant_ligatures": "common-ligatures",
+        "font_kerning": "auto"
       }
     }
   ],
