@@ -337,3 +337,12 @@ Status: **implemented and runtime-verified**
 - PR #409 (Jalal, Shared/Core) is the only currently open PR and provides the P6 formula-semantics prerequisite. Its exact head aa46cc3aecf16152e7651fb15dc7fe46eaced899 has ConstructionPM CI 1702 and Client Typecheck 1405 green, but it is not yet merged. Hasan must not create formula persistence/API semantics against an unmerged contract.
 - P6-3 Column/View/Layout remains Javad-owned. P6-7 interchange depends on the authoritative field registry/mapping surface and remains a later concrete gate rather than a reason to invent an adapter now.
 - Current evidence establishes an ownership/version prerequisite, not a missing backend implementation. Next Hasan implementation starts only when a concrete Shared/Core contract/version transition is merged and reconciled against current main.
+
+
+### 2026-09-28 — Reconciliation after Shared/Core PR #411
+
+- The prior note naming PR #409 as the active Shared/Core prerequisite is superseded: PR #409 is closed without merge and must not be revived.
+- PR #411 is now the active Jalal-owned Shared/Core P6 formula field-type bridge. Its head `1b053f8f5e20c63c1fafc8d81cc45b89b2a5f41e` passed ConstructionPM CI **1713** and Client Typecheck **1416** and is mergeable, but it is not yet merged.
+- PR #411 is Shared/Core semantics only. Hasan must not implement formula persistence/API semantics against this unmerged branch.
+- PR #395 remains an older Jalal-owned Field Registry PR and is currently non-mergeable against the newer baseline; do not revive it. The already-merged Hasan persistence/API work remains authoritative on current main.
+- Once #411 (or its authoritative successor) is merged into current main, re-read the resulting contracts and implement only the concrete Hasan-owned persistence/API dependency that the merged formula contract requires.
