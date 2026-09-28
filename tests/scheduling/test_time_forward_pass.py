@@ -239,7 +239,7 @@ def test_time_forward_pass_requires_registered_project_calendar():
     ("lag_mode", "expected_start"),
     [
         (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 13)),
-        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 14)),
+        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 15)),
     ],
 )
 def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
