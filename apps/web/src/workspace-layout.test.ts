@@ -83,3 +83,24 @@ test("layout rejects unknown future contract versions", () => {
     /UNSUPPORTED_WORKSPACE_LAYOUT_VERSION/,
   );
 });
+
+test("default and migrated layouts exclude fields from other subject areas", () => {
+  const mixedCatalog = [
+    ...catalog,
+    { ...catalog[0], id: "project_name", subjectArea: "project" },
+  ];
+  const created = createDefaultLayout("activity-default", "activity", "project", 0, mixedCatalog);
+  assert.deepEqual(created.columns.map((column) => column.fieldId), ["activity_id", "duration", "progress"]);
+
+  const migrated = migrateWorkspaceLayout({
+    contract_version: "workspace-layout.v1",
+    layout_id: "activity-default",
+    subject_area: "activity",
+    scope: "project",
+    columns: [
+      { field_id: "project_name", visible: true, order: 0 },
+      { field_id: "duration", visible: true, order: 1 },
+    ],
+  }, mixedCatalog, 0);
+  assert.deepEqual(migrated.columns.map((column) => column.fieldId), ["duration", "activity_id", "progress"]);
+});
