@@ -313,7 +313,14 @@ def _relationship_is_driving(
 ) -> bool:
     """Return True when the relationship exactly determines the successor event."""
     if relationship.type is RelationshipType.FS:
-        required = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
+        if relationship.lag >= 0:
+            required = resolver.next_working_day(
+                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            )
+        else:
+            required = resolver.previous_working_day(
+                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            )
         return successor.start == required
     if relationship.type is RelationshipType.SS:
         required = _shift_working_date(predecessor.start, relationship.lag, resolver)
