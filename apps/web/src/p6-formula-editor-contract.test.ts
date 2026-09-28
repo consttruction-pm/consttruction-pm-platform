@@ -35,8 +35,8 @@ test("client cannot submit without an authoritative valid result", () => {
 
 test("validation API rejects a response that is not authoritative", async () => {
   const transport = {
-    async get() { throw new Error("not used"); },
-    async post() {
+    async get<T>() { throw new Error("not used") as never as T; },
+    async post<TRequest, TResponse>(_path: string, _request: TRequest): Promise<{ ok: true; data: TResponse }> {
       return {
         ok: true as const,
         data: {
