@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts"
+    "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "npm run build && tsx dev-server.ts",
+    "start": "npm run build && tsx dev-server.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
