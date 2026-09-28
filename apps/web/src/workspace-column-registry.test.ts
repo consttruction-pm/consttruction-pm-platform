@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildWorkspaceColumnCatalog, buildWorkspaceColumnsFromFieldCatalog, dataTypeToEditorKind, layoutKey } from "./workspace-column-registry.js";
+import { applyWorkspaceLayout, buildWorkspaceColumnCatalog, buildWorkspaceColumnsFromFieldCatalog, dataTypeToEditorKind, layoutKey } from "./workspace-column-registry.js";
+import { createDefaultLayout, reorderColumn, setColumnLabel, setColumnState } from "./workspace-layout.js";
+import { createWorkspaceState } from "./workspace-model.js";
 import type { P6FieldCatalogEntry } from "./p6-field-registry-client.js";
 
 const fields: readonly P6FieldCatalogEntry[] = [
@@ -37,4 +39,27 @@ test("workspace columns are projected from the authoritative field catalog", () 
   assert.equal(columns[2].dataType, "decimal");
   assert.equal(columns[2].editable, true);
   assert.equal(columns[0].formula, null);
+});
+
+
+test("persisted layout is applied to workspace state before rendering", () => {
+  const context = { tenant_id: "t1", project_id: "p1", revision: 7 };
+  const state = createWorkspaceState(context, "en", "gregorian", fields);
+  let layout = createDefaultLayout("activity-main", "activity", "project", 7, fields);
+  layout = setColumnState(layout, "duration", { visible: true, width: 180, pinned: true, frozen: true });
+  layout = setColumnLabel(layout, "duration", "Dur.");
+  layout = reorderColumn(layout, "duration", 0);
+
+  const next = applyWorkspaceLayout(state, layout, fields);
+
+  assert.deepEqual(next.columns.map((column) => column.id), ["duration", "activity_id"]);
+  assert.equal(next.columns[0].label, "Dur.");
+  assert.equal(next.columns[0].width, 180);
+  assert.equal(next.columns[0].editable, false);
+});
+
+test("workspace layout cannot be applied across project revisions", () => {
+  const state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 7 }, "en", "gregorian", fields);
+  const layout = createDefaultLayout("activity-main", "activity", "project", 8, fields);
+  assert.throws(() => applyWorkspaceLayout(state, layout, fields), /WORKSPACE_LAYOUT_REVISION_MISMATCH/);
 });
