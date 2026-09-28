@@ -1,5 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
+import { resolveTextDirection } from "./ui-interaction.js";
 
 const labels = {
   en: {
@@ -26,6 +27,7 @@ export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onActivitySelect?: (activityId: string) => void;
+  onContextMenu?: (kind: "menu" | "field" | "help" | "action", id: string) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -34,7 +36,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const scale = createGanttScale(state.activities);
 
   container.innerHTML = `
-    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}">
+    <section class="cp-workspace" dir="${resolveTextDirection(state.locale, state.direction)}" data-project="${escapeAttribute(state.context.project_id)}">
       <header class="cp-header">
         <div class="cp-brand">Construction PM</div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
@@ -53,7 +55,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderProcurement(state.procurementRecords, t.procurement)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
-          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
+          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-ui-interactive="field" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
         </aside>
         <section class="cp-center">
           <section class="cp-panel cp-grid">
@@ -103,7 +105,7 @@ function renderSmartGuide(
     ? guide.proposedActions
         .map(
           (action) =>
-            `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
+            `<article class="cp-field-card" data-ui-interactive="help" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
               <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
@@ -293,7 +295,7 @@ function renderFieldAssurance(
         <div>
           <h3>Inspections</h3>
           ${inspections.length ? inspections.map((item) => `
-            <article class="cp-field-card">
+            <article class="cp-field-card" data-ui-interactive="field">
               <strong>${escapeHtml(item.inspectionTypeKey)}</strong>
               <span>${escapeHtml(item.subjectId)}</span>
               <span>${escapeHtml(item.result)} · ${escapeHtml(item.status)}</span>
@@ -303,7 +305,7 @@ function renderFieldAssurance(
         <div>
           <h3>Quality / NCR</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
-            <article class="cp-field-card is-${escapeAttribute(item.severity)}">
+            <article class="cp-field-card" data-ui-interactive="field" class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
@@ -475,7 +477,7 @@ function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnT
 }
 
 function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState): string {
-  return `<button type="button" data-menu="${key}" aria-current="${key === state.activeMenu ? "page" : "false"}">${escapeHtml(label)}</button>`;
+  return `<button type="button" data-ui-interactive="menu" data-menu="${key}" aria-current="${key === state.activeMenu ? "page" : "false"}">${escapeHtml(label)}</button>`;
 }
 
 function escapeHtml(value: string): string {
