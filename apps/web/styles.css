@@ -5,8 +5,10 @@ button { font: inherit; }
 .beta-toolbar { position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 14px; border-bottom: 1px solid #cfd6e4; background: #fff; }
 .beta-toolbar__brand { font-weight: 700; letter-spacing: .2px; }
 .beta-toolbar__actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.beta-toolbar__actions button, .beta-route button { border: 1px solid #b8c2d6; background: #fff; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.beta-toolbar__actions button, .beta-route button, .beta-submenu button { border: 1px solid #b8c2d6; background: #fff; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
 .beta-route { padding: 8px 14px; border-bottom: 1px solid #d8deea; background: #eef2f8; font-size: 13px; }
+.beta-submenu { display: flex; gap: 5px; padding: 7px 10px; border-bottom: 1px solid #d8deea; background: #fafbfd; overflow-x: auto; }
+.beta-status { font-size: 11px; opacity: .75; }
 .cp-workspace { min-height: calc(100vh - 95px); }
 .cp-header { display: flex; align-items: center; gap: 18px; padding: 12px 14px; background: #1d2a44; color: #fff; }
 .cp-brand { font-weight: 700; }
@@ -31,7 +33,6 @@ button { font: inherit; }
 .cp-gantt-bar { position: absolute; top: 2px; height: 16px; border-radius: 4px; min-width: 8px; }
 .cp-gantt-bar.is-critical { outline: 2px solid #d14; outline-offset: 1px; }
 .cp-empty { color: #68748b; font-size: 13px; }
-.cp-ref { display: inline-block; padding: 2px 5px; margin: 1px; background: #eef2f8; border-radius: 4px; font-size: 11px; }
 .cp-field-grid, .cp-field-assurance-grid, .cp-change-claim-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .cp-field-list, .cp-control-findings { display: grid; gap: 6px; }
 .cp-field-card, .cp-control-finding { border: 1px solid #e2e7ef; border-radius: 6px; padding: 8px; background: #fbfcfe; display: grid; gap: 4px; }
