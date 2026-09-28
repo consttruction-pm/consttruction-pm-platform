@@ -445,7 +445,10 @@ def _parse_unit(unit: str | None) -> dict[str, int]:
         if len(parts) > 2 or any(not part for part in parts):
             raise FormulaTypeError("INVALID_UNIT")
         for index, factor_text in enumerate(parts):
-            match = _UNIT_FACTOR_RE.fullmatch(factor_text.strip())
+            normalized_factor = factor_text.strip()
+            if index == 0 and normalized_factor == "1":
+                continue
+            match = _UNIT_FACTOR_RE.fullmatch(normalized_factor)
             if match is None:
                 raise FormulaTypeError("INVALID_UNIT")
             exponent = int(match.group(2) or "1")
@@ -1123,14 +1126,20 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
             elif node.operator == "^":
                 if right.unit is not None:
                     raise FormulaTypeError("POWER_EXPONENT_MUST_BE_UNITLESS")
-                if right.type is not FormulaType.NUMBER or getattr(right, "value", 0) != int(getattr(right, "value", 0)):
+                exponent_value = _constant_decimal(node.right)
+                if exponent_value is None and left.unit is not None:
+                    raise FormulaTypeError("POWER_UNIT_EXPONENT_MUST_BE_LITERAL")
+                if exponent_value is not None and exponent_value != int(exponent_value):
                     raise FormulaTypeError("POWER_EXPONENT_MUST_BE_INTEGER")
-                exponent = int(getattr(right, "value", 0))
-                unit = _format_unit({
-                    name: power * exponent
-                    for name, power in _parse_unit(left.unit).items()
-                    if power * exponent
-                })
+                if exponent_value is None:
+                    unit = left.unit
+                else:
+                    exponent = int(exponent_value)
+                    unit = _format_unit({
+                        name: power * exponent
+                        for name, power in _parse_unit(left.unit).items()
+                        if power * exponent
+                    })
             elif node.operator == "*":
                 unit = _multiply_units(left.unit, right.unit)
             else:
