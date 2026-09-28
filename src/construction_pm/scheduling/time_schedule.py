@@ -9,6 +9,7 @@ from .calendar_context import (
     CalendarResolverRegistry,
     RelationshipLagCalendar,
 )
+from .schedule_options import StartToStartLagCalculationType
 from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
@@ -19,6 +20,10 @@ from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, a
 @dataclass(frozen=True)
 class TimeScheduleOptions:
     relationship_lag_calendar: RelationshipLagCalendar | None = None
+    start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
+        StartToStartLagCalculationType.EARLY_START
+    )
+    data_date: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -364,6 +369,8 @@ def time_schedule(
         registry,
         constraint_list,
         selected_options.relationship_lag_calendar,
+        selected_options.start_to_start_lag_calculation_type,
+        selected_options.data_date,
     )
     project_resolver = _project_resolver(activity_list[0], registry) if activity_list else None
     effective_finish = project_finish or max(item.finish for item in early.values())

@@ -14,6 +14,7 @@ from construction_pm.scheduling.time_calendar import (
     WorkingTimeCalendar,
 )
 from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
+from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
 from construction_pm.scheduling.time_forward_pass import (
     TimeActivity,
     TimeRelationship,
@@ -231,4 +232,56 @@ def test_time_forward_pass_requires_registered_project_calendar():
     with pytest.raises(KeyError, match="calendar not registered: project@1"):
         time_forward_pass(
             [activity], [], datetime(2026, 9, 22, 8), registry
+        )
+
+
+@pytest.mark.parametrize(
+    ("lag_mode", "expected_start"),
+    [
+        (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 13)),
+        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 15)),
+    ],
+)
+def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
+    lag_mode, expected_start
+):
+    ctx = context()
+    activities = [
+        TimeActivity(
+            "A",
+            TimeQuantity.working_hours(2),
+            ctx,
+            actual_start=datetime(2026, 9, 22, 10),
+        ),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    result = time_forward_pass(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(12))],
+        datetime(2026, 9, 22, 8),
+        registry(),
+        start_to_start_lag_calculation_type=lag_mode,
+        data_date=datetime(2026, 9, 24, 10),
+    )
+    assert result["A"].start == datetime(2026, 9, 22, 8)
+    assert result["B"].start == expected_start
+
+
+def test_time_forward_pass_start_to_start_out_of_sequence_requires_data_date():
+    ctx = context()
+    activities = [
+        TimeActivity(
+            "A",
+            TimeQuantity.working_hours(2),
+            ctx,
+            actual_start=datetime(2026, 9, 22, 10),
+        ),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    with pytest.raises(ValueError, match="data_date is required"):
+        time_forward_pass(
+            activities,
+            [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(4))],
+            datetime(2026, 9, 22, 8),
+            registry(),
         )

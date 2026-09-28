@@ -12,6 +12,7 @@ from construction_pm.scheduling.calendar_context import (
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
+from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
 from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship, time_forward_pass
 from construction_pm.scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 from construction_pm.scheduling.time_schedule import (
@@ -86,6 +87,31 @@ def test_time_backward_pass_supports_negative_lag():
     assert late["B"].start == datetime(2026, 9, 22, 15)
     assert late["A"].finish == datetime(2026, 9, 22, 16)
     assert late["A"].start == datetime(2026, 9, 22, 11)
+
+
+def test_time_schedule_propagates_start_to_start_lag_calculation_option():
+    ctx = context()
+    activities = [
+        TimeActivity(
+            "A",
+            TimeQuantity.working_hours(2),
+            ctx,
+            actual_start=datetime(2026, 9, 22, 10),
+        ),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    result = time_schedule(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(12))],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 24, 17),
+        registry(),
+        options=TimeScheduleOptions(
+            start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START,
+            data_date=datetime(2026, 9, 23, 10),
+        ),
+    )
+    assert result.early_activities["B"].start == datetime(2026, 9, 23, 15)
 
 
 def test_time_schedule_produces_zero_float_for_terminal_path():
