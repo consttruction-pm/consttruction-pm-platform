@@ -69,3 +69,56 @@ def test_formula_api_rejects_viewer_write() -> None:
     service = api()
     with pytest.raises(AuthorizationError, match="authorization denied"):
         service.create(request(), auth_context=auth("viewer"))
+
+
+def test_formula_api_records_immutable_audit_event() -> None:
+    service = api()
+    created = service.create(request(), auth_context=auth("planner"))
+    events = service.list_audit(
+        BackendScope("tenant-a", "project-a", 3),
+        "activity.total",
+        auth_context=auth("viewer"),
+    )
+    assert len(events) == 1
+    assert events[0]["formula_version"] == created["formula"]["version"]
+    assert events[0]["actor_id"] == "user-a"
+    assert events[0]["action"] == "create"
+    assert events[0]["semantic_version"] == "p6-formula.v1"
+    assert events[0]["expression_sha256"] == expression_sha256(request().expression)
+
+
+def test_formula_api_same_immutable_version_does_not_duplicate_audit() -> None:
+    service = api()
+    service.create(request(), auth_context=auth("planner"))
+    service.create(request(), auth_context=auth("planner"))
+    events = service.list_audit(
+        BackendScope("tenant-a", "project-a", 3),
+        "activity.total",
+        auth_context=auth("viewer"),
+    )
+    assert len(events) == 1
+
+
+def test_formula_api_creates_a_distinct_audit_event_for_new_version() -> None:
+    service = api()
+    first = request()
+    service.create(first, auth_context=auth("planner"))
+    second = FormulaDefinitionCreateRequest(
+        scope=first.scope,
+        semantic_version=first.semantic_version,
+        semantic_reference=first.semantic_reference,
+        formula_id=first.formula_id,
+        version="2.0",
+        expression="[activity.qty] * [activity.rate] + [activity.waste]",
+        result_type=first.result_type,
+        result_unit=first.result_unit,
+        dependencies=first.dependencies + ("activity.waste",),
+        metadata=first.metadata,
+    )
+    service.create(second, auth_context=auth("planner"))
+    events = service.list_audit(
+        first.scope,
+        first.formula_id,
+        auth_context=auth("viewer"),
+    )
+    assert [event["formula_version"] for event in events] == ["1.0", "2.0"]
