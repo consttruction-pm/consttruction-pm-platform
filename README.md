@@ -80,3 +80,18 @@ Current Stage 34 focus:
 - Keep Shared P6/Scheduling, Progress/EVM and Resource/Cost calculations out of backend resource boundaries.
 
 No Scheduling/P6, Progress/EVM, Resource/Cost or financial calculation semantics are changed by the current sync-platform gates.
+
+## Multilingual and typography rule
+
+The product is **fully multilingual**, not bilingual. Persian and English are only example/initial language packs. New languages and scripts must be addable through the Language Registry and versioned language packs without changing domain/calculation code.
+
+Every language-capable surface supports:
+- language-tag based translation and configured fallback chains;
+- writing direction LTR / RTL / Auto;
+- per-menu, per-field and per-help-text direction metadata;
+- language-specific font family and fallback family chains;
+- font weight/style/line-height/letter-spacing and OpenType feature settings;
+- bundled or remotely referenced font resources in signed language packs;
+- mixed-script text such as Persian + Latin IDs/numbers without corrupting directionality.
+
+Persian/Arabic-script rendering must preserve joining/shaping, ZWNJ/half-space characters and appropriate font fallback. W3C internationalization guidance treats language metadata as important for correct font selection and typographic behavior, and its bidi guidance covers mixed-direction text, dir=auto and logical start/end layout.
