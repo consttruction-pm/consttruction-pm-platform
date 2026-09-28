@@ -5,8 +5,10 @@ import {
   setCalendarMode,
   setLocale,
   withActivities,
+  defaultWorkspaceTypography,
   type WorkspaceCalendarMode,
   type WorkspaceState,
+  type WorkspaceTextDirection,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 import { getBetaMenu, getBetaSubmenuLabel, type BetaSubmenu } from "./beta-navigation.js";
@@ -16,6 +18,14 @@ const context = {
   project_id: "DEMO-CONSTRUCTION-001",
   revision: 1,
 };
+
+
+const RTL_LANGUAGES = new Set(["ar", "fa", "he", "ps", "ur"]);
+const DEMO_LANGUAGES = ["en","fa","ar","he","ur","ps","de","fr","es","ja","zh","ko"] as const;
+
+function demoDirection(languageTag: string): WorkspaceTextDirection {
+  return RTL_LANGUAGES.has(languageTag) ? "rtl" : "ltr";
+}
 
 const demoActivities = [
   {
@@ -47,6 +57,7 @@ const demoActivities = [
 const appRoot = document.getElementById("app");
 const routeStatus = document.getElementById("beta-route");
 const submenuRoot = document.getElementById("beta-submenu");
+const languageSelector = document.getElementById("language-selector") as HTMLSelectElement | null;
 
 if (!appRoot || !routeStatus || !submenuRoot) {
   throw new Error("BETA_ROOT_NOT_FOUND");
@@ -105,12 +116,15 @@ function render(): void {
 }
 
 function installToolbar(): void {
-  document.getElementById("locale-en")?.addEventListener("click", () => {
-    state = setLocale(state, "en");
-    render();
-  });
-  document.getElementById("locale-fa")?.addEventListener("click", () => {
-    state = setLocale(state, "fa");
+  languageSelector?.addEventListener("change", () => {
+    const languageTag = languageSelector.value;
+    if (!(DEMO_LANGUAGES as readonly string[]).includes(languageTag)) return;
+    state = setLocale(
+      state,
+      languageTag,
+      demoDirection(languageTag),
+      defaultWorkspaceTypography(languageTag),
+    );
     render();
   });
   document.getElementById("calendar-gregorian")?.addEventListener("click", () => {
