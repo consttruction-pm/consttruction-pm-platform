@@ -9,6 +9,18 @@ const base = (): LanguagePackManifest => ({
   resources:{translation:"translation.json",glossary:"glossary.json",help:"help.json",reports:"reports.json",voice_input:null,voice_output:null,offline_ai_model:null},
   integrity:{checksum:"sha256:"+"a".repeat(64),signature:"sig",signing_key_id:"key-1"},
   capabilities:{ui:true,help:true,ai_text:true,voice_input:false,voice_output:false,offline_ai:false},
+  typography:{
+    font_family:"Vazirmatn",
+    fallback_families:["Noto Sans Arabic","Tahoma","Arial","sans-serif"],
+    font_style:"normal",
+    font_weight:400,
+    line_height:"1.7",
+    letter_spacing:"normal",
+    font_feature_settings:"normal",
+    font_variant_ligatures:"common-ligatures",
+    font_kerning:"auto",
+    font_resources:[]
+  },
 });
 
 test("accepts a schema-conformant manifest",()=>assert.deepEqual(validateLanguagePackManifest(base()),base()));
@@ -34,4 +46,22 @@ test("rejects invalid version and URI",()=>{
   value.version="1.0.0";
   (value.artifact as Record<string,unknown>).download_uri="not-a-uri";
   assert.throws(()=>validateLanguagePackManifest(value),/INVALID_LANGUAGE_PACK_ARTIFACT/);
+});
+
+test("accepts Persian typography metadata and arbitrary font resources",()=>{
+  const value=structuredClone(base());
+  value.typography.font_resources=[{
+    family:"Vazirmatn",
+    uri:"https://example.invalid/fonts/vazirmatn.woff2",
+    format:"woff2",
+    weight:400,
+    style:"normal",
+    unicode_range:"U+0600-06FF,U+200C"
+  }];
+  assert.deepEqual(validateLanguagePackManifest(value).typography.font_family,"Vazirmatn");
+});
+test("rejects invalid font resource format",()=>{
+  const value=structuredClone(base());
+  value.typography.font_resources=[{family:"Bad",uri:"https://example.invalid/bad.bin",format:"bin" as never,weight:400,style:"normal"}];
+  assert.throws(()=>validateLanguagePackManifest(value),/INVALID_LANGUAGE_PACK_TYPOGRAPHY/);
 });
