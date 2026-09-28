@@ -1,10 +1,47 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from dataclasses import dataclass
+from enum import Enum
+from decimal import Decimal
 from typing import Mapping
 
 from .calendar import WorkingTimeResolver
 from .time_calendar import TimeAwareWorkingTimeResolver
+
+
+class RelationshipLagCalendar(str, Enum):
+    PREDECESSOR = "PREDECESSOR_ACTIVITY_CALENDAR"
+    SUCCESSOR = "SUCCESSOR_ACTIVITY_CALENDAR"
+    TWENTY_FOUR_HOUR = "24_HOUR_CALENDAR"
+    PROJECT_DEFAULT = "PROJECT_DEFAULT_CALENDAR"
+
+
+class Continuous24HourResolver:
+    """Exact continuous 24-hour calendar arithmetic for relationship lag."""
+
+    def normalize_start(self, value: datetime) -> datetime:
+        return value
+
+    def normalize_finish(self, value: datetime) -> datetime:
+        return value
+
+    def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
+        units = Decimal(str(hours))
+        if units < 0:
+            raise ValueError("hours must be non-negative")
+        return start + timedelta(microseconds=int(units * Decimal("3600000000")))
+
+    def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
+        units = Decimal(str(hours))
+        if units < 0:
+            raise ValueError("hours must be non-negative")
+        return finish - timedelta(microseconds=int(units * Decimal("3600000000")))
+
+    def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
+        if finish < start:
+            raise ValueError("finish must not precede start")
+        return Decimal(str((finish - start).total_seconds())) / Decimal("3600")
 
 
 @dataclass(frozen=True)
@@ -37,6 +74,22 @@ class SchedulingCalendarContext:
         return self.relationship_lag or self.effective_activity()
 
 
+    def relationship_lag_reference(
+        self,
+        option: RelationshipLagCalendar,
+        predecessor: CalendarReference,
+    ) -> CalendarReference | None:
+        if option is RelationshipLagCalendar.PREDECESSOR:
+            return predecessor
+        if option is RelationshipLagCalendar.SUCCESSOR:
+            return self.effective_activity()
+        if option is RelationshipLagCalendar.PROJECT_DEFAULT:
+            return self.project
+        if option is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+            return None
+        raise ValueError(f"unsupported relationship lag calendar: {option}")
+
+
 class CalendarResolverRegistry:
     """Resolves stable calendar references to authoritative Shared Core resolvers."""
 
@@ -61,3 +114,19 @@ class CalendarResolverRegistry:
         if resolver is None:
             raise KeyError(f"calendar not registered: {key}")
         return resolver
+
+    def resolve_relationship_lag(
+        self,
+        successor_context: SchedulingCalendarContext,
+        predecessor_reference: CalendarReference,
+        option: RelationshipLagCalendar | None = None,
+    ):
+        if option is None and successor_context.relationship_lag is not None:
+            return self.resolve(successor_context.relationship_lag)
+        selected = option or RelationshipLagCalendar.SUCCESSOR
+        reference = successor_context.relationship_lag_reference(
+            selected, predecessor_reference
+        )
+        if reference is None:
+            return Continuous24HourResolver()
+        return self.resolve(reference)
