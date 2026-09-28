@@ -22,7 +22,7 @@ SCHEMA = {
     "budget": FormulaSchemaValue(FormulaType.NUMBER, "USD"),
     "actual": FormulaSchemaValue(FormulaType.NUMBER, "USD"),
     "quantity": FormulaSchemaValue(FormulaType.NUMBER, "m3"),
-    "unit_rate": FormulaSchemaValue(FormulaType.NUMBER, "USD"),
+    "unit_rate": FormulaSchemaValue(FormulaType.NUMBER, "USD/m3"),
     "is_approved": FormulaSchemaValue(FormulaType.BOOLEAN),
     "name": FormulaSchemaValue(FormulaType.TEXT),
 }
@@ -208,3 +208,61 @@ def test_parser_supports_precedence() -> None:
         compiled,
         {"budget": FormulaValue.number(4, "USD")},
     ) == FormulaValue.number(10, "USD")
+
+
+
+def test_multiplication_composes_units_and_produces_total_cost() -> None:
+    compiled = _compile("[quantity] * [unit_rate]")
+
+    result = evaluate_formula(
+        compiled,
+        {
+            "quantity": FormulaValue.number(Decimal("2.5"), "m3"),
+            "unit_rate": FormulaValue.number(Decimal("120"), "USD/m3"),
+        },
+    )
+
+    assert result == FormulaValue.number(Decimal("300"), "USD")
+
+
+def test_division_composes_units_and_supports_inverse_units() -> None:
+    compiled = _compile("[budget] / [quantity]")
+
+    assert evaluate_formula(
+        compiled,
+        {
+            "budget": FormulaValue.number(Decimal("300"), "USD"),
+            "quantity": FormulaValue.number(Decimal("2"), "m3"),
+        },
+    ) == FormulaValue.number(Decimal("150"), "USD/m3")
+
+    inverse = _compile("1 / [quantity]")
+    assert evaluate_formula(
+        inverse,
+        {"quantity": FormulaValue.number(Decimal("2"), "m3")},
+    ) == FormulaValue.number(Decimal("0.5"), "1/m3")
+
+
+def test_unit_normalization_is_deterministic() -> None:
+    assert FormulaValue.number(1, "m3*USD").unit == "USD*m3"
+    assert FormulaValue.number(1, "USD/m3").unit == "USD/m3"
+    assert FormulaValue.number(1, "USD*USD/USD").unit == "USD"
+
+
+def test_power_requires_integer_unitless_exponent_and_composes_units() -> None:
+    compiled = _compile("[quantity] ^ 2")
+
+    assert evaluate_formula(
+        compiled, {"quantity": FormulaValue.number(2, "m3")}
+    ) == FormulaValue.number(4, "m3^2")
+
+    with pytest.raises(FormulaTypeError, match="POWER_EXPONENT_MUST_BE_INTEGER"):
+        _compile("[quantity] ^ 0.5")
+
+    with pytest.raises(FormulaTypeError, match="POWER_EXPONENT_MUST_BE_UNITLESS"):
+        _compile("[quantity] ^ [unit_rate]")
+
+
+def test_invalid_unit_syntax_fails_closed() -> None:
+    with pytest.raises(FormulaTypeError, match="INVALID_UNIT"):
+        FormulaValue.number(1, "USD//m3")
