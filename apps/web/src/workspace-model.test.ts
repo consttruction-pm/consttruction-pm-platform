@@ -26,7 +26,7 @@ const context = {
 };
 
 test("workspace model creates a bilingual Main Workspace state", () => {
-  const state = createWorkspaceState(context, "fa", "jalali");
+  const state = createWorkspaceState(context, "fa", "jalali", "rtl");
 
   assert.equal(state.direction, "rtl");
   assert.equal(state.calendarMode, "jalali");
@@ -404,4 +404,35 @@ test("documents attach to the workspace without changing project context", () =>
   assert.equal(next.documents[0]?.resourceType, "rfi");
   assert.deepEqual(next.documents[0]?.linkedEntityRefs, ["A-101"]);
   assert.deepEqual(next.context, context);
+});
+
+
+test("workspace supports explicit multilingual writing direction and language typography", () => {
+  const fa = createWorkspaceState(context, "fa", "gregorian", "rtl");
+  assert.equal(fa.locale, "fa");
+  assert.equal(fa.direction, "rtl");
+  assert.equal(fa.typography.fontFamily, "Vazirmatn");
+  assert.ok(fa.typography.fallbackFamilies.includes("Noto Sans Arabic"));
+
+  const he = createWorkspaceState(context, "he-IL", "gregorian", "rtl");
+  assert.equal(he.direction, "rtl");
+  assert.equal(he.typography.fontFamily, "Noto Sans Hebrew");
+
+  const ja = createWorkspaceState(context, "ja-JP", "gregorian", "ltr");
+  assert.equal(ja.direction, "ltr");
+  assert.equal(ja.typography.fontFamily, "Noto Sans CJK");
+});
+
+test("column and cell writing direction can be independent from page direction", () => {
+  const state = createWorkspaceState(context, "fa", "gregorian", "rtl");
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.textDirection, "auto");
+  const next = withActivities(state, [{
+    id: "A-1",
+    wbsId: "W-1",
+    code: "01",
+    name: "فعالیت English-01",
+    cellDirections: { activity_name: "auto", activity_id: "ltr" },
+  }]);
+  assert.equal(next.activities[0]?.cellDirections?.activity_id, "ltr");
+  assert.equal(next.activities[0]?.name, "فعالیت English-01");
 });
