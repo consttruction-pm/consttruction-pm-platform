@@ -124,9 +124,18 @@ class SQLiteP6CodeAssignmentRepository:
                 raise P6CodeAssignmentPersistenceError("IMMUTABLE_ASSIGNMENT")
             return assignment
         self.connection.execute(
-            "INSERT INTO p6_code_assignment VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT OR IGNORE INTO p6_code_assignment VALUES (?,?,?,?,?,?,?,?)",
             key + (assignment.metadata,),
         )
+        row = self.connection.execute(
+            "SELECT metadata FROM p6_code_assignment "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND code_id=? "
+            "AND value_id=? AND owner_type=? AND owner_id=?", key
+        ).fetchone()
+        if row is None:
+            raise P6CodeAssignmentPersistenceError("ASSIGNMENT_NOT_VISIBLE")
+        if row[0] != assignment.metadata:
+            raise P6CodeAssignmentPersistenceError("IMMUTABLE_ASSIGNMENT")
         return assignment
 
     def get(self, scope: BackendScope, code_id: str, value_id: str, owner_type: str, owner_id: str) -> P6CodeAssignment | None:
@@ -176,21 +185,27 @@ class PostgresP6CodeAssignmentRepository:
             assignment.scope.tenant_id, assignment.scope.project_id, assignment.scope.project_revision,
             assignment.code_id, assignment.value_id, assignment.owner_type, assignment.owner_id,
         )
+        # Insert atomically so concurrent writers cannot both observe a missing
+        # assignment and race into a duplicate-key error. The subsequent read
+        # also makes the immutable-metadata contract deterministic for a writer
+        # that lost the race.
+        self.connection.execute(
+            "INSERT INTO p6_code_assignment "
+            "(tenant_id,project_id,project_revision,code_id,value_id,owner_type,owner_id,metadata) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,project_revision,code_id,value_id,owner_type,owner_id) "
+            "DO NOTHING",
+            key + (assignment.metadata,),
+        )
         row = self.connection.execute(
             "SELECT metadata FROM p6_code_assignment "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND code_id=%s "
             "AND value_id=%s AND owner_type=%s AND owner_id=%s", key
         ).fetchone()
-        if row is not None:
-            if row[0] != assignment.metadata:
-                raise P6CodeAssignmentPersistenceError("IMMUTABLE_ASSIGNMENT")
-            return assignment
-        self.connection.execute(
-            "INSERT INTO p6_code_assignment "
-            "(tenant_id,project_id,project_revision,code_id,value_id,owner_type,owner_id,metadata) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-            key + (assignment.metadata,),
-        )
+        if row is None:
+            raise P6CodeAssignmentPersistenceError("ASSIGNMENT_NOT_VISIBLE")
+        if row[0] != assignment.metadata:
+            raise P6CodeAssignmentPersistenceError("IMMUTABLE_ASSIGNMENT")
         return assignment
 
     def get(self, scope: BackendScope, code_id: str, value_id: str, owner_type: str, owner_id: str) -> P6CodeAssignment | None:
