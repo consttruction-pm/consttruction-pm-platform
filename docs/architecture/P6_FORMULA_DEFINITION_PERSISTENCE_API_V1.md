@@ -34,3 +34,19 @@ Contract version: `p6-formula-definition-api.v1`.
 The API exposes create, read and list-version operations with project-scope authorization. DTOs preserve tenant/project/revision context and all formula metadata.
 
 No scheduling, calendar/duration, Progress/EVM, Resource/Cost, financial, parsing or evaluation semantics are introduced here.
+
+
+## Audit trail v1
+
+Formula versioning is immutable at `tenant + project + formula_id + version`. Each newly created version can also emit one immutable `create` audit event in the same application transaction.
+
+The audit event records:
+
+- tenant/project/revision scope;
+- formula id and version;
+- authenticated actor id;
+- UTC timestamp;
+- Shared Core semantic version;
+- SHA-256 digest of the source expression.
+
+Re-submitting an identical immutable version is idempotent and does not create duplicate audit events. A new formula version creates a new audit event. The audit repository is provider-neutral and has SQLite/PostgreSQL implementations; the application/API layer remains responsible for authorization.
