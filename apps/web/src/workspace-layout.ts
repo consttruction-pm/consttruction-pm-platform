@@ -160,7 +160,7 @@ export function reorderColumn(layout: WorkspaceLayout, fieldId: string, targetOr
   if (index < 0) throw new Error("COLUMN_NOT_FOUND");
   const [moved] = columns.splice(index, 1);
   columns.splice(Math.min(targetOrder, columns.length), 0, moved);
-  return updateColumns(layout, columns);
+  return updateColumns(layout, columns.map((column, order) => ({ ...column, order })));
 }
 
 export function setColumnLabel(layout: WorkspaceLayout, fieldId: string, label: string | null): WorkspaceLayout {
