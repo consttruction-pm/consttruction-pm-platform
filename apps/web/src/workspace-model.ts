@@ -184,14 +184,15 @@ export function setLocale(
   state: WorkspaceState,
   locale: WorkspaceLocale,
   direction: WorkspaceTextDirection = "auto",
+  typography: WorkspaceTypography = defaultWorkspaceTypography(locale),
 ): WorkspaceState {
   return {
     ...state,
     locale,
     direction,
+    typography: normalizeTypography(typography),
   };
 }
-
 
 export function setTypography(state: WorkspaceState, typography: WorkspaceTypography): WorkspaceState {
   return { ...state, typography: normalizeTypography(typography) };
@@ -437,7 +438,7 @@ function normalizeTypography(typography: WorkspaceTypography): WorkspaceTypograp
   });
 }
 
-function defaultWorkspaceTypography(languageTag: WorkspaceLocale): WorkspaceTypography {
+export function defaultWorkspaceTypography(languageTag: WorkspaceLocale): WorkspaceTypography {
   const base = languageTag.trim().toLowerCase().split("-")[0];
   if (base === "fa" || base === "ar" || base === "ur" || base === "ps") {
     return {
