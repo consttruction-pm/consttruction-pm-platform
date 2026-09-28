@@ -56,7 +56,7 @@ test("activity selection rejects activities that are not loaded", () => {
 
 test("locale and calendar switches preserve project context", () => {
   let state = createWorkspaceState(context);
-  state = setLocale(state, "fa");
+  state = setLocale(state, "fa", "rtl");
   state = setCalendarMode(state, "jalali");
 
   assert.equal(state.direction, "rtl");
@@ -73,6 +73,7 @@ test("formula columns remain metadata and do not calculate client values", () =>
     editable: false,
     formula: "[EV] - [PV]",
     width: 120,
+    textDirection: "auto",
   });
 
   assert.equal(next.columns.at(-1)?.formula, "[EV] - [PV]");
@@ -114,6 +115,7 @@ test("smart guide attaches without changing project identity", () => {
     contractVersion: "smart-guide.v1",
     module: "schedule",
     locale: "fa",
+    textDirection: "rtl",
     resultId: "result-1",
     generatedAt: "2026-09-27T08:00:00Z",
     summaryKey: "control.summary",
