@@ -349,3 +349,61 @@ __all__ = [
     "P6UserDefinedFieldValuePersistenceError",
     "SQLiteP6UserDefinedFieldValueRepository",
 ]
+
+
+class PostgresP6UserDefinedFieldValueRepository:
+    """Production PostgreSQL adapter for revision-scoped typed UDF values."""
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS p6_user_defined_field_values ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "udf_id TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT NOT NULL, "
+            "value_type TEXT NOT NULL, value_json TEXT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, project_revision, udf_id, object_type, object_id))"
+        )
+
+    def upsert_value(self, value: P6UserDefinedFieldValue, definition: P6UserDefinedFieldDefinition) -> P6UserDefinedFieldValue:
+        value.validate_against(definition)
+        value_type, encoded = _encode_value(definition.data_type, value.value)
+        self.connection.execute(
+            "INSERT INTO p6_user_defined_field_values "
+            "(tenant_id, project_id, project_revision, udf_id, object_type, object_id, value_type, value_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id, project_id, project_revision, udf_id, object_type, object_id) "
+            "DO UPDATE SET value_type=EXCLUDED.value_type, value_json=EXCLUDED.value_json",
+            (
+                value.scope.tenant_id, value.scope.project_id, value.scope.project_revision,
+                value.udf_id, value.object_type, value.object_id, value_type, encoded,
+            ),
+        )
+        return value
+
+    def get_value(
+        self, scope: BackendScope, udf_id: str, object_type: str, object_id: str,
+        definition: P6UserDefinedFieldDefinition,
+    ) -> P6UserDefinedFieldValue | None:
+        scope.validate()
+        definition.validate()
+        if definition.scope != scope or definition.udf_id != udf_id:
+            raise P6UserDefinedFieldValuePersistenceError("REVISION_CONFLICT")
+        for item, name in ((udf_id, "udf_id"), (object_type, "object_type"), (object_id, "object_id")):
+            if not isinstance(item, str) or not item.strip():
+                raise P6UserDefinedFieldValuePersistenceError(f"INVALID_{name.upper()}")
+        row = self.connection.execute(
+            "SELECT project_revision, value_type, value_json FROM p6_user_defined_field_values "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "AND udf_id=%s AND object_type=%s AND object_id=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, udf_id, object_type, object_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[0]) != scope.project_revision:
+            raise P6UserDefinedFieldValuePersistenceError("REVISION_CONFLICT")
+        decoded = _decode_value(definition.data_type, str(row[2]), str(row[1]))
+        result = P6UserDefinedFieldValue(scope, udf_id, object_type, object_id, decoded)
+        result.validate_against(definition)
+        return result
