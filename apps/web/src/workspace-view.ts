@@ -14,6 +14,14 @@ const labels = {
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
+function resolveWorkspaceLabels(languageTag: string): WorkspaceLabels {
+  const base = languageTag.trim().toLowerCase().split("-")[0] as keyof typeof labels;
+  return labels[base] ?? labels.en;
+}
+
+
+type WorkspaceLabels = Record<keyof typeof labels.en, string>;
+
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
@@ -21,7 +29,7 @@ export type WorkspaceRendererOptions = {
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
-  const t = labels[state.locale];
+  const t = resolveWorkspaceLabels(state.locale);
   const wbsIds = [...new Set(state.activities.map((activity) => activity.wbsId))];
   const scale = createGanttScale(state.activities);
 
