@@ -73,6 +73,8 @@ The platform must support a reusable column/view engine with:
 
 One field may appear in many layouts. A layout must not create a second copy of the underlying business field.
 
+The Activity subject area also exposes the scheduler-computed P6 multiple-float-path outputs FloatPath and FloatPathOrder. These are derived fields: FloatPath identifies the ranked path and FloatPathOrder identifies activity order within that path.
+
 ### 3. Custom fields and formulas
 
 The platform must support typed custom fields for all applicable P6 subject areas.

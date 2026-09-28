@@ -82,6 +82,8 @@ _ROWS = (
     ("activity.percent_complete_type","Activity","PercentCompleteType","Percent Complete Type","enum",True,False,None),
     ("activity.total_float","Activity","TotalFloat","Total Float","duration",False,True,"working-time"),
     ("activity.free_float","Activity","FreeFloat","Free Float","duration",False,True,"working-time"),
+    ("activity.float_path","Activity","FloatPath","Float Path","integer",False,True,None),
+    ("activity.float_path_order","Activity","FloatPathOrder","Float Path Order","integer",False,True,None),
     ("activity.early_start","Activity","EarlyStartDate","Early Start","date",False,True,None),
     ("activity.early_finish","Activity","EarlyFinishDate","Early Finish","date",False,True,None),
     ("activity.late_start","Activity","LateStartDate","Late Start","date",False,True,None),

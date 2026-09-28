@@ -630,24 +630,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "FloatPath",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "FloatPathOrder",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "IsCritical",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -1133,5 +1115,5 @@
       "reference_verified": false
     }
   ],
-  "entry_count": 125
+  "entry_count": 123
 }

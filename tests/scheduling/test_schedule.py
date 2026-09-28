@@ -350,3 +350,109 @@ def test_longest_path_stops_when_successor_is_driven_by_constraint(resolver):
     assert result.floats["B"].critical is True
     assert result.floats["A"].critical is False
     assert result.early_activities["B"].start == date(2026, 9, 23)
+
+
+def test_multiple_free_float_paths_are_ranked_and_record_order(resolver):
+    activities = [
+        Activity("A", 1), Activity("B", 1), Activity("C", 1),
+        Activity("D", 1), Activity("E", 1),
+    ]
+    relationships = [
+        Relationship("A", "B"),
+        Relationship("B", "C"),
+        Relationship("D", "E"),
+    ]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=2,
+            multiple_float_paths_use_total_float=False,
+        ),
+    )
+
+    assert result.float_paths == (
+        result.float_paths[0],
+        result.float_paths[1],
+    )
+    assert result.float_paths[0].path_number == 1
+    assert result.float_paths[0].activity_ids == ("A", "B", "C")
+    assert result.float_paths[1].path_number == 2
+    assert result.float_paths[1].activity_ids == ("D", "E")
+    assert result.floats["A"].float_path == 1
+    assert result.floats["A"].float_path_order == 1
+    assert result.floats["C"].float_path_order == 3
+    assert result.floats["D"].float_path == 2
+    assert result.floats["E"].float_path_order == 2
+
+
+def test_multiple_float_paths_support_explicit_ending_activity(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [Relationship("A", "B"), Relationship("B", "C")]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=1,
+            multiple_float_paths_ending_activity_object_id="B",
+            multiple_float_paths_use_total_float=False,
+        ),
+    )
+
+    assert result.float_paths[0].activity_ids == ("A", "B")
+    assert result.floats["A"].float_path == 1
+    assert result.floats["B"].float_path == 1
+    assert result.floats["C"].float_path is None
+
+
+def test_multiple_float_paths_total_float_method_selects_lowest_relationship_slack(resolver):
+    activities = [Activity("A", 1), Activity("B", 2), Activity("C", 1)]
+    relationships = [Relationship("A", "C"), Relationship("B", "C")]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=2,
+            multiple_float_paths_use_total_float=True,
+        ),
+    )
+
+    assert result.float_paths[0].activity_ids == ("B", "C")
+    assert result.float_paths[1].activity_ids == ("A",)
+    assert result.floats["B"].float_path == 1
+    assert result.floats["C"].float_path == 1
+
+
+def test_multiple_float_paths_disabled_keeps_path_fields_empty(resolver):
+    result = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        options=ScheduleOptions(maximum_multiple_float_paths=5)
+    )
+    assert result.float_paths == ()
+    assert result.floats["A"].float_path is None
+    assert result.floats["A"].float_path_order is None
+
+
+def test_multiple_float_paths_rejects_unknown_explicit_ending_activity(resolver):
+    with pytest.raises(ValueError, match="ending activity does not exist"):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            options=ScheduleOptions(
+                multiple_float_paths_enabled=True,
+                maximum_multiple_float_paths=1,
+                multiple_float_paths_ending_activity_object_id="MISSING",
+            ),
+        )
