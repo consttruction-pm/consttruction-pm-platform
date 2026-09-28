@@ -87,12 +87,6 @@ def test_empty_change_set_is_a_noop():
 def test_formula_runtime_error_does_not_return_partial_result():
     formulas = {
         "A": _formula("A", "[raw] + 1"),
-        "B": _formula("B", "[missing] + 1"),
-    }
-    # B cannot compile because missing is absent from schema; build a runtime
-    # failure by providing a wrong value type for an already typed dependency.
-    formulas = {
-        "A": _formula("A", "[raw] + 1"),
         "B": _formula("B", "[A] + 1"),
     }
     graph = FormulaDependencyGraph(formulas)
