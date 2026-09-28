@@ -455,32 +455,31 @@ def _choose_default_float_path_endpoint(
     resolver: WorkingTimeResolver,
     use_total_float: bool,
 ) -> str | None:
-    outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for relationship in relationships:
-        outgoing[relationship.predecessor_id].append(relationship)
         incoming[relationship.successor_id].append(relationship)
+        outgoing[relationship.predecessor_id].append(relationship)
 
     candidates: list[tuple[tuple[int, int, int, str], str]] = []
     for activity_id in sorted(activity_map):
-        if outgoing[activity_id]:
-            continue
         incoming_rels = incoming[activity_id]
         if use_total_float:
+            if not incoming_rels:
+                continue
             metric = min(
-                (
-                    _relationship_total_float(
-                        relationship,
-                        early_schedule[relationship.predecessor_id],
-                        late_schedule[activity_id],
-                        activity_map[relationship.predecessor_id],
-                        resolver,
-                    )
-                    for relationship in incoming_rels
-                ),
-                default=0,
+                _relationship_total_float(
+                    relationship,
+                    early_schedule[relationship.predecessor_id],
+                    late_schedule[activity_id],
+                    activity_map[relationship.predecessor_id],
+                    resolver,
+                )
+                for relationship in incoming_rels
             )
         else:
+            if outgoing[activity_id]:
+                continue
             metric = min(
                 (
                     _relationship_free_float(
@@ -494,6 +493,7 @@ def _choose_default_float_path_endpoint(
                 ),
                 default=0,
             )
+
         candidates.append(
             (
                 (
@@ -506,7 +506,6 @@ def _choose_default_float_path_endpoint(
             )
         )
     return min(candidates)[1] if candidates else None
-
 
 def _multiple_float_paths(
     activities: Iterable[Activity],
