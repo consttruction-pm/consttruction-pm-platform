@@ -93,18 +93,88 @@ export function normalizeGridQuery(
   state: WorkspaceState,
   query: WorkspaceGridQuery,
   catalog: readonly P6FieldCatalogEntry[] = [],
+  layout?: WorkspaceLayout,
 ): WorkspaceGridQuery {
   const known = new Set(state.columns.map((column) => column.id));
   const catalogById = new Map(catalog.map((field) => [field.id, field]));
-  const validField = (fieldId: string) => known.has(fieldId) && (!catalog.length || catalogById.has(fieldId));
+  const layoutFields = layout
+    ? new Set(layout.columns.map((column) => column.fieldId))
+    : null;
+  const validField = (fieldId: string) => {
+    if (!known.has(fieldId)) return false;
+    const field = catalogById.get(fieldId);
+    if (catalog.length && (!field || (layout && field.subjectArea !== layout.subject_area))) return false;
+    if (layoutFields && !layoutFields.has(fieldId)) return false;
+    return true;
+  };
   const canSort = (fieldId: string) => validField(fieldId) && (!catalog.length || catalogById.get(fieldId)?.orderable === true);
   const canFilter = (fieldId: string) => validField(fieldId) && (!catalog.length || catalogById.get(fieldId)?.filterable === true);
   const canGroup = canSort;
+  const canUseOperator = (fieldId: string, operator: WorkspaceFilterRule["operator"]) => {
+    if (!canFilter(fieldId)) return false;
+    const field = catalogById.get(fieldId);
+    if (!field) return true;
+    return isFilterOperatorAllowed(field.dataType, operator);
+  };
+
+  const sort: WorkspaceSortRule[] = [];
+  const sortSeen = new Set<string>();
+  for (const rule of query.sort) {
+    if (!canSort(rule.fieldId) || sortSeen.has(rule.fieldId)) continue;
+    sortSeen.add(rule.fieldId);
+    sort.push(Object.freeze({ ...rule }));
+  }
+
+  const group: WorkspaceGroupRule[] = [];
+  const groupSeen = new Set<string>();
+  for (const rule of query.group) {
+    if (!canGroup(rule.fieldId) || groupSeen.has(rule.fieldId)) continue;
+    groupSeen.add(rule.fieldId);
+    group.push(Object.freeze({ ...rule }));
+  }
+
+  const filters = query.filters
+    .filter((rule) => canUseOperator(rule.fieldId, rule.operator))
+    .map((rule) => Object.freeze({ ...rule }));
+
   return Object.freeze({
-    sort: Object.freeze(query.sort.filter((rule) => canSort(rule.fieldId))),
-    group: Object.freeze(query.group.filter((rule) => canGroup(rule.fieldId))),
-    filters: Object.freeze(query.filters.filter((rule) => canFilter(rule.fieldId))),
+    sort: Object.freeze(sort),
+    group: Object.freeze(group),
+    filters: Object.freeze(filters),
   });
+}
+
+function isFilterOperatorAllowed(
+  dataType: P6FieldCatalogEntry["dataType"],
+  operator: WorkspaceFilterRule["operator"],
+): boolean {
+  if (operator === "isNull" || operator === "notNull") return true;
+
+  switch (dataType) {
+    case "string":
+    case "enum":
+      return operator === "equals" || operator === "contains";
+    case "integer":
+    case "decimal":
+    case "double":
+    case "percentage":
+    case "cost":
+    case "unit":
+    case "duration":
+    case "date":
+    case "datetime":
+      return operator === "equals" || operator === "gt" || operator === "gte" || operator === "lt" || operator === "lte";
+    case "boolean":
+      return operator === "equals";
+    case "object-id":
+    case "object-id-array":
+    case "string-array":
+    case "complex":
+    case "spread":
+      return operator === "equals";
+    default:
+      return false;
+  }
 }
 
 export function createReportPrintSelection(
