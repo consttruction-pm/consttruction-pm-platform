@@ -5,6 +5,7 @@ import pytest
 from construction_pm.p6_formula_dependency_graph import FormulaDependencyGraph
 from construction_pm.p6_formula_engine import (
     FormulaDefinition,
+    FormulaTypeError,
     FormulaSchemaValue,
     FormulaType,
     FormulaValue,
@@ -96,7 +97,7 @@ def test_formula_runtime_error_does_not_return_partial_result():
     }
     graph = FormulaDependencyGraph(formulas)
 
-    with pytest.raises(Exception):
+    with pytest.raises(FormulaTypeError):
         FormulaRecalculationEngine().recalculate(
             graph,
             {"raw": FormulaValue.text("bad")},
