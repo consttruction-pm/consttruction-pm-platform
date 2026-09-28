@@ -94,6 +94,40 @@ def test_export_maps_supported_and_preserves_unknown_canonical_fields() -> None:
     assert "PRESERVED_UNKNOWN_CANONICAL_FIELD:activity.custom" in result.warnings
 
 
+def test_mapping_for_other_format_is_not_applied() -> None:
+    other_format = PersistedP6Mapping(
+        scope=scope(),
+        definition=P6MappingDefinition(
+            mapping_id="activity.other-format",
+            registry_version="p6-field-registry.v1",
+            format=P6MappingFormat.XLSX,
+            subject_area="Activity",
+            source_field="xlsx_task_code",
+            canonical_field="activity.xlsx_code",
+            status=P6MappingStatus.SUPPORTED,
+        ),
+    )
+    mapper_for_both = P6InterchangeMapper((mapping(
+        "activity.code",
+        source="task_code",
+        canonical="activity.code",
+        status=P6MappingStatus.SUPPORTED,
+    ), other_format))
+
+    result = mapper_for_both.import_row(
+        P6InterchangeRow(
+            scope=scope(),
+            format=P6MappingFormat.XER_PROJECT,
+            values={"task_code": "A-10", "xlsx_task_code": "X-10"},
+        )
+    )
+
+    assert result.values == {"activity.code": "A-10"}
+    assert result.extensions["p6.interchange.t1.p1.xlsx_task_code"] == "X-10"
+    assert "PRESERVED_UNKNOWN_FIELD:xlsx_task_code" in result.warnings
+
+
+
 def test_reject_status_fails_closed_in_both_directions() -> None:
     reject = P6InterchangeMapper(
         (
