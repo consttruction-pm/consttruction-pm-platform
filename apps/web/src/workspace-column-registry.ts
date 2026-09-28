@@ -1,4 +1,5 @@
 import type { ProjectContext } from "./client.js";
+import type { WorkspaceColumn } from "./workspace-model.js";
 import type { P6FieldCatalogEntry, P6FieldDataType } from "./p6-field-registry-client.js";
 import { createDefaultLayout, type WorkspaceLayout, type WorkspaceLayoutStore } from "./workspace-layout.js";
 
@@ -15,14 +16,7 @@ export type WorkspaceColumnDescriptor = Readonly<{
 
 export function buildWorkspaceColumnsFromFieldCatalog(
   fields: readonly P6FieldCatalogEntry[],
-): readonly {
-  id: string;
-  label: string;
-  dataType: P6FieldDataType;
-  editable: boolean;
-  formula: string | null;
-  width: number;
-}[] {
+): readonly WorkspaceColumn[] {
   return Object.freeze(
     fields.map((field) => Object.freeze({
       id: field.id,
