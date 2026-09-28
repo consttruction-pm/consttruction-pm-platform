@@ -194,8 +194,14 @@ class SQLiteP6FormulaDefinitionRepository:
 class P6FormulaDefinitionApplicationService:
     repository: P6FormulaDefinitionRepository
     transaction_manager: object
+    audit_repository: P6FormulaAuditRepository | None = None
 
-    def create(self, request: FormulaDefinitionCreateRequest) -> PersistedP6FormulaDefinition:
+    def create(
+        self,
+        request: FormulaDefinitionCreateRequest,
+        *,
+        audit_event: P6FormulaAuditEvent | None = None,
+    ) -> PersistedP6FormulaDefinition:
         record = PersistedP6FormulaDefinition(
             scope=request.scope,
             semantic_version=request.semantic_version,
@@ -207,8 +213,13 @@ class P6FormulaDefinitionApplicationService:
             dependencies=request.dependencies,
             metadata=request.metadata,
         )
+        if (audit_event is None) != (self.audit_repository is None):
+            raise P6FormulaDefinitionPersistenceError("AUDIT_REPOSITORY_CONFIGURATION")
         with self.transaction_manager.transaction():
-            return self.repository.upsert(record)
+            result = self.repository.upsert(record)
+            if self.audit_repository is not None and audit_event is not None:
+                self.audit_repository.record(audit_event)
+            return result
 
     def read(self, scope: BackendScope, formula_id: str, version: str) -> FormulaDefinitionReadResponse | None:
         with self.transaction_manager.transaction():
@@ -219,6 +230,16 @@ class P6FormulaDefinitionApplicationService:
         with self.transaction_manager.transaction():
             records = self.repository.list_versions(scope, formula_id)
         return FormulaDefinitionListResponse(records)
+
+    def list_audit(
+        self,
+        scope: BackendScope,
+        formula_id: str,
+    ) -> tuple[P6FormulaAuditEvent, ...]:
+        if self.audit_repository is None:
+            raise P6FormulaDefinitionPersistenceError("AUDIT_REPOSITORY_CONFIGURATION")
+        with self.transaction_manager.transaction():
+            return self.audit_repository.list_events(scope, formula_id)
 
 
 class PostgresP6FormulaDefinitionRepository:
