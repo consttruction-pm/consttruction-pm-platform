@@ -430,3 +430,24 @@ Status: **implemented, merged and runtime-verified**
 - Stale PR #444 was closed because its branch diverged from current main and duplicated the already-merged Expense boundary from #448.
 - Baseline comparison persistence remains explicitly blocked: no authoritative Shared Core baseline snapshot/version contract is currently established for Backend/API consumption. Backend must not invent baseline comparison or scheduling semantics.
 - Before any new P6 persistence slice, reconcile Role/Assignment/Document/Issue/Work Product against current main and open work. Implement only a concrete Hasan-owned boundary with authoritative contract evidence, focused tests, PostgreSQL verification, and documentation.
+
+
+### 2026-09-28 — P6 baseline metadata persistence (PR #450)
+
+Status: **implemented, runtime-verified and merged**
+
+- Added tenant/project/project-revision scoped baseline metadata persistence.
+- Persisted stable baseline identity, explicit PRIMARY/SECONDARY/TERTIARY/USER_SELECTED role, source project revision provenance and immutable metadata.
+- Added SQLite/PostgreSQL repositories and application-owned transaction boundary.
+- Added focused SQLite coverage for round-trip, deterministic ordering, scope isolation, stale revision rejection, immutable replay and transaction ownership.
+- Added live PostgreSQL coverage for round-trip, tenant isolation, stale revision rejection and rollback.
+- Exact implementation head: fb4d7f9576136ae91f7bfdd94cc6fdf5a37e9fac.
+- ConstructionPM CI 1878, Client Typecheck 1581, PostgreSQL Integration 158: all passed on the exact head.
+- PR #450 merged as 6b0eb9d9c7f0b58e486af66e7c7ce1f5843fc5e6.
+- No baseline comparison/variance, scheduling, calendar, progress/EVM, resource/cost or financial calculation semantics were introduced.
+
+### Current P6 Backend Continuation
+
+- Baseline **metadata persistence** is complete; do not repeat it.
+- Baseline comparison/variance/selection calculation remains blocked until an authoritative Shared Core snapshot/version contract exists. Backend/API must not invent those semantics.
+- Continue with a fresh current-main/open-work inspection for the next concrete Hasan-owned P6 working-data surface.
