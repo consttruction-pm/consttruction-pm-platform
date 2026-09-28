@@ -52,6 +52,10 @@ class ScheduleOptions:
         CriticalActivityPathType.CRITICAL_FLOAT
     )
     make_open_ended_activities_critical: bool = False
+    multiple_float_paths_enabled: bool = False
+    maximum_multiple_float_paths: int = 0
+    multiple_float_paths_ending_activity_object_id: str | None = None
+    multiple_float_paths_use_total_float: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.mode, ScheduleMode):
@@ -70,6 +74,21 @@ class ScheduleOptions:
             raise ValueError("critical_activity_float_threshold must be an integer")
         if self.critical_activity_float_threshold < 0:
             raise ValueError("critical_activity_float_threshold must be non-negative")
+        if not isinstance(self.multiple_float_paths_enabled, bool):
+            raise ValueError("multiple_float_paths_enabled must be a bool")
+        if isinstance(self.maximum_multiple_float_paths, bool) or not isinstance(
+            self.maximum_multiple_float_paths, int
+        ):
+            raise ValueError("maximum_multiple_float_paths must be an integer")
+        if not 0 <= self.maximum_multiple_float_paths <= 1000:
+            raise ValueError("maximum_multiple_float_paths must be between 0 and 1000")
+        if self.multiple_float_paths_ending_activity_object_id is not None and not (
+            isinstance(self.multiple_float_paths_ending_activity_object_id, str)
+            and self.multiple_float_paths_ending_activity_object_id.strip()
+        ):
+            raise ValueError("multiple_float_paths_ending_activity_object_id must be a non-empty string")
+        if not isinstance(self.multiple_float_paths_use_total_float, bool):
+            raise ValueError("multiple_float_paths_use_total_float must be a bool")
 
 
 @dataclass(frozen=True)
@@ -82,6 +101,14 @@ class FloatActivity:
     total_float: int
     free_float: int
     critical: bool
+    float_path: int | None = None
+    float_path_order: int | None = None
+
+
+@dataclass(frozen=True)
+class MultipleFloatPath:
+    path_number: int
+    activity_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -92,6 +119,7 @@ class ScheduleResult:
     early_activities: Mapping[str, ScheduledActivity] | None = None
     late_activities: Mapping[str, ScheduledActivity] | None = None
     mode: ScheduleMode = ScheduleMode.EARLIEST
+    float_paths: tuple[MultipleFloatPath, ...] = ()
 
 
 def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
@@ -374,6 +402,229 @@ def _longest_path_activity_ids(
                 stack.append(predecessor_id)
     return frozenset(longest)
 
+
+def _relationship_free_float(
+    relationship: Relationship,
+    predecessor: ScheduledActivity,
+    successor: ScheduledActivity,
+    predecessor_activity: Activity,
+    resolver: WorkingTimeResolver,
+) -> int:
+    delay = 0
+    while delay < 10000:
+        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate = ScheduledActivity(
+            activity_id=predecessor.activity_id,
+            start=candidate_start,
+            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            duration=predecessor_activity.duration,
+        )
+        if not _relationship_holds(relationship, candidate, successor, resolver):
+            return max(0, delay - 1)
+        delay += 1
+    return 10000
+
+
+def _relationship_total_float(
+    relationship: Relationship,
+    predecessor: ScheduledActivity,
+    successor_late: ScheduledActivity,
+    predecessor_activity: Activity,
+    resolver: WorkingTimeResolver,
+) -> int:
+    delay = 0
+    while delay < 10000:
+        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate = ScheduledActivity(
+            activity_id=predecessor.activity_id,
+            start=candidate_start,
+            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            duration=predecessor_activity.duration,
+        )
+        if not _relationship_holds(relationship, candidate, successor_late, resolver):
+            return max(0, delay - 1)
+        delay += 1
+    return 10000
+
+
+def _choose_default_float_path_endpoint(
+    activity_map: Mapping[str, Activity],
+    relationships: Iterable[Relationship],
+    early_schedule: Mapping[str, ScheduledActivity],
+    late_schedule: Mapping[str, ScheduledActivity],
+    resolver: WorkingTimeResolver,
+    use_total_float: bool,
+) -> str | None:
+    outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    for relationship in relationships:
+        outgoing[relationship.predecessor_id].append(relationship)
+        incoming[relationship.successor_id].append(relationship)
+
+    candidates: list[tuple[tuple[int, int, int, str], str]] = []
+    for activity_id in sorted(activity_map):
+        if outgoing[activity_id]:
+            continue
+        incoming_rels = incoming[activity_id]
+        if use_total_float:
+            metric = min(
+                (
+                    _relationship_total_float(
+                        relationship,
+                        early_schedule[relationship.predecessor_id],
+                        late_schedule[activity_id],
+                        activity_map[relationship.predecessor_id],
+                        resolver,
+                    )
+                    for relationship in incoming_rels
+                ),
+                default=0,
+            )
+        else:
+            metric = min(
+                (
+                    _relationship_free_float(
+                        relationship,
+                        early_schedule[relationship.predecessor_id],
+                        early_schedule[activity_id],
+                        activity_map[relationship.predecessor_id],
+                        resolver,
+                    )
+                    for relationship in incoming_rels
+                ),
+                default=0,
+            )
+        candidates.append(
+            (
+                (
+                    metric,
+                    -early_schedule[activity_id].finish.toordinal(),
+                    early_schedule[activity_id].start.toordinal(),
+                    activity_id,
+                ),
+                activity_id,
+            )
+        )
+    return min(candidates)[1] if candidates else None
+
+
+def _multiple_float_paths(
+    activities: Iterable[Activity],
+    relationships: Iterable[Relationship],
+    early_schedule: Mapping[str, ScheduledActivity],
+    late_schedule: Mapping[str, ScheduledActivity],
+    resolver: WorkingTimeResolver,
+    options: ScheduleOptions,
+) -> tuple[MultipleFloatPath, ...]:
+    if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
+        return ()
+
+    activity_map = {activity.id: activity for activity in activities}
+    relationship_list = list(relationships)
+    if not activity_map:
+        return ()
+
+    incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    for relationship in relationship_list:
+        if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
+            raise ValueError("relationship references an unknown activity")
+        incoming[relationship.successor_id].append(relationship)
+
+    remaining = set(activity_map)
+    paths: list[MultipleFloatPath] = []
+    explicit_endpoint = options.multiple_float_paths_ending_activity_object_id
+    if explicit_endpoint is not None and explicit_endpoint not in activity_map:
+        raise ValueError("multiple float paths ending activity does not exist")
+
+    for path_number in range(1, options.maximum_multiple_float_paths + 1):
+        if not remaining:
+            break
+
+        if path_number == 1 and explicit_endpoint is not None:
+            endpoint = explicit_endpoint
+        else:
+            scoped = {activity_id: activity_map[activity_id] for activity_id in remaining}
+            scoped_relationships = [
+                relationship
+                for relationship in relationship_list
+                if relationship.predecessor_id in remaining
+                and relationship.successor_id in remaining
+            ]
+            endpoint = _choose_default_float_path_endpoint(
+                scoped, scoped_relationships, early_schedule, late_schedule, resolver,
+                options.multiple_float_paths_use_total_float,
+            ) or min(remaining)
+
+        if endpoint not in remaining:
+            candidates = sorted(
+                relationship.predecessor_id
+                for relationship in incoming[endpoint]
+                if relationship.predecessor_id in remaining
+            )
+            if not candidates:
+                break
+            endpoint = candidates[0]
+
+        path_rev: list[str] = [endpoint]
+        remaining.remove(endpoint)
+        current = endpoint
+
+        while True:
+            candidates = [
+                relationship
+                for relationship in incoming[current]
+                if relationship.predecessor_id in remaining
+            ]
+            if not candidates:
+                break
+
+            successor = early_schedule[current]
+            scored: list[tuple[tuple[int, int, int, int, int, str], Relationship]] = []
+            for relationship in candidates:
+                predecessor_id = relationship.predecessor_id
+                predecessor = early_schedule[predecessor_id]
+                if options.multiple_float_paths_use_total_float:
+                    metric = _relationship_total_float(
+                        relationship, predecessor, late_schedule[current],
+                        activity_map[predecessor_id], resolver,
+                    )
+                    driving_penalty = 0
+                else:
+                    metric = _relationship_free_float(
+                        relationship, predecessor, successor,
+                        activity_map[predecessor_id], resolver,
+                    )
+                    driving_penalty = 0 if _relationship_is_driving(
+                        relationship, predecessor, successor, resolver
+                    ) else 1
+                activity_float = _working_delay_between(
+                    early_schedule[predecessor_id].start,
+                    late_schedule[predecessor_id].start,
+                    resolver,
+                )
+                scored.append((
+                    (
+                        metric, driving_penalty, activity_float,
+                        -predecessor.finish.toordinal(),
+                        predecessor.start.toordinal(),
+                        predecessor_id,
+                    ),
+                    relationship,
+                ))
+
+            _, chosen = min(scored)
+            predecessor_id = chosen.predecessor_id
+            path_rev.append(predecessor_id)
+            remaining.remove(predecessor_id)
+            current = predecessor_id
+
+        paths.append(
+            MultipleFloatPath(path_number=path_number, activity_ids=tuple(reversed(path_rev)))
+        )
+
+    return tuple(paths)
+
+
 def calculate_floats(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -469,6 +720,31 @@ def schedule(
         selected_options,
     )
 
+    float_paths = _multiple_float_paths(
+        activity_list, relationship_list, early, late, resolver, selected_options
+    )
+    path_by_activity: dict[str, tuple[int, int]] = {}
+    for path in float_paths:
+        for order, activity_id in enumerate(path.activity_ids, start=1):
+            path_by_activity.setdefault(activity_id, (path.path_number, order))
+
+    if path_by_activity:
+        floats = {
+            activity_id: FloatActivity(
+                activity_id=value.activity_id,
+                early_start=value.early_start,
+                early_finish=value.early_finish,
+                late_start=value.late_start,
+                late_finish=value.late_finish,
+                total_float=value.total_float,
+                free_float=value.free_float,
+                critical=value.critical,
+                float_path=path_by_activity.get(activity_id, (None, None))[0],
+                float_path_order=path_by_activity.get(activity_id, (None, None))[1],
+            )
+            for activity_id, value in floats.items()
+        }
+
     effective_finish = resolver.normalize_finish(
         project_finish or max(item.finish for item in early.values())
     )
@@ -481,4 +757,5 @@ def schedule(
         early_activities=early,
         late_activities=late,
         mode=selected_options.mode,
+        float_paths=float_paths,
     )
