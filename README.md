@@ -3,7 +3,7 @@
 Enterprise Project Management & Construction Control Platform.
 
 ## Purpose
-A web-ready construction project management platform designed as a structured replacement path for Primavera P6 and Microsoft Project, with bilingual Persian/English support and Jalali/Gregorian calendar support.
+A web-ready construction project management platform designed as a structured replacement path for Primavera P6 and Microsoft Project, with fully multilingual language-pack support including Persian, English, RTL/LTR scripts, and extensible writing systems and Jalali/Gregorian calendar support.
 
 ## Repository structure
 - `docs/` — product requirements, architecture, domain rules, scheduling, progress, reporting and implementation specifications.
