@@ -4,9 +4,9 @@ import { buildWorkspaceColumnCatalog, dataTypeToEditorKind, layoutKey } from "./
 import type { P6FieldCatalogEntry } from "./p6-field-registry-client.js";
 
 const fields: readonly P6FieldCatalogEntry[] = [
-  { id: "activity_id", source: "standard", subjectArea: "activity", label: "Activity ID", dataType: "string", writable: false, computed: false, unit: null, filterable: true, orderable: true },
-  { id: "duration", source: "standard", subjectArea: "activity", label: "Duration", dataType: "duration", writable: false, computed: true, unit: "day", filterable: true, orderable: true },
-  { id: "cost", source: "standard", subjectArea: "project", label: "Cost", dataType: "cost", writable: true, computed: false, unit: "USD", filterable: true, orderable: true },
+  { id: "activity_id", source: "standard", subjectArea: "activity", label: "Activity ID", dataType: "string", writable: false, computed: false, unit: null, nullable: null, allowedValues: [], p6Field: "ActivityId", filterable: true, orderable: true },
+  { id: "duration", source: "standard", subjectArea: "activity", label: "Duration", dataType: "duration", writable: false, computed: true, unit: "day", nullable: null, allowedValues: [], p6Field: "Duration", filterable: true, orderable: true },
+  { id: "cost", source: "standard", subjectArea: "project", label: "Cost", dataType: "cost", writable: true, computed: false, unit: "USD", nullable: null, allowedValues: [], p6Field: "Cost", filterable: true, orderable: true },
 ];
 
 test("catalog is scoped to requested subject area and derives editability from authority", () => {
