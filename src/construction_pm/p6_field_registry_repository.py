@@ -141,7 +141,13 @@ class SQLiteP6FieldRegistryRepository:
             FROM p6_field_registry
             WHERE tenant_id=? AND project_id=? AND registry_version=? AND project_revision=? AND field_id=?
             """,
-            (scope.tenant_id, scope.project_id, registry_version, field_id),
+            (
+                scope.tenant_id,
+                scope.project_id,
+                registry_version,
+                scope.project_revision,
+                field_id,
+            ),
         ).fetchone()
         if row is None:
             return None
@@ -166,7 +172,7 @@ class SQLiteP6FieldRegistryRepository:
             SELECT project_revision, field_id, subject_area, p6_field,
                    display_name, data_type, writable, computed, unit
             FROM p6_field_registry
-            WHERE tenant_id=? AND project_id=? AND registry_version=?
+            WHERE tenant_id=? AND project_id=? AND registry_version=? AND project_revision=?
         """
         params: tuple[object, ...] = (
             scope.tenant_id,
