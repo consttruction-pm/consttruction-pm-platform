@@ -10,7 +10,6 @@ from .calendar import WorkingTimeResolver
 from .time_calendar import TimeAwareWorkingTimeResolver
 
 
-@dataclass(frozen=True)
 class RelationshipLagCalendar(str, Enum):
     PREDECESSOR = "PREDECESSOR_ACTIVITY_CALENDAR"
     SUCCESSOR = "SUCCESSOR_ACTIVITY_CALENDAR"
@@ -45,6 +44,7 @@ class Continuous24HourResolver:
         return Decimal(str((finish - start).total_seconds())) / Decimal("3600")
 
 
+@dataclass(frozen=True)
 class CalendarReference:
     """Stable, portable reference to a versioned scheduling calendar."""
 
