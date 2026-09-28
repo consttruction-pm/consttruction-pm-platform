@@ -259,6 +259,11 @@ def test_power_requires_integer_unitless_exponent_and_composes_units() -> None:
     with pytest.raises(FormulaTypeError, match="POWER_EXPONENT_MUST_BE_INTEGER"):
         _compile("[quantity] ^ 0.5")
 
+    negative = _compile("[quantity] ^ -2")
+    assert evaluate_formula(
+        negative, {"quantity": FormulaValue.number(2, "m3")}
+    ) == FormulaValue.number(Decimal("0.25"), "1/m3^2")
+
     with pytest.raises(FormulaTypeError, match="POWER_EXPONENT_MUST_BE_UNITLESS"):
         _compile("[quantity] ^ [unit_rate]")
 
