@@ -131,6 +131,7 @@ const PERSIAN_SUBMENU_LABELS: Readonly<Record<string, string>> = {
   "settings.audit": "ممیزی / نسخه",
 };
 
-export function getBetaSubmenuLabel(item: BetaSubmenu, locale: "fa" | "en"): string {
-  return locale === "fa" ? PERSIAN_SUBMENU_LABELS[item.id] ?? item.label : item.label;
+export function getBetaSubmenuLabel(item: BetaSubmenu, languageTag: string): string {
+  const base = languageTag.trim().toLowerCase().split("-")[0];
+  return base === "fa" ? PERSIAN_SUBMENU_LABELS[item.id] ?? item.label : item.label;
 }
