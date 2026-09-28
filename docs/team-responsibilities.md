@@ -45,7 +45,7 @@ This document defines the current three-person division of responsibilities for 
 - Main Workspace, WBS UI, Activity Grid and Gantt UI.
 - Dashboards, forms, reports and user interaction flows.
 - Responsive behavior and client-side UX.
-- Persian/English UI, RTL/LTR behavior and localization integration.
+- fully multilingual UI, language-pack fallback, typography and RTL/LTR writing-direction integration.
 - Offline client behavior and local mutation queue integration.
 - Client-side API integration and synchronization UI.
 - Client validation/presentation logic that does not duplicate authoritative business calculations.
