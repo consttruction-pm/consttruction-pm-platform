@@ -12,7 +12,8 @@ if not DSN:
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.field_assurance_templates import FieldAssuranceTemplate, FieldAssuranceTemplateInputType, FieldAssuranceTemplateItem, FieldAssuranceTemplateType
-from construction_pm.field_assurance_templates_repository import FieldAssuranceExecution, PostgresFieldAssuranceTemplateRepository
+from construction_pm.field_assurance_execution import FieldAssuranceExecution, FieldAssuranceExecutionAnswer
+from construction_pm.field_assurance_templates_repository import PostgresFieldAssuranceTemplateRepository
 
 def template(suffix):
     return FieldAssuranceTemplate(f"TPL-{suffix}", BackendScope("tenant-live", f"project-{suffix}", 4), 1, FieldAssuranceTemplateType.INSPECTION, "inspection.concrete", (FieldAssuranceTemplateItem("I-1", 1, "criterion.dimension", FieldAssuranceTemplateInputType.NUMBER, True),))
@@ -23,7 +24,7 @@ def execution(t, execution_id, value=12.5):
         template_id=t.template_id,
         template_version=t.template_version,
         scope=t.scope,
-        answers=(("I-1", value),),
+        answers=(FieldAssuranceExecutionAnswer("I-1", value),),
         executed_by="user-live",
         executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
     )
