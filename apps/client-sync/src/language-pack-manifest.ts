@@ -5,9 +5,28 @@ export type LanguagePackManifest = {
   resources: { translation: string; glossary: string; help: string; reports: string; voice_input: string | null; voice_output: string | null; offline_ai_model: string | null };
   integrity: { checksum: string; signature: string; signing_key_id: string | null };
   capabilities: { ui: boolean; help: boolean; ai_text: boolean; voice_input: boolean; voice_output: boolean; offline_ai: boolean };
+  typography: {
+    font_family: string;
+    fallback_families: string[];
+    font_style: "normal" | "italic" | "oblique";
+    font_weight: number;
+    line_height: string;
+    letter_spacing: string;
+    font_feature_settings: string;
+    font_variant_ligatures: string;
+    font_kerning: "auto" | "normal" | "none";
+    font_resources: readonly {
+      family: string;
+      uri: string;
+      format: "woff2" | "woff" | "ttf" | "otf";
+      weight: number;
+      style: "normal" | "italic" | "oblique";
+      unicode_range?: string;
+    }[];
+  };
 };
 
-const REQUIRED = ["package_id", "language_tag", "version", "app_compatibility", "artifact", "resources", "integrity", "capabilities"] as const;
+const REQUIRED = ["package_id", "language_tag", "version", "app_compatibility", "artifact", "resources", "integrity", "capabilities", "typography"] as const;
 
 export function validateLanguagePackManifest(value: unknown): LanguagePackManifest {
   if (!isRecord(value) || REQUIRED.some((key) => !(key in value))) throw new Error("INVALID_LANGUAGE_PACK_MANIFEST");
@@ -46,6 +65,24 @@ export function validateLanguagePackManifest(value: unknown): LanguagePackManife
     if (typeof capabilities[key] !== "boolean") throw new Error("INVALID_LANGUAGE_PACK_CAPABILITIES");
   }
   rejectUnknown(capabilities, ["ui", "help", "ai_text", "voice_input", "voice_output", "offline_ai"], "INVALID_LANGUAGE_PACK_CAPABILITIES");
+
+  const typography = requireRecord(value.typography, "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  requireString(typography.font_family, "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (!Array.isArray(typography.fallback_families) || typography.fallback_families.some((font) => typeof font !== "string" || font.length === 0)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (typography.font_style !== "normal" && typography.font_style !== "italic" && typography.font_style !== "oblique") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (typeof typography.font_weight !== "number" || !Number.isInteger(typography.font_weight) || typography.font_weight < 1 || typography.font_weight > 1000) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  requireString(typography.line_height, "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (typeof typography.letter_spacing !== "string" || typeof typography.font_feature_settings !== "string" || typeof typography.font_variant_ligatures !== "string") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (typography.font_kerning !== "auto" && typography.font_kerning !== "normal" && typography.font_kerning !== "none") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  if (!Array.isArray(typography.font_resources)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  for (const font of typography.font_resources) {
+    if (!isRecord(font) || typeof font.family !== "string" || typeof font.uri !== "string" || typeof font.format !== "string" || typeof font.weight !== "number" || !Number.isInteger(font.weight) || font.weight < 1 || font.weight > 1000 || !["normal", "italic", "oblique"].includes(font.style)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    try { new URL(font.uri); } catch { throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY"); }
+    if (!["woff2", "woff", "ttf", "otf"].includes(font.format)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    if (font.unicode_range !== undefined && typeof font.unicode_range !== "string") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    rejectUnknown(font, ["family", "uri", "format", "weight", "style", "unicode_range"], "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+  }
+  rejectUnknown(typography, ["font_family", "fallback_families", "font_style", "font_weight", "line_height", "letter_spacing", "font_feature_settings", "font_variant_ligatures", "font_kerning", "font_resources"], "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
   return value as LanguagePackManifest;
 }
 
