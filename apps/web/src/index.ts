@@ -27,3 +27,4 @@ export * from "./workspace-column-registry.js";
 export * from "./p6-typed-editor.js";
 export * from "./workspace-grid-hooks.js";
 export * from "./p6-formula-api.js";
+export * from "./workspace-layout-persistence.js";
