@@ -9,7 +9,7 @@ import {
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-import { getBetaMenu, type BetaSubmenu } from "./beta-navigation.js";
+import { getBetaMenu, getBetaSubmenuLabel, type BetaSubmenu } from "./beta-navigation.js";
 
 const context = {
   tenant_id: "demo-tenant",
@@ -66,7 +66,7 @@ function syncRoute(): void {
 function renderSubmenu(): void {
   const menu = getBetaMenu(state.activeMenu);
   submenuRoot.innerHTML = menu.items.map((item) =>
-    `<button type="button" data-submenu-id="${escapeAttribute(item.id)}">${escapeHtml(item.label)} <span class="beta-status">[${item.status}]</span></button>`
+    `<button type="button" data-submenu-id="${escapeAttribute(item.id)}">${escapeHtml(getBetaSubmenuLabel(item, state.locale))} <span class="beta-status">[${item.status}]</span></button>`
   ).join("");
   submenuRoot.querySelectorAll<HTMLButtonElement>("[data-submenu-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -74,7 +74,7 @@ function renderSubmenu(): void {
       if (!item) return;
       window.location.hash = item.id;
       routeStatus.textContent =
-        `Beta screen: ${menu.label} / ${item.label} · status: ${item.status} · context: ${context.project_id}`;
+        `Beta screen: ${menu.label} / ${getBetaSubmenuLabel(item, state.locale)} · status: ${item.status} · context: ${context.project_id}`;
     });
   });
 }
