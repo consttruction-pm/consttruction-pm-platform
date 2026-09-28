@@ -53,3 +53,12 @@ def test_activity_reconciliation_candidates_remain_uncertified():
     assert len(data["candidates"]) == 9
     assert "Id and ObjectId remain distinct until interchange evidence proves equivalence." in data["rules"]
     assert "ActivityOwner" in data["unresolved_registry_fields"]
+
+
+def test_activity_semantic_reconciliation_keeps_uncertified_properties_null():
+    with open("docs/architecture/P6_ACTIVITY_FIELD_SEMANTIC_RECONCILIATION_2026-09-28.json", encoding="utf-8") as handle:
+        data = json.load(handle)
+    assert len(data["fields"]) == 9
+    assert data["certification_rule"].startswith("No field is certified")
+    assert all(item["writable"] is None and item["computed"] is None for item in data["fields"])
+    assert any(item["classification"] == "unresolved" for item in data["fields"])
