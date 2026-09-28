@@ -2,6 +2,13 @@
 
 Effective date: 2026-09-28
 
+## Current execution status
+
+- Current P6-1 Field Registry stage progress: **45%**.
+- Current P6 overall parity: **44%**.
+- Current whole-product maturity: **78%**.
+- P6-1 remains open until the exhaustive field catalog and per-field dispositions are verified.
+
 ## Baseline
 
 - P6 Version 26 / P6 EPPM 26.4 compatibility baseline: **100% reference**
