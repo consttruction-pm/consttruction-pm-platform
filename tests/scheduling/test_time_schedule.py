@@ -560,10 +560,10 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
 @pytest.mark.parametrize(
     ("option", "expected_start"),
     [
-        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 16)),
-        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 16)),
-        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 15)),
-        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 15)),
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 14)),
+        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 15)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 14)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 14)),
     ],
 )
 def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
@@ -599,7 +599,7 @@ def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
         TimeActivity("B", TimeQuantity.working_hours(1), successor_ctx),
     ]
     relationships = [
-        TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))
+        TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))
     ]
 
     result = time_schedule(
