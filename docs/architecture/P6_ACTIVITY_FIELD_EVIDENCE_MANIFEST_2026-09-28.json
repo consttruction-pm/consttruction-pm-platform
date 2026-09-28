@@ -173,7 +173,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "boolean",
         "semantic_type": "boolean",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "530-532",
         "notes": "boolean criticality flag"
       }
     },
@@ -185,7 +185,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "boolean",
         "semantic_type": "boolean",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "534-536",
         "notes": "boolean longest-path flag"
       }
     },
@@ -197,7 +197,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "596-597",
         "notes": "scheduler-computed late finish"
       }
     },
@@ -209,7 +209,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "599-601",
         "notes": "scheduler-computed late start"
       }
     },
@@ -221,7 +221,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string",
         "semantic_type": "enum",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "602-604",
         "notes": "resource-leveling priority"
       }
     },
@@ -233,7 +233,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string",
         "semantic_type": "string",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "643-645",
         "notes": "activity name"
       }
     },
@@ -245,7 +245,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "integer(int32)",
         "semantic_type": "object-id",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "686-688",
         "notes": "unique activity object identifier"
       }
     },
@@ -257,7 +257,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "percentage",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "697-699",
         "notes": "activity percent complete"
       }
     },
@@ -269,7 +269,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string",
         "semantic_type": "enum",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "701-703",
         "notes": "percent-complete basis"
       }
     },
@@ -281,7 +281,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "percentage",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "705-706",
         "notes": "performance percent complete"
       }
     },
@@ -293,7 +293,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "percentage",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "709-711",
         "notes": "physical percent complete"
       }
     },
@@ -306,7 +306,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "duration",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "713-715",
         "notes": "working duration using activity calendar"
       }
     },
@@ -318,7 +318,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "720-721",
         "notes": "planned finish"
       }
     },
@@ -330,7 +330,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "739-741",
         "notes": "planned start"
       }
     },
@@ -342,7 +342,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "cost",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "742-744",
         "notes": "planned total cost"
       }
     },
@@ -354,7 +354,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "unit",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "746-747",
         "notes": "planned total units"
       }
     },
@@ -366,7 +366,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "number(double)",
         "semantic_type": "cost",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "749-750",
         "notes": "planned value cost"
       }
     },
@@ -378,7 +378,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "773-775",
         "notes": "primary scheduler constraint date"
       }
     },
@@ -390,7 +390,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string",
         "semantic_type": "enum",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "777-778",
         "notes": "primary scheduler constraint type"
       }
     },
@@ -402,7 +402,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string",
         "semantic_type": "string",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "783-785",
         "notes": "primary resource name"
       }
     },
@@ -414,7 +414,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "837-842",
         "notes": "remaining finish"
       }
     },
@@ -426,7 +426,7 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "current page; find required",
+        "evidence_lines": "841-842",
         "notes": "remaining start"
       }
     },
@@ -563,6 +563,6 @@
       }
     }
   ],
-  "semantic_evidence_pass": "tranche-1",
+  "semantic_evidence_pass": "tranche-2",
   "semantic_evidence_note": "Only entries with exact current-page evidence lines are considered verified. Entries marked 'find required' remain non-certified and must not be used to infer mutability/computed status."
 }
