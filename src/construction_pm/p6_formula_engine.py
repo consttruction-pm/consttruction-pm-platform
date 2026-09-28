@@ -445,6 +445,14 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
         left = _infer(node.left, schema)
         right = _infer(node.right, schema)
         if node.operator in {"+", "-", "*", "/", "^"}:
+            if left.type is FormulaType.NULL:
+                if right.type is not FormulaType.NUMBER:
+                    raise FormulaTypeError("NUMERIC_OPERANDS_REQUIRED")
+                return right
+            if right.type is FormulaType.NULL:
+                if left.type is not FormulaType.NUMBER:
+                    raise FormulaTypeError("NUMERIC_OPERANDS_REQUIRED")
+                return left
             if left.type is not FormulaType.NUMBER or right.type is not FormulaType.NUMBER:
                 raise FormulaTypeError("NUMERIC_OPERANDS_REQUIRED")
             if node.operator in {"+", "-"}:
@@ -460,7 +468,9 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
             return _TypeInfo(FormulaType.NUMBER, unit)
 
         if node.operator in {"AND", "OR"}:
-            if left.type is not FormulaType.BOOLEAN or right.type is not FormulaType.BOOLEAN:
+            if left.type is not FormulaType.NULL and left.type is not FormulaType.BOOLEAN:
+                raise FormulaTypeError("BOOLEAN_OPERANDS_REQUIRED")
+            if right.type is not FormulaType.NULL and right.type is not FormulaType.BOOLEAN:
                 raise FormulaTypeError("BOOLEAN_OPERANDS_REQUIRED")
             return _TypeInfo(FormulaType.BOOLEAN)
 
@@ -496,10 +506,13 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
                 return _TypeInfo(FormulaType.NUMBER, unit)
             return args[1]
         if name in {"SUM", "MIN", "MAX"}:
-            if not args or any(item.type is not FormulaType.NUMBER for item in args):
+            numeric_args = [item for item in args if item.type is not FormulaType.NULL]
+            if not args or any(item.type is not FormulaType.NUMBER for item in numeric_args):
                 raise FormulaTypeError(f"{name}_REQUIRES_NUMBERS")
-            unit = args[0].unit
-            for item in args[1:]:
+            if not numeric_args:
+                return _TypeInfo(FormulaType.NUMBER)
+            unit = numeric_args[0].unit
+            for item in numeric_args[1:]:
                 unit = _require_same_numeric_unit(_TypeInfo(FormulaType.NUMBER, unit), item)
             return _TypeInfo(FormulaType.NUMBER, unit)
         if name == "ABS":
@@ -530,7 +543,7 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
                 raise FormulaTypeError("NOT_REQUIRES_ONE_BOOLEAN")
             return _TypeInfo(FormulaType.BOOLEAN)
         if name in {"AND", "OR"}:
-            if len(args) < 2 or any(item.type is not FormulaType.BOOLEAN for item in args):
+            if len(args) < 2 or any(item.type not in {FormulaType.BOOLEAN, FormulaType.NULL} for item in args):
                 raise FormulaTypeError(f"{name}_REQUIRES_BOOLEAN_ARGUMENTS")
             return _TypeInfo(FormulaType.BOOLEAN)
         raise FormulaTypeError(f"UNSUPPORTED_FUNCTION:{name}")
@@ -740,6 +753,8 @@ def evaluate_formula(
     values: Mapping[str, FormulaValue],
 ) -> FormulaValue:
     result = _evaluate(compiled.ast, values)
+    if result.type is FormulaType.NULL:
+        return result
     if result.type is not compiled.definition.result_type:
         raise FormulaTypeError(
             f"EVALUATED_RESULT_TYPE_MISMATCH:{result.type.value}!={compiled.definition.result_type.value}"
