@@ -6,10 +6,10 @@ import {
   setLocale,
   withActivities,
   type WorkspaceCalendarMode,
-  type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
+import { getBetaMenu, type BetaSubmenu } from "./beta-navigation.js";
 
 const context = {
   tenant_id: "demo-tenant",
@@ -44,22 +44,11 @@ const demoActivities = [
   },
 ] as const;
 
-const moduleStatus: Record<WorkspaceState["activeMenu"], { status: "Implemented" | "Partial" | "Preview"; label: string }> = {
-  project: { status: "Partial", label: "Project / WBS" },
-  schedule: { status: "Partial", label: "Schedule / Activities / Gantt" },
-  progress: { status: "Partial", label: "Progress / EVM" },
-  resources: { status: "Partial", label: "Resources / Assignments" },
-  cost: { status: "Partial", label: "Cost / Forecast" },
-  documents: { status: "Partial", label: "Documents / Evidence" },
-  reports: { status: "Partial", label: "Reports / Typed datasets" },
-  control: { status: "Partial", label: "Control / Change / Claims" },
-  settings: { status: "Partial", label: "Settings / Language / Permissions" },
-};
-
 const appRoot = document.getElementById("app");
 const routeStatus = document.getElementById("beta-route");
+const submenuRoot = document.getElementById("beta-submenu");
 
-if (!appRoot || !routeStatus) {
+if (!appRoot || !routeStatus || !submenuRoot) {
   throw new Error("BETA_ROOT_NOT_FOUND");
 }
 
@@ -69,12 +58,36 @@ let state: WorkspaceState = withActivities(
 );
 
 function syncRoute(): void {
-  const module = moduleStatus[state.activeMenu];
-  routeStatus.textContent = `Beta module: ${module.label} · status: ${module.status} · context: ${context.project_id} · calendar: ${state.calendarMode} · locale: ${state.locale}`;
+  const menu = getBetaMenu(state.activeMenu);
+  routeStatus.textContent =
+    `Beta module: ${menu.label} · status: ${currentMenuStatus(menu.items)} · context: ${context.project_id} · calendar: ${state.calendarMode} · locale: ${state.locale}`;
+}
+
+function renderSubmenu(): void {
+  const menu = getBetaMenu(state.activeMenu);
+  submenuRoot.innerHTML = menu.items.map((item) =>
+    `<button type="button" data-submenu-id="${escapeAttribute(item.id)}">${escapeHtml(item.label)} <span class="beta-status">[${item.status}]</span></button>`
+  ).join("");
+  submenuRoot.querySelectorAll<HTMLButtonElement>("[data-submenu-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = menu.items.find((candidate) => candidate.id === button.dataset.submenuId);
+      if (!item) return;
+      window.location.hash = item.id;
+      routeStatus.textContent =
+        `Beta screen: ${menu.label} / ${item.label} · status: ${item.status} · context: ${context.project_id}`;
+    });
+  });
+}
+
+function currentMenuStatus(items: readonly BetaSubmenu[]): string {
+  if (items.some((item) => item.status === "Implemented")) return "Implemented";
+  if (items.every((item) => item.status === "Preview")) return "Preview";
+  return "Partial";
 }
 
 function render(): void {
   syncRoute();
+  renderSubmenu();
   renderMainWorkspace(appRoot, state, {
     onMenuSelect: (menu) => {
       state = { ...state, activeMenu: menu };
@@ -101,11 +114,11 @@ function installToolbar(): void {
     render();
   });
   document.getElementById("calendar-gregorian")?.addEventListener("click", () => {
-    state = setCalendarMode(state, "gregorian" as WorkspaceCalendarMode);
+    state = setCalendarMode(state, "gregorian");
     render();
   });
   document.getElementById("calendar-jalali")?.addEventListener("click", () => {
-    state = setCalendarMode(state, "jalali" as WorkspaceCalendarMode);
+    state = setCalendarMode(state, "jalali");
     render();
   });
 }
@@ -113,3 +126,10 @@ function installToolbar(): void {
 installToolbar();
 render();
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]!);
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replace(/'/g, "&#39;");
+}
