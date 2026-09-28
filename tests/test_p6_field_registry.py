@@ -60,3 +60,13 @@ def test_registry_supports_native_p6_types_beyond_simple_scalars():
     assert P6FieldType.DOUBLE.value == "double"
     assert P6FieldType.COMPLEX.value == "complex"
     assert P6FieldType.SPREAD.value == "spread"
+
+
+def test_registry_entries_expose_explicit_parity_metadata():
+    activity = get_field("activity.activity_id")
+    assert activity.reference_url.startswith("https://docs.oracle.com/")
+    assert activity.disposition == "seeded_not_certified"
+    assert activity.read_only is None
+    assert activity.filterable is None
+    assert activity.orderable is None
+    assert activity.nullable is None

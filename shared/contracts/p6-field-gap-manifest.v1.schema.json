@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-field-gap-manifest/v1",
+  "title": "P6 Field Gap Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "registry_version",
+    "reference_version",
+    "subject_area",
+    "status",
+    "source_url",
+    "entries"
+  ],
+  "properties": {
+    "registry_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reference_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject_area": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "pending_source_mapping",
+        "mapped",
+        "certified"
+      ]
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject_area",
+          "p6_field",
+          "status",
+          "data_type",
+          "writable",
+          "computed",
+          "reference_verified"
+        ],
+        "properties": {
+          "subject_area": {
+            "type": "string",
+            "minLength": 1
+          },
+          "p6_field": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "pending_source_mapping",
+              "mapped",
+              "implemented",
+              "equivalent_superset",
+              "outside_scope"
+            ]
+          },
+          "data_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "writable": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "computed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "reference_verified": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
