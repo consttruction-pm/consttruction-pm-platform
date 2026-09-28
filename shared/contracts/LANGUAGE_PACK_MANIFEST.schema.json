@@ -10,7 +10,8 @@
     "artifact",
     "resources",
     "integrity",
-    "capabilities"
+    "capabilities",
+    "typography"
   ],
   "properties": {
     "package_id": {
@@ -169,6 +170,114 @@
         },
         "offline_ai": {
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "typography": {
+      "type": "object",
+      "required": [
+        "font_family",
+        "fallback_families",
+        "font_style",
+        "font_weight",
+        "line_height",
+        "letter_spacing",
+        "font_feature_settings",
+        "font_variant_ligatures",
+        "font_kerning",
+        "font_resources"
+      ],
+      "properties": {
+        "font_family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback_families": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "font_style": {
+          "enum": [
+            "normal",
+            "italic",
+            "oblique"
+          ]
+        },
+        "font_weight": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "line_height": {
+          "type": "string",
+          "minLength": 1
+        },
+        "letter_spacing": {
+          "type": "string"
+        },
+        "font_feature_settings": {
+          "type": "string"
+        },
+        "font_variant_ligatures": {
+          "type": "string"
+        },
+        "font_kerning": {
+          "enum": [
+            "auto",
+            "normal",
+            "none"
+          ]
+        },
+        "font_resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "family",
+              "uri",
+              "format",
+              "weight",
+              "style"
+            ],
+            "properties": {
+              "family": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uri": {
+                "type": "string",
+                "format": "uri"
+              },
+              "format": {
+                "enum": [
+                  "woff2",
+                  "woff",
+                  "ttf",
+                  "otf"
+                ]
+              },
+              "weight": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "style": {
+                "enum": [
+                  "normal",
+                  "italic",
+                  "oblique"
+                ]
+              },
+              "unicode_range": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
