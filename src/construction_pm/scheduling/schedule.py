@@ -16,6 +16,7 @@ from .constraints import (
 )
 from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
+from .schedule_options import StartToStartLagCalculationType
 
 
 class ScheduleMode(str, Enum):
@@ -56,6 +57,10 @@ class ScheduleOptions:
     maximum_multiple_float_paths: int = 0
     multiple_float_paths_ending_activity_object_id: str | None = None
     multiple_float_paths_use_total_float: bool = True
+    start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
+        StartToStartLagCalculationType.EARLY_START
+    )
+    data_date: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.mode, ScheduleMode):
@@ -89,6 +94,14 @@ class ScheduleOptions:
             raise ValueError("multiple_float_paths_ending_activity_object_id must be a non-empty string")
         if not isinstance(self.multiple_float_paths_use_total_float, bool):
             raise ValueError("multiple_float_paths_use_total_float must be a bool")
+        if not isinstance(
+            self.start_to_start_lag_calculation_type, StartToStartLagCalculationType
+        ):
+            raise ValueError(
+                "start_to_start_lag_calculation_type must be a StartToStartLagCalculationType"
+            )
+        if self.data_date is not None and not isinstance(self.data_date, date):
+            raise TypeError("data_date must be a date or None")
 
 
 @dataclass(frozen=True)
@@ -705,7 +718,14 @@ def schedule(
     relationship_list = list(relationships)
     constraint_list = list(constraints or ())
     early = forward_pass(
-        activity_list, relationship_list, project_start, resolver, constraint_list, calculation_context
+        activity_list,
+        relationship_list,
+        project_start,
+        resolver,
+        constraint_list,
+        calculation_context,
+        selected_options.start_to_start_lag_calculation_type,
+        selected_options.data_date,
     )
     late = backward_pass(
         activity_list, relationship_list, early, project_finish, resolver, constraint_list
