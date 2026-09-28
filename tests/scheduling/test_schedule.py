@@ -304,11 +304,49 @@ def test_p6_open_ended_activity_can_be_marked_critical(resolver):
     assert result.floats["A"].critical is True
 
 
-def test_longest_path_is_explicitly_rejected_until_implemented(resolver):
-    with pytest.raises(NotImplementedError):
-        schedule(
-            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
-            options=ScheduleOptions(
-                critical_activity_path_type=CriticalActivityPathType.LONGEST_PATH
-            ),
-        )
+def test_longest_path_marks_only_latest_early_finish_driving_chain_critical(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1), Activity("D", 1)]
+    relationships = [Relationship("A", "B"), Relationship("B", "C")]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            critical_activity_float_threshold=100,
+            critical_activity_path_type=CriticalActivityPathType.LONGEST_PATH,
+        ),
+    )
+
+    assert result.floats["C"].critical is True
+    assert result.floats["B"].critical is True
+    assert result.floats["A"].critical is True
+    assert result.floats["D"].critical is False
+    assert result.floats["D"].total_float > 0
+
+
+def test_longest_path_stops_when_successor_is_driven_by_constraint(resolver):
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B")]
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        constraints=[
+            ActivityConstraint(
+                "B",
+                ConstraintType.START_NO_EARLIER_THAN,
+                date(2026, 9, 23),
+            )
+        ],
+        options=ScheduleOptions(
+            critical_activity_float_threshold=100,
+            critical_activity_path_type=CriticalActivityPathType.LONGEST_PATH,
+        ),
+    )
+
+    assert result.floats["B"].critical is True
+    assert result.floats["A"].critical is False
+    assert result.early_activities["B"].start == date(2026, 9, 23)
