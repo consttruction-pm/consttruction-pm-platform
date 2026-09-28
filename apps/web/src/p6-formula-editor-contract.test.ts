@@ -5,6 +5,7 @@ import {
   canSubmitFormula,
   createFormulaEditorState,
   setFormulaExpression,
+  validateFormulaAuthoritatively,
 } from "./p6-formula-editor-contract.js";
 
 test("formula editor consumes authoritative validation and dependency results", () => {
@@ -30,4 +31,72 @@ test("formula editor consumes authoritative validation and dependency results", 
 test("client cannot submit without an authoritative valid result", () => {
   const state = setFormulaExpression(createFormulaEditorState(), "1 + 1");
   assert.equal(canSubmitFormula(state), false);
+});
+
+test("validation API rejects a response that is not authoritative", async () => {
+  const transport = {
+    async get() { throw new Error("not used"); },
+    async post() {
+      return {
+        ok: true as const,
+        data: {
+          status: "valid",
+          message_key: null,
+          result_type: "number",
+          result_unit: null,
+          dependencies: [],
+          authoritative: false,
+        },
+      };
+    },
+  };
+
+  const result = await validateFormulaAuthoritatively(
+    transport,
+    "/formula/validate",
+    { tenant_id: "t1", project_id: "p1", revision: 7 },
+    { formula_id: null, version: null, expression: "1 + 1", subject_area: "activity" },
+  );
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "NON_AUTHORITATIVE_FORMULA_RESULT");
+});
+
+test("validation API returns the authoritative result without client evaluation", async () => {
+  let captured: unknown;
+  const transport = {
+    async get() { throw new Error("not used"); },
+    async post(_path: string, request: unknown) {
+      captured = request;
+      return {
+        ok: true as const,
+        data: {
+          status: "valid",
+          message_key: null,
+          result_type: "percentage",
+          result_unit: "%",
+          dependencies: [
+            { field_id: "actual_duration", dependency_type: "field", subject_area: "activity" },
+          ],
+          authoritative: true,
+        },
+      };
+    },
+  };
+
+  const result = await validateFormulaAuthoritatively(
+    transport,
+    "/formula/validate",
+    { tenant_id: "t1", project_id: "p1", revision: 7 },
+    { formula_id: "f1", version: "2", expression: "ActualDuration / PlannedDuration", subject_area: "activity" },
+  );
+
+  assert.deepEqual(captured, {
+    formula_id: "f1",
+    version: "2",
+    expression: "ActualDuration / PlannedDuration",
+    subject_area: "activity",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.data.authoritative, true);
 });
