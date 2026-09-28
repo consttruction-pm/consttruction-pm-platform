@@ -108,7 +108,7 @@ def test_time_schedule_propagates_start_to_start_lag_calculation_option():
         registry(),
         options=TimeScheduleOptions(
             start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START,
-            data_date=datetime(2026, 9, 23, 10),
+            data_date=datetime(2026, 9, 24, 10),
         ),
     )
     assert result.early_activities["B"].start == datetime(2026, 9, 23, 14)
