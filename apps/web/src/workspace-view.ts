@@ -41,7 +41,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t.documents, state.locale)}
         ${renderProcurement(state.procurementRecords, t.procurement)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
@@ -365,19 +365,24 @@ function renderChangeClaimControl(
   impacts: WorkspaceState["changeClaimImpacts"],
   label: string,
   documents: WorkspaceState["documents"] = [],
+  documentLabel = "Documents",
+  locale: WorkspaceState["locale"] = "en",
 ): string {
   if (!notices.length && !changes.length && !claims.length && !impacts.length && !documents.length) return "";
 
+  const documentMeta = locale === "fa"
+    ? { revision: "نسخه", linked: "مرجع مرتبط", stored: "ذخیره‌شده", noStorage: "بدون ذخیره‌سازی" }
+    : { revision: "Rev", linked: "linked reference", stored: "stored", noStorage: "no storage" };
   const documentSection = documents.length === 0
     ? ""
     : `<section class="control-room-section" data-section="documents">
-      <h2>Documents</h2>
+      <h2>${escapeHtml(documentLabel)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
-          <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? "stored" : "no storage"}</small>
+          <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · ${escapeHtml(documentMeta.revision)} ${document.revision}</span>
+          <small>${document.linkedEntityRefs.length} ${escapeHtml(documentMeta.linked)} · ${document.hasStorageRef ? escapeHtml(documentMeta.stored) : escapeHtml(documentMeta.noStorage)}</small>
         </article>`).join("")}
       </div>
     </section>`;
