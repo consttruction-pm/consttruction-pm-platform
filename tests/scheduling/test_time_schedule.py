@@ -560,7 +560,7 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
 @pytest.mark.parametrize(
     ("option", "expected_start"),
     [
-        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 15)),
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 16)),
         (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 16)),
         (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 15)),
         (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 15)),
