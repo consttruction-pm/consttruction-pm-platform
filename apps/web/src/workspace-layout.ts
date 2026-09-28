@@ -95,12 +95,12 @@ export function migrateWorkspaceLayout(
     .filter((column) => known.has(column.fieldId));
 
   const byId = new Map(migrated.map((column) => [column.fieldId, column]));
-  const columns = subjectCatalog.map((field, catalogIndex) => {
+  const maxExistingOrder = migrated.reduce((max, column) => Math.max(max, column.order), -1);\n  const columns = subjectCatalog.map((field, catalogIndex) => {
     const existing = byId.get(field.id);
     return existing ?? {
       fieldId: field.id,
       visible: false,
-      order: migrated.length + catalogIndex,
+      order: maxExistingOrder + 1 + catalogIndex,
       width: defaultWidth(field.dataType),
       alignment: defaultAlignment(field.dataType),
       pinned: false,
