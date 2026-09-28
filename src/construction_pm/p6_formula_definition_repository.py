@@ -242,7 +242,7 @@ class PostgresP6FormulaDefinitionRepository:
         record.validate()
         payload = _record_payload(record)
         encoded_dependencies = json.dumps(list(record.dependencies), separators=(",", ":"), ensure_ascii=False)
-        encoded_metadata = json.dumps(record.metadata, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        encoded_metadata = json.dumps(dict(record.metadata), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         row = self.connection.execute(
             "SELECT project_revision, expression, result_type, result_unit, semantic_version, "
             "semantic_reference, dependencies_json, metadata_json FROM p6_formula_definitions "
