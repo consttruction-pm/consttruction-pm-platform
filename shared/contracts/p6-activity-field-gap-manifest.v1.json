@@ -513,25 +513,7 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "CreateUser",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "DataDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Duration1Variance",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -595,15 +577,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "EstimateToCompleteCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ExpectedFinishDate",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -819,24 +792,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "PlannedDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "PlannedFinishDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "PlannedLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -918,15 +873,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "RemainingDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "RemainingDurationAtCompletion",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -937,15 +883,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "RemainingEarlyStartDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "RemainingFinishDate",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -1080,15 +1017,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "TotalFloat",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "TotalFloatHours",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -1188,15 +1116,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "WBSPath",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "WorkPackageName",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -1213,5 +1132,6 @@
       "computed": null,
       "reference_verified": false
     }
-  ]
+  ],
+  "entry_count": 125
 }
