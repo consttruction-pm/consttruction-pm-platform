@@ -1,0 +1,64 @@
+Construction PM Platform
+Official User Guide & Product Reference Manual
+Draft Version 0.1 - For Review Only
+
+این سند پیش نویس بررسی است و قبل از تایید نهایی ثبت نمی شود.
+
+قانون اصلی Primavera P6:
+تمامی منوها، زیرمنوها، فیلدها، گزینه های انتخابی، نمودارها، گزارش ها و فرمول های موجود در آخرین مستندات رسمی Oracle Primavera P6 باید در محصول پوشش داده شوند.
+محصول می تواند قابلیت جدید اضافه کند اما حذف قابلیت مرجع مجاز نیست.
+
+Universal Multi Language:
+سیستم دارای معماری چندزبانه عمومی است. تمام منوها، فیلدها، راهنماها، گزارش ها و داده ها باید از زبان های مختلف، RTL/LTR و فونت های مختلف پشتیبانی کنند.
+
+Calculation Core:
+تمام محاسبات زمان بندی، هزینه، منابع، پیشرفت و فرمول ها باید در هسته محاسباتی مشترک انجام شوند.
+
+ساختار اصلی منو:
+Project
+Enterprise Data
+Planning
+Scheduling
+Resources
+Costs
+Tracking
+Documents
+Reports
+View
+Administration
+Help
+
+ماژول ها:
+Project Management: ایجاد پروژه، تنظیمات، قالب ها، Import، Export، Backup و Restore.
+Enterprise Data: EPS، OBS، Codes، User Defined Fields.
+Planning: WBS، Activities، Relationships، Activity Steps، Notes، Documents.
+Scheduling: Calendar Engine، FS، SS، FF، SF، Lag، Forward Pass، Backward Pass، Float، Critical Path.
+Resources: Labor، Equipment، Material، Cost Resource، Assignment، Availability.
+Costs: Budget، Actual Cost، Remaining Cost، Forecast، Earned Value.
+
+فرمول های پایه:
+CV = EV - AC
+SV = EV - PV
+CPI = EV / AC
+SPI = EV / PV
+
+Layout:
+Add Column، Remove Column، Formula Column، Filter، Group، Sort، Save Layout.
+
+نمودارها:
+Gantt Chart
+Network Diagram
+Resource Histogram
+Resource Profile
+Cost Curve
+S Curve
+Progress Chart
+Variance Chart
+
+امنیت:
+Users، Roles، Permissions، Audit Trail.
+
+نسخه ها:
+Beta، V1، V2، Web، Desktop و نسخه های آینده باید این قوانین را حفظ کنند.
+
+این فایل جهت بررسی کاربر تهیه شده و هنوز سند نهایی پروژه نیست.
