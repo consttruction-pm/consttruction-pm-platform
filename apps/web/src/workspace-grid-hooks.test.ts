@@ -241,6 +241,40 @@ test("grid query rejects fields from another subject area even when ids are know
   assert.deepEqual(query, createEmptyGridQuery());
 });
 
+test("report/print projection uses authoritative catalog labels and types", () => {
+  const state = createWorkspaceState(
+    { tenant_id: "t1", project_id: "p1", revision: 1 },
+    "en",
+    "gregorian",
+    catalog,
+  );
+  const layout = setColumnLabel(
+    setColumnState(createDefaultLayout("activity-main", "activity", "project", 1, catalog), "duration", {
+      visible: true,
+      width: 175,
+    }),
+    "duration",
+    "Planned Duration",
+  );
+  const selection = createReportPrintSelection(
+    state,
+    [],
+    [],
+    true,
+    layout,
+    catalog,
+  );
+  assert.deepEqual(selection.columns.map((column) => ({
+    id: column.id,
+    label: column.label,
+    dataType: column.dataType,
+    width: column.width,
+  })), [
+    { id: "activity_id", label: "Activity ID", dataType: "text", width: 140 },
+    { id: "duration", label: "Planned Duration", dataType: "duration", width: 175 },
+  ]);
+});
+
 test("report/print selection follows visible persisted layout", () => {
   let state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 1 });
   state = withActivities(state, [
