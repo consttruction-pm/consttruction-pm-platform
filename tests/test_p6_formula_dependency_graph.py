@@ -17,6 +17,8 @@ def _formula(formula_id: str, expression: str):
         "A": FormulaSchemaValue(FormulaType.NUMBER),
         "B": FormulaSchemaValue(FormulaType.NUMBER),
         "C": FormulaSchemaValue(FormulaType.NUMBER),
+        "raw": FormulaSchemaValue(FormulaType.NUMBER),
+        "other": FormulaSchemaValue(FormulaType.NUMBER),
     }
     return compile_formula(
         FormulaDefinition(formula_id, "1", expression, FormulaType.NUMBER),
