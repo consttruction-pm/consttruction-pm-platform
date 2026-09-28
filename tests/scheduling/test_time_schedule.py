@@ -642,12 +642,12 @@ def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
             TimeActivity("A", TimeQuantity.working_hours(3), ctx_a),
             TimeActivity("B", TimeQuantity.working_hours(1), ctx_b),
         ],
-        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))],
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))],
         datetime(2026, 9, 22, 8),
         datetime(2026, 9, 23, 17),
         registry,
     )
-    assert result.early_activities["B"].start == datetime(2026, 9, 22, 16)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 15)
 
 
 def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_calendar():
