@@ -5,6 +5,7 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.schedule import (
     CriticalActivityPathType,
@@ -454,5 +455,53 @@ def test_multiple_float_paths_rejects_unknown_explicit_ending_activity(resolver)
                 multiple_float_paths_enabled=True,
                 maximum_multiple_float_paths=1,
                 multiple_float_paths_ending_activity_object_id="MISSING",
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("lag_mode", "expected_start"),
+    [
+        (StartToStartLagCalculationType.EARLY_START, date(2026, 9, 22)),
+        (StartToStartLagCalculationType.ACTUAL_START, date(2026, 9, 23)),
+    ],
+)
+def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
+    resolver, lag_mode, expected_start
+):
+    activities = [
+        Activity("A", 1, actual_start=date(2026, 9, 22)),
+        Activity("B", 1),
+    ]
+    relationship = Relationship("A", "B", RelationshipType.SS, lag=2)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(
+            start_to_start_lag_calculation_type=lag_mode,
+            data_date=date(2026, 9, 23),
+        ),
+    )
+
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["B"].start == expected_start
+
+
+def test_start_to_start_out_of_sequence_requires_data_date(resolver):
+    with pytest.raises(ValueError, match="data_date is required"):
+        schedule(
+            [
+                Activity("A", 1, actual_start=date(2026, 9, 22)),
+                Activity("B", 1),
+            ],
+            [Relationship("A", "B", RelationshipType.SS, lag=2)],
+            date(2026, 9, 21),
+            resolver,
+            options=ScheduleOptions(
+                start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START
             ),
         )
