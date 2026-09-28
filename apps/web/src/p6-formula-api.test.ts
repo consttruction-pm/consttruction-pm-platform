@@ -6,7 +6,7 @@ test("formula validation uses ProjectContext and authoritative API transport", a
   const calls: Array<{ path: string; context: unknown }> = [];
   const transport = {
     async get() { throw new Error("not used"); },
-    async post(path: string, _request: unknown, context: unknown) {
+    async post<TRequest, TResponse>(path: string, _request: TRequest, context: unknown): Promise<{ ok: true; data: TResponse }> {
       calls.push({ path, context });
       return {
         ok: true as const,
