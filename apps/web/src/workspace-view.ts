@@ -105,7 +105,7 @@ function renderSmartGuide(
     ? guide.proposedActions
         .map(
           (action) =>
-            `<article class="cp-field-card" data-ui-interactive="help" data-ai-action-id="${escapeAttribute(action.actionId)}">
+            `<article class="cp-field-card" data-ui-interactive="help" data-ui-interactive="help" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
               <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
@@ -229,7 +229,7 @@ function renderFieldOperations(
 
   const issues = fieldIssues.length
     ? fieldIssues.map((issue) => `
-        <div class="cp-field-card" data-field-issue-id="${escapeAttribute(issue.issueId)}">
+        <div class="cp-field-card" data-ui-interactive="field" data-field-issue-id="${escapeAttribute(issue.issueId)}">
           <strong>${escapeHtml(issue.titleKey)}</strong>
           <span>${escapeHtml(issue.category)}</span>
           <span>${escapeHtml(issue.severity)} · ${escapeHtml(issue.status)}</span>
@@ -240,7 +240,7 @@ function renderFieldOperations(
 
   const attendance = timecards.length
     ? timecards.map((card) => `
-        <div class="cp-field-card" data-timecard-id="${escapeAttribute(card.timecardId)}">
+        <div class="cp-field-card" data-ui-interactive="field" data-timecard-id="${escapeAttribute(card.timecardId)}">
           <strong>${escapeHtml(card.personId)}</strong>
           <span>${escapeHtml(card.workplaceKey)}</span>
           <span>${escapeHtml(card.attendanceStatus)}</span>
@@ -250,7 +250,7 @@ function renderFieldOperations(
 
   const equipment = equipmentReports.length
     ? equipmentReports.map((report) => `
-        <div class="cp-field-card" data-equipment-report-id="${escapeAttribute(report.reportId)}">
+        <div class="cp-field-card" data-ui-interactive="field" data-equipment-report-id="${escapeAttribute(report.reportId)}">
           <strong>${escapeHtml(report.equipmentId)}</strong>
           <span>${escapeHtml(report.workplaceKey)}</span>
           <span>${escapeHtml(report.status)}</span>
@@ -305,7 +305,7 @@ function renderFieldAssurance(
         <div>
           <h3>Quality / NCR</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
-            <article class="cp-field-card" data-ui-interactive="field" class="cp-field-card is-${escapeAttribute(item.severity)}">
+            <article class="cp-field-card" data-ui-interactive="field" is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
@@ -325,7 +325,7 @@ function renderFieldAssurance(
         <div>
           <h3>Punch / Closeout</h3>
           ${punchItems.length ? punchItems.map((item) => `
-            <article class="cp-field-card">
+            <article class="cp-field-card" data-ui-interactive="field">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.priority)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(item.locationKey ?? "—")}</span>
@@ -350,7 +350,7 @@ function renderProcurement(
       </div>
       <div class="cp-field-list">
         ${records.map((record) => `
-          <article class="cp-field-card" data-procurement-id="${escapeAttribute(record.id)}">
+          <article class="cp-field-card" data-ui-interactive="field" data-procurement-id="${escapeAttribute(record.id)}">
             <div class="cp-field-card-meta">
               <strong>${escapeHtml(record.id)}</strong>
               <span>${escapeHtml(record.type)}</span>
