@@ -553,6 +553,8 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
                     exponent_value = node.right.value.value
                     if not isinstance(exponent_value, Decimal) or exponent_value != exponent_value.to_integral_value():
                         raise FormulaTypeError("POWER_EXPONENT_MUST_BE_INTEGER")
+                elif left.unit is not None:
+                    raise FormulaTypeError("POWER_UNIT_EXPONENT_MUST_BE_LITERAL")
                 unit = left.unit
 ns
 
