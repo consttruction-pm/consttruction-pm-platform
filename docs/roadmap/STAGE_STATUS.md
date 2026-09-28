@@ -944,3 +944,17 @@ Status: **100% — implemented; runtime-verified and merged**
 - ConstructionPM CI 1793, Client Typecheck 1496, PostgreSQL Integration 137: all passed.
 - Merge commit: 76628e5ddb995551fcf1b63eecf14bc15af71bfa.
 - Remaining P6-393 working-data candidates must be re-audited from current main before implementation; resource-spread is no longer a gap.
+
+
+### 2026-09-28 — P6 code scope persistence (PR #435)
+
+Status: **100% — implemented; runtime-verified and merged**
+
+- Added tenant/project/revision-scoped P6 code definitions and values with explicit GLOBAL/PROJECT/EPS scope metadata.
+- Added SQLite/PostgreSQL persistence, deterministic listing, immutable definitions, replay idempotency and stale-revision rejection.
+- Added focused unit tests and live PostgreSQL round-trip/isolation/rollback coverage.
+- PostgreSQL workflow now triggers for the new P6 code persistence boundary.
+- Exact head: 63d1c3f68cc8a8d66c3819bdb31a2cbf183630c7.
+- ConstructionPM CI 1800, Client Typecheck 1503, PostgreSQL Integration 139: all passed.
+- Merge commit: 8501456c12e3458e6133839d0da45be499658ee6.
+- Remaining P6 baseline work is not started until authoritative Shared Core snapshot/version semantics are reconciled.
