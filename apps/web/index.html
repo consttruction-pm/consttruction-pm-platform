@@ -11,8 +11,21 @@
     <header class="beta-toolbar">
       <div class="beta-toolbar__brand">Construction PM — V1 Beta</div>
       <div class="beta-toolbar__actions">
-        <button type="button" id="locale-en">English</button>
-        <button type="button" id="locale-fa">فارسی</button>
+        <label for="language-selector">Language</label>
+        <select id="language-selector" aria-label="Language">
+          <option value="en">English</option>
+          <option value="fa">فارسی</option>
+          <option value="ar">العربية</option>
+          <option value="he">עברית</option>
+          <option value="ur">اردو</option>
+          <option value="ps">پښتو</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="ja">日本語</option>
+          <option value="zh">中文</option>
+          <option value="ko">한국어</option>
+        </select>
         <button type="button" id="calendar-gregorian">Gregorian</button>
         <button type="button" id="calendar-jalali">Jalali</button>
       </div>
