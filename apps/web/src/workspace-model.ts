@@ -8,6 +8,7 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
+import type { UiTextDirection } from "./ui-interaction.js";
 
 export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -41,6 +42,7 @@ export type WorkspaceColumn = {
   editable: boolean;
   formula: string | null;
   width: number;
+  textDirection: UiTextDirection;
 };
 
 export type WorkspaceGanttData = {
@@ -58,6 +60,7 @@ export type WorkspaceActivityRow = {
   name: string;
   /** Display-ready typed values; the Web client never evaluates formulas. */
   cells?: Readonly<Record<string, WorkspaceCellValue>>;
+  cellDirections?: Readonly<Record<string, UiTextDirection>>;
   /** Display-only schedule result projected from Shared Core. */
   gantt?: WorkspaceGanttData;
 };
@@ -92,13 +95,13 @@ export type WorkspaceState = {
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
-  { id: "activity_id", label: "Activity ID", dataType: "text", editable: false, formula: null, width: 120 },
-  { id: "activity_code", label: "Code", dataType: "text", editable: false, formula: null, width: 100 },
-  { id: "activity_name", label: "Activity Name", dataType: "text", editable: true, formula: null, width: 260 },
-  { id: "start", label: "Start", dataType: "date", editable: false, formula: null, width: 120 },
-  { id: "finish", label: "Finish", dataType: "date", editable: false, formula: null, width: 120 },
-  { id: "duration", label: "Duration", dataType: "duration", editable: false, formula: null, width: 110 },
-  { id: "progress", label: "Progress", dataType: "decimal", editable: false, formula: null, width: 100 },
+  { id: "activity_id", label: "Activity ID", dataType: "text", editable: false, formula: null, width: 120, textDirection: "auto" },
+  { id: "activity_code", label: "Code", dataType: "text", editable: false, formula: null, width: 100, textDirection: "auto" },
+  { id: "activity_name", label: "Activity Name", dataType: "text", editable: true, formula: null, width: 260, textDirection: "auto" },
+  { id: "start", label: "Start", dataType: "date", editable: false, formula: null, width: 120, textDirection: "ltr" },
+  { id: "finish", label: "Finish", dataType: "date", editable: false, formula: null, width: 120, textDirection: "ltr" },
+  { id: "duration", label: "Duration", dataType: "duration", editable: false, formula: null, width: 110, textDirection: "ltr" },
+  { id: "progress", label: "Progress", dataType: "decimal", editable: false, formula: null, width: 100, textDirection: "ltr" },
 ];
 
 export function createWorkspaceState(
@@ -346,6 +349,7 @@ export function withActivities(
       Object.freeze({
         ...activity,
         cells: activity.cells ? Object.freeze({ ...activity.cells }) : undefined,
+        cellDirections: activity.cellDirections ? Object.freeze({ ...activity.cellDirections }) : undefined,
         gantt: activity.gantt ? Object.freeze({ ...activity.gantt }) : undefined,
       }),
     ),
