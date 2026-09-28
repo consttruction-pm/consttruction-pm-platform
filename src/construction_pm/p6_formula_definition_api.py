@@ -96,3 +96,21 @@ def _dto(record: PersistedP6FormulaDefinition) -> dict[str, Any]:
 
 
 __all__ = ["P6_FORMULA_DEFINITION_API_VERSION", "P6FormulaDefinitionAPI"]
+
+
+def _audit_dto(event: P6FormulaAuditEvent) -> dict[str, Any]:
+    return {
+        "event_id": event.event_id,
+        "scope": {
+            "tenant_id": event.scope.tenant_id,
+            "project_id": event.scope.project_id,
+            "project_revision": event.scope.project_revision,
+        },
+        "formula_id": event.formula_id,
+        "formula_version": event.formula_version,
+        "action": event.action,
+        "actor_id": event.actor_id,
+        "occurred_at": event.occurred_at.isoformat(),
+        "semantic_version": event.semantic_version,
+        "expression_sha256": event.expression_sha256,
+    }
