@@ -5,12 +5,21 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Iterable, Mapping
 
-from .calendar_context import CalendarResolverRegistry
+from .calendar_context import (
+    CalendarResolverRegistry,
+    RelationshipLagCalendar,
+)
 from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, apply_time_latest_constraints, validate_time_late_window
+
+
+@dataclass(frozen=True)
+@dataclass(frozen=True)
+class TimeScheduleOptions:
+    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.SUCCESSOR
 
 
 @dataclass(frozen=True)
@@ -104,14 +113,21 @@ def _latest_predecessor_start(
     successor_activity: TimeActivity,
     predecessor: TimeActivity,
     registry: CalendarResolverRegistry,
+    relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> datetime:
     if predecessor.calendar_context is None or successor_activity.calendar_context is None:
         raise ValueError("time-aware activities require calendar contexts")
-    # Relationship lag calendar is selected from the successor-side context.
-    lag_ref = successor_activity.calendar_context.effective_relationship_lag()
-    lag_resolver = registry.resolve(lag_ref)
-    if not isinstance(lag_resolver, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware relationship lag requires a working-time resolver")
+    lag_context = successor_activity.calendar_context
+    predecessor_context = predecessor.calendar_context
+    if predecessor_context is None:
+        raise ValueError("time-aware predecessor requires a calendar context")
+    lag_resolver = registry.resolve_relationship_lag(
+        lag_context,
+        predecessor_context.effective_activity(),
+        relationship_lag_calendar,
+    )
+    if not hasattr(lag_resolver, "add_working_hours"):
+        raise TypeError("relationship lag resolver must support working-hour arithmetic")
 
     if relationship.type is RelationshipType.FS:
         event = _inverse_lag(successor.start, relationship.lag, lag_resolver)
@@ -133,6 +149,7 @@ def time_backward_pass(
     project_finish: datetime,
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
+    relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
@@ -183,7 +200,14 @@ def time_backward_pass(
             late_finish = _add_duration(late_start, activity.duration, resolver)
         else:
             candidates = [
-                _latest_predecessor_start(rel, late[rel.successor_id], activity_map[rel.successor_id], activity, registry)
+                _latest_predecessor_start(
+                    rel,
+                    late[rel.successor_id],
+                    activity_map[rel.successor_id],
+                    activity,
+                    registry,
+                    relationship_lag_calendar,
+                )
                 for rel in rels
             ]
             late_start = min(candidates)
@@ -200,11 +224,16 @@ def time_backward_pass(
         predecessor = late[rel.predecessor_id]
         successor = late[rel.successor_id]
         lag_context = activity_map[rel.successor_id].calendar_context
-        if lag_context is None:
-            raise ValueError("time-aware successor requires a calendar context")
-        lag_resolver = registry.resolve(lag_context.effective_relationship_lag())
-        if not isinstance(lag_resolver, TimeAwareWorkingTimeResolver):
-            raise TypeError("time-aware relationship lag requires a working-time resolver")
+        predecessor_context = activity_map[rel.predecessor_id].calendar_context
+        if lag_context is None or predecessor_context is None:
+            raise ValueError("time-aware relationship activities require calendar contexts")
+        lag_resolver = registry.resolve_relationship_lag(
+            lag_context,
+            predecessor_context.effective_activity(),
+            relationship_lag_calendar,
+        )
+        if not hasattr(lag_resolver, "add_working_hours"):
+            raise TypeError("relationship lag resolver must support working-hour arithmetic")
         required = {
             RelationshipType.FS: _inverse_lag(successor.start, rel.lag, lag_resolver),
             RelationshipType.SS: _inverse_lag(successor.start, rel.lag, lag_resolver),
@@ -227,6 +256,7 @@ def calculate_time_floats(
     early: Mapping[str, TimeScheduledActivity],
     late: Mapping[str, TimeScheduledActivity],
     registry: CalendarResolverRegistry,
+    relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeFloatActivity]:
     activity_map = {a.id: a for a in activities}
     outgoing = {activity_id: [] for activity_id in activity_map}
@@ -252,9 +282,14 @@ def calculate_time_floats(
                 if rel.lag.unit is not DurationUnit.WORKING_HOUR:
                     raise NotImplementedError("time-aware float requires working-hour lag")
                 lag_context = activity_map[rel.successor_id].calendar_context
-                if lag_context is None:
-                    raise ValueError("successor requires calendar context")
-                lag_resolver = registry.resolve(lag_context.effective_relationship_lag())
+                predecessor_context = activity_map[rel.predecessor_id].calendar_context
+                if lag_context is None or predecessor_context is None:
+                    raise ValueError("relationship activities require calendar contexts")
+                lag_resolver = registry.resolve_relationship_lag(
+                    lag_context,
+                    predecessor_context.effective_activity(),
+                    relationship_lag_calendar,
+                )
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
                     # Measure slack by delaying the predecessor and checking the
                     # relationship event in the authoritative lag calendar.
@@ -316,18 +351,42 @@ def time_schedule(
     project_finish: datetime | None,
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
+    options: TimeScheduleOptions | None = None,
 ) -> TimeScheduleResult:
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
     relationship_list = list(relationships)
     constraint_list = list(constraints)
-    early = time_forward_pass(activity_list, relationship_list, project_start, registry, constraint_list)
+    selected_options = options or TimeScheduleOptions()
+    early = time_forward_pass(
+        activity_list,
+        relationship_list,
+        project_start,
+        registry,
+        constraint_list,
+        selected_options.relationship_lag_calendar,
+    )
     project_resolver = _project_resolver(activity_list[0], registry) if activity_list else None
     effective_finish = project_finish or max(item.finish for item in early.values())
     if project_resolver is not None:
         effective_finish = project_resolver.normalize_finish(effective_finish)
-    late = time_backward_pass(activity_list, relationship_list, early, effective_finish, registry, constraint_list)
-    floats = calculate_time_floats(activity_list, relationship_list, early, late, registry)
+    late = time_backward_pass(
+        activity_list,
+        relationship_list,
+        early,
+        effective_finish,
+        registry,
+        constraint_list,
+        selected_options.relationship_lag_calendar,
+    )
+    floats = calculate_time_floats(
+        activity_list,
+        relationship_list,
+        early,
+        late,
+        registry,
+        selected_options.relationship_lag_calendar,
+    )
     return TimeScheduleResult(
         activities=early,
         early_activities=early,
