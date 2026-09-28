@@ -9,8 +9,9 @@ import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 
-export type WorkspaceLocale = "fa" | "en";
+export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
+export type WorkspaceTextDirection = "ltr" | "rtl";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
@@ -64,7 +65,7 @@ export type WorkspaceActivityRow = {
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
-  direction: "rtl" | "ltr";
+  direction: WorkspaceTextDirection;
   calendarMode: WorkspaceCalendarMode;
   activeMenu: WorkspaceMenuKey;
   visiblePanels: Record<WorkspacePanel, boolean>;
@@ -104,12 +105,13 @@ export function createWorkspaceState(
   context: ProjectContext,
   locale: WorkspaceLocale = "en",
   calendarMode: WorkspaceCalendarMode = "gregorian",
+  direction: WorkspaceTextDirection = resolveDefaultDirection(locale),
 ): WorkspaceState {
   validateContext(context);
   return {
     context: Object.freeze({ ...context }),
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction,
     calendarMode,
     activeMenu: "schedule",
     visiblePanels: {
@@ -160,13 +162,18 @@ export function selectActivity(state: WorkspaceState, activityId: string | null)
   };
 }
 
-export function setLocale(state: WorkspaceState, locale: WorkspaceLocale): WorkspaceState {
+export function setLocale(
+  state: WorkspaceState,
+  locale: WorkspaceLocale,
+  direction: WorkspaceTextDirection = resolveDefaultDirection(locale),
+): WorkspaceState {
   return {
     ...state,
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction,
   };
 }
+
 
 export function setCalendarMode(
   state: WorkspaceState,
@@ -392,4 +399,10 @@ function validateCells(cells: Readonly<Record<string, WorkspaceCellValue>>): voi
       throw new Error("INVALID_ACTIVITY_CELL");
     }
   }
+}
+
+
+function resolveDefaultDirection(languageTag: WorkspaceLocale): WorkspaceTextDirection {
+  const base = languageTag.trim().toLowerCase().split("-")[0];
+  return new Set(["ar", "dv", "fa", "he", "ku", "ps", "ur", "yi"]).has(base) ? "rtl" : "ltr";
 }
