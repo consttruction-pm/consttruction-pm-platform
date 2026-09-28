@@ -43,6 +43,10 @@ class FormulaDependencyGraph:
         self._require_formula(formula_id)
         return self._edges[formula_id]
 
+    def formula_of(self, formula_id: str) -> CompiledFormula:
+        self._require_formula(formula_id)
+        return self._formulas[formula_id]
+
     def dependents_of(self, formula_id: str) -> tuple[str, ...]:
         self._require_formula(formula_id)
         dependents = [
