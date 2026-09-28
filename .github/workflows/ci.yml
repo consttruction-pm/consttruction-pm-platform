@@ -12,6 +12,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: construction_pm
+          POSTGRES_PASSWORD: construction_pm
+          POSTGRES_DB: construction_pm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U construction_pm -d construction_pm_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       fail-fast: false
       matrix:
@@ -31,4 +45,6 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
 
       - name: Run test suite
+        env:
+          P6_TEST_POSTGRES_DSN: postgresql://construction_pm:construction_pm@127.0.0.1:5432/construction_pm_test
         run: python -m pytest -q
