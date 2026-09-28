@@ -291,3 +291,84 @@ def _definition_from_row(
         return definition
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         raise P6UserDefinedFieldPersistenceError("INVALID_STORED_UDF") from exc
+
+
+class PostgresP6UserDefinedFieldRepository:
+    """Production PostgreSQL adapter for custom/UDF definitions."""
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS p6_user_defined_fields ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "registry_version TEXT NOT NULL, udf_id TEXT NOT NULL, subject_area TEXT NOT NULL, "
+            "display_name TEXT NOT NULL, data_type TEXT NOT NULL, writable BOOLEAN NOT NULL, "
+            "nullable BOOLEAN NOT NULL, unit TEXT, allowed_values_json TEXT NOT NULL, payload_json TEXT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, registry_version, udf_id))"
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_p6_udf_scope_subject "
+            "ON p6_user_defined_fields (tenant_id, project_id, registry_version, subject_area, udf_id)"
+        )
+
+    def upsert_definition(self, definition: P6UserDefinedFieldDefinition) -> P6UserDefinedFieldDefinition:
+        definition.validate()
+        payload = json.dumps(_definition_payload(definition), sort_keys=True, separators=(",", ":"))
+        row = self.connection.execute(
+            "SELECT project_revision, payload_json FROM p6_user_defined_fields "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND udf_id=%s",
+            (definition.scope.tenant_id, definition.scope.project_id, definition.registry_version, definition.udf_id),
+        ).fetchone()
+        if row is not None:
+            if int(row[0]) != definition.scope.project_revision:
+                raise P6UserDefinedFieldPersistenceError("REVISION_CONFLICT")
+            if row[1] != payload:
+                raise P6UserDefinedFieldPersistenceError("IMMUTABLE_UDF_DEFINITION")
+            return definition
+        self.connection.execute(
+            "INSERT INTO p6_user_defined_fields "
+            "(tenant_id, project_id, project_revision, registry_version, udf_id, subject_area, display_name, "
+            "data_type, writable, nullable, unit, allowed_values_json, payload_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                definition.scope.tenant_id, definition.scope.project_id, definition.scope.project_revision,
+                definition.registry_version, definition.udf_id, definition.subject_area,
+                definition.display_name, definition.data_type.value, definition.writable, definition.nullable,
+                definition.unit, json.dumps(list(definition.allowed_values), separators=(",", ":")), payload,
+            ),
+        )
+        return definition
+
+    def get_definition(self, scope: BackendScope, registry_version: str, udf_id: str) -> P6UserDefinedFieldDefinition | None:
+        scope.validate()
+        _validate_version_and_id(registry_version, udf_id)
+        row = self.connection.execute(
+            "SELECT project_revision, udf_id, subject_area, display_name, data_type, writable, nullable, unit, "
+            "allowed_values_json FROM p6_user_defined_fields "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND udf_id=%s",
+            (scope.tenant_id, scope.project_id, registry_version, udf_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[0]) != scope.project_revision:
+            raise P6UserDefinedFieldPersistenceError("REVISION_CONFLICT")
+        return _definition_from_row(scope, registry_version, row)
+
+    def list_definitions(self, scope: BackendScope, registry_version: str, subject_area: str | None = None) -> tuple[P6UserDefinedFieldDefinition, ...]:
+        scope.validate()
+        _validate_registry_version(registry_version)
+        if subject_area is not None and (not isinstance(subject_area, str) or not subject_area.strip()):
+            raise P6UserDefinedFieldPersistenceError("INVALID_SUBJECT_AREA")
+        query = (
+            "SELECT project_revision, udf_id, subject_area, display_name, data_type, writable, nullable, unit, "
+            "allowed_values_json FROM p6_user_defined_fields "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND project_revision=%s"
+        )
+        params: tuple[object, ...] = (scope.tenant_id, scope.project_id, registry_version, scope.project_revision)
+        if subject_area is not None:
+            query += " AND subject_area=%s"
+            params += (subject_area,)
+        rows = self.connection.execute(query + " ORDER BY udf_id", params).fetchall()
+        return tuple(_definition_from_row(scope, registry_version, row) for row in rows)
