@@ -57,6 +57,7 @@ test("smart guide projects traceable findings and approval-safe actions", () => 
   assert.equal(guide.contractVersion, SMART_GUIDE_VERSION);
   assert.equal(guide.module, "schedule");
   assert.equal(guide.locale, "fa");
+  assert.equal(guide.textDirection, "auto");
   assert.equal(guide.sourceCount, 1);
   assert.equal(guide.approvalRequiredCount, 1);
   assert.equal(guide.findings[0]?.finding_id, "f-1");
