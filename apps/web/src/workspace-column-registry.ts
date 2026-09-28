@@ -13,6 +13,28 @@ export type WorkspaceColumnDescriptor = Readonly<{
   unit: string | null;
 }>;
 
+export function buildWorkspaceColumnsFromFieldCatalog(
+  fields: readonly P6FieldCatalogEntry[],
+): readonly {
+  id: string;
+  label: string;
+  dataType: P6FieldDataType;
+  editable: boolean;
+  formula: string | null;
+  width: number;
+}[] {
+  return Object.freeze(
+    fields.map((field) => Object.freeze({
+      id: field.id,
+      label: field.label,
+      dataType: field.dataType === "integer" ? "integer" : field.dataType === "decimal" || field.dataType === "double" || field.dataType === "percentage" || field.dataType === "cost" || field.dataType === "unit" ? "decimal" : field.dataType === "date" || field.dataType === "datetime" ? "date" : field.dataType === "duration" ? "duration" : field.dataType === "boolean" ? "boolean" : "text",
+      editable: field.writable && !field.computed,
+      formula: null,
+      width: field.dataType === "duration" ? 110 : field.dataType === "date" || field.dataType === "datetime" ? 120 : 140,
+    })),
+  );
+}
+
 export function buildWorkspaceColumnCatalog(
   subjectArea: string,
   fields: readonly P6FieldCatalogEntry[],
