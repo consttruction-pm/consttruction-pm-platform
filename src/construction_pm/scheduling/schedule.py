@@ -304,6 +304,69 @@ def _free_float(
     return max(0, min(limits))
 
 
+
+def _relationship_is_driving(
+    relationship: Relationship,
+    predecessor: ScheduledActivity,
+    successor: ScheduledActivity,
+    resolver: WorkingTimeResolver,
+) -> bool:
+    """Return True when the relationship exactly determines the successor event."""
+    if relationship.type is RelationshipType.FS:
+        required = _apply_lag_after(predecessor.finish, relationship.lag, resolver)
+        return successor.start == required
+    if relationship.type is RelationshipType.SS:
+        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        return successor.start == required
+    if relationship.type is RelationshipType.FF:
+        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        return successor.finish == required
+    if relationship.type is RelationshipType.SF:
+        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        return successor.finish == required
+    raise ValueError(f"unsupported relationship type: {relationship.type}")
+
+
+def _longest_path_activity_ids(
+    activities: Iterable[Activity],
+    relationships: Iterable[Relationship],
+    early_schedule: Mapping[str, ScheduledActivity],
+    resolver: WorkingTimeResolver,
+) -> frozenset[str]:
+    """Trace P6-style driving relationships from the latest early finishes."""
+    activity_list = list(activities)
+    activity_map = {activity.id: activity for activity in activity_list}
+    incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    for relationship in relationships:
+        if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
+            raise ValueError("relationship references an unknown activity")
+        incoming[relationship.successor_id].append(relationship)
+
+    latest_early_finish = max(item.finish for item in early_schedule.values())
+    longest: set[str] = {
+        activity_id
+        for activity_id, scheduled in early_schedule.items()
+        if scheduled.finish == latest_early_finish
+    }
+
+    stack = sorted(longest, reverse=True)
+    while stack:
+        successor_id = stack.pop()
+        successor = early_schedule[successor_id]
+        for relationship in sorted(
+            incoming[successor_id],
+            key=lambda item: (item.predecessor_id, item.successor_id, item.type.value, item.lag),
+            reverse=True,
+        ):
+            predecessor_id = relationship.predecessor_id
+            if predecessor_id in longest:
+                continue
+            predecessor = early_schedule[predecessor_id]
+            if _relationship_is_driving(relationship, predecessor, successor, resolver):
+                longest.add(predecessor_id)
+                stack.append(predecessor_id)
+    return frozenset(longest)
+
 def calculate_floats(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -314,10 +377,11 @@ def calculate_floats(
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
-    if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
-        raise NotImplementedError(
-            "LONGEST_PATH criticality is registered but not yet implemented by this scheduler slice"
-        )
+    longest_path_ids = (
+        _longest_path_activity_ids(activities, relationships, early_schedule, resolver)
+        if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
+        else frozenset()
+    )
 
     activity_map = {activity.id: activity for activity in activities}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -342,6 +406,17 @@ def calculate_floats(
             activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
         )
         free = max(0, min(total, free))
+        if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
+            critical = activity_id in longest_path_ids
+        else:
+            critical = (
+                total <= selected_options.critical_activity_float_threshold
+                or (
+                    selected_options.make_open_ended_activities_critical
+                    and not outgoing[activity_id]
+                )
+            )
+
         result[activity_id] = FloatActivity(
             activity_id=activity_id,
             early_start=early.start,
@@ -350,13 +425,7 @@ def calculate_floats(
             late_finish=late.finish,
             total_float=total,
             free_float=free,
-            critical=(
-                total <= selected_options.critical_activity_float_threshold
-                or (
-                    selected_options.make_open_ended_activities_critical
-                    and not outgoing[activity_id]
-                )
-            ),
+            critical=critical,
         )
     return result
 
