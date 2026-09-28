@@ -5,6 +5,7 @@ import type {
   WorkspaceGanttData,
   WorkspaceState,
 } from "./workspace-model.js";
+import type { UiTextDirection } from "./ui-interaction.js";
 
 export const WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION = "workspace-control-room.v1" as const;
 
@@ -36,7 +37,7 @@ export type WorkspaceControlRoomActivity = {
   name: string;
   cells: Readonly<Record<string, WorkspaceCellValue>>;
   gantt: WorkspaceGanttData | null;
-  cell_directions: Readonly<Record<string, WorkspaceActivityRow["cellDirections"] extends infer _T ? string : string>>;
+  cell_directions: Readonly<Record<string, UiTextDirection>>;
 };
 
 export function createWorkspaceControlRoomSnapshot(
