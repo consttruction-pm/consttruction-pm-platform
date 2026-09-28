@@ -163,6 +163,42 @@ def test_reject_status_fails_closed_in_both_directions() -> None:
         reject.export_row(export_row)
 
 
+def test_ambiguous_source_or_canonical_mapping_is_rejected() -> None:
+    duplicate_source = mapping(
+        "activity.code.alias",
+        source="task_code",
+        canonical="activity.code.alias",
+        status=P6MappingStatus.SUPPORTED,
+    )
+    with pytest.raises(
+        P6InterchangeCompatibilityError,
+        match="AMBIGUOUS_SOURCE_FIELD:XER_PROJECT:task_code",
+    ):
+        P6InterchangeMapper((mapping(
+            "activity.code",
+            source="task_code",
+            canonical="activity.code",
+            status=P6MappingStatus.SUPPORTED,
+        ), duplicate_source))
+
+    duplicate_canonical = mapping(
+        "activity.code.alias",
+        source="other_task_code",
+        canonical="activity.code",
+        status=P6MappingStatus.SUPPORTED,
+    )
+    with pytest.raises(
+        P6InterchangeCompatibilityError,
+        match="AMBIGUOUS_CANONICAL_FIELD:XER_PROJECT:activity.code",
+    ):
+        P6InterchangeMapper((mapping(
+            "activity.code",
+            source="task_code",
+            canonical="activity.code",
+            status=P6MappingStatus.SUPPORTED,
+        ), duplicate_canonical))
+
+
 def test_mapping_scope_mismatch_is_rejected() -> None:
     other = PersistedP6Mapping(
         scope=BackendScope(tenant_id="other", project_id="p1", project_revision=4),
