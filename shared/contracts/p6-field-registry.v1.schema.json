@@ -41,7 +41,8 @@
           "display_name",
           "data_type",
           "writable",
-          "computed"
+          "computed",
+          "disposition"
         ],
         "properties": {
           "field_id": {
@@ -91,6 +92,43 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "reference_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "read_only": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "filterable": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "orderable": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "nullable": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "disposition": {
+            "enum": [
+              "seeded_not_certified",
+              "implemented",
+              "equivalent_superset",
+              "outside_scope",
+              "pending"
             ]
           }
         }
