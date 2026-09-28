@@ -921,3 +921,11 @@ Status: **implemented and runtime-verified**
 - PR #409 is the active Shared/Core P6 formula-semantics prerequisite. Exact head aa46cc3aecf16152e7651fb15dc7fe46eaced899 passed ConstructionPM CI 1702 and Client Typecheck 1405, but remains unmerged. Backend formula persistence/API work is therefore intentionally blocked on the authoritative contract rather than duplicated.
 - P6-3 Column/View/Layout remains Javad-owned. P6-7 interchange remains a later Hasan gate and must consume the authoritative versioned field/mapping registry rather than inventing a parallel metadata source.
 - This checkpoint records an evidence-backed blocker/ownership boundary; it does not mark P6 parity complete.
+
+
+### 2026-09-28 — P6 Shared/Core formula prerequisite reconciliation
+
+- PR #409 is closed without merge and is no longer an active prerequisite.
+- PR #411 is the current Jalal-owned Shared/Core formula field-type bridge. Exact head `1b053f8f5e20c63c1fafc8d81cc45b89b2a5f41e` passed ConstructionPM CI **1713** and Client Typecheck **1416** and is mergeable, but remains unmerged.
+- Hasan formula persistence/API implementation remains intentionally gated on the merged authoritative Shared/Core contract. No duplicate formula semantics are introduced in Backend/API.
+- PR #395 remains an older non-mergeable Field Registry prerequisite and is not revived.
