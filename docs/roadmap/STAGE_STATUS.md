@@ -912,3 +912,12 @@ Status: **implemented and runtime-verified**
 - P6-2 now has SQLite + PostgreSQL persistence for the Field Registry, UDF definitions and typed UDF values, plus the versioned API boundary.
 - The remaining P6-2 acceptance item is compatibility/version migration. Do not invent a target version; first wait for or reconcile an authoritative Shared/Core registry version transition before implementing a concrete migration.
 - P6-3 Column/View/Layout remains Javad-owned; P6-4 Formula semantics remain Shared Core/Jalal-owned unless a concrete Hasan-owned persistence/API dependency is established.
+
+
+### 2026-09-28 — P6 backend continuation gate: evidence/ownership blocker
+
+- PR #410 P6-2 PostgreSQL persistence is complete and runtime-verified; SQLite + PostgreSQL Field Registry/UDF persistence, typed UDF values and the versioned API boundary are already on main.
+- The remaining P6-2 compatibility/version-migration acceptance item has no authoritative target registry version transition yet. No migration is implemented until such a transition exists.
+- PR #409 is the active Shared/Core P6 formula-semantics prerequisite. Exact head aa46cc3aecf16152e7651fb15dc7fe46eaced899 passed ConstructionPM CI 1702 and Client Typecheck 1405, but remains unmerged. Backend formula persistence/API work is therefore intentionally blocked on the authoritative contract rather than duplicated.
+- P6-3 Column/View/Layout remains Javad-owned. P6-7 interchange remains a later Hasan gate and must consume the authoritative versioned field/mapping registry rather than inventing a parallel metadata source.
+- This checkpoint records an evidence-backed blocker/ownership boundary; it does not mark P6 parity complete.
