@@ -14,6 +14,18 @@ const manifest=():LanguagePackManifest=>({
  resources:{translation:"translation.json",glossary:"glossary.json",help:"help.json",reports:"reports.json",voice_input:null,voice_output:null,offline_ai_model:null},
  integrity:{checksum,signature:"sig",signing_key_id:"key-1"},
  capabilities:{ui:true,help:true,ai_text:true,voice_input:false,voice_output:false,offline_ai:false},
+ typography:{
+    font_family:"Vazirmatn",
+    fallback_families:["Noto Sans Arabic","Tahoma","Arial","sans-serif"],
+    font_style:"normal",
+    font_weight:400,
+    line_height:"1.7",
+    letter_spacing:"normal",
+    font_feature_settings:"normal",
+    font_variant_ligatures:"common-ligatures",
+    font_kerning:"auto",
+    font_resources:[]
+  },
 });
 const resources=()=>[
  {path:"translation.json",bytes:new Uint8Array([1])},{path:"glossary.json",bytes:new Uint8Array([2])},
