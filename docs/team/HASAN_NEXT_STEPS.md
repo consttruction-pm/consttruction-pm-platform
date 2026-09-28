@@ -285,3 +285,25 @@ Re-read current `main`, Hasan execution instructions and open PRs before the nex
 - Once the authoritative P6 registry prerequisite is merged and current `main` is re-read, Hasan's first implementation slice under #393 is persistence/API/import-export for the registry metadata, with tenant/project scope, versioning, typed values, revision/concurrency and deterministic round-trip behavior.
 - Do not redefine P6 scheduling/calendar/formula semantics in the backend. Consume the Shared Core contracts from the owning track.
 - Do not start a backend branch from an unmerged Jalal PR or resurrect stale PR #384; start from the current `main` after the prerequisite is merged.
+
+
+### 2026-09-28 — P6-2 Typed Field/UDF Backend Slice (PRs #400, #406, #407, #408)
+
+Status: **implemented and runtime-verified through the completed persistence/API slices**
+
+- PR #400 added tenant/project/revision-scoped persistence for the Shared/Core P6 Field Registry. It preserves typed metadata, registry version and immutable definitions, and rejects stale revision access with `REVISION_CONFLICT`.
+- PR #400 final implementation head `5a57766c5c0198c81c79afb29203cb204009cb60` passed ConstructionPM CI **1688** and Client Typecheck **1391**; merge commit: `20d2d59f7cd3b122ada09ab0be4e3e5b6def86ba`.
+- PR #406 added tenant/project/revision-scoped custom/UDF definition persistence with typed data type, nullability, unit and enum-domain metadata. ConstructionPM CI **1690** and Client Typecheck **1393** passed; merge commit: `01c4b74f2f1c7a04e9465fc3ab26cc46ec600894`.
+- PR #407 added the versioned P6 Field Registry API boundary for standard fields and UDF definitions, including project.read/project.write authorization and cross-scope rejection. ConstructionPM CI **1692** and Client Typecheck **1395** passed; merge commit: `1da1ce3db870b0a09d7894cd07bed53cf59edc9f`.
+- PR #408 added typed UDF value persistence for Date, DateTime, Decimal, Integer, Boolean, Enum and Duration storage, preserving duration value/unit without performing calendar conversion. Its initial CI exposed a real exception-boundary mismatch for stale revisions; the final correction normalized that error at the value boundary. Final head `f148e023ba443065b2b3f21d8fdd4f66f384c8ce` passed ConstructionPM CI **1695** and Client Typecheck **1398**; merge commit: `f60d1708adfea0d559d54e9de8434aa11ad08daf`.
+- No Scheduling/P6 calculation semantics, Calendar arithmetic, Progress/EVM, Resource/Cost or financial formulas were moved into persistence/API.
+- Do not repeat the four completed slices above.
+
+### Current Backend Continuation Point
+
+- Current `main`: `f60d1708adfea0d559d54e9de8434aa11ad08daf`.
+- P6-2 now has the field-registry persistence, UDF definition persistence, versioned API boundary and typed UDF value storage slices.
+- Remaining P6-2 work must be selected only after a fresh current-main/open-PR inspection. In particular, verify whether compatibility/version migration or another concrete typed persistence gap is actually missing before implementation.
+- P6-3 Column/View/Layout remains Javad-owned; do not duplicate it.
+- P6-4 Formula semantics remain Shared Core/Jalal-owned; Hasan may only implement a concrete persistence/API dependency after the authoritative Shared/Core contract exists.
+- Continue with the first concrete Hasan-owned gap; do not revive stale PRs or invent a numbered stage.
