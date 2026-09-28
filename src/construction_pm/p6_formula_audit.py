@@ -117,13 +117,20 @@ class SQLiteP6FormulaAuditRepository:
                 (tenant_id, project_id, formula_id, occurred_at, event_id)
             """
         )
+        self.connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_p6_formula_audit_version_action
+                ON p6_formula_audit_events
+                (tenant_id, project_id, formula_id, formula_version, action)
+            """
+        )
         self.connection.commit()
 
     def record(self, event: P6FormulaAuditEvent) -> P6FormulaAuditEvent:
         event.validate()
         self.connection.execute(
             """
-            INSERT INTO p6_formula_audit_events (
+            INSERT OR IGNORE INTO p6_formula_audit_events (
                 event_id, tenant_id, project_id, project_revision,
                 formula_id, formula_version, action, actor_id, occurred_at,
                 semantic_version, expression_sha256
@@ -189,6 +196,11 @@ class PostgresP6FormulaAuditRepository:
             "ON p6_formula_audit_events "
             "(tenant_id, project_id, formula_id, occurred_at, event_id)"
         )
+        self.connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_p6_formula_audit_version_action "
+            "ON p6_formula_audit_events "
+            "(tenant_id, project_id, formula_id, formula_version, action)"
+        )
 
     def record(self, event: P6FormulaAuditEvent) -> P6FormulaAuditEvent:
         event.validate()
@@ -196,7 +208,8 @@ class PostgresP6FormulaAuditRepository:
             "INSERT INTO p6_formula_audit_events "
             "(event_id, tenant_id, project_id, project_revision, formula_id, formula_version, "
             "action, actor_id, occurred_at, semantic_version, expression_sha256) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id, project_id, formula_id, formula_version, action) DO NOTHING",
             (
                 event.event_id,
                 event.scope.tenant_id,
