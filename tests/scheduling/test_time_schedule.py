@@ -579,7 +579,7 @@ def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
     )
     registry = CalendarResolverRegistry(
         time_resolvers={
-            "project@1": calendar(((time(9), time(18)),)),
+            "project@1": calendar(((time(6), time(15)),)),
             "predecessor@1": calendar(((time(8), time(17)),)),
             "successor@1": calendar(((time(7), time(11)), (time(12), time(16)))),
         }
