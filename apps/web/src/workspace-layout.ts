@@ -48,13 +48,14 @@ export function createDefaultLayout(
   catalog: readonly P6FieldCatalogEntry[],
 ): WorkspaceLayout {
   assertRevision(revision);
+  const subjectCatalog = catalog.filter((field) => field.subjectArea === subjectArea);
   return Object.freeze({
     contract_version: WORKSPACE_LAYOUT_VERSION,
     layout_id: layoutId,
     subject_area: subjectArea,
     scope,
     revision,
-    columns: Object.freeze(catalog.map((field, order) => Object.freeze({
+    columns: Object.freeze(subjectCatalog.map((field, order) => Object.freeze({
       fieldId: field.id,
       visible: true,
       order,
@@ -85,15 +86,16 @@ export function migrateWorkspaceLayout(
   const scope = legacy.scope;
   if (scope !== "global" && scope !== "project" && scope !== "user") throw new Error("INVALID_WORKSPACE_LAYOUT_SCOPE");
 
+  const subjectCatalog = catalog.filter((field) => field.subjectArea === subjectArea);
   const rawColumns = Array.isArray(legacy.columns) ? legacy.columns : [];
-  const known = new Map(catalog.map((field) => [field.id, field]));
+  const known = new Map(subjectCatalog.map((field) => [field.id, field]));
   const migrated = rawColumns
     .filter(isRecord)
     .map((column, index) => normalizeColumn(column, index))
     .filter((column) => known.has(column.fieldId));
 
   const byId = new Map(migrated.map((column) => [column.fieldId, column]));
-  const columns = catalog.map((field, catalogIndex) => {
+  const columns = subjectCatalog.map((field, catalogIndex) => {
     const existing = byId.get(field.id);
     return existing ?? {
       fieldId: field.id,
