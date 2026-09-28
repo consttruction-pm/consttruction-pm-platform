@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BETA_NAVIGATION, getBetaMenu } from "./beta-navigation.js";
+import { BETA_NAVIGATION, getBetaMenu, getBetaSubmenuLabel } from "./beta-navigation.js";
 
 test("V1 beta navigation contains every top-level workspace menu", () => {
   const keys = BETA_NAVIGATION.map((menu) => menu.key);
@@ -43,4 +43,13 @@ test("schedule submenu exposes core P6 workflow surfaces", () => {
       "schedule.gantt",
     ],
   );
+});
+
+
+test("submenu labels have Persian localization with English fallback", () => {
+  const schedule = getBetaMenu("schedule");
+  const activities = schedule.items.find((item) => item.id === "schedule.activities");
+  assert.ok(activities);
+  assert.equal(getBetaSubmenuLabel(activities, "fa"), "فعالیت‌ها");
+  assert.equal(getBetaSubmenuLabel(activities, "en"), "Activities");
 });
