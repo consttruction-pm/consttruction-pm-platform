@@ -58,3 +58,28 @@ test("layout store round-trips a saved layout", () => {
   store.save("global:activity", layout);
   assert.deepEqual(store.load("global:activity"), layout);
 });
+
+test("layout rejects fields from another subject area", () => {
+  const layout = createDefaultLayout("activity-default", "activity", "project", 0, catalog);
+  assert.throws(
+    () => addColumn(layout, {
+      ...catalog[0],
+      id: "wbs.code",
+      subjectArea: "WBS",
+    }),
+    /FIELD_SUBJECT_AREA_MISMATCH/,
+  );
+});
+
+test("layout rejects unknown future contract versions", () => {
+  assert.throws(
+    () => migrateWorkspaceLayout({
+      contract_version: "workspace-layout.v99",
+      layout_id: "activity-user",
+      subject_area: "activity",
+      scope: "user",
+      columns: [],
+    }, catalog, 4),
+    /UNSUPPORTED_WORKSPACE_LAYOUT_VERSION/,
+  );
+});
