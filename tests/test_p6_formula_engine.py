@@ -262,6 +262,16 @@ def test_power_requires_integer_unitless_exponent_and_composes_units() -> None:
     with pytest.raises(FormulaTypeError, match="POWER_EXPONENT_MUST_BE_UNITLESS"):
         _compile("[quantity] ^ [unit_rate]")
 
+    dynamic_schema = {
+        "quantity": FormulaSchemaValue(FormulaType.NUMBER, "m3"),
+        "exponent": FormulaSchemaValue(FormulaType.NUMBER),
+    }
+    with pytest.raises(FormulaTypeError, match="POWER_UNIT_EXPONENT_MUST_BE_LITERAL"):
+        compile_formula(
+            FormulaDefinition("dynamic.power", "1.0", "[quantity] ^ [exponent]", FormulaType.NUMBER),
+            dynamic_schema,
+        )
+
 
 def test_invalid_unit_syntax_fails_closed() -> None:
     with pytest.raises(FormulaTypeError, match="INVALID_UNIT"):
