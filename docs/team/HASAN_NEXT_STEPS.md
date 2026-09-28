@@ -420,3 +420,13 @@ Status: **implemented, merged and runtime-verified**
 - Expense persistence and Activity Resource Assignment persistence are now merged; do not repeat them.
 - Baseline comparison persistence remains blocked until an authoritative Shared Core baseline snapshot/version contract exists.
 - Continue from the next concrete P6 working-data surface on current main, with Role/Assignment/Document/Issue/Work Product coverage reconciled before implementation and no duplication of Shared Core or client-owned semantics.
+
+
+### 2026-09-28 — Current-main reconciliation after P6 persistence continuation
+
+- Current main is `c35d6e3374109511f833823118e62a9bafe27634` after the Expense persistence and Activity Resource Assignment continuations.
+- PR #448 merged the P6 Expense persistence boundary as `8264965ebe3cc9fefaab2978baaebcf677f73e88`; Expense persistence is complete and must not be repeated.
+- PR #449 merged the Activity Resource Assignment persistence boundary as `b24c0ecbeabe806e05f27d31b48df662d47a31c1`; resource-assignment persistence is complete and must not be repeated.
+- Stale PR #444 was closed because its branch diverged from current main and duplicated the already-merged Expense boundary from #448.
+- Baseline comparison persistence remains explicitly blocked: no authoritative Shared Core baseline snapshot/version contract is currently established for Backend/API consumption. Backend must not invent baseline comparison or scheduling semantics.
+- Before any new P6 persistence slice, reconcile Role/Assignment/Document/Issue/Work Product against current main and open work. Implement only a concrete Hasan-owned boundary with authoritative contract evidence, focused tests, PostgreSQL verification, and documentation.
