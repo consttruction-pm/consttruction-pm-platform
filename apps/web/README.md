@@ -10,7 +10,7 @@ Initial responsibilities:
 - typed API contract consumption
 - ProjectContext/session propagation
 - stable error and conflict presentation
-- Persian/English localization
+- fully multilingual localization with language-pack fallback and RTL/LTR text direction
 - Jalali/Gregorian presentation
 - parity with Desktop capabilities
 
