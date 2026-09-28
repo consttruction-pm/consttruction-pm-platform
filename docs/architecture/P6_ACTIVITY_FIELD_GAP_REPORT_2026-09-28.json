@@ -152,5 +152,9 @@
       "blocking_issue": "Release 26 inventory uses LastUpdateUser; exact registry alias/interchange mapping remains pending."
     }
   ],
-  "next_tranche": "Build the complete 275-name Activity inventory artifact from ActivityFieldType, then reconcile every registry seed and classify each official field as exact, candidate alias, product-specific alias, or unresolved before any certification."
+  "next_tranche": "Build the complete 275-name Activity inventory artifact from ActivityFieldType, then reconcile every registry seed and classify each official field as exact, candidate alias, product-specific alias, or unresolved before any certification.",
+  "gap_manifest_entry_count": 123,
+  "gap_manifest_coverage_status": "partial",
+  "unmaterialized_inventory_count": 122,
+  "coverage_note": "The 245 missing-from-registry count is derived from the 275-field authoritative inventory minus 30 exact registry-name matches. The current gap manifest materializes 123 of those 245 names; 122 inventory names remain to be materialized/reconciled in a later tranche."
 }
