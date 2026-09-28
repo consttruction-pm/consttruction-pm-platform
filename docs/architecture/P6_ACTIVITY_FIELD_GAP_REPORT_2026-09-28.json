@@ -92,5 +92,65 @@
     }
   ],
   "confirmed_mapping_status": "candidate_only_not_certified",
-  "mapping_rule": "Candidate mappings are evidence-backed reconciliation hypotheses only. They must not change registry P6 field identity, disposition, type, mutability, computed status, or implementation certification until interchange and regression evidence is complete."
+  "mapping_rule": "Candidate mappings are evidence-backed reconciliation hypotheses only. They must not change registry P6 field identity, disposition, type, mutability, computed status, or implementation certification until interchange and regression evidence is complete.",
+  "inventory_authority": {
+    "source": "Oracle P6 EPPM REST API Release 26 — Export Projects / ActivityFieldType",
+    "evidence_lines": "961-1235",
+    "interpretation": "The ActivityFieldType enum is the authoritative Release 26 export/interchange inventory for this reconciliation tranche. The 275-field count is an inventory count, not an implementation count."
+  },
+  "reconciliation_findings": [
+    {
+      "registry_name": "ActivityId",
+      "canonical_status": "unresolved",
+      "candidates": [
+        "Id"
+      ],
+      "blocking_issue": "Id is the short activity ID; ObjectId is the unique object identifier. Registry type/identity must be reconciled before aliasing."
+    },
+    {
+      "registry_name": "ActivityOwner",
+      "canonical_status": "unresolved",
+      "candidates": [
+        "ActivityOwnerUserId",
+        "OwnerIDArray",
+        "OwnerNamesArray"
+      ],
+      "blocking_issue": "Release 26 exposes multiple owner-related fields; current string registry metadata is insufficient to choose a canonical mapping."
+    },
+    {
+      "registry_name": "Calendar",
+      "canonical_status": "unresolved",
+      "candidates": [
+        "CalendarName",
+        "CalendarObjectId"
+      ],
+      "blocking_issue": "Calendar is a product seed name; P6 exposes both calendar name and object ID."
+    },
+    {
+      "registry_name": "RemainingStartDate",
+      "canonical_status": "candidate_alias",
+      "candidates": [
+        "RemainingEarlyStartDate"
+      ],
+      "blocking_issue": "Exact canonical mapping is still pending interchange/regression evidence."
+    },
+    {
+      "registry_name": "RemainingFinishDate",
+      "canonical_status": "unresolved",
+      "candidates": [
+        "RemainingEarlyFinishDate",
+        "RemainingLateFinishDate"
+      ],
+      "blocking_issue": "Release 26 does not expose a field literally named RemainingFinishDate in the ActivityFieldType inventory."
+    },
+    {
+      "registry_name": "UpdateUser",
+      "canonical_status": "candidate_alias",
+      "candidates": [
+        "LastUpdateUser"
+      ],
+      "blocking_issue": "Release 26 inventory uses LastUpdateUser; exact registry alias/interchange mapping remains pending."
+    }
+  ],
+  "next_tranche": "Build the complete 275-name Activity inventory artifact from ActivityFieldType, then reconcile every registry seed and classify each official field as exact, candidate alias, product-specific alias, or unresolved before any certification."
 }
