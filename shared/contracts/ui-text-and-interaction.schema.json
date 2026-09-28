@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://construction-pm.local/contracts/v1/ui-text-and-interaction.schema.json",
-  "title": "Construction PM Multilingual Text and Interaction Contract",
+  "title": "Construction PM Multilingual Text Direction and Interaction Contract",
   "type": "object",
   "required": [
     "language_tag",
     "text_direction",
     "mouse_interaction",
-    "keyboard_interaction"
+    "keyboard_interaction",
+    "directional_surfaces"
   ],
   "properties": {
     "language_tag": {
@@ -19,7 +20,8 @@
         "auto",
         "ltr",
         "rtl"
-      ]
+      ],
+      "description": "Base writing direction for this UI/text surface: automatic, left-to-right, or right-to-left."
     },
     "mouse_interaction": {
       "type": "object",
@@ -70,6 +72,38 @@
           "error"
         ]
       }
+    },
+    "directional_surfaces": {
+      "type": "object",
+      "required": [
+        "menu",
+        "field",
+        "help"
+      ],
+      "properties": {
+        "menu": {
+          "enum": [
+            "auto",
+            "ltr",
+            "rtl"
+          ]
+        },
+        "field": {
+          "enum": [
+            "auto",
+            "ltr",
+            "rtl"
+          ]
+        },
+        "help": {
+          "enum": [
+            "auto",
+            "ltr",
+            "rtl"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
