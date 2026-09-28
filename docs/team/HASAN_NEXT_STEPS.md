@@ -451,3 +451,26 @@ Status: **implemented, runtime-verified and merged**
 - Baseline **metadata persistence** is complete; do not repeat it.
 - Baseline comparison/variance/selection calculation remains blocked until an authoritative Shared Core snapshot/version contract exists. Backend/API must not invent those semantics.
 - Continue with a fresh current-main/open-work inspection for the next concrete Hasan-owned P6 working-data surface.
+
+
+### 2026-09-28 — P6 code assignment persistence and PostgreSQL verification (PRs #468–#471)
+
+Status: **implemented, runtime-verified and merged**
+
+- PR #468 added tenant/project/project-revision scoped P6 code assignments with immutable assignment identity and deterministic reads.
+- PR #469 added the application transaction boundary for code-assignment save/read/list operations.
+- PR #470 changed SQLite/PostgreSQL upsert to an atomic insert-or-ignore/on-conflict path followed by read-back, preserving immutable metadata behavior.
+- PR #471 added live PostgreSQL verification for code-assignment round trips, scope/revision isolation, immutable metadata and the atomic conflict/replay path from independent connections.
+- ConstructionPM CI #2003 passed on Python 3.11, 3.12 and 3.13; Client Typecheck #1706 passed.
+- PR #471 merged as `6762d4d9d03142611dea4e5af2c67161d3e62f8a`.
+- The #471 independent-connection test verifies the conflict/replay path; it is not a simultaneous-write stress test.
+- No P6 scheduling, calendar, formula, progress/EVM, resource/cost or financial calculation semantics were introduced.
+
+### Current P6 Backend Continuation
+
+- Code definitions and code assignments are complete; do not repeat them.
+- Baseline metadata persistence is complete; baseline comparison/variance/selection calculation remains blocked until an authoritative Shared Core snapshot/version contract exists.
+- P6-7 interchange codecs and round-trip conformance fixtures are already merged; do not recreate them.
+- Before another P6 persistence slice, reconcile the remaining Role/Assignment/Document/Issue/Work Product surfaces and active Shared/Core prerequisites against current `main`.
+- Implement only the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration boundary with authoritative contract evidence, focused tests, PostgreSQL verification where applicable, and documentation.
+- If no concrete backend gap exists, record the ownership/blocker instead of inventing a feature or reviving stale PRs.
