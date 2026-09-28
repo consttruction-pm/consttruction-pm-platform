@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { ApiWorkspaceLayoutStore } from "./workspace-layout-persistence.js";
 import { createDefaultLayout } from "./workspace-layout.js";
 
-const catalog = [{ id: "activity_id", source: "standard" as const, dataType: "string" as const, subjectArea: "activity", label: "Activity ID", writable: false, computed: false, unit: null, filterable: true, orderable: true }];
+const catalog = [{ id: "activity_id", source: "standard" as const, dataType: "string" as const, subjectArea: "activity", label: "Activity ID", writable: false, computed: false, unit: null, nullable: null, allowedValues: [], p6Field: "ActivityId", filterable: true, orderable: true }];
 
 test("API layout store rejects stale client revision before save", async () => {
   let called = false;
