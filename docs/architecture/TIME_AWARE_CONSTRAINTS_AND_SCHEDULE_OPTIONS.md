@@ -49,9 +49,6 @@ Existing date-based constraints remain unchanged. Time-aware constraints are a s
 
 ## Remaining gates
 
-- formal time-aware schedule-options contract;
-- complete portability schema for per-activity time quantities and constraint targets;
-- cross-client API regression pack;
 - remaining P6 ScheduleOptions semantics (multiple float paths, out-of-sequence scheduling, lag-calendar variants, expected-finish handling, multi-project/resource-leveling options, etc.);
 - formal time-aware schedule-options contract;
 - complete portability schema for per-activity time quantities and constraint targets;
