@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from enum import Enum
 from typing import Mapping
@@ -27,6 +28,8 @@ class FormulaType(str, Enum):
     BOOLEAN = "boolean"
     NUMBER = "number"
     TEXT = "text"
+    DATE = "date"
+    DATETIME = "datetime"
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,18 @@ class FormulaValue:
         if not isinstance(value, str):
             raise FormulaTypeError("TEXT_VALUE_REQUIRED")
         return FormulaValue(FormulaType.TEXT, value)
+
+    @staticmethod
+    def date(value: date) -> "FormulaValue":
+        if isinstance(value, datetime) or not isinstance(value, date):
+            raise FormulaTypeError("DATE_VALUE_REQUIRED")
+        return FormulaValue(FormulaType.DATE, value)
+
+    @staticmethod
+    def datetime(value: datetime) -> "FormulaValue":
+        if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+            raise FormulaTypeError("TIMEZONE_AWARE_DATETIME_REQUIRED")
+        return FormulaValue(FormulaType.DATETIME, value)
 
     def require_number(self) -> Decimal:
         if self.type is not FormulaType.NUMBER:
