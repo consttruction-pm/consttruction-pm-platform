@@ -76,9 +76,11 @@ export function validateLanguagePackManifest(value: unknown): LanguagePackManife
   if (typography.font_kerning !== "auto" && typography.font_kerning !== "normal" && typography.font_kerning !== "none") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
   if (!Array.isArray(typography.font_resources)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
   for (const font of typography.font_resources) {
-    if (!isRecord(font) || typeof font.family !== "string" || typeof font.uri !== "string" || typeof font.format !== "string" || typeof font.weight !== "number" || !Number.isInteger(font.weight) || font.weight < 1 || font.weight > 1000 || !["normal", "italic", "oblique"].includes(font.style)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    if (!isRecord(font)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    if (typeof font.family !== "string" || typeof font.uri !== "string" || typeof font.format !== "string" || typeof font.weight !== "number" || !Number.isInteger(font.weight) || font.weight < 1 || font.weight > 1000 || typeof font.style !== "string") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
     try { new URL(font.uri); } catch { throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY"); }
     if (!["woff2", "woff", "ttf", "otf"].includes(font.format)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
+    if (!["normal", "italic", "oblique"].includes(font.style)) throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
     if (font.unicode_range !== undefined && typeof font.unicode_range !== "string") throw new Error("INVALID_LANGUAGE_PACK_TYPOGRAPHY");
     rejectUnknown(font, ["family", "uri", "format", "weight", "style", "unicode_range"], "INVALID_LANGUAGE_PACK_TYPOGRAPHY");
   }
