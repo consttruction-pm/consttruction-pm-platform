@@ -7,6 +7,7 @@ import pytest
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.p6_formula_audit import SQLiteP6FormulaAuditRepository, expression_sha256
 from construction_pm.p6_formula_definition_api import P6FormulaDefinitionAPI, P6_FORMULA_DEFINITION_API_VERSION
 from construction_pm.p6_formula_definition_repository import (
     FormulaDefinitionCreateRequest,
@@ -20,7 +21,9 @@ def api() -> P6FormulaDefinitionAPI:
     connection = sqlite3.connect(":memory:")
     return P6FormulaDefinitionAPI(
         P6FormulaDefinitionApplicationService(
-            SQLiteP6FormulaDefinitionRepository(connection), SQLiteTransactionManager(connection)
+            SQLiteP6FormulaDefinitionRepository(connection),
+            SQLiteTransactionManager(connection),
+            SQLiteP6FormulaAuditRepository(connection),
         ),
         default_project_policy(),
     )
