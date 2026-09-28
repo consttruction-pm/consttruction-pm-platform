@@ -31,7 +31,13 @@ def test_scope_isolation_and_revision_conflict():
     repo = SQLiteP6FinancialPeriodRepository(sqlite3.connect(":memory:"))
     repo.upsert(period(scope()))
 
-    assert repo.get(scope(2), "2026-09") is None
+    other_tenant = BackendScope("tenant-b", "project-a", 1)
+    other_project = BackendScope("tenant-a", "project-b", 1)
+    assert repo.get(other_tenant, "2026-09") is None
+    assert repo.get(other_project, "2026-09") is None
+
+    with pytest.raises(P6FinancialPeriodPersistenceError, match="REVISION_CONFLICT"):
+        repo.get(scope(2), "2026-09")
 
     with pytest.raises(P6FinancialPeriodPersistenceError, match="REVISION_CONFLICT"):
         repo.upsert(period(scope(2)))
