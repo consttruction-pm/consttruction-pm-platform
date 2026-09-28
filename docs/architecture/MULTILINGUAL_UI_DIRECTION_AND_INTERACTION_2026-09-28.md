@@ -1,55 +1,65 @@
-# Multilingual UI, Text Direction and Mouse Interaction — V1 Rule
+# Multilingual UI and Writing Direction — V1 Rule
 
 Effective: 2026-09-28
 
-## Product rule
+## Product language model
 
-The product is **multilingual**, not bilingual. Persian/English are initial installed language examples only. The architecture must accept additional BCP-47 language tags through the existing Language Registry and versioned language packs.
+The product is **fully multilingual**. Persian and English are only installed/example language packs; they are not the product language limit.
 
-The same language mechanism applies to:
+The language system uses the existing Language Registry and versioned language packs. Each pack is identified by a BCP-47 language tag and declares its writing direction metadata.
+
+The same translation mechanism applies to:
 - main menus and submenus;
-- field names, field values where translated display is appropriate, tooltips and validation messages;
-- Smart Guide/help content;
-- reports, dialogs, commands, statuses and errors;
-- offline language packs and future AI/voice resources.
+- field names and user-entered field values where localization/display translation is applicable;
+- tooltips and inline help;
+- Smart Guide and other guidance content;
+- dialogs, commands, statuses and validation/errors;
+- reports and print labels;
+- AI text/voice resources and offline language packs.
 
-## Language resolution
+## Writing direction
 
-1. Resolve the user's preferred language tag.
-2. Follow its configured fallback chain.
-3. Use the default language only when the configured chain has no verified installed pack.
-4. Never infer that only `fa` and `en` are supported.
-5. Untranslated keys fall back through the configured language-pack chain; they are not silently duplicated as new hard-coded language-specific implementations.
+Writing direction is a separate property from the language name. The UI must support:
+- **LTR** — left-to-right writing;
+- **RTL** — right-to-left writing;
+- **Auto** — resolve from the language/script metadata, with explicit override available.
 
-## Direction
+This follows the W3C internationalization model: direction metadata uses `ltr`, `rtl`, and `auto`; direction should not be inferred solely from the language code because a language can be represented with different scripts. citeturn279982search1turn279982search8
 
-Direction is independent from language identity.
+Therefore the implementation must never hard-code “fa = RTL, everything else = LTR” as the universal rule.
 
-Every textual UI surface supports:
-- `auto` — resolve from the language/script;
-- `ltr`;
-- `rtl`.
+## Per-surface direction
 
-Text input fields must permit explicit per-field direction override when project data contains mixed scripts (for example a Persian description containing an English code).
+Every interactive/textual surface must expose the direction setting:
+- Menu
+- Submenu
+- Field label
+- Field input/editor
+- Field value/content
+- Help/Smart Guide
+- Tooltip
+- Dialog/message
+- Report/print text
 
-Project UI direction and individual field/input direction are separate concerns.
+For text inputs, `auto` is valid so mixed-script project data can be handled safely. Users can explicitly override a field to LTR or RTL when needed. W3C specifically documents per-form/per-input direction handling and `dir="auto"` for runtime-entered content. citeturn279982search0
 
-## Mouse and keyboard
+## Layout behavior
 
-Every interactive menu, submenu, field editor, help/guide control and command follows the same interaction contract:
-- left mouse button: primary activation;
-- right mouse button: context menu;
-- Enter/Space: keyboard equivalent of primary activation;
-- context actions remain permission-aware;
-- right-click must never bypass authorization or authoritative business rules.
+Text direction must also drive directional layout behavior using logical start/end concepts rather than hard-coded left/right positioning. RTL is not merely “right-align the text”; the page and control flow must respond consistently while embedded LTR values such as codes, numbers and identifiers remain readable. citeturn279982search0turn279982search2
 
-The shared UI interaction contract is defined in `shared/contracts/ui-text-and-interaction.schema.json`.
+## Mouse/keyboard behavior
+
+Writing direction does not change command semantics:
+- left mouse click remains primary activation;
+- right mouse click remains context menu;
+- Enter/Space remains the keyboard activation equivalent;
+- context actions remain permission-aware.
 
 ## Calculation boundary
 
-Multilingual rendering, direction and interaction handling are presentation concerns. Scheduling/P6, Calendar, Duration/Lag, Progress/EVM, Resource/Cost and Formula calculations remain in the Shared Domain/Calculation Core.
+Language, writing direction and presentation are UI concerns. Scheduling/P6, Calendar, Duration/Lag, Progress/EVM, Resource/Cost and Formula calculations remain authoritative in the Shared Domain/Calculation Core.
 
 ## V1 acceptance
 
-A new language does not require changes to domain/calculation code. A language pack is considered usable only when menu/submenu, fields, help, reports and validation strings are covered at the declared language-pack scope, with fallback behavior tested.
+Adding a new language or script must not require a change to domain calculation code. A language pack is usable only when its declared menu, field and help coverage and writing-direction behavior are tested.
 
