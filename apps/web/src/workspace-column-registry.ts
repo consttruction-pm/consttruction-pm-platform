@@ -1,5 +1,5 @@
 import type { ProjectContext } from "./client.js";
-import type { WorkspaceColumn } from "./workspace-model.js";
+import type { WorkspaceColumn, WorkspaceState } from "./workspace-model.js";
 import type { P6FieldCatalogEntry, P6FieldDataType } from "./p6-field-registry-client.js";
 import { createDefaultLayout, type WorkspaceLayout, type WorkspaceLayoutStore } from "./workspace-layout.js";
 
@@ -27,6 +27,64 @@ export function buildWorkspaceColumnsFromFieldCatalog(
       width: field.dataType === "duration" ? 110 : field.dataType === "date" || field.dataType === "datetime" ? 120 : 140,
     })),
   );
+}
+
+export function buildWorkspaceColumnsFromLayout(
+  layout: WorkspaceLayout,
+  fields: readonly P6FieldCatalogEntry[],
+): readonly WorkspaceColumn[] {
+  const byId = new Map(
+    fields
+      .filter((field) => field.subjectArea === layout.subject_area)
+      .map((field) => [field.id, field]),
+  );
+
+  return Object.freeze(
+    [...layout.columns]
+      .filter((column) => column.visible)
+      .sort((a, b) => a.order - b.order)
+      .flatMap((column) => {
+        const field = byId.get(column.fieldId);
+        if (!field) return [];
+        return [Object.freeze({
+          id: field.id,
+          label: column.labelOverride ?? field.label,
+          dataType:
+            field.dataType === "integer"
+              ? "integer"
+              : field.dataType === "decimal" ||
+                  field.dataType === "double" ||
+                  field.dataType === "percentage" ||
+                  field.dataType === "cost" ||
+                  field.dataType === "unit"
+                ? "decimal"
+                : field.dataType === "date" || field.dataType === "datetime"
+                  ? "date"
+                  : field.dataType === "duration"
+                    ? "duration"
+                    : field.dataType === "boolean"
+                      ? "boolean"
+                      : "text",
+          editable: field.writable && !field.computed,
+          formula: null,
+          width: column.width,
+        })];
+      }),
+  );
+}
+
+export function applyWorkspaceLayout(
+  state: WorkspaceState,
+  layout: WorkspaceLayout,
+  fields: readonly P6FieldCatalogEntry[],
+): WorkspaceState {
+  if (state.context.revision !== layout.revision) {
+    throw new Error("WORKSPACE_LAYOUT_REVISION_MISMATCH");
+  }
+  return {
+    ...state,
+    columns: buildWorkspaceColumnsFromLayout(layout, fields),
+  };
 }
 
 export function buildWorkspaceColumnCatalog(
