@@ -97,3 +97,37 @@ def test_formula_runtime_error_does_not_return_partial_result():
             {"raw": FormulaValue.text("bad")},
             {"A"},
         )
+
+
+def test_external_field_change_recalculates_direct_and_transitive_dependents():
+    formulas = {
+        "A": _formula("A", "[raw] + 1"),
+        "B": _formula("B", "[A] * 2"),
+        "C": _formula("C", "[B] + 3"),
+    }
+    graph = FormulaDependencyGraph(formulas)
+
+    result = FormulaRecalculationEngine().recalculate_changes(
+        graph,
+        {"raw": FormulaValue.number(Decimal("5"))},
+        {"raw"},
+    )
+
+    assert result.plan.ordered_formula_ids == ("A", "B", "C")
+    assert result.values["A"].value == Decimal("6")
+    assert result.values["B"].value == Decimal("12")
+    assert result.values["C"].value == Decimal("15")
+
+
+def test_unrelated_external_field_change_is_a_noop():
+    formulas = {"A": _formula("A", "[raw] + 1")}
+    graph = FormulaDependencyGraph(formulas)
+
+    result = FormulaRecalculationEngine().recalculate_changes(
+        graph,
+        {"raw": FormulaValue.number(Decimal("5"))},
+        {"unrelated"},
+    )
+
+    assert result.plan.ordered_formula_ids == ()
+    assert dict(result.values) == {}

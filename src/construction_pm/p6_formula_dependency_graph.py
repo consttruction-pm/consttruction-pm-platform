@@ -33,6 +33,14 @@ class FormulaDependencyGraph:
             )
             for formula_id, formula in sorted(self._formulas.items())
         }
+        dependency_map: dict[str, set[str]] = {}
+        for formula_id, formula in sorted(self._formulas.items()):
+            for dependency in formula.dependencies:
+                dependency_map.setdefault(dependency, set()).add(formula_id)
+        self._dependents_index = {
+            dependency: tuple(sorted(formula_ids))
+            for dependency, formula_ids in sorted(dependency_map.items())
+        }
         self._validate_cycles()
 
     @property
@@ -49,12 +57,12 @@ class FormulaDependencyGraph:
 
     def dependents_of(self, formula_id: str) -> tuple[str, ...]:
         self._require_formula(formula_id)
-        dependents = [
-            candidate
-            for candidate, dependencies in self._edges.items()
-            if formula_id in dependencies
-        ]
-        return tuple(sorted(dependents))
+        return self._dependents_index.get(formula_id, ())
+
+    def dependents_of_change(self, dependency_id: str) -> tuple[str, ...]:
+        if not dependency_id or not dependency_id.strip():
+            raise FormulaDependencyError("INVALID_DEPENDENCY_ID")
+        return self._dependents_index.get(dependency_id, ())
 
     def transitive_dependents(self, formula_ids: set[str] | frozenset[str]) -> tuple[str, ...]:
         self._validate_formula_ids(formula_ids)
@@ -75,13 +83,55 @@ class FormulaDependencyGraph:
         self._validate_formula_ids(changed_formula_ids)
         return tuple(sorted(set(changed_formula_ids) | set(self.transitive_dependents(changed_formula_ids))))
 
+    def affected_formulas_for_changes(self, changed_ids: set[str] | frozenset[str]) -> tuple[str, ...]:
+        if not changed_ids:
+            return ()
+        affected: set[str] = set()
+        for changed_id in sorted(changed_ids):
+            if changed_id in self._formulas:
+                affected.add(changed_id)
+            affected.update(self.dependents_of_change(changed_id))
+
+        queue = sorted(affected)
+        while queue:
+            current = queue.pop(0)
+            for dependent in self.dependents_of_change(current):
+                if dependent not in affected:
+                    affected.add(dependent)
+                    queue.append(dependent)
+            queue.sort()
+        return tuple(sorted(affected))
+
     def recalculation_plan(self, changed_formula_ids: set[str] | frozenset[str]) -> FormulaRecalculationPlan:
-        affected = set(self.affected_formulas(changed_formula_ids))
+        self._validate_formula_ids(changed_formula_ids)
+        return self._recalculation_plan_for_affected(
+            set(self.affected_formulas(changed_formula_ids))
+        )
+
+    def recalculation_plan_for_changes(
+        self,
+        changed_ids: set[str] | frozenset[str],
+    ) -> FormulaRecalculationPlan:
+        affected = set(self.affected_formulas_for_changes(changed_ids))
+        return self._recalculation_plan_for_affected(affected)
+
+    def _recalculation_plan_for_affected(
+        self,
+        affected: set[str],
+    ) -> FormulaRecalculationPlan:
         indegree = {
-            formula_id: sum(1 for dependency in self._edges[formula_id] if dependency in affected)
+            formula_id: sum(
+                1
+                for dependency in self._edges[formula_id]
+                if dependency in affected
+            )
             for formula_id in affected
         }
-        ready = sorted(formula_id for formula_id, degree in indegree.items() if degree == 0)
+        ready = sorted(
+            formula_id
+            for formula_id, degree in indegree.items()
+            if degree == 0
+        )
         ordered: list[str] = []
 
         while ready:

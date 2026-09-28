@@ -17,6 +17,8 @@ def _formula(formula_id: str, expression: str):
         "A": FormulaSchemaValue(FormulaType.NUMBER),
         "B": FormulaSchemaValue(FormulaType.NUMBER),
         "C": FormulaSchemaValue(FormulaType.NUMBER),
+        "raw": FormulaSchemaValue(FormulaType.NUMBER),
+        "other": FormulaSchemaValue(FormulaType.NUMBER),
     }
     return compile_formula(
         FormulaDefinition(formula_id, "1", expression, FormulaType.NUMBER),
@@ -99,3 +101,17 @@ def test_recalculation_order_is_stable_for_multiple_ready_nodes():
     graph = FormulaDependencyGraph(formulas)
 
     assert graph.recalculation_plan({"A"}).ordered_formula_ids == ("A", "Y", "Z")
+
+
+def test_external_field_change_invalidates_direct_and_transitive_dependents():
+    formulas = {
+        "A": _formula("A", "[raw] + 1"),
+        "B": _formula("B", "[A] + 1"),
+        "C": _formula("C", "[B] + 1"),
+        "D": _formula("D", "[other] + 1"),
+    }
+    graph = FormulaDependencyGraph(formulas)
+
+    assert graph.dependents_of_change("raw") == ("A",)
+    assert graph.affected_formulas_for_changes({"raw"}) == ("A", "B", "C")
+    assert graph.affected_formulas_for_changes({"missing"}) == ()

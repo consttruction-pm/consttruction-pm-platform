@@ -46,5 +46,31 @@ class FormulaRecalculationEngine:
         }
         return FormulaRecalculationResult(plan=plan, values=result_values)
 
+    def recalculate_changes(
+        self,
+        graph: FormulaDependencyGraph,
+        values: Mapping[str, FormulaValue],
+        changed_ids: set[str] | frozenset[str],
+    ) -> FormulaRecalculationResult:
+        plan = graph.recalculation_plan_for_changes(changed_ids)
+        if not plan.ordered_formula_ids:
+            return FormulaRecalculationResult(
+                plan=plan,
+                values={},
+            )
+
+        working_values = dict(values)
+        for formula_id in plan.ordered_formula_ids:
+            compiled = graph.formula_of(formula_id)
+            working_values[formula_id] = evaluate_formula(compiled, working_values)
+
+        return FormulaRecalculationResult(
+            plan=plan,
+            values={
+                formula_id: working_values[formula_id]
+                for formula_id in plan.ordered_formula_ids
+            },
+        )
+
 
 __all__ = ["FormulaRecalculationEngine", "FormulaRecalculationResult"]
