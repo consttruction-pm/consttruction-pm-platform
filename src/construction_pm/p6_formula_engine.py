@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from enum import Enum
+import re
 from typing import Mapping
 
 
@@ -56,9 +57,8 @@ class FormulaValue:
             raise FormulaTypeError("NUMBER_VALUE_REQUIRED") from exc
         if not decimal_value.is_finite():
             raise FormulaTypeError("FINITE_NUMBER_REQUIRED")
-        if unit is not None and (not isinstance(unit, str) or not unit.strip()):
-            raise FormulaTypeError("INVALID_UNIT")
-        return FormulaValue(FormulaType.NUMBER, decimal_value, unit)
+        canonical_unit = _canonical_unit(unit)
+        return FormulaValue(FormulaType.NUMBER, decimal_value, canonical_unit)
 
     @staticmethod
     def text(value: str) -> "FormulaValue":
@@ -428,10 +428,84 @@ def analyze_dependencies(ast: ExpressionNode) -> tuple[str, ...]:
     return tuple(sorted(dependencies))
 
 
+_UNIT_FACTOR_RE = re.compile(r"([A-Za-z%][A-Za-z0-9_.-]*)(?:\\^([+-]?\\d+))?$")
+
+
+def _parse_unit(unit: str | None) -> dict[str, int]:
+    if unit is None:
+        return {}
+    text = unit.strip()
+    if not text:
+        raise FormulaTypeError("INVALID_UNIT")
+    factors: dict[str, int] = {}
+    for raw_factor in text.split("*"):
+        if not raw_factor:
+            raise FormulaTypeError("INVALID_UNIT")
+        parts = raw_factor.split("/")
+        if len(parts) > 2 or any(not part for part in parts):
+            raise FormulaTypeError("INVALID_UNIT")
+        for index, factor_text in enumerate(parts):
+            match = _UNIT_FACTOR_RE.fullmatch(factor_text.strip())
+            if match is None:
+                raise FormulaTypeError("INVALID_UNIT")
+            exponent = int(match.group(2) or "1")
+            if index == 1:
+                exponent = -exponent
+            name = match.group(1)
+            factors[name] = factors.get(name, 0) + exponent
+            if factors[name] == 0:
+                factors.pop(name)
+    return factors
+
+
+def _format_unit(factors: Mapping[str, int]) -> str | None:
+    positive = []
+    negative = []
+    for name, exponent in sorted(factors.items()):
+        if exponent > 0:
+            positive.append((name, exponent))
+        elif exponent < 0:
+            negative.append((name, -exponent))
+
+    def render(items: list[tuple[str, int]]) -> str:
+        return "*".join(name if exponent == 1 else f"{name}^{exponent}" for name, exponent in items)
+
+    numerator = render(positive)
+    denominator = render(negative)
+    if numerator and denominator:
+        return f"{numerator}/{denominator}"
+    return numerator or (f"1/{denominator}" if denominator else None)
+
+
+def _canonical_unit(unit: str | None) -> str | None:
+    return _format_unit(_parse_unit(unit))
+
+
 def _require_same_numeric_unit(left: _TypeInfo, right: _TypeInfo) -> str | None:
-    if left.unit and right.unit and left.unit != right.unit:
+    left_unit = _canonical_unit(left.unit)
+    right_unit = _canonical_unit(right.unit)
+    if left_unit and right_unit and left_unit != right_unit:
         raise FormulaTypeError("INCOMPATIBLE_UNITS")
-    return left.unit or right.unit
+    return left_unit or right_unit
+
+
+def _multiply_units(left: str | None, right: str | None) -> str | None:
+    factors = _parse_unit(left)
+    for name, exponent in _parse_unit(right).items():
+        factors[name] = factors.get(name, 0) + exponent
+        if factors[name] == 0:
+            factors.pop(name)
+    return _format_unit(factors)
+
+
+def _divide_units(left: str | None, right: str | None) -> str | None:
+    factors = _parse_unit(left)
+    for name, exponent in _parse_unit(right).items():
+        factors[name] = factors.get(name, 0) - exponent
+        if factors[name] == 0:
+            factors.pop(name)
+    return _format_unit(factors)
+
 
 
 def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _TypeInfo:
@@ -475,11 +549,18 @@ def _infer(node: ExpressionNode, schema: Mapping[str, FormulaSchemaValue]) -> _T
             elif node.operator == "^":
                 if right.unit is not None:
                     raise FormulaTypeError("POWER_EXPONENT_MUST_BE_UNITLESS")
-                unit = left.unit
+                if right.type is not FormulaType.NUMBER or getattr(right, "value", 0) != int(getattr(right, "value", 0)):
+                    raise FormulaTypeError("POWER_EXPONENT_MUST_BE_INTEGER")
+                exponent = int(getattr(right, "value", 0))
+                unit = _format_unit({
+                    name: power * exponent
+                    for name, power in _parse_unit(left.unit).items()
+                    if power * exponent
+                })
+            elif node.operator == "*":
+                unit = _multiply_units(left.unit, right.unit)
             else:
-                if left.unit and right.unit:
-                    raise FormulaTypeError("COMPOSITE_UNIT_NOT_SUPPORTED")
-                unit = left.unit or (None if node.operator == "/" else right.unit)
+                unit = _divide_units(left.unit, right.unit)
             return _TypeInfo(FormulaType.NUMBER, unit)
 
         if node.operator in {"AND", "OR"}:
@@ -644,11 +725,18 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
             elif operator == "^":
                 if right.unit is not None:
                     raise FormulaTypeError("POWER_EXPONENT_MUST_BE_UNITLESS")
-                unit = left.unit
+                if b != int(b):
+                    raise FormulaTypeError("POWER_EXPONENT_MUST_BE_INTEGER")
+                exponent = int(b)
+                unit = _format_unit({
+                    name: power * exponent
+                    for name, power in _parse_unit(left.unit).items()
+                    if power * exponent
+                })
+            elif operator == "*":
+                unit = _multiply_units(left.unit, right.unit)
             else:
-                if left.unit and right.unit:
-                    raise FormulaTypeError("COMPOSITE_UNIT_NOT_SUPPORTED")
-                unit = left.unit or (None if operator == "/" else right.unit)
+                unit = _divide_units(left.unit, right.unit)
             if operator == "+":
                 return FormulaValue.number(a + b, unit)
             if operator == "-":
