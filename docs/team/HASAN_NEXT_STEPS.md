@@ -384,3 +384,22 @@ Status: **implemented, PostgreSQL runtime-verified, merged**
 ## Next point
 
 Reconcile baseline support against current Shared Core contracts. Baseline persistence must preserve authoritative snapshot/version identity but must not implement schedule comparison/calculation semantics in Backend/API.
+
+
+### 2026-09-28 — P6-8 Activity Steps persistence (PR #438)
+
+Status: **implemented, merged and runtime-verified**
+
+- Added tenant/project/project-revision scoped P6 Activity Step persistence with deterministic sequence, Decimal weight, optional dates and explicit UDF metadata.
+- Added SQLite and PostgreSQL repository boundaries with application-owned transaction semantics.
+- Added round-trip, deterministic ordering, tenant/project isolation, stale-revision, replay/immutability and live PostgreSQL rollback coverage.
+- Exact implementation head: fad3c6c390c6859fcdd0038b63ff9f5aa8af3446.
+- ConstructionPM CI #1827, Client Typecheck #1530, PostgreSQL Integration #142 all passed on the exact head.
+- PR #438 merged to main as e5344b4a02c9e1ba01137f892f4e13b674577225.
+- No Scheduling, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+
+### Current P6 Backend Continuation
+
+- Activity Steps persistence is complete; do not repeat it.
+- Baseline comparison persistence remains blocked until an authoritative Shared Core baseline snapshot/version contract exists. Do not invent baseline comparison semantics in Backend/API.
+- Next action is a fresh current-main/open-work inspection for the next concrete Hasan-owned P6-8 data surface, with baseline ownership explicitly rechecked first.
