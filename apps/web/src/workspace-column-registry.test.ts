@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildWorkspaceColumnCatalog, dataTypeToEditorKind, layoutKey } from "./workspace-column-registry.js";
+import { buildWorkspaceColumnCatalog, buildWorkspaceColumnsFromFieldCatalog, dataTypeToEditorKind, layoutKey } from "./workspace-column-registry.js";
 import type { P6FieldCatalogEntry } from "./p6-field-registry-client.js";
 
 const fields: readonly P6FieldCatalogEntry[] = [
@@ -28,4 +28,13 @@ test("layout key isolates tenant/project/subject/scope/user", () => {
   const context = { tenant_id: "t1", project_id: "p1", revision: 7 };
   assert.equal(layoutKey(context, "activity", "project"), "t1:p1:activity:project");
   assert.equal(layoutKey(context, "activity", "user", "u1"), "t1:p1:activity:user:u1");
+});
+
+test("workspace columns are projected from the authoritative field catalog", () => {
+  const columns = buildWorkspaceColumnsFromFieldCatalog(fields);
+  assert.deepEqual(columns.map((x) => x.id), ["activity_id", "duration", "cost"]);
+  assert.equal(columns[1].dataType, "duration");
+  assert.equal(columns[2].dataType, "decimal");
+  assert.equal(columns[2].editable, true);
+  assert.equal(columns[0].formula, null);
 });
