@@ -11,6 +11,7 @@ from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .p6_field_registry import P6FieldType
 from .p6_user_defined_fields_repository import (
     P6UserDefinedFieldDefinition,
+    P6UserDefinedFieldPersistenceError,
     P6UserDefinedFieldRepository,
 )
 
@@ -244,9 +245,12 @@ class P6UserDefinedFieldValueApplicationService:
     transaction_manager: object
 
     def save_value(self, value: P6UserDefinedFieldValue) -> P6UserDefinedFieldValue:
-        definition = self.definition_repository.get_definition(
-            value.scope, "p6-field-registry.v1", value.udf_id
-        )
+        try:
+            definition = self.definition_repository.get_definition(
+                value.scope, "p6-field-registry.v1", value.udf_id
+            )
+        except P6UserDefinedFieldPersistenceError as exc:
+            raise P6UserDefinedFieldValuePersistenceError(str(exc)) from exc
         if definition is None:
             raise P6UserDefinedFieldValuePersistenceError("UDF_NOT_FOUND")
         with self.transaction_manager.transaction():
@@ -259,9 +263,12 @@ class P6UserDefinedFieldValueApplicationService:
         object_type: str,
         object_id: str,
     ) -> P6UserDefinedFieldValue | None:
-        definition = self.definition_repository.get_definition(
-            scope, "p6-field-registry.v1", udf_id
-        )
+        try:
+            definition = self.definition_repository.get_definition(
+                scope, "p6-field-registry.v1", udf_id
+            )
+        except P6UserDefinedFieldPersistenceError as exc:
+            raise P6UserDefinedFieldValuePersistenceError(str(exc)) from exc
         if definition is None:
             raise P6UserDefinedFieldValuePersistenceError("UDF_NOT_FOUND")
         with self.transaction_manager.transaction():
