@@ -14,6 +14,7 @@ from .constraints import (
     validate_upper_bound,
 )
 from .relationships import Relationship, RelationshipType
+from .schedule_options import StartToStartLagCalculationType
 
 
 class SchedulingCycleError(ValueError):
@@ -56,8 +57,36 @@ def _successor_start(
     predecessor: ScheduledActivity,
     successor_duration: int,
     resolver: WorkingTimeResolver,
+    predecessor_activity: Activity | None = None,
+    start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
+    data_date: date | None = None,
 ) -> date:
     if relationship.type is RelationshipType.SS:
+        if (
+            predecessor_activity is not None
+            and predecessor_activity.actual_start is not None
+            and predecessor_activity.actual_start > predecessor.start
+        ):
+            if data_date is None:
+                raise ValueError(
+                    "data_date is required for an out-of-sequence start-to-start relationship"
+                )
+            if data_date < predecessor_activity.actual_start:
+                raise ValueError(
+                    "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
+                )
+            elapsed = resolver.working_days_between(
+                predecessor_activity.actual_start, data_date
+            )
+            remaining_lag = max(0, relationship.lag - elapsed)
+            anchor = (
+                data_date
+                if start_to_start_lag_calculation_type
+                is StartToStartLagCalculationType.ACTUAL_START
+                else predecessor.start
+            )
+            return _shift_working_date(anchor, remaining_lag, resolver)
+
         return _shift_working_date(predecessor.start, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FS:
@@ -107,6 +136,8 @@ def forward_pass(
     resolver: WorkingTimeResolver,
     constraints: Sequence[ActivityConstraint] | None = None,
     calculation_context: CalculationContext | None = None,
+    start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
+    data_date: date | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with foundational date constraints.
 
@@ -156,7 +187,15 @@ def forward_pass(
             start = resolver.normalize_start(project_start)
         else:
             start = max(
-                _successor_start(rel, result[rel.predecessor_id], activity.duration, resolver)
+                _successor_start(
+                    rel,
+                    result[rel.predecessor_id],
+                    activity.duration,
+                    resolver,
+                    activity_map[rel.predecessor_id],
+                    start_to_start_lag_calculation_type,
+                    data_date,
+                )
                 for rel in sorted(
                     incoming[activity_id],
                     key=lambda item: (
