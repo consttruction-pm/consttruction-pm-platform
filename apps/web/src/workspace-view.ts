@@ -41,7 +41,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents)}
         ${renderProcurement(state.procurementRecords, t.procurement)}
         <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
@@ -366,7 +366,7 @@ function renderChangeClaimControl(
   label: string,
   documents: WorkspaceState["documents"] = [],
 ): string {
-  if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
+  if (!notices.length && !changes.length && !claims.length && !impacts.length && !documents.length) return "";
 
   const documentSection = documents.length === 0
     ? ""
@@ -436,6 +436,7 @@ function renderChangeClaimControl(
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
+      ${documentSection}
     </section>
   `;
 }
