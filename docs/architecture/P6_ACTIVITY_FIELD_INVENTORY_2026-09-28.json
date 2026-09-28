@@ -1,0 +1,2487 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "p6_reference": "P6 EPPM REST API Release 26 — Export Projects / ActivityFieldType",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+  "source_evidence_lines": "961-1235",
+  "inventory_field_count": 275,
+  "status": "inventory_only_not_certified",
+  "fields": [
+    {
+      "subject_area": "Activity",
+      "p6_field": "AccountingVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AccountingVarianceLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActivityOwnerUserId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionLaborUnitsVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AutoComputeActuals",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1Duration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1FinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1StartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2Duration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2FinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2StartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3Duration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3FinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3StartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselineDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselineFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselinePlannedTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BaselineStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "BudgetAtCompletion",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CBSCode",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CBSId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CBSObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CalendarName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CalendarObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPercentOfPlanned",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPerformanceIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPerformanceIndexLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostVarianceIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostVarianceIndexLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostVarianceLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CreateDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CreateUser",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DataDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationPercentOfPlanned",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationType",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarlyFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarlyStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarnedValueCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarnedValueLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EstimateAtCompletionCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EstimateAtCompletionLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EstimateToComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EstimateToCompleteLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EstimatedWeight",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpectedFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExternalEarlyStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExternalLateFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Feedback",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinancialPeriodTmplId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDateVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FloatPath",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FloatPathOrder",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FreeFloat",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "GUID",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "HasFutureBucketData",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Id",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsBaseline",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsCritical",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsLongestPath",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsNewFeedback",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsStarred",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsTemplate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsWorkPackage",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCostPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnitsPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnitsVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LastUpdateDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LastUpdateUser",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LateFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LateStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LevelingPriority",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LocationName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LocationObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCostPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaximumDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MinimumDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MostLikelyDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Name",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborCost1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborCost2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborCost3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborCostPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborCostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborUnits1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborUnits2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborUnits3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborUnitsPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NonLaborUnitsVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "NotesToResources",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "OwnerIDArray",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "OwnerNamesArray",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PercentCompleteType",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PerformancePercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PerformancePercentCompleteByLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PhysicalPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedTotalUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedValueCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PlannedValueLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PostRespCriticalityIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PostResponsePessimisticFinish",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PostResponsePessimisticStart",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PreRespCriticalityIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PreResponsePessimisticFinish",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PreResponsePessimisticStart",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PrimaryConstraintDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PrimaryConstraintType",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PrimaryResourceId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PrimaryResourceName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "PrimaryResourceObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ProjectFlag",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ProjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ProjectName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ProjectObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ProjectProjectFlag",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingDuration",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingEarlyFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingEarlyStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingFloat",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingLateFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingLateStartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingTotalCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "RemainingTotalUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ResumeDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ReviewFinishDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ReviewRequired",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ReviewStatus",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SchedulePercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SchedulePerformanceIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SchedulePerformanceIndexLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ScheduleVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ScheduleVarianceIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ScheduleVarianceIndexLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ScheduleVarianceLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ScopePercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SecondaryConstraintDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SecondaryConstraintType",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StartDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StartDate1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StartDate2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StartDate3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StartDateVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Status",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "StatusCode",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "SuspendDate",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TaskStatusCompletion",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TaskStatusDates",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TaskStatusIndicator",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ToCompletePerformanceIndex",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalCost1Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalCost2Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalCost3Variance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalCostVariance",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalFloat",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodEarnedValueCostBCWP",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodEarnedValueLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodExpenseCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodMaterialCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodNonLaborCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodNonLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodPlannedValueCost",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "TotalPastPeriodPlannedValueLaborUnits",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Type",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "UnitsPercentComplete",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "UnreadCommentCount",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WBSCode",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WBSName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WBSNamePath",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WBSObjectId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WBSPath",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WorkPackageId",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "WorkPackageName",
+      "reference_verified": true,
+      "data_type": null,
+      "writable": null,
+      "computed": null,
+      "disposition": "pending_reconciliation"
+    }
+  ],
+  "interpretation": "Authoritative Release 26 export/interchange inventory snapshot only. It does not assert implementation, equivalence, type, mutability, computed/stored status, or certification."
+}
