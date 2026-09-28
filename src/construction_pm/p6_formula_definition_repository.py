@@ -8,6 +8,7 @@ from typing import Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .p6_formula_engine import FormulaDefinition, FormulaType
+from .p6_formula_audit import P6FormulaAuditEvent, P6FormulaAuditRepository
 
 
 class P6FormulaDefinitionPersistenceError(ValueError):
