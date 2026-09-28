@@ -42,6 +42,39 @@ class P6CodeAssignmentRepository(Protocol):
     def list(self, scope: BackendScope, owner_type: str | None = None, owner_id: str | None = None) -> tuple[P6CodeAssignment, ...]: ...
 
 
+@dataclass(frozen=True)
+class P6CodeAssignmentApplicationService:
+    """Own transaction boundaries for persisted P6 code assignments."""
+
+    repository: P6CodeAssignmentRepository
+    transaction_manager: object
+
+    def save(self, assignment: P6CodeAssignment) -> P6CodeAssignment:
+        assignment.validate()
+        with self.transaction_manager.transaction():
+            return self.repository.upsert(assignment)
+
+    def read(
+        self,
+        scope: BackendScope,
+        code_id: str,
+        value_id: str,
+        owner_type: str,
+        owner_id: str,
+    ) -> P6CodeAssignment | None:
+        with self.transaction_manager.transaction():
+            return self.repository.get(scope, code_id, value_id, owner_type, owner_id)
+
+    def list(
+        self,
+        scope: BackendScope,
+        owner_type: str | None = None,
+        owner_id: str | None = None,
+    ) -> tuple[P6CodeAssignment, ...]:
+        with self.transaction_manager.transaction():
+            return self.repository.list(scope, owner_type, owner_id)
+
+
 def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6CodeAssignment:
     result = P6CodeAssignment(
         scope=scope,
@@ -189,6 +222,7 @@ __all__ = [
     "P6CodeAssignment",
     "P6CodeAssignmentPersistenceError",
     "P6CodeAssignmentRepository",
+    "P6CodeAssignmentApplicationService",
     "SQLiteP6CodeAssignmentRepository",
     "PostgresP6CodeAssignmentRepository",
 ]
