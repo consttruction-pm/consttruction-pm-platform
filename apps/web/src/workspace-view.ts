@@ -105,7 +105,7 @@ function renderSmartGuide(
     ? guide.proposedActions
         .map(
           (action) =>
-            `<article class="cp-field-card" data-ui-interactive="help" data-ui-interactive="help" data-ai-action-id="${escapeAttribute(action.actionId)}">
+            `<article class="cp-field-card" data-ui-interactive="help" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
               <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
@@ -305,7 +305,7 @@ function renderFieldAssurance(
         <div>
           <h3>Quality / NCR</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
-            <article class="cp-field-card" data-ui-interactive="field" is-${escapeAttribute(item.severity)}">
+            <article class="cp-field-card" data-ui-interactive="field" class="cp-field-card is-${escapeAttribute(item.severity)}"">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
@@ -315,7 +315,7 @@ function renderFieldAssurance(
         <div>
           <h3>Safety</h3>
           ${safetyObservations.length ? safetyObservations.map((item) => `
-            <article class="cp-field-card is-${escapeAttribute(item.severity)}">
+            <article class="cp-field-card is-${escapeAttribute(item.severity)}" data-ui-interactive="field">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
