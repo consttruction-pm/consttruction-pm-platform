@@ -223,3 +223,22 @@ def test_mapping_scope_mismatch_is_rejected() -> None:
             canonical="activity.code",
             status=P6MappingStatus.SUPPORTED,
         ), other))
+
+
+def test_row_scope_mismatch_is_rejected() -> None:
+    other_scope = BackendScope(
+        tenant_id="other",
+        project_id="p1",
+        project_revision=4,
+    )
+    row = P6InterchangeRow(
+        scope=other_scope,
+        format=P6MappingFormat.XER_PROJECT,
+        values={"task_code": "A-10"},
+    )
+
+    with pytest.raises(
+        P6InterchangeCompatibilityError,
+        match="ROW_SCOPE_MISMATCH",
+    ):
+        mapper().import_row(row)
