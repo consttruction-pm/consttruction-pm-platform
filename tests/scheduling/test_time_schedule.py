@@ -6,6 +6,7 @@ import pytest
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    RelationshipLagCalendar,
     SchedulingCalendarContext,
 )
 from construction_pm.scheduling.relationships import RelationshipType
@@ -16,6 +17,7 @@ from construction_pm.scheduling.time_constraints import TimeActivityConstraint, 
 from construction_pm.scheduling.time_schedule import (
     calculate_time_floats,
     time_backward_pass,
+    TimeScheduleOptions,
     time_schedule,
 )
 
@@ -553,3 +555,109 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
             registry,
             [constraint],
         )
+
+
+@pytest.mark.parametrize(
+    ("option", "expected_start"),
+    [
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 15)),
+        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 16)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 15)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 15)),
+    ],
+)
+def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
+    option, expected_start
+):
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+    }
+    calendar = lambda intervals: TimeAwareWorkingTimeResolver(
+        WorkingTimeCalendar(daily_intervals={i: intervals for i in range(5)})
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={
+            "project@1": calendar(((time(8), time(17)),)),
+            "predecessor@1": calendar(((time(8), time(12)), (time(13), time(17)))),
+            "successor@1": calendar(((time(7), time(11)), (time(12), time(16)))),
+        }
+    )
+    predecessor_ctx = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["predecessor"],
+        relationship_lag=refs["successor"],
+    )
+    successor_ctx = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["successor"],
+        relationship_lag=refs["successor"],
+    )
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(3), predecessor_ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), successor_ctx),
+    ]
+    relationships = [
+        TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))
+    ]
+
+    result = time_schedule(
+        activities,
+        relationships,
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry,
+        options=TimeScheduleOptions(relationship_lag_calendar=option),
+    )
+
+    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 11)
+    assert result.early_activities["B"].start == expected_start
+
+
+def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+    }
+    calendar = lambda intervals: TimeAwareWorkingTimeResolver(
+        WorkingTimeCalendar(daily_intervals={i: intervals for i in range(5)})
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={
+            "project@1": calendar(((time(8), time(17)),)),
+            "predecessor@1": calendar(((time(8), time(12)), (time(13), time(17)))),
+            "successor@1": calendar(((time(7), time(11)), (time(12), time(16)))),
+        }
+    )
+    ctx_a = SchedulingCalendarContext(
+        refs["project"], refs["predecessor"], refs["successor"]
+    )
+    ctx_b = SchedulingCalendarContext(
+        refs["project"], refs["successor"], refs["successor"]
+    )
+    result = time_schedule(
+        [
+            TimeActivity("A", TimeQuantity.working_hours(3), ctx_a),
+            TimeActivity("B", TimeQuantity.working_hours(1), ctx_b),
+        ],
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))],
+        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 17),
+        registry,
+    )
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 16)
+
+
+def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_calendar():
+    resolver = CalendarResolverRegistry().resolve_relationship_lag(
+        SchedulingCalendarContext(
+            CalendarReference("project", "1", "working-time"),
+            CalendarReference("activity", "1", "working-time"),
+        ),
+        CalendarReference("predecessor", "1", "working-time"),
+        RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+    )
+    start = datetime(2026, 9, 22, 23)
+    assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3)
