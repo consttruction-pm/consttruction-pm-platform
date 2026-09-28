@@ -346,3 +346,22 @@ Status: **implemented and runtime-verified**
 - PR #411 is Shared/Core semantics only. Hasan must not implement formula persistence/API semantics against this unmerged branch.
 - PR #395 remains an older Jalal-owned Field Registry PR and is currently non-mergeable against the newer baseline; do not revive it. The already-merged Hasan persistence/API work remains authoritative on current main.
 - Once #411 (or its authoritative successor) is merged into current main, re-read the resulting contracts and implement only the concrete Hasan-owned persistence/API dependency that the merged formula contract requires.
+
+
+### 2026-09-28 — P6 resource-spread persistence (PR #434)
+
+Status: **implemented, PostgreSQL runtime-verified, merged**
+
+- Fresh current-main reconciliation found no existing resource-spread persistence implementation and no open duplicate PR.
+- PR #434 added tenant/project/project-revision-scoped resource-spread future-period buckets with immutable identity (tenant_id, project_id, spread_id, period_id).
+- Decimal values are persisted without float coercion; unit and currency metadata are explicit and mutually constrained by metric type.
+- SQLite + PostgreSQL repositories preserve deterministic reads, stale-revision rejection and identical replay idempotency; application service owns transactions.
+- PostgreSQL workflow trigger was extended specifically for this P6 persistence boundary and its live integration test.
+- Exact implementation head: 0634a385f287963e8cfa134c85ac1da3e44b6d0d.
+- ConstructionPM CI 1793, Client Typecheck 1496, PostgreSQL Integration 137 all passed on the exact head.
+- PR #434 merged as 76628e5ddb995551fcf1b63eecf14bc15af71bfa.
+- No resource leveling, cost/rate calculation, calendar conversion, Scheduling/P6 calculation or financial semantics were introduced.
+
+## Next point
+
+Reconcile current main and open P6 work again. Resource-spread persistence is complete; remaining Hasan-owned P6 working-data candidates include codes/code scopes and baseline persistence, plus applicable interchange/conformance gaps. Implement only the first concrete missing boundary and do not duplicate Jalal/Farmj22002 work.
