@@ -977,3 +977,26 @@ Status: **implemented, merged and runtime-verified**
 - Activity Steps persistence is complete; do not repeat it.
 - Baseline comparison persistence remains blocked until an authoritative Shared Core baseline snapshot/version contract exists. Do not invent baseline comparison semantics in Backend/API.
 - Next action is a fresh current-main/open-work inspection for the next concrete Hasan-owned P6-8 data surface, with baseline ownership explicitly rechecked first.
+
+
+### 2026-09-28 — P6-8 Backend Working-Data Continuation: Report/Profile Field Mapping (PR #453)
+
+Status: **implemented, merged and runtime-verified**
+
+- Added persistence for P6 report/profile field-selection metadata without implementing report rendering or duplicating Field Registry semantics.
+- Mapping identity is immutable for tenant/project/profile/field; tenant/project/project-revision scope is enforced.
+- Preserves profile name, authoritative subject area, canonical field identifier, deterministic ordinal, exportability, optional label override and forward-compatible metadata.
+- SQLite and PostgreSQL repositories use the same backend contract and application-owned transaction boundary.
+- Unsupported metadata is retained in metadata_json; it is not silently discarded.
+- Regression coverage verifies round-trip persistence, deterministic ordering, scope isolation, stale-revision rejection, idempotent replay, immutability and fail-closed validation.
+- PR #453 exact head: a9a0a4873925af98573ca45ae29fba6a41fdd6a7.
+- ConstructionPM CI, Client Typecheck and PostgreSQL Integration were green on the exact head before merge.
+- Merge commit: e1799968e32714eb6e441f27387d19da7939f053.
+- No Scheduling/P6 calculation, Calendar/Duration, Progress/EVM, Resource/Cost or financial calculation semantics were changed.
+
+### Current Backend Continuation Point
+
+- Current main: e1799968e32714eb6e441f27387d19da7939f053.
+- P6 report/profile field mapping persistence is complete; do not repeat it.
+- P6-3 Column/View/Layout remains Javad-owned. P6 formula semantics remain Shared Core/Jalal-owned unless a concrete Hasan-owned persistence/API dependency is established.
+- Next action: inspect current main and the authoritative P6 field/mapping registry for the first concrete remaining Hasan-owned persistence/API/import-export gap; do not invent a new numbered stage or revive stale PRs.
