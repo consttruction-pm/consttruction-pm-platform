@@ -75,6 +75,10 @@ export function migrateWorkspaceLayout(
   assertRevision(expectedRevision);
   if (!isRecord(input)) throw new Error("INVALID_WORKSPACE_LAYOUT");
   const legacy = input as Record<string, unknown>;
+  const contractVersion = legacy.contract_version;
+  if (contractVersion !== undefined && contractVersion !== WORKSPACE_LAYOUT_VERSION && contractVersion !== "workspace-layout.legacy") {
+    throw new Error("UNSUPPORTED_WORKSPACE_LAYOUT_VERSION");
+  }
 
   const layoutId = stringValue(legacy.layout_id, "INVALID_WORKSPACE_LAYOUT_ID");
   const subjectArea = stringValue(legacy.subject_area, "INVALID_WORKSPACE_LAYOUT_SUBJECT");
@@ -114,6 +118,7 @@ export function migrateWorkspaceLayout(
 }
 
 export function addColumn(layout: WorkspaceLayout, field: P6FieldCatalogEntry): WorkspaceLayout {
+  if (field.subjectArea !== layout.subject_area) throw new Error("FIELD_SUBJECT_AREA_MISMATCH");
   if (layout.columns.some((column) => column.fieldId === field.id)) return layout;
   return updateColumns(layout, [
     ...layout.columns,
@@ -142,6 +147,7 @@ export function setColumnState(
 ): WorkspaceLayout {
   const found = layout.columns.find((column) => column.fieldId === fieldId);
   if (!found) throw new Error("COLUMN_NOT_FOUND");
+  if (patch.alignment !== undefined && !["start", "center", "end"].includes(patch.alignment)) throw new Error("INVALID_COLUMN_ALIGNMENT");
   return updateColumns(layout, layout.columns.map((column) =>
     column.fieldId === fieldId ? { ...column, ...patch } : column,
   ));
