@@ -46,7 +46,7 @@ test("validation API rejects a response that is not authoritative", async () => 
           result_unit: null,
           dependencies: [],
           authoritative: false,
-        },
+        } as unknown as TResponse,
       };
     },
   };
@@ -66,7 +66,7 @@ test("validation API returns the authoritative result without client evaluation"
   let captured: unknown;
   const transport = {
     async get() { throw new Error("not used"); },
-    async post(_path: string, request: unknown) {
+    async post<TRequest, TResponse>(_path: string, request: TRequest): Promise<{ ok: true; data: TResponse }> {
       captured = request;
       return {
         ok: true as const,
@@ -79,7 +79,7 @@ test("validation API returns the authoritative result without client evaluation"
             { field_id: "actual_duration", dependency_type: "field", subject_area: "activity" },
           ],
           authoritative: true,
-        },
+        } as unknown as TResponse,
       };
     },
   };
