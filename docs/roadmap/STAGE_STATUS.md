@@ -872,3 +872,22 @@ Status: **implemented, merged and CI-verified**
 - Current `main` includes PR #386; do not repeat Field Assurance canonical execution, repository-port, SQLite/PostgreSQL persistence, authorization, or replay/conflict work already covered above.
 - Re-read current `main`, Hasan execution instructions and open PRs before the next implementation. Continue only with the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap.
 - Do not invent a numbered Stage, reopen stale PRs, or duplicate client/provider-owned work.
+
+
+### 2026-09-28 — P6-2 Typed Field/UDF Backend Slice
+
+Status: **implemented and runtime-verified through PRs #400, #406, #407 and #408**
+
+- PR #400 established scoped persistence for the Shared/Core P6 Field Registry. Final head `5a57766c5c0198c81c79afb29203cb204009cb60`; ConstructionPM CI **1688** and Client Typecheck **1391** passed; merge commit `20d2d59f7cd3b122ada09ab0be4e3e5b6def86ba`.
+- PR #406 established scoped custom/UDF definition persistence. ConstructionPM CI **1690** and Client Typecheck **1393** passed; merge commit `01c4b74f2f1c7a04e9465fc3ab26cc46ec600894`.
+- PR #407 established the versioned Field Registry API boundary with tenant/project authorization and typed responses. ConstructionPM CI **1692** and Client Typecheck **1395** passed; merge commit `1da1ce3db870b0a09d7894cd07bed53cf59edc9f`.
+- PR #408 established typed UDF value persistence for Date, DateTime, Decimal, Integer, Boolean, Enum and Duration. Final head `f148e023ba443065b2b3f21d8fdd4f66f384c8ce`; ConstructionPM CI **1695** and Client Typecheck **1398** passed; merge commit `f60d1708adfea0d559d54e9de8434aa11ad08daf`.
+- The #408 verification cycle exposed and corrected a real stale-revision exception-boundary mismatch; no failure was masked or treated as infrastructure noise.
+- These changes are persistence/API slices only and do not redefine Scheduling, Calendar, Progress/EVM, Resource/Cost or financial calculation semantics.
+
+### Current P6 Backend Continuation
+
+- Current `main`: `f60d1708adfea0d559d54e9de8434aa11ad08daf`.
+- P6-2 typed field/UDF persistence and API slices above are complete; do not repeat them.
+- Next action is a fresh current-main/open-PR inspection for the first concrete remaining Hasan-owned P6-2 boundary, such as compatibility/version migration, only if repository evidence confirms it is missing.
+- P6-3 Column/View/Layout is Javad-owned and P6-4 formula semantics are Shared Core/Jalal-owned; Hasan should not duplicate those areas without a concrete backend contract dependency.
