@@ -71,6 +71,10 @@ test("document projection rejects invalid content hashes and links", () => {
     /INVALID_DOCUMENT_CONTENT_HASH/,
   );
   assert.throws(
+    () => projectDocument({ ...snapshot, content_hash: "sha256:" + "z".repeat(64) }, scope),
+    /INVALID_DOCUMENT_CONTENT_HASH/,
+  );
+  assert.throws(
     () => projectDocument({ ...snapshot, content_hash: "sha256:" + "g".repeat(64) }, scope),
     /INVALID_DOCUMENT_CONTENT_HASH/,
   );
