@@ -48,9 +48,24 @@ class P6InterchangeMapper:
         first_scope = mappings[0].scope
         self._scope = first_scope
         self._mappings = tuple(sorted(mappings, key=lambda item: item.definition.mapping_id))
+        seen_sources: set[tuple[P6MappingFormat, str]] = set()
+        seen_canonical: set[tuple[P6MappingFormat, str]] = set()
         for item in self._mappings:
             if item.scope != first_scope:
                 raise P6InterchangeCompatibilityError("MAPPING_SCOPE_MISMATCH")
+            definition = item.definition
+            source_key = (definition.format, definition.source_field)
+            canonical_key = (definition.format, definition.canonical_field)
+            if source_key in seen_sources:
+                raise P6InterchangeCompatibilityError(
+                    f"AMBIGUOUS_SOURCE_FIELD:{definition.format.value}:{definition.source_field}"
+                )
+            if canonical_key in seen_canonical:
+                raise P6InterchangeCompatibilityError(
+                    f"AMBIGUOUS_CANONICAL_FIELD:{definition.format.value}:{definition.canonical_field}"
+                )
+            seen_sources.add(source_key)
+            seen_canonical.add(canonical_key)
 
     def import_row(self, row: P6InterchangeRow) -> P6InterchangeResult:
         self._validate_format(row.format)
