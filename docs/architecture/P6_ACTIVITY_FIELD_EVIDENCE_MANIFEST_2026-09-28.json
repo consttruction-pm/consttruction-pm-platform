@@ -40,8 +40,8 @@
       "current_activity_semantic_evidence": {
         "oracle_type": "string(date-time)",
         "semantic_type": "datetime",
-        "evidence_lines": "1090-1094",
-        "notes": "verify exact start-date block in current page"
+        "evidence_lines": "1139-1147",
+        "notes": "actual activity start date"
       }
     },
     {
@@ -564,5 +564,5 @@
     }
   ],
   "semantic_evidence_pass": "tranche-2",
-  "semantic_evidence_note": "Only entries with exact current-page evidence lines are considered verified. Entries marked 'find required' remain non-certified and must not be used to infer mutability/computed status."
+  "semantic_evidence_note": "Only entries with exact current-page evidence lines are considered verified. Evidence lines establish source semantics only; mutability and computed status require separate evidence."
 }
