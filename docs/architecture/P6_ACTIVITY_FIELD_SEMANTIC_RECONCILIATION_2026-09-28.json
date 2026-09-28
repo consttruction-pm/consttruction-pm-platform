@@ -101,5 +101,54 @@
     }
   ],
   "certification_rule": "No field is certified from name similarity alone. writable/computed remain null until endpoint or authoritative field-property evidence is attached.",
-  "next_tranche": "Expand semantic/type evidence to the remaining registry Activity fields and reconcile exact matches before any disposition changes."
+  "next_tranche": "Expand semantic/type evidence to the remaining registry Activity fields and reconcile exact matches before any disposition changes.",
+  "registry_exact_match_audit": {
+    "registry_activity_field_count": 39,
+    "exact_inventory_matches": 30,
+    "non_exact_count": 9,
+    "exact_match_rule": "Exact name presence in the authoritative Release 26 Activity inventory only; this does not certify semantic equivalence, data type, writable/computed behavior, or implementation completeness.",
+    "exact_fields": [
+      "PlannedStartDate",
+      "PlannedFinishDate",
+      "ActualStartDate",
+      "ActualFinishDate",
+      "PlannedDuration",
+      "RemainingDuration",
+      "ActualDuration",
+      "DurationPercentComplete",
+      "PhysicalPercentComplete",
+      "PercentCompleteType",
+      "TotalFloat",
+      "FreeFloat",
+      "FloatPath",
+      "FloatPathOrder",
+      "EarlyStartDate",
+      "EarlyFinishDate",
+      "LateStartDate",
+      "LateFinishDate",
+      "PrimaryConstraintType",
+      "PrimaryConstraintDate",
+      "ExpectedFinishDate",
+      "PrimaryResourceName",
+      "ProjectId",
+      "ProjectName",
+      "WBSPath",
+      "BaselineStartDate",
+      "BaselineFinishDate",
+      "BaselineDuration",
+      "Duration1Variance",
+      "CreateUser"
+    ],
+    "non_exact_fields": [
+      "ActivityId",
+      "ActivityName",
+      "ActivityStatus",
+      "ActivityType",
+      "Calendar",
+      "RemainingStartDate",
+      "RemainingFinishDate",
+      "ActivityOwner",
+      "UpdateUser"
+    ]
+  }
 }
