@@ -8,17 +8,15 @@ test("formula validation uses ProjectContext and authoritative API transport", a
     async get() { throw new Error("not used"); },
     async post<TRequest, TResponse>(path: string, _request: TRequest, context: unknown): Promise<{ ok: true; data: TResponse }> {
       calls.push({ path, context });
-      return {
-        ok: true as const,
-        data: {
-          status: "valid" as const,
-          message_key: null,
-          result_type: "percentage",
-          result_unit: "%",
-          authoritative: true as const,
-          dependencies: [{ field_id: "actual", dependency_type: "field" as const, subject_area: "activity" }],
-        },
-      };
+      const data = {
+        status: "valid" as const,
+        message_key: null,
+        result_type: "percentage",
+        result_unit: "%",
+        authoritative: true as const,
+        dependencies: [{ field_id: "actual", dependency_type: "field" as const, subject_area: "activity" }],
+      } as TResponse;
+      return { ok: true as const, data };
     },
   };
   const result = await validateP6Formula(transport, { tenant_id: "t1", project_id: "p1", revision: 9 }, {
