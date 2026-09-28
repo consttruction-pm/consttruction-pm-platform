@@ -328,3 +328,12 @@ Status: **implemented and runtime-verified**
 - P6-2 now has SQLite + PostgreSQL persistence for the Field Registry, UDF definitions and typed UDF values, plus the versioned API boundary.
 - The remaining P6-2 acceptance item is compatibility/version migration. Do not invent a target version; first wait for or reconcile an authoritative Shared/Core registry version transition before implementing a concrete migration.
 - P6-3 Column/View/Layout remains Javad-owned; P6-4 Formula semantics remain Shared Core/Jalal-owned unless a concrete Hasan-owned persistence/API dependency is established.
+
+
+### 2026-09-28 — P6 continuation gate: no safe migration target yet
+
+- Fresh current-main reconciliation after PR #410 confirms P6-2 Field Registry/UDF SQLite + PostgreSQL persistence, typed UDF values and the versioned API boundary are already complete and must not be repeated.
+- P6-2 still lists compatibility/version migration, but the authoritative Shared/Core registry currently provides no concrete target version transition to migrate to. No fabricated migration target is permitted.
+- PR #409 (Jalal, Shared/Core) is the only currently open PR and provides the P6 formula-semantics prerequisite. Its exact head aa46cc3aecf16152e7651fb15dc7fe46eaced899 has ConstructionPM CI 1702 and Client Typecheck 1405 green, but it is not yet merged. Hasan must not create formula persistence/API semantics against an unmerged contract.
+- P6-3 Column/View/Layout remains Javad-owned. P6-7 interchange depends on the authoritative field registry/mapping surface and remains a later concrete gate rather than a reason to invent an adapter now.
+- Current evidence establishes an ownership/version prerequisite, not a missing backend implementation. Next Hasan implementation starts only when a concrete Shared/Core contract/version transition is merged and reconciled against current main.
