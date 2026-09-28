@@ -64,7 +64,21 @@ def test_encode_round_trips_task_rows() -> None:
 def test_adapter_composes_with_mpx_codec_without_owning_p6_semantics() -> None:
     codec = P6MpxCodec()
     document = "MPX,Microsoft Project,4.0,850\n60,Name,Duration\n70,Pour cement,6d\n"
-    mapper = P6InterchangeMapper(scope=scope(), definitions=())
+    from construction_pm.p6_mapping_registry import P6MappingDefinition, P6MappingStatus, PersistedP6Mapping
+
+    mapping = PersistedP6Mapping(
+        scope=scope(),
+        definition=P6MappingDefinition(
+            mapping_id="mpx.task.name",
+            registry_version="p6-field-registry.v1",
+            format=P6MappingFormat.MPX,
+            subject_area="TASK",
+            source_field="Name",
+            canonical_field="task_name",
+            status=P6MappingStatus.SUPPORTED,
+        ),
+    )
+    mapper = P6InterchangeMapper((mapping,))
     adapter = P6InterchangeAdapter(mapper=mapper, codec=codec)
     results = adapter.import_document(document, scope=scope())
-    assert results[0].values == {"Name": "Pour cement", "Duration": "6d"}
+    assert results[0].values == {"task_name": "Pour cement"}
