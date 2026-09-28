@@ -314,7 +314,7 @@ def _record_payload(record: PersistedP6FormulaDefinition) -> tuple[object, ...]:
         record.semantic_version,
         record.semantic_reference,
         json.dumps(list(record.dependencies), separators=(",", ":"), ensure_ascii=False),
-        json.dumps(record.metadata, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+        json.dumps(dict(record.metadata), sort_keys=True, separators=(",", ":"), ensure_ascii=False),
     )
 
 
