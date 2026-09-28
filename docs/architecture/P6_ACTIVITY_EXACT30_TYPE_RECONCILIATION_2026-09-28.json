@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "reference": {
+    "title": "Oracle Primavera P6 EPPM REST API Release 26 — Read Activities",
+    "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+  },
+  "purpose": "Type reconciliation for the 30 registry Activity fields whose names exactly match the authoritative Release 26 Activity export inventory. This artifact certifies only the observed REST JSON schema type and semantic notes; writable/computed behavior remains independently governed.",
+  "exact_registry_field_count": 30,
+  "fields": [
+    {
+      "p6_field": "PlannedStartDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Oracle states the date is scheduler-computed but may be updated manually."
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Oracle states the date is scheduler-computed but may be updated manually."
+    },
+    {
+      "p6_field": "ActualStartDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Activity actual start date."
+    },
+    {
+      "p6_field": "ActualFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Activity actual finish date."
+    },
+    {
+      "p6_field": "PlannedDuration",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Working duration; project calendar semantics remain in Shared Core."
+    },
+    {
+      "p6_field": "RemainingDuration",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Remaining working duration; project calendar semantics remain in Shared Core."
+    },
+    {
+      "p6_field": "ActualDuration",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Actual working duration computed using the activity calendar."
+    },
+    {
+      "p6_field": "DurationPercentComplete",
+      "registry_domain_type": "percentage",
+      "oracle_json_type": "number(double)",
+      "notes": "Oracle defines it as (planned duration - remaining duration) / planned duration * 100."
+    },
+    {
+      "p6_field": "PhysicalPercentComplete",
+      "registry_domain_type": "percentage",
+      "oracle_json_type": "number(double)",
+      "notes": "May be user-entered or calculated from weighted steps."
+    },
+    {
+      "p6_field": "PercentCompleteType",
+      "registry_domain_type": "enum",
+      "oracle_json_type": "string",
+      "notes": "Allowed semantic values include Physical, Duration, Units."
+    },
+    {
+      "p6_field": "TotalFloat",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Time amount before the activity delays project finish; scheduling semantics remain in Shared Core."
+    },
+    {
+      "p6_field": "FreeFloat",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Amount of time the activity can be delayed before delaying successor start."
+    },
+    {
+      "p6_field": "FloatPath",
+      "registry_domain_type": "integer",
+      "oracle_json_type": "integer(int32)",
+      "notes": "Critical path identifier."
+    },
+    {
+      "p6_field": "FloatPathOrder",
+      "registry_domain_type": "integer",
+      "oracle_json_type": "integer(int32)",
+      "notes": "Order on a critical path."
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Scheduler-computed earliest possible start for remaining work."
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Scheduler-computed earliest possible finish."
+    },
+    {
+      "p6_field": "LateStartDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Scheduler-computed latest possible start."
+    },
+    {
+      "p6_field": "LateFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Scheduler-computed latest possible finish."
+    },
+    {
+      "p6_field": "PrimaryConstraintType",
+      "registry_domain_type": "enum",
+      "oracle_json_type": "string",
+      "notes": "Constraint type; scheduler uses activity constraints."
+    },
+    {
+      "p6_field": "PrimaryConstraintDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Constraint date; meaning depends on constraint type."
+    },
+    {
+      "p6_field": "ExpectedFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Expected finish date."
+    },
+    {
+      "p6_field": "PrimaryResourceName",
+      "registry_domain_type": "string",
+      "oracle_json_type": "string",
+      "notes": "Name of the primary resource."
+    },
+    {
+      "p6_field": "ProjectId",
+      "registry_domain_type": "string",
+      "oracle_json_type": "string",
+      "notes": "Short code of associated project."
+    },
+    {
+      "p6_field": "ProjectName",
+      "registry_domain_type": "string",
+      "oracle_json_type": "string",
+      "notes": "Name of associated project."
+    },
+    {
+      "p6_field": "WBSPath",
+      "registry_domain_type": "string",
+      "oracle_json_type": "string",
+      "notes": "WBS path."
+    },
+    {
+      "p6_field": "BaselineStartDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Project baseline current start date."
+    },
+    {
+      "p6_field": "BaselineFinishDate",
+      "registry_domain_type": "datetime",
+      "oracle_json_type": "string(date-time)",
+      "notes": "Project baseline current finish date."
+    },
+    {
+      "p6_field": "BaselineDuration",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Project baseline working duration."
+    },
+    {
+      "p6_field": "Duration1Variance",
+      "registry_domain_type": "duration",
+      "oracle_json_type": "number(double)",
+      "notes": "Primary baseline duration minus at-completion duration."
+    },
+    {
+      "p6_field": "CreateUser",
+      "registry_domain_type": "string",
+      "oracle_json_type": "string",
+      "notes": "Name of user that created the activity."
+    }
+  ]
+}
