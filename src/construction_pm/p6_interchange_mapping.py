@@ -61,6 +61,8 @@ class P6InterchangeMapper:
 
         for item in self._mappings:
             definition = item.definition
+            if definition.format is not row.format:
+                continue
             source = definition.source_field
             if source not in row.values:
                 continue
@@ -95,6 +97,8 @@ class P6InterchangeMapper:
 
         for item in self._mappings:
             definition = item.definition
+            if definition.format is not row.format:
+                continue
             canonical = definition.canonical_field
             if canonical not in row.values:
                 continue
