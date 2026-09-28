@@ -17,8 +17,16 @@ from construction_pm.field_assurance_templates_repository import FieldAssuranceE
 def template(suffix):
     return FieldAssuranceTemplate(f"TPL-{suffix}", BackendScope("tenant-live", f"project-{suffix}", 4), 1, FieldAssuranceTemplateType.INSPECTION, "inspection.concrete", (FieldAssuranceTemplateItem("I-1", 1, "criterion.dimension", FieldAssuranceTemplateInputType.NUMBER, True),))
 
-def execution(t, execution_id, value="12.5"):
-    return FieldAssuranceExecution(execution_id, t.template_id, t.template_version, t.scope, (("I-1", value),), "user-live", datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc))
+def execution(t, execution_id, value=12.5):
+    return FieldAssuranceExecution(
+        execution_id=execution_id,
+        template_id=t.template_id,
+        template_version=t.template_version,
+        scope=t.scope,
+        answers=(("I-1", value),),
+        executed_by="user-live",
+        executed_at=datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc),
+    )
 
 def test_postgres_field_assurance_template_execution_replay_and_conflict():
     suffix = uuid.uuid4().hex
@@ -35,7 +43,7 @@ def test_postgres_field_assurance_template_execution_replay_and_conflict():
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(ValueError, match="EXECUTION_ID_CONFLICT"):
             with PostgresTransactionManager(connection).transaction():
-                repository.create_execution(execution(t, f"EXEC-{suffix}", "99"))
+                repository.create_execution(execution(t, f"EXEC-{suffix}", 99))
         connection.rollback()
 
 def test_postgres_field_assurance_template_execution_rolls_back():
