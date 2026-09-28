@@ -18,7 +18,7 @@ from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, a
 
 @dataclass(frozen=True)
 class TimeScheduleOptions:
-    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.SUCCESSOR
+    relationship_lag_calendar: RelationshipLagCalendar | None = None
 
 
 @dataclass(frozen=True)
