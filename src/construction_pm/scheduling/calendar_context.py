@@ -121,6 +121,8 @@ class CalendarResolverRegistry:
         predecessor_reference: CalendarReference,
         option: RelationshipLagCalendar | None = None,
     ):
+        if option is None and successor_context.relationship_lag is not None:
+            return self.resolve(successor_context.relationship_lag)
         selected = option or RelationshipLagCalendar.SUCCESSOR
         reference = successor_context.relationship_lag_reference(
             selected, predecessor_reference
