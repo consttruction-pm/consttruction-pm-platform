@@ -41,10 +41,15 @@ class FormulaRollupEngine:
         }:
             raise FormulaTypeError(f"UNSUPPORTED_ROLLUP_FUNCTION:{function}")
 
+        present = [
+            value for _, value in sorted(values.items())
+            if value.type is not FormulaType.NULL
+        ]
+        if any(value.type is not FormulaType.NUMBER for value in present):
+            raise FormulaTypeError("ROLLUP_VALUES_MUST_BE_NUMERIC")
         normalized = [
             FormulaValue.number(value.value, value.unit)
-            for _, value in sorted(values.items())
-            if value.type is not FormulaType.NULL
+            for value in present
         ]
         if not normalized:
             return FormulaRollupResult(function, FormulaValue.null())
