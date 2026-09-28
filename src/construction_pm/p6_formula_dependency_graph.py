@@ -103,12 +103,35 @@ class FormulaDependencyGraph:
         return tuple(sorted(affected))
 
     def recalculation_plan(self, changed_formula_ids: set[str] | frozenset[str]) -> FormulaRecalculationPlan:
-        affected = set(self.affected_formulas(changed_formula_ids))
+        self._validate_formula_ids(changed_formula_ids)
+        return self._recalculation_plan_for_affected(
+            set(self.affected_formulas(changed_formula_ids))
+        )
+
+    def recalculation_plan_for_changes(
+        self,
+        changed_ids: set[str] | frozenset[str],
+    ) -> FormulaRecalculationPlan:
+        affected = set(self.affected_formulas_for_changes(changed_ids))
+        return self._recalculation_plan_for_affected(affected)
+
+    def _recalculation_plan_for_affected(
+        self,
+        affected: set[str],
+    ) -> FormulaRecalculationPlan:
         indegree = {
-            formula_id: sum(1 for dependency in self._edges[formula_id] if dependency in affected)
+            formula_id: sum(
+                1
+                for dependency in self._edges[formula_id]
+                if dependency in affected
+            )
             for formula_id in affected
         }
-        ready = sorted(formula_id for formula_id, degree in indegree.items() if degree == 0)
+        ready = sorted(
+            formula_id
+            for formula_id, degree in indegree.items()
+            if degree == 0
+        )
         ordered: list[str] = []
 
         while ready:
