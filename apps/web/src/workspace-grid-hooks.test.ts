@@ -99,6 +99,148 @@ test("authoritative catalog controls sort/filter eligibility", () => {
   assert.deepEqual(query.filters.map((x) => x.fieldId), ["activity_id"]);
 });
 
+test("grid filter operators follow authoritative field data types", () => {
+  const typedCatalog = [
+    ...catalog,
+    {
+      id: "cost",
+      source: "standard",
+      subjectArea: "activity",
+      label: "Cost",
+      dataType: "cost",
+      writable: true,
+      computed: false,
+      unit: "USD",
+      nullable: true,
+      allowedValues: [],
+      p6Field: "TARGET_COST",
+      filterable: true,
+      orderable: true,
+    },
+    {
+      id: "start_date",
+      source: "standard",
+      subjectArea: "activity",
+      label: "Start",
+      dataType: "date",
+      writable: false,
+      computed: true,
+      unit: null,
+      nullable: true,
+      allowedValues: [],
+      p6Field: "START_DATE",
+      filterable: true,
+      orderable: true,
+    },
+    {
+      id: "is_active",
+      source: "standard",
+      subjectArea: "activity",
+      label: "Active",
+      dataType: "boolean",
+      writable: true,
+      computed: false,
+      unit: null,
+      nullable: true,
+      allowedValues: [],
+      p6Field: "IS_ACTIVE",
+      filterable: true,
+      orderable: true,
+    },
+    {
+      id: "status",
+      source: "standard",
+      subjectArea: "activity",
+      label: "Status",
+      dataType: "enum",
+      writable: true,
+      computed: false,
+      unit: null,
+      nullable: true,
+      allowedValues: ["planned", "active", "complete"],
+      p6Field: "STATUS",
+      filterable: true,
+      orderable: true,
+    },
+  ] as const;
+  const state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 1 }, "en", "gregorian", typedCatalog);
+  const query = normalizeGridQuery(state, {
+    sort: [],
+    group: [],
+    filters: [
+      { fieldId: "cost", operator: "gt", value: 10 },
+      { fieldId: "cost", operator: "contains", value: "10" },
+      { fieldId: "start_date", operator: "lte", value: "2026-09-28" },
+      { fieldId: "start_date", operator: "contains", value: "2026" },
+      { fieldId: "is_active", operator: "equals", value: true },
+      { fieldId: "is_active", operator: "gt", value: 0 },
+      { fieldId: "status", operator: "equals", value: "active" },
+      { fieldId: "status", operator: "contains", value: "act" },
+      { fieldId: "duration", operator: "isNull", value: null },
+      { fieldId: "duration", operator: "notNull", value: null },
+    ],
+  }, typedCatalog);
+  assert.deepEqual(query.filters.map((x) => [x.fieldId, x.operator]), [
+    ["cost", "gt"],
+    ["start_date", "lte"],
+    ["is_active", "equals"],
+    ["status", "equals"],
+    ["status", "contains"],
+    ["duration", "isNull"],
+    ["duration", "notNull"],
+  ]);
+});
+
+test("grid query deduplicates sort/group fields without blocking hidden layout fields", () => {
+  const state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 1 }, "en", "gregorian", catalog);
+  const layout = setColumnState(createDefaultLayout("activity-main", "activity", "project", 1, catalog), "duration", {
+    visible: false,
+  });
+  const query = normalizeGridQuery(state, {
+    sort: [
+      { fieldId: "duration", direction: "asc" },
+      { fieldId: "duration", direction: "desc" },
+      { fieldId: "activity_id", direction: "asc" },
+    ],
+    group: [{ fieldId: "duration" }, { fieldId: "duration" }],
+    filters: [],
+  }, catalog, layout);
+  assert.deepEqual(query.sort, [
+    { fieldId: "duration", direction: "asc" },
+    { fieldId: "activity_id", direction: "asc" },
+  ]);
+  assert.deepEqual(query.group, [{ fieldId: "duration" }]);
+});
+
+test("grid query rejects fields from another subject area even when ids are known", () => {
+  const mixedCatalog = [
+    ...catalog,
+    {
+      id: "project_id",
+      source: "standard",
+      subjectArea: "project",
+      label: "Project ID",
+      dataType: "string",
+      writable: false,
+      computed: false,
+      unit: null,
+      nullable: null,
+      allowedValues: [],
+      p6Field: "PROJ_ID",
+      filterable: true,
+      orderable: true,
+    },
+  ] as const;
+  const state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 1 }, "en", "gregorian", catalog);
+  const layout = createDefaultLayout("activity-main", "activity", "project", 1, catalog);
+  const query = normalizeGridQuery(state, {
+    sort: [{ fieldId: "project_id", direction: "asc" }],
+    group: [{ fieldId: "project_id" }],
+    filters: [{ fieldId: "project_id", operator: "equals", value: "P1" }],
+  }, mixedCatalog, layout);
+  assert.deepEqual(query, createEmptyGridQuery());
+});
+
 test("report/print selection follows visible persisted layout", () => {
   let state = createWorkspaceState({ tenant_id: "t1", project_id: "p1", revision: 1 });
   state = withActivities(state, [
