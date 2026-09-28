@@ -226,6 +226,19 @@ class PostgresDependencyGraphStore:
             if existing_fingerprint != fingerprint:
                 raise DependencyIdempotencyReuse("IDEMPOTENCY_KEY_REUSE")
             return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
+
+        existing_resource = self.connection.execute(
+            "SELECT idempotency_key, fingerprint, link_json, graph_revision "
+            "FROM project_dependency_links "
+            "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+            (link.tenant_id, link.project_id, link.resource_id),
+        ).fetchone()
+        if existing_resource is not None:
+            existing_key, existing_fingerprint, existing_json, existing_revision = existing_resource
+            if existing_key == idempotency_key and existing_fingerprint == fingerprint:
+                return StoredDependencyLink(_link_from_json(existing_json), existing_revision)
+            raise DependencyResourceConflict("DEPENDENCY_RESOURCE_ALREADY_EXISTS")
+
         if current != expected_graph_revision:
             raise DependencyRevisionConflict(
                 f"DEPENDENCY_REVISION_CONFLICT expected={expected_graph_revision} actual={current}"

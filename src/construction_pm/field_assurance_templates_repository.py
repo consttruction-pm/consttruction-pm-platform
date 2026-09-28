@@ -111,7 +111,11 @@ class SQLiteFieldAssuranceTemplateRepository:
         return None if row is None else _template_from_dict(json.loads(row[0]))
 
     def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
-        template = self.get_template(execution.scope, execution.template_id, execution.template_version)
+        template = self.get_template(
+            scope=execution.scope,
+            template_id=execution.template_id,
+            template_version=execution.template_version,
+        )
         if template is None:
             existing = self.connection.execute(
                 """SELECT 1 FROM field_assurance_templates
@@ -209,7 +213,11 @@ class PostgresFieldAssuranceTemplateRepository:
         return None if row is None else _template_from_dict(json.loads(row[0]))
 
     def create_execution(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
-        template = self.get_template(execution.scope, execution.template_id, execution.template_version)
+        template = self.get_template(
+            scope=execution.scope,
+            template_id=execution.template_id,
+            template_version=execution.template_version,
+        )
         if template is None:
             existing = self.connection.execute(
                 "SELECT 1 FROM field_assurance_templates WHERE tenant_id=%s AND project_id=%s AND template_id=%s LIMIT 1",
