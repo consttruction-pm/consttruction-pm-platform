@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "p6_reference": "P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+  "source_evidence_lines": "961-1235",
+  "inventory_field_count": 275,
+  "registry_activity_field_count": 39,
+  "exact_matches": 30,
+  "missing_from_registry_count": 245,
+  "registry_names_not_exact_inventory_names": [
+    "ActivityId",
+    "ActivityName",
+    "ActivityOwner",
+    "ActivityStatus",
+    "ActivityType",
+    "Calendar",
+    "RemainingFinishDate",
+    "RemainingStartDate",
+    "UpdateUser"
+  ],
+  "interpretation": "Evidence/gap snapshot only. It does not decide implementation, equivalence, aliases, or Outside Scope dispositions.",
+  "next_required_work": [
+    "Map each non-exact registry seed name to an official P6 field or explicitly classify it as a product-specific alias.",
+    "Add authoritative registry rows for every applicable official Activity field with typed metadata.",
+    "Collect separate semantic evidence for API type, mutability, computed/stored status, filter/order support, and calculation meaning.",
+    "Only then move fields from seeded_not_certified to an explicit disposition with regression evidence."
+  ]
+}
