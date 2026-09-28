@@ -22,11 +22,14 @@ on:
       - "src/construction_pm/p6_cost_account_repository.py"
       - "src/construction_pm/p6_expense_repository.py"
       - "src/construction_pm/p6_resource_assignment_repository.py"
+      - "src/construction_pm/p6_report_profile_repository.py"
       - "tests/integration/test_postgres_*.py"
       - "tests/integration/test_p6_activity_step_template_postgres_live.py"
       - "tests/integration/test_p6_cost_account_postgres_live.py"
       - "tests/integration/test_p6_expense_postgres_live.py"
+      - "tests/integration/test_p6_report_profile_postgres_live.py"
       - "tests/integration/test_p6_resource_assignment_postgres_live.py"
+      - "tests/integration/test_p6_report_profile_postgres_live.py"
       - ".github/workflows/postgres-integration.yml"
   pull_request:
     paths:
@@ -39,6 +42,7 @@ on:
       - "src/construction_pm/procurement.py"
       - "src/construction_pm/document_persistence.py"
       - "src/construction_pm/p6_resource_spread_repository.py"
+      - "src/construction_pm/p6_report_profile_repository.py"
       - "src/construction_pm/p6_code_repository.py"
       - "src/construction_pm/p6_activity_step_repository.py"
       - "src/construction_pm/p6_activity_step_template_repository.py"
@@ -79,4 +83,4 @@ jobs:
       - name: Run live PostgreSQL integration
         env:
           CONSTRUCTION_PM_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/construction_pm
-        run: python -m pytest -q tests/integration/test_postgres_*.py tests/integration/test_portfolio_decision_postgres_live.py tests/integration/test_dependency_graph_postgres_live.py tests/integration/test_field_operations_postgres_live.py tests/integration/test_field_assurance_templates_postgres_live.py tests/integration/test_change_claim_postgres_live.py tests/integration/test_procurement_postgres_live.py tests/integration/test_document_postgres_live.py tests/integration/test_document_search_postgres_live.py tests/integration/test_p6_resource_spread_postgres_live.py tests/integration/test_p6_code_postgres_live.py tests/integration/test_p6_activity_period_actual_postgres_live.py tests/integration/test_p6_activity_step_postgres_live.py tests/integration/test_p6_activity_step_template_postgres_live.py tests/integration/test_p6_expense_postgres_live.py
+        run: python -m pytest -q tests/integration/test_postgres_*.py tests/integration/test_portfolio_decision_postgres_live.py tests/integration/test_dependency_graph_postgres_live.py tests/integration/test_field_operations_postgres_live.py tests/integration/test_field_assurance_templates_postgres_live.py tests/integration/test_change_claim_postgres_live.py tests/integration/test_procurement_postgres_live.py tests/integration/test_document_postgres_live.py tests/integration/test_document_search_postgres_live.py tests/integration/test_p6_resource_spread_postgres_live.py tests/integration/test_p6_code_postgres_live.py tests/integration/test_p6_activity_period_actual_postgres_live.py tests/integration/test_p6_activity_step_postgres_live.py tests/integration/test_p6_activity_step_template_postgres_live.py tests/integration/test_p6_expense_postgres_live.py tests/integration/test_p6_report_profile_postgres_live.py
