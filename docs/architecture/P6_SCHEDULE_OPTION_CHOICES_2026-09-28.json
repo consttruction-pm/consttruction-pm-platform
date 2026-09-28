@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "reference": {
+    "title": "Oracle Primavera P6 EPPM REST API Release 26 — Read ScheduleOptions",
+    "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html"
+  },
+  "status": "verified_choice_sets_only",
+  "note": "This artifact records only selection sets explicitly described by the current Oracle Release 26 documentation. Unenumerated string fields remain open until Oracle evidence or authoritative implementation semantics provide their choices.",
+  "choices": [
+    {
+      "subject_area": "ScheduleOptions",
+      "field": "ComputeTotalFloatType",
+      "allowed_values": [
+        "Start Float",
+        "Finish Float",
+        "Smallest of Start Float and Finish Float"
+      ]
+    },
+    {
+      "subject_area": "ScheduleOptions",
+      "field": "CriticalActivityPathType",
+      "allowed_values": [
+        "Critical Float",
+        "Longest Path"
+      ]
+    },
+    {
+      "subject_area": "ScheduleOptions",
+      "field": "OutOfSequenceScheduleType",
+      "allowed_values": [
+        "Retained Logic",
+        "Progress Override",
+        "Actual Dates"
+      ]
+    },
+    {
+      "subject_area": "ScheduleOptions",
+      "field": "RelationshipLagCalendar",
+      "allowed_values": [
+        "Predecessor Activity Calendar",
+        "Successor Activity Calendar",
+        "24 Hour Calendar",
+        "Project Default Calendar"
+      ]
+    },
+    {
+      "subject_area": "Activity",
+      "field": "PercentCompleteType",
+      "allowed_values": [
+        "Physical",
+        "Duration",
+        "Units"
+      ]
+    }
+  ]
+}
