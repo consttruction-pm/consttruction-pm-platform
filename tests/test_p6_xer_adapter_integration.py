@@ -39,4 +39,4 @@ def test_xer_codec_composes_with_mapping_boundary() -> None:
 
     assert imported[0].values == {"activity.code": "A-10"}
     assert imported[0].extensions["p6.interchange.t1.p1.task_name"] == "Foundation"
-    assert imported[0].extensions["p6.interchange.t1.p1.p6.xer.table"] == "TASK"
+    assert imported[0].extensions["p6.xer.table"] == "TASK"
