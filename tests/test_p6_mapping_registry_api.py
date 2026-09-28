@@ -7,8 +7,8 @@ import pytest
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
-    AuthorizationPolicy,
-    Permission,
+    AuthorizationError,
+    default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_mapping_registry import (
@@ -47,18 +47,13 @@ def auth(
     *,
     tenant_id: str = "t1",
     project_id: str = "p1",
-    permissions: set[Permission] | None = None,
+    role: str = "planner",
 ) -> AuthorizationContext:
     return AuthorizationContext(
         tenant_id=tenant_id,
         project_id=project_id,
         user_id="u1",
-        roles=frozenset(),
-        permissions=frozenset(
-            permissions
-            if permissions is not None
-            else {Permission.PROJECT_READ, Permission.PROJECT_WRITE}
-        ),
+        roles=frozenset({role}),
     )
 
 
@@ -84,7 +79,7 @@ def api() -> P6MappingRegistryAPI:
     repository = SQLiteP6MappingRegistryRepository(connection)
     manager = TransactionManager(connection)
     service = P6MappingRegistryApplicationService(repository, manager)
-    return P6MappingRegistryAPI(service, AuthorizationPolicy())
+    return P6MappingRegistryAPI(service, default_project_policy())
 
 
 def test_create_and_read_expose_versioned_typed_boundary() -> None:
@@ -117,14 +112,7 @@ def test_list_supports_explicit_status_filter_without_recalculating_mapping() ->
 
 def test_cross_scope_and_missing_permission_are_rejected() -> None:
     instance = api()
-    with pytest.raises(Exception, match="CROSS_SCOPE_ACCESS"):
-        instance.create(
-            record(),
-            auth_context=auth(tenant_id="other"),
-        )
-    with pytest.raises(Exception, match="authorization denied"):
-        instance.get(
-            scope(),
-            "activity.code",
-            auth_context=auth(permissions={Permission.PROJECT_WRITE}),
-        )
+    with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
+        instance.create(record(), auth_context=auth(tenant_id="other"))
+    with pytest.raises(AuthorizationError, match="authorization denied"):
+        instance.get(scope(), "activity.code", auth_context=auth(role="writer"))
