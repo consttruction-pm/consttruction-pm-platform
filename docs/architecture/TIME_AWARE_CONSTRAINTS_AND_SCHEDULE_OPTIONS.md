@@ -27,9 +27,16 @@ Duration arithmetic uses the activity calendar. Constraint target conversion is 
 
 ## Schedule options
 
-The current time-aware integration intentionally keeps schedule-mode selection outside the constraint primitives. The existing EARLIEST/ALAP schedule option remains an application-level choice, while constraints provide deterministic date bounds.
+The date-based Shared Scheduling Core now implements these P6-aligned options:
+- schedule mode (EARLIEST / ALAP);
+- total-float calculation type (Start Float / Finish Float / Smaller Float);
+- critical activity float threshold;
+- Make Open-Ended Activities Critical;
+- Critical Activity Path Type = Longest Path.
 
-A future time-aware schedule-options contract must explicitly carry:
+Longest Path criticality is calculated from activities whose early finish equals the latest calculated early finish, then traces only driving incoming relationships in deterministic order. When a successor date is driven by a constraint rather than a relationship, the relationship chain is not treated as part of the longest path. The implementation does not claim multi-project/resource-leveling parity.
+
+The time-aware integration still keeps schedule-mode selection outside the constraint primitives. Its future schedule-options contract must explicitly carry:
 - selected schedule mode;
 - project finish / data date;
 - relationship-lag calendar option;
@@ -42,9 +49,10 @@ Existing date-based constraints remain unchanged. Time-aware constraints are a s
 
 ## Remaining gates
 
+- remaining P6 ScheduleOptions semantics (multiple float paths, out-of-sequence scheduling, lag-calendar variants, expected-finish handling, multi-project/resource-leveling options, etc.);
 - formal time-aware schedule-options contract;
 - complete portability schema for per-activity time quantities and constraint targets;
 - cross-client API regression pack;
 - final P6 time-based parity certification.
 
-Runtime CI execution remains unverified.
+PR #427 (P6 Longest Path) has fresh green CI on Python 3.11/3.12/3.13 and Web/Desktop/Mobile/Client-Sync typechecks.
