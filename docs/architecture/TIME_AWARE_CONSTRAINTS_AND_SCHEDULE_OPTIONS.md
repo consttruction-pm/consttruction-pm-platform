@@ -36,6 +36,8 @@ The date-based Shared Scheduling Core now implements these P6-aligned options:
 
 Longest Path criticality is calculated from activities whose early finish equals the latest calculated early finish, then traces only driving incoming relationships in deterministic order. When a successor date is driven by a constraint rather than a relationship, the relationship chain is not treated as part of the longest path. The implementation does not claim multi-project/resource-leveling parity.
 
+The time-aware Shared Core now also accepts the P6 RelationshipLagCalendar option with four explicit values: predecessor activity calendar, successor activity calendar, 24-hour calendar, and project default calendar. The default is successor activity calendar. The 24-hour option uses continuous elapsed hours rather than approximating a workweek.
+
 The time-aware integration still keeps schedule-mode selection outside the constraint primitives. Its future schedule-options contract must explicitly carry:
 - selected schedule mode;
 - project finish / data date;
