@@ -238,8 +238,8 @@ def test_time_forward_pass_requires_registered_project_calendar():
 @pytest.mark.parametrize(
     ("lag_mode", "expected_start"),
     [
-        (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 12)),
-        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 23, 14)),
+        (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 13)),
+        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 14)),
     ],
 )
 def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
@@ -261,7 +261,7 @@ def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
         datetime(2026, 9, 22, 8),
         registry(),
         start_to_start_lag_calculation_type=lag_mode,
-        data_date=datetime(2026, 9, 23, 10),
+        data_date=datetime(2026, 9, 24, 10),
     )
     assert result["A"].start == datetime(2026, 9, 22, 8)
     assert result["B"].start == expected_start
