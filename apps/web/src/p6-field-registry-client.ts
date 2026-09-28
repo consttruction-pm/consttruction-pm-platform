@@ -48,6 +48,9 @@ export type P6FieldCatalogEntry = Readonly<{
   writable: boolean;
   computed: boolean;
   unit: string | null;
+  nullable: boolean | null;
+  allowedValues: readonly string[];
+  p6Field: string;
   filterable: boolean;
   orderable: boolean;
 }>;
@@ -68,6 +71,9 @@ export function projectFieldCatalogEntry(dto: P6FieldRegistryDTO): P6FieldCatalo
     writable: dto.field.writable,
     computed: dto.field.computed,
     unit: dto.field.unit,
+    nullable: null,
+    allowedValues: Object.freeze([]),
+    p6Field: dto.field.p6_field,
     filterable: true,
     orderable: true,
   });
@@ -89,6 +95,9 @@ export function projectUdfCatalogEntry(dto: P6UserDefinedFieldDTO): P6FieldCatal
     writable: dto.udf.writable,
     computed: false,
     unit: dto.udf.unit,
+    nullable: dto.udf.nullable,
+    allowedValues: Object.freeze([...dto.udf.allowed_values]),
+    p6Field: dto.udf.udf_id,
     filterable: true,
     orderable: true,
   });
