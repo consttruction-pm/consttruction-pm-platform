@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://constructionpm.dev/contracts/p6-mapping-registry.v1.schema.json",
+  "$id": "https://constructionpm.dev/contracts/v1/p6-mapping-registry.v1.schema.json",
   "title": "P6 Mapping Registry v1",
   "type": "object",
   "additionalProperties": false,
