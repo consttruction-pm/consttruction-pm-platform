@@ -52,3 +52,5 @@ Single control matrix for completing the Web-first V1 Beta without repeating pre
 
 ## Fast-Beta strategy
 V1 prioritizes a complete navigable Web surface and the shared calculation backbone. Desktop/Mobile and advanced AI are V2 unless a V1 boundary requires their contracts. Deeper P6 field certification continues in parallel behind the same registry; it must not block the visible Beta shell when the underlying contract is safely represented as Pending/Preview.
+
+- Localization/Typergraphy rule: all menus, fields and help surfaces use language-tag, fallback, writing-direction and typography metadata.
