@@ -403,3 +403,20 @@ Status: **implemented, merged and runtime-verified**
 - Activity Steps persistence is complete; do not repeat it.
 - Baseline comparison persistence remains blocked until an authoritative Shared Core baseline snapshot/version contract exists. Do not invent baseline comparison semantics in Backend/API.
 - Next action is a fresh current-main/open-work inspection for the next concrete Hasan-owned P6-8 data surface, with baseline ownership explicitly rechecked first.
+
+
+### 2026-09-28 — P6 Activity Resource Assignment persistence (PR #449)
+Status: **implemented, merged and runtime-verified**
+- Added tenant/project/project-revision scoped Activity Resource Assignment persistence with typed Decimal units/cost snapshots and explicit unit/currency/calendar metadata.
+- Added SQLite and PostgreSQL repository boundaries, deterministic reads, immutable replay semantics, stale-revision rejection and application-owned transaction service.
+- Added focused unit coverage for round-trip, filters, isolation, revision conflict, immutability, Decimal preservation and fail-closed validation.
+- Added live PostgreSQL coverage for round-trip, tenant isolation, revision conflict, Decimal values, immutable replay and rollback; the PostgreSQL workflow now triggers the new live test.
+- Exact implementation head: 22f21b7d880fd04cbc702f424ff00dba3a2cae12.
+- ConstructionPM CI #1874, Client Typecheck #1577 and PostgreSQL Integration #156 all passed on the exact head.
+- Merge commit: b24c0ecbeabe806e05f27d31b48df662d47a31c1.
+- No P6 scheduling, calendar, resource-rate, leveling, cost calculation or financial calculation semantics were introduced.
+
+### Current P6 Backend Continuation
+- Expense persistence and Activity Resource Assignment persistence are now merged; do not repeat them.
+- Baseline comparison persistence remains blocked until an authoritative Shared Core baseline snapshot/version contract exists.
+- Continue from the next concrete P6 working-data surface on current main, with Role/Assignment/Document/Issue/Work Product coverage reconciled before implementation and no duplication of Shared Core or client-owned semantics.
