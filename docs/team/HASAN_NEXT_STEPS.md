@@ -307,3 +307,24 @@ Status: **implemented and runtime-verified through the completed persistence/API
 - P6-3 Column/View/Layout remains Javad-owned; do not duplicate it.
 - P6-4 Formula semantics remain Shared Core/Jalal-owned; Hasan may only implement a concrete persistence/API dependency after the authoritative Shared/Core contract exists.
 - Continue with the first concrete Hasan-owned gap; do not revive stale PRs or invent a numbered stage.
+
+
+### 2026-09-28 — P6-2 PostgreSQL production persistence (PR #410)
+
+Status: **implemented and runtime-verified**
+
+- PR #410 added production PostgreSQL adapters for P6 Field Registry metadata, custom/UDF definitions, and typed UDF values.
+- Tenant/project/project-revision scope, immutable definitions, typed round-trip behavior and application transaction ownership are preserved.
+- Live PostgreSQL coverage verifies field isolation/revision conflict/rollback plus UDF definition immutability and typed Date/Duration value round trips.
+- The first PostgreSQL gate also exposed two unrelated existing Field Assurance integration-fixture defects and one Dependency Graph conflict-mapping gap; these were corrected narrowly on the same continuation branch so the authoritative production gate could complete. No P6 calculation semantics were changed.
+- Final implementation head: 8051aa9c085dae858e528158f30c6ff40492644e.
+- ConstructionPM CI 1707, Client Typecheck 1410, PostgreSQL Integration 120 all passed.
+- Merge commit: a59fe3873409cac28d9f76e1aa0ee1479705ad12.
+- No Scheduling, Calendar arithmetic, Formula, Progress/EVM, Resource/Cost or financial calculation semantics were introduced.
+
+### Current P6 Backend Continuation
+
+- Current main: a59fe3873409cac28d9f76e1aa0ee1479705ad12.
+- P6-2 now has SQLite + PostgreSQL persistence for the Field Registry, UDF definitions and typed UDF values, plus the versioned API boundary.
+- The remaining P6-2 acceptance item is compatibility/version migration. Do not invent a target version; first wait for or reconcile an authoritative Shared/Core registry version transition before implementing a concrete migration.
+- P6-3 Column/View/Layout remains Javad-owned; P6-4 Formula semantics remain Shared Core/Jalal-owned unless a concrete Hasan-owned persistence/API dependency is established.
