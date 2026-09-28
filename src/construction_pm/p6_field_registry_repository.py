@@ -273,3 +273,86 @@ def _record_from_row(
     record = PersistedP6Field(scope=scope, registry_version=registry_version, field=field)
     record.validate()
     return record
+
+
+class PostgresP6FieldRegistryRepository:
+    """Production PostgreSQL adapter for the authoritative P6 field registry."""
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS p6_field_registry ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "registry_version TEXT NOT NULL, field_id TEXT NOT NULL, subject_area TEXT NOT NULL, "
+            "p6_field TEXT NOT NULL, display_name TEXT NOT NULL, data_type TEXT NOT NULL, "
+            "writable BOOLEAN NOT NULL, computed BOOLEAN NOT NULL, unit TEXT, payload_json TEXT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, registry_version, field_id))"
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_p6_field_registry_scope_subject "
+            "ON p6_field_registry (tenant_id, project_id, registry_version, subject_area, field_id)"
+        )
+
+    def upsert_field(self, record: PersistedP6Field) -> PersistedP6Field:
+        record.validate()
+        payload = json.dumps(_record_payload(record), sort_keys=True, separators=(",", ":"))
+        row = self.connection.execute(
+            "SELECT project_revision, payload_json FROM p6_field_registry "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND field_id=%s",
+            (record.scope.tenant_id, record.scope.project_id, record.registry_version, record.field.field_id),
+        ).fetchone()
+        if row is not None:
+            if int(row[0]) != record.scope.project_revision:
+                raise P6FieldRegistryPersistenceError("REVISION_CONFLICT")
+            if row[1] != payload:
+                raise P6FieldRegistryPersistenceError("IMMUTABLE_FIELD_DEFINITION")
+            return record
+        self.connection.execute(
+            "INSERT INTO p6_field_registry "
+            "(tenant_id, project_id, project_revision, registry_version, field_id, subject_area, "
+            "p6_field, display_name, data_type, writable, computed, unit, payload_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                record.scope.tenant_id, record.scope.project_id, record.scope.project_revision,
+                record.registry_version, record.field.field_id, record.field.subject_area,
+                record.field.p6_field, record.field.display_name, record.field.data_type.value,
+                record.field.writable, record.field.computed, record.field.unit, payload,
+            ),
+        )
+        return record
+
+    def get_field(self, scope: BackendScope, registry_version: str, field_id: str) -> PersistedP6Field | None:
+        scope.validate()
+        _validate_version_and_field_id(registry_version, field_id)
+        row = self.connection.execute(
+            "SELECT project_revision, field_id, subject_area, p6_field, display_name, data_type, "
+            "writable, computed, unit FROM p6_field_registry "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND field_id=%s",
+            (scope.tenant_id, scope.project_id, registry_version, field_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[0]) != scope.project_revision:
+            raise P6FieldRegistryPersistenceError("REVISION_CONFLICT")
+        return _record_from_row(scope, registry_version, row)
+
+    def list_fields(self, scope: BackendScope, registry_version: str, subject_area: str | None = None) -> tuple[PersistedP6Field, ...]:
+        scope.validate()
+        _validate_registry_version(registry_version)
+        if subject_area is not None and (not isinstance(subject_area, str) or not subject_area.strip()):
+            raise P6FieldRegistryPersistenceError("INVALID_SUBJECT_AREA")
+        query = (
+            "SELECT project_revision, field_id, subject_area, p6_field, display_name, data_type, "
+            "writable, computed, unit FROM p6_field_registry "
+            "WHERE tenant_id=%s AND project_id=%s AND registry_version=%s AND project_revision=%s"
+        )
+        params: tuple[object, ...] = (
+            scope.tenant_id, scope.project_id, registry_version, scope.project_revision
+        )
+        if subject_area is not None:
+            query += " AND subject_area=%s"
+            params += (subject_area,)
+        rows = self.connection.execute(query + " ORDER BY field_id", params).fetchall()
+        return tuple(_record_from_row(scope, registry_version, row) for row in rows)
