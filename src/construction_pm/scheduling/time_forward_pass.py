@@ -5,7 +5,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Iterable, Mapping
 
-from .calendar_context import CalendarResolverRegistry, SchedulingCalendarContext
+from .calendar_context import (
+    CalendarResolverRegistry,
+    RelationshipLagCalendar,
+    SchedulingCalendarContext,
+)
 from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
@@ -61,7 +65,7 @@ def _resolver_for_activity(
 def _add_signed_lag(
     anchor: datetime,
     lag: LagQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
+    resolver: TimeAwareWorkingTimeResolver | object,
 ) -> datetime:
     if lag.unit is not DurationUnit.WORKING_HOUR:
         raise NotImplementedError(
@@ -90,6 +94,7 @@ def time_forward_pass(
     project_start: datetime,
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
+    relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     """Earliest-start pass for the explicit working-hour scheduling contract.
 
@@ -167,9 +172,15 @@ def time_forward_pass(
             lag_context = activity_map[rel.successor_id].calendar_context
             if lag_context is None:
                 raise ValueError("time-aware successor requires a calendar context")
-            lag_resolver = registry.resolve(lag_context.effective_relationship_lag())
-            if not isinstance(lag_resolver, TimeAwareWorkingTimeResolver):
-                raise TypeError("time-aware relationship lag requires a working-time resolver")
+            lag_resolver = registry.resolve_relationship_lag(
+                lag_context,
+                activity_map[rel.predecessor_id].calendar_context.effective_activity()
+                if activity_map[rel.predecessor_id].calendar_context is not None
+                else lag_context.effective_activity(),
+                relationship_lag_calendar,
+            )
+            if not hasattr(lag_resolver, "add_working_hours"):
+                raise TypeError("relationship lag resolver must support working-hour arithmetic")
             anchor = {
                 RelationshipType.FS: predecessor.finish,
                 RelationshipType.SS: predecessor.start,
