@@ -33,6 +33,9 @@ The date-based Shared Scheduling Core now implements these P6-aligned options:
 - critical activity float threshold;
 - Make Open-Ended Activities Critical;
 - Critical Activity Path Type = Longest Path.
+- Start-to-Start Lag Calculation Type = Early Start / Actual Start for out-of-sequence SS relationships.
+
+For an out-of-sequence start-to-start relationship, the Shared Core requires an explicit data date when an actual start is present. In Early Start mode, expired lag is measured from actual start to the data date and the remaining lag is applied from the predecessor's internal early start. In Actual Start mode, the remaining lag is applied from the data date. This follows the P6 definition; no silent fallback is used when required data is absent.
 
 Longest Path criticality is calculated from activities whose early finish equals the latest calculated early finish, then traces only driving incoming relationships in deterministic order. When a successor date is driven by a constraint rather than a relationship, the relationship chain is not treated as part of the longest path. The implementation does not claim multi-project/resource-leveling parity.
 
