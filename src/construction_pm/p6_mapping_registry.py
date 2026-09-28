@@ -198,3 +198,84 @@ class P6MappingRegistryApplicationService:
                       subject_area: str | None = None) -> tuple[PersistedP6Mapping, ...]:
         with self.transaction_manager.transaction():
             return self.repository.list_mappings(scope, format, subject_area)
+
+
+class PostgresP6MappingRegistryRepository:
+    """Production PostgreSQL adapter for the authoritative P6 mapping registry."""
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS p6_mapping_registry ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "mapping_id TEXT NOT NULL, registry_version TEXT NOT NULL, format TEXT NOT NULL, "
+            "subject_area TEXT NOT NULL, source_field TEXT NOT NULL, canonical_field TEXT NOT NULL, "
+            "status TEXT NOT NULL, source_type TEXT, canonical_type TEXT, unit TEXT, notes TEXT, "
+            "payload_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, mapping_id))"
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_p6_mapping_scope_format "
+            "ON p6_mapping_registry(tenant_id, project_id, format, subject_area, mapping_id)"
+        )
+
+    def upsert_mapping(self, record: PersistedP6Mapping) -> PersistedP6Mapping:
+        record.validate()
+        payload = json.dumps(_payload(record), sort_keys=True, separators=(",", ":"))
+        row = self.connection.execute(
+            "SELECT project_revision,payload_json FROM p6_mapping_registry "
+            "WHERE tenant_id=%s AND project_id=%s AND mapping_id=%s",
+            (record.scope.tenant_id, record.scope.project_id, record.definition.mapping_id),
+        ).fetchone()
+        if row is not None:
+            if int(row[0]) != record.scope.project_revision:
+                raise P6MappingRegistryError("REVISION_CONFLICT")
+            if row[1] != payload:
+                raise P6MappingRegistryError("IMMUTABLE_MAPPING_DEFINITION")
+            return record
+        d = record.definition
+        self.connection.execute(
+            "INSERT INTO p6_mapping_registry "
+            "(tenant_id,project_id,project_revision,mapping_id,registry_version,format,"
+            "subject_area,source_field,canonical_field,status,source_type,canonical_type,unit,notes,payload_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (record.scope.tenant_id, record.scope.project_id, record.scope.project_revision,
+             d.mapping_id, d.registry_version, d.format.value, d.subject_area, d.source_field,
+             d.canonical_field, d.status.value, d.source_type, d.canonical_type, d.unit, d.notes, payload),
+        )
+        return record
+
+    def get_mapping(self, scope: BackendScope, mapping_id: str) -> PersistedP6Mapping | None:
+        scope.validate()
+        if not mapping_id.strip():
+            raise P6MappingRegistryError("INVALID_MAPPING_ID")
+        row = self.connection.execute(
+            "SELECT project_revision,mapping_id,registry_version,format,subject_area,source_field,"
+            "canonical_field,status,source_type,canonical_type,unit,notes "
+            "FROM p6_mapping_registry WHERE tenant_id=%s AND project_id=%s AND mapping_id=%s",
+            (scope.tenant_id, scope.project_id, mapping_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[0]) != scope.project_revision:
+            raise P6MappingRegistryError("REVISION_CONFLICT")
+        return _from_row(scope, row)
+
+    def list_mappings(self, scope: BackendScope, format: P6MappingFormat | None = None,
+                      subject_area: str | None = None) -> tuple[PersistedP6Mapping, ...]:
+        scope.validate()
+        query = (
+            "SELECT project_revision,mapping_id,registry_version,format,subject_area,source_field,"
+            "canonical_field,status,source_type,canonical_type,unit,notes "
+            "FROM p6_mapping_registry WHERE tenant_id=%s AND project_id=%s AND project_revision=%s"
+        )
+        params: tuple[object, ...] = (scope.tenant_id, scope.project_id, scope.project_revision)
+        if format is not None:
+            query += " AND format=%s"; params += (format.value,)
+        if subject_area is not None:
+            if not subject_area.strip():
+                raise P6MappingRegistryError("INVALID_SUBJECT_AREA")
+            query += " AND subject_area=%s"; params += (subject_area,)
+        rows = self.connection.execute(query + " ORDER BY mapping_id", params).fetchall()
+        return tuple(_from_row(scope, row) for row in rows)
