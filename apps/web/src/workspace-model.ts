@@ -12,7 +12,7 @@ import type { UiTextDirection } from "./ui-interaction.js";
 
 export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
-export type WorkspaceTextDirection = "ltr" | "rtl";
+export type WorkspaceTextDirection = "auto" | "ltr" | "rtl";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
@@ -108,7 +108,7 @@ export function createWorkspaceState(
   context: ProjectContext,
   locale: WorkspaceLocale = "en",
   calendarMode: WorkspaceCalendarMode = "gregorian",
-  direction: WorkspaceTextDirection = resolveDefaultDirection(locale),
+  direction: WorkspaceTextDirection = "auto",
 ): WorkspaceState {
   validateContext(context);
   return {
@@ -168,7 +168,7 @@ export function selectActivity(state: WorkspaceState, activityId: string | null)
 export function setLocale(
   state: WorkspaceState,
   locale: WorkspaceLocale,
-  direction: WorkspaceTextDirection = resolveDefaultDirection(locale),
+  direction: WorkspaceTextDirection = "auto",
 ): WorkspaceState {
   return {
     ...state,
@@ -405,8 +405,3 @@ function validateCells(cells: Readonly<Record<string, WorkspaceCellValue>>): voi
   }
 }
 
-
-function resolveDefaultDirection(languageTag: WorkspaceLocale): WorkspaceTextDirection {
-  const base = languageTag.trim().toLowerCase().split("-")[0];
-  return new Set(["ar", "dv", "fa", "he", "ku", "ps", "ur", "yi"]).has(base) ? "rtl" : "ltr";
-}
