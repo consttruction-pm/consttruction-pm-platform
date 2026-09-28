@@ -13,9 +13,9 @@ import {
 import type { P6FieldCatalogEntry } from "./p6-field-registry-client.js";
 
 const catalog: readonly P6FieldCatalogEntry[] = [
-  { id: "activity_id", source: "standard", subjectArea: "activity", label: "Activity ID", dataType: "string", writable: false, computed: false, unit: null, filterable: true, orderable: true },
-  { id: "duration", source: "standard", subjectArea: "activity", label: "Duration", dataType: "duration", writable: false, computed: true, unit: "day", filterable: true, orderable: true },
-  { id: "progress", source: "standard", subjectArea: "activity", label: "Progress", dataType: "percentage", writable: false, computed: true, unit: "%", filterable: true, orderable: true },
+  { id: "activity_id", source: "standard", subjectArea: "activity", label: "Activity ID", dataType: "string", writable: false, computed: false, unit: null, nullable: null, allowedValues: [], p6Field: "ActivityId", filterable: true, orderable: true },
+  { id: "duration", source: "standard", subjectArea: "activity", label: "Duration", dataType: "duration", writable: false, computed: true, unit: "day", nullable: null, allowedValues: [], p6Field: "Duration", filterable: true, orderable: true },
+  { id: "progress", source: "standard", subjectArea: "activity", label: "Progress", dataType: "percentage", writable: false, computed: true, unit: "%", nullable: null, allowedValues: [], p6Field: "Progress", filterable: true, orderable: true },
 ];
 
 test("layout supports add/remove/reorder and column presentation state", () => {
