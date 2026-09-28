@@ -183,12 +183,25 @@ export function createReportPrintSelection(
   selectedActivityIds: readonly string[] = [],
   includeGantt = true,
   layout?: WorkspaceLayout,
+  catalog: readonly P6FieldCatalogEntry[] = [],
 ): WorkspaceReportPrintSelection {
   const orderedColumns = layout
-    ? [...layout.columns].sort((a, b) => a.order - b.order).filter((column) => column.visible)
-        .map((column) => state.columns.find((item) => item.id === column.fieldId))
-        .filter((column): column is WorkspaceColumn => Boolean(column))
+    ? catalog.length
+      ? projectGridColumns(layout, catalog).map(({ fieldId, label, dataType, editable, formula, width }) => ({
+          id: fieldId,
+          label,
+          dataType,
+          editable,
+          formula,
+          width,
+        }))
+      : [...layout.columns]
+          .sort((a, b) => a.order - b.order)
+          .filter((column) => column.visible)
+          .map((column) => state.columns.find((item) => item.id === column.fieldId))
+          .filter((column): column is WorkspaceColumn => Boolean(column))
     : [...state.columns];
+
   const columnIds = selectedColumnIds.length
     ? new Set(selectedColumnIds)
     : new Set(orderedColumns.map((column) => column.id));
