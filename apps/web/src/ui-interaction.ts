@@ -9,15 +9,13 @@ export type UiInteractiveElement = {
   keyboardEquivalent: "enter-or-space";
 };
 
-const RTL_LANGUAGE_BASES = new Set(["ar", "dv", "fa", "he", "ku", "ps", "ur", "yi"]);
-
 export function resolveTextDirection(
-  languageTag: string,
+  _languageTag: string,
   direction: UiTextDirection = "auto",
+  registeredDirection: ResolvedTextDirection = "ltr",
 ): ResolvedTextDirection {
   if (direction !== "auto") return direction;
-  const base = languageTag.trim().toLowerCase().split("-")[0];
-  return RTL_LANGUAGE_BASES.has(base) ? "rtl" : "ltr";
+  return registeredDirection;
 }
 
 export function interactivePolicy(kind: UiInteractiveElement["kind"]): UiInteractiveElement {
