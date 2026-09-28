@@ -34,7 +34,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const scale = createGanttScale(state.activities);
 
   container.innerHTML = `
-    <section class="cp-workspace" dir="${resolveTextDirection(state.locale, state.direction)}" data-project="${escapeAttribute(state.context.project_id)}">
+    <section class="cp-workspace" lang="${escapeAttribute(state.locale)}" dir="${escapeAttribute(resolveTextDirection(state.locale, state.direction, state.direction === "rtl" ? "rtl" : "ltr"))}" style="${typographyStyle(state.typography)}" data-project="${escapeAttribute(state.context.project_id)}">
       <header class="cp-header">
         <div class="cp-brand">Construction PM</div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
@@ -60,7 +60,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <h2>${t.activities}</h2>
             <div class="cp-table-wrap">
               <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+                <thead><tr>${state.columns.map((column) => `<th dir="${escapeAttribute(column.textDirection)}" data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
@@ -450,7 +450,7 @@ function renderChangeClaimControl(
 
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
   const selected = activity.id === state.selectedActivityId;
-  return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td>${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
+  return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td dir="${escapeAttribute(activity.cellDirections?.[column.id] ?? column.textDirection)}" style="font-family:${escapeAttribute(fontCssFamily(state.typography, column))}">${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
 }
 
 function renderCell(columnId: string, activity: WorkspaceActivityRow): string {
@@ -483,3 +483,27 @@ function escapeHtml(value: string): string {
 }
 
 function escapeAttribute(value: string): string { return escapeHtml(value); }
+
+
+function fontCssFamily(
+  typography: WorkspaceState["typography"],
+  column: WorkspaceState["columns"][number],
+): string {
+  return column.textDirection === "rtl" || column.id === "activity_name"
+    ? ["Vazirmatn", "Noto Sans Arabic", ...typography.fallbackFamilies].join(", ")
+    : [typography.fontFamily, ...typography.fallbackFamilies].join(", ");
+}
+
+function typographyStyle(typography: WorkspaceState["typography"]): string {
+  const family = [typography.fontFamily, ...typography.fallbackFamilies].join(", ");
+  return [
+    `--cp-font-family:${family}`,
+    `--cp-font-style:${typography.fontStyle}`,
+    `--cp-font-weight:${typography.fontWeight}`,
+    `--cp-line-height:${typography.lineHeight}`,
+    `--cp-letter-spacing:${typography.letterSpacing}`,
+    `--cp-font-feature-settings:${typography.fontFeatureSettings}`,
+    `--cp-font-variant-ligatures:${typography.fontVariantLigatures}`,
+    `--cp-font-kerning:${typography.fontKerning}`,
+  ].join(";");
+}
