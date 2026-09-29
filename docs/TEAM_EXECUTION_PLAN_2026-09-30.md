@@ -4,7 +4,7 @@
 Effective immediately. This document supersedes ambiguous branch-level task ownership while preserving the 3-person role boundaries in `docs/team-responsibilities.md`.
 
 ## Priority order
-1. **P0 — Current release gate:** Stage 33.4.73 PostgreSQL Atomic Idempotency Verification Hardening.
+1. **P0 — Current release gate:** PostgreSQL atomic/idempotency runtime evidence. Existing evidence is recorded in commit `0a2ac4bdbd6512f52f12410d0753ec67159e9a90`; no open PR currently carries Stage 33.4.73 work.
 2. **P0 — Integrity:** CI/runtime failures, stale/non-mergeable branches, duplicate implementations, and regression repair.
 3. **P1 — Scheduling authority:** Stage I completion (Query → Real Scheduling), then Stage J End-to-End Evidence.
 4. **P1 — P6 parity contracts:** semantics → persistence/API → client UX, in that order.
@@ -24,7 +24,7 @@ Effective immediately. This document supersedes ambiguous branch-level task owne
 
 ## Current stream disposition
 ### Hasan
-- Finish/verify Stage 33.4.73 PostgreSQL atomic idempotency.
+- Maintain/extend PostgreSQL atomic/idempotency evidence only when a current-main regression gap is identified; no obsolete Stage 33.4.73 branch is currently active.
 - Do not continue the obsolete authoritative-schedule-materializer branch; the current authoritative materializer/evaluator path is already on `main`.
 - Backend P6 persistence/API work may proceed only where it does not duplicate current core semantics.
 
@@ -54,4 +54,4 @@ A stage is not complete until:
 6. no active duplicate implementation remains.
 
 ## Immediate next sequence
-**33.4.73 → CI/branch hygiene → Stage I → Stage J → P6 parity integration → Web Beta expansion.**
+**PostgreSQL evidence gate → CI/branch hygiene → Stage I verification → Stage J → P6 parity integration → Web Beta expansion.**
