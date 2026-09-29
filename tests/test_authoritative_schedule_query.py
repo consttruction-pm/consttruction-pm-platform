@@ -83,3 +83,42 @@ def test_filter_projection_selects_explicit_activity_ids():
     auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
     answer = service.execute(request, auth_context=auth, calculation_context=context)
     assert list(answer.data["activities"]) == ["B"]
+
+
+def test_scenario_projection_is_proposal_only_and_traceable():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-S",
+        tenant_id="T-1", project_id="P-1", project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 1),),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-S", tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    from construction_pm.control_intelligence.query import ScheduleQueryKind
+    request = ScheduleQueryRequest(
+        "Q-S", ControlScope("T-1", "P-1", 9), "user-1", "scenario purpose",
+        kind=ScheduleQueryKind.SCENARIO,
+        constraints={"changes": [{
+            "change_id": "C-1", "domain": "schedule", "entity_type": "activity",
+            "entity_id": "A", "operation": "set_duration", "proposed_value": {"duration": 3},
+        }]},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    answer = service.execute(request, auth_context=auth, calculation_context=context)
+    assert answer.data["status"] == "proposal_only"
+    assert answer.data["authoritative_mutation_allowed"] is False
+    assert answer.data["proposed_changes"][0]["entity_id"] == "A"
+    assert answer.source_refs[0].source_id == "S-S"
