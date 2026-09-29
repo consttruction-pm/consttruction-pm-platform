@@ -126,7 +126,7 @@ def test_time_forward_pass_rejects_implicit_working_day_conversion():
     activities = [
         TimeActivity("A", TimeQuantity.working_days(1), ctx),
     ]
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="working-time calendar requires working-hour duration"):
         time_forward_pass(activities, [], datetime(2026, 9, 22, 8), registry())
 
 
