@@ -121,7 +121,7 @@ class SQLiteActivityMasterRepository:
         ):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision "
+            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,project_revision "
             "FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id),
         ).fetchone()
@@ -182,9 +182,9 @@ class SQLiteActivityMasterRepository:
         ).fetchone()
         if row is None:
             return None
-        result = _from_row(scope, row)
-        if result.scope.project_revision != scope.project_revision:
+        if int(row[5]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
+        result = _from_row(scope, row[:5])
         return result
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
