@@ -126,9 +126,17 @@ class SQLiteConstraintMasterRepository:
             self.connection.commit()
             return stored
 
-        current = _from_row(constraint.scope, row[:4])
         if int(row[4]) != constraint.scope.project_revision:
             raise ConstraintPersistenceError("REVISION_CONFLICT")
+        current = ConstraintMaster(
+            scope=constraint.scope,
+            constraint_id=constraint.constraint_id,
+            activity_id=str(row[0]),
+            constraint_type=ConstraintType(str(row[1])),
+            constraint_date=date.fromisoformat(str(row[2])),
+            record_revision=int(row[3]),
+        )
+        current.validate()
         if expected_revision is None or expected_revision != current.record_revision:
             raise ConstraintPersistenceError("REVISION_CONFLICT")
 
