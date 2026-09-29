@@ -19,7 +19,7 @@ from .activity import Activity
 from .calendar_context import CalendarReference
 from .constraints import ActivityConstraint
 from .relationships import Relationship
-from .schedule_options import ScheduleOptions
+from .schedule import ScheduleOptions
 from .time_forward_pass import TimeActivity, TimeRelationship
 
 
@@ -139,27 +139,31 @@ class AuthoritativeScheduleInput:
             allow_nan=False,
         )
 
+    def canonical_json(self) -> str:
+        """Return the deterministic JSON representation used for snapshot identity."""
+
+        def normalize(value: Any) -> Any:
+            if isinstance(value, Enum):
+                return value.value
+            if isinstance(value, (date, datetime)):
+                return value.isoformat()
+            if isinstance(value, Decimal):
+                return str(value)
+            if isinstance(value, tuple):
+                return [normalize(item) for item in value]
+            if isinstance(value, Mapping):
+                return {str(key): normalize(item) for key, item in value.items()}
+            if hasattr(value, "__dict__"):
+                return {
+                    str(key): normalize(item)
+                    for key, item in vars(value).items()
+                }
+            return value
+
+        return json.dumps(normalize(asdict(self)), sort_keys=True, separators=(",", ":"))
+
     @property
     def snapshot_hash(self) -> str:
+        """Return a canonical SHA-256 identity for this schedule snapshot."""
+
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
-
-
-def _canonicalize(value: Any) -> Any:
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    if isinstance(value, Decimal):
-        return str(value)
-    if hasattr(value, "__dataclass_fields__"):
-        return _canonicalize(asdict(value))
-    if isinstance(value, Mapping):
-        return {
-            str(key): _canonicalize(item)
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
-    if isinstance(value, (tuple, list)):
-        return [_canonicalize(item) for item in value]
-    if isinstance(value, (set, frozenset)):
-        return sorted(_canonicalize(item) for item in value)
-    return value
