@@ -176,16 +176,15 @@ class SQLiteActivityMasterRepository:
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision "
+            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,project_revision "
             "FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (scope.tenant_id, scope.project_id, activity_id),
         ).fetchone()
         if row is None:
             return None
-        result = _from_row(scope, row)
-        if result.scope.project_revision != scope.project_revision:
+        if int(row[5]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        return result
+        return _from_row(scope, row[:5])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
