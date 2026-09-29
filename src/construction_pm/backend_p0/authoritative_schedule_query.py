@@ -92,7 +92,13 @@ def _project_result(
             }
 
         if request.kind is ScheduleQueryKind.FILTER:
-            status = str(request.constraints.get("status", "")).lower()
+            requested_ids = request.constraints.get("activity_ids")
+            if requested_ids is None:
+                selected_ids = set(activities)
+            elif isinstance(requested_ids, (list, tuple, set, frozenset)):
+                selected_ids = {str(item) for item in requested_ids}
+            else:
+                raise ValueError("INVALID_SCHEDULE_QUERY_FILTER")
             selected = {
                 key: {
                     "start": value.start.isoformat(),
@@ -100,7 +106,7 @@ def _project_result(
                     "duration": value.duration,
                 }
                 for key, value in sorted(activities.items())
-                if not status or str(getattr(value, "status", "")).lower() == status
+                if key in selected_ids
             }
             return {
                 "calculation_run_identity": result.calculation_run_identity,
