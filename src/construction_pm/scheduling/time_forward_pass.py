@@ -194,15 +194,22 @@ def time_forward_pass(
             lag_context = activity_map[rel.successor_id].calendar_context
             if lag_context is None:
                 raise ValueError("time-aware successor requires a calendar context")
-            lag_resolver = registry.resolve_relationship_lag(
-                lag_context,
+            predecessor_ref = (
                 activity_map[rel.predecessor_id].calendar_context.effective_activity()
                 if activity_map[rel.predecessor_id].calendar_context is not None
-                else lag_context.effective_activity(),
-                relationship_lag_calendar,
+                else lag_context.effective_activity()
             )
-            if not hasattr(lag_resolver, "add_working_hours"):
-                raise TypeError("relationship lag resolver must support working-hour arithmetic")
+            if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+                raw_lag_resolver = registry.resolve_relationship_lag(
+                    lag_context, predecessor_ref, relationship_lag_calendar
+                )
+                lag_resolver = CalendarAwareResolver(
+                    CalendarReference("24-hour", "1", "working-time"),
+                    raw_lag_resolver,
+                )
+            else:
+                lag_ref = lag_context.relationship_lag_reference(predecessor_ref)
+                lag_resolver = resolve_calendar_aware(registry, lag_ref)
             anchor = {
                 RelationshipType.FS: predecessor.finish,
                 RelationshipType.SS: predecessor.start,
