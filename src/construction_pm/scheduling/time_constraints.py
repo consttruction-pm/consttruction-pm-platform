@@ -6,6 +6,7 @@ from enum import Enum
 
 from .calendar_context import CalendarResolverRegistry
 from .time_calendar import TimeAwareWorkingTimeResolver
+from .time_unit_resolver import resolve_calendar_aware
 from .time_duration import DurationUnit, TimeQuantity
 
 
@@ -34,10 +35,7 @@ class TimeConstraintViolation(ValueError):
 
 
 def _resolver(activity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
-    resolver = registry.resolve(activity.calendar_context.effective_activity())
-    if not isinstance(resolver, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware constraints require a working-time resolver")
-    return resolver
+    return resolve_calendar_aware(registry, activity.calendar_context.effective_activity())
 
 
 def apply_time_earliest_constraints(
@@ -56,13 +54,13 @@ def apply_time_earliest_constraints(
         if item.type is TimeConstraintType.START_NO_EARLIER_THAN:
             result = max(result, target)
         elif item.type is TimeConstraintType.FINISH_NO_EARLIER_THAN:
-            result = max(result, _subtract_duration(target, duration, resolver))
+            result = max(result, resolver.subtract_duration(target, duration))
         elif item.type is TimeConstraintType.MANDATORY_START:
             if result > target:
                 raise TimeConstraintViolation(f"mandatory start conflicts for {activity.id}")
             result = target
         elif item.type is TimeConstraintType.MANDATORY_FINISH:
-            required = _subtract_duration(target, duration, resolver)
+            required = resolver.subtract_duration(target, duration)
             if result > required:
                 raise TimeConstraintViolation(f"mandatory finish conflicts for {activity.id}")
             result = required
@@ -112,7 +110,7 @@ def apply_time_latest_constraints(
         if item.type is TimeConstraintType.START_NO_LATER_THAN:
             result = min(result, target)
         elif item.type is TimeConstraintType.FINISH_NO_LATER_THAN:
-            result = min(result, _subtract_duration(target, duration, resolver))
+            result = min(result, resolver.subtract_duration(target, duration))
         elif item.type is TimeConstraintType.MANDATORY_START:
             if result < target:
                 raise TimeConstraintViolation(f"mandatory start conflicts for {activity.id}")
@@ -123,16 +121,6 @@ def apply_time_latest_constraints(
                 raise TimeConstraintViolation(f"mandatory finish conflicts for {activity.id}")
             result = required
     return result
-
-
-def _subtract_duration(
-    target: datetime,
-    duration: TimeQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
-) -> datetime:
-    if duration.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError("time-aware constraints require working-hour duration")
-    return resolver.subtract_working_hours(target, duration.value)
 
 
 def validate_time_late_window(
