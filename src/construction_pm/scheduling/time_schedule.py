@@ -82,12 +82,8 @@ def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> Cal
     return resolve_calendar_aware(registry, activity.calendar_context.effective_activity())
 
 
-def _inverse_lag(event: datetime, lag: LagQuantity, resolver: TimeAwareWorkingTimeResolver) -> datetime:
-    if lag.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError("time-aware scheduling requires working-hour lag")
-    if lag.value >= 0:
-        return resolver.subtract_working_hours(event, lag.value)
-    return resolver.add_working_hours(event, -lag.value)
+def _inverse_lag(event: datetime, lag: LagQuantity, resolver: CalendarAwareResolver) -> datetime:
+    return resolver.subtract_lag(event, lag)
 
 
 def _subtract_duration(
