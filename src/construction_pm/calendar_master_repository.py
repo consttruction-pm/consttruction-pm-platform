@@ -250,3 +250,147 @@ class SQLiteCalendarAssignmentRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         self.connection.commit()
         return stored
+
+
+class PostgresCalendarMasterRepository:
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS calendar_master ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL, "
+            "name TEXT NOT NULL, record_revision BIGINT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS activity_calendar_assignment ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "activity_id TEXT NOT NULL, calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, "
+            "record_revision BIGINT NOT NULL, PRIMARY KEY (tenant_id, project_id, activity_id))"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS relationship_lag_calendar_assignment ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
+            "relationship_id TEXT NOT NULL, option TEXT NOT NULL, calendar_id TEXT, "
+            "calendar_version TEXT, record_revision BIGINT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, relationship_id))"
+        )
+
+    def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
+        calendar.validate()
+        row = self.connection.execute(
+            "SELECT kind,name,record_revision,project_revision FROM calendar_master "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s FOR UPDATE",
+            (calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id, calendar.calendar_version),
+        ).fetchone()
+        if row is None:
+            if expected_revision not in (None, 0):
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            self.connection.execute(
+                "INSERT INTO calendar_master VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (calendar.scope.tenant_id, calendar.scope.project_id, calendar.scope.project_revision,
+                 calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1),
+            )
+            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1)
+        if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        revision = int(row[2]) + 1
+        self.connection.execute(
+            "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s",
+            (calendar.scope.project_revision, calendar.kind, calendar.name, revision,
+             calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id,
+             calendar.calendar_version, int(row[2])),
+        )
+        return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision)
+
+    def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT kind,name,record_revision,project_revision FROM calendar_master "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[3]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        return CalendarMaster(scope, calendar_id, calendar_version, str(row[0]), str(row[1]), int(row[2]))
+
+    def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT calendar_id,calendar_version,kind,name,record_revision FROM calendar_master "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY calendar_id,calendar_version",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4])) for r in rows)
+
+
+class PostgresCalendarAssignmentRepository:
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def save_activity(self, assignment: ActivityCalendarAssignmentMaster, expected_revision: int | None = None) -> ActivityCalendarAssignmentMaster:
+        assignment.validate()
+        row = self.connection.execute(
+            "SELECT calendar_id,calendar_version,record_revision,project_revision "
+            "FROM activity_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND activity_id=%s FOR UPDATE",
+            (assignment.scope.tenant_id, assignment.scope.project_id, assignment.activity_id),
+        ).fetchone()
+        if row is None:
+            if expected_revision not in (None, 0):
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            self.connection.execute(
+                "INSERT INTO activity_calendar_assignment VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (assignment.scope.tenant_id, assignment.scope.project_id, assignment.scope.project_revision,
+                 assignment.activity_id, assignment.calendar_id, assignment.calendar_version, 1),
+            )
+            return ActivityCalendarAssignmentMaster(assignment.scope, assignment.activity_id, assignment.calendar_id, assignment.calendar_version, 1)
+        if int(row[3]) != assignment.scope.project_revision or expected_revision != int(row[2]):
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        revision = int(row[2]) + 1
+        self.connection.execute(
+            "UPDATE activity_calendar_assignment SET project_revision=%s,calendar_id=%s,calendar_version=%s,record_revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
+            (assignment.scope.project_revision, assignment.calendar_id, assignment.calendar_version, revision,
+             assignment.scope.tenant_id, assignment.scope.project_id, assignment.activity_id, int(row[2])),
+        )
+        return ActivityCalendarAssignmentMaster(assignment.scope, assignment.activity_id, assignment.calendar_id, assignment.calendar_version, revision)
+
+    def save_relationship_lag(self, assignment: RelationshipLagCalendarAssignmentMaster, expected_revision: int | None = None) -> RelationshipLagCalendarAssignmentMaster:
+        assignment.validate()
+        row = self.connection.execute(
+            "SELECT option,calendar_id,calendar_version,record_revision,project_revision "
+            "FROM relationship_lag_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND relationship_id=%s FOR UPDATE",
+            (assignment.scope.tenant_id, assignment.scope.project_id, assignment.relationship_id),
+        ).fetchone()
+        if row is None:
+            if expected_revision not in (None, 0):
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            self.connection.execute(
+                "INSERT INTO relationship_lag_calendar_assignment VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (assignment.scope.tenant_id, assignment.scope.project_id, assignment.scope.project_revision,
+                 assignment.relationship_id, assignment.option.value, assignment.calendar_id,
+                 assignment.calendar_version, 1),
+            )
+            return RelationshipLagCalendarAssignmentMaster(
+                assignment.scope, assignment.relationship_id, assignment.option,
+                assignment.calendar_id, assignment.calendar_version, 1
+            )
+        if int(row[4]) != assignment.scope.project_revision or expected_revision != int(row[3]):
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        revision = int(row[3]) + 1
+        self.connection.execute(
+            "UPDATE relationship_lag_calendar_assignment SET project_revision=%s,option=%s,calendar_id=%s,calendar_version=%s,record_revision=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND relationship_id=%s AND record_revision=%s",
+            (assignment.scope.project_revision, assignment.option.value, assignment.calendar_id,
+             assignment.calendar_version, revision, assignment.scope.tenant_id,
+             assignment.scope.project_id, assignment.relationship_id, int(row[3])),
+        )
+        return RelationshipLagCalendarAssignmentMaster(
+            assignment.scope, assignment.relationship_id, assignment.option,
+            assignment.calendar_id, assignment.calendar_version, revision
+        )
