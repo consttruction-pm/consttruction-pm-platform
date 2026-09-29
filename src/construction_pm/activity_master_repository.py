@@ -184,9 +184,7 @@ class SQLiteActivityMasterRepository:
             return None
         if int(row[5]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        result = _from_row(scope, row[:5])
-            raise ActivityPersistenceError("REVISION_CONFLICT")
-        return result
+        return _from_row(scope, row[:5])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
