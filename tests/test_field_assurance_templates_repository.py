@@ -74,6 +74,18 @@ def test_historical_versions_are_immutable():
         connection.close()
 
 
+def test_repository_execute_implements_field_assurance_contract():
+    connection, service = _service()
+    try:
+        repository = service.repository
+        repository.create_template(_template())
+        saved = repository.execute(_execution())
+        assert saved == _execution()
+        assert repository.get_execution(_scope(), "EXEC-1") == saved
+    finally:
+        connection.close()
+
+
 def test_execution_requires_exact_template_version_and_required_answers():
     connection, service = _service()
     try:
