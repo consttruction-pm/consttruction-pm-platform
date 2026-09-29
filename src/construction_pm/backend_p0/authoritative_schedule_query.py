@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Callable, Mapping
 
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 
 from construction_pm.control_intelligence.contracts import SourceReference
@@ -36,9 +37,11 @@ class AuthoritativeScheduleQueryProvider:
         calculation_context: CalculationContext,
     ) -> ScheduleQueryAnswer:
         snapshot = self.snapshot_repository.get(
-            request.scope.tenant_id,
-            request.scope.project_id,
-            request.scope.project_revision,
+            BackendScope(
+                request.scope.tenant_id,
+                request.scope.project_id,
+                request.scope.project_revision,
+            ),
             calculation_context.input_snapshot_id,
         )
         if snapshot is None:
