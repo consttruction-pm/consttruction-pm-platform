@@ -38,13 +38,13 @@ def test_postgres_field_assurance_template_execution_replay_and_conflict():
         connection.commit()
         with PostgresTransactionManager(connection).transaction():
             repository.create_template(t)
-            first = repository.create_execution(execution(t, f"EXEC-{suffix}"))
+            first = repository.execute(execution(t, f"EXEC-{suffix}"))
         with PostgresTransactionManager(connection).transaction():
-            replay = repository.create_execution(execution(t, f"EXEC-{suffix}"))
+            replay = repository.execute(execution(t, f"EXEC-{suffix}"))
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(ValueError, match="EXECUTION_ID_CONFLICT"):
             with PostgresTransactionManager(connection).transaction():
-                repository.create_execution(execution(t, f"EXEC-{suffix}", 99))
+                repository.execute(execution(t, f"EXEC-{suffix}", 99))
         connection.rollback()
 
 def test_postgres_field_assurance_template_execution_rolls_back():
@@ -57,7 +57,7 @@ def test_postgres_field_assurance_template_execution_rolls_back():
         with pytest.raises(RuntimeError, match="FORCED_ROLLBACK"):
             with PostgresTransactionManager(connection).transaction():
                 repository.create_template(t)
-                repository.create_execution(execution(t, f"EXEC-{suffix}"))
+                repository.execute(execution(t, f"EXEC-{suffix}"))
                 raise RuntimeError("FORCED_ROLLBACK")
         assert repository.get_template(t.scope, t.template_id, t.template_version) is None
         assert repository.get_execution(t.scope, f"EXEC-{suffix}") is None
