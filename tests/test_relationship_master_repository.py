@@ -56,7 +56,9 @@ def test_relationship_master_preserves_signed_lag_and_unit():
 
 def test_relationship_master_rejects_self_relationship():
     with pytest.raises(RelationshipPersistenceError, match="SELF_RELATIONSHIP"):
-        relationship().validate()
+        relationship(). __class__(
+            scope(), "R-self", "A-1", "A-1", RelationshipType.FS, Decimal("0"), DurationUnit.WORKING_DAY
+        ).validate()
 
 
 def test_relationship_master_rejects_stale_update():
