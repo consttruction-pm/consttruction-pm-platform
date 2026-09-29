@@ -60,6 +60,13 @@ def materialize_schedule_snapshot(
     if not isinstance(payload, dict):
         raise SnapshotMaterializationError("INVALID_SNAPSHOT_PAYLOAD")
 
+    if payload.get("snapshot_id") != snapshot.snapshot_id:
+        raise SnapshotMaterializationError("SNAPSHOT_ID_MISMATCH")
+    if payload.get("tenant_id") != snapshot.scope.tenant_id or payload.get("project_id") != snapshot.scope.project_id:
+        raise SnapshotMaterializationError("SNAPSHOT_SCOPE_MISMATCH")
+    if payload.get("project_revision") != snapshot.scope.project_revision:
+        raise SnapshotMaterializationError("SNAPSHOT_REVISION_MISMATCH")
+
     try:
         result = _materialize_payload(payload, snapshot, calendar_registry)
     except SnapshotMaterializationError:
