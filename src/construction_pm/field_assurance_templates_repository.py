@@ -154,9 +154,6 @@ class SQLiteFieldAssuranceTemplateRepository:
     def execute(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
         return self.create_execution(execution)
 
-    def execute(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
-        return self.create_execution(execution)
-
     def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None:
         scope.validate()
         row = self.connection.execute(
@@ -244,6 +241,9 @@ class PostgresFieldAssuranceTemplateRepository:
             (execution.scope.tenant_id, execution.scope.project_id, execution.scope.project_revision, execution.execution_id, execution.template_id, execution.template_version, payload),
         )
         return execution
+
+    def execute(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
+        return self.create_execution(execution)
 
     def get_execution(self, scope: BackendScope, execution_id: str) -> FieldAssuranceExecution | None:
         scope.validate()
