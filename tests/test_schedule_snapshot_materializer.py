@@ -1,0 +1,99 @@
+import sqlite3
+from datetime import date, datetime, timezone
+
+import pytest
+
+from construction_pm.schedule_input_snapshot_repository import (
+    SQLiteScheduleInputSnapshotRepository,
+    build_snapshot,
+)
+from construction_pm.schedule_snapshot_materializer import (
+    SnapshotMaterializationError,
+    materialize_schedule_snapshot,
+)
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.scheduling.authoritative_schedule import (
+    ActivityCalendarAssignment,
+    AuthoritativeScheduleInput,
+    AuthoritativeScheduleMode,
+)
+from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
+
+
+def make_snapshot():
+    cal = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-G",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=3,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(Activity("A", 2), Activity("B", 1)),
+        relationships=(Relationship("A", "B"),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", cal),
+            ActivityCalendarAssignment("B", cal),
+        ),
+        constraints=(ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 24)),),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=3,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-G",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    return snapshot
+
+
+def test_materializes_date_based_models():
+    snapshot = make_snapshot()
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.project_id == "P-1"
+    assert isinstance(result.schedule_input.activities[0], Activity)
+    assert result.schedule_input.activities[0].duration == 2
+    assert result.schedule_input.relationships[0].type.value == "FS"
+    assert result.schedule_input.constraints[0].type is ConstraintType.START_NO_EARLIER_THAN
+
+
+def test_materializer_rejects_tampered_hash():
+    snapshot = make_snapshot()
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        "0" * 64,
+        snapshot.canonical_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="SNAPSHOT_HASH_MISMATCH"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_unsupported_date_duration_unit():
+    snapshot = make_snapshot()
+    payload = snapshot.canonical_payload.replace('"duration":2', '"duration":"2"')
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        snapshot.snapshot_hash,
+        payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
