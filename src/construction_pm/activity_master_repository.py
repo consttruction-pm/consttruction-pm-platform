@@ -176,7 +176,7 @@ class SQLiteActivityMasterRepository:
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision "
+            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,project_revision "
             "FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (scope.tenant_id, scope.project_id, activity_id),
         ).fetchone()
