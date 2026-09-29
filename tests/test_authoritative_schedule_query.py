@@ -51,3 +51,35 @@ def test_query_executes_real_snapshot_evaluation():
     assert answer.data["activity_count"] == 1
     assert answer.data["project_finish"] == "2026-09-23"
     assert answer.source_refs[0].source_id == "S-I"
+
+
+def test_filter_projection_selects_explicit_activity_ids():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-F",
+        tenant_id="T-1", project_id="P-1", project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 1), Activity("B", 1)),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-F", tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-F", ControlScope("T-1", "P-1", 9), "user-1", "filter",
+        kind=__import__("construction_pm.control_intelligence.query", fromlist=["ScheduleQueryKind"]).ScheduleQueryKind.FILTER,
+        constraints={"activity_ids": ["B"]},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    answer = service.execute(request, auth_context=auth, calculation_context=context)
+    assert list(answer.data["activities"]) == ["B"]
