@@ -121,7 +121,7 @@ class SQLiteActivityMasterRepository:
         ):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,project_revision "
+            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision "
             "FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id),
         ).fetchone()
