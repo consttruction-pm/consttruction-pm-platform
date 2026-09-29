@@ -1,6 +1,11 @@
 """Portable Shared Scheduling Core."""
 
 from .activity import Activity
+from .authoritative_schedule import (
+    ActivityCalendarAssignment,
+    AuthoritativeScheduleInput,
+    AuthoritativeScheduleMode,
+)
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
 from .calculation_context import CalculationContext
@@ -24,6 +29,9 @@ from .schedule import (
 
 __all__ = [
     "Activity",
+    "ActivityCalendarAssignment",
+    "AuthoritativeScheduleInput",
+    "AuthoritativeScheduleMode",
     "ActivityConstraint",
     "ConstraintType",
     "ConstraintViolation",
