@@ -58,7 +58,6 @@ def build_snapshot(
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
     if schedule_input.snapshot_id != context.input_snapshot_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
-    schedule_input.source_refs
     payload = schedule_input.canonical_json()
     return ScheduleInputSnapshot(
         scope=BackendScope(schedule_input.tenant_id, schedule_input.project_id, schedule_input.project_revision),
