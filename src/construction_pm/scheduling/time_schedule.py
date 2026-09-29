@@ -35,8 +35,11 @@ class TimeFloatActivity:
     early_finish: datetime
     late_start: datetime
     late_finish: datetime
-    total_float_hours: Decimal
-    free_float_hours: Decimal
+    total_float_hours: Decimal | None
+    free_float_hours: Decimal | None
+    total_float_value: Decimal
+    free_float_value: Decimal
+    float_unit: DurationUnit
     critical: bool
 
 
@@ -228,13 +231,18 @@ def time_backward_pass(
         predecessor_context = activity_map[rel.predecessor_id].calendar_context
         if lag_context is None or predecessor_context is None:
             raise ValueError("time-aware relationship activities require calendar contexts")
-        lag_resolver = registry.resolve_relationship_lag(
+        raw_lag_resolver = registry.resolve_relationship_lag(
             lag_context,
             predecessor_context.effective_activity(),
             relationship_lag_calendar,
         )
-        if not hasattr(lag_resolver, "add_working_hours"):
-            raise TypeError("relationship lag resolver must support working-hour arithmetic")
+        if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+            lag_resolver = CalendarAwareResolver(
+                CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
+            )
+        else:
+            lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
+            lag_resolver = resolve_calendar_aware(registry, lag_reference)
         required = {
             RelationshipType.FS: _inverse_lag(successor.start, rel.lag, lag_resolver),
             RelationshipType.SS: _inverse_lag(successor.start, rel.lag, lag_resolver),
@@ -270,9 +278,9 @@ def calculate_time_floats(
         resolver = _resolver(activity, registry)
         e = early[activity_id]
         l = late[activity_id]
-        total = resolver.calculate_working_hours(e.start, l.start)
+        total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
         if l.start < e.start:
-            total = -resolver.calculate_working_hours(l.start, e.start)
+            total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
 
         if not outgoing[activity_id]:
             free = Decimal("0")
@@ -303,7 +311,12 @@ def calculate_time_floats(
                     # relationship event in the authoritative lag calendar.
                     delay = Decimal("0")
                     for _ in range(10000):
-                        candidate_start = resolver.add_duration(e.start, TimeQuantity.working_hours(delay))
+                        delay_quantity = (
+                            TimeQuantity.working_hours(delay)
+                            if activity.duration.unit is DurationUnit.WORKING_HOUR
+                            else TimeQuantity.working_days(delay)
+                        )
+                        candidate_start = resolver.add_duration(e.start, delay_quantity)
                         candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
                         if rel.type is RelationshipType.FS:
                             event = candidate_finish
@@ -333,8 +346,11 @@ def calculate_time_floats(
             early_finish=e.finish,
             late_start=l.start,
             late_finish=l.finish,
-            total_float_hours=total,
-            free_float_hours=min(total, free),
+            total_float_hours=total if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+            free_float_hours=min(total, free) if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+            total_float_value=total,
+            free_float_value=min(total, free),
+            float_unit=activity.duration.unit,
             critical=total <= 0,
         )
     return result
