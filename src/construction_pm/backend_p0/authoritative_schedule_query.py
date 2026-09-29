@@ -11,6 +11,8 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 
 from construction_pm.control_intelligence.contracts import SourceReference
+from construction_pm.control_intelligence.graph import ControlDomain
+from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
@@ -60,7 +62,7 @@ class AuthoritativeScheduleQueryProvider:
             content_hash=result.calculation_run_identity,
         )
 
-        data = _project_result(request, result)
+        data = _project_result(request, result, source)
         return ScheduleQueryAnswer(
             query_id=request.query_id,
             scope=request.scope,
@@ -73,7 +75,11 @@ class AuthoritativeScheduleQueryProvider:
 def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult,
+    source: SourceReference,
 ) -> Mapping[str, object]:
+    if request.kind is ScheduleQueryKind.SCENARIO:
+        return _project_scenario_proposal(request, source)
+
     if result.date_result is not None:
         activities = result.date_result.activities
         if request.kind is ScheduleQueryKind.FACT:
@@ -146,6 +152,52 @@ def _project_result(
             }
 
     raise ValueError("UNSUPPORTED_SCHEDULE_QUERY_PROJECTION")
+
+
+def _project_scenario_proposal(
+    request: ScheduleQueryRequest,
+    source: SourceReference,
+) -> Mapping[str, object]:
+    raw_changes = request.constraints.get("changes")
+    if not isinstance(raw_changes, (list, tuple)) or not raw_changes:
+        raise ValueError("SCENARIO_CHANGES_REQUIRED")
+
+    changes: list[ScenarioChange] = []
+    for raw in raw_changes:
+        if not isinstance(raw, Mapping):
+            raise ValueError("INVALID_SCENARIO_CHANGE")
+        try:
+            change = ScenarioChange(
+                change_id=str(raw["change_id"]),
+                domain=ControlDomain(str(raw["domain"])),
+                entity_type=str(raw["entity_type"]),
+                entity_id=str(raw["entity_id"]),
+                operation=str(raw["operation"]),
+                proposed_value=dict(raw.get("proposed_value", {})),
+                source_refs=(source,),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("INVALID_SCENARIO_CHANGE") from exc
+        changes.append(change)
+
+    return {
+        "scenario_id": request.query_id,
+        "purpose_key": request.query_text,
+        "authoritative_mutation_allowed": False,
+        "proposed_changes": [
+            {
+                "change_id": change.change_id,
+                "domain": change.domain.value,
+                "entity_type": change.entity_type,
+                "entity_id": change.entity_id,
+                "operation": change.operation,
+                "proposed_value": dict(change.proposed_value),
+            }
+            for change in changes
+        ],
+        "source_ids": [source.source_id],
+        "status": "proposal_only",
+    }
 
 
 @dataclass(frozen=True)
