@@ -490,3 +490,13 @@ Status: **implemented, runtime-verified and merged**
 - PR #70 remains historical/stale and must not be revived.
 - Issue #393's latest reconciliation states that no new concrete Hasan-owned P6 persistence/API gap is evidenced after the merged working-data surfaces. Do not duplicate interchange codecs, code assignments, baseline metadata, resource-spread, financial-period, activity-step, activity-actual, cost-account, expense, resource-assignment, or report/profile persistence.
 - Before the next implementation, re-read current `main`, this file, `docs/roadmap/STAGE_STATUS.md`, and open PRs; implement only the first newly evidenced Hasan-owned backend contract gap with focused tests and runtime verification.
+
+
+### 2026-09-30 — Current-main reconciliation / execution gate
+
+- Current main at reconciliation: `1eb36c2a016ff377d9967569d27c7a1d8774d214`.
+- Stage 33.4.73 atomic idempotency work is already merged and runtime-verified through PR #171; do not reimplement it.
+- The obsolete authoritative-schedule-materializer PR #482 was closed after current-main reconciliation; the authoritative schedule materializer/evaluator/query path is already on current main.
+- Current execution priority is: CI/branch hygiene, then Stage I/J scheduling work owned by Jalal, then P6 parity integration. Hasan continues only when a concrete Backend/Database/Application/API/Enterprise Integration gap is evidenced.
+- Open PRs must be treated by ownership and current-main ancestry; stale/non-mergeable branches are not active implementation bases.
+- No new Hasan feature is authorized by this reconciliation without a concrete missing contract/persistence/application boundary, focused tests, and runtime verification.
