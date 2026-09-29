@@ -97,3 +97,45 @@ def test_materializer_rejects_unsupported_date_duration_unit():
     )
     with pytest.raises(SnapshotMaterializationError):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializes_time_aware_quantity_payloads():
+    from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
+    from construction_pm.scheduling.time_duration import TimeQuantity
+    from construction_pm.scheduling.time_forward_pass import TimeActivity
+
+    cal = CalendarReference("CAL-T", "1", "working-time")
+    activity_context = SchedulingCalendarContext(project=cal, activity=cal)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-TIME",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=4,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=cal,
+        activities=(
+            TimeActivity("A", TimeQuantity.working_hours(4), activity_context),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=4,
+        calendar_id="CAL-T",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-TIME",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    activity = result.schedule_input.activities[0]
+    assert isinstance(activity, TimeActivity)
+    assert activity.duration.value == 4
