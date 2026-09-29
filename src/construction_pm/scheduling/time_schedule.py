@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .calendar_context import (
+    CalendarReference,
     CalendarResolverRegistry,
     RelationshipLagCalendar,
 )
@@ -15,6 +16,7 @@ from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .time_constraints import TimeActivityConstraint, TimeConstraintViolation, apply_time_latest_constraints, validate_time_late_window
+from .time_unit_resolver import CalendarAwareResolver, resolve_calendar_aware
 
 
 @dataclass(frozen=True)
@@ -47,13 +49,10 @@ class TimeScheduleResult:
     project_finish: datetime
 
 
-def _project_resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
+def _project_resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> CalendarAwareResolver:
     if activity.calendar_context is None:
         raise ValueError("time-aware activity requires a calendar context")
-    resolved = registry.resolve(activity.calendar_context.project)
-    if not isinstance(resolved, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware project calendar requires a working-time resolver")
-    return resolved
+    return resolve_calendar_aware(registry, activity.calendar_context.project)
 
 
 def _validate_project_calendar_context(
@@ -74,13 +73,10 @@ def _validate_project_calendar_context(
             raise ValueError("time-aware activities must share one project calendar")
 
 
-def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> TimeAwareWorkingTimeResolver:
+def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> CalendarAwareResolver:
     if activity.calendar_context is None:
         raise ValueError("time-aware activity requires a calendar context")
-    resolved = registry.resolve(activity.calendar_context.effective_activity())
-    if not isinstance(resolved, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware scheduling requires a working-time resolver")
-    return resolved
+    return resolve_calendar_aware(registry, activity.calendar_context.effective_activity())
 
 
 def _inverse_lag(event: datetime, lag: LagQuantity, resolver: TimeAwareWorkingTimeResolver) -> datetime:
@@ -94,21 +90,17 @@ def _inverse_lag(event: datetime, lag: LagQuantity, resolver: TimeAwareWorkingTi
 def _subtract_duration(
     finish: datetime,
     duration: TimeQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
+    resolver: CalendarAwareResolver,
 ) -> datetime:
-    if duration.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError("time-aware scheduling requires working-hour duration")
-    return resolver.subtract_working_hours(finish, duration.value)
+    return resolver.subtract_duration(finish, duration)
 
 
 def _add_duration(
     start: datetime,
     duration: TimeQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
+    resolver: CalendarAwareResolver,
 ) -> datetime:
-    if duration.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError("time-aware scheduling requires working-hour duration")
-    return resolver.add_working_hours(start, duration.value)
+    return resolver.add_duration(start, duration)
 
 
 def _latest_predecessor_start(
@@ -130,8 +122,13 @@ def _latest_predecessor_start(
         predecessor_context.effective_activity(),
         relationship_lag_calendar,
     )
-    if not hasattr(lag_resolver, "add_working_hours"):
-        raise TypeError("relationship lag resolver must support working-hour arithmetic")
+    if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+        lag_resolver = CalendarAwareResolver(
+            CalendarReference("24-hour", "1", "working-time"), lag_resolver
+        )
+    else:
+        lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
+        lag_resolver = resolve_calendar_aware(registry, lag_reference)
 
     if relationship.type is RelationshipType.FS:
         event = _inverse_lag(successor.start, relationship.lag, lag_resolver)
@@ -283,27 +280,34 @@ def calculate_time_floats(
             limits: list[Decimal] = []
             for rel in outgoing[activity_id]:
                 successor = early[rel.successor_id]
-                if rel.lag.unit is not DurationUnit.WORKING_HOUR:
-                    raise NotImplementedError("time-aware float requires working-hour lag")
+                if rel.lag.unit not in {DurationUnit.WORKING_HOUR, DurationUnit.WORKING_DAY}:
+                    raise ValueError("unsupported lag unit")
                 lag_context = activity_map[rel.successor_id].calendar_context
                 predecessor_context = activity_map[rel.predecessor_id].calendar_context
                 if lag_context is None or predecessor_context is None:
                     raise ValueError("relationship activities require calendar contexts")
-                lag_resolver = registry.resolve_relationship_lag(
+                raw_lag_resolver = registry.resolve_relationship_lag(
                     lag_context,
                     predecessor_context.effective_activity(),
                     relationship_lag_calendar,
                 )
+                if relationship_lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+                    lag_resolver = CalendarAwareResolver(
+                        CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
+                    )
+                else:
+                    lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
+                    lag_resolver = resolve_calendar_aware(registry, lag_reference)
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
                     # Measure slack by delaying the predecessor and checking the
                     # relationship event in the authoritative lag calendar.
                     delay = Decimal("0")
                     for _ in range(10000):
-                        candidate_start = resolver.add_working_hours(e.start, delay)
+                        candidate_start = resolver.add_duration(e.start, TimeQuantity.working_hours(delay))
                         candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
                         if rel.type is RelationshipType.FS:
                             event = candidate_finish
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                            required = lag_resolver.add_lag(event, rel.lag)
                             holds = successor.start >= required
                         elif rel.type is RelationshipType.SS:
                             event = candidate_start
@@ -334,18 +338,6 @@ def calculate_time_floats(
             critical=total <= 0,
         )
     return result
-
-
-def _add_signed_lag_for_float(
-    anchor: datetime,
-    lag: LagQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
-) -> datetime:
-    if lag.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError("time-aware float requires working-hour lag")
-    if lag.value >= 0:
-        return resolver.add_working_hours(anchor, lag.value)
-    return resolver.subtract_working_hours(anchor, -lag.value)
 
 
 def time_schedule(
