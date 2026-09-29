@@ -90,8 +90,6 @@ def test_filter_projection_selects_explicit_activity_ids():
 
 
 def test_scenario_projection_is_proposal_only_and_traceable():
-    import sqlite3
-    from datetime import datetime, timezone
     from construction_pm.control_intelligence.query import ScheduleQueryKind
 
     conn = sqlite3.connect(":memory:")
@@ -100,7 +98,10 @@ def test_scenario_projection_is_proposal_only_and_traceable():
         snapshot_id="S-S", tenant_id="T-1", project_id="P-1", project_revision=9,
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=CalendarReference("CAL-1", "1"),
-        activities=(Activity("A", 1),), project_start=date(2026, 9, 21),
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
     )
     context = CalculationContext(
         project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
