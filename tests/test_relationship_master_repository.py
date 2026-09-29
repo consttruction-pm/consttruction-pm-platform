@@ -19,6 +19,8 @@ def scope(revision: int = 7) -> BackendScope:
 
 def relationship(
     relationship_id: str = "R-1",
+    predecessor_id: str = "A-1",
+    successor_id: str = "A-2",
     relationship_type: RelationshipType = RelationshipType.FS,
     lag: str = "0",
     unit: DurationUnit = DurationUnit.WORKING_DAY,
@@ -27,8 +29,8 @@ def relationship(
     return RelationshipMaster(
         scope(revision),
         relationship_id,
-        "A-1",
-        "A-2",
+        predecessor_id,
+        successor_id,
         relationship_type,
         Decimal(lag),
         unit,
@@ -56,7 +58,7 @@ def test_relationship_master_preserves_signed_lag_and_unit():
 
 def test_relationship_master_rejects_self_relationship():
     with pytest.raises(RelationshipPersistenceError, match="SELF_RELATIONSHIP"):
-        relationship().validate()
+        relationship(predecessor_id="A-1", successor_id="A-1").validate()
 
 
 def test_relationship_master_rejects_stale_update():
