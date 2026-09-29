@@ -251,6 +251,118 @@ class SQLiteCalendarAssignmentRepository:
         self.connection.commit()
         return stored
 
+    def get_activity(self, scope: BackendScope, activity_id: str) -> ActivityCalendarAssignmentMaster | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT activity_id,calendar_id,calendar_version,record_revision,project_revision "
+            "FROM activity_calendar_assignment WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[4]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        return ActivityCalendarAssignmentMaster(scope, str(row[0]), str(row[1]), str(row[2]), int(row[3]))
+
+    def list_activities(self, scope: BackendScope) -> tuple[ActivityCalendarAssignmentMaster, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT activity_id,calendar_id,calendar_version,record_revision "
+            "FROM activity_calendar_assignment WHERE tenant_id=? AND project_id=? AND project_revision=? "
+            "ORDER BY activity_id",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(ActivityCalendarAssignmentMaster(scope, str(r[0]), str(r[1]), str(r[2]), int(r[3])) for r in rows)
+
+    def get_relationship_lag(self, scope: BackendScope, relationship_id: str) -> RelationshipLagCalendarAssignmentMaster | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT relationship_id,option,calendar_id,calendar_version,record_revision,project_revision "
+            "FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND relationship_id=?",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[5]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        return RelationshipLagCalendarAssignmentMaster(
+            scope, str(row[0]), RelationshipLagCalendar(str(row[1])),
+            row[2], row[3], int(row[4])
+        )
+
+    def list_relationship_lag(self, scope: BackendScope) -> tuple[RelationshipLagCalendarAssignmentMaster, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT relationship_id,option,calendar_id,calendar_version,record_revision "
+            "FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND project_revision=? "
+            "ORDER BY relationship_id",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(
+            RelationshipLagCalendarAssignmentMaster(
+                scope, str(r[0]), RelationshipLagCalendar(str(r[1])),
+                r[2], r[3], int(r[4])
+            )
+            for r in rows
+        )
+
+
+class PostgresCalendarAssignmentRepositoryReadMixin:
+    def get_activity(self, scope: BackendScope, activity_id: str) -> ActivityCalendarAssignmentMaster | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT activity_id,calendar_id,calendar_version,record_revision,project_revision "
+            "FROM activity_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[4]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        return ActivityCalendarAssignmentMaster(scope, str(row[0]), str(row[1]), str(row[2]), int(row[3]))
+
+    def list_activities(self, scope: BackendScope) -> tuple[ActivityCalendarAssignmentMaster, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT activity_id,calendar_id,calendar_version,record_revision "
+            "FROM activity_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "ORDER BY activity_id",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(ActivityCalendarAssignmentMaster(scope, str(r[0]), str(r[1]), str(r[2]), int(r[3])) for r in rows)
+
+    def get_relationship_lag(self, scope: BackendScope, relationship_id: str) -> RelationshipLagCalendarAssignmentMaster | None:
+        scope.validate()
+        row = self.connection.execute(
+            "SELECT relationship_id,option,calendar_id,calendar_version,record_revision,project_revision "
+            "FROM relationship_lag_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND relationship_id=%s",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[5]) != scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        return RelationshipLagCalendarAssignmentMaster(
+            scope, str(row[0]), RelationshipLagCalendar(str(row[1])),
+            row[2], row[3], int(row[4])
+        )
+
+    def list_relationship_lag(self, scope: BackendScope) -> tuple[RelationshipLagCalendarAssignmentMaster, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT relationship_id,option,calendar_id,calendar_version,record_revision "
+            "FROM relationship_lag_calendar_assignment WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "ORDER BY relationship_id",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(
+            RelationshipLagCalendarAssignmentMaster(
+                scope, str(r[0]), RelationshipLagCalendar(str(r[1])),
+                r[2], r[3], int(r[4])
+            )
+            for r in rows
+        )
+
 
 class PostgresCalendarMasterRepository:
     def __init__(self, connection: object) -> None:
