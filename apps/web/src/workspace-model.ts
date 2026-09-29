@@ -1,4 +1,6 @@
 import type { ProjectContext } from "./client.js";
+import { buildWorkspaceColumnsFromFieldCatalog } from "./workspace-column-registry.js";
+import type { P6FieldCatalogEntry } from "./p6-field-registry-client.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import type { WorkspaceSiteDailyLog } from "./workspace-site-log.js";
 import type { WorkspaceEquipmentStatus, WorkspaceTimecard } from "./workspace-field-ops.js";
@@ -104,6 +106,7 @@ export function createWorkspaceState(
   context: ProjectContext,
   locale: WorkspaceLocale = "en",
   calendarMode: WorkspaceCalendarMode = "gregorian",
+  fieldCatalog: readonly P6FieldCatalogEntry[] = [],
 ): WorkspaceState {
   validateContext(context);
   return {
@@ -120,7 +123,7 @@ export function createWorkspaceState(
     },
     selectedWbsId: null,
     selectedActivityId: null,
-    columns: DEFAULT_WORKSPACE_COLUMNS,
+    columns: fieldCatalog.length ? buildWorkspaceColumnsFromFieldCatalog(fieldCatalog) : DEFAULT_WORKSPACE_COLUMNS,
     activities: [],
     controlSummary: null,
     smartGuide: null,
