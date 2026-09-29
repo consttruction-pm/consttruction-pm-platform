@@ -182,8 +182,9 @@ class SQLiteActivityMasterRepository:
         ).fetchone()
         if row is None:
             return None
-        result = _from_row(scope, row)
-        if result.scope.project_revision != scope.project_revision:
+        if int(row[5]) != scope.project_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        result = _from_row(scope, row[:5])
             raise ActivityPersistenceError("REVISION_CONFLICT")
         return result
 
