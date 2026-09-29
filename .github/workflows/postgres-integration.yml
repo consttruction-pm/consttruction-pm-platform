@@ -26,6 +26,7 @@ on:
       - "src/construction_pm/p6_resource_spread_repository.py"
       - "src/construction_pm/p6_code_repository.py"
       - "src/construction_pm/p6_activity_step_repository.py"
+      - "src/construction_pm/p6_activity_period_actual_repository.py"
       - "src/construction_pm/p6_user_defined_field_values_repository.py"
       - "src/construction_pm/p6_user_defined_fields_repository.py"
       - "src/construction_pm/p6_field_registry.py"
