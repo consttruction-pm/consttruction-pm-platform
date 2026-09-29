@@ -15,6 +15,7 @@ from .relationships import RelationshipType
 from .time_calendar import TimeAwareWorkingTimeResolver
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_constraints import TimeActivityConstraint, apply_time_earliest_constraints, validate_time_early_window
+from .time_unit_resolver import CalendarAwareResolver, resolve_calendar_aware
 
 
 @dataclass(frozen=True)
@@ -56,48 +57,34 @@ class TimeScheduledActivity:
 def _resolver_for_activity(
     activity: TimeActivity,
     registry: CalendarResolverRegistry,
-) -> TimeAwareWorkingTimeResolver:
+) -> CalendarAwareResolver:
     context = activity.calendar_context
     if context is None:
         raise ValueError("time-aware activity requires a calendar context")
-    resolver = registry.resolve(context.effective_activity())
-    if not isinstance(resolver, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware activity requires a working-time resolver")
-    return resolver
+    return resolve_calendar_aware(registry, context.effective_activity())
 
 
 def _add_signed_lag(
     anchor: datetime,
     lag: LagQuantity,
-    resolver: TimeAwareWorkingTimeResolver | object,
+    resolver: CalendarAwareResolver,
 ) -> datetime:
-    if lag.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError(
-            "working-day lag is not implicitly converted to hours"
-        )
-    if lag.value >= 0:
-        return resolver.add_working_hours(anchor, lag.value)
-    return resolver.subtract_working_hours(anchor, -lag.value)
+    return resolver.add_lag(anchor, lag)
 
 
 def _add_duration(
     start: datetime,
     duration: TimeQuantity,
-    resolver: TimeAwareWorkingTimeResolver,
+    resolver: CalendarAwareResolver,
 ) -> datetime:
-    if duration.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError(
-            "working-day duration is not implicitly converted to hours"
-        )
-    return resolver.add_working_hours(start, duration.value)
-
+    return resolver.add_duration(start, duration)
 
 
 def _ss_successor_start(
     predecessor: TimeActivity,
     predecessor_scheduled: TimeScheduledActivity,
     relationship: TimeRelationship,
-    resolver: TimeAwareWorkingTimeResolver | object,
+    resolver: CalendarAwareResolver,
     data_date: datetime | None,
     calculation_type: StartToStartLagCalculationType,
 ) -> datetime:
@@ -113,16 +100,14 @@ def _ss_successor_start(
             raise ValueError(
                 "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
             )
-        elapsed = resolver.calculate_working_hours(
-            predecessor.actual_start, data_date
-        )
+        elapsed = resolver.calculate_duration(predecessor.actual_start, data_date, relationship.lag.unit)
         remaining_lag = max(Decimal("0"), relationship.lag.value - elapsed)
         anchor = (
             data_date
             if calculation_type is StartToStartLagCalculationType.ACTUAL_START
             else predecessor_scheduled.start
         )
-        return resolver.add_working_hours(anchor, remaining_lag)
+        return resolver.add_lag(anchor, LagQuantity(remaining_lag, relationship.lag.unit))
     return _add_signed_lag(predecessor_scheduled.start, relationship.lag, resolver)
 
 def time_forward_pass(
@@ -161,9 +146,7 @@ def time_forward_pass(
             raise ValueError("time-aware activity requires a calendar context")
         if context.project != project_ref:
             raise ValueError("time-aware activities must share one project calendar")
-    project_resolver = registry.resolve(project_ref)
-    if not isinstance(project_resolver, TimeAwareWorkingTimeResolver):
-        raise TypeError("time-aware project calendar requires a working-time resolver")
+    project_resolver = resolve_calendar_aware(registry, project_ref)
     normalized_project_start = project_resolver.normalize_start(project_start)
 
     relationship_list = list(relationships)
@@ -258,8 +241,4 @@ def _subtract_duration(
     duration: TimeQuantity,
     resolver: TimeAwareWorkingTimeResolver,
 ) -> datetime:
-    if duration.unit is not DurationUnit.WORKING_HOUR:
-        raise NotImplementedError(
-            "working-day duration is not implicitly converted to hours"
-        )
-    return resolver.subtract_working_hours(finish, duration.value)
+    return resolver.subtract_duration(finish, duration)
