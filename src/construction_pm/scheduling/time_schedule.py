@@ -274,9 +274,14 @@ def calculate_time_floats(
         resolver = _resolver(activity, registry)
         e = early[activity_id]
         l = late[activity_id]
-        total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
-        if l.start < e.start:
-            total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
+        if activity.duration.unit is DurationUnit.WORKING_DAY:
+            total = Decimal(resolver.resolver.working_days_between(e.start.date(), l.start.date()))
+            if l.start < e.start:
+                total = -Decimal(resolver.resolver.working_days_between(l.start.date(), e.start.date()))
+        else:
+            total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
+            if l.start < e.start:
+                total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
 
         if not outgoing[activity_id]:
             free = Decimal("0")
