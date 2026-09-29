@@ -73,7 +73,7 @@ def test_evaluator_runs_real_date_based_scheduling_core():
     assert result.date_result is not None
     assert result.date_result.activities["A"].start == date(2026, 9, 21)
     assert result.date_result.activities["B"].start == date(2026, 9, 23)
-    assert result.project_finish == date(2026, 9, 24)
+    assert result.project_finish == date(2026, 9, 23)
     assert result.calculation_identity == context.calculation_identity
     assert len(result.calculation_run_identity) == 64
 

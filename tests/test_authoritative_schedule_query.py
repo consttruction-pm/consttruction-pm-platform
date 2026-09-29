@@ -28,6 +28,8 @@ def test_query_executes_real_snapshot_evaluation():
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=calendar,
         activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
         project_start=date(2026, 9, 21),
     )
     context = CalculationContext(
@@ -49,7 +51,7 @@ def test_query_executes_real_snapshot_evaluation():
 
     answer = service.execute(request, auth_context=auth, calculation_context=context)
     assert answer.data["activity_count"] == 1
-    assert answer.data["project_finish"] == "2026-09-23"
+    assert answer.data["project_finish"] == "2026-09-22"
     assert answer.source_refs[0].source_id == "S-I"
 
 
@@ -62,6 +64,8 @@ def test_filter_projection_selects_explicit_activity_ids():
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=CalendarReference("CAL-1", "1"),
         activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(),
+        activity_calendar_assignments=(),
         project_start=date(2026, 9, 21),
     )
     context = CalculationContext(

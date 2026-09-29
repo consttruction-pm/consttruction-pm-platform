@@ -58,7 +58,6 @@ def build_snapshot(
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
     if schedule_input.snapshot_id != context.input_snapshot_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
-    schedule_input.source_refs
     payload = schedule_input.canonical_json()
     return ScheduleInputSnapshot(
         scope=BackendScope(schedule_input.tenant_id, schedule_input.project_id, schedule_input.project_revision),
@@ -107,7 +106,10 @@ class SQLiteScheduleInputSnapshotRepository:
                 and existing[2] == snapshot.calculation_identity
                 and int(existing[5]) == snapshot.scope.project_revision
             ):
-                return snapshot
+                return ScheduleInputSnapshot(
+                    snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
+                    datetime.fromisoformat(existing[3]), int(existing[4])
+                )
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
 
         self.connection.execute(
