@@ -116,7 +116,7 @@ def apply_time_latest_constraints(
                 raise TimeConstraintViolation(f"mandatory start conflicts for {activity.id}")
             result = target
         elif item.type is TimeConstraintType.MANDATORY_FINISH:
-            required = _subtract_duration(target, duration, resolver)
+            required = resolver.subtract_duration(target, duration)
             if result < required:
                 raise TimeConstraintViolation(f"mandatory finish conflicts for {activity.id}")
             result = required
