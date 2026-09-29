@@ -19,3 +19,13 @@ export * from "./workspace-change-claim.js";
 export * from "./workspace-document.js";
 export * from "./workspace-procurement.js";
 export * from "./workspace-smart-guide.js";
+
+export * from "./p6-field-registry-client.js";
+export * from "./workspace-layout.js";
+export * from "./p6-formula-editor-contract.js";
+export * from "./workspace-column-registry.js";
+export * from "./p6-typed-editor.js";
+export * from "./workspace-grid-hooks.js";
+export * from "./p6-formula-api.js";
+export * from "./workspace-layout-persistence.js";
+export * from "./p6-interchange-contract.js";
