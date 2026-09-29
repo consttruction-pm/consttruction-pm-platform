@@ -4,6 +4,7 @@ permissions:
   contents: read
 
 # Full-suite CI runs on every PR synchronization, independent of PostgreSQL path filters.
+# Keep this workflow path-unfiltered so repository-wide regressions are exercised.
 on:
   push:
     branches: ["main"]
