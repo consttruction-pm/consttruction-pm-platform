@@ -10,7 +10,7 @@ from construction_pm.scheduling.authoritative_schedule import (
 )
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.relationships import Relationship
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule import ScheduleOptions
 
 
 def make_input() -> AuthoritativeScheduleInput:
