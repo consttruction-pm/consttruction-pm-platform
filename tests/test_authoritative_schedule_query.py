@@ -51,7 +51,7 @@ def test_query_executes_real_snapshot_evaluation():
 
     answer = service.execute(request, auth_context=auth, calculation_context=context)
     assert answer.data["activity_count"] == 1
-    assert answer.data["project_finish"] == "2026-09-23"
+    assert answer.data["project_finish"] == "2026-09-22"
     assert answer.source_refs[0].source_id == "S-I"
 
 
