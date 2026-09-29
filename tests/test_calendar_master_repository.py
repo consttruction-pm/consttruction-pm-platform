@@ -66,3 +66,20 @@ def test_relationship_lag_rejects_invalid_24_hour_reference():
         RelationshipLagCalendarAssignmentMaster(
             scope(), "R-1", RelationshipLagCalendar.TWENTY_FOUR_HOUR, "CAL-1", "1"
         ).validate()
+
+def test_assignment_reads_are_scope_and_revision_aware():
+    conn = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(conn).save(calendar())
+    repo = SQLiteCalendarAssignmentRepository(conn)
+    repo.save_activity(ActivityCalendarAssignmentMaster(scope(), "A-1", "CAL-1", "1"))
+    repo.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope(), "R-1", RelationshipLagCalendar.SUCCESSOR, "CAL-1", "1"
+        )
+    )
+    assert repo.get_activity(scope(), "A-1").calendar_version == "1"
+    assert len(repo.list_activities(scope())) == 1
+    assert repo.get_relationship_lag(scope(), "R-1").option is RelationshipLagCalendar.SUCCESSOR
+    assert len(repo.list_relationship_lag(scope())) == 1
+    with pytest.raises(CalendarPersistenceError, match="REVISION_CONFLICT"):
+        repo.get_activity(scope(8), "A-1")
