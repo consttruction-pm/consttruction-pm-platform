@@ -474,3 +474,16 @@ Status: **implemented, runtime-verified and merged**
 - Before another P6 persistence slice, reconcile the remaining Role/Assignment/Document/Issue/Work Product surfaces and active Shared/Core prerequisites against current `main`.
 - Implement only the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration boundary with authoritative contract evidence, focused tests, PostgreSQL verification where applicable, and documentation.
 - If no concrete backend gap exists, record the ownership/blocker instead of inventing a feature or reviving stale PRs.
+
+
+### 2026-09-30 — Current-main P6 backend reconciliation
+
+- Current main is 7cd46ce2875e824d698521dab8991180b69e7b4d (docs(hasan): reconcile P6 continuation after PostgreSQL code assignment gate (#475)).
+- Issue #393 remains the Hasan P6 ownership track: persistence, API/application, import/export, typed storage and database verification.
+- Reconciliation of the current continuation history confirms the concrete Hasan P6 slices already merged include typed Field Registry/UDF persistence and API, PostgreSQL production persistence, resource spreads, codes/code assignments, financial periods, Activity Steps, Activity Period Actuals, baseline metadata, report/profile field mappings, and P6 interchange mapping/codecs plus round-trip fixtures. These must not be reimplemented.
+- The P6 parity baseline still requires complete field dispositions and the remaining Shared Core/client-owned parity work. The subject-area checklist mentions Roles, Work Products/Documents and Issues/Risks/Notices, but current evidence does not establish a concrete missing Hasan persistence/API contract for those surfaces. Implementing them now would risk inventing semantics before the authoritative field/mapping contracts are established.
+- Baseline comparison/variance/selection semantics remain blocked on an authoritative Shared Core snapshot/version contract; no backend comparison semantics are introduced here.
+- Current open PRs are not a concrete Hasan backend implementation: #479/#477/#478 are CI workflow changes, #436 is a Javad/client P6-3 draft, and #460 is coordination/audit documentation. None supplies an actionable Hasan-owned backend gap.
+- PR #70 remains historical/stale and is explicitly excluded by the continuation rules.
+
+Current blocker/ownership boundary: no new Hasan implementation is justified on the evidence available on current main. The next implementation should begin only when a concrete authoritative Shared Core field/mapping contract or a reproducible backend/API/persistence defect appears. At that point, branch from the then-current main, add focused tests, obtain PostgreSQL verification where applicable, and record exact CI identifiers before marking the slice complete.
