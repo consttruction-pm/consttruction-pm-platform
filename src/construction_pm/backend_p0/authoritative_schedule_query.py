@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Callable, Mapping
 
+from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
+
 from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
@@ -134,3 +137,33 @@ def _project_result(
             }
 
     raise ValueError("UNSUPPORTED_SCHEDULE_QUERY_PROJECTION")
+
+
+@dataclass(frozen=True)
+class AuthoritativeScheduleQueryApplicationService:
+    provider: AuthoritativeScheduleQueryProvider
+    authorization_policy: AuthorizationPolicy
+
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+        calculation_context: CalculationContext,
+    ) -> ScheduleQueryAnswer:
+        return ScheduleQueryApplicationService(
+            _ContextBoundProvider(self.provider, calculation_context),
+            self.authorization_policy,
+        ).execute(request, auth_context=auth_context)
+
+
+@dataclass(frozen=True)
+class _ContextBoundProvider:
+    provider: AuthoritativeScheduleQueryProvider
+    calculation_context: CalculationContext
+
+    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+        return self.provider.execute(
+            request,
+            calculation_context=self.calculation_context,
+        )
