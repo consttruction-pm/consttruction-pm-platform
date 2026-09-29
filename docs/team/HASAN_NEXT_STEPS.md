@@ -474,3 +474,19 @@ Status: **implemented, runtime-verified and merged**
 - Before another P6 persistence slice, reconcile the remaining Role/Assignment/Document/Issue/Work Product surfaces and active Shared/Core prerequisites against current `main`.
 - Implement only the first concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration boundary with authoritative contract evidence, focused tests, PostgreSQL verification where applicable, and documentation.
 - If no concrete backend gap exists, record the ownership/blocker instead of inventing a feature or reviving stale PRs.
+
+
+### 2026-09-29 — PostgreSQL live-gate reconciliation (PR #479)
+
+- PR #479 aligned PostgreSQL Integration push/PR path filters with the live P6 tests already executed by the workflow and corrected the Field Assurance repository `execute()` contract duplication exposed during reconciliation.
+- Exact PR #479 head: `9620680fe2d65c843cb2101a03e87ab3ddab7360`.
+- Client Typecheck run `36637815089`, ConstructionPM CI run `36637815099`, and PostgreSQL Integration run `36637815146` all completed successfully on that exact head.
+- PR #479 was squash-merged to `main` as `7f6d5c4faefa3b43ce9422d00311ff3ea65e72bb`.
+- This is a verification/CI-boundary reconciliation, not a new Hasan P6 data-surface implementation; do not count it as a new persistence/API feature.
+
+### Current Backend Continuation Point
+
+- Current `main`: `7f6d5c4faefa3b43ce9422d00311ff3ea65e72bb`.
+- PR #70 remains historical/stale and must not be revived.
+- Issue #393's latest reconciliation states that no new concrete Hasan-owned P6 persistence/API gap is evidenced after the merged working-data surfaces. Do not duplicate interchange codecs, code assignments, baseline metadata, resource-spread, financial-period, activity-step, activity-actual, cost-account, expense, resource-assignment, or report/profile persistence.
+- Before the next implementation, re-read current `main`, this file, `docs/roadmap/STAGE_STATUS.md`, and open PRs; implement only the first newly evidenced Hasan-owned backend contract gap with focused tests and runtime verification.
