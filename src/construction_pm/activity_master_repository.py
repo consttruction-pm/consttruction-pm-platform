@@ -147,6 +147,13 @@ class SQLiteActivityMasterRepository:
             return stored
 
         current = _from_row(activity.scope, row)
+        stored_revision = self.connection.execute(
+            "SELECT project_revision FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id),
+        ).fetchone()[0]
+        if int(stored_revision) != activity.scope.project_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         next_revision = current.record_revision + 1
