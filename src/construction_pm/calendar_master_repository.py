@@ -441,7 +441,7 @@ class PostgresCalendarMasterRepository:
         return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4])) for r in rows)
 
 
-class PostgresCalendarAssignmentRepository:
+class PostgresCalendarAssignmentRepository(PostgresCalendarAssignmentRepositoryReadMixin):
     def __init__(self, connection: object) -> None:
         self.connection = connection
 
