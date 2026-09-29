@@ -183,8 +183,13 @@ def _materialize_payload(
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_ACTIVITY")
         activity_id = str(_required(item, "id"))
-        unit = _duration_unit(item.get("duration_unit", "working-day"))
-        duration_value = _decimal(item.get("duration", 0))
+        duration_payload = item.get("duration", 0)
+        if isinstance(duration_payload, dict):
+            duration_value = _decimal(_required(duration_payload, "value"))
+            unit = _duration_unit(_required(duration_payload, "unit"))
+        else:
+            unit = _duration_unit(item.get("duration_unit", "working-day"))
+            duration_value = _decimal(duration_payload)
         actual = item.get("actual_start")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
             if unit is not DurationUnit.WORKING_DAY or duration_value != duration_value.to_integral_value():
@@ -195,9 +200,20 @@ def _materialize_payload(
         else:
             if unit is not DurationUnit.WORKING_HOUR:
                 raise SnapshotMaterializationError("TIME_AWARE_DURATION_MUST_BE_WORKING_HOURS")
+            stored_context = item.get("calendar_context")
+            if stored_context is not None and not isinstance(stored_context, dict):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_CALENDAR_CONTEXT")
+            activity_ref = assignment_refs.get(activity_id, project_calendar)
+            if isinstance(stored_context, dict) and stored_context.get("activity") is not None:
+                activity_ref = _calendar(stored_context["activity"])
             context = SchedulingCalendarContext(
                 project=project_calendar,
-                activity=assignment_refs.get(activity_id, project_calendar),
+                activity=activity_ref,
+                relationship_lag=(
+                    _calendar(stored_context["relationship_lag"])
+                    if isinstance(stored_context, dict) and stored_context.get("relationship_lag") is not None
+                    else None
+                ),
             )
             activities.append(
                 TimeActivity(
@@ -213,8 +229,13 @@ def _materialize_payload(
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP")
         rel_type = RelationshipType(str(item.get("type", RelationshipType.FS.value)))
-        unit = _duration_unit(item.get("lag_unit", "working-day"))
-        lag_value = _decimal(item.get("lag", 0))
+        lag_payload = item.get("lag", 0)
+        if isinstance(lag_payload, dict):
+            lag_value = _decimal(_required(lag_payload, "value"))
+            unit = _duration_unit(_required(lag_payload, "unit"))
+        else:
+            unit = _duration_unit(item.get("lag_unit", "working-day"))
+            lag_value = _decimal(lag_payload)
         predecessor_id = str(_required(item, "predecessor_id"))
         successor_id = str(_required(item, "successor_id"))
         if mode is AuthoritativeScheduleMode.DATE_BASED:
