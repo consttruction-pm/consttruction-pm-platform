@@ -490,3 +490,16 @@ Status: **implemented, runtime-verified and merged**
 - PR #70 remains historical/stale and must not be revived.
 - Issue #393's latest reconciliation states that no new concrete Hasan-owned P6 persistence/API gap is evidenced after the merged working-data surfaces. Do not duplicate interchange codecs, code assignments, baseline metadata, resource-spread, financial-period, activity-step, activity-actual, cost-account, expense, resource-assignment, or report/profile persistence.
 - Before the next implementation, re-read current `main`, this file, `docs/roadmap/STAGE_STATUS.md`, and open PRs; implement only the first newly evidenced Hasan-owned backend contract gap with focused tests and runtime verification.
+
+
+### 2026-09-30 — Current-main reconciliation after PR #479
+
+- Current main has advanced through PR #479 and the follow-up PostgreSQL status/documentation reconciliation commits; the current main tip is `e761d85a2e370ea15409d6f69e5caff37b307963`.
+- PR #477 and PR #478 remain open CI-only changes on current main; neither introduces a Hasan-owned application/API/persistence feature.
+- A fresh search for open PRs authored by `hasanforoughi` returns none.
+- Issue #393 remains reconciled: P6 interchange codecs, code-assignment persistence, baseline metadata, resource-spread, financial-period, activity-step, activity-actual, cost-account, expense, resource-assignment and report/profile persistence must not be duplicated.
+- Issue #459 continues to define the execution split: Jalal establishes authoritative semantics/contracts, Hasan persists/exposes them, and Javad consumes them.
+- Therefore there is still no newly evidenced Hasan-owned Backend/Database/Application/API contract on current main that can be implemented without inventing semantics or duplicating another owner’s work.
+- PR #70 remains historical/stale and must not be revived.
+
+**Current continuation rule:** the next Hasan implementation starts only when a new authoritative Core/API contract or concrete backend gap lands on current main. At that point implement the first missing persistence/API/PostgreSQL boundary with focused regression tests and runtime verification.
