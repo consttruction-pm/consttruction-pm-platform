@@ -13,9 +13,13 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    SchedulingCalendarContext,
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
-from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 
 
@@ -109,3 +113,59 @@ def test_evaluator_rejects_unregistered_authoritative_calendar():
     snapshot, context = make_snapshot_and_context()
     with pytest.raises(ScheduleEvaluationError, match="SCHEDULE_EVALUATION_FAILED"):
         evaluate_schedule_snapshot(snapshot, context, CalendarResolverRegistry())
+
+
+def test_evaluator_runs_full_time_aware_schedule():
+    from datetime import time
+
+    ref = CalendarReference("CAL-T", "1", "working-time")
+    ctx = SchedulingCalendarContext(project=ref, activity=ref, relationship_lag=ref)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-TIME-EVAL",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=8,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=ref,
+        activities=(
+            TimeActivity("A", TimeQuantity.working_hours(4), ctx),
+            TimeActivity("B", TimeQuantity.working_hours(2), ctx),
+        ),
+        relationships=(TimeRelationship("A", "B", RelationshipType.FS),),
+        activity_calendar_assignments=(),
+        project_start=datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        project_finish=datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=8,
+        calendar_id="CAL-T",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-22T08:00:00+00:00",
+        input_snapshot_id="S-TIME-EVAL",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 22, 8, tzinfo=timezone.utc))
+    calendar = WorkingTimeCalendar(
+        daily_intervals={
+            0: ((time(8), time(12)), (time(13), time(17))),
+            1: ((time(8), time(12)), (time(13), time(17))),
+            2: ((time(8), time(12)), (time(13), time(17))),
+            3: ((time(8), time(12)), (time(13), time(17))),
+            4: ((time(8), time(12)), (time(13), time(17))),
+        }
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={"CAL-T@1": TimeAwareWorkingTimeResolver(calendar)}
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, registry)
+
+    assert result.time_result is not None
+    assert result.time_result.activities["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert result.time_result.activities["B"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
+    assert result.time_result.late_activities["B"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
+    assert result.project_finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
