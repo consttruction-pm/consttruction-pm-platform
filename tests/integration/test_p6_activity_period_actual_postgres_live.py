@@ -1,4 +1,6 @@
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 import pytest
 from construction_pm.backend_p0.models import BackendScope
@@ -29,3 +31,25 @@ def test_postgres_rollback_preserves_original():
   with pytest.raises(P6ActivityPeriodActualPersistenceError,match="IMMUTABLE_ACTIVITY_PERIOD_ACTUAL"):
    with c.transaction(): repo.upsert(P6ActivityPeriodActual(s,"X1","A1","2026-09",Decimal("9"),Decimal("2")))
   assert repo.get(s,"X1")==v
+
+
+def test_postgres_concurrent_identical_upsert_is_idempotent():
+    s = BackendScope("tenant-period-concurrent", "project-period", 4)
+    v = P6ActivityPeriodActual(
+        s, "X-CONCURRENT", "A1", "2026-09", Decimal("3.125"), Decimal("20.50"), "h", "USD"
+    )
+    barrier = threading.Barrier(2)
+
+    def save():
+        with connect() as c:
+            repo = PostgresP6ActivityPeriodActualRepository(c)
+            repo.initialize()
+            c.commit()
+            barrier.wait(timeout=5)
+            with c.transaction():
+                return repo.upsert(v)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [future.result(timeout=10) for future in [pool.submit(save) for _ in range(2)]]
+
+    assert results == [v, v]

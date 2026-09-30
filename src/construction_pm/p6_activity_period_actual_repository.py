@@ -141,21 +141,24 @@ class PostgresP6ActivityPeriodActualRepository:
           ON p6_activity_period_actual(tenant_id,project_id,activity_id,period_id,actual_id)""")
     def upsert(self,actual:P6ActivityPeriodActual)->P6ActivityPeriodActual:
         actual.validate()
+        self.connection.execute(
+          "INSERT INTO p6_activity_period_actual "
+          "(tenant_id,project_id,project_revision,actual_id,activity_id,period_id,actual_units,actual_cost,unit,currency,note) "
+          "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+          "ON CONFLICT (tenant_id,project_id,actual_id) DO NOTHING",
+          (actual.scope.tenant_id,actual.scope.project_id,actual.scope.project_revision,actual.actual_id,actual.activity_id,
+           actual.period_id,None if actual.actual_units is None else str(actual.actual_units),
+           None if actual.actual_cost is None else str(actual.actual_cost),actual.unit,actual.currency,actual.note))
         row=self.connection.execute(
           "SELECT project_revision,activity_id,period_id,actual_units,actual_cost,unit,currency,note "
           "FROM p6_activity_period_actual WHERE tenant_id=%s AND project_id=%s AND actual_id=%s",
           (actual.scope.tenant_id,actual.scope.project_id,actual.actual_id)).fetchone()
-        if row is not None:
-            if int(row[0]) != actual.scope.project_revision: raise P6ActivityPeriodActualPersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != _payload(actual): raise P6ActivityPeriodActualPersistenceError("IMMUTABLE_ACTIVITY_PERIOD_ACTUAL")
-            return actual
-        self.connection.execute(
-          "INSERT INTO p6_activity_period_actual "
-          "(tenant_id,project_id,project_revision,actual_id,activity_id,period_id,actual_units,actual_cost,unit,currency,note) "
-          "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-          (actual.scope.tenant_id,actual.scope.project_id,actual.scope.project_revision,actual.actual_id,actual.activity_id,
-           actual.period_id,None if actual.actual_units is None else str(actual.actual_units),
-           None if actual.actual_cost is None else str(actual.actual_cost),actual.unit,actual.currency,actual.note))
+        if row is None:
+            raise P6ActivityPeriodActualPersistenceError("ACTIVITY_PERIOD_ACTUAL_INSERT_FAILED")
+        if int(row[0]) != actual.scope.project_revision:
+            raise P6ActivityPeriodActualPersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != _payload(actual):
+            raise P6ActivityPeriodActualPersistenceError("IMMUTABLE_ACTIVITY_PERIOD_ACTUAL")
         return actual
     def get(self,scope:BackendScope,actual_id:str)->P6ActivityPeriodActual|None:
         scope.validate()
