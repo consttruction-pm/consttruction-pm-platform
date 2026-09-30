@@ -151,6 +151,7 @@ class LevelingActivity:
     finish: date
     total_float: int
     resource_demands: tuple[ResourceDemand, ...] = ()
+    activity_priority: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -159,6 +160,8 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
+            raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -184,6 +187,52 @@ def _shift_demands(
     )
 
 
+def _priority_value(activity: LevelingActivity, field_name: str):
+    """Return the P6 leveling-priority value available in this Shared Core slice."""
+    normalized = field_name.strip().lower().replace(" ", "_")
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": activity.activity_priority,
+        "early_start": activity.start,
+        "planned_start": activity.start,
+        "early_finish": activity.finish,
+        "planned_finish": activity.finish,
+        "total_float": activity.total_float,
+    }
+    if normalized not in values:
+        raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+    return values[normalized]
+
+
+def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
+    parts: list[tuple[int, object]] = []
+    for priority in priorities:
+        value = _priority_value(activity, priority.field_name)
+        if value is None:
+            parts.append((1, ""))
+        elif priority.sort_order is SortOrder.ASCENDING:
+            parts.append((0, value))
+        else:
+            parts.append((0, _Descending(value)))
+    parts.append((0, activity.activity_id))
+    return tuple(parts)
+
+
+class _Descending:
+    __slots__ = ("value",)
+
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, _Descending):
+            return NotImplemented
+        return other.value < self.value
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _Descending) and self.value == other.value
+
+
 def propose_forward_leveling_within_float(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
@@ -191,6 +240,7 @@ def propose_forward_leveling_within_float(
     resolver: WorkingTimeResolver,
     min_float_to_preserve: int = 0,
     over_allocation_percentage: Decimal = Decimal("0"),
+    priorities: tuple[LevelingPriority, ...] = (),
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule."""
     if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
@@ -199,6 +249,11 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
+    if not isinstance(priorities, tuple) or any(not isinstance(priority, LevelingPriority) for priority in priorities):
+        raise ResourceLevelingError("INVALID_LEVELING_PRIORITIES")
+    for activity in activities:
+        for priority in priorities:
+            _priority_value(activity, priority.field_name)
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
     selected = {a.activity_id: 0 for a in activity_list}
@@ -227,7 +282,7 @@ def propose_forward_leveling_within_float(
         if not overloaded:
             break
 
-        candidates: list[tuple[Decimal, str]] = []
+        candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
             for activity in activity_list:
                 current_shift = selected[activity.activity_id]
@@ -236,11 +291,12 @@ def propose_forward_leveling_within_float(
                 shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
                 units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
                 if units > 0:
-                    candidates.append((-units, activity.activity_id))
+                    priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
+                    candidates.append((priority_key, -units, activity.activity_id))
         if not candidates:
             break
 
-        _, activity_id = sorted(candidates)[0]
+        _, _, activity_id = sorted(candidates, key=lambda item: (item[0], item[1], item[2]))[0]
         activity = next(a for a in activity_list if a.activity_id == activity_id)
         next_shift = selected[activity_id] + 1
         selected[activity_id] = next_shift
@@ -290,6 +346,7 @@ def apply_leveling_shifts(
             finish=shift.new_finish,
             total_float=activity.total_float - shift.consumed_float,
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
+            activity_priority=activity.activity_priority,
         ))
     return tuple(result)
 
