@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from construction_pm.scheduling.activity import Activity
-from construction_pm.scheduling.forward_pass import forward_pass
+from construction_pm.scheduling.forward_pass import ScheduledActivity, forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import (
     StartToStartLagCalculationType,
