@@ -31,16 +31,18 @@ from .multi_project_float import (
 )
 from .schedule import (
     FloatActivity,
+    ScheduleResult,
+    backward_pass,
+    calculate_floats,
+    schedule,
+)
+from .schedule_options import (
     ScheduleMode,
     ScheduleOptions,
-    ScheduleResult,
     StartToStartLagCalculationType,
     OutOfSequenceScheduleType,
     TotalFloatCalculationType,
     CriticalActivityPathType,
-    backward_pass,
-    calculate_floats,
-    schedule,
 )
 
 __all__ = [
