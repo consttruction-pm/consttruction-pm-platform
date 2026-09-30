@@ -283,12 +283,12 @@ def _relationship_is_driving(
     lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         if relationship.lag >= 0:
-            required = resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            required = lag_resolver.next_working_day(
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
         else:
-            required = resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            required = lag_resolver.previous_working_day(
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         return successor.start == required
     if relationship.type is RelationshipType.SS:
@@ -298,7 +298,7 @@ def _relationship_is_driving(
         required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish == required
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish == required
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -308,6 +308,7 @@ def _longest_path_activity_ids(
     relationships: Iterable[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> frozenset[str]:
     """Trace P6-style driving relationships from the latest early finishes."""
     activity_list = list(activities)
@@ -338,7 +339,7 @@ def _longest_path_activity_ids(
             if predecessor_id in longest:
                 continue
             predecessor = early_schedule[predecessor_id]
-            if _relationship_is_driving(relationship, predecessor, successor, resolver):
+            if _relationship_is_driving(relationship, predecessor, successor, resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
                 longest.add(predecessor_id)
                 stack.append(predecessor_id)
     return frozenset(longest)
@@ -576,7 +577,7 @@ def calculate_floats(
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver)
+        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
