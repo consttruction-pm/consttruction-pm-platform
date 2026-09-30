@@ -145,3 +145,28 @@ def test_authoritative_calendar_resolution_is_fail_fast_on_missing_version():
 
     with pytest.raises(KeyError, match="activity-b@99"):
         resolve_authoritative_activity_calendars(snapshot, registry)
+
+
+def test_resolved_activity_calendar_provider_preserves_activity_identity():
+    from construction_pm.scheduling.activity_calendar_provider import (
+        ResolvedActivityCalendarProvider,
+    )
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project_ref = CalendarReference("project", "1")
+    activity_ref = CalendarReference("activity-b", "3")
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    activity_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project_resolver,
+            activities={"A": project_resolver, "B": activity_resolver},
+            references={"A": project_ref, "B": activity_ref},
+        )
+    )
+
+    assert provider.resolver_for("A") is project_resolver
+    assert provider.resolver_for("B") is activity_resolver
+    assert provider.reference_for("B") == activity_ref
