@@ -91,7 +91,7 @@ def _latest_predecessor_start(
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
-        return _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        return _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
