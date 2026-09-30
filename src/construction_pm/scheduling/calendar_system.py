@@ -123,23 +123,18 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     """Convert a Gregorian date to Jalali using Borkowski JDN arithmetic."""
 
     jdn = _gregorian_to_borkowski_jdn(value.year, value.month, value.day)
-    gy = _borkowski_jdn_to_gregorian(jdn).year
-    year = gy - 621
-    _, march, leap, _ = _jalali_cal(year)
-    first_day = _gregorian_to_borkowski_jdn(gy, 3, march)
+    candidate_year = value.year - 621
+    first_day = jalali_to_jdn(candidate_year, 1, 1)
+
+    if jdn < first_day:
+        candidate_year -= 1
+        first_day = jalali_to_jdn(candidate_year, 1, 1)
+
     k = jdn - first_day
-
-    if k >= 0:
-        if k <= 185:
-            return year, 1 + _div(k, 31), _mod(k, 31) + 1
-        k -= 186
-    else:
-        year -= 1
-        k += 179
-        if leap == 1:
-            k += 1
-
-    return year, 7 + _div(k, 30), _mod(k, 30) + 1
+    if k <= 185:
+        return candidate_year, 1 + _div(k, 31), _mod(k, 31) + 1
+    k -= 186
+    return candidate_year, 7 + _div(k, 30), _mod(k, 30) + 1
 
 
 def jalali_to_jdn(year: int, month: int, day: int) -> int:
