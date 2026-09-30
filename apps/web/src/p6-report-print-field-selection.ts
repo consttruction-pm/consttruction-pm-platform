@@ -13,7 +13,11 @@ export type P6ReportPrintFieldSelectionModel = {
 function normalizeSelection(layout: LayoutDefinition, field_ids: readonly string[]): P6ReportPrintSelection {
   const available = new Set(layout.columns.map((column) => column.field_id));
   const seen = new Set<string>();
-  const normalized = field_ids.filter((fieldId) => available.has(fieldId) && !seen.has(fieldId));
+  const normalized = field_ids.filter((fieldId) => {
+    if (!available.has(fieldId) || seen.has(fieldId)) return false;
+    seen.add(fieldId);
+    return true;
+  });
   return { field_ids: normalized };
 }
 
