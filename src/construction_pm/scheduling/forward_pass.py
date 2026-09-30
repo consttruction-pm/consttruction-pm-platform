@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from .activity import Activity
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
-from .activity_calendar_provider import ActivityCalendarProvider
 from .constraints import (
     ActivityConstraint,
     apply_earliest_constraint,
@@ -45,7 +44,9 @@ def _apply_lag_after(
 ) -> date:
     """Place a successor event after/before an anchor using working-day lag."""
     if lag >= 0:
-        return resolver.add_working_duration(value, lag + 1)
+        return resolver.next_working_day(
+            resolver.add_working_duration(value, lag + 1)
+        )
     return resolver.previous_working_day(
         resolver.subtract_working_duration(value, -lag)
     )
@@ -59,9 +60,7 @@ def _successor_start(
     predecessor_activity: Activity | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
-    relationship_lag_resolver: WorkingTimeResolver | None = None,
 ) -> date:
-    lag_resolver = relationship_lag_resolver or resolver
     if relationship.type is RelationshipType.SS:
         if (
             predecessor_activity is not None
@@ -76,7 +75,7 @@ def _successor_start(
                 raise ValueError(
                     "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
                 )
-            elapsed = lag_resolver.working_days_between(
+            elapsed = resolver.working_days_between(
                 predecessor_activity.actual_start, data_date
             )
             remaining_lag = max(0, relationship.lag - elapsed)
@@ -86,19 +85,19 @@ def _successor_start(
                 is StartToStartLagCalculationType.ACTUAL_START
                 else predecessor.start
             )
-            return _shift_working_date(anchor, remaining_lag, lag_resolver)
+            return _shift_working_date(anchor, remaining_lag, resolver)
 
-        return _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
+        return _shift_working_date(predecessor.start, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FS:
-        return _apply_lag_after(predecessor.finish, relationship.lag, lag_resolver)
+        return _apply_lag_after(predecessor.finish, relationship.lag, resolver)
 
     if relationship.type is RelationshipType.FF:
-        target_finish = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
+        target_finish = _shift_working_date(predecessor.finish, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     if relationship.type is RelationshipType.SF:
-        target_finish = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
+        target_finish = _shift_working_date(predecessor.start, relationship.lag, resolver)
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
@@ -139,8 +138,6 @@ def forward_pass(
     calculation_context: CalculationContext | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
-    calendar_provider: ActivityCalendarProvider | None = None,
-    relationship_lag_resolver: Callable[[Relationship], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with foundational date constraints.
 
@@ -174,9 +171,7 @@ def forward_pass(
 
     for activity_id, activity_constraints in constraint_map.items():
         validate_constraint_set(
-            activity_constraints,
-            activity_map[activity_id].duration,
-            calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver,
+            activity_constraints, activity_map[activity_id].duration, resolver
         )
 
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -188,20 +183,18 @@ def forward_pass(
 
     for activity_id in order:
         activity = activity_map[activity_id]
-        activity_resolver = calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver
         if not incoming[activity_id]:
-            start = activity_resolver.normalize_start(project_start)
+            start = resolver.normalize_start(project_start)
         else:
             start = max(
                 _successor_start(
                     rel,
                     result[rel.predecessor_id],
                     activity.duration,
-                    activity_resolver,
+                    resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
-                    relationship_lag_resolver(rel) if relationship_lag_resolver is not None else None,
                 )
                 for rel in sorted(
                     incoming[activity_id],
@@ -214,14 +207,14 @@ def forward_pass(
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            start = apply_earliest_constraint(constraint, start, activity.duration, activity_resolver)
+            start = apply_earliest_constraint(constraint, start, activity.duration, resolver)
 
-        finish = activity_resolver.add_working_duration(start, activity.duration)
+        finish = resolver.add_working_duration(start, activity.duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            validate_upper_bound(constraint, start, finish, activity_resolver)
+            validate_upper_bound(constraint, start, finish, resolver)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id, start=start, finish=finish, duration=activity.duration
