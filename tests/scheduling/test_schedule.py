@@ -438,7 +438,7 @@ def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(re
         "C": ScheduledActivity("C", date(2026, 9, 23), date(2026, 9, 23), 1),
     }
     holiday_lag = WorkingTimeResolver(
-        WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
     )
 
     project_a_free_float = _relationship_free_float(
