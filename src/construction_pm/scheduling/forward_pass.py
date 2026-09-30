@@ -87,7 +87,7 @@ def _successor_start(
                 is StartToStartLagCalculationType.ACTUAL_START
                 else predecessor.start
             )
-            return _shift_working_date(anchor, remaining_lag, resolver)
+            return _shift_working_date(anchor, remaining_lag, lag_resolver)
 
         return _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
 
