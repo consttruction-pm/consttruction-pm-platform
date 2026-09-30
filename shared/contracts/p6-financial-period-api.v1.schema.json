@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://constructionpm.dev/contracts/v1/p6-financial-period-api.v1.schema.json",
+  "title": "P6 Financial Period API v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "kind", "scope", "financial_period"],
+  "properties": {
+    "contract_version": {"const": "p6-financial-period-api.v1"},
+    "kind": {"const": "p6_financial_period"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      }
+    },
+    "financial_period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["period_id", "name", "start_date", "end_date", "status"],
+      "properties": {
+        "period_id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "start_date": {"type": "string", "minLength": 1},
+        "end_date": {"type": "string", "minLength": 1},
+        "status": {"enum": ["OPEN", "CLOSED"]}
+      }
+    }
+  }
+}
