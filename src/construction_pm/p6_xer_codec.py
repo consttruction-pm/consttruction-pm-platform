@@ -19,6 +19,7 @@ class P6XerCodec:
     format: P6MappingFormat = P6MappingFormat.XER_PROJECT
 
     def decode(self, payload: str | bytes, scope: BackendScope) -> Sequence[P6InterchangeRow]:
+        scope.validate()
         text = payload.decode("utf-8-sig") if isinstance(payload, bytes) else payload
         lines = text.splitlines()
         rows: list[P6InterchangeRow] = []
@@ -69,6 +70,7 @@ class P6XerCodec:
         rows: Sequence[P6InterchangeResult],
         scope: BackendScope,
     ) -> str:
+        scope.validate()
         grouped: dict[str, list[P6InterchangeResult]] = {}
         for row in rows:
             table = row.extensions.get("p6.xer.table")
