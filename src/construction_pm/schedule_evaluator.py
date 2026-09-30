@@ -14,7 +14,8 @@ from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.schedule import ScheduleResult, schedule
-from .scheduling.time_forward_pass import TimeScheduledActivity, time_forward_pass
+from .scheduling.time_forward_pass import TimeScheduledActivity
+from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
 
 
 class ScheduleEvaluationError(ValueError):
@@ -34,6 +35,7 @@ class ScheduleEvaluationResult:
     mode: str
     date_result: ScheduleResult | None = None
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
+    time_result: TimeScheduleResult | None = None
 
     @property
     def project_finish(self) -> date | datetime:
@@ -107,12 +109,7 @@ def _evaluate_materialized(
         activities = source.activities
         relationships = source.relationships
         constraints = source.constraints
-        time_result = time_forward_pass(
-            activities=activities,
-            relationships=relationships,
-            project_start=source.project_start,
-            registry=materialized.calendar_registry,
-            constraints=constraints,
+        selected_options = TimeScheduleOptions(
             start_to_start_lag_calculation_type=source.schedule_options.start_to_start_lag_calculation_type,
             data_date=(
                 datetime.combine(
@@ -124,10 +121,19 @@ def _evaluate_materialized(
                 else None
             ),
         )
+        result = time_schedule(
+            activities=activities,
+            relationships=relationships,
+            project_start=source.project_start,
+            project_finish=source.project_finish,
+            registry=materialized.calendar_registry,
+            constraints=constraints,
+            options=selected_options,
+        )
         run_identity = _run_identity(
             snapshot.snapshot_hash,
             calculation_context.calculation_identity,
-            _canonical_result(time_result),
+            _canonical_result(result),
         )
         return ScheduleEvaluationResult(
             snapshot_id=snapshot.snapshot_id,
@@ -137,7 +143,8 @@ def _evaluate_materialized(
             project_id=source.project_id,
             project_revision=source.project_revision,
             mode=source.mode.value,
-            time_activities=time_result,
+            time_activities=result.activities,
+            time_result=result,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
