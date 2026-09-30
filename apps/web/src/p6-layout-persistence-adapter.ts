@@ -15,7 +15,8 @@ function assertLayout(value: unknown): LayoutDefinition {
   if (layout.schema_version !== "p6-layout.v1") throw new Error("INVALID_LAYOUT_SCHEMA");
   if (layout.scope !== "global" && layout.scope !== "project" && layout.scope !== "user") throw new Error("INVALID_LAYOUT_SCOPE");
   if (typeof layout.view_id !== "string" || layout.view_id.length === 0) throw new Error("INVALID_LAYOUT_VIEW");
-  if (!Number.isInteger(layout.revision) || layout.revision < 0) throw new Error("INVALID_LAYOUT_REVISION");
+  const revision = layout.revision;
+  if (typeof revision !== "number" || !Number.isInteger(revision) || revision < 0) throw new Error("INVALID_LAYOUT_REVISION");
   if (!Array.isArray(layout.columns)) throw new Error("INVALID_LAYOUT_COLUMNS");
 
   const ids = new Set<string>();
@@ -28,7 +29,7 @@ function assertLayout(value: unknown): LayoutDefinition {
     if (item.order !== index) throw new Error("NON_NORMALIZED_LAYOUT");
     if (typeof item.visible !== "boolean" || typeof item.width !== "number") throw new Error("INVALID_LAYOUT_PRESENTATION");
   });
-  return layout as LayoutDefinition;
+  return { ...layout, revision } as LayoutDefinition;
 }
 
 export function createP6LayoutPersistence(transport: P6LayoutPersistenceTransport): P6LayoutPersistence {
