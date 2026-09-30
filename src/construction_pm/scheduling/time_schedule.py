@@ -82,6 +82,14 @@ def _resolver(activity: TimeActivity, registry: CalendarResolverRegistry) -> Cal
     return resolve_calendar_aware(registry, activity.calendar_context.effective_activity())
 
 
+def _add_signed_lag(event: datetime, lag: LagQuantity, resolver: CalendarAwareResolver) -> datetime:
+    return resolver.add_lag(event, lag)
+
+
+def _add_signed_lag_for_float(event: datetime, lag: LagQuantity, resolver: CalendarAwareResolver) -> datetime:
+    return resolver.add_lag(event, lag)
+
+
 def _inverse_lag(event: datetime, lag: LagQuantity, resolver: CalendarAwareResolver) -> datetime:
     return resolver.subtract_lag(event, lag)
 
@@ -200,7 +208,10 @@ def time_backward_pass(
             late_finish = normalized_finish
             late_start = _subtract_duration(late_finish, activity.duration, resolver)
             late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
-            late_finish = _add_duration(late_start, activity.duration, resolver)
+            if activity.duration.unit is DurationUnit.WORKING_DAY:
+                late_finish = late_start
+            else:
+                late_finish = _add_duration(late_start, activity.duration, resolver)
         else:
             candidates = [
                 _latest_predecessor_start(
