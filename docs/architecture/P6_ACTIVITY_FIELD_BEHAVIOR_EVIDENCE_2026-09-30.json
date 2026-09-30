@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "status": "behavior_evidence_tranche_7",
+  "source": {
+    "release": "P6 Integration API / FieldSummary reference",
+    "field_reference": "Activity",
+    "source_url": "https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html"
+  },
+  "rule": "Only explicit Oracle wording is classified; absence of wording stays not_explicit. Read-only markers and computed descriptions are evidence only and do not by themselves certify our canonical storage or implementation.",
+  "fields": [
+    {
+      "p6_field": "PlannedStartDate",
+      "behavior_status": "manual_update_explicit"
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "behavior_status": "manual_update_explicit"
+    },
+    {
+      "p6_field": "ActualStartDate",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "ActualFinishDate",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "PlannedDuration",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "RemainingDuration",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "ActualDuration",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "DurationPercentComplete",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "PhysicalPercentComplete",
+      "behavior_status": "user_entered_or_calculated_explicit"
+    },
+    {
+      "p6_field": "PercentCompleteType",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "TotalFloat",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "FreeFloat",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "FloatPath",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "FloatPathOrder",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "behavior_status": "scheduler_computed_explicit"
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "behavior_status": "scheduler_computed_explicit"
+    },
+    {
+      "p6_field": "LateStartDate",
+      "behavior_status": "scheduler_computed_explicit"
+    },
+    {
+      "p6_field": "LateFinishDate",
+      "behavior_status": "scheduler_computed_explicit"
+    },
+    {
+      "p6_field": "PrimaryConstraintType",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "PrimaryConstraintDate",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "ExpectedFinishDate",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "PrimaryResourceName",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "ProjectId",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "ProjectName",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "WBSPath",
+      "behavior_status": "not_explicit"
+    },
+    {
+      "p6_field": "BaselineStartDate",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "BaselineFinishDate",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "BaselineDuration",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "Duration1Variance",
+      "behavior_status": "derived_definition_explicit"
+    },
+    {
+      "p6_field": "CreateUser",
+      "behavior_status": "not_explicit"
+    }
+  ]
+}
