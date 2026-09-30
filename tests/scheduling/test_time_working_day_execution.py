@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
 
@@ -112,3 +113,14 @@ def test_jalali_calendar_context_flows_through_time_forward_pass():
     )
     assert result["A"].start == datetime(2026, 9, 29)
     assert result["A"].finish == datetime(2026, 10, 1)
+
+
+def test_working_day_calendar_rejects_fractional_working_day_duration():
+    registry, ctx = day_registry()
+    with pytest.raises(ValueError, match="whole working-day"):
+        time_forward_pass(
+            [TimeActivity("A", TimeQuantity(Decimal("1.5"), DurationUnit.WORKING_DAY), ctx)],
+            [],
+            datetime(2026, 9, 22, 8),
+            registry,
+        )
