@@ -79,6 +79,7 @@ class SQLiteP6ResourceSpreadRepository:
         CREATE INDEX IF NOT EXISTS idx_p6_resource_spread_scope
           ON p6_resource_spread_bucket(tenant_id, project_id, resource_id, period_id);
         """)
+
         self.connection.commit()
 
     def upsert(self, bucket: P6ResourceSpreadBucket) -> P6ResourceSpreadBucket:
@@ -203,8 +204,8 @@ class PostgresP6ResourceSpreadRepository:
             return bucket
         inserted = self.connection.execute(
             "INSERT INTO p6_resource_spread_bucket "
-            "(tenant_id,project_id,project_revision,spread_id,resource_id,period_start,period_end,"
-            "spread_type,metric,value,unit,currency) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "(tenant_id,project_id,project_revision,spread_id,resource_id,period_id,period_start,period_end,"
+            "spread_type,metric,value,unit,currency) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (tenant_id,project_id,spread_id,period_id) DO NOTHING "
             "RETURNING tenant_id",
             (bucket.scope.tenant_id,bucket.scope.project_id,bucket.scope.project_revision,bucket.spread_id,
