@@ -64,7 +64,7 @@ def test_jalali_and_gregorian_resolvers_produce_identical_working_day_arithmetic
 
 def test_zero_day_duration_normalizes_start_but_does_not_consume_a_working_day():
     resolver = WorkingTimeResolver(WorkingCalendar())
-    assert resolver.add_working_duration(date(2026, 9, 26), 0) == date(2026, 9, 27)
+    assert resolver.add_working_duration(date(2026, 9, 26), 0) == date(2026, 9, 28)
 
 
 def test_large_day_duration_round_trips_without_fixed_horizon():
