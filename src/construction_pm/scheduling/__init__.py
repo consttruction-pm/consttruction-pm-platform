@@ -29,6 +29,22 @@ from .multi_project_float import (
     ProjectFinishBoundary,
     resolve_multi_project_float_boundary,
 )
+from .resource_leveling import (
+    LevelingActivity,
+    LevelingPriority,
+    LevelingShift,
+    OverAllocation,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingError,
+    ResourceLevelingOptions,
+    SortOrder,
+    apply_leveling_shifts,
+    detect_over_allocations,
+    propose_forward_leveling_within_float,
+    resolve_leveling_passes,
+    select_leveling_resources,
+)
 from .schedule import (
     FloatActivity,
     ScheduleResult,
