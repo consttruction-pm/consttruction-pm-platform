@@ -29,6 +29,7 @@ class ActivityMaster:
     duration_unit: DurationUnit
     actual_start: date | datetime | None = None
     record_revision: int = 0
+    expected_finish: date | datetime | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -42,6 +43,8 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_DURATION_UNIT")
         if self.actual_start is not None and not isinstance(self.actual_start, (date, datetime)):
             raise ActivityPersistenceError("INVALID_ACTUAL_START")
+        if self.expected_finish is not None and not isinstance(self.expected_finish, (date, datetime)):
+            raise ActivityPersistenceError("INVALID_EXPECTED_FINISH")
         if isinstance(self.record_revision, bool) or not isinstance(self.record_revision, int) or self.record_revision < 0:
             raise ActivityPersistenceError("INVALID_RECORD_REVISION")
         if self.record_revision > MAX_SAFE_REVISION:
@@ -53,6 +56,7 @@ class ActivityMaster:
             str(self.duration_value),
             self.duration_unit.value,
             None if self.actual_start is None else self.actual_start.isoformat(),
+            None if self.expected_finish is None else self.expected_finish.isoformat(),
         )
 
 
@@ -72,6 +76,16 @@ def _decode_actual_start(value: object) -> date | datetime | None:
         raise ActivityPersistenceError("INVALID_STORED_ACTUAL_START") from exc
 
 
+def _decode_expected_finish(value: object) -> date | datetime | None:
+    if value is None:
+        return None
+    text = str(value)
+    try:
+        return datetime.fromisoformat(text) if "T" in text else date.fromisoformat(text)
+    except ValueError as exc:
+        raise ActivityPersistenceError("INVALID_STORED_EXPECTED_FINISH") from exc
+
+
 def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
     try:
         result = ActivityMaster(
@@ -81,6 +95,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
             duration_unit=DurationUnit(str(row[2])),
             actual_start=_decode_actual_start(row[3]),
             record_revision=int(row[4]),
+            expected_finish=_decode_expected_finish(row[5]),
         )
         result.validate()
         return result
