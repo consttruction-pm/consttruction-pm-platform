@@ -76,3 +76,20 @@ def test_oos_requires_data_date_not_before_actual_start():
             relationship_required_start=date(2026, 9, 28),
             data_date=date(2026, 9, 28),
         )
+
+
+def test_relationship_required_start_supports_all_relationship_types():
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.out_of_sequence import relationship_required_start
+
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor = ScheduledActivity("P", date(2026, 9, 28), date(2026, 9, 30), 2)
+
+    for relationship_type in RelationshipType:
+        relationship = Relationship("P", "S", relationship_type, 0)
+        required = relationship_required_start(
+            relationship, predecessor, 2, resolver=resolver
+        )
+        assert isinstance(required, date)
