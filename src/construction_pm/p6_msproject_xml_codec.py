@@ -18,6 +18,7 @@ class P6MsProjectXmlCodec:
     format:P6MappingFormat=P6MappingFormat.MSPROJECT_XML
 
     def decode(self,payload:str|bytes,scope:BackendScope)->Sequence[P6InterchangeRow]:
+        scope.validate()
         if isinstance(payload,bytes):
             payload=payload.decode("utf-8-sig")
         try: root=ET.fromstring(payload)
