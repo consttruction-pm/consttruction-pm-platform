@@ -175,27 +175,28 @@ class PostgresP6BaselineRepository:
     def upsert(self, baseline: P6Baseline) -> P6Baseline:
         baseline.validate()
         key = (baseline.scope.tenant_id, baseline.scope.project_id, baseline.baseline_id)
+        payload = (
+            baseline.name, baseline.baseline_type, baseline.source_revision,
+            baseline.created_at, baseline.notes,
+        )
+        self.connection.execute(
+            "INSERT INTO p6_baseline "
+            "(tenant_id,project_id,project_revision,baseline_id,name,baseline_type,source_revision,created_at,notes) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,baseline_id) DO NOTHING",
+            (*key[:2], baseline.scope.project_revision, baseline.baseline_id, *payload),
+        )
         row = self.connection.execute(
             "SELECT project_revision,name,baseline_type,source_revision,created_at,notes "
             "FROM p6_baseline WHERE tenant_id=%s AND project_id=%s AND baseline_id=%s",
             key,
         ).fetchone()
-        payload = (
-            baseline.name, baseline.baseline_type, baseline.source_revision,
-            baseline.created_at, baseline.notes,
-        )
-        if row is not None:
-            if int(row[0]) != baseline.scope.project_revision:
-                raise P6BaselinePersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != payload:
-                raise P6BaselinePersistenceError("IMMUTABLE_BASELINE")
-            return baseline
-        self.connection.execute(
-            "INSERT INTO p6_baseline "
-            "(tenant_id,project_id,project_revision,baseline_id,name,baseline_type,source_revision,created_at,notes) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (*key[:2], baseline.scope.project_revision, baseline.baseline_id, *payload),
-        )
+        if row is None:
+            raise P6BaselinePersistenceError("BASELINE_INSERT_FAILED")
+        if int(row[0]) != baseline.scope.project_revision:
+            raise P6BaselinePersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != payload:
+            raise P6BaselinePersistenceError("IMMUTABLE_BASELINE")
         return baseline
 
     def get(self, scope: BackendScope, baseline_id: str) -> P6Baseline | None:
