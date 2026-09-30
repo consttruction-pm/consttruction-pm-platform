@@ -233,7 +233,17 @@ def time_forward_pass(
                 target = _add_signed_lag(anchor, rel.lag, lag_resolver)
                 if rel.type is RelationshipType.SF and rel.lag.value >= 0:
                     target = resolver.normalize_start(target)
-            if rel.type in {RelationshipType.FF, RelationshipType.SF}:
+            if rel.type is RelationshipType.SF and rel.lag.value >= 0:
+                # SF constrains the successor finish event.  For a finish event
+                # that falls before the successor calendar's first interval,
+                # derive the clock-time start first, then normalize it into the
+                # successor working calendar (e.g. 08:00 - 2h -> 06:00 -> 07:00).
+                from datetime import timedelta
+
+                candidate = resolver.normalize_start(
+                    target - timedelta(hours=float(activity.duration.value))
+                )
+            elif rel.type in {RelationshipType.FF, RelationshipType.SF}:
                 candidate = _subtract_duration(target, activity.duration, resolver)
             else:
                 candidate = target
