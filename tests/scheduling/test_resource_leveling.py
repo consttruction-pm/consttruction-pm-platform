@@ -145,6 +145,7 @@ def test_propose_forward_leveling_is_deterministic_for_input_order():
     a2 = LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 2,
         (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),))
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     assert propose_forward_leveling_within_float((a2, a1), capacities, resolver=resolver) == propose_forward_leveling_within_float((a1, a2), capacities, resolver=resolver)
 
 
@@ -154,3 +155,44 @@ def test_preserve_scheduled_dates_selects_forward_only_p6_pass():
 
 def test_clearing_preserve_scheduled_dates_selects_forward_then_backward_p6_pass():
     assert resolve_leveling_passes(preserve_scheduled_early_and_late_dates=False) == ("FORWARD", "BACKWARD")
+
+def test_priority_based_leveling_uses_configured_priority_before_demand_size():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),), activity_priority=2),
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),), activity_priority=1),
+    )
+    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Activity Priority", SortOrder.ASCENDING),),
+    )
+    assert shifts[0].activity_id == "A2"
+
+
+def test_priority_tie_falls_back_to_activity_id():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A2"),)),
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A1"),)),
+    )
+    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),),
+    )
+    assert shifts[0].activity_id == "A1"
+
+
+def test_unsupported_leveling_priority_fails_closed():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_forward_leveling_within_float(
+            (activity,), (), resolver=resolver,
+            priorities=(LevelingPriority("Remaining Duration", SortOrder.ASCENDING),),
+        )
