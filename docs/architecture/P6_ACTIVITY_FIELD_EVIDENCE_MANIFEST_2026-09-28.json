@@ -1,0 +1,568 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "p6_reference": "P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "coverage_status": "partial",
+  "certification_status": "not_certified",
+  "rule": "Evidence presence never implies implementation certification. A registry field may become implemented/equivalent_superset/outside_scope only after semantics, mutability, canonical mapping, interchange mapping, and regression evidence are completed.",
+  "verified_fields": [
+    {
+      "p6_field": "ActualDuration",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "1067-1074",
+      "notes": "Working time; activity calendar dependent.",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "1067-1074",
+        "notes": "computed; activity-calendar working time"
+      }
+    },
+    {
+      "p6_field": "ActualFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "1085-1089",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "1085-1092",
+        "notes": "actual completion date"
+      }
+    },
+    {
+      "p6_field": "ActualStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "1090-1094",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "1139-1147",
+        "notes": "actual activity start date"
+      }
+    },
+    {
+      "p6_field": "DurationPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "414-416",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "414-416",
+        "notes": "computed from planned and remaining duration"
+      }
+    },
+    {
+      "p6_field": "Duration1Variance",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "407-412",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "404-405",
+        "notes": "computed baseline-vs-at-completion duration"
+      }
+    },
+    {
+      "p6_field": "DurationType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "421-423",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "421-423",
+        "notes": "four documented duration-type values"
+      }
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "428-430",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "428-430",
+        "notes": "scheduler-computed"
+      }
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "432-433",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "432-433",
+        "notes": "scheduler-computed"
+      }
+    },
+    {
+      "p6_field": "ExpectedFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "455-456",
+      "notes": "Manual expected finish according to progress.",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "455-456",
+        "notes": "manually entered progress expectation"
+      }
+    },
+    {
+      "p6_field": "FinishDateVariance",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "501-502",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "501-502",
+        "notes": "computed current finish minus project baseline finish"
+      }
+    },
+    {
+      "p6_field": "FloatPath",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "integer",
+      "evidence_lines": "504-506",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "integer(int32)",
+        "semantic_type": "integer",
+        "evidence_lines": "504-506",
+        "notes": "critical-path ordinal"
+      }
+    },
+    {
+      "p6_field": "FloatPathOrder",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "integer",
+      "evidence_lines": "508-510",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "integer(int32)",
+        "semantic_type": "integer",
+        "evidence_lines": "508-510",
+        "notes": "order within critical path"
+      }
+    },
+    {
+      "p6_field": "FreeFloat",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "511-513",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "511-513",
+        "notes": "delay allowance before successor start is delayed"
+      }
+    },
+    {
+      "p6_field": "IsCritical",
+      "oracle_type": "boolean",
+      "semantic_type": "boolean",
+      "evidence_lines": "530-532",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "boolean",
+        "semantic_type": "boolean",
+        "evidence_lines": "530-532",
+        "notes": "boolean criticality flag"
+      }
+    },
+    {
+      "p6_field": "IsLongestPath",
+      "oracle_type": "boolean",
+      "semantic_type": "boolean",
+      "evidence_lines": "534-536",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "boolean",
+        "semantic_type": "boolean",
+        "evidence_lines": "534-536",
+        "notes": "boolean longest-path flag"
+      }
+    },
+    {
+      "p6_field": "LateFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "596-601",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "596-597",
+        "notes": "scheduler-computed late finish"
+      }
+    },
+    {
+      "p6_field": "LateStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "596-601",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "599-601",
+        "notes": "scheduler-computed late start"
+      }
+    },
+    {
+      "p6_field": "LevelingPriority",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "602-604",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "602-604",
+        "notes": "resource-leveling priority"
+      }
+    },
+    {
+      "p6_field": "Name",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "643-645",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "string",
+        "evidence_lines": "643-645",
+        "notes": "activity name"
+      }
+    },
+    {
+      "p6_field": "ObjectId",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "object-id",
+      "evidence_lines": "686-688",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "integer(int32)",
+        "semantic_type": "object-id",
+        "evidence_lines": "686-688",
+        "notes": "unique activity object identifier"
+      }
+    },
+    {
+      "p6_field": "PercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "697-699",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "697-699",
+        "notes": "activity percent complete"
+      }
+    },
+    {
+      "p6_field": "PercentCompleteType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "701-703",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "701-703",
+        "notes": "percent-complete basis"
+      }
+    },
+    {
+      "p6_field": "PerformancePercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "705-706",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "705-706",
+        "notes": "performance percent complete"
+      }
+    },
+    {
+      "p6_field": "PhysicalPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "709-711",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "709-711",
+        "notes": "physical percent complete"
+      }
+    },
+    {
+      "p6_field": "PlannedDuration",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "713-715",
+      "notes": "Working time computed using activity calendar.",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "713-715",
+        "notes": "working duration using activity calendar"
+      }
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "720-721",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "720-721",
+        "notes": "planned finish"
+      }
+    },
+    {
+      "p6_field": "PlannedStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "739-741",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "739-741",
+        "notes": "planned start"
+      }
+    },
+    {
+      "p6_field": "PlannedTotalCost",
+      "oracle_type": "number(double)",
+      "semantic_type": "cost",
+      "evidence_lines": "742-744",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "cost",
+        "evidence_lines": "742-744",
+        "notes": "planned total cost"
+      }
+    },
+    {
+      "p6_field": "PlannedTotalUnits",
+      "oracle_type": "number(double)",
+      "semantic_type": "unit",
+      "evidence_lines": "746-747",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "unit",
+        "evidence_lines": "746-747",
+        "notes": "planned total units"
+      }
+    },
+    {
+      "p6_field": "PlannedValueCost",
+      "oracle_type": "number(double)",
+      "semantic_type": "cost",
+      "evidence_lines": "749-750",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "cost",
+        "evidence_lines": "749-750",
+        "notes": "planned value cost"
+      }
+    },
+    {
+      "p6_field": "PrimaryConstraintDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "773-775",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "773-775",
+        "notes": "primary scheduler constraint date"
+      }
+    },
+    {
+      "p6_field": "PrimaryConstraintType",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "777-778",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "777-778",
+        "notes": "primary scheduler constraint type"
+      }
+    },
+    {
+      "p6_field": "PrimaryResourceName",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "783-785",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "string",
+        "evidence_lines": "783-785",
+        "notes": "primary resource name"
+      }
+    },
+    {
+      "p6_field": "RemainingFinishDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "837-842",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "837-842",
+        "notes": "remaining finish"
+      }
+    },
+    {
+      "p6_field": "RemainingStartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "841-842",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "841-842",
+        "notes": "remaining start"
+      }
+    },
+    {
+      "p6_field": "SchedulePercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "875-877",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "875-877",
+        "notes": "baseline/data-date derived"
+      }
+    },
+    {
+      "p6_field": "SchedulePerformanceIndex",
+      "oracle_type": "number(double)",
+      "semantic_type": "number",
+      "evidence_lines": "878-880",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "number",
+        "evidence_lines": "878-880",
+        "notes": "EV/PV"
+      }
+    },
+    {
+      "p6_field": "ScheduleVariance",
+      "oracle_type": "number(double)",
+      "semantic_type": "number",
+      "evidence_lines": "885-887",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "number",
+        "evidence_lines": "885-887",
+        "notes": "EV-PV"
+      }
+    },
+    {
+      "p6_field": "StartDate",
+      "oracle_type": "string(date-time)",
+      "semantic_type": "datetime",
+      "evidence_lines": "908-910",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string(date-time)",
+        "semantic_type": "datetime",
+        "evidence_lines": "908-910",
+        "notes": "current activity start; status-dependent source"
+      }
+    },
+    {
+      "p6_field": "Status",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "926-928",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "926-928",
+        "notes": "Not Started/In Progress/Completed"
+      }
+    },
+    {
+      "p6_field": "TotalFloat",
+      "oracle_type": "number(double)",
+      "semantic_type": "duration",
+      "evidence_lines": "959-961",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "duration",
+        "evidence_lines": "959-961",
+        "notes": "scheduler-computed float"
+      }
+    },
+    {
+      "p6_field": "Type",
+      "oracle_type": "string",
+      "semantic_type": "enum",
+      "evidence_lines": "1000-1003",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "enum",
+        "evidence_lines": "1000-1003",
+        "notes": "six documented activity types"
+      }
+    },
+    {
+      "p6_field": "UnitsPercentComplete",
+      "oracle_type": "number(double)",
+      "semantic_type": "percentage",
+      "evidence_lines": "1004-1006",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "number(double)",
+        "semantic_type": "percentage",
+        "evidence_lines": "1004-1006",
+        "notes": "actual units / at-completion units"
+      }
+    },
+    {
+      "p6_field": "WBSCode",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "1012-1013",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "string",
+        "evidence_lines": "1012-1013",
+        "notes": "WBS short code"
+      }
+    },
+    {
+      "p6_field": "WBSName",
+      "oracle_type": "string",
+      "semantic_type": "string",
+      "evidence_lines": "1015-1017",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "string",
+        "semantic_type": "string",
+        "evidence_lines": "1015-1017",
+        "notes": "WBS name"
+      }
+    },
+    {
+      "p6_field": "WBSObjectId",
+      "oracle_type": "integer(int32)",
+      "semantic_type": "object-id",
+      "evidence_lines": "1021-1023",
+      "current_activity_semantic_evidence": {
+        "oracle_type": "integer(int32)",
+        "semantic_type": "object-id",
+        "evidence_lines": "1021-1023",
+        "notes": "WBS unique ID"
+      }
+    }
+  ],
+  "semantic_evidence_pass": "tranche-2",
+  "semantic_evidence_note": "Only entries with exact current-page evidence lines are considered verified. Evidence lines establish source semantics only; mutability and computed status require separate evidence."
+}
