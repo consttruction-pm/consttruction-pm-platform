@@ -71,9 +71,7 @@ def test_populated_inventory_metadata_exposes_registry_drift():
         ],
     )
 
-    assert comparison.metadata_mismatches == (
-        comparison.metadata_mismatches[0],
-    )
+    assert len(comparison.metadata_mismatches) == 1
     mismatch = comparison.metadata_mismatches[0]
     assert mismatch.key == ("Activity", "PlannedDuration")
     assert mismatch.attribute == "data_type"
