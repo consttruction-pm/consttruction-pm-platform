@@ -136,7 +136,11 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     else:
         year -= 1
         k += 179
-        if leap == 1:
+        # The pre-New-Year branch crosses into the previous Jalali year.
+        # Recompute the leap marker for that year rather than reusing the
+        # marker calculated for the following Gregorian year.
+        previous_leap = _jalali_cal(year)[2]
+        if previous_leap == 1:
             k += 1
 
     return year, 7 + _div(k, 30), _mod(k, 30) + 1
