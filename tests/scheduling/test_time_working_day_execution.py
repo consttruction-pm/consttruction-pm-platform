@@ -1,8 +1,10 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
 
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.calendar_system import CalendarSystem, JalaliDate
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
@@ -87,3 +89,65 @@ def test_working_day_calendar_rejects_working_hour_relationship_lag_instead_of_c
             datetime(2026, 9, 22, 8),
             registry,
         )
+
+
+
+def test_jalali_calendar_context_flows_through_time_forward_pass():
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "jalali@1": WorkingTimeResolver(
+                WorkingCalendar.from_calendar_dates(
+                    system=CalendarSystem.JALALI,
+                    holidays=[JalaliDate(1405, 7, 8)],
+                )
+            )
+        }
+    )
+    reference = CalendarReference("jalali", "1", "working-day", CalendarSystem.JALALI)
+    ctx = SchedulingCalendarContext(reference, reference, reference)
+    result = time_forward_pass(
+        [TimeActivity("A", TimeQuantity.working_days(2), ctx)],
+        [],
+        datetime(2026, 9, 29, 8),
+        registry,
+    )
+    assert result["A"].start == datetime(2026, 9, 29)
+    assert result["A"].finish == datetime(2026, 10, 1)
+
+
+def test_working_day_calendar_rejects_fractional_working_day_duration():
+    registry, ctx = day_registry()
+    with pytest.raises(ValueError, match="whole working-day"):
+        time_forward_pass(
+            [TimeActivity("A", TimeQuantity(Decimal("1.5"), DurationUnit.WORKING_DAY), ctx)],
+            [],
+            datetime(2026, 9, 22, 8),
+            registry,
+        )
+
+def test_jalali_calendar_backward_pass_and_float_match_gregorian_equivalent():
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "jalali@1": WorkingTimeResolver(
+                WorkingCalendar.from_calendar_dates(
+                    system=CalendarSystem.JALALI,
+                    holidays=[JalaliDate(1405, 7, 8)],
+                )
+            )
+        }
+    )
+    reference = CalendarReference("jalali", "1", "working-day", CalendarSystem.JALALI)
+    ctx = SchedulingCalendarContext(reference, reference, reference)
+    result = time_schedule(
+        [TimeActivity("A", TimeQuantity.working_days(2), ctx)],
+        [],
+        datetime(2026, 9, 29, 8),
+        datetime(2026, 10, 2, 8),
+        registry,
+    )
+    assert result.early_activities["A"].start == datetime(2026, 9, 29)
+    assert result.early_activities["A"].finish == datetime(2026, 10, 1)
+    assert result.late_activities["A"].start == datetime(2026, 10, 1)
+    assert result.late_activities["A"].finish == datetime(2026, 10, 2)
+    assert result.floats["A"].float_unit is DurationUnit.WORKING_DAY
+    assert result.floats["A"].total_float_value == 1
