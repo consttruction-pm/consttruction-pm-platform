@@ -111,12 +111,124 @@ Hasan consumes Shared Core semantics and must not create a competing scheduling/
 9. P6-shared behavior follows Primavera P6 logic as the baseline; deviations require explicit documentation.
 10. Final integration and acceptance remain under Jalal's technical coordination.
 
-## 5. Current Stage Ownership
+## 5. Current Stage Ownership — AUTHORITATIVE RULE (2026-09-30)
 
-**Current stage:** Stage 33.4.73 — PostgreSQL Atomic Idempotency Verification Hardening.
+The old Stage 33.4.73 statement is stale and must not be used to choose the next task. The authoritative baseline is the latest `main` branch plus the merged PR history and current roadmap/status evidence.
 
-- **Primary:** Hasan — PostgreSQL/client-sync atomicity and database-backed verification.
-- **Integration/acceptance:** Jalal.
-- **Client impact review:** Javad, only where synchronization contracts or client behavior are affected.
-- **Release gate:** Stage 33.4.73 remains pending until actual PostgreSQL-backed runtime verification succeeds.
+### Current operating rule
+1. **Main is the source of truth.** No task may start from an old branch, old PR, screenshot, memory, or previous chat state.
+2. Before implementation, the owner must reconcile the target area against current `main`.
+3. If the requested capability already exists on `main), the task is **not reimplemented**. The owner instead adds missing verification, integration, UI exposure, persistence, documentation, or a clearly identified gap.
+4. A stale branch is never "continued" by default. Rebuild only the still-valid intent on current `main`.
+5. Every task must declare: current-main base SHA, exact scope, ownership boundary, prerequisite PRs, files/modules expected to change, and explicit non-goals.
+6. A task is complete only after focused tests, relevant regression tests, required CI gates, and merge into `main`.
+7. After merge, the old working branch is no longer an implementation source. It becomes historical evidence only.
+8. No team member may create a second implementation of an authoritative calculation, API contract, persistence model, or client-sync rule owned by another team member.
+9. If a reviewer discovers overlap with existing work, the task stops immediately and is converted to a reconciliation/verification task.
+10. ChatGPT/Jalal maintains the dependency order and final technical acceptance; team members do not independently redefine the roadmap.
 
+### Release priority
+The team is now operating under a **Finish Product / Finish Website priority**:
+- P0: keep `main` green and eliminate regressions/duplication.
+- P1: complete the end-to-end Web product path: authentication/authorization, project creation, WBS/activity entry, scheduling, calendars, resources/costs, progress/control, documents, reports, import/export, settings and bilingual UX.
+- P2: complete Desktop/Mobile parity only where required by an already-defined product contract.
+- P3: AI, advanced automation and non-blocking enhancements after the core Web product path is commercially usable.
+- No new side feature may displace an unfinished P1 release path unless it is required to unblock P1.
+
+## 6. Javad — mandatory anti-duplication client rule
+
+Javad owns the client experience, but **does not own a second business/calculation implementation**.
+
+Before starting any client task, Javad must:
+- inspect current `main` and the authoritative Shared Core/API contract;
+- search for existing Web/Desktop/Mobile implementation before creating a new component;
+- reuse the existing contract, DTO, calculation result and sync boundary;
+- create UI adapters/view-models only where presentation requires them;
+- never recreate scheduling, calendar arithmetic, P6 formulas, float, EVM, resource/cost or authoritative validation logic in the client;
+- stop and report an overlap instead of copying or forking an existing implementation.
+
+### Javad delivery order
+1. Web Main Workspace and navigation shell.
+2. Project/WBS/Activity entry and editing.
+3. Gantt and schedule-result presentation using Shared Core/API results.
+4. Calendar/resource/cost/progress/document/report screens using existing contracts.
+5. Import/export and print/report UX.
+6. Persian/English + RTL/LTR + Jalali/Gregorian presentation.
+7. Desktop/Mobile parity and offline behavior.
+8. AI assistant/guide UI after the core Web workflow is complete.
+
+## 7. Hasan — mandatory anti-duplication backend rule
+
+Hasan must not restart a previously merged persistence/API implementation. For every new backend task:
+- start from current `main`;
+- inspect the authoritative Shared Core contract first;
+- search existing repositories/application/API adapters before adding a new one;
+- if a capability exists in SQLite but PostgreSQL/API exposure is missing, implement only that missing boundary;
+- preserve tenant/project/revision/idempotency/transaction semantics;
+- use real PostgreSQL verification where the task is database-backed;
+- if Codex review quota is unavailable, mark the task blocked rather than creating a duplicate branch or asking another person to reimplement it.
+
+## 8. Jalal — integration and completion control
+
+Jalal owns:
+- the authoritative task sequence;
+- Shared Core/P6/scheduling/calculation semantics;
+- cross-team dependency resolution;
+- duplicate-work detection;
+- acceptance criteria;
+- final regression review;
+- release readiness.
+
+Jalal must not repeatedly rewrite already merged work merely because an old branch or conversation state appears incomplete. The current `main` state always wins.
+
+## 9. Mandatory task record
+
+Every new implementation PR must contain these fields:
+
+- **Base:** current `main` SHA.
+- **Owner:** exactly one primary owner.
+- **Scope:** one bounded capability.
+- **Existing implementation checked:** yes/no + paths/PRs checked.
+- **Dependencies:** prerequisite PRs/contracts.
+- **Production behavior changed:** yes/no.
+- **Tests added/updated:** exact test scope.
+- **CI gates:** required checks.
+- **Non-goals:** explicit exclusions.
+- **Next point after merge:** one concrete next task.
+
+A PR without this information is not eligible for merge.
+
+## 10. Merge and branch hygiene
+
+`main` is the only integration baseline. Required reviews/status checks should protect it; GitHub supports enforcing pull requests, approvals and status checks on protected branches. citeturn0search0turn0search2
+
+When a PR is merged:
+- record its merge SHA and evidence;
+- update the continuation/status record;
+- close or archive stale successor branches;
+- never revive the old branch as the next implementation baseline.
+
+When a PR is rejected or superseded:
+- record the reason;
+- preserve only useful evidence;
+- do not copy its implementation blindly into a new branch.
+
+## 11. Definition of Done for the product
+
+A feature is not "done" because its Python/domain code exists.
+
+For release completion it must have:
+1. Shared/domain authority where applicable.
+2. Backend/API boundary where applicable.
+3. Web UI integration.
+4. Persistence where required.
+5. Tests and regression coverage.
+6. Error/permission handling.
+7. Persian/English and RTL/LTR treatment where user-visible.
+8. Import/export compatibility where applicable.
+9. Documentation/traceability.
+10. CI/runtime verification.
+11. No known duplicate implementation.
+12. A usable end-to-end Web workflow.
+
+The immediate objective is therefore **not to increase the Stage number**. It is to convert the already-developed capabilities into a coherent, tested, usable Web product and close only the real remaining gaps.
