@@ -596,3 +596,19 @@ Status: **implemented, runtime-verified and merged**
 - Stay at the evidence boundary until a new authoritative contract or reproducible Backend/API/Persistence defect appears on current `main`.
 - When a new gap appears: branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, update this file with exact commit/run identifiers, and only then merge.
 - Do not revive stale PRs or create duplicate P6 calculation/scheduling/calendar/resource/cost semantics.
+
+
+### 2026-10-01 — P6-2 field/UDF contract verification (Issue #633 / PR #634)
+
+- Issue #633 was the next Hasan-owned continuation after PR #632: audit the existing P6 field/UDF persistence and API boundary for typed contracts, stable identifiers, tenant/project/revision isolation, transaction behavior, and compatibility handling.
+- PR #634 started from exact current main `18b10ffa705194a92b1647ccdd39c5493062727e` and added only focused evidence; no P6 calculation/scheduling/calendar semantics were changed.
+- PR #634 merged with head `ab8fafd80c3952277ff0f90946c9324140720f35` as merge commit `890b5a3b4b337804754177f9fb7fb3beb35b0132`.
+- Acceptance evidence on the PR head: ConstructionPM CI #2534 success; PostgreSQL Integration #403 success; Client Typecheck #2237 success.
+- Post-merge evidence on merge commit: ConstructionPM CI #2535 success; PostgreSQL Integration #404 success; Client Typecheck #2238 success; PostgreSQL Sync State Integration #850 success.
+- The verification now explicitly covers unsupported registry-version rejection at the typed API boundary and application-level rollback after a repository write/failure for both field and UDF persistence, plus live PostgreSQL API round trips and scope/revision isolation.
+- Do not duplicate P6 field/UDF persistence/API verification or introduce a second calculation authority.
+
+### Current continuation point
+
+- Reconcile current main for the next concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration acceptance gap or reproducible defect.
+- Do not revive stale PRs or modify Shared Scheduling/Core work. Any new change must branch from the exact current main, stay within Hasan ownership, add focused regression evidence, and obtain PostgreSQL verification where applicable.
