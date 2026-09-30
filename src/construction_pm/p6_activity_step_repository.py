@@ -207,27 +207,28 @@ class PostgresP6ActivityStepRepository:
         import json
         step.validate()
         payload = _payload(step)
+        encoded_udf = json.dumps(list(step.udf_values), sort_keys=True, separators=(",", ":"))
+        self.connection.execute(
+            "INSERT INTO p6_activity_step "
+            "(tenant_id,project_id,project_revision,step_id,activity_id,sequence,description,weight,"
+            "start_date,finish_date,udf_values_json) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,step_id) DO NOTHING",
+            (step.scope.tenant_id, step.scope.project_id, step.scope.project_revision, step.step_id,
+             step.activity_id, step.sequence, step.description,
+             None if step.weight is None else str(step.weight), step.start_date, step.finish_date, encoded_udf),
+        )
         row = self.connection.execute(
             "SELECT project_revision,activity_id,sequence,description,weight,start_date,finish_date,udf_values_json "
             "FROM p6_activity_step WHERE tenant_id=%s AND project_id=%s AND step_id=%s",
             (step.scope.tenant_id, step.scope.project_id, step.step_id),
         ).fetchone()
-        encoded_udf = json.dumps(list(step.udf_values), sort_keys=True, separators=(",", ":"))
-        if row is not None:
-            stored = tuple(row[1:7]) + (tuple(tuple(v) for v in json.loads(row[7])),)
-            if int(row[0]) != step.scope.project_revision:
-                raise P6ActivityStepPersistenceError("REVISION_CONFLICT")
-            if stored != payload:
-                raise P6ActivityStepPersistenceError("IMMUTABLE_ACTIVITY_STEP")
-            return step
-        self.connection.execute(
-            "INSERT INTO p6_activity_step "
-            "(tenant_id,project_id,project_revision,step_id,activity_id,sequence,description,weight,"
-            "start_date,finish_date,udf_values_json) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (step.scope.tenant_id, step.scope.project_id, step.scope.project_revision, step.step_id,
-             step.activity_id, step.sequence, step.description,
-             None if step.weight is None else str(step.weight), step.start_date, step.finish_date, encoded_udf),
-        )
+        if row is None:
+            raise P6ActivityStepPersistenceError("ACTIVITY_STEP_INSERT_FAILED")
+        stored = tuple(row[1:7]) + (tuple(tuple(v) for v in json.loads(row[7])),)
+        if int(row[0]) != step.scope.project_revision:
+            raise P6ActivityStepPersistenceError("REVISION_CONFLICT")
+        if stored != payload:
+            raise P6ActivityStepPersistenceError("IMMUTABLE_ACTIVITY_STEP")
         return step
 
     def get(self, scope: BackendScope, step_id: str) -> P6ActivityStep | None:
