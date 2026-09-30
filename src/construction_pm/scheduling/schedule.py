@@ -259,6 +259,7 @@ def _free_float(
     successors: list[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver=None,
 ) -> int:
     if not successors:
         return 0
@@ -275,7 +276,7 @@ def _free_float(
                 finish=resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
-            if not _relationship_holds(rel, candidate, successor, resolver):
+            if not _relationship_holds(rel, candidate, successor, resolver, relationship_lag_resolver(rel) if relationship_lag_resolver else None):
                 break
             delay += 1
         limits.append(delay - 1)
@@ -288,26 +289,28 @@ def _relationship_is_driving(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver=None,
 ) -> bool:
     """Return True when the relationship exactly determines the successor event."""
+    lag_resolver = relationship_lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         if relationship.lag >= 0:
-            required = resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            required = lag_resolver.next_working_day(
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
         else:
-            required = resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            required = lag_resolver.previous_working_day(
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         return successor.start == required
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start == required
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish == required
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish == required
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -317,6 +320,7 @@ def _longest_path_activity_ids(
     relationships: Iterable[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver=None,
 ) -> frozenset[str]:
     """Trace P6-style driving relationships from the latest early finishes."""
     activity_list = list(activities)
@@ -347,7 +351,7 @@ def _longest_path_activity_ids(
             if predecessor_id in longest:
                 continue
             predecessor = early_schedule[predecessor_id]
-            if _relationship_is_driving(relationship, predecessor, successor, resolver):
+            if _relationship_is_driving(relationship, predecessor, successor, resolver, relationship_lag_resolver(relationship) if relationship_lag_resolver else None):
                 longest.add(predecessor_id)
                 stack.append(predecessor_id)
     return frozenset(longest)
@@ -581,11 +585,13 @@ def calculate_floats(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions | None = None,
+    calendar_provider: ActivityCalendarProvider | None = None,
+    relationship_lag_resolver=None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver)
+        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolver)
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
@@ -599,8 +605,9 @@ def calculate_floats(
     for activity_id in sorted(activity_map):
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
-        start_float = _working_delay_between(early.start, late.start, resolver)
-        finish_float = _working_delay_between(early.finish, late.finish, resolver)
+        activity_resolver = calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver
+        start_float = _working_delay_between(early.start, late.start, activity_resolver)
+        finish_float = _working_delay_between(early.finish, late.finish, activity_resolver)
         # P6 can calculate total float from Start Float, Finish Float, or the
         # smaller of the two. Negative float remains a valid reportable value.
         if selected_options.compute_total_float_type is TotalFloatCalculationType.FINISH_FLOAT:
@@ -610,7 +617,7 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
+            activity_map[activity_id], early, outgoing[activity_id], early_schedule, activity_resolver, relationship_lag_resolver
         )
         free = max(0, min(total, free))
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
