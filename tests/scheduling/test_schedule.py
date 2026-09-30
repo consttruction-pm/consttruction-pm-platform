@@ -626,3 +626,21 @@ def test_stage_73_16_schedule_preserves_negative_float_at_calendar_boundary(
     assert result.late_activities["A"].start == date(2026, 9, 18)
     assert result.floats["A"].total_float < 0
     assert result.floats["A"].free_float == 0
+
+
+def test_relationship_lag_uses_explicit_relationship_resolver(resolver):
+    from construction_pm.scheduling.forward_pass import _successor_start
+
+    holiday_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    predecessor = Activity("A", 1)
+    scheduled = _successor_start(
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        type("Scheduled", (), {"activity_id": "A", "start": date(2026, 9, 21), "finish": date(2026, 9, 21), "duration": 1})(),
+        1,
+        resolver,
+        predecessor,
+        lag_resolver=holiday_resolver,
+    )
+    assert scheduled == date(2026, 9, 24)
