@@ -42,6 +42,7 @@ from .resource_leveling import (
     apply_leveling_shifts,
     detect_over_allocations,
     propose_forward_leveling_within_float,
+    resolve_leveling_passes,
     select_leveling_resources,
 )
 from .schedule import (
