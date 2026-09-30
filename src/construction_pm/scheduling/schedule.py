@@ -123,7 +123,9 @@ def backward_pass(
 
     for activity_id, activity_constraints in constraint_map.items():
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, resolver
+            activity_constraints,
+            activity_map[activity_id].duration,
+            calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver,
         )
 
     for rel in relationship_list:
