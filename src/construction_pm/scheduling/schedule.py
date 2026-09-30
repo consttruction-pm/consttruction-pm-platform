@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 from .activity import Activity
 from .calculation_context import CalculationContext
@@ -105,7 +105,7 @@ def backward_pass(
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
     calendar_provider: ActivityCalendarProvider | None = None,
-    relationship_lag_resolver = None,
+    relationship_lag_resolver: Callable[[Relationship], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
@@ -173,7 +173,7 @@ def backward_pass(
             late_start = apply_latest_constraint(
                 constraint, late_start, activity.duration, activity_resolver
             )
-            late_finish = resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
 
         if late_finish > finish:
             raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
@@ -195,7 +195,13 @@ def backward_pass(
     # Upper-bound and mandatory constraints remain validated below.
 
     for relationship in relationship_list:
-        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
+        if not _relationship_holds(
+            relationship,
+            result[relationship.predecessor_id],
+            result[relationship.successor_id],
+            calendar_provider.resolver_for(relationship.successor_id) if calendar_provider is not None else resolver,
+            relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
+        ):
             raise ValueError(
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
                 f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
@@ -215,29 +221,31 @@ def _relationship_holds(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver: WorkingTimeResolver | None = None,
 ) -> bool:
+    lag_resolver = relationship_lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         required = (
-            resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            lag_resolver.next_working_day(
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
             if relationship.lag >= 0
-            else resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            else lag_resolver.previous_working_day(
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         )
         return successor.start >= required
 
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start >= required
 
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
