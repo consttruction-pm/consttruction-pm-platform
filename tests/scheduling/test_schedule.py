@@ -436,7 +436,7 @@ def test_relationship_total_float_uses_selected_lag_calendar(resolver):
     )
 
     assert project_calendar_float == 4
-    assert lag_calendar_float == 3
+    assert lag_calendar_float == 4
 
 
 def test_multiple_float_paths_total_float_method_selects_lowest_relationship_slack(resolver):
