@@ -308,10 +308,7 @@ def calculate_time_floats(
                         CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
                     )
                 else:
-                    lag_reference = lag_context.relationship_lag_reference(
-                        relationship_lag_calendar or RelationshipLagCalendar.SUCCESSOR,
-                        predecessor_context.effective_activity(),
-                    )
+                    lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
                     lag_resolver = resolve_calendar_aware(registry, lag_reference)
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
                     # Measure slack by delaying the predecessor and checking the
