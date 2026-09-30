@@ -17,6 +17,7 @@ from construction_pm.scheduling.schedule import (
     ScheduleOptions,
     TotalFloatCalculationType,
     _multiple_float_paths,
+    _relationship_free_float,
     _relationship_holds,
     _relationship_total_float,
     backward_pass,
