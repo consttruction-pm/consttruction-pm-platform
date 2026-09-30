@@ -24,18 +24,25 @@ from .progress_state import ActivityProgressState, ProgressState, resolve_progre
 from .remaining_work import RemainingWork, estimate_remaining_work_as_of_data_date, resolve_remaining_work
 from .oos_policy import OOSPolicyResult, resolve_oos_policy
 from .relationships import Relationship, RelationshipType, successor_earliest_start
+from .multi_project_float import (
+    MultiProjectFloatBoundary,
+    ProjectFinishBoundary,
+    resolve_multi_project_float_boundary,
+)
 from .schedule import (
     FloatActivity,
+    ScheduleResult,
+    backward_pass,
+    calculate_floats,
+    schedule,
+)
+from .schedule_options import (
     ScheduleMode,
     ScheduleOptions,
-    ScheduleResult,
     StartToStartLagCalculationType,
     OutOfSequenceScheduleType,
     TotalFloatCalculationType,
     CriticalActivityPathType,
-    backward_pass,
-    calculate_floats,
-    schedule,
 )
 
 __all__ = [
@@ -70,6 +77,9 @@ __all__ = [
     "estimate_remaining_work_as_of_data_date",
     "OOSPolicyResult",
     "resolve_oos_policy",
+    "MultiProjectFloatBoundary",
+    "ProjectFinishBoundary",
+    "resolve_multi_project_float_boundary",
     "SchedulingCycleError",
     "WorkingCalendar",
     "CalendarDateError",
@@ -106,7 +116,6 @@ __all__ = [
     "TimeScheduleResult",
     "time_backward_pass",
     "calculate_time_floats",
-    "time_schedule",
     "backward_pass",
     "calculate_floats",
     "forward_pass",
