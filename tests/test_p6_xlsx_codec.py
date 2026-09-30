@@ -20,3 +20,13 @@ def test_rejects_duplicate_headers():
 def test_requires_sheet_metadata():
     from construction_pm.p6_interchange_mapping import P6InterchangeResult
     with pytest.raises(P6XlsxCodecError,match="MISSING_XLSX_SHEET"): P6XlsxCodec().encode((P6InterchangeResult({"Id":"A"},{}),),scope())
+
+
+def test_rejects_oversized_sheet_name_instead_of_truncating():
+    from construction_pm.p6_interchange_mapping import P6InterchangeResult
+    sheet = "A" * 32
+    with pytest.raises(P6XlsxCodecError, match="XLSX_SHEET_NAME_TOO_LONG"):
+        P6XlsxCodec().encode(
+            (P6InterchangeResult({"Id": "A"}, {"p6.xlsx.sheet": sheet}),),
+            scope(),
+        )
