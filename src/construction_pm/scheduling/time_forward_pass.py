@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .calendar_context import (
+    CalendarReference,
     CalendarResolverRegistry,
     RelationshipLagCalendar,
     SchedulingCalendarContext,
