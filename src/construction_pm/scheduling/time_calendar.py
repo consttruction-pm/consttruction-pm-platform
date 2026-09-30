@@ -96,7 +96,7 @@ class TimeAwareWorkingTimeResolver:
 
     def normalize_finish(self, value: datetime) -> datetime:
         cursor = value
-        for _ in range(3660):
+        while True:
             intervals = self.calendar.intervals_for(cursor.date())
             for start, end in reversed(intervals):
                 if cursor.time() >= end:
@@ -111,7 +111,6 @@ class TimeAwareWorkingTimeResolver:
         cursor = self.normalize_start(start)
         while True:
             intervals = self.calendar.intervals_for(cursor.date())
-            progressed = False
             for interval_start, interval_end in intervals:
                 begin = self._combine(cursor.date(), interval_start, cursor)
                 end = self._combine(cursor.date(), interval_end, cursor)
@@ -124,15 +123,13 @@ class TimeAwareWorkingTimeResolver:
                 if remaining_microseconds <= capacity_microseconds:
                     return cursor + timedelta(microseconds=remaining_microseconds)
                 remaining_microseconds -= capacity_microseconds
-                progressed = True
                 cursor = end
 
             # Consume all remaining intervals on this day before advancing.
             # This is essential for calendars with breaks such as 08:00–12:00
             # and 13:00–17:00.
-            cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min)
-            if progressed or not intervals:
-                continue
+            cursor = self._combine(cursor.date() + timedelta(days=1), time.min, cursor)
+            continue
 
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
@@ -142,8 +139,8 @@ class TimeAwareWorkingTimeResolver:
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
             for interval_start, interval_end in reversed(intervals):
-                begin = datetime.combine(cursor.date(), interval_start)
-                end = datetime.combine(cursor.date(), interval_end)
+                begin = self._combine(cursor.date(), interval_start, cursor)
+                end = self._combine(cursor.date(), interval_end, cursor)
                 if cursor >= end:
                     cursor = end
                 if not (begin < cursor <= end):
@@ -158,9 +155,8 @@ class TimeAwareWorkingTimeResolver:
 
             # Consume earlier intervals on the same day before moving to the
             # previous day; this preserves breaks such as 08:00–12:00/13:00–17:00.
-            cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
-            if progressed or not intervals:
-                continue
+            cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
+            continue
 
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
