@@ -10,6 +10,7 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceDemand,
     ResourceLevelingError,
     ResourceLevelingOptions,
+    resolve_leveling_passes,
     SortOrder,
     detect_over_allocations,
     select_leveling_resources,
@@ -143,3 +144,11 @@ def test_propose_forward_leveling_is_deterministic_for_input_order():
         (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),))
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
     assert propose_forward_leveling_within_float((a2, a1), capacities, resolver=resolver) == propose_forward_leveling_within_float((a1, a2), capacities, resolver=resolver)
+
+
+def test_preserve_scheduled_dates_selects_forward_only_p6_pass():
+    assert resolve_leveling_passes(preserve_scheduled_early_and_late_dates=True) == ("FORWARD",)
+
+
+def test_clearing_preserve_scheduled_dates_selects_forward_then_backward_p6_pass():
+    assert resolve_leveling_passes(preserve_scheduled_early_and_late_dates=False) == ("FORWARD", "BACKWARD")
