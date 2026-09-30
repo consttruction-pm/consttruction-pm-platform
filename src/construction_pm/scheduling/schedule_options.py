@@ -56,6 +56,7 @@ class ScheduleOptions:
         StartToStartLagCalculationType.EARLY_START
     )
     relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
+    use_expected_finish_dates: bool = False
     data_date: date | None = None
 
     def __post_init__(self) -> None:
@@ -100,9 +101,10 @@ class ScheduleOptions:
             raise ValueError(
                 "start_to_start_lag_calculation_type must be a StartToStartLagCalculationType"
             )
+        if not isinstance(self.use_expected_finish_dates, bool):
+            raise ValueError("use_expected_finish_dates must be a bool")
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
-
 
 
 def start_to_start_lag_type_from_p6(value: bool) -> StartToStartLagCalculationType:

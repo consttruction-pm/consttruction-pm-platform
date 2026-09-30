@@ -706,3 +706,22 @@ def test_relationship_lag_uses_explicit_relationship_resolver(resolver):
         lag_resolver=holiday_resolver,
     )
     assert scheduled == date(2026, 9, 24)
+
+
+def test_schedule_wires_use_expected_finish_dates(resolver):
+    activity = Activity(
+        "A",
+        2,
+        expected_finish=date(2026, 9, 24),
+    )
+
+    result = schedule(
+        [activity],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(use_expected_finish_dates=True),
+    )
+
+    assert result.activities["A"].start == date(2026, 9, 23)
+    assert result.activities["A"].finish == date(2026, 9, 24)

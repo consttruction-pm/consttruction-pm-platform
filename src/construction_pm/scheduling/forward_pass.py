@@ -95,11 +95,15 @@ def _successor_start(
         return _apply_lag_after(predecessor.finish, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
-        target_finish = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
+        target_finish = _shift_working_date(
+            predecessor.finish, relationship.lag, lag_resolver
+        )
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     if relationship.type is RelationshipType.SF:
-        target_finish = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
+        target_finish = _shift_working_date(
+            predecessor.start, relationship.lag, lag_resolver
+        )
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
@@ -131,6 +135,23 @@ def _topological_order(
     return order
 
 
+def _apply_expected_finish_target(
+    start: date,
+    activity: Activity,
+    resolver: WorkingTimeResolver,
+    use_expected_finish_dates: bool,
+) -> date:
+    """Apply the P6 expected-finish scheduling target without moving before logic."""
+    if not use_expected_finish_dates or activity.expected_finish is None:
+        return start
+
+    expected_start = resolver.subtract_working_duration(
+        resolver.normalize_finish(activity.expected_finish),
+        activity.duration,
+    )
+    return max(start, expected_start)
+
+
 def forward_pass(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -141,12 +162,9 @@ def forward_pass(
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    use_expected_finish_dates: bool = False,
 ) -> Mapping[str, ScheduledActivity]:
-    """Deterministic earliest-start pass with foundational date constraints.
-
-    When supplied, ``calculation_context`` is validated at the Shared Core
-    boundary. The context is metadata/identity only and never changes dates.
-    """
+    """Deterministic earliest-start pass with P6 date options."""
     if calculation_context is not None:
         if calculation_context.project_version < 0:
             raise ValueError("invalid calculation context")
@@ -177,7 +195,9 @@ def forward_pass(
             activity_constraints, activity_map[activity_id].duration, resolver
         )
 
-    incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
+    incoming: dict[str, list[Relationship]] = {
+        activity_id: [] for activity_id in activity_map
+    }
     for rel in relationship_list:
         incoming[rel.successor_id].append(rel)
 
@@ -198,12 +218,15 @@ def forward_pass(
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
-                    (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
+                    (relationship_lag_resolvers or {}).get(
+                        (rel.predecessor_id, rel.successor_id)
+                    ),
                 )
                 for rel in sorted(
                     incoming[activity_id],
                     key=lambda item: (
-                        item.predecessor_id, item.successor_id, item.type.value, item.lag
+                        item.predecessor_id, item.successor_id,
+                        item.type.value, item.lag
                     ),
                 )
             )
@@ -211,8 +234,13 @@ def forward_pass(
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            start = apply_earliest_constraint(constraint, start, activity.duration, resolver)
+            start = apply_earliest_constraint(
+                constraint, start, activity.duration, resolver
+            )
 
+        start = _apply_expected_finish_target(
+            start, activity, resolver, use_expected_finish_dates
+        )
         finish = resolver.add_working_duration(start, activity.duration)
 
         for constraint in sorted(

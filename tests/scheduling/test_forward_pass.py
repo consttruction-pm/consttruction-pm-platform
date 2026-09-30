@@ -132,3 +132,43 @@ def test_forward_pass_rejects_cycles(resolver):
 
     with pytest.raises(SchedulingCycleError):
         forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+
+
+def test_forward_pass_uses_expected_finish_when_enabled(resolver):
+    activity = Activity(
+        "A",
+        2,
+        expected_finish=date(2026, 9, 24),
+    )
+
+    disabled = forward_pass(
+        [activity], [], date(2026, 9, 21), resolver
+    )
+    enabled = forward_pass(
+        [activity], [], date(2026, 9, 21), resolver,
+        use_expected_finish_dates=True,
+    )
+
+    assert disabled["A"].finish == date(2026, 9, 22)
+    assert enabled["A"].start == date(2026, 9, 23)
+    assert enabled["A"].finish == date(2026, 9, 24)
+
+
+def test_forward_pass_expected_finish_does_not_override_network_logic(resolver):
+    activities = [
+        Activity("A", 3),
+        Activity("B", 2, expected_finish=date(2026, 9, 23)),
+    ]
+    relationship = Relationship("A", "B", RelationshipType.FS)
+
+    result = forward_pass(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        resolver,
+        use_expected_finish_dates=True,
+    )
+
+    assert result["A"].finish == date(2026, 9, 23)
+    assert result["B"].start == date(2026, 9, 24)
+    assert result["B"].finish == date(2026, 9, 25)

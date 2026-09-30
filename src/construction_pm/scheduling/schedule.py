@@ -674,6 +674,7 @@ def schedule(
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
         relationship_lag_resolvers,
+        selected_options.use_expected_finish_dates,
     )
     late = backward_pass(
         activity_list, relationship_list, early, project_finish, resolver, constraint_list,
