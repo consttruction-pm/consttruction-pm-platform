@@ -22,7 +22,7 @@ from construction_pm.scheduling.calendar_resolution import (
 )
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule import schedule
-from construction_pm.scheduling.schedule_options import ScheduleOptions, StartToStartLagCalculationType
+from construction_pm.scheduling.schedule_options import CriticalActivityPathType, ScheduleOptions, StartToStartLagCalculationType
 
 
 def _snapshot(option):
@@ -358,7 +358,7 @@ def test_longest_path_driving_uses_selected_lag_calendar():
     )
     options = replace(
         snapshot.schedule_options,
-        critical_activity_path_type="LONGEST_PATH",
+        critical_activity_path_type=CriticalActivityPathType.LONGEST_PATH,
     )
     result = schedule(
         snapshot.activities,
