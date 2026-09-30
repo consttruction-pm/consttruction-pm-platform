@@ -20,7 +20,10 @@ class P6MsProjectXmlCodec:
     def decode(self,payload:str|bytes,scope:BackendScope)->Sequence[P6InterchangeRow]:
         scope.validate()
         if isinstance(payload,bytes):
-            payload=payload.decode("utf-8-sig")
+            try:
+                payload=payload.decode("utf-8-sig")
+            except UnicodeDecodeError as exc:
+                raise P6MsProjectXmlCodecError("INVALID_UTF8") from exc
         try: root=ET.fromstring(payload)
         except ET.ParseError as exc: raise P6MsProjectXmlCodecError("INVALID_XML") from exc
         if self._local(root.tag)!="Project":
