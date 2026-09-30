@@ -189,7 +189,10 @@ def test_forward_leveling_can_consume_float_when_level_within_float_is_disabled(
         LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),)),
         LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 0, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A2"),)),
     )
-    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+    )
     shifts = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("A1", 1, -1)]
 
@@ -214,11 +217,19 @@ def test_forward_leveling_shift_bound_is_explicit():
 
 def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
-    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
-    shift = propose_forward_leveling((activity,), (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),), resolver=resolver, level_within_float=False, max_shift_working_days=1)[0]
+    activities = (
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),)),
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 0, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A2"),)),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+    )
+    shift = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)[0]
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts((activity,), (shift,), resolver=resolver)
-    result = apply_leveling_shifts((activity,), (shift,), resolver=resolver, allow_beyond_float=True)
+    result = apply_leveling_shifts(activities, (shift,), resolver=resolver, allow_beyond_float=True)
     assert result[0].start == shift.new_start
     assert result[0].finish == shift.new_finish
     assert result[0].total_float == -1
+    assert result[1].activity_id == "A2"
