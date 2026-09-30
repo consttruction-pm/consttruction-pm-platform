@@ -17,7 +17,6 @@ UNKNOWN_EXTENSION_FIELD = f"{{{EXTENSION_NAMESPACE}}}Field"
 
 @dataclass(frozen=True)
 class P6PrimaveraXmlCodec:
-    """Codec for the flat P6 API XML shape; P6 semantics stay in the mapping registry."""
     format: P6MappingFormat = P6MappingFormat.PRIMAVERA_XML
 
     def decode(self, payload: str | bytes, scope: BackendScope) -> Sequence[P6InterchangeRow]:
@@ -69,8 +68,7 @@ class P6PrimaveraXmlCodec:
                 container = ET.SubElement(element, UNKNOWN_EXTENSION_ELEMENT)
                 for key, value in sorted(preserved, key=lambda item: item[0]):
                     ET.SubElement(container, UNKNOWN_EXTENSION_FIELD, {"key": key}).text = self._stringify(value)
-        return ET.tostring(root, encoding="unicode", short_empty_elements=True) + "
-"
+        return ET.tostring(root, encoding="unicode", short_empty_elements=True) + "\n"
 
     @staticmethod
     def _local_name(tag: str) -> str:
