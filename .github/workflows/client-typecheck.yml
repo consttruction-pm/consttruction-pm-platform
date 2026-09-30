@@ -42,3 +42,8 @@ jobs:
       - name: Runtime tests
         working-directory: ${{ matrix.package }}
         run: npm test
+
+      - name: Web production build
+        if: ${{ matrix.package == 'apps/web' }}
+        working-directory: apps/web
+        run: npm run build
