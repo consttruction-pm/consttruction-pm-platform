@@ -530,3 +530,13 @@ Status: **implemented, runtime-verified and merged**
 - No reproducible Hasan-owned defect was found in this boundary. A concrete HTTP server/runtime or complete Web Beta shell would be a product/runtime delivery item and must follow the registered ownership split rather than being invented as a backend duplicate.
 - Open PR #517 remains scheduling-owned by farmj22002-droid; PR #519 is governance-owned by Jalal. Neither is modified as Hasan work.
 - Continue from the first reproducible Backend/Database/Application/API defect or authoritative contract dependency; do not create implementation solely to manufacture progress.
+
+
+### 2026-09-30 — Post-#521 Web shell reconciliation
+
+- PR #521 (executable browser workspace shell) is merged on current main as `c694411a0aef3108f840f07f289b7c066d883e3e`.
+- Its exact implementation head `2cf98580fe0c39469e6852160af060b204565463` passed Client Typecheck run `36670851884` and ConstructionPM CI run `36670851924`.
+- The merged Web shell explicitly identifies its next dependency as real authenticated project/session selection and authoritative API workflow.
+- Current backend inspection confirms that `AuthorizationContext` and tenant/project/revision authorization already exist, but no concrete session/authentication or project-selection provider contract was found on current main.
+- Therefore no speculative authentication implementation is added under Hasan ownership. The next Hasan implementation must start only when the concrete session/project-selection contract or reproducible backend/API gap is defined; otherwise this remains a Web/provider integration boundary.
+- PR #517 remains the only open PR and is owned by `farmj22002-droid` in Shared Scheduling; do not modify it as Hasan work.
