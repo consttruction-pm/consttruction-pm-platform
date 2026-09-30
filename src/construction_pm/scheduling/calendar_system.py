@@ -14,12 +14,68 @@ class CalendarDateError(ValueError):
     """Raised when a calendar date is outside the supported domain."""
 
 
-_JALALI_LEAP_YEAR_RESIDUES = frozenset({1, 5, 9, 13, 17, 22, 26, 30})
+_JALALI_BREAKS = (
+    -61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181,
+    1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178,
+)
+
+
+def _div(a: int, b: int) -> int:
+    """Integer division truncated toward zero, matching Borkowski's algorithm."""
+    if b <= 0:
+        raise ValueError("divisor must be positive")
+    return a // b if a >= 0 else -((-a) // b)
+
+
+def _mod(a: int, b: int) -> int:
+    """Non-negative modulo, matching the reference algorithm."""
+    return a - _div(a, b) * b
+
+
+def _jalali_cal(year: int) -> tuple[int, int, int, int]:
+    if year < _JALALI_BREAKS[0] or year >= _JALALI_BREAKS[-1]:
+        raise CalendarDateError("Jalali year is outside the supported conversion range")
+
+    gy = year + 621
+    leap_j = -14
+    jp = _JALALI_BREAKS[0]
+    jump = 0
+
+    for jm in _JALALI_BREAKS[1:]:
+        jump = jm - jp
+        if year < jm:
+            break
+        leap_j += _div(jump, 33) * 8 + _div(_mod(jump, 33), 4)
+        jp = jm
+
+    n = year - jp
+    leap_j += _div(n, 33) * 8 + _div(_mod(n, 33) + 3, 4)
+    if _mod(jump, 33) == 4 and jump - n == 4:
+        leap_j += 1
+
+    leap_g = _div(gy, 4) - _div((_div(gy, 100) + 1) * 3, 4) - 150
+    march = 20 + leap_j - leap_g
+
+    adjusted = n
+    if jump - n < 6:
+        adjusted = n - jump + _div(jump + 4, 33) * 33
+    leap = _mod(_mod(adjusted + 1, 33) - 1, 4)
+    if leap == -1:
+        leap = 4
+
+    return gy, march, leap, jump
 
 
 def _is_jalali_leap_year(year: int) -> bool:
-    """Return the supported 33-year Jalali leap-year boundary."""
-    return year % 33 in _JALALI_LEAP_YEAR_RESIDUES
+    return _jalali_cal(year)[2] == 0
+
+
+def _jalaali_month_length(year: int, month: int) -> int:
+    if month <= 6:
+        return 31
+    if month <= 11:
+        return 30
+    return 30 if _is_jalali_leap_year(year) else 29
 
 
 @dataclass(frozen=True, order=True)
@@ -31,10 +87,9 @@ class JalaliDate:
     day: int
 
     def __post_init__(self) -> None:
-        if self.year < 1 or not 1 <= self.month <= 12 or self.day < 1:
+        if self.year < 1 or not 1 <= self.month <= 12:
             raise CalendarDateError("invalid Jalali date")
-        converted = jalali_to_gregorian(self.year, self.month, self.day)
-        if gregorian_to_jalali(converted) != (self.year, self.month, self.day):
+        if not 1 <= self.day <= _jalaali_month_length(self.year, self.month):
             raise CalendarDateError("invalid Jalali date")
 
     def to_gregorian(self) -> date:
@@ -46,96 +101,75 @@ class JalaliDate:
         return cls(year, month, day)
 
 
-def _div(a: int, b: int) -> int:
-    return a // b
-
-
 def jalali_to_gregorian(year: int, month: int, day: int) -> date:
-    """Convert a Jalali date to Gregorian using JDN arithmetic."""
+    """Convert a Jalali date to Gregorian using the Borkowski cycle and JDN arithmetic."""
 
     if year < 1:
         raise CalendarDateError("Jalali year must be positive")
-    if month < 1 or month > 12 or day < 1:
-        raise CalendarDateError("invalid Jalali month/day")
+    if month < 1 or month > 12 or day < 1 or day > _jalaali_month_length(year, month):
+        raise CalendarDateError("invalid Jalali date")
 
-    epbase = year - 474 if year >= 0 else year - 473
-    epyear = 474 + (epbase % 2820)
-    month_days = (month - 1) * 31 if month <= 7 else (month - 1) * 30 + 6
+    gy, march, _, _ = _jalali_cal(year)
     jdn = (
-        day
-        + month_days
-        + _div(epyear * 682 - 110, 2816)
-        + (epyear - 1) * 365
-        + _div(epbase, 2820) * 1029983
-        + 1948320
+        _gregorian_to_borkowski_jdn(gy, 3, march)
+        + (month - 1) * 31
+        - _div(month, 7) * (month - 7)
+        + day - 1
     )
-    if month == 12 and day == 30 and not _is_jalali_leap_year(year):
-        raise CalendarDateError("invalid Jalali date")
-
-    result = _jdn_to_gregorian(jdn)
-    if gregorian_to_jalali(result) != (year, month, day):
-        raise CalendarDateError("invalid Jalali date")
-    return result
+    return _borkowski_jdn_to_gregorian(jdn)
 
 
 def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
-    """Convert a Gregorian date to a Jalali date using JDN arithmetic."""
+    """Convert a Gregorian date to Jalali using Borkowski JDN arithmetic."""
 
-    jdn = _gregorian_to_jdn(value)
-    depoch = jdn - jalali_to_jdn(475, 1, 1)
-    cycle = _div(depoch, 1029983)
-    cyear = depoch % 1029983
+    jdn = _gregorian_to_borkowski_jdn(value.year, value.month, value.day)
+    gy = _borkowski_jdn_to_gregorian(jdn).year
+    year = gy - 621
+    _, march, leap, _ = _jalali_cal(year)
+    first_day = _gregorian_to_borkowski_jdn(gy, 3, march)
+    k = jdn - first_day
 
-    if cyear == 1029982:
-        ycycle = 2820
+    if k >= 0:
+        if k <= 185:
+            return year, 1 + _div(k, 31), _mod(k, 31) + 1
+        k -= 186
     else:
-        aux1 = _div(cyear, 366)
-        aux2 = cyear % 366
-        ycycle = _div(2134 * aux1 + 2816 * aux2 + 2815, 1028522) + aux1 + 1
-
-    year = ycycle + 2820 * cycle + 474
-    if year <= 0:
         year -= 1
+        k += 179
+        if leap == 1:
+            k += 1
 
-    # Preserve the canonical 12/30 representation at a leap-year boundary.
-    if _is_jalali_leap_year(year - 1) and jalali_to_jdn(year - 1, 12, 30) == jdn:
-        return year - 1, 12, 30
-
-    yday = jdn - jalali_to_jdn(year, 1, 1) + 1
-    month = _div(yday - 1, 31) + 1 if yday <= 186 else _div(yday - 187, 30) + 7
-    day = jdn - jalali_to_jdn(year, month, 1) + 1
-    return year, month, day
+    return year, 7 + _div(k, 30), _mod(k, 30) + 1
 
 
 def jalali_to_jdn(year: int, month: int, day: int) -> int:
-    epbase = year - 474 if year >= 0 else year - 473
-    epyear = 474 + (epbase % 2820)
-    month_days = (month - 1) * 31 if month <= 7 else (month - 1) * 30 + 6
+    """Return the Borkowski Julian Day number for a valid Jalali date."""
+    gy, march, _, _ = _jalali_cal(year)
+    if not 1 <= month <= 12 or not 1 <= day <= _jalaali_month_length(year, month):
+        raise CalendarDateError("invalid Jalali date")
     return (
-        day
-        + month_days
-        + _div(epyear * 682 - 110, 2816)
-        + (epyear - 1) * 365
-        + _div(epbase, 2820) * 1029983
-        + 1948320
+        _gregorian_to_borkowski_jdn(gy, 3, march)
+        + (month - 1) * 31
+        - _div(month, 7) * (month - 7)
+        + day - 1
     )
 
 
-def _gregorian_to_jdn(value: date) -> int:
-    a = _div(14 - value.month, 12)
-    y = value.year + 4800 - a
-    m = value.month + 12 * a - 3
-    return value.day + _div(153 * m + 2, 5) + 365 * y + _div(y, 4) - _div(y, 100) + _div(y, 400) - 32045
+def _gregorian_to_borkowski_jdn(year: int, month: int, day: int) -> int:
+    value = (
+        _div((year + _div(month - 8, 6) + 100100) * 1461, 4)
+        + _div(153 * _mod(month + 9, 12) + 2, 5)
+        + day
+        - 34840408
+    )
+    return value - _div(_div(year + 100100 + _div(month - 8, 6), 100) * 3, 4) + 752
 
 
-def _jdn_to_gregorian(jdn: int) -> date:
-    a = jdn + 32044
-    b = _div(4 * a + 3, 146097)
-    c = a - _div(146097 * b, 4)
-    d = _div(4 * c + 3, 1461)
-    e = c - _div(1461 * d, 4)
-    m = _div(5 * e + 2, 153)
-    day = e - _div(153 * m + 2, 5) + 1
-    month = m + 3 - 12 * _div(m, 10)
-    year = 100 * b + d - 4800 + _div(m, 10)
+def _borkowski_jdn_to_gregorian(jdn: int) -> date:
+    j = 4 * jdn + 139361631
+    j += _div(_div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908
+    i = _div(_mod(j, 1461), 4) * 5 + 308
+    day = _div(_mod(i, 153), 5) + 1
+    month = _mod(_div(i, 153), 12) + 1
+    year = _div(j, 1461) - 100100 + _div(8 - month, 6)
     return date(year, month, day)
