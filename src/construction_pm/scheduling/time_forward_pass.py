@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Iterable, Mapping
 
@@ -238,10 +238,8 @@ def time_forward_pass(
                 # that falls before the successor calendar's first interval,
                 # derive the clock-time start first, then normalize it into the
                 # successor working calendar (e.g. 08:00 - 2h -> 06:00 -> 07:00).
-                from datetime import timedelta
-
                 candidate = resolver.normalize_start(
-                    target - timedelta(hours=float(activity.duration.value))
+                    target - timedelta(seconds=float(activity.duration.value) * 3600)
                 )
             elif rel.type in {RelationshipType.FF, RelationshipType.SF}:
                 candidate = _subtract_duration(target, activity.duration, resolver)
