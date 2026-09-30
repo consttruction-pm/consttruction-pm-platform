@@ -577,3 +577,22 @@ Status: **implemented, runtime-verified and merged**
 - Current open PRs remain outside Hasan ownership (Javad Web and Shared Scheduling); do not revive or modify them as Hasan work.
 - Continue only from a newly evidenced Backend/Database/Application/API/Enterprise Integration defect or authoritative contract dependency on current `main`.
 - When one appears, branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence before merge.
+
+
+### 2026-10-01 — Post-PR #632 current-main reconciliation
+
+- Current `main` is `0804562c793a6232ffbee1a18f2c3408156b52d7`, the verified merge commit for PR #632 (PostgreSQL UDF persistence verification).
+- PR #632 is merged and its post-merge push workflows are all green on the exact merge commit:
+  - ConstructionPM CI #2531 — success
+  - Client Typecheck #2234 — success
+  - PostgreSQL Integration #402 — success
+  - PostgreSQL Sync State Integration #848 — success
+- P6 UDF PostgreSQL persistence is now covered for typed values, scope/revision isolation, immutable replay/conflict and rollback; do not duplicate this slice.
+- Current-main/open-PR reconciliation found no new concrete, non-duplicate Hasan-owned Backend/Database/Application/API/Enterprise Integration gap. Existing P6 resource-spread persistence, resource read API, layout persistence/API, financial-period API, formula/baseline/mapping/UDF verification and other completed slices remain merged and must not be repeated.
+- Shared Scheduling/Core work remains outside Hasan ownership; do not modify it as backend work.
+
+### Current continuation point
+
+- Stay at the evidence boundary until a new authoritative contract or reproducible Backend/API/Persistence defect appears on current `main`.
+- When a new gap appears: branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, update this file with exact commit/run identifiers, and only then merge.
+- Do not revive stale PRs or create duplicate P6 calculation/scheduling/calendar/resource/cost semantics.
