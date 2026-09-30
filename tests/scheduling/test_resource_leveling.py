@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from construction_pm.scheduling.resource_leveling import (
+    LevelingActivity,
     LevelingPriority,
     ResourceCapacity,
     ResourceDemand,
@@ -12,6 +13,7 @@ from construction_pm.scheduling.resource_leveling import (
     SortOrder,
     detect_over_allocations,
     select_leveling_resources,
+    propose_forward_leveling_within_float,
 )
 
 
@@ -109,3 +111,35 @@ def test_select_leveling_resources_sorts_explicit_resource_ids():
     assert select_leveling_resources(
         demands, level_all_resources=False, resource_ids=("R2", "R1")
     ) == ("R1", "R2")
+
+
+def test_propose_forward_leveling_consumes_only_allowed_float_and_preserves_minimum_float():
+    resolver = WorkingTimeResolver(working_weekdays={0, 1, 2, 3, 4}, holidays=set())
+    activities = (
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 2), 2, (
+            ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),
+            ResourceDemand("R1", date(2026, 10, 2), Decimal("8"), "A1"),
+        )),
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 2), 0, (
+            ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),
+            ResourceDemand("R1", date(2026, 10, 2), Decimal("4"), "A2"),
+        )),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+    )
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver, min_float_to_preserve=1
+    )
+    assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("A1", 1, 1)]
+
+
+def test_propose_forward_leveling_is_deterministic_for_input_order():
+    resolver = WorkingTimeResolver(working_weekdays={0, 1, 2, 3, 4}, holidays=set())
+    a1 = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 2,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
+    a2 = LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 2,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),))
+    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    assert propose_forward_leveling_within_float((a2, a1), capacities, resolver=resolver) == propose_forward_leveling_within_float((a1, a2), capacities, resolver=resolver)

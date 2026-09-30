@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+
+from .calendar import WorkingTimeResolver
 from enum import Enum
 
 
@@ -137,3 +139,116 @@ def select_leveling_resources(
     if set(selected) - available:
         raise ResourceLevelingError("UNKNOWN_RESOURCE")
     return selected
+
+@dataclass(frozen=True)
+class LevelingActivity:
+    """Activity demand slice used by deterministic forward-leveling proposal."""
+    activity_id: str
+    start: date
+    finish: date
+    total_float: int
+    resource_demands: tuple[ResourceDemand, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if not isinstance(self.start, date) or not isinstance(self.finish, date) or self.finish < self.start:
+            raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
+            raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
+
+
+@dataclass(frozen=True)
+class LevelingShift:
+    activity_id: str
+    shift_working_days: int
+    new_start: date
+    new_finish: date
+    consumed_float: int
+    remaining_float: int
+
+
+def _shift_demands(
+    demands: tuple[ResourceDemand, ...],
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> tuple[ResourceDemand, ...]:
+    return tuple(
+        ResourceDemand(d.resource_id, resolver.add_working_duration(d.period, shift_working_days), d.units, d.activity_id)
+        for d in demands
+    )
+
+
+def propose_forward_leveling_within_float(
+    activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
+    capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
+    *,
+    resolver: WorkingTimeResolver,
+    min_float_to_preserve: int = 0,
+    over_allocation_percentage: Decimal = Decimal("0"),
+) -> tuple[LevelingShift, ...]:
+    """Propose deterministic forward shifts without mutating the CPM schedule."""
+    if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
+        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+    if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
+        raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
+
+    activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
+    selected = {a.activity_id: 0 for a in activity_list}
+    capacity_map = {(c.resource_id, c.period): c.units for c in capacities}
+
+    def effective_capacity(resource_id: str, period: date) -> Decimal:
+        return capacity_map.get((resource_id, period), Decimal("0")) * (
+            Decimal("1") + over_allocation_percentage / Decimal("100")
+        )
+
+    def current_demands() -> list[ResourceDemand]:
+        out: list[ResourceDemand] = []
+        for activity in activity_list:
+            out.extend(_shift_demands(activity.resource_demands, selected[activity.activity_id], resolver))
+        return out
+
+    shifts: list[LevelingShift] = []
+    while True:
+        demands = current_demands()
+        overloaded = [
+            (resource_id, period)
+            for resource_id, period in sorted({(d.resource_id, d.period) for d in demands}, key=lambda x: (x[1], x[0]))
+            if sum((d.units for d in demands if d.resource_id == resource_id and d.period == period), Decimal("0"))
+            > effective_capacity(resource_id, period)
+        ]
+        if not overloaded:
+            break
+
+        candidates: list[tuple[Decimal, str]] = []
+        for resource_id, period in overloaded:
+            for activity in activity_list:
+                current_shift = selected[activity.activity_id]
+                if current_shift >= max(0, activity.total_float - min_float_to_preserve):
+                    continue
+                shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
+                units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
+                if units > 0:
+                    candidates.append((-units, activity.activity_id))
+        if not candidates:
+            break
+
+        _, activity_id = sorted(candidates)[0]
+        activity = next(a for a in activity_list if a.activity_id == activity_id)
+        next_shift = selected[activity_id] + 1
+        selected[activity_id] = next_shift
+        shifts.append(
+            LevelingShift(
+                activity_id,
+                next_shift,
+                resolver.add_working_duration(activity.start, next_shift),
+                resolver.add_working_duration(activity.finish, next_shift),
+                next_shift,
+                activity.total_float - next_shift,
+            )
+        )
+    return tuple(shifts)
