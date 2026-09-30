@@ -560,3 +560,20 @@ Status: **implemented, runtime-verified and merged**
 - Current open-PR inspection found no open PR requiring Hasan-owned Backend/Database/Application/API work. Historical/stale Web or Scheduling PRs must not be revived merely because they exist in Git history.
 - Therefore no new feature is started at this reconciliation point. The next Hasan implementation must begin only when a concrete authoritative contract or reproducible Backend/API/Persistence defect appears on current `main`.
 - Execution rule remains: branch from exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence before merge.
+
+
+### 2026-09-30 — P6 Mapping Registry contract reconciliation (PR #535)
+
+- PR #535 corrected a concrete API-contract drift on current main: the authoritative `shared/contracts/p6-mapping-registry.v1.schema.json` requires `contract_version=1.0`, while the API previously emitted `p6-mapping-registry-api.v1`.
+- The API now emits `1.0`, and focused regression coverage compares the API version identity directly with the schema constant.
+- Exact implementation head: `1e214c92a18db0d3f0975377be77735defef1aa4`.
+- Client Typecheck #1959 and ConstructionPM CI #2256 both completed successfully on the exact head.
+- PR #535 merged to `main` as `ea71d9bbfb6d2aea296c121e6030cc3faaa45c22`, and `main` was verified at that SHA.
+- No persistence, scheduling, P6 calculation, or client/UI semantics were changed.
+
+### Current continuation point
+
+- P6 Mapping Registry API contract-version drift is resolved; do not repeat it.
+- Current open PRs remain outside Hasan ownership (Javad Web and Shared Scheduling); do not revive or modify them as Hasan work.
+- Continue only from a newly evidenced Backend/Database/Application/API/Enterprise Integration defect or authoritative contract dependency on current `main`.
+- When one appears, branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence before merge.
