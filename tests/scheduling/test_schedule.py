@@ -627,3 +627,4 @@ def test_stage_73_16_schedule_preserves_negative_float_at_calendar_boundary(
     assert result.early_activities["A"].finish == date(2026, 9, 24)
     assert result.late_activities["A"].start == date(2026, 9, 18)
     assert result.floats["A"].total_float < 0
+    assert result.floats["A"].free_float <= result.floats["A"].total_float
