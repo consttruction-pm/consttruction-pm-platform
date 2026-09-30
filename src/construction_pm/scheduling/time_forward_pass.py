@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .calendar_context import (
+    CalendarReference,
     CalendarResolverRegistry,
     RelationshipLagCalendar,
     SchedulingCalendarContext,
@@ -208,8 +209,22 @@ def time_forward_pass(
                     raw_lag_resolver,
                 )
             else:
-                lag_ref = lag_context.relationship_lag_reference(predecessor_ref)
-                lag_resolver = resolve_calendar_aware(registry, lag_ref)
+                lag_ref = lag_context.relationship_lag_reference(
+                    predecessor_ref,
+                    relationship_lag_calendar,
+                )
+                if lag_ref is None:
+                    raw_lag_resolver = registry.resolve_relationship_lag(
+                        lag_context,
+                        predecessor_ref,
+                        relationship_lag_calendar,
+                    )
+                    lag_resolver = CalendarAwareResolver(
+                        CalendarReference("24-hour", "1", "working-time"),
+                        raw_lag_resolver,
+                    )
+                else:
+                    lag_resolver = resolve_calendar_aware(registry, lag_ref)
             anchor = {
                 RelationshipType.FS: predecessor.finish,
                 RelationshipType.SS: predecessor.start,
