@@ -154,11 +154,10 @@ class SQLiteP6ReportProfileRepository:
                 mapping.label_override,
                 payload,
             ),
-        ).fetchone()
-        if inserted is not None:
-            return mapping
-        row = self.connection.execute(
-            "SELECT project_revision,profile_name,subject_area,ordinal,exportable,label_override,metadata_json "
+        )
+        return mapping
+
+    def get(self, scope: BackendScope, profile_id: str, field_id: str)
             "FROM p6_report_profile_field_mapping "
             "WHERE tenant_id=%s AND project_id=%s AND profile_id=%s AND field_id=%s",
             (mapping.scope.tenant_id, mapping.scope.project_id, mapping.profile_id, mapping.field_id),
