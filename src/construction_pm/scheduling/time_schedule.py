@@ -288,9 +288,10 @@ def calculate_time_floats(
             if l.start < e.start:
                 total = -Decimal(resolver.resolver.working_days_between(l.start.date(), e.start.date()))
         else:
-            total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
             if l.start < e.start:
                 total = -resolver.calculate_duration(l.start, e.start, activity.duration.unit)
+            else:
+                total = resolver.calculate_duration(e.start, l.start, activity.duration.unit)
 
         if not outgoing[activity_id]:
             free = Decimal("0")
