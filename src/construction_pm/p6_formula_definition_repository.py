@@ -157,7 +157,7 @@ class SQLiteP6FormulaDefinitionRepository:
         row = self.connection.execute(
             "SELECT project_revision, expression, result_type, result_unit, semantic_version, "
             "semantic_reference, dependencies_json, metadata_json FROM p6_formula_definitions "
-            "WHERE tenant_id=%s AND project_id=%s AND formula_id=%s AND formula_version=%s",
+            "WHERE tenant_id=? AND project_id=? AND formula_id=? AND formula_version=?",
             (record.scope.tenant_id, record.scope.project_id, record.formula_id, record.version),
         ).fetchone()
         if row is None:
