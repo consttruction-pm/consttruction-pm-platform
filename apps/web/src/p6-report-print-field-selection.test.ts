@@ -43,7 +43,7 @@ test("resets selection from the current layout visibility", () => {
   const model = createP6ReportPrintFieldSelection(layout, registry.fields, []);
   const next = {
     ...layout,
-    columns: layout.columns.map((column) => ({ ...column, visible: column.field_id !== "activity-cost" })),
+    columns: layout.columns.map((column) => ({ ...column, visible: column.field_id === "activity-id" })),
   };
   assert.deepEqual(model.resetToVisible(next).field_ids, ["activity-id"]);
 });
