@@ -46,3 +46,26 @@ describe("P6 layout persistence adapter", () => {
     assert.deepEqual(result, layout);
   });
 });
+
+
+test("migrates loaded layouts before authoritative validation", async () => {
+  let calls = 0;
+  const persistence = createP6LayoutPersistence(transport, {
+    migrate(value) {
+      calls += 1;
+      const layout = value as Record<string, unknown>;
+      return { ...layout, schema_version: "p6-layout.v1" };
+    },
+  });
+  const loaded = await persistence.load("user", "activity");
+  assert.equal(calls, 1);
+  assert.equal(loaded?.schema_version, "p6-layout.v1");
+});
+
+test("does not invoke migration for a missing layout", async () => {
+  const emptyTransport = { ...transport, load: async () => null };
+  let calls = 0;
+  const persistence = createP6LayoutPersistence(emptyTransport, { migrate(value) { calls += 1; return value; } });
+  assert.equal(await persistence.load("user", "activity"), null);
+  assert.equal(calls, 0);
+});
