@@ -44,3 +44,23 @@ def test_invalid_jalali_month_and_day_are_rejected():
         JalaliDate(1405, 13, 1)
     with pytest.raises(CalendarDateError):
         JalaliDate(1405, 1, 0)
+
+
+def test_leap_detection_follows_jdn_year_length():
+    assert jalali_to_gregorian(1403, 12, 30) == date(2025, 3, 20)
+    with pytest.raises(CalendarDateError):
+        jalali_to_gregorian(1404, 12, 30)
+
+
+def test_gregorian_boundary_round_trip_around_jalali_new_year():
+    pairs = [
+        (date(2025, 3, 19), (1403, 12, 29)),
+        (date(2025, 3, 20), (1403, 12, 30)),
+        (date(2025, 3, 21), (1404, 1, 1)),
+        (date(2026, 3, 19), (1404, 12, 29)),
+        (date(2026, 3, 20), (1404, 12, 29)),
+        (date(2026, 3, 21), (1405, 1, 1)),
+    ]
+    for gregorian, expected in pairs:
+        assert gregorian_to_jalali(gregorian) == expected
+        assert jalali_to_gregorian(*expected) == gregorian
