@@ -526,3 +526,110 @@ def test_start_to_start_p6_boolean_mapping_is_explicit(p6_value, typed):
 def test_start_to_start_p6_boolean_mapping_rejects_non_boolean():
     with pytest.raises(TypeError):
         start_to_start_lag_type_from_p6("TRUE")
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [1, -1])
+def test_schedule_end_to_end_preserves_relationships_across_both_cpm_passes(
+    resolver, relationship_type, lag
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        resolver,
+    )
+
+    assert _relationship_holds(
+        relationship,
+        result.early_activities["A"],
+        result.early_activities["B"],
+        resolver,
+    )
+    assert _relationship_holds(
+        relationship,
+        result.late_activities["A"],
+        result.late_activities["B"],
+        resolver,
+    )
+    assert result.project_finish == max(
+        item.finish for item in result.early_activities.values()
+    )
+    for activity_id in ("A", "B"):
+        float_item = result.floats[activity_id]
+        assert float_item.free_float <= max(0, float_item.total_float)
+        assert float_item.early_start == result.early_activities[activity_id].start
+        assert float_item.late_start == result.late_activities[activity_id].start
+
+
+
+def test_backward_pass_uses_activity_calendar_provider_for_late_dates():
+    from construction_pm.scheduling.activity_calendar_provider import ResolvedActivityCalendarProvider
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project = WorkingTimeResolver(WorkingCalendar())
+    sunday_thursday = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project,
+            activities={"A": project, "B": sunday_thursday},
+            references={
+                "A": CalendarReference("project", "1"),
+                "B": CalendarReference("activity-b", "1"),
+            },
+        )
+    )
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B")]
+    early = forward_pass(
+        activities, relationships, date(2026, 10, 2), project,
+        calendar_provider=provider,
+    )
+    late = backward_pass(
+        activities, relationships, early, None, project,
+        calendar_provider=provider,
+    )
+
+    assert early["B"].start == date(2026, 10, 4)
+    assert late["B"].start == date(2026, 10, 4)
+    assert late["A"].start == date(2026, 10, 2)
+
+
+def test_schedule_end_to_end_uses_activity_calendars():
+    from construction_pm.scheduling.activity_calendar_provider import ResolvedActivityCalendarProvider
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project = WorkingTimeResolver(WorkingCalendar())
+    sunday_thursday = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project,
+            activities={"A": project, "B": sunday_thursday},
+            references={
+                "A": CalendarReference("project", "1"),
+                "B": CalendarReference("activity-b", "1"),
+            },
+        )
+    )
+    result = schedule(
+        activities=[Activity("A", 1), Activity("B", 1)],
+        relationships=[Relationship("A", "B", RelationshipType.FS)],
+        project_start=date(2026, 10, 2),
+        resolver=project,
+        calendar_provider=provider,
+    )
+
+    assert result.early_activities["A"].start == date(2026, 10, 2)
+    assert result.early_activities["B"].start == date(2026, 10, 4)
+    assert result.early_activities["B"].finish == date(2026, 10, 4)
+    assert result.late_activities["B"].start == date(2026, 10, 4)
+    assert result.floats["A"].total_float >= 0
+    assert result.project_finish == date(2026, 10, 4)
