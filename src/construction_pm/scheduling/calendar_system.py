@@ -61,7 +61,7 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
         + _div(epbase, 2820) * 1029983
         + 1948320
     )
-    if month == 12 and day == 30 and jalali_to_jdn(year + 1, 1, 1) != jdn + 1:
+    if month == 12 and day == 30 and jalali_to_jdn(year + 1, 1, 1) != jdn:
         raise CalendarDateError("invalid Jalali date")
 
     result = _jdn_to_gregorian(jdn)
