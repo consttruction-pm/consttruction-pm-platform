@@ -93,3 +93,66 @@ def test_relationship_required_start_supports_all_relationship_types():
             relationship, predecessor, 2, resolver=resolver
         )
         assert isinstance(required, date)
+
+
+@pytest.mark.parametrize("relationship_type", __import__(
+    "construction_pm.scheduling.relationships", fromlist=["RelationshipType"]
+).RelationshipType)
+@pytest.mark.parametrize("mode, expected_action", [
+    (OutOfSequenceScheduleType.RETAINED_LOGIC, ProgressRelationAction.APPLY_LOGIC),
+    (OutOfSequenceScheduleType.PROGRESS_OVERRIDE, ProgressRelationAction.IGNORE_LOGIC),
+    (OutOfSequenceScheduleType.ACTUAL_DATES, ProgressRelationAction.USE_ACTUAL_DATES),
+])
+def test_oos_reference_matrix_four_relationships_three_modes(relationship_type, mode, expected_action):
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    from construction_pm.scheduling.out_of_sequence import relationship_required_start
+    from construction_pm.scheduling.relationships import Relationship
+
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor = ScheduledActivity(
+        "P", date(2026, 9, 28), date(2026, 9, 30), 2
+    )
+    relationship = Relationship("P", "S", relationship_type, 0)
+    required = relationship_required_start(
+        relationship, predecessor, 2, resolver=resolver
+    )
+    actual_start = resolver.previous_working_day(required)
+    successor = Activity("S", 2, actual_start=actual_start, remaining_duration=1)
+
+    assert classify_out_of_sequence(
+        successor,
+        relationship_required_start=required,
+        data_date=date(2026, 10, 2),
+    ) is OutOfSequenceState.OUT_OF_SEQUENCE
+    assert resolve_out_of_sequence_action(
+        successor,
+        relationship_required_start=required,
+        data_date=date(2026, 10, 2),
+        mode=mode,
+    ) is expected_action
+
+
+def test_oos_reference_matrix_is_deterministic():
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    from construction_pm.scheduling.out_of_sequence import relationship_required_start
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor = ScheduledActivity(
+        "P", date(2026, 9, 28), date(2026, 9, 30), 2
+    )
+    snapshots = []
+    for relationship_type in RelationshipType:
+        relationship = Relationship("P", "S", relationship_type, 0)
+        required = relationship_required_start(
+            relationship, predecessor, 2, resolver=resolver
+        )
+        snapshots.append((relationship_type.value, required.isoformat()))
+    assert snapshots == [
+        ("FF", "2026-09-30"),
+        ("FS", "2026-10-01"),
+        ("SF", "2026-09-29"),
+        ("SS", "2026-09-29"),
+    ]
