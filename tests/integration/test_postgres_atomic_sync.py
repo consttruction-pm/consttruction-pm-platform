@@ -106,13 +106,10 @@ def test_postgres_same_key_concurrent_execution_runs_delegate_once(postgres):
     key = f"live-postgres-concurrent-{uuid.uuid4()}"
     entered = threading.Event()
     release = threading.Event()
-    delegates = [
-        CountingDelegate(entered=entered, release=release),
-        CountingDelegate(),
-    ]
+    delegate = CountingDelegate(entered=entered, release=release)
 
     try:
-        def run(delegate):
+        def run():
             with psycopg.connect(DSN) as connection:
                 executor = AtomicSyncExecutor(
                     PostgresSyncStateStore(connection),
@@ -122,10 +119,10 @@ def test_postgres_same_key_concurrent_execution_runs_delegate_once(postgres):
                 return executor.submit(_mutation(key))
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(run, delegate) for delegate in delegates]
+            futures = [pool.submit(run), pool.submit(run)]
             assert entered.wait(5)
             time.sleep(0.2)
-            assert sum(delegate.calls for delegate in delegates) == 1
+            assert delegate.calls == 1
             release.set()
             outcomes = [future.result(timeout=5) for future in futures]
 
