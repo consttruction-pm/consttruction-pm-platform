@@ -52,3 +52,25 @@ def test_rejects_extension_reference_to_missing_sheet():
     payload=_extension_workbook([("MissingActivities","vendor.custom","lost")])
     with pytest.raises(P6XlsxCodecError,match="EXTENSION_SHEET_NOT_FOUND:MissingActivities"):
         P6XlsxCodec().decode(payload,scope())
+
+
+def test_deduplicates_same_extension_across_rows() -> None:
+    from construction_pm.p6_interchange_mapping import P6InterchangeResult
+    codec = P6XlsxCodec()
+    raw = codec.encode((
+        P6InterchangeResult({"Id": "A-10"}, {"p6.xlsx.sheet": "Activities", "vendor.custom": "keep"}),
+        P6InterchangeResult({"Id": "A-20"}, {"p6.xlsx.sheet": "Activities", "vendor.custom": "keep"}),
+    ), scope())
+    rows = codec.decode(raw, scope())
+    assert len(rows) == 2
+    assert all(row.extensions["vendor.custom"] == "keep" for row in rows)
+
+
+def test_rejects_conflicting_sheet_extension_values() -> None:
+    from construction_pm.p6_interchange_mapping import P6InterchangeResult
+    codec = P6XlsxCodec()
+    with pytest.raises(P6XlsxCodecError, match="CONFLICTING_EXTENSION_VALUE:Activities:vendor.custom"):
+        codec.encode((
+            P6InterchangeResult({"Id": "A-10"}, {"p6.xlsx.sheet": "Activities", "vendor.custom": "one"}),
+            P6InterchangeResult({"Id": "A-20"}, {"p6.xlsx.sheet": "Activities", "vendor.custom": "two"}),
+        ), scope())
