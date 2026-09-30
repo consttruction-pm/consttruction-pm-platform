@@ -4,6 +4,10 @@ import type {
   P6LayoutPersistence,
 } from "./p6-field-layout-foundation.js";
 
+export interface P6LayoutMigration {
+  migrate(value: unknown): unknown;
+}
+
 export interface P6LayoutPersistenceTransport {
   load(scope: LayoutScope, viewId: string): Promise<unknown>;
   save(layout: LayoutDefinition): Promise<unknown>;
@@ -32,11 +36,15 @@ function assertLayout(value: unknown): LayoutDefinition {
   return { ...layout, revision } as LayoutDefinition;
 }
 
-export function createP6LayoutPersistence(transport: P6LayoutPersistenceTransport): P6LayoutPersistence {
+export function createP6LayoutPersistence(
+  transport: P6LayoutPersistenceTransport,
+  migration?: P6LayoutMigration,
+): P6LayoutPersistence {
   return {
     async load(scope, viewId) {
       const value = await transport.load(scope, viewId);
-      return value == null ? null : assertLayout(value);
+      if (value == null) return null;
+      return assertLayout(migration ? migration.migrate(value) : value);
     },
     async save(layout) {
       return assertLayout(await transport.save(assertLayout(layout)));
