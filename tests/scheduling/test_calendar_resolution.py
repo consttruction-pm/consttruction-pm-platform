@@ -13,6 +13,7 @@ from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeReso
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    Continuous24HourResolver,
     RelationshipLagCalendar,
 )
 from construction_pm.scheduling.calendar_resolution import (
@@ -90,6 +91,17 @@ def test_relationship_lag_calendar_24_hour_returns_continuous_resolver():
         snapshot.schedule_options.relationship_lag_calendar,
     )
     assert resolver.__class__.__name__ == "Continuous24HourResolver"
+
+
+def test_continuous_24_hour_resolver_supports_day_arithmetic_contract():
+    resolver = Continuous24HourResolver()
+    start = date(2026, 9, 21)
+    assert resolver.normalize_start(start) == start
+    assert resolver.next_working_day(start) == date(2026, 9, 22)
+    assert resolver.previous_working_day(date(2026, 9, 22)) == start
+    assert resolver.add_working_duration(start, 2) == date(2026, 9, 22)
+    assert resolver.subtract_working_duration(date(2026, 9, 22), 2) == start
+    assert resolver.calculate_duration(start, date(2026, 9, 23)) == 3
 
 
 def test_relationship_lag_resolver_map_is_keyed_by_relationship():
