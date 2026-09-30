@@ -142,9 +142,15 @@ def select_leveling_resources(
 def apply_leveling_shifts(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     shifts: tuple[LevelingShift, ...] | list[LevelingShift],
+    *,
+    resolver: WorkingTimeResolver,
 ) -> tuple[LevelingActivity, ...]:
-    """Apply accepted leveling proposals without recalculating CPM semantics."""
+    """Apply accepted shifts using the caller's authoritative working calendar."""
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     shift_map = {s.activity_id: s for s in shifts}
+    if len(shift_map) != len(shifts):
+        raise ResourceLevelingError("DUPLICATE_LEVELING_SHIFT")
     result: list[LevelingActivity] = []
     for activity in sorted(activities, key=lambda a: (a.start, a.activity_id)):
         shift = shift_map.get(activity.activity_id)
@@ -162,7 +168,7 @@ def apply_leveling_shifts(
                 resource_demands=_shift_demands(
                     activity.resource_demands,
                     shift.shift_working_days,
-                    WorkingTimeResolver(WorkingCalendar()),
+                    resolver,
                 ),
             )
         )
