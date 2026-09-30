@@ -64,13 +64,17 @@ def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeR
         # immediately before the successor event (e.g. Friday -> Sunday on a
         # Sunday-Thursday successor calendar).
         candidate = successor_event
-        for _ in range(lag + 1):
+        for _ in range(10000):
+            mapped = _successor_event_for_inverse(candidate, lag, resolver)
+            if mapped <= successor_event:
+                while (
+                    _successor_event_for_inverse(candidate + timedelta(days=1), lag, resolver)
+                    == successor_event
+                ):
+                    candidate += timedelta(days=1)
+                return candidate
             candidate -= timedelta(days=1)
-        while (
-            _successor_event_for_inverse(candidate, lag, resolver) == successor_event
-        ):
-            candidate += __import__("datetime").timedelta(days=1)
-        return candidate - __import__("datetime").timedelta(days=1)
+        raise ValueError("unable to invert working event relationship")
     return resolver.next_working_day(
         resolver.add_working_duration(successor_event, -lag)
     )
