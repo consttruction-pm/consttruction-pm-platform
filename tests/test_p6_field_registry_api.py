@@ -9,7 +9,11 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.p6_field_registry import get_field, P6FieldType
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
-from construction_pm.p6_field_registry_repository import P6FieldRegistryApplicationService, SQLiteP6FieldRegistryRepository
+from construction_pm.p6_field_registry_repository import (
+    P6FieldRegistryApplicationService,
+    PersistedP6Field,
+    SQLiteP6FieldRegistryRepository,
+)
 from construction_pm.p6_user_defined_fields_repository import (
     P6UserDefinedFieldApplicationService,
     P6UserDefinedFieldDefinition,
