@@ -21,6 +21,7 @@ class P6PrimaveraXmlCodec:
     format: P6MappingFormat = P6MappingFormat.PRIMAVERA_XML
 
     def decode(self, payload: str | bytes, scope: BackendScope) -> Sequence[P6InterchangeRow]:
+        scope.validate()
         if isinstance(payload, bytes):
             try:
                 payload = payload.decode("utf-8-sig")
