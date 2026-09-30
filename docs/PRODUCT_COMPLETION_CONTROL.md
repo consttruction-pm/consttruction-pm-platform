@@ -37,10 +37,10 @@ If nothing is missing, do not code. Mark the capability verified and move to the
 | Progress / EVM | **Owner** | Persistence/API only | Presentation only |
 | PostgreSQL / Repository | Integration | **Owner** | Consume |
 | API/Application | Architecture/acceptance | **Owner** | Consume |
-| Web UI | Acceptance | Contract support | **Owner** |
-| Desktop/Mobile | Acceptance | Contract support | **Owner** |
-| UX / RTL / LTR / localization UI | Acceptance | Contract support | **Owner** |
-| Client sync UI | Acceptance | Sync authority | **Owner** |
+| Web UI | Acceptance | Contract support | **Owner: Javad (Farmj22002)** |
+| Desktop/Mobile | Acceptance | Contract support | **Owner: Javad (Farmj22002)** |
+| UX / RTL / LTR / localization UI | Acceptance | Contract support | **Owner: Javad (Farmj22002)** |
+| Client sync UI | Acceptance | Sync authority | **Owner: Javad (Farmj22002)** |
 | Import/export mapping | Semantic authority | **Owner** | UI/UX integration |
 | Final integration | **Owner** | Participate | Participate |
 | Release acceptance | **Owner** | Evidence | Evidence |
@@ -88,7 +88,7 @@ Only after the Web path is usable:
 
 P3 must not repeatedly interrupt an unfinished P1 workflow.
 
-## 5. Javad's current mission
+## 5. Javad (Farmj22002)'s current mission
 
 Javad is **not** assigned to rebuild scheduling or other Shared Core logic.
 
@@ -104,6 +104,14 @@ His next work must be selected from the Web completion backlog and must follow t
 8. record the exact next missing Web workflow.
 
 A branch named `feature/javad/...` is not evidence that its work is still required. Its actual code must be compared against current `main` before reuse.
+
+## 5A. Supervisor / Observer — NO ASSIGNED DUTY
+
+The **Supervisor/Observer (ناظر)** has **no development or delivery responsibility** in this project operating model.
+
+- No coding, testing, review, integration, task ownership, PR ownership, roadmap ownership, or release responsibility is assigned to the Supervisor/Observer.
+- Do not create implementation tasks for the Supervisor/Observer as part of the three-person development team.
+- The only implementation owners are **Jalal**, **Hasan**, and **Javad (Farmj22002)** within their defined boundaries.
 
 ## 6. Hasan's current mission
 
