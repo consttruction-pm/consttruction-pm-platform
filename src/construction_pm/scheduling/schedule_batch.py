@@ -3,6 +3,7 @@ from __future__ import annotations
 """Immutable batch contract for multi-project P6 scheduling boundaries."""
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Iterable
 
 from .authoritative_schedule import AuthoritativeScheduleInput
@@ -39,7 +40,7 @@ class AuthoritativeScheduleBatch:
                 raise ValueError(
                     f"project_finish is required for batch project {snapshot.project_id}"
                 )
-            if not hasattr(snapshot.project_finish, "year"):
+            if not isinstance(snapshot.project_finish, date) or isinstance(snapshot.project_finish, datetime):
                 raise ValueError(
                     f"date-based project_finish is required for batch project {snapshot.project_id}"
                 )
