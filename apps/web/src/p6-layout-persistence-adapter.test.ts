@@ -45,8 +45,6 @@ describe("P6 layout persistence adapter", () => {
     assert.deepEqual(saved, layout);
     assert.deepEqual(result, layout);
   });
-});
-
 
   it("migrates loaded layouts before authoritative validation", async () => {
     let calls = 0;
