@@ -11,6 +11,7 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceLevelingOptions,
     SortOrder,
     detect_over_allocations,
+    select_leveling_resources,
 )
 
 
@@ -77,3 +78,34 @@ def test_leveling_options_validate_typed_contract():
 def test_negative_minimum_float_is_rejected():
     with pytest.raises(ResourceLevelingError, match="INVALID_MIN_FLOAT_TO_PRESERVE"):
         ResourceLevelingOptions(min_float_to_preserve=Decimal("-1"))
+
+
+def test_select_leveling_resources_is_deterministic_for_all_resources():
+    demands = (
+        ResourceDemand("R2", date(2026, 10, 1), Decimal("1")),
+        ResourceDemand("R1", date(2026, 10, 1), Decimal("1")),
+    )
+
+    assert select_leveling_resources(
+        demands, level_all_resources=True
+    ) == ("R1", "R2")
+
+
+def test_select_leveling_resources_rejects_unknown_explicit_resource():
+    demands = (ResourceDemand("R1", date(2026, 10, 1), Decimal("1")),)
+
+    with pytest.raises(ResourceLevelingError, match="UNKNOWN_RESOURCE"):
+        select_leveling_resources(
+            demands, level_all_resources=False, resource_ids=("R9",)
+        )
+
+
+def test_select_leveling_resources_sorts_explicit_resource_ids():
+    demands = (
+        ResourceDemand("R1", date(2026, 10, 1), Decimal("1")),
+        ResourceDemand("R2", date(2026, 10, 1), Decimal("1")),
+    )
+
+    assert select_leveling_resources(
+        demands, level_all_resources=False, resource_ids=("R2", "R1")
+    ) == ("R1", "R2")
