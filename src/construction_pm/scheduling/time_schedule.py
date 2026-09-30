@@ -334,7 +334,7 @@ def calculate_time_floats(
                             holds = successor.start >= required
                         elif rel.type is RelationshipType.SS:
                             event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
+                            required = _add_signed_lag(event, rel.lag, lag_resolver)
                             holds = successor.start >= required
                         elif rel.type is RelationshipType.FF:
                             event = candidate_finish
