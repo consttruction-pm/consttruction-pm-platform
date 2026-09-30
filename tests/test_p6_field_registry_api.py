@@ -109,3 +109,98 @@ def test_api_lists_fields_and_udfs_deterministically() -> None:
         "activity.activity_name",
     ]
     assert [item["udf"]["udf_id"] for item in udfs] == ["udf.activity.contract_status"]
+
+
+class _FailAfterFieldWrite:
+    def __init__(self, repository: object) -> None:
+        self.repository = repository
+
+    def upsert_field(self, record: object) -> object:
+        saved = self.repository.upsert_field(record)
+        raise RuntimeError("FORCED_FIELD_ROLLBACK")
+
+    def get_field(self, *args: object) -> object:
+        return self.repository.get_field(*args)
+
+    def list_fields(self, *args: object) -> object:
+        return self.repository.list_fields(*args)
+
+
+class _FailAfterUdfWrite:
+    def __init__(self, repository: object) -> None:
+        self.repository = repository
+
+    def upsert_definition(self, definition: object) -> object:
+        saved = self.repository.upsert_definition(definition)
+        raise RuntimeError("FORCED_UDF_ROLLBACK")
+
+    def get_definition(self, *args: object) -> object:
+        return self.repository.get_definition(*args)
+
+    def list_definitions(self, *args: object) -> object:
+        return self.repository.list_definitions(*args)
+
+
+def test_api_rejects_unsupported_registry_version_at_typed_boundary() -> None:
+    api = _api()
+    scope = BackendScope("tenant-a", "project-a", 2)
+
+    with pytest.raises(ValueError, match="UNSUPPORTED_REGISTRY_VERSION"):
+        api.save_field(
+            scope,
+            "p6-field-registry.v2",
+            get_field("activity.activity_id"),
+            auth_context=_auth("planner"),
+        )
+
+    udf = _udf()
+    incompatible = P6UserDefinedFieldDefinition(
+        scope=udf.scope,
+        registry_version="p6-field-registry.v2",
+        udf_id=udf.udf_id,
+        subject_area=udf.subject_area,
+        display_name=udf.display_name,
+        data_type=udf.data_type,
+        writable=udf.writable,
+        nullable=udf.nullable,
+        unit=udf.unit,
+        allowed_values=udf.allowed_values,
+    )
+    with pytest.raises(ValueError, match="UNSUPPORTED_REGISTRY_VERSION"):
+        api.save_udf(incompatible, auth_context=_auth("planner"))
+
+
+def test_application_boundary_rolls_back_field_write_after_repository_failure() -> None:
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6FieldRegistryRepository(connection)
+    service = P6FieldRegistryApplicationService(
+        _FailAfterFieldWrite(repository), SQLiteTransactionManager(connection)
+    )
+    scope = BackendScope("tenant-a", "project-a", 5)
+
+    with pytest.raises(RuntimeError, match="FORCED_FIELD_ROLLBACK"):
+        service.save_field(
+            PersistedP6Field(
+                scope=scope,
+                registry_version="p6-field-registry.v1",
+                field=get_field("activity.activity_id"),
+            )
+        )
+
+    assert repository.get_field(scope, "p6-field-registry.v1", "activity.activity_id") is None
+
+
+def test_application_boundary_rolls_back_udf_write_after_repository_failure() -> None:
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6UserDefinedFieldRepository(connection)
+    service = P6UserDefinedFieldApplicationService(
+        _FailAfterUdfWrite(repository), SQLiteTransactionManager(connection)
+    )
+    definition = _udf()
+
+    with pytest.raises(RuntimeError, match="FORCED_UDF_ROLLBACK"):
+        service.save_definition(definition)
+
+    assert repository.get_definition(
+        definition.scope, definition.registry_version, definition.udf_id
+    ) is None
