@@ -25,8 +25,8 @@ class P6ActivityFieldBehaviorEvidence:
 
 
 _SOURCE_URL = (
-    "https://docs.oracle.com/en/industries/construction-engineering/"
-    "primavera-p6-project/26/rest-api/op-activity-put.html"
+    "https://docs.oracle.com/cd/F51303_01/English/Integration/"
+    "p6_pro_api_reference/FieldSummary.html"
 )
 
 _EXACT_FIELDS = (
@@ -60,47 +60,47 @@ _BEHAVIOR = {
     ),
     "EarlyStartDate": (
         "scheduler_computed_explicit",
-        "Oracle states early start is computed by the project scheduler from network logic, constraints, and resource availability.",
+        "Oracle states early start is computed by the project scheduler based on network logic, schedule constraints, and resource availability.",
     ),
     "EarlyFinishDate": (
         "scheduler_computed_explicit",
-        "Oracle states early finish is computed by the project scheduler from network logic, constraints, and resource availability.",
+        "Oracle states early finish is computed by the project scheduler based on network logic, schedule constraints, and resource availability.",
     ),
     "LateStartDate": (
         "scheduler_computed_explicit",
-        "Oracle identifies late start as scheduler-derived schedule output.",
+        "Oracle documents late start as a scheduler-derived Activity field.",
     ),
     "LateFinishDate": (
         "scheduler_computed_explicit",
-        "Oracle identifies late finish as scheduler-derived schedule output.",
+        "Oracle documents late finish as a scheduler-derived Activity field.",
     ),
     "BaselineStartDate": (
         "derived_definition_explicit",
-        "Oracle defines the baseline start from planned start until the activity starts and then from actual start.",
+        "Oracle defines the project-baseline start from planned or actual start according to activity state.",
     ),
     "BaselineFinishDate": (
         "derived_definition_explicit",
-        "Oracle defines the baseline finish from planned, remaining, or actual finish according to activity state.",
+        "Oracle defines the project-baseline finish from planned, remaining, or actual finish according to activity state.",
     ),
     "BaselineDuration": (
         "derived_definition_explicit",
-        "Oracle defines baseline duration as total working time between the baseline current start and finish using the activity calendar.",
+        "Oracle defines baseline duration as working time using the activity calendar.",
     ),
     "RemainingDuration": (
         "derived_definition_explicit",
-        "Oracle defines remaining duration as working time between remaining start and finish using the activity calendar.",
+        "Oracle defines remaining duration as working time using the activity calendar.",
     ),
     "TotalFloat": (
         "derived_definition_explicit",
-        "Oracle defines total float as a schedule-derived time allowance; the exact implementation rule remains a separate semantic gate.",
+        "Oracle defines total float as a schedule-derived time allowance; exact calculation semantics remain a separate gate.",
     ),
     "FreeFloat": (
         "derived_definition_explicit",
-        "Oracle defines free float as the time the activity can be delayed before delaying a successor's start.",
+        "Oracle defines free float as the delay available before delaying a successor's start.",
     ),
     "Duration1Variance": (
         "derived_definition_explicit",
-        "Oracle describes variance fields as differences between current and baseline schedule measures; certification still requires exact mapping evidence.",
+        "Oracle describes duration variance as a computed difference between baseline duration and at-completion duration.",
     ),
 }
 
@@ -112,7 +112,7 @@ def activity_behavior_evidence() -> tuple[P6ActivityFieldBehaviorEvidence, ...]:
             field,
             (
                 "not_explicit",
-                "Release 26 Update Activity documentation in the reviewed evidence does not explicitly establish writable/computed behavior for this field.",
+                "The reviewed Oracle field reference does not provide enough explicit wording here to classify writable/computed behavior.",
             ),
         )
         result.append(
