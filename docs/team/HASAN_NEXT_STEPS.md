@@ -511,3 +511,12 @@ Status: **implemented, runtime-verified and merged**
 - Issue #382 (Field Assurance repository/application reconciliation) is already represented by merged current-main work (#383/#386 and subsequent CI coverage); do not duplicate it.
 - Issue #104 is an infrastructure-level GitHub-hosted runner entitlement/provisioning investigation, not an application/backend defect; do not alter application code to compensate for it.
 - Continuation rule: until a concrete authoritative Shared Core contract or reproducible Backend/API/Persistence defect appears, record the boundary rather than inventing a feature. When one appears, branch from that exact current `main`, add focused regression tests, obtain PostgreSQL verification where applicable, and record exact CI run identifiers.
+
+
+### 2026-09-30 — Post-#518 current-main reconciliation
+
+- PR #518 (Stage 73.16 working-day relationship regression evidence) has merged successfully as `4fa18bcc83d86aa1d44feff232a791f00ecc78b1`; its exact head passed ConstructionPM CI, PostgreSQL Integration and Client Typecheck.
+- The only remaining open PR is #517, a draft owned by `farmj22002-droid` for Shared Scheduling semantics; it is not a Hasan-owned backend implementation and must not be modified as Hasan work.
+- Fresh issue/open-PR inspection confirms no new concrete, non-duplicate Hasan-owned Backend/Database/Application/API/Enterprise Integration gap is currently evidenced.
+- Existing P6 persistence slices and Stage 33.4.73 work remain complete; do not duplicate them.
+- Continue by monitoring for a concrete authoritative Shared Core contract or reproducible Backend/API/Persistence defect. When one appears, branch from that exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence.
