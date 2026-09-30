@@ -11,6 +11,8 @@ from construction_pm.p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
     P6FieldRegistryPersistenceError,
     PersistedP6Field,
+    P6FieldRegistryRepository,
+    PostgresP6FieldRegistryRepository,
     SQLiteP6FieldRegistryRepository,
 )
 
@@ -139,3 +141,7 @@ def test_field_registry_subject_listing_is_deterministic() -> None:
         "activity.activity_id",
         "activity.activity_name",
     ]
+
+
+def test_postgres_repository_implements_repository_contract() -> None:
+    assert P6FieldRegistryRepository in PostgresP6FieldRegistryRepository.__bases__
