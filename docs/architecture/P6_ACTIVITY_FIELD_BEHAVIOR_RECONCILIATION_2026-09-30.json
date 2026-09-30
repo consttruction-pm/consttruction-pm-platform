@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "status": "behavior_reconciliation_gate_tranche_8",
+  "rule": "scheduler_derived and manual_writable are independent P6 behavior axes. The current registry computed flag must not collapse these facts.",
+  "model_gap": "The current P6FieldDefinition invariant rejects writable=True with computed=True, so a field that P6 both scheduler-generates and permits manual update cannot be represented without a future registry-model change.",
+  "examples": [
+    {
+      "p6_field": "PlannedStartDate",
+      "manual_writable": true,
+      "scheduler_derived": true,
+      "status": "evidence_model_gap"
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "manual_writable": true,
+      "scheduler_derived": true,
+      "status": "evidence_model_gap"
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "manual_writable": null,
+      "scheduler_derived": true,
+      "status": "consistent"
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "manual_writable": null,
+      "scheduler_derived": true,
+      "status": "consistent"
+    }
+  ],
+  "certification_rule": "This gate reports evidence/model relationships only. It never changes registry values or certifies full P6 parity."
+}
