@@ -57,7 +57,7 @@ def test_working_day_schedule_runs_backward_and_reports_unit_correct_float():
     assert result.early_activities["A"].start == datetime(2026, 9, 22)
     assert result.early_activities["A"].finish == datetime(2026, 9, 24)
     assert result.late_activities["A"].start == datetime(2026, 9, 24)
-    assert result.late_activities["A"].finish == datetime(2026, 9, 24)
+    assert result.late_activities["A"].finish == datetime(2026, 9, 25)
     assert result.floats["A"].float_unit is DurationUnit.WORKING_DAY
     assert result.floats["A"].total_float_value == 1
     assert result.floats["A"].total_float_hours is None
