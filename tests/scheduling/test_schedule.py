@@ -445,14 +445,21 @@ def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(re
         WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
     )
 
-    project_paths = _multiple_float_paths(
-        activities, relationships, early, late, resolver, options,
-        {("A", "C"): resolver, ("B", "C"): resolver},
+    project_a_free_float = _relationship_free_float(
+        relationships[0], early["A"], early["C"], activities[0], resolver, resolver
     )
-    holiday_a_paths = _multiple_float_paths(
-        activities, relationships, early, late, resolver, options,
-        {("A", "C"): holiday_lag, ("B", "C"): resolver},
+    holiday_a_free_float = _relationship_free_float(
+        relationships[0], early["A"], early["C"], activities[0], resolver, holiday_lag
     )
+    project_b_free_float = _relationship_free_float(
+        relationships[1], early["B"], early["C"], activities[1], resolver, resolver
+    )
+    holiday_b_free_float = _relationship_free_float(
+        relationships[1], early["B"], early["C"], activities[1], resolver, resolver
+    )
+
+    assert holiday_a_free_float > project_a_free_float
+    assert holiday_b_free_float == project_b_free_float
 
     assert project_paths[0].activity_ids == ("A", "C")
     assert holiday_a_paths[0].activity_ids == ("B", "C")
