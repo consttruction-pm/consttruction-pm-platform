@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
+from typing import TYPE_CHECKING, Protocol
 
 from .activity import Activity
 from .calendar import WorkingTimeResolver
-from .forward_pass import ScheduledActivity
 from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType
+
+if TYPE_CHECKING:
+    from .forward_pass import ScheduledActivity
+
+
+class _ScheduledLike(Protocol):
+    start: date
+    finish: date
 
 
 class ProgressRelationAction(str, Enum):
@@ -22,11 +30,6 @@ def resolve_out_of_sequence_action(
     data_date: date | None,
     mode: OutOfSequenceScheduleType,
 ) -> ProgressRelationAction:
-    """Resolve the P6 OOS policy without changing relationship arithmetic.
-
-    An activity is considered progressed for this contract when it has an
-    actual start and the data date has reached that actual start.
-    """
     if activity.actual_start is None:
         return ProgressRelationAction.APPLY_LOGIC
     if data_date is None:
@@ -45,13 +48,12 @@ def resolve_out_of_sequence_action(
 def predecessor_event_for_oos(
     relationship: Relationship,
     predecessor_activity: Activity,
-    predecessor_scheduled: ScheduledActivity,
+    predecessor_scheduled: _ScheduledLike,
     *,
     resolver: WorkingTimeResolver,
     data_date: date | None,
     mode: OutOfSequenceScheduleType,
 ) -> tuple[date | None, ProgressRelationAction]:
-    """Select the predecessor event anchor; lag math remains authoritative elsewhere."""
     action = resolve_out_of_sequence_action(
         predecessor_activity, data_date=data_date, mode=mode
     )
