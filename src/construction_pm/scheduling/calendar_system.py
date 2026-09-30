@@ -136,7 +136,7 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     else:
         year -= 1
         k += 179
-        if leap == 1:
+        if _jalali_cal(year)[2] == 0:
             k += 1
 
     return year, 7 + _div(k, 30), _mod(k, 30) + 1
