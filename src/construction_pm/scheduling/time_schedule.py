@@ -86,6 +86,15 @@ def _inverse_lag(event: datetime, lag: LagQuantity, resolver: CalendarAwareResol
     return resolver.subtract_lag(event, lag)
 
 
+def _add_signed_lag_for_float(
+    event: datetime,
+    lag: LagQuantity,
+    resolver: CalendarAwareResolver,
+) -> datetime:
+    """Apply a signed relationship lag for float reconciliation."""
+    return resolver.add_lag(event, lag)
+
+
 def _subtract_duration(
     finish: datetime,
     duration: TimeQuantity,
