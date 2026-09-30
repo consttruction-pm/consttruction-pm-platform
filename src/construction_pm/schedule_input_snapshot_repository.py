@@ -155,3 +155,111 @@ class SQLiteScheduleInputSnapshotRepository:
                 scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
             ) for row in rows
         )
+
+
+class PostgresScheduleInputSnapshotRepository:
+    """PostgreSQL persistence for immutable authoritative schedule snapshots."""
+
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS schedule_input_snapshot (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                project_revision BIGINT NOT NULL,
+                snapshot_id TEXT NOT NULL,
+                snapshot_hash TEXT NOT NULL,
+                canonical_payload TEXT NOT NULL,
+                calculation_identity TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                record_revision BIGINT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, snapshot_id)
+            )"""
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_schedule_input_snapshot_revision "
+            "ON schedule_input_snapshot(tenant_id, project_id, project_revision, snapshot_id)"
+        )
+
+    def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot:
+        snapshot.validate()
+        existing = self.connection.execute(
+            "SELECT snapshot_hash,canonical_payload,calculation_identity,created_at,"
+            "record_revision,project_revision FROM schedule_input_snapshot "
+            "WHERE tenant_id=%s AND project_id=%s AND snapshot_id=%s",
+            (snapshot.scope.tenant_id, snapshot.scope.project_id, snapshot.snapshot_id),
+        ).fetchone()
+        if existing is not None:
+            if (
+                existing[0] == snapshot.snapshot_hash
+                and existing[1] == snapshot.canonical_payload
+                and existing[2] == snapshot.calculation_identity
+                and int(existing[5]) == snapshot.scope.project_revision
+            ):
+                return ScheduleInputSnapshot(
+                    snapshot.scope,
+                    snapshot.snapshot_id,
+                    existing[0],
+                    existing[1],
+                    existing[2],
+                    datetime.fromisoformat(existing[3]),
+                    int(existing[4]),
+                )
+            raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
+
+        self.connection.execute(
+            "INSERT INTO schedule_input_snapshot "
+            "(tenant_id,project_id,project_revision,snapshot_id,snapshot_hash,"
+            "canonical_payload,calculation_identity,created_at,record_revision) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                snapshot.scope.tenant_id,
+                snapshot.scope.project_id,
+                snapshot.scope.project_revision,
+                snapshot.snapshot_id,
+                snapshot.snapshot_hash,
+                snapshot.canonical_payload,
+                snapshot.calculation_identity,
+                snapshot.created_at.isoformat(),
+                snapshot.record_revision,
+            ),
+        )
+        return snapshot
+
+    def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
+        scope.validate()
+        if not isinstance(snapshot_id, str) or not snapshot_id.strip():
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_ID")
+        row = self.connection.execute(
+            "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
+            "created_at,record_revision,project_revision FROM schedule_input_snapshot "
+            "WHERE tenant_id=%s AND project_id=%s AND snapshot_id=%s",
+            (scope.tenant_id, scope.project_id, snapshot_id),
+        ).fetchone()
+        if row is None:
+            return None
+        if int(row[6]) != scope.project_revision:
+            raise ScheduleSnapshotPersistenceError("REVISION_CONFLICT")
+        result = ScheduleInputSnapshot(
+            scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
+        )
+        result.validate()
+        return result
+
+    def list(self, scope: BackendScope) -> tuple[ScheduleInputSnapshot, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
+            "created_at,record_revision FROM schedule_input_snapshot "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "ORDER BY snapshot_id",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(
+            ScheduleInputSnapshot(
+                scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
+            )
+            for row in rows
+        )
