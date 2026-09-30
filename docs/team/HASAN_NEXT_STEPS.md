@@ -540,3 +540,13 @@ Status: **implemented, runtime-verified and merged**
 - Current backend inspection confirms that `AuthorizationContext` and tenant/project/revision authorization already exist, but no concrete session/authentication or project-selection provider contract was found on current main.
 - Therefore no speculative authentication implementation is added under Hasan ownership. The next Hasan implementation must start only when the concrete session/project-selection contract or reproducible backend/API gap is defined; otherwise this remains a Web/provider integration boundary.
 - PR #517 remains the only open PR and is owned by `farmj22002-droid` in Shared Scheduling; do not modify it as Hasan work.
+
+
+### 2026-09-30 — Authenticated Web project lifecycle bridge
+
+- PR #522 added the provider-neutral session-bound Project Lifecycle contract: authenticated session validation, authorized project listing/opening/creation, and authoritative ProjectContext derivation. It merged as `e801142d70bf987db63ec1193e648fb4a2e6b86e`.
+- PR #523 added the versioned application/API response boundary over that lifecycle service and merged as `2fce468d183cdda4a0b3182c98ca9aa3fb6a5da9`.
+- PR #525 then closed the remaining Application ↔ Web HTTP boundary gap with a framework-neutral `cp_session` cookie route adapter for `/api/session`, `/api/projects`, and `/api/projects/:id/open`. Its exact head `3dbe683416cf7fef30256b578ac0410cdedadb8c` passed Client Typecheck run `36672896453` and ConstructionPM CI run `36672896458`; it merged as `9a4dd0914072168ca6e16fbba59b646358720400`.
+- The HTTP adapter does not trust browser tenant/user/project headers as identity and delegates authorization to the existing ProjectLifecycleAPI; it introduces no authentication engine, database repository, or scheduling/P6 logic.
+- The next boundary is now explicitly outside this Hasan API adapter: connect the chosen ASGI/WSGI host and the Web session/project-selector client to these routes. Open PR #524 is the Javad-owned Web client integration; PR #517 remains scheduling-owned and must not be modified as Hasan work.
+- Do not create another authentication or project-selection implementation. Continue from the first reproducible backend defect after the host/Web integration, with exact current-main reconciliation and focused regression evidence.
