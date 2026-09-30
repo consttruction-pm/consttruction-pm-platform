@@ -82,3 +82,18 @@ def resolve_relationship_lag_calendar(
         activity=successor_reference,
     )
     return registry.resolve_relationship_lag(context, predecessor_reference, option)
+
+
+def resolve_relationship_lag_resolvers(
+    snapshot: AuthoritativeScheduleInput,
+    registry: CalendarResolverRegistry,
+) -> dict[tuple[str, str], WorkingTimeResolver]:
+    """Build the authoritative per-relationship lag resolver map for CPM."""
+    option = snapshot.schedule_options.relationship_lag_calendar
+    resolvers: dict[tuple[str, str], WorkingTimeResolver] = {}
+    for relationship in snapshot.relationships:
+        key = (relationship.predecessor_id, relationship.successor_id)
+        resolvers[key] = resolve_relationship_lag_calendar(
+            snapshot, registry, relationship.predecessor_id, relationship.successor_id, option
+        )
+    return resolvers
