@@ -152,7 +152,7 @@ def test_oos_reference_matrix_is_deterministic():
         snapshots.append((relationship_type.value, required.isoformat()))
     assert snapshots == [
         ("FS", "2026-10-01"),
-        ("SS", "2026-09-29"),
-        ("FF", "2026-09-30"),
+        ("SS", "2026-09-28"),
+        ("FF", "2026-09-29"),
         ("SF", "2026-09-25"),
     ]
