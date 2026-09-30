@@ -288,11 +288,13 @@ class PostgresP6ResourceAssignmentRepository:
             if tuple(row[1:]) != _payload(assignment):
                 raise P6ResourceAssignmentPersistenceError("IMMUTABLE_RESOURCE_ASSIGNMENT")
             return assignment
-        self.connection.execute(
+        inserted = self.connection.execute(
             "INSERT INTO p6_resource_assignment "
             "(tenant_id,project_id,project_revision,assignment_id,activity_id,resource_id,role_id,"
             "units,actual_units,remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,assignment_id) DO NOTHING "
+            "RETURNING tenant_id",
             (
                 assignment.scope.tenant_id, assignment.scope.project_id,
                 assignment.scope.project_revision, assignment.assignment_id,
@@ -306,6 +308,21 @@ class PostgresP6ResourceAssignmentRepository:
                 assignment.unit, assignment.currency, assignment.calendar_id, assignment.note,
             ),
         )
+        if inserted.fetchone() is not None:
+            return assignment
+        row = self.connection.execute(
+            "SELECT project_revision,activity_id,resource_id,role_id,units,actual_units,"
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note "
+            "FROM p6_resource_assignment "
+            "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
+            (assignment.scope.tenant_id, assignment.scope.project_id, assignment.assignment_id),
+        ).fetchone()
+        if row is None:
+            raise P6ResourceAssignmentPersistenceError("RESOURCE_ASSIGNMENT_INSERT_FAILED")
+        if int(row[0]) != assignment.scope.project_revision:
+            raise P6ResourceAssignmentPersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != _payload(assignment):
+            raise P6ResourceAssignmentPersistenceError("IMMUTABLE_RESOURCE_ASSIGNMENT")
         return assignment
 
     def get(self, scope: BackendScope, assignment_id: str) -> P6ResourceAssignment | None:
