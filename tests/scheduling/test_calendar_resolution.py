@@ -82,7 +82,13 @@ def test_relationship_lag_calendar_24_hour_returns_continuous_resolver():
             "succ@1": WorkingTimeResolver(WorkingCalendar()),
         }
     )
-    resolver = resolve_relationship_lag_calendar(snapshot, registry, "A", "B")
+    resolver = resolve_relationship_lag_calendar(
+        snapshot,
+        registry,
+        "A",
+        "B",
+        snapshot.schedule_options.relationship_lag_calendar,
+    )
     assert resolver.__class__.__name__ == "Continuous24HourResolver"
 
 
