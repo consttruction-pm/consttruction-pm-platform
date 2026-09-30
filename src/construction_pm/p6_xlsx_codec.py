@@ -14,6 +14,7 @@ SHEET_EXTENSION_KEY="key"; SHEET_EXTENSION_VALUE="value"
 class P6XlsxCodec:
     format:P6MappingFormat=P6MappingFormat.XLSX
     def decode(self,payload:bytes,scope:BackendScope)->Sequence[P6InterchangeRow]:
+        scope.validate()
         try: wb=load_workbook(BytesIO(payload),data_only=False)
         except Exception as exc: raise P6XlsxCodecError("INVALID_XLSX") from exc
         sheets=[s for s in wb.sheetnames if s!=SHEET_EXTENSION]
