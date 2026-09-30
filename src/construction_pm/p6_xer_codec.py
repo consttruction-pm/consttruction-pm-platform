@@ -59,6 +59,8 @@ class P6XerCodec:
                     )
                 )
             elif marker == "%E":
+                if any(remaining.strip() for remaining in lines[line_number:]):
+                    raise P6XerCodecError(f"TRAILING_RECORD_AFTER_END:{line_number}")
                 break
             else:
                 raise P6XerCodecError(f"UNSUPPORTED_XER_RECORD:{marker}:{line_number}")
