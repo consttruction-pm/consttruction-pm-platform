@@ -96,3 +96,26 @@ def test_postgres_formula_definition_rollback() -> None:
                 repository.upsert(original)
                 raise RuntimeError("FORCED_ROLLBACK")
         assert repository.get(current_scope, original.formula_id, original.version) is None
+
+def test_postgres_formula_definition_concurrent_identical_upsert_is_idempotent() -> None:
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    current_scope = scope()
+    original = record(current_scope)
+    barrier = threading.Barrier(2)
+
+    def save() -> PersistedP6FormulaDefinition:
+        with psycopg.connect(DSN) as connection:
+            repository = PostgresP6FormulaDefinitionRepository(connection)
+            repository.initialize()
+            connection.commit()
+            barrier.wait(timeout=5)
+            with PostgresTransactionManager(connection).transaction():
+                return repository.upsert(original)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(save), pool.submit(save)]
+        results = [future.result(timeout=10) for future in futures]
+
+    assert results == [original, original]
