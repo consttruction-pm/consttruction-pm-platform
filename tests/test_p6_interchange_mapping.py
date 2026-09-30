@@ -80,6 +80,38 @@ def test_import_maps_supported_and_preserves_unsupported_and_unknown_fields() ->
     assert "PRESERVED_UNKNOWN_FIELD:vendor_extension" in result.warnings
 
 
+def test_import_rejects_extension_key_collision() -> None:
+    key = "p6.interchange.t1.p1.legacy_code"
+    row = P6InterchangeRow(
+        scope=scope(),
+        format=P6MappingFormat.XER_PROJECT,
+        values={"legacy_code": "L-7"},
+        extensions={key: "already-present"},
+    )
+
+    with pytest.raises(
+        P6InterchangeCompatibilityError,
+        match=rf"EXTENSION_KEY_COLLISION:{key}",
+    ):
+        mapper().import_row(row)
+
+
+def test_export_rejects_extension_key_collision() -> None:
+    key = "p6.interchange.t1.p1.canonical:activity.custom"
+    row = P6InterchangeRow(
+        scope=scope(),
+        format=P6MappingFormat.XER_PROJECT,
+        values={"activity.code": "A-10", "activity.custom": 42},
+        extensions={key: "already-present"},
+    )
+
+    with pytest.raises(
+        P6InterchangeCompatibilityError,
+        match=rf"EXTENSION_KEY_COLLISION:{key}",
+    ):
+        mapper().export_row(row)
+
+
 def test_export_maps_supported_and_preserves_unknown_canonical_fields() -> None:
     result = mapper().export_row(
         P6InterchangeRow(

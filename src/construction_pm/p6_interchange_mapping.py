@@ -87,7 +87,7 @@ class P6InterchangeMapper:
             if definition.status is P6MappingStatus.SUPPORTED:
                 canonical[definition.canonical_field] = value
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
-                extensions[self._extension_key(definition.source_field)] = value
+                self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
                 warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{source}")
             else:
                 raise P6InterchangeCompatibilityError(
@@ -96,7 +96,7 @@ class P6InterchangeMapper:
 
         for source, value in row.values.items():
             if source not in mapped_sources:
-                extensions[self._extension_key(source)] = value
+                self._preserve_extension(extensions, self._extension_key(source), value)
                 warnings.append(f"PRESERVED_UNKNOWN_FIELD:{source}")
 
         return P6InterchangeResult(canonical, extensions, tuple(sorted(set(warnings))))
@@ -124,7 +124,7 @@ class P6InterchangeMapper:
             if definition.status is P6MappingStatus.SUPPORTED:
                 source_values[definition.source_field] = value
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
-                extensions[self._extension_key(definition.source_field)] = value
+                self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
                 warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{canonical}")
             else:
                 raise P6InterchangeCompatibilityError(
@@ -133,10 +133,16 @@ class P6InterchangeMapper:
 
         for canonical, value in row.values.items():
             if canonical not in mapped_canonical:
-                extensions[self._extension_key(f"canonical:{canonical}")] = value
+                self._preserve_extension(extensions, self._extension_key(f"canonical:{canonical}"), value)
                 warnings.append(f"PRESERVED_UNKNOWN_CANONICAL_FIELD:{canonical}")
 
         return P6InterchangeResult(source_values, extensions, tuple(sorted(set(warnings))))
+
+    @staticmethod
+    def _preserve_extension(extensions: dict[str, Any], key: str, value: Any) -> None:
+        if key in extensions:
+            raise P6InterchangeCompatibilityError(f"EXTENSION_KEY_COLLISION:{key}")
+        extensions[key] = value
 
     def _validate_scope(self, scope: BackendScope) -> None:
         if scope != self._scope:
