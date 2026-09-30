@@ -61,3 +61,36 @@ def test_working_cursor_round_trip_is_exact_at_interval_edges(resolver):
     finish = resolver.add_working_hours(start, Decimal("8"))
     assert finish == datetime(2026, 9, 22, 17)
     assert resolver.subtract_working_hours(finish, Decimal("8")) == start
+
+
+def test_duration_more_precise_than_one_microsecond_is_rejected(resolver):
+    with pytest.raises(ValueError, match="more precise"):
+        resolver.add_working_hours(datetime(2026, 9, 22, 8), Decimal("0.0000000001"))
+
+
+def test_non_finite_duration_is_rejected(resolver):
+    with pytest.raises(ValueError, match="finite"):
+        resolver.add_working_hours(datetime(2026, 9, 22, 8), Decimal("NaN"))
+
+
+def test_long_duration_is_not_limited_to_ten_year_horizon(resolver):
+    finish = resolver.add_working_hours(datetime(2026, 9, 22, 8), Decimal("20000"))
+    assert resolver.subtract_working_hours(finish, Decimal("20000")) == datetime(2026, 9, 22, 8)
+
+
+def test_timezone_aware_datetime_keeps_timezone_information(resolver):
+    from datetime import timezone
+
+    start = datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    finish = resolver.add_working_hours(start, 1)
+    assert finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
+
+
+def test_calendar_without_any_working_intervals_is_rejected():
+    with pytest.raises(ValueError, match="at least one working interval"):
+        TimeAwareWorkingTimeResolver(
+            WorkingTimeCalendar(
+                working_weekdays=frozenset({0, 1, 2, 3, 4}),
+                daily_intervals={},
+            )
+        )
