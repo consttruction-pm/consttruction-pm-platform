@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from enum import Enum
 from typing import Iterable, Mapping
 
 from .activity import Activity
@@ -17,22 +16,6 @@ from .constraints import (
 from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
 from .schedule_options import StartToStartLagCalculationType
-
-
-class ScheduleMode(str, Enum):
-    EARLIEST = "EARLIEST"
-    ALAP = "ALAP"
-
-
-class TotalFloatCalculationType(str, Enum):
-    START_FLOAT = "START_FLOAT"
-    FINISH_FLOAT = "FINISH_FLOAT"
-    SMALLER_FLOAT = "SMALLER_FLOAT"
-
-
-class CriticalActivityPathType(str, Enum):
-    CRITICAL_FLOAT = "CRITICAL_FLOAT"
-    LONGEST_PATH = "LONGEST_PATH"
 
 
 @dataclass(frozen=True)
