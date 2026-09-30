@@ -176,7 +176,9 @@ def forward_pass(
 
     for activity_id, activity_constraints in constraint_map.items():
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, resolver
+            activity_constraints,
+            activity_map[activity_id].duration,
+            calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver,
         )
 
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
