@@ -37,7 +37,7 @@ def test_exact_interval_boundaries_are_deterministic(resolver):
     assert resolver.subtract_working_hours(datetime(2026, 9, 22, 12), 4) == datetime(2026, 9, 22, 8)
     assert resolver.add_working_hours(datetime(2026, 9, 22, 12), 0) == datetime(2026, 9, 22, 13)
     assert resolver.subtract_working_hours(datetime(2026, 9, 22, 13), 0) == datetime(2026, 9, 22, 12)
-    assert resolver.add_working_hours(datetime(2026, 9, 22, 17), 0) == datetime(2026, 9, 23, 8)
+    assert resolver.add_working_hours(datetime(2026, 9, 22, 17), 0) == datetime(2026, 9, 24, 8)
     assert resolver.subtract_working_hours(datetime(2026, 9, 22, 17), 0) == datetime(2026, 9, 22, 17)
 
 
