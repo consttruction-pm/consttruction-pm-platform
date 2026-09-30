@@ -265,7 +265,10 @@ def _free_float(
                 finish=resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
-            if not _relationship_holds(\n                rel, candidate, successor, resolver,\n                (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),\n            ):
+            if not _relationship_holds(
+                rel, candidate, successor, resolver,
+                (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
+            ):
                 break
             delay += 1
         limits.append(delay - 1)
