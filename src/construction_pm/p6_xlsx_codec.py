@@ -39,7 +39,7 @@ class P6XlsxCodec:
 
     def encode(self,rows:Sequence[P6InterchangeResult],scope:BackendScope)->bytes:
         scope.validate()
-        wb=Workbook(); wb.remove(wb.active); extensions=[]
+        wb=Workbook(); wb.remove(wb.active); extensions={}
         grouped={}
         for row in rows:
             sheet=row.extensions.get("p6.xlsx.sheet")
@@ -53,13 +53,18 @@ class P6XlsxCodec:
                 for f in row.values:
                     if f not in fields: fields.append(f)
                 for k,v in row.extensions.items():
-                    if k!="p6.xlsx.sheet": extensions.append((sheet,k,v))
+                    if k == "p6.xlsx.sheet":
+                        continue
+                    key = (sheet, k)
+                    if key in extensions and extensions[key] != v:
+                        raise P6XlsxCodecError(f"CONFLICTING_EXTENSION_VALUE:{sheet}:{k}")
+                    extensions[key] = v
             ws.append(fields)
             for row in items: ws.append([row.values.get(f) for f in fields])
         if extensions:
             ws=wb.create_sheet(SHEET_EXTENSION)
             ws.sheet_state="hidden"; ws.append(["sheet",SHEET_EXTENSION_KEY,SHEET_EXTENSION_VALUE])
-            for sheet,key,value in sorted(extensions): ws.append([sheet,key,self._stringify(value)])
+            for (sheet,key),value in sorted(extensions.items()): ws.append([sheet,key,self._stringify(value)])
         out=BytesIO(); wb.save(out); return out.getvalue()
 
     @staticmethod
