@@ -8,7 +8,7 @@ Supported dependency types are contract labels only. This module does not calcul
 
 Repositories own persistence mechanics; the application service owns transaction/idempotency orchestration. PostgreSQL integration must reuse existing transaction/idempotency primitives.
 
-Next integration point: PostgreSQL repository and transaction tests.
+PostgreSQL repository and transaction integration is implemented on current main; remaining work is focused on runtime verification and regression maintenance.
 
 
 ## Shared Core conformance
