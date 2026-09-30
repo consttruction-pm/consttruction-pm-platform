@@ -187,7 +187,6 @@ class SQLiteP6FieldRegistryRepository:
         return tuple(_record_from_row(scope, registry_version, row) for row in rows)
 
 
-@dataclass(frozen=True)
 class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
     """PostgreSQL persistence for the authoritative P6 field registry."""
 
@@ -305,6 +304,7 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
         return tuple(_record_from_row(scope, registry_version, row) for row in rows)
 
 
+@dataclass(frozen=True)
 class P6FieldRegistryApplicationService:
     repository: P6FieldRegistryRepository
     transaction_manager: object
