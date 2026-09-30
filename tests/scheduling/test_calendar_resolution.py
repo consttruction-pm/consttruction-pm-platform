@@ -74,7 +74,9 @@ def test_relationship_lag_calendar_selects_each_authoritative_calendar():
 
 def test_relationship_lag_calendar_24_hour_returns_continuous_resolver():
     snapshot = _snapshot(RelationshipLagCalendar.TWENTY_FOUR_HOUR)
-    registry = CalendarResolverRegistry(day_resolvers={})
+    registry = CalendarResolverRegistry(
+        day_resolvers={"project@1": WorkingTimeResolver(WorkingCalendar())}
+    )
     resolver = resolve_relationship_lag_calendar(snapshot, registry, "A", "B")
     assert resolver.__class__.__name__ == "Continuous24HourResolver"
 
@@ -151,6 +153,11 @@ def test_ss_out_of_sequence_uses_selected_lag_calendar():
         ),
         project_start=date(2026, 9, 21),
     )
+    snapshot = snapshot.__class__(**{**snapshot.__dict__, "schedule_options": ScheduleOptions(
+        relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR,
+        start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START,
+        data_date=date(2026, 9, 21),
+    )})
     project_resolver = WorkingTimeResolver(WorkingCalendar())
     predecessor_resolver = WorkingTimeResolver(
         WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
