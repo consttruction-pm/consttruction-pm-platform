@@ -526,3 +526,103 @@ def test_start_to_start_p6_boolean_mapping_is_explicit(p6_value, typed):
 def test_start_to_start_p6_boolean_mapping_rejects_non_boolean():
     with pytest.raises(TypeError):
         start_to_start_lag_type_from_p6("TRUE")
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [-1, 0, 1])
+def test_stage_73_16_working_day_relationship_matrix_with_holiday(
+    resolver, relationship_type, lag
+):
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({holiday}))
+    )
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 10, 2),
+    )
+
+    early = result.early_activities
+    assert early is not None
+    assert early["A"].start not in resolver.calendar.holidays
+    assert early["A"].finish not in resolver.calendar.holidays
+    assert early["B"].start not in resolver.calendar.holidays
+    assert early["B"].finish not in resolver.calendar.holidays
+    assert _relationship_holds(
+        relationship, early["A"], early["B"], resolver
+    )
+    assert result.project_finish == date(2026, 10, 2)
+
+
+def test_stage_73_16_working_day_chain_survives_weekend_and_holiday_boundaries(
+    resolver,
+):
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({holiday}))
+    )
+    activities = [
+        Activity("A", 1),
+        Activity("B", 1),
+        Activity("C", 1),
+    ]
+    relationships = [
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        Relationship("B", "C", RelationshipType.SS, lag=1),
+    ]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 10, 2),
+    )
+
+    early = result.early_activities
+    assert early is not None
+    assert early["A"].start == date(2026, 9, 21)
+    assert early["B"].start == date(2026, 9, 24)
+    assert early["C"].start == date(2026, 9, 25)
+    assert all(
+        value.start not in resolver.calendar.holidays
+        and value.finish not in resolver.calendar.holidays
+        for value in early.values()
+    )
+    assert all(
+        _relationship_holds(
+            relationship, early[relationship.predecessor_id],
+            early[relationship.successor_id], resolver
+        )
+        for relationship in relationships
+    )
+
+
+def test_stage_73_16_schedule_preserves_negative_float_at_calendar_boundary(
+    resolver,
+):
+    holiday = date(2026, 9, 22)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({holiday}))
+    )
+    result = schedule(
+        [Activity("A", 3)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 23),
+    )
+
+    assert result.early_activities is not None
+    assert result.late_activities is not None
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["A"].finish == date(2026, 9, 24)
+    assert result.late_activities["A"].start == date(2026, 9, 18)
+    assert result.floats["A"].total_float < 0
+    assert result.floats["A"].free_float == 0
