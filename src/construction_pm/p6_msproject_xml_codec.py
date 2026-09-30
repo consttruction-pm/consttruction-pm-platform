@@ -28,7 +28,8 @@ class P6MsProjectXmlCodec:
         rows=[]
         for collection in root:
             cname=self._local(collection.tag)
-            if cname not in COLLECTIONS: continue
+            if cname not in COLLECTIONS:
+                raise P6MsProjectXmlCodecError(f"UNSUPPORTED_MSPROJECT_COLLECTION:{cname}")
             for obj in collection:
                 values={}
                 ext={"p6.msproject.xml.collection":cname,"p6.msproject.xml.object":self._local(obj.tag)}
