@@ -27,3 +27,7 @@ def test_encode_requires_object():
     from construction_pm.p6_interchange_mapping import P6InterchangeResult
     with pytest.raises(P6PrimaveraXmlCodecError,match="MISSING_P6_XML_OBJECT"):
         P6PrimaveraXmlCodec().encode((P6InterchangeResult({"Id":"A"},{}),),scope())
+def test_rejects_duplicate_extension_keys_instead_of_overwriting():
+    doc='<APIBusinessObjects><Activity><constructionpm:Extensions xmlns:constructionpm="https://constructionpm.example/p6-interchange"><constructionpm:Field key="vendor.custom">one</constructionpm:Field><constructionpm:Field key="vendor.custom">two</constructionpm:Field></constructionpm:Extensions></Activity></APIBusinessObjects>'
+    with pytest.raises(P6PrimaveraXmlCodecError,match="DUPLICATE_EXTENSION_KEY:vendor.custom"):
+        P6PrimaveraXmlCodec().decode(doc,scope())
