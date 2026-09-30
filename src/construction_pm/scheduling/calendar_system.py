@@ -58,7 +58,7 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
         + _div(epyear * 682 - 110, 2816)
         + (epyear - 1) * 365
         + _div(epbase, 2820) * 1029983
-        + (1948320 - 1)
+        + 1948320
     )
     return _jdn_to_gregorian(jdn)
 
@@ -98,7 +98,7 @@ def jalali_to_jdn(year: int, month: int, day: int) -> int:
         + _div(epyear * 682 - 110, 2816)
         + (epyear - 1) * 365
         + _div(epbase, 2820) * 1029983
-        + 1948319
+        + 1948320
     )
 
 
