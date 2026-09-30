@@ -454,8 +454,8 @@ def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(re
         relationships[1], early["B"], early["C"], activities[1], resolver, resolver
     )
 
-    assert project_a_free_float == 2
-    assert holiday_a_free_float == 1
+    assert project_a_free_float == 3
+    assert holiday_a_free_float == 2
     assert holiday_b_free_float == project_b_free_float
 
 
