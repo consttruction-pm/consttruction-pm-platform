@@ -563,3 +563,38 @@ def test_schedule_end_to_end_preserves_relationships_across_both_cpm_passes(
         assert float_item.early_start == result.early_activities[activity_id].start
         assert float_item.late_start == result.late_activities[activity_id].start
 
+
+
+def test_backward_pass_uses_activity_calendar_provider_for_late_dates():
+    from construction_pm.scheduling.activity_calendar_provider import ResolvedActivityCalendarProvider
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project = WorkingTimeResolver(WorkingCalendar())
+    sunday_thursday = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project,
+            activities={"A": project, "B": sunday_thursday},
+            references={
+                "A": CalendarReference("project", "1"),
+                "B": CalendarReference("activity-b", "1"),
+            },
+        )
+    )
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B")]
+    early = forward_pass(
+        activities, relationships, date(2026, 10, 2), project,
+        calendar_provider=provider,
+    )
+    late = backward_pass(
+        activities, relationships, early, None, project,
+        calendar_provider=provider,
+    )
+
+    assert early["B"].start == date(2026, 10, 4)
+    assert late["B"].start == date(2026, 10, 4)
+    assert late["A"].start == date(2026, 10, 2)
