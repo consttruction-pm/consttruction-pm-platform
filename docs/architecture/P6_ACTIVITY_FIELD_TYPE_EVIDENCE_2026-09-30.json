@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "status": "type_evidence_tranche_6",
+  "reference": {
+    "release": "P6 EPPM REST API Release 26",
+    "source": "Oracle Activity response schema",
+    "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+  },
+  "certification_rule": "REST API wire type evidence does not certify writable/read-only, computed/stored, nullability, or semantic equivalence.",
+  "fields": [
+    {
+      "p6_field": "PlannedStartDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PlannedFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ActualStartDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ActualFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PlannedDuration",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "RemainingDuration",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ActualDuration",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "DurationPercentComplete",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PhysicalPercentComplete",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PercentCompleteType",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "TotalFloat",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "FreeFloat",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "FloatPath",
+      "source_wire_type": "integer",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "FloatPathOrder",
+      "source_wire_type": "integer",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "EarlyStartDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "EarlyFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "LateStartDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "LateFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PrimaryConstraintType",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PrimaryConstraintDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ExpectedFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "PrimaryResourceName",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ProjectId",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "ProjectName",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "WBSPath",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "BaselineStartDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "BaselineFinishDate",
+      "source_wire_type": "date-time",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "BaselineDuration",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "Duration1Variance",
+      "source_wire_type": "double",
+      "status": "type_verified_not_certified"
+    },
+    {
+      "p6_field": "CreateUser",
+      "source_wire_type": "string",
+      "status": "type_verified_not_certified"
+    }
+  ]
+}
