@@ -2,16 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
+
+
+class PercentCompleteType(str, Enum):
+    """P6 activity percent-complete types."""
+
+    DURATION = "DURATION"
+    UNITS = "UNITS"
+    PHYSICAL = "PHYSICAL"
+    SCOPE = "SCOPE"
 
 
 @dataclass(frozen=True)
 class Activity:
-    """Portable scheduling activity used by the Shared Scheduling Core.
-
-    The progress fields are state inputs for P6-compatible scheduling semantics.
-    Scheduler-derived dates (early/late/float) remain outputs of the scheduling
-    engine and are not stored on the activity.
-    """
+    """Portable scheduling activity used by the Shared Scheduling Core."""
 
     id: str
     duration: int
@@ -20,6 +25,8 @@ class Activity:
     remaining_duration: int | None = None
     remaining_start: date | None = None
     percent_complete: float | None = None
+    percent_complete_type: PercentCompleteType = PercentCompleteType.DURATION
+    expected_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -60,6 +67,18 @@ class Activity:
                 raise TypeError("percent_complete must be numeric or None")
             if not 0 <= self.percent_complete <= 100:
                 raise ValueError("percent_complete must be between 0 and 100")
+
+        if not isinstance(self.percent_complete_type, PercentCompleteType):
+            raise TypeError("percent_complete_type must be a PercentCompleteType")
+
+        if self.expected_finish is not None and not isinstance(self.expected_finish, date):
+            raise TypeError("expected_finish must be a date or None")
+        if (
+            self.actual_start is not None
+            and self.expected_finish is not None
+            and self.expected_finish < self.actual_start
+        ):
+            raise ValueError("expected_finish must not precede actual_start")
 
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
             raise ValueError("completed activities must have 100 percent_complete")
