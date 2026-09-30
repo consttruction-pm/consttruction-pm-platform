@@ -231,6 +231,8 @@ def time_forward_pass(
                 )
             else:
                 target = _add_signed_lag(anchor, rel.lag, lag_resolver)
+                if rel.type is RelationshipType.SF and rel.lag.value >= 0:
+                    target = lag_resolver.normalize_start(target)
             if rel.type in {RelationshipType.FF, RelationshipType.SF}:
                 candidate = _subtract_duration(target, activity.duration, resolver)
             else:
