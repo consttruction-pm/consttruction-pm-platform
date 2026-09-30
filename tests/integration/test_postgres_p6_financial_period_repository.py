@@ -43,3 +43,20 @@ def test_postgres_round_trip_isolation_revision_and_rollback():
                 repo.upsert(P6FinancialPeriod(s, "2026-10", "October 2026", "2026-10-01", "2026-10-31"))
                 raise RuntimeError("FORCED_ROLLBACK")
         assert repo.get(s, "2026-10") is None
+
+
+def test_postgres_concurrent_identical_upsert_is_idempotent():
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    s=scope()
+    item=period(s)
+    barrier=threading.Barrier(2)
+    def save():
+        with psycopg.connect(DSN) as connection:
+            repo=PostgresP6FinancialPeriodRepository(connection); repo.initialize(); connection.commit()
+            barrier.wait(timeout=5)
+            with PostgresTransactionManager(connection).transaction():
+                return repo.upsert(item)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results=[f.result(timeout=10) for f in [pool.submit(save),pool.submit(save)]]
+    assert results == [item,item]
