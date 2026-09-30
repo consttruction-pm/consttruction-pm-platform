@@ -1,4 +1,6 @@
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 
 import pytest
@@ -51,3 +53,32 @@ def test_postgres_round_trip_isolation_revision_and_rollback():
                 raise RuntimeError("FORCED_ROLLBACK")
 
         assert repo.get(s, "b-2") is None
+
+
+def test_postgres_baseline_concurrent_identical_upsert_is_idempotent():
+    scope = BackendScope("tenant-baseline-concurrent", "project-baseline", 5)
+    value = P6Baseline(
+        scope=scope,
+        baseline_id="BASE-CONCURRENT",
+        name="Concurrent baseline",
+        baseline_type="primary",
+        source_revision=5,
+        created_at="2026-09-30T00:00:00Z",
+        notes="Concurrent insert",
+    )
+    barrier = threading.Barrier(2)
+
+    def save():
+        with _connect() as connection:
+            repo = PostgresP6BaselineRepository(connection)
+            repo.initialize()
+            connection.commit()
+            barrier.wait(timeout=5)
+            with connection.transaction():
+                return repo.upsert(value)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(save) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+
+    assert results == [value, value]
