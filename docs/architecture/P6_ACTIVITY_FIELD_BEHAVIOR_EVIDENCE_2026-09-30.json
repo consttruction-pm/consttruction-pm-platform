@@ -3,11 +3,11 @@
   "subject_area": "Activity",
   "status": "behavior_evidence_tranche_7",
   "source": {
-    "release": "P6 EPPM REST API Release 26",
-    "update_endpoint": "PUT /activity",
-    "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+    "release": "P6 Integration API / FieldSummary reference",
+    "field_reference": "Activity",
+    "source_url": "https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html"
   },
-  "rule": "Only explicit Oracle wording is classified; absence of wording stays not_explicit. Behavior evidence never certifies semantic equivalence or canonical storage.",
+  "rule": "Only explicit Oracle wording is classified; absence of wording stays not_explicit. Read-only markers and computed descriptions are evidence only and do not by themselves certify our canonical storage or implementation.",
   "fields": [
     {
       "p6_field": "PlannedStartDate",
