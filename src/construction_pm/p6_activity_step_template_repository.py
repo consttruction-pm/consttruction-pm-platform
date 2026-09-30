@@ -96,16 +96,16 @@ class PostgresP6ActivityStepTemplateRepository:
     def upsert(self, template):
         import json
         template.validate()
-        row = self.connection.execute("SELECT project_revision,template_id,name,description,udf_metadata_json FROM p6_activity_step_template WHERE tenant_id=%s AND project_id=%s AND template_id=%s", (template.scope.tenant_id, template.scope.project_id, template.template_id)).fetchone()
         encoded = json.dumps(list(template.udf_metadata), sort_keys=True, separators=(",", ":"))
-        if row is not None:
-            stored = (row[2], row[3], tuple(tuple(v) for v in json.loads(row[4])))
-            if int(row[0]) != template.scope.project_revision:
-                raise P6ActivityStepTemplatePersistenceError("REVISION_CONFLICT")
-            if stored != _payload(template):
-                raise P6ActivityStepTemplatePersistenceError("IMMUTABLE_ACTIVITY_STEP_TEMPLATE")
-            return template
-        self.connection.execute("INSERT INTO p6_activity_step_template (tenant_id,project_id,project_revision,template_id,name,description,udf_metadata_json) VALUES (%s,%s,%s,%s,%s,%s,%s)", (template.scope.tenant_id, template.scope.project_id, template.scope.project_revision, template.template_id, template.name, template.description, encoded))
+        self.connection.execute("INSERT INTO p6_activity_step_template (tenant_id,project_id,project_revision,template_id,name,description,udf_metadata_json) VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (tenant_id,project_id,template_id) DO NOTHING", (template.scope.tenant_id, template.scope.project_id, template.scope.project_revision, template.template_id, template.name, template.description, encoded))
+        row = self.connection.execute("SELECT project_revision,template_id,name,description,udf_metadata_json FROM p6_activity_step_template WHERE tenant_id=%s AND project_id=%s AND template_id=%s", (template.scope.tenant_id, template.scope.project_id, template.template_id)).fetchone()
+        if row is None:
+            raise P6ActivityStepTemplatePersistenceError("ACTIVITY_STEP_TEMPLATE_INSERT_FAILED")
+        stored = (row[2], row[3], tuple(tuple(v) for v in json.loads(row[4])))
+        if int(row[0]) != template.scope.project_revision:
+            raise P6ActivityStepTemplatePersistenceError("REVISION_CONFLICT")
+        if stored != _payload(template):
+            raise P6ActivityStepTemplatePersistenceError("IMMUTABLE_ACTIVITY_STEP_TEMPLATE")
         return template
 
     def get(self, scope, template_id):
