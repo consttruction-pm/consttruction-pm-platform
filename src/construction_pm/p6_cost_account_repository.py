@@ -179,25 +179,11 @@ class PostgresP6CostAccountRepository:
 
     def upsert(self, account: P6CostAccount) -> P6CostAccount:
         account.validate()
-        row = self.connection.execute(
-            "SELECT project_revision,name,parent_account_id,description "
-            "FROM p6_cost_account WHERE tenant_id=%s AND project_id=%s AND account_id=%s",
-            (account.scope.tenant_id, account.scope.project_id, account.account_id),
-        ).fetchone()
-        if row is not None:
-            if int(row[0]) != account.scope.project_revision:
-                raise P6CostAccountPersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != (
-                account.name,
-                account.parent_account_id,
-                account.description,
-            ):
-                raise P6CostAccountPersistenceError("IMMUTABLE_COST_ACCOUNT")
-            return account
         self.connection.execute(
             "INSERT INTO p6_cost_account "
             "(tenant_id,project_id,project_revision,account_id,name,parent_account_id,description) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,account_id) DO NOTHING",
             (
                 account.scope.tenant_id,
                 account.scope.project_id,
@@ -208,6 +194,21 @@ class PostgresP6CostAccountRepository:
                 account.description,
             ),
         )
+        row = self.connection.execute(
+            "SELECT project_revision,name,parent_account_id,description "
+            "FROM p6_cost_account WHERE tenant_id=%s AND project_id=%s AND account_id=%s",
+            (account.scope.tenant_id, account.scope.project_id, account.account_id),
+        ).fetchone()
+        if row is None:
+            raise P6CostAccountPersistenceError("COST_ACCOUNT_INSERT_FAILED")
+        if int(row[0]) != account.scope.project_revision:
+            raise P6CostAccountPersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != (
+            account.name,
+            account.parent_account_id,
+            account.description,
+        ):
+            raise P6CostAccountPersistenceError("IMMUTABLE_COST_ACCOUNT")
         return account
 
     def get(self, scope: BackendScope, account_id: str) -> P6CostAccount | None:
