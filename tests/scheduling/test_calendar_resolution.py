@@ -323,6 +323,28 @@ def test_backward_relationship_validation_uses_selected_lag_calendar():
     assert result.late_activities["A"].start == date(2026, 9, 18)
 
 
+def test_free_float_uses_selected_relationship_lag_calendar():
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    from construction_pm.scheduling.schedule import _free_float
+
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    lag_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    relationship = Relationship("A", "B", RelationshipType.SS, lag=1)
+    activity = Activity("A", 1)
+    predecessor = ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1)
+    successor = ScheduledActivity("B", date(2026, 9, 23), date(2026, 9, 23), 1)
+    assert _free_float(
+        activity,
+        predecessor,
+        [relationship],
+        {"A": predecessor, "B": successor},
+        project_resolver,
+        {("A", "B"): lag_resolver},
+    ) == 1
+
+
 def test_longest_path_driving_uses_selected_lag_calendar():
     project = CalendarReference("project", "1")
     predecessor = CalendarReference("pred", "1")
