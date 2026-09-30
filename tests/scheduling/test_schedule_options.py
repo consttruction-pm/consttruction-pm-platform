@@ -24,3 +24,13 @@ def test_relationship_lag_calendar_rejects_untyped_value():
 def test_schedule_options_canonical_data_date_remains_typed():
     options = ScheduleOptions(data_date=date(2026, 9, 30))
     assert options.data_date == date(2026, 9, 30)
+
+
+def test_use_expected_finish_dates_is_typed_and_defaults_off():
+    assert ScheduleOptions().use_expected_finish_dates is False
+    assert ScheduleOptions(use_expected_finish_dates=True).use_expected_finish_dates is True
+
+
+def test_use_expected_finish_dates_rejects_non_boolean_values():
+    with pytest.raises(ValueError, match="use_expected_finish_dates"):
+        ScheduleOptions(use_expected_finish_dates=1)
