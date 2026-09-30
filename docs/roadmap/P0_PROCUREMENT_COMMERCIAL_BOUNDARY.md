@@ -11,7 +11,7 @@ Invariants:
 - External procurement/ERP providers must remain behind explicit adapters.
 - PostgreSQL integration must reuse the existing transaction/idempotency primitives.
 
-Next integration point: PostgreSQL repository/transaction adapter and database migration/transaction tests.
+PostgreSQL persistence/transaction integration is implemented on current main; remaining work is focused on runtime verification and regression maintenance.
 
 
 ## PostgreSQL persistence
