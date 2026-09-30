@@ -40,7 +40,9 @@ class P6XlsxCodec:
             if sheet==SHEET_EXTENSION: raise P6XlsxCodecError("RESERVED_XLSX_SHEET")
             grouped.setdefault(sheet,[]).append(row)
         for sheet,items in grouped.items():
-            ws=wb.create_sheet(sheet[:31]); fields=[]
+            if len(sheet) > 31:
+                raise P6XlsxCodecError("XLSX_SHEET_NAME_TOO_LONG")
+            ws=wb.create_sheet(sheet); fields=[]
             for row in items:
                 for f in row.values:
                     if f not in fields: fields.append(f)
