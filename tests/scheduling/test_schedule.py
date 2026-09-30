@@ -421,12 +421,12 @@ def test_multiple_float_paths_support_explicit_ending_activity(resolver):
 
 def test_relationship_total_float_uses_selected_lag_calendar(resolver):
     lag_resolver = WorkingTimeResolver(
-        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
     )
     relationship = Relationship("A", "B", RelationshipType.SS, lag=1)
     from construction_pm.scheduling.forward_pass import ScheduledActivity
     predecessor = ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1)
-    successor_late = ScheduledActivity("B", date(2026, 9, 25), date(2026, 9, 25), 1)
+    successor_late = ScheduledActivity("B", date(2026, 9, 23), date(2026, 9, 23), 1)
 
     project_calendar_float = _relationship_total_float(
         relationship, predecessor, successor_late, Activity("A", 1), resolver
@@ -435,8 +435,8 @@ def test_relationship_total_float_uses_selected_lag_calendar(resolver):
         relationship, predecessor, successor_late, Activity("A", 1), resolver, lag_resolver
     )
 
-    assert project_calendar_float == 4
-    assert lag_calendar_float == 4
+    assert project_calendar_float == 1
+    assert lag_calendar_float == 2
 
 
 def test_multiple_float_paths_total_float_method_selects_lowest_relationship_slack(resolver):
