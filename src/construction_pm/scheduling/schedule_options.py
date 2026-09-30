@@ -61,6 +61,9 @@ class ScheduleOptions:
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
         StartToStartLagCalculationType.EARLY_START
     )
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType = (
+        OutOfSequenceScheduleType.RETAINED_LOGIC
+    )
     relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     use_expected_finish_dates: bool = False
     data_date: date | None = None
