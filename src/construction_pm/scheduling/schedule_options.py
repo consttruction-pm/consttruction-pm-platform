@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 
+from .calendar_context import RelationshipLagCalendar
+
 
 class ScheduleMode(str, Enum):
     EARLIEST = "EARLIEST"
@@ -53,6 +55,7 @@ class ScheduleOptions:
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
         StartToStartLagCalculationType.EARLY_START
     )
+    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     data_date: date | None = None
 
     def __post_init__(self) -> None:
@@ -87,6 +90,10 @@ class ScheduleOptions:
             raise ValueError("multiple_float_paths_ending_activity_object_id must be a non-empty string")
         if not isinstance(self.multiple_float_paths_use_total_float, bool):
             raise ValueError("multiple_float_paths_use_total_float must be a bool")
+        if not isinstance(self.relationship_lag_calendar, RelationshipLagCalendar):
+            raise ValueError(
+                "relationship_lag_calendar must be a RelationshipLagCalendar"
+            )
         if not isinstance(
             self.start_to_start_lag_calculation_type, StartToStartLagCalculationType
         ):
