@@ -21,3 +21,21 @@ def test_postgres_immutable_replay_and_rollback():
         try: repo.upsert(expense(scope,"rollback")); raise RuntimeError("force rollback")
         except RuntimeError: conn.rollback()
         assert repo.get(scope,"rollback") is None
+
+
+def test_postgres_concurrent_identical_upsert_is_idempotent():
+    import threading
+    import uuid
+    from concurrent.futures import ThreadPoolExecutor
+    suffix=uuid.uuid4().hex
+    scope=BackendScope(f"tenant-exp-concurrent-{suffix}",f"project-exp-concurrent-{suffix}",1)
+    item=expense(scope,"e-concurrent")
+    barrier=threading.Barrier(2)
+    def save():
+        with connect() as conn:
+            repo=PostgresP6ExpenseRepository(conn); repo.initialize(); conn.commit()
+            barrier.wait(timeout=5)
+            return repo.upsert(item)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results=[f.result(timeout=10) for f in [pool.submit(save),pool.submit(save)]]
+    assert results == [item,item]
