@@ -104,7 +104,6 @@ class TimeAwareWorkingTimeResolver:
                 if start <= cursor.time() < end:
                     return cursor
             cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
-        raise ValueError("unable to find a working datetime")
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
@@ -137,7 +136,6 @@ class TimeAwareWorkingTimeResolver:
         cursor = self.normalize_finish(finish)
         while True:
             intervals = self.calendar.intervals_for(cursor.date())
-            progressed = False
             for interval_start, interval_end in reversed(intervals):
                 begin = self._combine(cursor.date(), interval_start, cursor)
                 end = self._combine(cursor.date(), interval_end, cursor)
@@ -150,7 +148,6 @@ class TimeAwareWorkingTimeResolver:
                 if remaining_microseconds <= capacity_microseconds:
                     return cursor - timedelta(microseconds=remaining_microseconds)
                 remaining_microseconds -= capacity_microseconds
-                progressed = True
                 cursor = begin
 
             # Consume earlier intervals on the same day before moving to the
