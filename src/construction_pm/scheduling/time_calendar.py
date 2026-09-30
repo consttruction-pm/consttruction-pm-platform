@@ -70,6 +70,12 @@ class TimeAwareWorkingTimeResolver:
 
     def __init__(self, calendar: WorkingTimeCalendar) -> None:
         self.calendar = calendar
+        if not any(calendar.daily_intervals.get(day) for day in calendar.working_weekdays):
+            raise ValueError("calendar must define at least one working interval")
+
+    @staticmethod
+    def _combine(value_date: date, value_time: time, reference: datetime) -> datetime:
+        return datetime.combine(value_date, value_time, tzinfo=reference.tzinfo)
 
     def is_working_datetime(self, value: datetime) -> bool:
         return any(
@@ -79,15 +85,14 @@ class TimeAwareWorkingTimeResolver:
 
     def normalize_start(self, value: datetime) -> datetime:
         cursor = value
-        for _ in range(3660):
+        while True:
             intervals = self.calendar.intervals_for(cursor.date())
             for start, end in intervals:
                 if cursor.time() < start:
-                    return datetime.combine(cursor.date(), start)
+                    return self._combine(cursor.date(), start, cursor)
                 if start <= cursor.time() < end:
                     return cursor
-            cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min)
-        raise ValueError("unable to find a working datetime")
+            cursor = self._combine(cursor.date() + timedelta(days=1), time.min, cursor)
 
     def normalize_finish(self, value: datetime) -> datetime:
         cursor = value
@@ -95,10 +100,10 @@ class TimeAwareWorkingTimeResolver:
             intervals = self.calendar.intervals_for(cursor.date())
             for start, end in reversed(intervals):
                 if cursor.time() >= end:
-                    return datetime.combine(cursor.date(), end)
+                    return self._combine(cursor.date(), end, cursor)
                 if start <= cursor.time() < end:
                     return cursor
-            cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
+            cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
         raise ValueError("unable to find a working datetime")
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
@@ -108,8 +113,8 @@ class TimeAwareWorkingTimeResolver:
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
             for interval_start, interval_end in intervals:
-                begin = datetime.combine(cursor.date(), interval_start)
-                end = datetime.combine(cursor.date(), interval_end)
+                begin = self._combine(cursor.date(), interval_start, cursor)
+                end = self._combine(cursor.date(), interval_end, cursor)
                 if cursor < begin:
                     cursor = begin
                 if not (begin <= cursor < end):
@@ -167,8 +172,8 @@ class TimeAwareWorkingTimeResolver:
         last_date = finish.date()
         while cursor_date <= last_date:
             for interval_start, interval_end in self.calendar.intervals_for(cursor_date):
-                begin = datetime.combine(cursor_date, interval_start)
-                end = datetime.combine(cursor_date, interval_end)
+                begin = self._combine(cursor_date, interval_start, start)
+                end = self._combine(cursor_date, interval_end, start)
                 left = max(start, begin)
                 right = min(finish, end)
                 if right > left:
