@@ -127,7 +127,7 @@ def test_postgres_same_key_concurrent_execution_runs_delegate_once(postgres):
             outcomes = [future.result(timeout=5) for future in futures]
 
         assert all(outcome.disposition is SyncDisposition.ACKNOWLEDGED for outcome in outcomes)
-        assert sum(delegate.calls for delegate in delegates) == 1
+        assert delegate.calls == 1
     finally:
         release.set()
         _cleanup(key)
