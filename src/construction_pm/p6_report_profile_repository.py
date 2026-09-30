@@ -154,7 +154,21 @@ class SQLiteP6ReportProfileRepository:
                 mapping.label_override,
                 payload,
             ),
-        )
+        ).fetchone()
+        if inserted is not None:
+            return mapping
+        row = self.connection.execute(
+            "SELECT project_revision,profile_name,subject_area,ordinal,exportable,label_override,metadata_json "
+            "FROM p6_report_profile_field_mapping "
+            "WHERE tenant_id=%s AND project_id=%s AND profile_id=%s AND field_id=%s",
+            (mapping.scope.tenant_id, mapping.scope.project_id, mapping.profile_id, mapping.field_id),
+        ).fetchone()
+        if row is None:
+            raise P6ReportProfilePersistenceError("REPORT_PROFILE_MAPPING_INSERT_FAILED")
+        if int(row[0]) != mapping.scope.project_revision:
+            raise P6ReportProfilePersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != values:
+            raise P6ReportProfilePersistenceError("IMMUTABLE_REPORT_PROFILE_MAPPING")
         return mapping
 
     def get(self, scope: BackendScope, profile_id: str, field_id: str) -> P6ReportProfileFieldMapping | None:
@@ -254,11 +268,13 @@ class PostgresP6ReportProfileRepository:
             if tuple(row[1:]) != values:
                 raise P6ReportProfilePersistenceError("IMMUTABLE_REPORT_PROFILE_MAPPING")
             return mapping
-        self.connection.execute(
+        inserted = self.connection.execute(
             "INSERT INTO p6_report_profile_field_mapping "
             "(tenant_id,project_id,project_revision,profile_id,profile_name,subject_area,"
             "field_id,ordinal,exportable,label_override,metadata_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,profile_id,field_id) DO NOTHING "
+            "RETURNING tenant_id",
             (
                 mapping.scope.tenant_id,
                 mapping.scope.project_id,
