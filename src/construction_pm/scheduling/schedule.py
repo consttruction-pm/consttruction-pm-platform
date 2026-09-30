@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Callable, Iterable, Mapping
 
 from .activity import Activity
@@ -58,12 +58,31 @@ class ScheduleResult:
 
 def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
     if lag >= 0:
-        return resolver.previous_working_day(
-            resolver.subtract_working_duration(successor_event, lag + 1)
-        )
+        # Forward FS/FF event semantics normalize a nonworking predecessor
+        # finish before applying the strict event offset. The latest
+        # predecessor date may therefore be a nonworking Gregorian day
+        # immediately before the successor event (e.g. Friday -> Sunday on a
+        # Sunday-Thursday successor calendar).
+        candidate = successor_event
+        for _ in range(lag + 1):
+            candidate -= timedelta(days=1)
+        while (
+            _successor_event_for_inverse(candidate, lag, resolver) == successor_event
+        ):
+            candidate += __import__("datetime").timedelta(days=1)
+        return candidate - __import__("datetime").timedelta(days=1)
     return resolver.next_working_day(
         resolver.add_working_duration(successor_event, -lag)
     )
+
+
+def _successor_event_for_inverse(
+    predecessor_event: date, lag: int, resolver: WorkingTimeResolver
+) -> date:
+    anchor = resolver.normalize_start(predecessor_event)
+    if anchor == resolver.calendar.to_gregorian(predecessor_event):
+        anchor = resolver.next_working_day(anchor)
+    return resolver.add_working_duration(anchor, lag + 1)
 
 
 def _inverse_start_shift(successor_start: date, lag: int, resolver: WorkingTimeResolver) -> date:
