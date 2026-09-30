@@ -30,6 +30,12 @@ class StartToStartLagCalculationType(str, Enum):
     ACTUAL_START = "ACTUAL_START"
 
 
+class OutOfSequenceScheduleType(str, Enum):
+    RETAINED_LOGIC = "RETAINED_LOGIC"
+    PROGRESS_OVERRIDE = "PROGRESS_OVERRIDE"
+    ACTUAL_DATES = "ACTUAL_DATES"
+
+
 @dataclass(frozen=True)
 class ScheduleOptions:
     """Shared scheduling options with P6-compatible semantics.
@@ -91,6 +97,8 @@ class ScheduleOptions:
             raise ValueError("multiple_float_paths_ending_activity_object_id must be a non-empty string")
         if not isinstance(self.multiple_float_paths_use_total_float, bool):
             raise ValueError("multiple_float_paths_use_total_float must be a bool")
+        if not isinstance(self.out_of_sequence_schedule_type, OutOfSequenceScheduleType):
+            raise ValueError("out_of_sequence_schedule_type must be an OutOfSequenceScheduleType")
         if not isinstance(self.relationship_lag_calendar, RelationshipLagCalendar):
             raise ValueError(
                 "relationship_lag_calendar must be a RelationshipLagCalendar"
