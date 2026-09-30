@@ -14,12 +14,18 @@ class CalendarDateError(ValueError):
     """Raised when a calendar date is outside the supported domain."""
 
 
-_JALALI_LEAP_YEAR_RESIDUES = frozenset({1, 5, 9, 13, 17, 22, 26, 30})
+def _div(a: int, b: int) -> int:
+    return a // b
+
+
+def _jalali_year_length(year: int) -> int:
+    """Return the exact year length implied by the canonical 2820-year cycle."""
+    return jalali_to_jdn(year + 1, 1, 1) - jalali_to_jdn(year, 1, 1)
 
 
 def _is_jalali_leap_year(year: int) -> bool:
-    """Return the supported 33-year Jalali leap-year boundary."""
-    return year % 33 in _JALALI_LEAP_YEAR_RESIDUES
+    """Return whether the canonical JDN model gives the year 366 days."""
+    return _jalali_year_length(year) == 366
 
 
 @dataclass(frozen=True, order=True)
@@ -44,10 +50,6 @@ class JalaliDate:
     def from_gregorian(cls, value: date) -> "JalaliDate":
         year, month, day = gregorian_to_jalali(value)
         return cls(year, month, day)
-
-
-def _div(a: int, b: int) -> int:
-    return a // b
 
 
 def jalali_to_gregorian(year: int, month: int, day: int) -> date:
@@ -97,7 +99,7 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     if year <= 0:
         year -= 1
 
-    # Preserve the canonical 12/30 representation at a leap-year boundary.
+    # Preserve 12/30 when the preceding Jalali year is demonstrably 366 days.
     if _is_jalali_leap_year(year - 1) and jalali_to_jdn(year - 1, 12, 30) == jdn:
         return year - 1, 12, 30
 
