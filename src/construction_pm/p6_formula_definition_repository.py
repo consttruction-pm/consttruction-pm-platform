@@ -291,6 +291,18 @@ class PostgresP6FormulaDefinitionRepository:
                 encoded_dependencies, encoded_metadata,
             ),
         )
+        row = self.connection.execute(
+            "SELECT project_revision, expression, result_type, result_unit, semantic_version, "
+            "semantic_reference, dependencies_json, metadata_json FROM p6_formula_definitions "
+            "WHERE tenant_id=%s AND project_id=%s AND formula_id=%s AND formula_version=%s",
+            (record.scope.tenant_id, record.scope.project_id, record.formula_id, record.version),
+        ).fetchone()
+        if row is None:
+            raise P6FormulaDefinitionPersistenceError("FORMULA_DEFINITION_INSERT_FAILED")
+        if int(row[0]) != record.scope.project_revision:
+            raise P6FormulaDefinitionPersistenceError("REVISION_CONFLICT")
+        if _stored_payload(row) != payload:
+            raise P6FormulaDefinitionPersistenceError("IMMUTABLE_FORMULA_DEFINITION")
         return record
 
     def get(self, scope: BackendScope, formula_id: str, version: str) -> PersistedP6FormulaDefinition | None:
