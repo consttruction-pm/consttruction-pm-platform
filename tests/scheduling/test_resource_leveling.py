@@ -139,7 +139,6 @@ def test_propose_forward_leveling_consumes_only_allowed_float_and_preserves_mini
 
 
 def test_propose_forward_leveling_is_deterministic_for_input_order():
-    resolver = WorkingTimeResolver(working_weekdays={0, 1, 2, 3, 4}, holidays=set())
     a1 = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 2,
         (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
     a2 = LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 2,
