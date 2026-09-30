@@ -36,7 +36,7 @@ class P6PrimaveraXmlCodec:
         rows: list[P6InterchangeRow] = []
         for element in root:
             if element.tag == UNKNOWN_EXTENSION_ELEMENT:
-                continue
+                raise P6PrimaveraXmlCodecError("ROOT_LEVEL_EXTENSION_NOT_ALLOWED")
             values: dict[str, Any] = {}
             extensions: dict[str, Any] = {OBJECT_EXTENSION: self._local_name(element.tag)}
             for child in element:
