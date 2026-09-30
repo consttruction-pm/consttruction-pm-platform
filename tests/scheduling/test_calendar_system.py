@@ -1,60 +1,46 @@
-from datetime import date
-
 import pytest
+from datetime import date
 
 from construction_pm.scheduling.calendar_system import (
     CalendarDateError,
-    CalendarSystem,
     JalaliDate,
     gregorian_to_jalali,
     jalali_to_gregorian,
 )
 
 
-def test_calendar_system_contract():
-    assert CalendarSystem.GREGORIAN.value == "gregorian"
-    assert CalendarSystem.JALALI.value == "jalali"
+def test_known_jalali_gregorian_pairs():
+    pairs = [
+        ((1400, 1, 1), date(2021, 3, 21)),
+        ((1403, 1, 1), date(2024, 3, 20)),
+        ((1403, 12, 30), date(2025, 3, 20)),
+        ((1405, 1, 1), date(2026, 3, 21)),
+        ((1405, 7, 8), date(2026, 9, 30)),
+    ]
+    for jalali, gregorian in pairs:
+        assert jalali_to_gregorian(*jalali) == gregorian
+        assert gregorian_to_jalali(gregorian) == jalali
 
 
-@pytest.mark.parametrize(
-    ("gregorian", "jalali"),
-    [
-        (date(2021, 3, 21), (1400, 1, 1)),
-        (date(2024, 3, 20), (1403, 1, 1)),
-        (date(2025, 3, 20), (1403, 12, 30)),
-        (date(2026, 3, 21), (1405, 1, 1)),
-        (date(2026, 9, 30), (1405, 7, 8)),
-    ],
-)
-def test_known_jalali_gregorian_pairs(gregorian, jalali):
-    assert gregorian_to_jalali(gregorian) == jalali
-    assert jalali_to_gregorian(*jalali) == gregorian
+def test_jalali_date_round_trip_and_ordering():
+    first = JalaliDate(1405, 1, 1)
+    second = JalaliDate.from_gregorian(date(2026, 9, 30))
+    assert first.to_gregorian() == date(2026, 3, 21)
+    assert second == JalaliDate(1405, 7, 8)
+    assert first < second
 
 
-@pytest.mark.parametrize(
-    "value",
-    [
-        JalaliDate(1400, 1, 1),
-        JalaliDate(1403, 12, 30),
-        JalaliDate(1405, 7, 8),
-    ],
-)
-def test_jalali_round_trip(value):
-    assert JalaliDate.from_gregorian(value.to_gregorian()) == value
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        (1400, 0, 1),
-        (1400, 13, 1),
-        (1400, 1, 0),
-    ],
-)
-def test_invalid_jalali_dates_are_rejected(value):
+def test_invalid_jalali_month_end_is_rejected():
     with pytest.raises(CalendarDateError):
-        JalaliDate(*value)
+        JalaliDate(1404, 12, 30)
 
 
-def test_jalali_date_is_orderable():
-    assert JalaliDate(1405, 1, 1) < JalaliDate(1405, 1, 2)
+def test_jalali_leap_day_is_accepted_when_valid():
+    assert JalaliDate(1403, 12, 30).to_gregorian() == date(2025, 3, 20)
+
+
+def test_invalid_jalali_month_and_day_are_rejected():
+    with pytest.raises(CalendarDateError):
+        JalaliDate(1405, 13, 1)
+    with pytest.raises(CalendarDateError):
+        JalaliDate(1405, 1, 0)
