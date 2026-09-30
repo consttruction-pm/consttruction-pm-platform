@@ -34,6 +34,7 @@ from .schedule import (
     ScheduleResult,
     backward_pass,
     calculate_floats,
+    resolve_float_finish_date,
     schedule,
 )
 from .schedule_options import (
@@ -118,6 +119,7 @@ __all__ = [
     "calculate_time_floats",
     "backward_pass",
     "calculate_floats",
+    "resolve_float_finish_date",
     "forward_pass",
     "schedule",
     "successor_earliest_start",
