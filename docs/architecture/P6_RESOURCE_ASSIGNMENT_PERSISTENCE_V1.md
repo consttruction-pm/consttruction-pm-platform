@@ -30,3 +30,20 @@ Focused tests cover round-trip and deterministic ordering, activity/resource fil
 ## Explicit non-goals
 
 No P6 scheduling, calendar, resource-rate, leveling, cost calculation or financial-period calculation semantics are introduced.
+
+
+## Time-phased assignment values
+
+The assignment boundary also persists optional future-period values keyed by
+(tenant_id, project_id, assignment_id, period_start). Each bucket preserves the
+activity/resource identity plus Decimal units and cost without float conversion.
+
+The period-value boundary is immutable and replay-safe:
+- identical writes are idempotent;
+- changed values fail with `IMMUTABLE_RESOURCE_ASSIGNMENT_PERIOD_VALUE`;
+- stale project revisions fail with `REVISION_CONFLICT`;
+- reads are deterministic by assignment and period;
+- PostgreSQL uses `ON CONFLICT DO NOTHING` followed by authoritative reselect.
+
+These buckets are persisted data, not a scheduling or calendar calculation. Shared
+Core remains responsible for determining authoritative time-phased semantics.
