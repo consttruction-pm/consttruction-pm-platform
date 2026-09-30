@@ -36,7 +36,6 @@ from .resource_envelope import resource_family_for_record, resource_type_for_rec
 from ..field_assurance_templates_repository import (
     FieldAssuranceExecution,
     FieldAssuranceTemplateRepository,
-    FieldAssuranceTemplateApplicationService,
     FieldAssuranceTemplatePersistenceError,
     SQLiteFieldAssuranceTemplateRepository,
 )
@@ -86,7 +85,6 @@ __all__ = [
     "to_resource_envelope",
     "FieldAssuranceExecution",
     "FieldAssuranceTemplateRepository",
-    "FieldAssuranceTemplateApplicationService",
     "FieldAssuranceTemplatePersistenceError",
     "SQLiteFieldAssuranceTemplateRepository",
     "WORKSPACE_CONTROL_ROOM_READ_PATH",
