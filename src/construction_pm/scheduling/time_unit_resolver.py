@@ -37,12 +37,18 @@ class CalendarAwareResolver:
             return datetime.combine(self.resolver.normalize_finish(value.date()), time.min)
         return self.resolver.normalize_finish(value)
 
+    @staticmethod
+    def _whole_working_days(value: Decimal, *, field: str) -> int:
+        if value != value.to_integral_value():
+            raise ValueError(f"{field} must be a whole working-day value")
+        return int(value)
+
     def add_duration(self, start: datetime, duration: TimeQuantity) -> datetime:
         if self.is_working_day_calendar:
             if duration.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day calendar requires working-day duration")
             return datetime.combine(
-                self.resolver.add_working_duration(start.date(), int(duration.value)),
+                self.resolver.add_working_duration(start.date(), self._whole_working_days(duration.value, field="duration")),
                 time.min,
             )
         if duration.unit is not DurationUnit.WORKING_HOUR:
@@ -54,7 +60,7 @@ class CalendarAwareResolver:
             if duration.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day calendar requires working-day duration")
             return datetime.combine(
-                self.resolver.subtract_working_duration(finish.date(), int(duration.value)),
+                self.resolver.subtract_working_duration(finish.date(), self._whole_working_days(duration.value, field="duration")),
                 time.min,
             )
         if duration.unit is not DurationUnit.WORKING_HOUR:
@@ -80,11 +86,11 @@ class CalendarAwareResolver:
                 raise ValueError("working-day lag calendar requires working-day lag")
             if lag.value >= 0:
                 return datetime.combine(
-                    self.resolver.add_working_duration(anchor.date(), int(lag.value)),
+                    self.resolver.add_working_duration(anchor.date(), self._whole_working_days(lag.value, field="lag")),
                     time.min,
                 )
             return datetime.combine(
-                self.resolver.subtract_working_duration(anchor.date(), int(-lag.value)),
+                self.resolver.subtract_working_duration(anchor.date(), self._whole_working_days(-lag.value, field="lag")),
                 time.min,
             )
         if lag.unit is not DurationUnit.WORKING_HOUR:
@@ -99,11 +105,11 @@ class CalendarAwareResolver:
                 raise ValueError("working-day lag calendar requires working-day lag")
             if lag.value >= 0:
                 return datetime.combine(
-                    self.resolver.subtract_working_duration(event.date(), int(lag.value)),
+                    self.resolver.subtract_working_duration(event.date(), self._whole_working_days(lag.value, field="lag")),
                     time.min,
                 )
             return datetime.combine(
-                self.resolver.add_working_duration(event.date(), int(-lag.value)),
+                self.resolver.add_working_duration(event.date(), self._whole_working_days(-lag.value, field="lag")),
                 time.min,
             )
         if lag.unit is not DurationUnit.WORKING_HOUR:
