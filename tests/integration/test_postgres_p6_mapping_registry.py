@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -86,3 +88,27 @@ def test_postgres_mapping_rollback() -> None:
                 repository.upsert_mapping(original)
                 raise RuntimeError("FORCED_ROLLBACK")
         assert repository.get_mapping(current_scope, original.definition.mapping_id) is None
+
+
+def test_postgres_mapping_concurrent_identical_upsert_is_idempotent() -> None:
+    current_scope = scope()
+    original = record(current_scope, mapping_id="activity.concurrent")
+    barrier = threading.Barrier(2)
+
+    def save() -> PersistedP6Mapping:
+        with psycopg.connect(DSN) as connection:
+            repository = PostgresP6MappingRegistryRepository(connection)
+            repository.initialize()
+            connection.commit()
+            barrier.wait(timeout=5)
+            with PostgresTransactionManager(connection).transaction():
+                return repository.upsert_mapping(original)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(save) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+
+    assert results == [original, original]
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresP6MappingRegistryRepository(connection)
+        assert repository.get_mapping(current_scope, original.definition.mapping_id) == original

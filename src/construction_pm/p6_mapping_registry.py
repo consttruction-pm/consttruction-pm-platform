@@ -243,11 +243,23 @@ class PostgresP6MappingRegistryRepository:
             "INSERT INTO p6_mapping_registry "
             "(tenant_id,project_id,project_revision,mapping_id,registry_version,format,"
             "subject_area,source_field,canonical_field,status,source_type,canonical_type,unit,notes,payload_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,mapping_id) DO NOTHING",
             (record.scope.tenant_id, record.scope.project_id, record.scope.project_revision,
              d.mapping_id, d.registry_version, d.format.value, d.subject_area, d.source_field,
              d.canonical_field, d.status.value, d.source_type, d.canonical_type, d.unit, d.notes, payload),
         )
+        row = self.connection.execute(
+            "SELECT project_revision,payload_json FROM p6_mapping_registry "
+            "WHERE tenant_id=%s AND project_id=%s AND mapping_id=%s",
+            (record.scope.tenant_id, record.scope.project_id, record.definition.mapping_id),
+        ).fetchone()
+        if row is None:
+            raise P6MappingRegistryError("MAPPING_INSERT_FAILED")
+        if int(row[0]) != record.scope.project_revision:
+            raise P6MappingRegistryError("REVISION_CONFLICT")
+        if row[1] != payload:
+            raise P6MappingRegistryError("IMMUTABLE_MAPPING_DEFINITION")
         return record
 
     def get_mapping(self, scope: BackendScope, mapping_id: str) -> PersistedP6Mapping | None:
