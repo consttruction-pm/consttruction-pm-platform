@@ -2,18 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from enum import Enum
 
+from .activity import PercentCompleteType
 from .calendar import WorkingTimeResolver
-
-
-class PercentCompleteType(str, Enum):
-    """P6 activity percent-complete calculation modes."""
-
-    DURATION = "DURATION"
-    UNITS = "UNITS"
-    PHYSICAL = "PHYSICAL"
-    SCOPE = "SCOPE"
 
 
 @dataclass(frozen=True)
