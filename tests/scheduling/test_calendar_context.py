@@ -37,6 +37,14 @@ def test_registry_resolves_versioned_day_calendar():
     assert registry.resolve(ref) is resolver
 
 
+def test_registry_rejects_calendar_system_mismatch():
+    ref = CalendarReference("project-main", "7", system=CalendarSystem.JALALI)
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(day_resolvers={"project-main@7": resolver})
+    with pytest.raises(ValueError, match="calendar system mismatch"):
+        registry.resolve(ref)
+
+
 def test_registry_does_not_silently_fallback_to_another_version():
     ref = CalendarReference("project-main", "8")
     resolver = WorkingTimeResolver(WorkingCalendar())
