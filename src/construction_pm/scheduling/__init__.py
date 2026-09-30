@@ -7,6 +7,7 @@ from .authoritative_schedule import (
     AuthoritativeScheduleMode,
 )
 from .calendar import WorkingCalendar, WorkingTimeResolver
+from .calendar_system import CalendarDateError, CalendarSystem, JalaliDate, gregorian_to_jalali, jalali_to_gregorian
 from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
 from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
@@ -44,6 +45,11 @@ __all__ = [
     "ScheduledActivity",
     "SchedulingCycleError",
     "WorkingCalendar",
+    "CalendarDateError",
+    "CalendarSystem",
+    "JalaliDate",
+    "gregorian_to_jalali",
+    "jalali_to_gregorian",
     "CalendarReference",
     "CalculationContext",
     "CalendarResolverRegistry",

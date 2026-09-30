@@ -19,7 +19,7 @@ from .activity import Activity
 from .calendar_context import CalendarReference
 from .constraints import ActivityConstraint
 from .relationships import Relationship
-from .schedule import ScheduleOptions
+from .schedule_options import ScheduleOptions
 from .time_forward_pass import TimeActivity, TimeRelationship
 
 
