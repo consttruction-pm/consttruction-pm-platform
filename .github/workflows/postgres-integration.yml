@@ -8,6 +8,10 @@ on:
   push:
     branches: ["main"]
     paths:
+      - "src/construction_pm/scheduling/**"
+      - "tests/scheduling/**"
+      - "src/construction_pm/scheduling/**"
+      - "tests/scheduling/**"
       - "src/construction_pm/client_sync/**"
       - "src/construction_pm/portfolio_action_persistence.py"
       - "src/construction_pm/portfolio_decision_persistence.py"

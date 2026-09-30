@@ -8,7 +8,9 @@ from .authoritative_schedule import (
 )
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_system import CalendarDateError, CalendarSystem, JalaliDate, gregorian_to_jalali, jalali_to_gregorian
-from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
+from .calendar_context import CalendarReference, CalendarResolverRegistry, RelationshipLagCalendar, SchedulingCalendarContext
+from .calendar_resolution import ResolvedActivityCalendars, resolve_authoritative_activity_calendars, resolve_relationship_lag_calendar
+from .activity_calendar_provider import ActivityCalendarProvider, ResolvedActivityCalendarProvider, require_activity_calendar_provider
 from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
@@ -23,6 +25,9 @@ from .schedule import (
     ScheduleMode,
     ScheduleOptions,
     ScheduleResult,
+    StartToStartLagCalculationType,
+    TotalFloatCalculationType,
+    CriticalActivityPathType,
     backward_pass,
     calculate_floats,
     schedule,
@@ -42,6 +47,9 @@ __all__ = [
     "ScheduleMode",
     "ScheduleOptions",
     "ScheduleResult",
+    "StartToStartLagCalculationType",
+    "TotalFloatCalculationType",
+    "CriticalActivityPathType",
     "ScheduledActivity",
     "SchedulingCycleError",
     "WorkingCalendar",
@@ -54,6 +62,13 @@ __all__ = [
     "CalculationContext",
     "CalendarResolverRegistry",
     "SchedulingCalendarContext",
+    "RelationshipLagCalendar",
+    "ResolvedActivityCalendars",
+    "resolve_authoritative_activity_calendars",
+    "resolve_relationship_lag_calendar",
+    "ActivityCalendarProvider",
+    "ResolvedActivityCalendarProvider",
+    "require_activity_calendar_provider",
     "WorkingTimeResolver",
     "WorkingTimeCalendar",
     "TimeAwareWorkingTimeResolver",
