@@ -526,3 +526,40 @@ def test_start_to_start_p6_boolean_mapping_is_explicit(p6_value, typed):
 def test_start_to_start_p6_boolean_mapping_rejects_non_boolean():
     with pytest.raises(TypeError):
         start_to_start_lag_type_from_p6("TRUE")
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize("lag", [1, -1])
+def test_schedule_end_to_end_preserves_relationships_across_both_cpm_passes(
+    resolver, relationship_type, lag
+):
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        resolver,
+    )
+
+    assert _relationship_holds(
+        relationship,
+        result.early_activities["A"],
+        result.early_activities["B"],
+        resolver,
+    )
+    assert _relationship_holds(
+        relationship,
+        result.late_activities["A"],
+        result.late_activities["B"],
+        resolver,
+    )
+    assert result.project_finish == max(
+        item.finish for item in result.early_activities.values()
+    )
+    for activity_id in ("A", "B"):
+        float_item = result.floats[activity_id]
+        assert float_item.free_float <= float_item.total_float
+        assert float_item.early_start == result.early_activities[activity_id].start
+        assert float_item.late_start == result.late_activities[activity_id].start
+
