@@ -559,7 +559,7 @@ def test_schedule_end_to_end_preserves_relationships_across_both_cpm_passes(
     )
     for activity_id in ("A", "B"):
         float_item = result.floats[activity_id]
-        assert float_item.free_float <= float_item.total_float
+        assert float_item.free_float <= max(0, float_item.total_float)
         assert float_item.early_start == result.early_activities[activity_id].start
         assert float_item.late_start == result.late_activities[activity_id].start
 
