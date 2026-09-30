@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 from decimal import Decimal
@@ -21,11 +21,44 @@ class RelationshipLagCalendar(str, Enum):
 class Continuous24HourResolver:
     """Exact continuous 24-hour calendar arithmetic for relationship lag."""
 
-    def normalize_start(self, value: datetime) -> datetime:
-        return value
+    def normalize_start(self, value: date | datetime) -> date:
+        return value.date() if isinstance(value, datetime) else value
 
-    def normalize_finish(self, value: datetime) -> datetime:
-        return value
+    def normalize_finish(self, value: date | datetime) -> date:
+        return value.date() if isinstance(value, datetime) else value
+
+    def next_working_day(self, value: date | datetime) -> date:
+        return self.normalize_start(value) + timedelta(days=1)
+
+    def previous_working_day(self, value: date | datetime) -> date:
+        return self.normalize_finish(value) - timedelta(days=1)
+
+    def add_working_duration(self, start: date | datetime, duration: Decimal | int | float) -> date:
+        units = Decimal(str(duration))
+        if units < 0 or units != units.to_integral_value():
+            raise ValueError("duration must be a non-negative whole working day")
+        cursor = self.normalize_start(start)
+        remaining = int(units)
+        if remaining == 0:
+            return cursor
+        return cursor + timedelta(days=remaining - 1)
+
+    def subtract_working_duration(self, finish: date | datetime, duration: Decimal | int | float) -> date:
+        units = Decimal(str(duration))
+        if units < 0 or units != units.to_integral_value():
+            raise ValueError("duration must be a non-negative whole working day")
+        cursor = self.normalize_finish(finish)
+        remaining = int(units)
+        if remaining == 0:
+            return cursor
+        return cursor - timedelta(days=remaining - 1)
+
+    def calculate_duration(self, start: date | datetime, finish: date | datetime) -> int:
+        start_date = self.normalize_start(start)
+        finish_date = self.normalize_finish(finish)
+        if finish_date < start_date:
+            raise ValueError("finish must not precede start")
+        return (finish_date - start_date).days + 1
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
         units = Decimal(str(hours))
@@ -76,7 +109,6 @@ class SchedulingCalendarContext:
 
     def effective_relationship_lag(self) -> CalendarReference:
         return self.relationship_lag or self.effective_activity()
-
 
     def relationship_lag_reference(
         self,
