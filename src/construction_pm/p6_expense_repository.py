@@ -123,12 +123,12 @@ class PostgresP6ExpenseRepository:
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_p6_expense_scope ON p6_expense(tenant_id, project_id, activity_id, wbs_id, expense_id)")
     def upsert(self, expense: P6Expense) -> P6Expense:
         expense.validate()
+        self.connection.execute("INSERT INTO p6_expense (tenant_id,project_id,project_revision,expense_id,name,category,activity_id,wbs_id,expense_date,planned_cost,actual_cost,remaining_cost,currency,note) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (tenant_id,project_id,expense_id) DO NOTHING", (expense.scope.tenant_id, expense.scope.project_id, expense.scope.project_revision, expense.expense_id, expense.name, expense.category, expense.activity_id, expense.wbs_id, expense.expense_date, None if expense.planned_cost is None else str(expense.planned_cost), None if expense.actual_cost is None else str(expense.actual_cost), None if expense.remaining_cost is None else str(expense.remaining_cost), expense.currency, expense.note))
         row = self.connection.execute("SELECT project_revision,name,category,activity_id,wbs_id,expense_date,planned_cost,actual_cost,remaining_cost,currency,note FROM p6_expense WHERE tenant_id=%s AND project_id=%s AND expense_id=%s", (expense.scope.tenant_id, expense.scope.project_id, expense.expense_id)).fetchone()
-        if row is not None:
-            if int(row[0]) != expense.scope.project_revision: raise P6ExpensePersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != _payload(expense): raise P6ExpensePersistenceError("IMMUTABLE_EXPENSE")
-            return expense
-        self.connection.execute("INSERT INTO p6_expense (tenant_id,project_id,project_revision,expense_id,name,category,activity_id,wbs_id,expense_date,planned_cost,actual_cost,remaining_cost,currency,note) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", (expense.scope.tenant_id, expense.scope.project_id, expense.scope.project_revision, expense.expense_id, expense.name, expense.category, expense.activity_id, expense.wbs_id, expense.expense_date, None if expense.planned_cost is None else str(expense.planned_cost), None if expense.actual_cost is None else str(expense.actual_cost), None if expense.remaining_cost is None else str(expense.remaining_cost), expense.currency, expense.note)); return expense
+        if row is None: raise P6ExpensePersistenceError("EXPENSE_INSERT_FAILED")
+        if int(row[0]) != expense.scope.project_revision: raise P6ExpensePersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != _payload(expense): raise P6ExpensePersistenceError("IMMUTABLE_EXPENSE")
+        return expense
     def get(self, scope: BackendScope, expense_id: str) -> P6Expense | None:
         scope.validate()
         if not isinstance(expense_id, str) or not expense_id.strip(): raise P6ExpensePersistenceError("INVALID_EXPENSE_ID")
