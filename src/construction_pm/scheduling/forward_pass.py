@@ -45,9 +45,10 @@ def _apply_lag_after(
 ) -> date:
     """Place a successor event after/before an anchor using working-day lag."""
     if lag >= 0:
-        return resolver.next_working_day(
-            resolver.add_working_duration(value, lag + 1)
-        )
+        anchor = resolver.normalize_start(value)
+        if anchor == resolver.calendar.to_gregorian(value):
+            anchor = resolver.next_working_day(anchor)
+        return resolver.add_working_duration(anchor, lag + 1)
     return resolver.previous_working_day(
         resolver.subtract_working_duration(value, -lag)
     )
