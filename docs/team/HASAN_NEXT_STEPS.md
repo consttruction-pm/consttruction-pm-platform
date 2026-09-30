@@ -612,3 +612,21 @@ Status: **implemented, runtime-verified and merged**
 
 - Reconcile current main for the next concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration acceptance gap or reproducible defect.
 - Do not revive stale PRs or modify Shared Scheduling/Core work. Any new change must branch from the exact current main, stay within Hasan ownership, add focused regression evidence, and obtain PostgreSQL verification where applicable.
+
+
+### 2026-10-01 — P6 Activity Period Actual API boundary (Issue #393 / PR #635)
+
+- The next concrete Hasan-owned gap after P6 field/UDF verification was the missing versioned API/application boundary for the already-persisted P6 Activity Period Actual resource.
+- PR #635 started from exact current main `114780fefd66b60bda1a744ebe252bc3231bedef` and added only the typed API/schema and focused verification; no P6 calculation, scheduling, calendar, formula, Progress/EVM or Resource/Cost semantics were changed.
+- Initial CI exposed one real defect in the new JSON Schema: a decimal regex contained an invalid JSON escape. The schema was corrected on the same branch before merge.
+- Final implementation head: `6e9566bb52eb316eac75e98203df6cc19d7ab37e`.
+- PR-head acceptance evidence: ConstructionPM CI #2538 success; PostgreSQL Integration #406 success; Client Typecheck #2241 success.
+- PR #635 merged with merge commit `b18f86cef830beadbe0082e210418b8018e97d0a`.
+- Post-merge evidence on the exact main merge commit: ConstructionPM CI #2539 success; Client Typecheck #2242 success; PostgreSQL Integration #407 success; PostgreSQL Sync State Integration #852 success.
+- The new boundary preserves tenant/project/project-revision scope, authorization, canonical Decimal wire values, and create/get/list behavior over the existing authoritative application service, with live PostgreSQL API verification.
+- Do not duplicate Activity Period Actual persistence/API verification.
+
+### Current continuation point
+
+- Reconcile current main for the next concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration acceptance gap or reproducible defect.
+- Do not revive stale PRs or modify Shared Scheduling/Core work. Any new change must branch from the exact current main, stay within Hasan ownership, add focused regression evidence, and obtain PostgreSQL verification where applicable.
