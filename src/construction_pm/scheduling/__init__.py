@@ -19,7 +19,7 @@ from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActi
 from .time_schedule import TimeFloatActivity, TimeScheduleResult, calculate_time_floats, time_backward_pass, time_schedule
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
-from .out_of_sequence import OutOfSequenceState, ProgressRelationAction, classify_out_of_sequence, resolve_out_of_sequence_action
+from .out_of_sequence import OutOfSequenceState, ProgressRelationAction, classify_out_of_sequence, relationship_required_start, resolve_out_of_sequence_action
 from .progress_state import ActivityProgressState, ProgressState, resolve_progress_state
 from .remaining_work import RemainingWork, resolve_remaining_work
 from .relationships import Relationship, RelationshipType, successor_earliest_start
@@ -57,6 +57,7 @@ __all__ = [
     "OutOfSequenceState",
     "ProgressRelationAction",
     "classify_out_of_sequence",
+    "relationship_required_start",
     "resolve_out_of_sequence_action",
     "ActivityProgressState",
     "ProgressState",
