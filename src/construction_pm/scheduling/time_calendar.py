@@ -46,6 +46,21 @@ class WorkingTimeCalendar:
         return self.daily_intervals.get(value.weekday(), ())
 
 
+def _duration_microseconds(value: Decimal | int | float, *, unit: str) -> int:
+    """Convert a non-negative duration to exact microseconds.
+
+    Scheduling arithmetic must never silently truncate a supplied duration.
+    """
+
+    units = Decimal(str(value))
+    if not units.is_finite() or units < 0:
+        raise ValueError(f"{unit} must be a finite non-negative value")
+    microseconds = units * Decimal("3600000000")
+    if microseconds != microseconds.to_integral_value():
+        raise ValueError(f"{unit} is more precise than one microsecond")
+    return int(microseconds)
+
+
 def _timedelta_microseconds(value: timedelta) -> int:
     return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
 
@@ -87,12 +102,9 @@ class TimeAwareWorkingTimeResolver:
         raise ValueError("unable to find a working datetime")
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
-        units = Decimal(str(hours))
-        if units < 0:
-            raise ValueError("hours must be non-negative")
+        remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_start(start)
-        remaining_microseconds = int(units * Decimal(3_600_000_000))
-        for _ in range(3660):
+        while True:
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
             for interval_start, interval_end in intervals:
@@ -116,15 +128,12 @@ class TimeAwareWorkingTimeResolver:
             cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min)
             if progressed or not intervals:
                 continue
-        raise ValueError("working-hour duration exceeds resolver horizon")
+
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
-        units = Decimal(str(hours))
-        if units < 0:
-            raise ValueError("hours must be non-negative")
+        remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_finish(finish)
-        remaining_microseconds = int(units * Decimal(3_600_000_000))
-        for _ in range(3660):
+        while True:
             intervals = self.calendar.intervals_for(cursor.date())
             progressed = False
             for interval_start, interval_end in reversed(intervals):
@@ -147,7 +156,7 @@ class TimeAwareWorkingTimeResolver:
             cursor = datetime.combine(cursor.date() - timedelta(days=1), time.max)
             if progressed or not intervals:
                 continue
-        raise ValueError("working-hour duration exceeds resolver horizon")
+
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         if finish < start:
