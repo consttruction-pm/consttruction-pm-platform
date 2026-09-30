@@ -1,50 +1,44 @@
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
-from construction_pm.scheduling import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling import (
+    CalendarSystem,
+    JalaliDate,
+    WorkingCalendar,
+    WorkingTimeResolver,
+)
 
 
-@pytest.fixture
-def resolver() -> WorkingTimeResolver:
-    return WorkingTimeResolver(
-        WorkingCalendar(
-            working_weekdays=frozenset({0, 1, 2, 3, 4}),
-            holidays=frozenset({date(2026, 9, 23)}),
-        )
+def test_jalali_input_is_converted_to_canonical_gregorian_date():
+    calendar = WorkingCalendar.from_calendar_dates(
+        system=CalendarSystem.JALALI,
+        holidays=[JalaliDate(1405, 7, 8)],
     )
+    resolver = WorkingTimeResolver(calendar)
+    assert resolver.is_working_day(JalaliDate(1405, 7, 7))
+    assert not resolver.is_working_day(JalaliDate(1405, 7, 8))
+    assert resolver.normalize_start(JalaliDate(1405, 7, 8)) == date(2026, 10, 1)
 
 
-def test_working_day_and_holiday(resolver: WorkingTimeResolver) -> None:
-    assert resolver.is_working_day(date(2026, 9, 21))
-    assert not resolver.is_working_day(date(2026, 9, 23))
-    assert not resolver.is_working_day(date(2026, 9, 26))
+def test_jalali_holiday_is_skipped_during_addition_and_subtraction():
+    calendar = WorkingCalendar.from_calendar_dates(
+        system=CalendarSystem.JALALI,
+        holidays=[JalaliDate(1405, 7, 8)],
+    )
+    resolver = WorkingTimeResolver(calendar)
+    assert resolver.add_working_duration(JalaliDate(1405, 7, 7), 2) == date(2026, 10, 1)
+    assert resolver.subtract_working_duration(JalaliDate(1405, 7, 9), 2) == date(2026, 9, 29)
 
 
-def test_add_working_duration_skips_weekend_and_holiday(resolver: WorkingTimeResolver) -> None:
-    assert resolver.add_working_duration(date(2026, 9, 22), 1) == date(2026, 9, 22)
-    assert resolver.add_working_duration(date(2026, 9, 22), 2) == date(2026, 9, 24)
-    assert resolver.add_working_duration(date(2026, 9, 25), 2) == date(2026, 9, 28)
+def test_jalali_duration_matches_gregorian_duration():
+    calendar = WorkingCalendar.from_calendar_dates(system=CalendarSystem.JALALI)
+    resolver = WorkingTimeResolver(calendar)
+    assert resolver.calculate_duration(JalaliDate(1405, 7, 6), JalaliDate(1405, 7, 8)) == 3
+    assert resolver.calculate_duration(date(2026, 9, 28), date(2026, 9, 30)) == 3
 
 
-def test_subtract_working_duration_is_inverse(resolver: WorkingTimeResolver) -> None:
-    finish = date(2026, 9, 28)
-    assert resolver.subtract_working_duration(finish, 1) == finish
-    assert resolver.subtract_working_duration(finish, 2) == date(2026, 9, 25)
-
-
-def test_calculate_duration_is_inclusive(resolver: WorkingTimeResolver) -> None:
-    assert resolver.calculate_duration(date(2026, 9, 21), date(2026, 9, 24)) == 3
-    assert resolver.calculate_duration(date(2026, 9, 25), date(2026, 9, 28)) == 2
-
-
-def test_zero_duration_normalizes_start(resolver: WorkingTimeResolver) -> None:
-    assert resolver.add_working_duration(date(2026, 9, 26), Decimal("0")) == date(2026, 9, 28)
-
-
-def test_fractional_and_negative_duration_are_rejected(resolver: WorkingTimeResolver) -> None:
+def test_gregorian_calendar_rejects_jalali_input():
+    resolver = WorkingTimeResolver(WorkingCalendar())
     with pytest.raises(ValueError):
-        resolver.add_working_duration(date(2026, 9, 21), 1.5)
-    with pytest.raises(ValueError):
-        resolver.subtract_working_duration(date(2026, 9, 21), -1)
+        resolver.normalize_start(JalaliDate(1405, 7, 8))

@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Mapping
 
 from .calendar import WorkingTimeResolver
+from .calendar_system import CalendarSystem
 from .time_calendar import TimeAwareWorkingTimeResolver
 
 
@@ -51,12 +52,15 @@ class CalendarReference:
     calendar_id: str
     calendar_version: str
     kind: str = "working-day"
+    system: CalendarSystem = CalendarSystem.GREGORIAN
 
     def __post_init__(self) -> None:
         if not self.calendar_id or not self.calendar_version:
             raise ValueError("calendar_id and calendar_version are required")
         if self.kind not in {"working-day", "working-time"}:
             raise ValueError("unsupported calendar kind")
+        if not isinstance(self.system, CalendarSystem):
+            raise ValueError("system must be a CalendarSystem")
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,13 @@ class CalendarResolverRegistry:
             resolver = self._time.get(key)
         if resolver is None:
             raise KeyError(f"calendar not registered: {key}")
+        calendar = getattr(resolver, "calendar", None)
+        resolver_system = getattr(calendar, "system", None)
+        if resolver_system is not None and resolver_system is not reference.system:
+            raise ValueError(
+                f"calendar system mismatch for {key}: "
+                f"reference={reference.system.value}, resolver={resolver_system.value}"
+            )
         return resolver
 
     def resolve_relationship_lag(
