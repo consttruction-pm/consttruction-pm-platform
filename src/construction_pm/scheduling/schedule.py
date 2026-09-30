@@ -363,6 +363,7 @@ def _relationship_free_float(
     successor: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
     delay = 0
     while delay < 10000:
@@ -373,7 +374,7 @@ def _relationship_free_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor, resolver):
+        if not _relationship_holds(relationship, candidate, successor, resolver, relationship_lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -385,6 +386,7 @@ def _relationship_total_float(
     successor_late: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
     delay = 0
     while delay < 10000:
@@ -395,7 +397,7 @@ def _relationship_total_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor_late, resolver):
+        if not _relationship_holds(relationship, candidate, successor_late, resolver, relationship_lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -408,6 +410,8 @@ def _choose_default_float_path_endpoint(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     use_total_float: bool,
+    calendar_provider: ActivityCalendarProvider | None = None,
+    relationship_lag_resolver=None,
 ) -> str | None:
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -427,7 +431,8 @@ def _choose_default_float_path_endpoint(
                     early_schedule[relationship.predecessor_id],
                     late_schedule[activity_id],
                     activity_map[relationship.predecessor_id],
-                    resolver,
+                    calendar_provider.resolver_for(relationship.predecessor_id) if calendar_provider is not None else resolver,
+                    relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
                 )
                 for relationship in incoming_rels
             )
@@ -441,7 +446,8 @@ def _choose_default_float_path_endpoint(
                         early_schedule[relationship.predecessor_id],
                         early_schedule[activity_id],
                         activity_map[relationship.predecessor_id],
-                        resolver,
+                        calendar_provider.resolver_for(relationship.predecessor_id) if calendar_provider is not None else resolver,
+                        relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
                     )
                     for relationship in incoming_rels
                 ),
@@ -549,7 +555,9 @@ def _multiple_float_paths(
                 else:
                     metric = _relationship_free_float(
                         relationship, predecessor, successor,
-                        activity_map[predecessor_id], resolver,
+                        activity_map[predecessor_id],
+                        calendar_provider.resolver_for(predecessor_id) if calendar_provider is not None else resolver,
+                        relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
                     )
                     driving_penalty = 0 if _relationship_is_driving(
                         relationship, predecessor, successor,
