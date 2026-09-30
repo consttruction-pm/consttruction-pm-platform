@@ -10,8 +10,6 @@ on:
     paths:
       - "src/construction_pm/scheduling/**"
       - "tests/scheduling/**"
-      - "src/construction_pm/scheduling/**"
-      - "tests/scheduling/**"
       - "src/construction_pm/client_sync/**"
       - "infra/project_lifecycle_schema.sql"
       - "src/construction_pm/postgres_project_lifecycle.py"
@@ -59,6 +57,13 @@ on:
       - "tests/integration/test_p6_expense_postgres_live.py"
       - "tests/integration/test_p6_report_profile_postgres_live.py"
       - ".github/workflows/postgres-integration.yml"
+      - "tests/integration/test_change_claim_postgres_live.py"
+      - "tests/integration/test_dependency_graph_postgres_live.py"
+      - "tests/integration/test_document_postgres_live.py"
+      - "tests/integration/test_field_operations_postgres_live.py"
+      - "tests/integration/test_portfolio_decision_postgres_live.py"
+      - "tests/integration/test_procurement_postgres_live.py"
+      - "src/construction_pm/p6_activity_period_actual_repository.py"
 
   pull_request:
     paths:
