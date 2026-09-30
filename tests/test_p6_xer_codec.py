@@ -70,3 +70,11 @@ def test_encode_requires_table_metadata() -> None:
             (P6InterchangeResult({"task_code": "A-10"}, {}),),
             scope(),
         )
+
+
+
+def test_decode_rejects_missing_end_marker() -> None:
+    document = "%T\tTASK\n%F\ttask_code\n%R\tA-10\n"
+
+    with pytest.raises(P6XerCodecError, match="MISSING_XER_END_MARKER"):
+        P6XerCodec().decode(document, scope())

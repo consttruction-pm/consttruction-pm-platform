@@ -25,10 +25,13 @@ class P6XerCodec:
         rows: list[P6InterchangeRow] = []
         table: str | None = None
         fields: tuple[str, ...] = ()
+        ended = False
 
         for line_number, line in enumerate(lines, 1):
             if not line:
                 continue
+            if ended:
+                raise P6XerCodecError(f"TRAILING_RECORD_AFTER_END:{line_number}")
             cells = line.split("\t")
             marker = cells[0]
             if marker == "%T":
@@ -61,10 +64,13 @@ class P6XerCodec:
             elif marker == "%E":
                 if any(remaining.strip() for remaining in lines[line_number:]):
                     raise P6XerCodecError(f"TRAILING_RECORD_AFTER_END:{line_number}")
+                ended = True
                 break
             else:
                 raise P6XerCodecError(f"UNSUPPORTED_XER_RECORD:{marker}:{line_number}")
 
+        if not ended:
+            raise P6XerCodecError("MISSING_XER_END_MARKER")
         return tuple(rows)
 
     def encode(
