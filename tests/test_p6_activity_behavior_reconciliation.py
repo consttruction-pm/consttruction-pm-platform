@@ -53,3 +53,19 @@ def test_explicit_writability_conflict_is_detected():
         registry_computed=False,
     )
     assert result.status == "registry_conflict"
+
+def test_remaining_duration_is_scheduler_derived_and_registry_computed():
+    registry = get_field("activity.remaining_duration")
+    evidence = next(
+        item for item in activity_behavior_evidence()
+        if item.p6_field == "RemainingDuration"
+    )
+    result = reconcile_activity_behavior(
+        p6_field=evidence.p6_field,
+        behavior_status=evidence.behavior_status,
+        registry_writable=registry.writable,
+        registry_computed=registry.computed,
+    )
+    assert result.manual_writable is None
+    assert result.scheduler_derived is None
+    assert result.status == "insufficient_evidence"
