@@ -75,7 +75,7 @@ _ROWS = (
     ("activity.remaining_start","Activity","RemainingStartDate","Remaining Start","date",True,False,None),
     ("activity.remaining_finish","Activity","RemainingFinishDate","Remaining Finish","date",True,False,None),
     ("activity.planned_duration","Activity","PlannedDuration","Planned Duration","duration",False,True,"working-time"),
-    ("activity.remaining_duration","Activity","RemainingDuration","Remaining Duration","duration",True,False,"working-time"),
+    ("activity.remaining_duration","Activity","RemainingDuration","Remaining Duration","duration",False,True,"working-time"),
     ("activity.actual_duration","Activity","ActualDuration","Actual Duration","duration",False,True,"working-time"),
     ("activity.duration_percent_complete","Activity","DurationPercentComplete","Duration % Complete","percentage",False,True,"percent"),
     ("activity.physical_percent_complete","Activity","PhysicalPercentComplete","Physical % Complete","percentage",True,False,"percent"),
