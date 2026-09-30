@@ -52,3 +52,37 @@ def resolve_remaining_work(
         return RemainingWork(remaining, None)
 
     return RemainingWork(remaining, resolver.normalize_start(start))
+
+
+def estimate_remaining_work_as_of_data_date(
+    activity: Activity,
+    *,
+    resolver: WorkingTimeResolver,
+    data_date: date,
+) -> RemainingWork:
+    """Estimate remaining work for planned-as-of-data-date progress.
+
+    This is intentionally separate from explicit Remaining Duration. It models
+    P6-style automatic progress: once an activity has started, elapsed working
+    periods from Actual Start through the data-date reduce the planned duration.
+    Explicit Remaining Duration always remains authoritative through
+    resolve_remaining_work().
+    """
+    if activity.actual_finish is not None:
+        return RemainingWork(0, None)
+    if activity.actual_start is None:
+        return RemainingWork(activity.duration, activity.actual_start)
+
+    if data_date < activity.actual_start:
+        raise ValueError("data_date must not precede actual_start")
+
+    elapsed = resolver.working_days_between(activity.actual_start, data_date)
+    remaining = max(activity.duration - elapsed, 0)
+    if remaining == 0:
+        return RemainingWork(0, None)
+
+    remaining_start = resolver.normalize_start(
+        data_date if resolver.is_working_day(data_date)
+        else resolver.next_working_day(data_date)
+    )
+    return RemainingWork(remaining, remaining_start)
