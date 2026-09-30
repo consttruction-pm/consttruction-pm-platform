@@ -30,14 +30,17 @@ class StartToStartLagCalculationType(str, Enum):
     ACTUAL_START = "ACTUAL_START"
 
 
+class OutOfSequenceScheduleType(str, Enum):
+    """P6 out-of-sequence scheduling treatment."""
+
+    RETAINED_LOGIC = "RETAINED_LOGIC"
+    PROGRESS_OVERRIDE = "PROGRESS_OVERRIDE"
+    ACTUAL_DATES = "ACTUAL_DATES"
+
+
 @dataclass(frozen=True)
 class ScheduleOptions:
-    """Shared scheduling options with P6-compatible semantics.
-
-    Only options with implemented semantics are applied by this slice.
-    Unimplemented P6 options remain explicit in the P6 registry and must not
-    be silently ignored by the scheduler.
-    """
+    """Shared scheduling options with P6-compatible typed contracts."""
 
     mode: ScheduleMode = ScheduleMode.EARLIEST
     compute_total_float_type: TotalFloatCalculationType = (
@@ -55,6 +58,9 @@ class ScheduleOptions:
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
         StartToStartLagCalculationType.EARLY_START
     )
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType = (
+        OutOfSequenceScheduleType.RETAINED_LOGIC
+    )
     relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     data_date: date | None = None
 
@@ -62,13 +68,9 @@ class ScheduleOptions:
         if not isinstance(self.mode, ScheduleMode):
             raise ValueError("mode must be a ScheduleMode")
         if not isinstance(self.compute_total_float_type, TotalFloatCalculationType):
-            raise ValueError(
-                "compute_total_float_type must be a TotalFloatCalculationType"
-            )
+            raise ValueError("compute_total_float_type must be a TotalFloatCalculationType")
         if not isinstance(self.critical_activity_path_type, CriticalActivityPathType):
-            raise ValueError(
-                "critical_activity_path_type must be a CriticalActivityPathType"
-            )
+            raise ValueError("critical_activity_path_type must be a CriticalActivityPathType")
         if isinstance(self.critical_activity_float_threshold, bool):
             raise ValueError("critical_activity_float_threshold must be an integer")
         if not isinstance(self.critical_activity_float_threshold, int):
@@ -90,19 +92,20 @@ class ScheduleOptions:
             raise ValueError("multiple_float_paths_ending_activity_object_id must be a non-empty string")
         if not isinstance(self.multiple_float_paths_use_total_float, bool):
             raise ValueError("multiple_float_paths_use_total_float must be a bool")
-        if not isinstance(self.relationship_lag_calendar, RelationshipLagCalendar):
-            raise ValueError(
-                "relationship_lag_calendar must be a RelationshipLagCalendar"
-            )
         if not isinstance(
             self.start_to_start_lag_calculation_type, StartToStartLagCalculationType
         ):
             raise ValueError(
                 "start_to_start_lag_calculation_type must be a StartToStartLagCalculationType"
             )
+        if not isinstance(self.out_of_sequence_schedule_type, OutOfSequenceScheduleType):
+            raise ValueError(
+                "out_of_sequence_schedule_type must be an OutOfSequenceScheduleType"
+            )
+        if not isinstance(self.relationship_lag_calendar, RelationshipLagCalendar):
+            raise ValueError("relationship_lag_calendar must be a RelationshipLagCalendar")
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
-
 
 
 def start_to_start_lag_type_from_p6(value: bool) -> StartToStartLagCalculationType:
