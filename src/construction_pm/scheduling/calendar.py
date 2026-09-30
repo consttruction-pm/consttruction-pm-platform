@@ -44,10 +44,15 @@ class WorkingCalendar:
     ) -> "WorkingCalendar":
         """Build a calendar from dates expressed in the selected system."""
         canonical_holidays = frozenset(
-            value if isinstance(value, date) and not isinstance(value, JalaliDate)
+            value
+            if isinstance(value, date) and not isinstance(value, JalaliDate)
             else value.to_gregorian()
             for value in holidays
         )
+        if system is not CalendarSystem.JALALI and any(
+            isinstance(value, JalaliDate) for value in holidays
+        ):
+            raise ValueError("Jalali holiday input requires a Jalali calendar")
         return cls(
             working_weekdays=working_weekdays,
             holidays=canonical_holidays,
