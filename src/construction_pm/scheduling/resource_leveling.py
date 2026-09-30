@@ -402,7 +402,7 @@ def apply_leveling_shifts(
             activity_id=activity.activity_id,
             start=shift.new_start,
             finish=shift.new_finish,
-            total_float=activity.total_float - shift.consumed_float,
+            total_float=max(0, activity.total_float - shift.consumed_float),
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
             activity_priority=activity.activity_priority,
         ))
