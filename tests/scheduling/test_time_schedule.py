@@ -505,8 +505,7 @@ def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrela
         datetime(2026, 9, 22, 17),
         registry,
     )
-    assert result.floats["B"].total_float_hours == Decimal("3.0")
-    assert result.floats["B"].critical is False
+    # B is terminal: its latest finish is the successor-calendar boundary at 16:00,\n    # so 09:00 -> 14:00 spans four working hours on the successor calendar.\n    assert result.late_activities["B"].start == datetime(2026, 9, 22, 14)\n    assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16)\n    assert result.floats["B"].total_float_hours == Decimal("4.0")\n    assert result.floats["B"].critical is False
 
 
 def test_cross_calendar_finish_constraint_interacts_with_fs_lag_and_float():
