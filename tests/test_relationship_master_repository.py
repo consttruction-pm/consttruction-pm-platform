@@ -58,8 +58,7 @@ def test_relationship_master_preserves_signed_lag_and_unit():
 
 def test_relationship_master_rejects_self_relationship():
     with pytest.raises(RelationshipPersistenceError, match="SELF_RELATIONSHIP"):
-        RelationshipMaster(
-            relationship(predecessor_id="A-1", successor_id="A-1").validate()
+        relationship(predecessor_id="A-1", successor_id="A-1").validate()
 
 
 def test_relationship_master_rejects_stale_update():
