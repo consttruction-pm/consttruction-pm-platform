@@ -76,8 +76,8 @@ class SchedulingCalendarContext:
 
     def relationship_lag_reference(
         self,
-        option: RelationshipLagCalendar,
         predecessor: CalendarReference,
+        option: RelationshipLagCalendar | None = None,
     ) -> CalendarReference | None:
         if option is RelationshipLagCalendar.PREDECESSOR:
             return predecessor
@@ -125,7 +125,7 @@ class CalendarResolverRegistry:
             return self.resolve(successor_context.relationship_lag)
         selected = option or RelationshipLagCalendar.SUCCESSOR
         reference = successor_context.relationship_lag_reference(
-            selected, predecessor_reference
+            predecessor_reference, selected
         )
         if reference is None:
             return Continuous24HourResolver()
