@@ -17,13 +17,15 @@ def scope(revision: int = 7) -> BackendScope:
     return BackendScope("T-1", "P-1", revision)
 
 
-def activity(revision: int = 7, duration: str = "2") -> ActivityMaster:
+def activity(revision: int = 7, duration: str = "2", expected_finish: date | None = None) -> ActivityMaster:
     return ActivityMaster(
         scope(revision),
         "A-1",
         Decimal(duration),
         DurationUnit.WORKING_DAY,
         date(2026, 9, 21),
+        0,
+        expected_finish,
     )
 
 
@@ -57,3 +59,18 @@ def test_activity_master_preserves_explicit_duration_unit():
     stored = repo.save(activity())
     assert stored.duration_unit is DurationUnit.WORKING_DAY
     assert stored.duration_value == Decimal("2")
+
+
+def test_activity_master_persists_expected_finish():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(activity(expected_finish=date(2026, 9, 24)))
+    assert stored.expected_finish == date(2026, 9, 24)
+    assert repo.get(scope(), "A-1").expected_finish == date(2026, 9, 24)
+
+
+def test_activity_master_updates_expected_finish_with_revision():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(activity(expected_finish=date(2026, 9, 24)))
+    updated = repo.save(activity(expected_finish=date(2026, 9, 25)), expected_revision=1)
+    assert updated.record_revision == 2
+    assert updated.expected_finish == date(2026, 9, 25)
