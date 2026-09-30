@@ -269,3 +269,16 @@ def test_forward_leveling_shift_bound_is_explicit():
         (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
     with pytest.raises(ResourceLevelingError, match="INVALID_MAX_LEVELING_SHIFT"):
         propose_forward_leveling((activity,), (), resolver=resolver, max_shift_working_days=-1)
+
+
+def test_apply_leveling_requires_explicit_beyond_float_opt_in():
+    from construction_pm.scheduling.resource_leveling import LevelingShift, apply_leveling_shifts
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
+    shift = LevelingShift("A1", 1, date(2026, 10, 2), date(2026, 10, 2), 1, -1)
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
+        apply_leveling_shifts((activity,), (shift,), resolver=resolver)
+    result = apply_leveling_shifts((activity,), (shift,), resolver=resolver, allow_beyond_float=True)
+    assert result[0].start == date(2026, 10, 2)
+    assert result[0].total_float == -1
