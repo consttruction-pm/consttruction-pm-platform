@@ -337,6 +337,38 @@ def propose_forward_leveling_within_float(
 
 
 
+def propose_forward_leveling(
+    activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
+    capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
+    *, resolver: WorkingTimeResolver, level_within_float: bool = False,
+    min_float_to_preserve: int = 0, over_allocation_percentage: Decimal = Decimal("0"),
+    priorities: tuple[LevelingPriority, ...] = (), level_all_resources: bool = True,
+    resource_ids: tuple[str, ...] = (), max_shift_working_days: int = 10000,
+) -> tuple[LevelingShift, ...]:
+    """Propose deterministic forward leveling, optionally unconstrained by float."""
+    if not isinstance(level_within_float, bool):
+        raise ResourceLevelingError("INVALID_LEVEL_WITHIN_FLOAT")
+    if isinstance(max_shift_working_days, bool) or not isinstance(max_shift_working_days, int) or max_shift_working_days < 0:
+        raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
+    if level_within_float:
+        return propose_forward_leveling_within_float(
+            activities, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
+            over_allocation_percentage=over_allocation_percentage, priorities=priorities,
+            level_all_resources=level_all_resources, resource_ids=resource_ids,
+        )
+    synthetic = tuple(LevelingActivity(a.activity_id, a.start, a.finish,
+        max_shift_working_days + min_float_to_preserve, a.resource_demands, a.activity_priority) for a in activities)
+    shifts = propose_forward_leveling_within_float(
+        synthetic, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
+        over_allocation_percentage=over_allocation_percentage, priorities=priorities,
+        level_all_resources=level_all_resources, resource_ids=resource_ids,
+    )
+    original_float = {a.activity_id: a.total_float for a in activities}
+    return tuple(LevelingShift(s.activity_id, s.shift_working_days, s.new_start, s.new_finish,
+        s.shift_working_days, original_float[s.activity_id] - s.shift_working_days) for s in shifts)
+
+
+
 def apply_leveling_shifts(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     shifts: tuple[LevelingShift, ...] | list[LevelingShift],
