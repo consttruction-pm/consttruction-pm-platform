@@ -79,15 +79,18 @@ class SchedulingCalendarContext:
         predecessor: CalendarReference,
         option: RelationshipLagCalendar | None = None,
     ) -> CalendarReference | None:
-        if option is RelationshipLagCalendar.PREDECESSOR:
+        selected = option
+        if selected is None:
+            return self.relationship_lag or self.effective_activity()
+        if selected is RelationshipLagCalendar.PREDECESSOR:
             return predecessor
-        if option is RelationshipLagCalendar.SUCCESSOR:
+        if selected is RelationshipLagCalendar.SUCCESSOR:
             return self.effective_activity()
-        if option is RelationshipLagCalendar.PROJECT_DEFAULT:
+        if selected is RelationshipLagCalendar.PROJECT_DEFAULT:
             return self.project
-        if option is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+        if selected is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
             return None
-        raise ValueError(f"unsupported relationship lag calendar: {option}")
+        raise ValueError(f"unsupported relationship lag calendar: {selected}")
 
 
 class CalendarResolverRegistry:
