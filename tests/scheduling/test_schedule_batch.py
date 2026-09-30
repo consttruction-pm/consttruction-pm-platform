@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -20,9 +21,7 @@ def snapshot(project_id: str, finish: date) -> AuthoritativeScheduleInput:
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=CalendarReference("CAL", 1),
         activities=(
-            __import__("construction_pm.scheduling", fromlist=["Activity"]).Activity(
-                id=f"{project_id}-A", duration=1
-            ),
+            Activity(id=f"{project_id}-A", duration=1),
         ),
         relationships=(),
         activity_calendar_assignments=(
