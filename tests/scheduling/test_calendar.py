@@ -44,6 +44,14 @@ def test_gregorian_calendar_rejects_jalali_input():
         resolver.normalize_start(JalaliDate(1405, 7, 8))
 
 
+def test_gregorian_calendar_rejects_jalali_holiday_input():
+    with pytest.raises(ValueError, match="Jalali holiday input"):
+        WorkingCalendar.from_calendar_dates(
+            system=CalendarSystem.GREGORIAN,
+            holidays=[JalaliDate(1405, 7, 8)],
+        )
+
+
 def test_jalali_and_gregorian_resolvers_produce_identical_working_day_arithmetic():
     jalali = WorkingCalendar.from_calendar_dates(
         system=CalendarSystem.JALALI,
