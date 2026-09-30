@@ -14,7 +14,8 @@ from .constraints import (
     validate_upper_bound,
 )
 from .relationships import Relationship, RelationshipType
-from .schedule_options import StartToStartLagCalculationType
+from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
+from .out_of_sequence import ProgressRelationAction, predecessor_event_for_oos
 
 
 class SchedulingCycleError(ValueError):
@@ -61,8 +62,31 @@ def _successor_start(
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
     lag_resolver: WorkingTimeResolver | None = None,
-) -> date:
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType = OutOfSequenceScheduleType.RETAINED_LOGIC,
+) -> date | None:
     lag_resolver = lag_resolver or resolver
+    if predecessor_activity is not None:
+        anchor, action = predecessor_event_for_oos(
+            relationship,
+            predecessor_activity,
+            predecessor,
+            resolver=resolver,
+            data_date=data_date,
+            mode=out_of_sequence_schedule_type,
+        )
+        if action is ProgressRelationAction.IGNORE_LOGIC:
+            return None
+        if action is ProgressRelationAction.USE_ACTUAL_DATES and anchor is not None:
+            if relationship.type is RelationshipType.SS:
+                return _shift_working_date(anchor, relationship.lag, lag_resolver)
+            if relationship.type is RelationshipType.SF:
+                target_finish = _shift_working_date(anchor, relationship.lag, lag_resolver)
+                return resolver.subtract_working_duration(target_finish, successor_duration)
+            if relationship.type is RelationshipType.FS:
+                return _apply_lag_after(anchor, relationship.lag, lag_resolver)
+            if relationship.type is RelationshipType.FF:
+                target_finish = _shift_working_date(anchor, relationship.lag, lag_resolver)
+                return resolver.subtract_working_duration(target_finish, successor_duration)
     if relationship.type is RelationshipType.SS:
         if (
             predecessor_activity is not None
@@ -141,6 +165,7 @@ def forward_pass(
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType = OutOfSequenceScheduleType.RETAINED_LOGIC,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with foundational date constraints.
 
@@ -189,7 +214,7 @@ def forward_pass(
         if not incoming[activity_id]:
             start = resolver.normalize_start(project_start)
         else:
-            start = max(
+            candidates = [
                 _successor_start(
                     rel,
                     result[rel.predecessor_id],
@@ -199,6 +224,7 @@ def forward_pass(
                     start_to_start_lag_calculation_type,
                     data_date,
                     (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
+                    out_of_sequence_schedule_type,
                 )
                 for rel in sorted(
                     incoming[activity_id],
@@ -206,7 +232,9 @@ def forward_pass(
                         item.predecessor_id, item.successor_id, item.type.value, item.lag
                     ),
                 )
-            )
+            ]
+            applicable = [candidate for candidate in candidates if candidate is not None]
+            start = max(applicable) if applicable else resolver.normalize_start(data_date or project_start)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
