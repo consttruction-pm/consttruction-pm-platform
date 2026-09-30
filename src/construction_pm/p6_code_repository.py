@@ -185,25 +185,26 @@ class PostgresP6CodeRepository:
         import json
         definition.validate()
         payload = json.dumps(_payload(definition), sort_keys=True, separators=(",", ":"))
+        self.connection.execute(
+            "INSERT INTO p6_code_definition "
+            "(tenant_id,project_id,project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,code_id) DO NOTHING",
+            (definition.scope.tenant_id,definition.scope.project_id,definition.scope.project_revision,
+             definition.code_id,definition.name,definition.subject_area,definition.scope_kind,
+             definition.scope_key,payload),
+        )
         row = self.connection.execute(
             "SELECT project_revision,name,subject_area,scope_kind,scope_key,values_json "
             "FROM p6_code_definition WHERE tenant_id=%s AND project_id=%s AND code_id=%s",
             (definition.scope.tenant_id, definition.scope.project_id, definition.code_id),
         ).fetchone()
-        if row is not None:
-            if int(row[0]) != definition.scope.project_revision:
-                raise P6CodePersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload):
-                raise P6CodePersistenceError("IMMUTABLE_CODE_DEFINITION")
-            return definition
-        self.connection.execute(
-            "INSERT INTO p6_code_definition "
-            "(tenant_id,project_id,project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (definition.scope.tenant_id,definition.scope.project_id,definition.scope.project_revision,
-             definition.code_id,definition.name,definition.subject_area,definition.scope_kind,
-             definition.scope_key,payload),
-        )
+        if row is None:
+            raise P6CodePersistenceError("CODE_DEFINITION_INSERT_FAILED")
+        if int(row[0]) != definition.scope.project_revision:
+            raise P6CodePersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload):
+            raise P6CodePersistenceError("IMMUTABLE_CODE_DEFINITION")
         return definition
 
     def get(self, scope: BackendScope, code_id: str) -> P6CodeDefinition | None:

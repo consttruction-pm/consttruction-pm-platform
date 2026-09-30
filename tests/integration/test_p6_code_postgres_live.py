@@ -1,4 +1,7 @@
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import uuid
 import pytest
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_code_repository import P6CodeDefinition, P6CodeValue, P6CodePersistenceError, PostgresP6CodeRepository
@@ -33,3 +36,23 @@ def test_postgres_rollback():
         except RuntimeError:
             conn.rollback()
         assert repo.get(s,"ACTIVITY_TYPE") is None
+
+def test_postgres_concurrent_identical_upsert_is_idempotent():
+    suffix = uuid.uuid4().hex
+    scope = BackendScope(f"tenant-code-concurrent-{suffix}", f"project-code-concurrent-{suffix}", 1)
+    item = definition(scope)
+    barrier = threading.Barrier(2)
+
+    def save():
+        with connect() as conn:
+            repo = PostgresP6CodeRepository(conn)
+            repo.initialize()
+            conn.commit()
+            barrier.wait(timeout=5)
+            return repo.upsert(item)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(save) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+
+    assert results == [item, item]
