@@ -74,3 +74,64 @@ def test_postgres_resource_assignment_identical_concurrent_upsert_is_race_safe()
         with psycopg.connect(DSN) as connection:
             connection.execute(cleanup_sql, params)
             connection.commit()
+
+
+def test_postgres_resource_assignment_period_identical_concurrent_upsert_is_race_safe():
+    if not DSN:
+        pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is required for live PostgreSQL tests")
+
+    from decimal import Decimal
+    from construction_pm.p6_resource_assignment_repository import (
+        P6ResourceAssignmentPeriodValue,
+        PostgresP6ResourceAssignmentPeriodRepository,
+    )
+
+    value = P6ResourceAssignmentPeriodValue(
+        scope=BackendScope("tenant-live", "project-live", 1),
+        assignment_id="concurrent-assignment",
+        activity_id="activity-1",
+        resource_id="resource-1",
+        period_start="2026-10-01",
+        units=Decimal("1.5"),
+        cost=Decimal("100.00"),
+    )
+    params = (
+        value.scope.tenant_id,
+        value.scope.project_id,
+        value.assignment_id,
+        value.period_start,
+    )
+    cleanup_sql = (
+        "DELETE FROM p6_resource_assignment_period_value "
+        "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s AND period_start=%s"
+    )
+    barrier = Barrier(2)
+
+    try:
+        with psycopg.connect(DSN) as connection:
+            repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
+            repository.initialize()
+            connection.commit()
+
+        def run():
+            with psycopg.connect(DSN) as connection:
+                repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
+                barrier.wait()
+                return repository.upsert(value)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: run(), range(2)))
+
+        assert results == [value, value]
+
+        with psycopg.connect(DSN) as connection:
+            row = connection.execute(
+                "SELECT count(*) FROM p6_resource_assignment_period_value "
+                "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s AND period_start=%s",
+                params,
+            ).fetchone()
+            assert row == (1,)
+    finally:
+        with psycopg.connect(DSN) as connection:
+            connection.execute(cleanup_sql, params)
+            connection.commit()

@@ -46,6 +46,31 @@
         "string",
         "null"
       ]
+    },
+    "period_values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "period_start",
+          "units",
+          "cost"
+        ],
+        "properties": {
+          "period_start": {
+            "type": "string",
+            "minLength": 1
+          },
+          "units": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "string"
+          }
+        }
+      }
     }
-  }
+  },
+  "description": "Resource assignment contract with optional deterministic time-phased future-period values. Period values are persisted/replayed data; calculation and calendar semantics remain in Shared Core."
 }

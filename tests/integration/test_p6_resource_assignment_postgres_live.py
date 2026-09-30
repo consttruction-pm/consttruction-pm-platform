@@ -67,3 +67,56 @@ def test_postgres_immutable_replay_and_rollback():
         except RuntimeError:
             conn.rollback()
         assert repo.get(scope, "rollback") is None
+
+
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentPeriodValue,
+    PostgresP6ResourceAssignmentPeriodRepository,
+)
+
+
+def period_value(
+    scope,
+    period_start="2026-10-01",
+    units="4.25",
+    cost="425.50",
+):
+    return P6ResourceAssignmentPeriodValue(
+        scope, "ra-period-1", "act-1", "res-1", period_start,
+        Decimal(units), Decimal(cost),
+    )
+
+
+def test_postgres_assignment_period_round_trip_scope_revision_and_decimal():
+    with connect() as conn:
+        repo = PostgresP6ResourceAssignmentPeriodRepository(conn)
+        repo.initialize()
+        scope = BackendScope("tenant-period-pg", "project-period-pg", 1)
+        first = period_value(scope)
+        second = period_value(scope, "2026-10-02", "5.75", "575.00")
+        assert repo.upsert(second) == second
+        assert repo.upsert(first) == first
+        assert repo.get(scope, "ra-period-1", "2026-10-01") == first
+        assert [x.period_start for x in repo.list(scope, "ra-period-1")] == [
+            "2026-10-01",
+            "2026-10-02",
+        ]
+        assert repo.get(BackendScope("other-period", "project-period-pg", 1), "ra-period-1", "2026-10-01") is None
+        with pytest.raises(P6ResourceAssignmentPersistenceError, match="REVISION_CONFLICT"):
+            repo.get(BackendScope("tenant-period-pg", "project-period-pg", 2), "ra-period-1", "2026-10-01")
+
+
+def test_postgres_assignment_period_identical_replay_and_immutable_conflict():
+    with connect() as conn:
+        repo = PostgresP6ResourceAssignmentPeriodRepository(conn)
+        repo.initialize()
+        scope = BackendScope("tenant-period-rb", "project-period-rb", 1)
+        item = period_value(scope)
+        assert repo.upsert(item) == item
+        assert repo.upsert(item) == item
+        changed = period_value(scope, units="4.50")
+        with pytest.raises(
+            P6ResourceAssignmentPersistenceError,
+            match="IMMUTABLE_RESOURCE_ASSIGNMENT_PERIOD_VALUE",
+        ):
+            repo.upsert(changed)
