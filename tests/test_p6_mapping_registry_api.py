@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -83,6 +85,9 @@ def api() -> P6MappingRegistryAPI:
 
 
 def test_create_and_read_expose_versioned_typed_boundary() -> None:
+    schema_path = Path(__file__).parents[1] / "shared/contracts/p6-mapping-registry.v1.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    assert P6_MAPPING_REGISTRY_API_VERSION == schema["properties"]["contract_version"]["const"]
     instance = api()
     created = instance.create(record(), auth_context=auth())
     assert created["contract_version"] == P6_MAPPING_REGISTRY_API_VERSION
