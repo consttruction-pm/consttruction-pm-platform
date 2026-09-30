@@ -20,6 +20,7 @@ from construction_pm.scheduling.calendar_resolution import (
 )
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.schedule import schedule
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
@@ -116,3 +117,33 @@ def test_relationship_lag_calendar_fails_if_authoritative_calendar_is_missing():
 
     with pytest.raises(KeyError, match="calendar not registered: pred@1"):
         resolve_relationship_lag_resolvers(snapshot, registry)
+
+
+def test_authoritative_lag_resolver_map_changes_cpm_relationship_lag():
+    snapshot, _, _, _ = _snapshot(RelationshipLagCalendar.PREDECESSOR)
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    successor_resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": predecessor_resolver,
+            "succ@1": successor_resolver,
+        }
+    )
+
+    result = schedule(
+        snapshot.activities,
+        snapshot.relationships,
+        snapshot.project_start,
+        project_resolver,
+        options=snapshot.schedule_options,
+        relationship_lag_resolvers=resolve_relationship_lag_resolvers(
+            snapshot, registry
+        ),
+    )
+
+    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["B"].start == date(2026, 9, 24)
