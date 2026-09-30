@@ -22,6 +22,9 @@ class P6XlsxCodec:
         sheets=[s for s in wb.sheetnames if s!=SHEET_EXTENSION]
         if not sheets: raise P6XlsxCodecError("NO_XLSX_DATA_SHEET")
         ext=self._read_extensions(wb)
+        for sheet in ext:
+            if sheet not in sheets:
+                raise P6XlsxCodecError(f"EXTENSION_SHEET_NOT_FOUND:{sheet}")
         rows=[]
         for sheet in sheets:
             ws=wb[sheet]
