@@ -512,8 +512,14 @@ def _multiple_float_paths(
                 and relationship.successor_id in remaining
             ]
             endpoint = _choose_default_float_path_endpoint(
-                scoped, scoped_relationships, early_schedule, late_schedule, resolver,
+                scoped,
+                scoped_relationships,
+                early_schedule,
+                late_schedule,
+                resolver,
                 options.multiple_float_paths_use_total_float,
+                calendar_provider=calendar_provider,
+                relationship_lag_resolver=relationship_lag_resolver,
             ) or min(remaining)
 
         if endpoint not in remaining:
