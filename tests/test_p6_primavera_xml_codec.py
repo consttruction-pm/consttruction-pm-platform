@@ -13,6 +13,9 @@ def test_rejects_wrong_root_and_duplicate_field():
     with pytest.raises(P6PrimaveraXmlCodecError,match="INVALID_P6_XML_ROOT"): P6PrimaveraXmlCodec().decode("<NotP6/>",scope())
     doc='<APIBusinessObjects><Activity><Id>A</Id><Id>B</Id></Activity></APIBusinessObjects>'
     with pytest.raises(P6PrimaveraXmlCodecError,match="DUPLICATE_FIELD:Activity:Id"): P6PrimaveraXmlCodec().decode(doc,scope())
+def test_rejects_root_level_extension():
+    doc='<APIBusinessObjects xmlns:constructionpm="https://constructionpm.example/p6-interchange"><constructionpm:Extensions><constructionpm:Field key="dropped">value</constructionpm:Field></constructionpm:Extensions></APIBusinessObjects>'
+    with pytest.raises(P6PrimaveraXmlCodecError,match="ROOT_LEVEL_EXTENSION_NOT_ALLOWED"): P6PrimaveraXmlCodec().decode(doc,scope())
 def test_extension_round_trip():
     doc='<APIBusinessObjects><Activity><Id>A-10</Id><constructionpm:Extensions xmlns:constructionpm="https://constructionpm.example/p6-interchange"><constructionpm:Field key="vendor.custom">preserved</constructionpm:Field></constructionpm:Extensions></Activity></APIBusinessObjects>'
     codec=P6PrimaveraXmlCodec(); rows=codec.decode(doc,scope())
