@@ -351,7 +351,9 @@ def _relationship_free_float(
     successor: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
+    lag_resolver = lag_resolver or resolver
     delay = 0
     while delay < 10000:
         candidate_start = resolver.add_working_duration(predecessor.start, delay)
@@ -361,7 +363,7 @@ def _relationship_free_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor, resolver):
+        if not _relationship_holds(relationship, candidate, successor, resolver, lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -373,7 +375,9 @@ def _relationship_total_float(
     successor_late: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
+    lag_resolver = lag_resolver or resolver
     delay = 0
     while delay < 10000:
         candidate_start = resolver.add_working_duration(predecessor.start, delay)
@@ -383,7 +387,7 @@ def _relationship_total_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor_late, resolver):
+        if not _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -396,6 +400,7 @@ def _choose_default_float_path_endpoint(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     use_total_float: bool,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> str | None:
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -416,6 +421,7 @@ def _choose_default_float_path_endpoint(
                     late_schedule[activity_id],
                     activity_map[relationship.predecessor_id],
                     resolver,
+                    (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                 )
                 for relationship in incoming_rels
             )
@@ -430,6 +436,7 @@ def _choose_default_float_path_endpoint(
                         early_schedule[activity_id],
                         activity_map[relationship.predecessor_id],
                         resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     for relationship in incoming_rels
                 ),
@@ -456,6 +463,7 @@ def _multiple_float_paths(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> tuple[MultipleFloatPath, ...]:
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
@@ -494,6 +502,7 @@ def _multiple_float_paths(
             endpoint = _choose_default_float_path_endpoint(
                 scoped, scoped_relationships, early_schedule, late_schedule, resolver,
                 options.multiple_float_paths_use_total_float,
+                relationship_lag_resolvers,
             ) or min(remaining)
 
         if endpoint not in remaining:
@@ -528,6 +537,7 @@ def _multiple_float_paths(
                     metric = _relationship_total_float(
                         relationship, predecessor, late_schedule[current],
                         activity_map[predecessor_id], resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     driving_penalty = 0
                 else:
@@ -536,7 +546,8 @@ def _multiple_float_paths(
                         activity_map[predecessor_id], resolver,
                     )
                     driving_penalty = 0 if _relationship_is_driving(
-                        relationship, predecessor, successor, resolver
+                        relationship, predecessor, successor, resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     ) else 1
                 activity_float = _working_delay_between(
                     early_schedule[predecessor_id].start,
@@ -573,6 +584,7 @@ def calculate_floats(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
@@ -669,10 +681,11 @@ def schedule(
         late,
         resolver,
         selected_options,
+        relationship_lag_resolvers,
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options
+        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
