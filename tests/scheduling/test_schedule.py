@@ -725,3 +725,56 @@ def test_schedule_wires_use_expected_finish_dates(resolver):
 
     assert result.activities["A"].start == date(2026, 9, 23)
     assert result.activities["A"].finish == date(2026, 9, 24)
+
+
+@pytest.mark.parametrize(
+    ("calculate_each_project", "expected_float", "expected_late_finish"),
+    [
+        (True, 4, date(2026, 9, 25)),
+        (False, 6, date(2026, 9, 29)),
+    ],
+)
+def test_p6_calculate_float_based_on_finish_date_uses_project_or_batch_finish(
+    resolver, calculate_each_project, expected_float, expected_late_finish
+):
+    result = schedule(
+        [Activity("A", 1)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(
+            calculate_float_based_on_finish_date=calculate_each_project,
+        ),
+        batch_scheduled_finish=date(2026, 9, 29),
+    )
+
+    assert result.late_activities is not None
+    assert result.late_activities["A"].finish == expected_late_finish
+    assert result.floats["A"].total_float == expected_float
+
+
+def test_p6_calculate_float_based_on_finish_date_single_project_falls_back_to_project_finish(
+    resolver,
+):
+    result = schedule(
+        [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+        project_finish=date(2026, 9, 25),
+        options=ScheduleOptions(calculate_float_based_on_finish_date=False),
+    )
+
+    assert result.late_activities is not None
+    assert result.late_activities["A"].finish == date(2026, 9, 25)
+    assert result.floats["A"].total_float == 4
+
+
+def test_p6_calculate_float_based_on_finish_date_rejects_earlier_batch_finish(
+    resolver,
+):
+    with pytest.raises(ValueError, match="batch_scheduled_finish cannot be earlier"):
+        schedule(
+            [Activity("A", 1)], [], date(2026, 9, 21), resolver,
+            project_finish=date(2026, 9, 25),
+            options=ScheduleOptions(calculate_float_based_on_finish_date=False),
+            batch_scheduled_finish=date(2026, 9, 24),
+        )

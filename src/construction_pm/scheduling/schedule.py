@@ -582,6 +582,36 @@ def _multiple_float_paths(
     return tuple(paths)
 
 
+
+def resolve_float_finish_date(
+    *,
+    project_finish: date | None,
+    early_project_finish: date,
+    calculate_float_based_on_finish_date: bool,
+    batch_scheduled_finish: date | None,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Resolve the P6 late-date finish boundary for a scheduling batch.
+
+    P6's Each Project mode uses each project's Scheduled Finish. Opened Projects
+    mode uses the latest Scheduled Finish across the scheduling batch. The
+    caller supplies the batch boundary when multiple projects are scheduled;
+    a single-project schedule naturally falls back to its own finish.
+    """
+    if not isinstance(calculate_float_based_on_finish_date, bool):
+        raise TypeError("calculate_float_based_on_finish_date must be a bool")
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise TypeError("resolver must be a WorkingTimeResolver")
+    own_finish = resolver.normalize_finish(project_finish or early_project_finish)
+    if batch_scheduled_finish is None or calculate_float_based_on_finish_date:
+        return own_finish
+    if not isinstance(batch_scheduled_finish, date):
+        raise TypeError("batch_scheduled_finish must be a date or None")
+    batch_finish = resolver.normalize_finish(batch_scheduled_finish)
+    if batch_finish < own_finish:
+        raise ValueError("batch_scheduled_finish cannot be earlier than project Scheduled Finish")
+    return batch_finish
+
 def calculate_floats(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -656,6 +686,7 @@ def schedule(
     options: ScheduleOptions | None = None,
     calculation_context: CalculationContext | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    batch_scheduled_finish: date | None = None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
@@ -676,8 +707,18 @@ def schedule(
         relationship_lag_resolvers,
         selected_options.use_expected_finish_dates,
     )
+    early_project_finish = resolver.normalize_finish(
+        project_finish or max(item.finish for item in early.values())
+    )
+    float_finish = resolve_float_finish_date(
+        project_finish=project_finish,
+        early_project_finish=early_project_finish,
+        calculate_float_based_on_finish_date=selected_options.calculate_float_based_on_finish_date,
+        batch_scheduled_finish=batch_scheduled_finish,
+        resolver=resolver,
+    )
     late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver, constraint_list,
+        activity_list, relationship_list, early, float_finish, resolver, constraint_list,
         relationship_lag_resolvers,
     )
     floats = calculate_floats(
