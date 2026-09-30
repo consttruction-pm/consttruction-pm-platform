@@ -68,7 +68,7 @@ class P6MsProjectXmlCodec:
                 if preserved:
                     x=ET.SubElement(element,"{"+EXT+"}Extensions")
                     for key,value in sorted(preserved): ET.SubElement(x,"{"+EXT+"}Field",{"key":key}).text=self._stringify(value)
-        return ET.tostring(root,encoding="unicode",short_empty_elements=True)+"\\n"
+        return ET.tostring(root,encoding="unicode",short_empty_elements=True)+"\n"
 
     @staticmethod
     def _local(tag:str)->str:
