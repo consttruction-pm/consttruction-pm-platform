@@ -120,6 +120,13 @@ class CalendarResolverRegistry:
             resolver = self._time.get(key)
         if resolver is None:
             raise KeyError(f"calendar not registered: {key}")
+        calendar = getattr(resolver, "calendar", None)
+        resolver_system = getattr(calendar, "system", None)
+        if resolver_system is not None and resolver_system is not reference.system:
+            raise ValueError(
+                f"calendar system mismatch for {key}: "
+                f"reference={reference.system.value}, resolver={resolver_system.value}"
+            )
         return resolver
 
     def resolve_relationship_lag(
