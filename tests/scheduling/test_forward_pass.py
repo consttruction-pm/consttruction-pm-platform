@@ -132,3 +132,39 @@ def test_forward_pass_rejects_cycles(resolver):
 
     with pytest.raises(SchedulingCycleError):
         forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+
+
+def test_forward_pass_uses_activity_calendar_provider_for_normalization_and_duration():
+    from datetime import date
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.activity_calendar_provider import ResolvedActivityCalendarProvider
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project = WorkingTimeResolver(WorkingCalendar())
+    sunday_thursday = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project,
+            activities={"A": project, "B": sunday_thursday},
+            references={
+                "A": CalendarReference("project", "1"),
+                "B": CalendarReference("activity-b", "1"),
+            },
+        )
+    )
+
+    result = forward_pass(
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(),
+        project_start=date(2026, 10, 2),
+        resolver=project,
+        calendar_provider=provider,
+    )
+
+    assert result["A"].start == date(2026, 10, 2)
+    assert result["B"].start == date(2026, 10, 4)
+    assert result["B"].finish == date(2026, 10, 4)
