@@ -133,7 +133,15 @@ def backward_pass(
             raise ValueError("relationship references an unknown activity")
 
     early_project_finish = max(item.finish for item in forward.values())
-    finish = (calendar_provider.resolver_for(max(forward, key=lambda k: forward[k].finish)) if calendar_provider is not None else resolver).normalize_finish(project_finish or early_project_finish)
+    if project_finish is not None:
+        finish = resolver.normalize_finish(project_finish)
+    else:
+        finish_resolver = (
+            calendar_provider.resolver_for(max(forward, key=lambda k: forward[k].finish))
+            if calendar_provider is not None
+            else resolver
+        )
+        finish = finish_resolver.normalize_finish(early_project_finish)
 
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationship_list:
@@ -738,13 +746,16 @@ def schedule(
             for activity_id, value in floats.items()
         }
 
-    finish_resolver = resolver
-    if calendar_provider is not None:
-        finish_activity_id = max(early, key=lambda activity_id: early[activity_id].finish)
-        finish_resolver = calendar_provider.resolver_for(finish_activity_id)
-    effective_finish = finish_resolver.normalize_finish(
-        project_finish or max(item.finish for item in early.values())
-    )
+    if project_finish is not None:
+        effective_finish = resolver.normalize_finish(project_finish)
+    else:
+        finish_resolver = resolver
+        if calendar_provider is not None:
+            finish_activity_id = max(early, key=lambda activity_id: early[activity_id].finish)
+            finish_resolver = calendar_provider.resolver_for(finish_activity_id)
+        effective_finish = finish_resolver.normalize_finish(
+            max(item.finish for item in early.values())
+        )
     selected = late if selected_options.mode is ScheduleMode.ALAP else early
 
     return ScheduleResult(
