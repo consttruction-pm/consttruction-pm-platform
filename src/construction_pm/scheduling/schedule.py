@@ -218,11 +218,11 @@ def _relationship_holds(
     if relationship.type is RelationshipType.FS:
         required = (
             lag_resolver.next_working_day(
-                lag_lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
             if relationship.lag >= 0
             else lag_resolver.previous_working_day(
-                lag_lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         )
         return successor.start >= required
