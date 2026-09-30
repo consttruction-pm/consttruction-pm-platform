@@ -4,6 +4,9 @@ from datetime import date
 from enum import Enum
 
 from .activity import Activity
+from .forward_pass import ScheduledActivity
+from .relationships import Relationship, successor_earliest_start
+from .calendar import WorkingTimeResolver
 from .schedule_options import OutOfSequenceScheduleType
 
 
@@ -17,6 +20,23 @@ class OutOfSequenceState(str, Enum):
     NOT_STARTED = "NOT_STARTED"
     IN_SEQUENCE = "IN_SEQUENCE"
     OUT_OF_SEQUENCE = "OUT_OF_SEQUENCE"
+
+
+def relationship_required_start(
+    relationship: Relationship,
+    predecessor: ScheduledActivity,
+    successor_duration: int,
+    *,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Return the successor start imposed by the predecessor relationship."""
+    return successor_earliest_start(
+        relationship,
+        predecessor.start,
+        predecessor.finish,
+        successor_duration,
+        resolver,
+    )
 
 
 def classify_out_of_sequence(
