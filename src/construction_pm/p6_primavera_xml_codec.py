@@ -69,7 +69,8 @@ class P6PrimaveraXmlCodec:
                 container = ET.SubElement(element, UNKNOWN_EXTENSION_ELEMENT)
                 for key, value in sorted(preserved, key=lambda item: item[0]):
                     ET.SubElement(container, UNKNOWN_EXTENSION_FIELD, {"key": key}).text = self._stringify(value)
-        return ET.tostring(root, encoding="unicode", short_empty_elements=True) + "\n"
+        return ET.tostring(root, encoding="unicode", short_empty_elements=True) + "
+"
 
     @staticmethod
     def _local_name(tag: str) -> str:
@@ -80,7 +81,10 @@ class P6PrimaveraXmlCodec:
         for field in element:
             if field.tag != UNKNOWN_EXTENSION_FIELD or not field.attrib.get("key"):
                 raise P6PrimaveraXmlCodecError("INVALID_EXTENSION_FIELD")
-            extensions[field.attrib["key"]] = field.text or ""
+            key = field.attrib["key"]
+            if key in extensions:
+                raise P6PrimaveraXmlCodecError(f"DUPLICATE_EXTENSION_KEY:{key}")
+            extensions[key] = field.text or ""
 
     @staticmethod
     def _stringify(value: Any) -> str:
