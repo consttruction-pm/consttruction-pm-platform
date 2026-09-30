@@ -230,7 +230,7 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     )
     shift = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)[0]
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
-        apply_leveling_shifts((activity,), (shift,), resolver=resolver)
+        apply_leveling_shifts(activities, (shift,), resolver=resolver)
     result = apply_leveling_shifts(activities, (shift,), resolver=resolver, allow_beyond_float=True)
     assert result[0].start == shift.new_start
     assert result[0].finish == shift.new_finish
