@@ -74,6 +74,7 @@ class LevelingPriority:
 
 @dataclass(frozen=True)
 class ResourceLevelingOptions:
+    preserve_scheduled_early_and_late_dates: bool = True
     level_all_resources: bool = False
     level_within_float: bool = False
     min_float_to_preserve: Decimal = Decimal("0")
@@ -82,6 +83,8 @@ class ResourceLevelingOptions:
     priorities: tuple[LevelingPriority, ...] = ()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.preserve_scheduled_early_and_late_dates, bool):
+            raise ResourceLevelingError("INVALID_PRESERVE_SCHEDULED_DATES")
         if not isinstance(self.level_all_resources, bool):
             raise ResourceLevelingError("INVALID_LEVEL_ALL_RESOURCES")
         if not isinstance(self.level_within_float, bool):
@@ -289,3 +292,16 @@ def apply_leveling_shifts(
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
         ))
     return tuple(result)
+
+
+
+def resolve_leveling_passes(*, preserve_scheduled_early_and_late_dates: bool) -> tuple[str, ...]:
+    """Return the P6 leveling pass sequence for the preserve-dates option.
+
+    P6 forward-levels when scheduled early/late dates are preserved. When the
+    option is cleared, P6 performs a forward pass and then a backward pass.
+    This helper is only a direction contract; it does not mutate CPM dates.
+    """
+    if not isinstance(preserve_scheduled_early_and_late_dates, bool):
+        raise ResourceLevelingError("INVALID_PRESERVE_SCHEDULED_DATES")
+    return ("FORWARD",) if preserve_scheduled_early_and_late_dates else ("FORWARD", "BACKWARD")
