@@ -8,7 +8,8 @@ from .authoritative_schedule import (
 )
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_system import CalendarDateError, CalendarSystem, JalaliDate, gregorian_to_jalali, jalali_to_gregorian
-from .calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
+from .calendar_context import CalendarReference, CalendarResolverRegistry, RelationshipLagCalendar, SchedulingCalendarContext
+from .calendar_resolution import ResolvedActivityCalendars, resolve_authoritative_activity_calendars, resolve_relationship_lag_calendar
 from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
@@ -60,6 +61,10 @@ __all__ = [
     "CalculationContext",
     "CalendarResolverRegistry",
     "SchedulingCalendarContext",
+    "RelationshipLagCalendar",
+    "ResolvedActivityCalendars",
+    "resolve_authoritative_activity_calendars",
+    "resolve_relationship_lag_calendar",
     "WorkingTimeResolver",
     "WorkingTimeCalendar",
     "TimeAwareWorkingTimeResolver",
