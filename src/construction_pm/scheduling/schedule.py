@@ -7,6 +7,7 @@ from typing import Iterable, Mapping
 from .activity import Activity
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .activity_calendar_provider import ActivityCalendarProvider
 from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
@@ -76,20 +77,22 @@ def _latest_predecessor_start(
     successor: ScheduledActivity,
     predecessor_duration: int,
     resolver: WorkingTimeResolver,
+    relationship_lag_resolver: WorkingTimeResolver | None = None,
 ) -> date:
+    lag_resolver = relationship_lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
-        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SS:
-        return _inverse_start_shift(successor.start, relationship.lag, resolver)
+        return _inverse_start_shift(successor.start, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
-        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
-        return _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        return _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -101,6 +104,8 @@ def backward_pass(
     project_finish: date | None,
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
+    calendar_provider: ActivityCalendarProvider | None = None,
+    relationship_lag_resolver = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
@@ -126,7 +131,7 @@ def backward_pass(
             raise ValueError("relationship references an unknown activity")
 
     early_project_finish = max(item.finish for item in forward.values())
-    finish = resolver.normalize_finish(project_finish or early_project_finish)
+    finish = (calendar_provider.resolver_for(max(forward, key=lambda k: forward[k].finish)) if calendar_provider is not None else resolver).normalize_finish(project_finish or early_project_finish)
 
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for rel in relationship_list:
@@ -137,15 +142,17 @@ def backward_pass(
 
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
+        activity_resolver = calendar_provider.resolver_for(activity_id) if calendar_provider is not None else resolver
         successors = outgoing[activity_id]
 
         if not successors:
             late_finish = finish
-            late_start = resolver.subtract_working_duration(late_finish, activity.duration)
+            late_start = activity_resolver.subtract_working_duration(late_finish, activity.duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, resolver
+                    rel, result[rel.successor_id], activity.duration, activity_resolver,
+                    relationship_lag_resolver(rel) if relationship_lag_resolver is not None else None,
                 )
                 for rel in sorted(
                     successors,
@@ -154,17 +161,17 @@ def backward_pass(
                     ),
                 )
             )
-            latest_by_project_finish = resolver.subtract_working_duration(
+            latest_by_project_finish = activity_resolver.subtract_working_duration(
                 finish, activity.duration
             )
             late_start = min(late_start, latest_by_project_finish)
-            late_finish = resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             late_start = apply_latest_constraint(
-                constraint, late_start, activity.duration, resolver
+                constraint, late_start, activity.duration, activity_resolver
             )
             late_finish = resolver.add_working_duration(late_start, activity.duration)
 
@@ -174,7 +181,7 @@ def backward_pass(
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            validate_late_constraint_window(constraint, late_start, late_finish, resolver)
+            validate_late_constraint_window(constraint, late_start, late_finish, activity_resolver)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id,
