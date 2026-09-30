@@ -23,8 +23,10 @@ class JalaliDate:
     day: int
 
     def __post_init__(self) -> None:
-        g = jalali_to_gregorian(self.year, self.month, self.day)
-        if g is None:
+        if self.year < 1 or not 1 <= self.month <= 12 or self.day < 1:
+            raise CalendarDateError("invalid Jalali date")
+        converted = jalali_to_gregorian(self.year, self.month, self.day)
+        if gregorian_to_jalali(converted) != (self.year, self.month, self.day):
             raise CalendarDateError("invalid Jalali date")
 
     def to_gregorian(self) -> date:
@@ -41,14 +43,13 @@ def _div(a: int, b: int) -> int:
 
 
 def jalali_to_gregorian(year: int, month: int, day: int) -> date:
-    """Convert a Jalali date to Gregorian using the 33-year cycle algorithm."""
+    """Convert a Jalali date to Gregorian using JDN arithmetic."""
 
     if year < 1:
         raise CalendarDateError("Jalali year must be positive")
     if month < 1 or month > 12 or day < 1:
         raise CalendarDateError("invalid Jalali month/day")
 
-    # Convert to the Gregorian date of Farvardin 1 for the Jalali year.
     epbase = year - 474 if year >= 0 else year - 473
     epyear = 474 + (epbase % 2820)
     month_days = (month - 1) * 31 if month <= 7 else (month - 1) * 30 + 6
@@ -60,7 +61,10 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
         + _div(epbase, 2820) * 1029983
         + 1948320
     )
-    return _jdn_to_gregorian(jdn)
+    result = _jdn_to_gregorian(jdn)
+    if gregorian_to_jalali(result) != (year, month, day):
+        raise CalendarDateError("invalid Jalali date")
+    return result
 
 
 def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
