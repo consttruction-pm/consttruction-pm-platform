@@ -22,6 +22,7 @@ from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
 from .out_of_sequence import OutOfSequenceState, ProgressRelationAction, classify_out_of_sequence, relationship_required_start, resolve_out_of_sequence_action
 from .progress_state import ActivityProgressState, ProgressState, resolve_progress_state
 from .remaining_work import RemainingWork, estimate_remaining_work_as_of_data_date, resolve_remaining_work
+from .oos_policy import OOSPolicyResult, resolve_oos_policy
 from .relationships import Relationship, RelationshipType, successor_earliest_start
 from .schedule import (
     FloatActivity,
@@ -65,6 +66,8 @@ __all__ = [
     "RemainingWork",
     "resolve_remaining_work",
     "estimate_remaining_work_as_of_data_date",
+    "OOSPolicyResult",
+    "resolve_oos_policy",
     "SchedulingCycleError",
     "WorkingCalendar",
     "CalendarDateError",
