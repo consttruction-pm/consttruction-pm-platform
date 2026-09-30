@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -102,7 +103,7 @@ def test_postgres_same_key_is_replayed_across_connections(postgres):
 
 
 def test_postgres_same_key_concurrent_execution_runs_delegate_once(postgres):
-    key = "live-postgres-concurrent"
+    key = f"live-postgres-concurrent-{uuid.uuid4()}"
     entered = threading.Event()
     release = threading.Event()
     delegates = [
