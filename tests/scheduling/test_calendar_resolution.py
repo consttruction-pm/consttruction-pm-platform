@@ -21,7 +21,7 @@ from construction_pm.scheduling.calendar_resolution import (
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule import schedule
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import ScheduleOptions, StartToStartLagCalculationType
 
 
 def _snapshot(option):
@@ -146,4 +146,52 @@ def test_authoritative_lag_resolver_map_changes_cpm_relationship_lag():
     )
 
     assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["B"].start == date(2026, 9, 24)
+
+
+def test_ss_out_of_sequence_uses_selected_lag_calendar():
+    project = CalendarReference("project", "1")
+    predecessor = CalendarReference("pred", "1")
+    successor = CalendarReference("succ", "1")
+    snapshot = AuthoritativeScheduleInput(
+        snapshot_id="snap-ss",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project,
+        activities=(Activity("A", 1, actual_start=date(2026, 9, 22)), Activity("B", 1)),
+        relationships=(Relationship("A", "B", RelationshipType.SS, lag=1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", predecessor),
+            ActivityCalendarAssignment("B", successor),
+        ),
+        schedule_options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR,
+            start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START,
+        ),
+        project_start=date(2026, 9, 21),
+    )
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
+    )
+    successor_resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": predecessor_resolver,
+            "succ@1": successor_resolver,
+        }
+    )
+
+    result = schedule(
+        snapshot.activities,
+        snapshot.relationships,
+        snapshot.project_start,
+        project_resolver,
+        options=snapshot.schedule_options,
+        relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
+    )
+
     assert result.early_activities["B"].start == date(2026, 9, 24)
