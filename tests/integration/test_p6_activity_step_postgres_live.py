@@ -1,4 +1,6 @@
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 import pytest
@@ -51,3 +53,29 @@ def test_postgres_activity_step_revision_conflict_and_rollback():
         assert repo.get(scope, "STEP-1") == value
         with pytest.raises(Exception, match="REVISION_CONFLICT"):
             repo.get(BackendScope("tenant-step-rollback", "project-step", 4), "STEP-1")
+
+
+def test_postgres_activity_step_concurrent_identical_upsert_is_idempotent():
+    scope = BackendScope("tenant-step-concurrent", "project-step", 8)
+    value = P6ActivityStep(
+        scope=scope, step_id="STEP-CONCURRENT", activity_id="ACT-1", sequence=1,
+        description="Inspect concurrent formwork", weight=Decimal("5.25"),
+        start_date="2026-09-03", finish_date="2026-09-04",
+        udf_values=(("crew", "C-02"),),
+    )
+    barrier = threading.Barrier(2)
+
+    def save():
+        with _connect() as connection:
+            repo = PostgresP6ActivityStepRepository(connection)
+            repo.initialize()
+            connection.commit()
+            barrier.wait(timeout=5)
+            with connection.transaction():
+                return repo.upsert(value)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(save) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+
+    assert results == [value, value]
