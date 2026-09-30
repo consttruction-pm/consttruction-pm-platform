@@ -277,3 +277,47 @@ def test_backward_sf_uses_selected_relationship_lag_calendar():
         relationship, successor, 1, project_resolver, lag_resolver
     )
     assert actual == date(2026, 9, 21)
+
+
+def test_backward_relationship_validation_uses_selected_lag_calendar():
+    project = CalendarReference("project", "1")
+    predecessor = CalendarReference("pred", "1")
+    successor = CalendarReference("succ", "1")
+    snapshot = AuthoritativeScheduleInput(
+        snapshot_id="snap-sf-validation",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project,
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(Relationship("A", "B", RelationshipType.SF, lag=1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", predecessor),
+            ActivityCalendarAssignment("B", successor),
+        ),
+        schedule_options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR,
+        ),
+        project_start=date(2026, 9, 21),
+    )
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": predecessor_resolver,
+            "succ@1": WorkingTimeResolver(WorkingCalendar()),
+        }
+    )
+    result = schedule(
+        snapshot.activities,
+        snapshot.relationships,
+        snapshot.project_start,
+        project_resolver,
+        options=snapshot.schedule_options,
+        relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
+    )
+    assert result.late_activities["A"].start == date(2026, 9, 21)
