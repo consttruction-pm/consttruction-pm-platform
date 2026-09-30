@@ -61,7 +61,7 @@ def test_postgres_baseline_concurrent_identical_upsert_is_idempotent():
         scope=scope,
         baseline_id="BASE-CONCURRENT",
         name="Concurrent baseline",
-        baseline_type="primary",
+        baseline_type="PRIMARY",
         source_revision=5,
         created_at="2026-09-30T00:00:00Z",
         notes="Concurrent insert",
