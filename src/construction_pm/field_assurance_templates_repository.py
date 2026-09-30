@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Mapping, Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
-from .backend_p0.transactions import SQLiteTransactionManager
 from .client_sync.postgres_transaction import PostgresTransactionManager
 from .field_assurance_execution import (
     FieldAssuranceExecution,
@@ -253,23 +251,6 @@ class PostgresFieldAssuranceTemplateRepository:
         ).fetchone()
         return None if row is None else _execution_from_dict(json.loads(row[0]))
 
-
-@dataclass(frozen=True)
-class FieldAssuranceTemplateApplicationService:
-    repository: FieldAssuranceTemplateRepository
-    transaction_manager: Any
-
-    def create_template(self, template: FieldAssuranceTemplate) -> FieldAssuranceTemplate:
-        with self.transaction_manager.transaction():
-            return self.repository.create_template(template)
-
-    def execute(self, execution: FieldAssuranceExecution) -> FieldAssuranceExecution:
-        with self.transaction_manager.transaction():
-            return self.repository.create_execution(execution)
-
-    def read_template(self, scope: BackendScope, template_id: str, template_version: int) -> FieldAssuranceTemplate | None:
-        with self.transaction_manager.transaction():
-            return self.repository.get_template(scope, template_id, template_version)
 
 
 def _template_from_dict(payload: Mapping[str, Any]) -> FieldAssuranceTemplate:
