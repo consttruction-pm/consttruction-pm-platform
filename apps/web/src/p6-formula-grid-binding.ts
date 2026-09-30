@@ -41,6 +41,7 @@ export function createP6FormulaGridBinding(
   expression = "",
 ): P6FormulaGridBinding {
   const field = requireField(registry, fieldId);
+  requirePresentation(layout, fieldId);
   const editor = createP6FormulaEditor(fieldId, authority, expression);
 
   const state = (): P6FormulaGridBindingState => ({
