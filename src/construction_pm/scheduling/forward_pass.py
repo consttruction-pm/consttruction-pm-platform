@@ -60,7 +60,9 @@ def _successor_start(
     predecessor_activity: Activity | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> date:
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.SS:
         if (
             predecessor_activity is not None
@@ -85,19 +87,19 @@ def _successor_start(
                 is StartToStartLagCalculationType.ACTUAL_START
                 else predecessor.start
             )
-            return _shift_working_date(anchor, remaining_lag, resolver)
+            return _shift_working_date(anchor, remaining_lag, lag_resolver)
 
-        return _shift_working_date(predecessor.start, relationship.lag, resolver)
+        return _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FS:
-        return _apply_lag_after(predecessor.finish, relationship.lag, resolver)
+        return _apply_lag_after(predecessor.finish, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
-        target_finish = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        target_finish = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     if relationship.type is RelationshipType.SF:
-        target_finish = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        target_finish = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(target_finish, successor_duration)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
@@ -138,6 +140,7 @@ def forward_pass(
     calculation_context: CalculationContext | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with foundational date constraints.
 
@@ -195,6 +198,7 @@ def forward_pass(
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
+                    (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
                     incoming[activity_id],

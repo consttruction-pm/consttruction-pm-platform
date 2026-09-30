@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from construction_pm.scheduling.activity import Activity
-from construction_pm.scheduling.forward_pass import forward_pass
+from construction_pm.scheduling.forward_pass import ScheduledActivity, forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import (
     StartToStartLagCalculationType,
@@ -16,7 +16,10 @@ from construction_pm.scheduling.schedule import (
     ScheduleMode,
     ScheduleOptions,
     TotalFloatCalculationType,
+    _multiple_float_paths,
+    _relationship_free_float,
     _relationship_holds,
+    _relationship_total_float,
     backward_pass,
     schedule,
 )
@@ -418,6 +421,65 @@ def test_multiple_float_paths_support_explicit_ending_activity(resolver):
     assert result.floats["C"].float_path is None
 
 
+def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [
+        Relationship("A", "C", RelationshipType.SS, lag=1),
+        Relationship("B", "C", RelationshipType.SS, lag=1),
+    ]
+    early = {
+        "A": ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "B": ScheduledActivity("B", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "C": ScheduledActivity("C", date(2026, 9, 23), date(2026, 9, 23), 1),
+    }
+    late = {
+        "A": ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "B": ScheduledActivity("B", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "C": ScheduledActivity("C", date(2026, 9, 24), date(2026, 9, 24), 1),
+    }
+    holiday_lag = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+
+    project_a_free_float = _relationship_free_float(
+        relationships[0], early["A"], early["C"], activities[0], resolver, resolver
+    )
+    holiday_a_free_float = _relationship_free_float(
+        relationships[0], early["A"], early["C"], activities[0], resolver, holiday_lag
+    )
+    project_b_free_float = _relationship_free_float(
+        relationships[1], early["B"], early["C"], activities[1], resolver, resolver
+    )
+    holiday_b_free_float = _relationship_free_float(
+        relationships[1], early["B"], early["C"], activities[1], resolver, resolver
+    )
+
+    assert project_a_free_float == 2
+    assert holiday_a_free_float == 1
+    assert holiday_b_free_float == project_b_free_float
+
+
+
+def test_relationship_total_float_uses_selected_lag_calendar(resolver):
+    lag_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    relationship = Relationship("A", "B", RelationshipType.SS, lag=1)
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    predecessor = ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1)
+    successor_late = ScheduledActivity("B", date(2026, 9, 22), date(2026, 9, 22), 1)
+
+    project_calendar_float = _relationship_total_float(
+        relationship, predecessor, successor_late, Activity("A", 1), resolver
+    )
+    lag_calendar_float = _relationship_total_float(
+        relationship, predecessor, successor_late, Activity("A", 1), resolver, lag_resolver
+    )
+
+    assert project_calendar_float == 1
+    assert lag_calendar_float == 0
+
+
 def test_multiple_float_paths_total_float_method_selects_lowest_relationship_slack(resolver):
     activities = [Activity("A", 1), Activity("B", 2), Activity("C", 1)]
     relationships = [Relationship("A", "C"), Relationship("B", "C")]
@@ -626,3 +688,21 @@ def test_stage_73_16_schedule_preserves_negative_float_at_calendar_boundary(
     assert result.late_activities["A"].start == date(2026, 9, 18)
     assert result.floats["A"].total_float < 0
     assert result.floats["A"].free_float == 0
+
+
+def test_relationship_lag_uses_explicit_relationship_resolver(resolver):
+    from construction_pm.scheduling.forward_pass import _successor_start
+
+    holiday_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    predecessor = Activity("A", 1)
+    scheduled = _successor_start(
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        type("Scheduled", (), {"activity_id": "A", "start": date(2026, 9, 21), "finish": date(2026, 9, 21), "duration": 1})(),
+        1,
+        resolver,
+        predecessor,
+        lag_resolver=holiday_resolver,
+    )
+    assert scheduled == date(2026, 9, 24)

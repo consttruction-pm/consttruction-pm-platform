@@ -76,20 +76,22 @@ def _latest_predecessor_start(
     successor: ScheduledActivity,
     predecessor_duration: int,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> date:
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
-        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SS:
-        return _inverse_start_shift(successor.start, relationship.lag, resolver)
+        return _inverse_start_shift(successor.start, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
-        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
-        return _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        return _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -101,6 +103,7 @@ def backward_pass(
     project_finish: date | None,
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
@@ -145,7 +148,8 @@ def backward_pass(
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, resolver
+                    rel, result[rel.successor_id], activity.duration, resolver,
+                    (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
                     successors,
@@ -188,7 +192,7 @@ def backward_pass(
     # Upper-bound and mandatory constraints remain validated below.
 
     for relationship in relationship_list:
-        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
+        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
             raise ValueError(
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
                 f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
@@ -208,29 +212,31 @@ def _relationship_holds(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> bool:
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         required = (
-            resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            lag_resolver.next_working_day(
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
             if relationship.lag >= 0
-            else resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            else lag_resolver.previous_working_day(
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         )
         return successor.start >= required
 
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start >= required
 
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
@@ -242,6 +248,7 @@ def _free_float(
     successors: list[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> int:
     if not successors:
         return 0
@@ -258,7 +265,10 @@ def _free_float(
                 finish=resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
-            if not _relationship_holds(rel, candidate, successor, resolver):
+            if not _relationship_holds(
+                rel, candidate, successor, resolver,
+                (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
+            ):
                 break
             delay += 1
         limits.append(delay - 1)
@@ -271,26 +281,28 @@ def _relationship_is_driving(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> bool:
     """Return True when the relationship exactly determines the successor event."""
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         if relationship.lag >= 0:
-            required = resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            required = lag_resolver.next_working_day(
+                lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
         else:
-            required = resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            required = lag_resolver.previous_working_day(
+                lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         return successor.start == required
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start == required
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish == required
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish == required
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
@@ -300,6 +312,7 @@ def _longest_path_activity_ids(
     relationships: Iterable[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> frozenset[str]:
     """Trace P6-style driving relationships from the latest early finishes."""
     activity_list = list(activities)
@@ -330,7 +343,7 @@ def _longest_path_activity_ids(
             if predecessor_id in longest:
                 continue
             predecessor = early_schedule[predecessor_id]
-            if _relationship_is_driving(relationship, predecessor, successor, resolver):
+            if _relationship_is_driving(relationship, predecessor, successor, resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
                 longest.add(predecessor_id)
                 stack.append(predecessor_id)
     return frozenset(longest)
@@ -342,7 +355,9 @@ def _relationship_free_float(
     successor: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
+    lag_resolver = lag_resolver or resolver
     delay = 0
     while delay < 10000:
         candidate_start = resolver.add_working_duration(predecessor.start, delay)
@@ -352,7 +367,7 @@ def _relationship_free_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor, resolver):
+        if not _relationship_holds(relationship, candidate, successor, resolver, lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -364,7 +379,9 @@ def _relationship_total_float(
     successor_late: ScheduledActivity,
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> int:
+    lag_resolver = lag_resolver or resolver
     delay = 0
     while delay < 10000:
         candidate_start = resolver.add_working_duration(predecessor.start, delay)
@@ -374,7 +391,7 @@ def _relationship_total_float(
             finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor_late, resolver):
+        if not _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver):
             return max(0, delay - 1)
         delay += 1
     return 10000
@@ -387,6 +404,7 @@ def _choose_default_float_path_endpoint(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     use_total_float: bool,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> str | None:
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -407,6 +425,7 @@ def _choose_default_float_path_endpoint(
                     late_schedule[activity_id],
                     activity_map[relationship.predecessor_id],
                     resolver,
+                    (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                 )
                 for relationship in incoming_rels
             )
@@ -421,6 +440,7 @@ def _choose_default_float_path_endpoint(
                         early_schedule[activity_id],
                         activity_map[relationship.predecessor_id],
                         resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     for relationship in incoming_rels
                 ),
@@ -447,6 +467,7 @@ def _multiple_float_paths(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> tuple[MultipleFloatPath, ...]:
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
@@ -485,6 +506,7 @@ def _multiple_float_paths(
             endpoint = _choose_default_float_path_endpoint(
                 scoped, scoped_relationships, early_schedule, late_schedule, resolver,
                 options.multiple_float_paths_use_total_float,
+                relationship_lag_resolvers,
             ) or min(remaining)
 
         if endpoint not in remaining:
@@ -519,15 +541,18 @@ def _multiple_float_paths(
                     metric = _relationship_total_float(
                         relationship, predecessor, late_schedule[current],
                         activity_map[predecessor_id], resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     driving_penalty = 0
                 else:
                     metric = _relationship_free_float(
                         relationship, predecessor, successor,
                         activity_map[predecessor_id], resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     driving_penalty = 0 if _relationship_is_driving(
-                        relationship, predecessor, successor, resolver
+                        relationship, predecessor, successor, resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     ) else 1
                 activity_float = _working_delay_between(
                     early_schedule[predecessor_id].start,
@@ -564,11 +589,12 @@ def calculate_floats(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver)
+        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
@@ -593,7 +619,7 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
+            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver, relationship_lag_resolvers
         )
         free = max(0, min(total, free))
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
@@ -629,6 +655,7 @@ def schedule(
     constraints: Iterable[ActivityConstraint] | None = None,
     options: ScheduleOptions | None = None,
     calculation_context: CalculationContext | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
@@ -646,9 +673,11 @@ def schedule(
         calculation_context,
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
+        relationship_lag_resolvers,
     )
     late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver, constraint_list
+        activity_list, relationship_list, early, project_finish, resolver, constraint_list,
+        relationship_lag_resolvers,
     )
     floats = calculate_floats(
         activity_list,
@@ -657,10 +686,11 @@ def schedule(
         late,
         resolver,
         selected_options,
+        relationship_lag_resolvers,
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options
+        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
