@@ -4,6 +4,11 @@ import sqlite3
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.application.authorization import (
+    AuthorizationContext,
+    Permission,
+    RoleBasedAuthorizationPolicy,
+)
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.field_assurance_templates import (
     FieldAssuranceTemplate,
@@ -12,8 +17,8 @@ from construction_pm.field_assurance_templates import (
     FieldAssuranceTemplateType,
 )
 from construction_pm.field_assurance_execution import FieldAssuranceExecution, FieldAssuranceExecutionAnswer
+from construction_pm.field_assurance_application import FieldAssuranceApplicationService
 from construction_pm.field_assurance_templates_repository import (
-    FieldAssuranceTemplateApplicationService,
     FieldAssuranceTemplateRepository,
     FieldAssuranceTemplatePersistenceError,
     SQLiteFieldAssuranceTemplateRepository,
@@ -38,8 +43,18 @@ def _template(revision: int = 4, version: int = 2) -> FieldAssuranceTemplate:
 def _service():
     connection = sqlite3.connect(":memory:")
     repository = SQLiteFieldAssuranceTemplateRepository(connection)
-    service = FieldAssuranceTemplateApplicationService(repository, SQLiteTransactionManager(connection))
-    return connection, service
+    policy = RoleBasedAuthorizationPolicy(
+        {"planner": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE})}
+    )
+    service = FieldAssuranceApplicationService(
+        repository=repository,
+        authorization_policy=policy,
+        transaction_manager=SQLiteTransactionManager(connection),
+    )
+    context = AuthorizationContext(
+        "tenant-1", "project-1", "user-1", frozenset({"planner"})
+    )
+    return connection, repository, service, context
 
 
 def _execution(scope: BackendScope = _scope()) -> FieldAssuranceExecution:
@@ -50,10 +65,10 @@ def _execution(scope: BackendScope = _scope()) -> FieldAssuranceExecution:
 
 
 def test_create_read_preserves_version_and_scope():
-    connection, service = _service()
+    connection, repository, service, context = _service()
     try:
-        service.create_template(_template())
-        value = service.read_template(_scope(), "TPL-1", 2)
+        service.create_template(_template(), context=context, expected_project_revision=4, actor_id="user-1")
+        value = service.get_template(context=context, template_id="TPL-1", template_version=2, project_revision=4)
         assert value is not None
         assert value.template_version == 2
         assert value.scope == _scope()
@@ -65,11 +80,11 @@ def test_create_read_preserves_version_and_scope():
 def test_historical_versions_are_immutable():
     connection, service = _service()
     try:
-        service.create_template(_template(version=1))
-        service.create_template(_template(version=2))
+        service.create_template(_template(version=1), context=context, expected_project_revision=4, actor_id="user-1")
+        service.create_template(_template(version=2), context=context, expected_project_revision=4, actor_id="user-1")
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="IMMUTABLE_TEMPLATE_VERSION"):
-            service.create_template(_template(version=2, revision=5))
-        assert service.read_template(_scope(), "TPL-1", 1).template_version == 1
+            service.create_template(_template(version=2, revision=5), context=context, expected_project_revision=5, actor_id="user-1")
+        assert service.get_template(context=context, template_id="TPL-1", template_version=1, project_revision=4).template_version == 1
     finally:
         connection.close()
 
@@ -91,15 +106,21 @@ def test_execution_requires_exact_template_version_and_required_answers():
     try:
         service.create_template(_template())
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="MISSING_REQUIRED_EXECUTION_ANSWERS"):
-            service.execute(FieldAssuranceExecution(
-                "EXEC-MISSING", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-2", "pass"),),
-                "user-1", datetime.now(timezone.utc),
-            ))
+            service.execute(
+                FieldAssuranceExecution(
+                    "EXEC-MISSING", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-2", "pass"),),
+                    "user-1", datetime.now(timezone.utc),
+                ),
+                context=context, expected_project_revision=4, actor_id="user-1",
+            )
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_VERSION_MISMATCH"):
-            service.execute(FieldAssuranceExecution(
-                "EXEC-OLD", _scope(), "TPL-1", 1, (FieldAssuranceExecutionAnswer("I-1", "12.5"), FieldAssuranceExecutionAnswer("I-2", "pass")),
-                "user-1", datetime.now(timezone.utc),
-            ))
+            service.execute(
+                FieldAssuranceExecution(
+                    "EXEC-OLD", _scope(), "TPL-1", 1, (FieldAssuranceExecutionAnswer("I-1", "12.5"), FieldAssuranceExecutionAnswer("I-2", "pass")),
+                    "user-1", datetime.now(timezone.utc),
+                ),
+                context=context, expected_project_revision=4, actor_id="user-1",
+            )
     finally:
         connection.close()
 
@@ -109,12 +130,15 @@ def test_execution_rejects_scope_mismatch():
     try:
         service.create_template(_template())
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_SCOPE_MISMATCH"):
-            service.execute(_execution(_scope(5)))
+            service.execute(_execution(_scope(5)), context=context, expected_project_revision=5, actor_id="user-1")
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
-            service.execute(FieldAssuranceExecution(
-                "EXEC-TENANT", BackendScope("tenant-2", "project-1", 4), "TPL-1", 2,
-                (FieldAssuranceExecutionAnswer("I-1", "12.5"), FieldAssuranceExecutionAnswer("I-2", "pass")), "user-1", datetime.now(timezone.utc),
-            ))
+            service.execute(
+                FieldAssuranceExecution(
+                    "EXEC-TENANT", BackendScope("tenant-2", "project-1", 4), "TPL-1", 2,
+                    (FieldAssuranceExecutionAnswer("I-1", "12.5"), FieldAssuranceExecutionAnswer("I-2", "pass")), "user-1", datetime.now(timezone.utc),
+                ),
+                context=context, expected_project_revision=4, actor_id="user-1",
+            )
     finally:
         connection.close()
 
@@ -123,14 +147,17 @@ def test_execution_is_idempotent_and_conflicts_are_rejected():
     connection, service = _service()
     try:
         service.create_template(_template())
-        first = service.execute(_execution())
+        first = service.execute(_execution(), context=context, expected_project_revision=4, actor_id="user-1")
         replay = service.execute(_execution())
         assert replay.as_dict() == first.as_dict()
         with pytest.raises(FieldAssuranceTemplatePersistenceError, match="EXECUTION_ID_CONFLICT"):
-            service.execute(FieldAssuranceExecution(
-                "EXEC-1", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 99), FieldAssuranceExecutionAnswer("I-2", "pass")),
-                "user-1", datetime.now(timezone.utc),
-            ))
+            service.execute(
+                FieldAssuranceExecution(
+                    "EXEC-1", _scope(), "TPL-1", 2, (FieldAssuranceExecutionAnswer("I-1", 99), FieldAssuranceExecutionAnswer("I-2", "pass")),
+                    "user-1", datetime.now(timezone.utc),
+                ),
+                context=context, expected_project_revision=4, actor_id="user-1",
+            )
     finally:
         connection.close()
 
@@ -144,40 +171,10 @@ def test_execution_rollback_leaves_no_partial_row():
             "user-1", datetime.now(timezone.utc),
         )
         with pytest.raises(FieldAssuranceTemplatePersistenceError):
-            service.execute(bad)
+            service.execute(bad, context=context, expected_project_revision=4, actor_id="user-1")
         assert service.repository.get_execution(_scope(), "EXEC-ROLLBACK") is None
     finally:
         connection.close()
-
-def test_application_service_depends_on_repository_protocol():
-    connection = sqlite3.connect(":memory:")
-    try:
-        sqlite_repository = SQLiteFieldAssuranceTemplateRepository(connection)
-
-        class RepositoryPort:
-            def create_template(self, template):
-                return sqlite_repository.create_template(template)
-
-            def get_template(self, scope, template_id, template_version):
-                return sqlite_repository.get_template(scope, template_id, template_version)
-
-            def create_execution(self, execution):
-                return sqlite_repository.create_execution(execution)
-
-            def execute(self, execution):
-                return sqlite_repository.execute(execution)
-
-            def get_execution(self, scope, execution_id):
-                return sqlite_repository.get_execution(scope, execution_id)
-
-        service = FieldAssuranceTemplateApplicationService(
-            RepositoryPort(), SQLiteTransactionManager(connection)
-        )
-        service.create_template(_template())
-        assert service.read_template(_scope(), "TPL-1", 2) is not None
-    finally:
-        connection.close()
-
 
 def test_postgres_repository_round_trip_is_exported():
     from construction_pm.field_assurance_templates_repository import PostgresFieldAssuranceTemplateRepository
