@@ -249,6 +249,7 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
                 field_id, subject_area, p6_field, display_name, data_type,
                 writable, computed, unit, payload_json
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (tenant_id,project_id,registry_version,field_id) DO NOTHING
             """,
             (record.scope.tenant_id, record.scope.project_id,
              record.scope.project_revision, record.registry_version,
@@ -257,6 +258,22 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
              record.field.data_type.value, record.field.writable,
              record.field.computed, record.field.unit, payload),
         )
+        row = self.connection.execute(
+            """
+            SELECT project_revision, payload_json
+            FROM p6_field_registry
+            WHERE tenant_id=%s AND project_id=%s
+              AND registry_version=%s AND field_id=%s
+            """,
+            (record.scope.tenant_id, record.scope.project_id,
+             record.registry_version, record.field.field_id),
+        ).fetchone()
+        if row is None:
+            raise P6FieldRegistryPersistenceError("FIELD_INSERT_FAILED")
+        if int(row[0]) != record.scope.project_revision:
+            raise P6FieldRegistryPersistenceError("REVISION_CONFLICT")
+        if row[1] != payload:
+            raise P6FieldRegistryPersistenceError("IMMUTABLE_FIELD_DEFINITION")
         return record
 
     def get_field(self, scope: BackendScope, registry_version: str, field_id: str) -> PersistedP6Field | None:
