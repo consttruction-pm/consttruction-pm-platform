@@ -21,6 +21,13 @@ class CriticalActivityPathType(str, Enum):
     LONGEST_PATH = "LONGEST_PATH"
 
 
+class StartToStartLagCalculationType(str, Enum):
+    """P6 start-to-start out-of-sequence lag calculation mode."""
+
+    EARLY_START = "EARLY_START"
+    ACTUAL_START = "ACTUAL_START"
+
+
 @dataclass(frozen=True)
 class ScheduleOptions:
     """Shared scheduling options with P6-compatible semantics.
