@@ -550,3 +550,13 @@ Status: **implemented, runtime-verified and merged**
 - The HTTP adapter does not trust browser tenant/user/project headers as identity and delegates authorization to the existing ProjectLifecycleAPI; it introduces no authentication engine, database repository, or scheduling/P6 logic.
 - The next boundary is now explicitly outside this Hasan API adapter: connect the chosen ASGI/WSGI host and the Web session/project-selector client to these routes. Open PR #524 is the Javad-owned Web client integration; PR #517 remains scheduling-owned and must not be modified as Hasan work.
 - Do not create another authentication or project-selection implementation. Continue from the first reproducible backend defect after the host/Web integration, with exact current-main reconciliation and focused regression evidence.
+
+
+### 2026-09-30 — Current-main reconciliation after P6 Field Registry PostgreSQL persistence (PR #533)
+
+- Current `main` is `f18318ab82ac4728e2c13dd6b7cf957d1f6defd1`; PR #533 (P6 Field Registry PostgreSQL persistence) is merged and its exact implementation head `ceb2724380fbc9da07ae2de4d9bf0698b04bf5f5` passed ConstructionPM CI, Client Typecheck and PostgreSQL Integration before merge.
+- The P6 Field Registry PostgreSQL repository now exists on current main; do not duplicate Field Registry persistence/API work.
+- Issue #393 remains the Hasan ownership boundary, but its previously identified P6 working-data surfaces and interchange codecs are already represented by merged current-main work. Baseline metadata is persisted; baseline comparison/variance semantics remain Shared Core-owned and must not be invented in Backend/API.
+- Current open-PR inspection found no open PR requiring Hasan-owned Backend/Database/Application/API work. Historical/stale Web or Scheduling PRs must not be revived merely because they exist in Git history.
+- Therefore no new feature is started at this reconciliation point. The next Hasan implementation must begin only when a concrete authoritative contract or reproducible Backend/API/Persistence defect appears on current `main`.
+- Execution rule remains: branch from exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence before merge.
