@@ -76,16 +76,18 @@ def _latest_predecessor_start(
     successor: ScheduledActivity,
     predecessor_duration: int,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> date:
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
-        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.start, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SS:
-        return _inverse_start_shift(successor.start, relationship.lag, resolver)
+        return _inverse_start_shift(successor.start, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
-        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, resolver)
+        predecessor_finish = _inverse_event_shift(successor.finish, relationship.lag, lag_resolver)
         return resolver.subtract_working_duration(predecessor_finish, predecessor_duration)
 
     if relationship.type is RelationshipType.SF:
@@ -101,6 +103,7 @@ def backward_pass(
     project_finish: date | None,
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
@@ -145,7 +148,8 @@ def backward_pass(
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, resolver
+                    rel, result[rel.successor_id], activity.duration, resolver,
+                    (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
                     successors,
@@ -629,6 +633,7 @@ def schedule(
     constraints: Iterable[ActivityConstraint] | None = None,
     options: ScheduleOptions | None = None,
     calculation_context: CalculationContext | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
@@ -646,9 +651,11 @@ def schedule(
         calculation_context,
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
+        relationship_lag_resolvers,
     )
     late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver, constraint_list
+        activity_list, relationship_list, early, project_finish, resolver, constraint_list,
+        relationship_lag_resolvers,
     )
     floats = calculate_floats(
         activity_list,
