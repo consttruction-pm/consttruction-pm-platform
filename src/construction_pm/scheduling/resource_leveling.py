@@ -20,6 +20,7 @@ class ResourceDemand:
     resource_id: str
     period: date
     units: Decimal
+    activity_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -28,6 +29,8 @@ class ResourceDemand:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_DEMAND_UNITS")
+        if self.activity_id is not None and (not isinstance(self.activity_id, str) or not self.activity_id.strip()):
+            raise ResourceLevelingError("INVALID_ACTIVITY_ID")
 
 
 @dataclass(frozen=True)
@@ -81,18 +84,9 @@ class ResourceLevelingOptions:
             raise ResourceLevelingError("INVALID_LEVEL_ALL_RESOURCES")
         if not isinstance(self.level_within_float, bool):
             raise ResourceLevelingError("INVALID_LEVEL_WITHIN_FLOAT")
-        if (
-            not isinstance(self.min_float_to_preserve, Decimal)
-            or not self.min_float_to_preserve.is_finite()
-            or self.min_float_to_preserve < 0
-        ):
+        if not isinstance(self.min_float_to_preserve, Decimal) or not self.min_float_to_preserve.is_finite() or self.min_float_to_preserve < 0:
             raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
-        if (
-            not isinstance(self.over_allocation_percentage, Decimal)
-            or not self.over_allocation_percentage.is_finite()
-            or self.over_allocation_percentage < 0
-            or self.over_allocation_percentage > 100
-        ):
+        if not isinstance(self.over_allocation_percentage, Decimal) or not self.over_allocation_percentage.is_finite() or not 0 <= self.over_allocation_percentage <= 100:
             raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
         if len(set(self.resource_ids)) != len(self.resource_ids):
             raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
@@ -106,20 +100,13 @@ def detect_over_allocations(
     *,
     over_allocation_percentage: Decimal = Decimal("0"),
 ) -> tuple[OverAllocation, ...]:
-    if (
-        not isinstance(over_allocation_percentage, Decimal)
-        or not over_allocation_percentage.is_finite()
-        or over_allocation_percentage < 0
-        or over_allocation_percentage > 100
-    ):
+    if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
 
     demand_by_key: dict[tuple[str, date], Decimal] = {}
     capacity_by_key: dict[tuple[str, date], Decimal] = {}
     for item in demands:
-        demand_by_key[(item.resource_id, item.period)] = (
-            demand_by_key.get((item.resource_id, item.period), Decimal("0")) + item.units
-        )
+        demand_by_key[(item.resource_id, item.period)] = demand_by_key.get((item.resource_id, item.period), Decimal("0")) + item.units
     for item in capacities:
         key = (item.resource_id, item.period)
         if key in capacity_by_key:
@@ -130,19 +117,23 @@ def detect_over_allocations(
     for resource_id, period in sorted(demand_by_key, key=lambda key: (key[1], key[0])):
         demand = demand_by_key[(resource_id, period)]
         base_capacity = capacity_by_key.get((resource_id, period), Decimal("0"))
-        effective_capacity = base_capacity * (
-            Decimal("1") + over_allocation_percentage / Decimal("100")
-        )
+        effective_capacity = base_capacity * (Decimal("1") + over_allocation_percentage / Decimal("100"))
         excess = demand - effective_capacity
         if excess > 0:
-            result.append(
-                OverAllocation(
-                    resource_id=resource_id,
-                    period=period,
-                    demand=demand,
-                    base_capacity=base_capacity,
-                    effective_capacity=effective_capacity,
-                    excess=excess,
-                )
-            )
+            result.append(OverAllocation(resource_id, period, demand, base_capacity, effective_capacity, excess))
     return tuple(result)
+
+
+def select_leveling_resources(
+    demands: tuple[ResourceDemand, ...] | list[ResourceDemand],
+    *,
+    level_all_resources: bool,
+    resource_ids: tuple[str, ...] = (),
+) -> tuple[str, ...]:
+    available = {item.resource_id for item in demands}
+    if level_all_resources:
+        return tuple(sorted(available))
+    selected = tuple(sorted(set(resource_ids)))
+    if set(selected) - available:
+        raise ResourceLevelingError("UNKNOWN_RESOURCE")
+    return selected
