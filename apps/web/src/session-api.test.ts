@@ -1,0 +1,10 @@
+import { describe, expect, it } from "vitest";
+import { toWorkspaceContext } from "./session-api.js";
+
+describe("session API client", () => {
+  it("projects only the authoritative context fields into WorkspaceContext", () => {
+    expect(toWorkspaceContext({
+      tenant_id: "t1", project_id: "p1", revision: 4, user_id: "u1",
+    })).toEqual({ tenant_id: "t1", project_id: "p1", revision: 4 });
+  });
+});
