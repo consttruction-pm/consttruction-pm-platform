@@ -190,3 +190,78 @@ def test_ss_out_of_sequence_uses_selected_lag_calendar():
         relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
     )
     assert result.early_activities["B"].start == date(2026, 9, 24)
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_relationship_lag_calendar_matrix_executes_forward_and_backward(relationship_type):
+    project = CalendarReference("project", "1")
+    predecessor = CalendarReference("pred", "1")
+    successor = CalendarReference("succ", "1")
+    predecessor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    successor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
+    )
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": predecessor_resolver,
+            "succ@1": successor_resolver,
+        }
+    )
+    for option in RelationshipLagCalendar:
+        snapshot = AuthoritativeScheduleInput(
+            snapshot_id=f"matrix-{relationship_type.value}-{option.value}",
+            tenant_id="tenant-1",
+            project_id="project-1",
+            project_revision=1,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=project,
+            activities=(Activity("A", 1), Activity("B", 1)),
+            relationships=(Relationship("A", "B", relationship_type, lag=1),),
+            activity_calendar_assignments=(
+                ActivityCalendarAssignment("A", predecessor),
+                ActivityCalendarAssignment("B", successor),
+            ),
+            schedule_options=ScheduleOptions(relationship_lag_calendar=option),
+            project_start=date(2026, 9, 21),
+        )
+        result = schedule(
+            snapshot.activities,
+            snapshot.relationships,
+            snapshot.project_start,
+            project_resolver,
+            options=snapshot.schedule_options,
+            relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
+        )
+        assert result.early_activities is not None
+        assert result.late_activities is not None
+        assert result.early_activities["A"].start <= result.early_activities["B"].finish
+        repeat = schedule(
+            snapshot.activities,
+            snapshot.relationships,
+            snapshot.project_start,
+            project_resolver,
+            options=snapshot.schedule_options,
+            relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
+        )
+        assert result.early_activities == repeat.early_activities
+        assert result.late_activities == repeat.late_activities
+
+
+def test_backward_sf_uses_selected_relationship_lag_calendar():
+    from construction_pm.scheduling.forward_pass import ScheduledActivity
+    from construction_pm.scheduling.schedule import _latest_predecessor_start
+
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    lag_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    successor = ScheduledActivity("B", date(2026, 9, 24), date(2026, 9, 24), 1)
+    relationship = Relationship("A", "B", RelationshipType.SF, lag=1)
+    actual = _latest_predecessor_start(
+        relationship, successor, 1, project_resolver, lag_resolver
+    )
+    assert actual == date(2026, 9, 21)
