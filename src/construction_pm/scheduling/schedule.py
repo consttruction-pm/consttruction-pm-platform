@@ -192,7 +192,7 @@ def backward_pass(
     # Upper-bound and mandatory constraints remain validated below.
 
     for relationship in relationship_list:
-        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver):
+        if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
             raise ValueError(
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
                 f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
@@ -212,29 +212,31 @@ def _relationship_holds(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> bool:
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         required = (
-            resolver.next_working_day(
-                resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
+            lag_resolver.next_working_day(
+                lag_lag_resolver.add_working_duration(predecessor.finish, relationship.lag + 1)
             )
             if relationship.lag >= 0
-            else resolver.previous_working_day(
-                resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
+            else lag_resolver.previous_working_day(
+                lag_lag_resolver.subtract_working_duration(predecessor.finish, -relationship.lag)
             )
         )
         return successor.start >= required
 
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start >= required
 
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     if relationship.type is RelationshipType.SF:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.finish >= required
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
@@ -275,8 +277,10 @@ def _relationship_is_driving(
     predecessor: ScheduledActivity,
     successor: ScheduledActivity,
     resolver: WorkingTimeResolver,
+    lag_resolver: WorkingTimeResolver | None = None,
 ) -> bool:
     """Return True when the relationship exactly determines the successor event."""
+    lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.FS:
         if relationship.lag >= 0:
             required = resolver.next_working_day(
@@ -288,10 +292,10 @@ def _relationship_is_driving(
             )
         return successor.start == required
     if relationship.type is RelationshipType.SS:
-        required = _shift_working_date(predecessor.start, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.start, relationship.lag, lag_resolver)
         return successor.start == required
     if relationship.type is RelationshipType.FF:
-        required = _shift_working_date(predecessor.finish, relationship.lag, resolver)
+        required = _shift_working_date(predecessor.finish, relationship.lag, lag_resolver)
         return successor.finish == required
     if relationship.type is RelationshipType.SF:
         required = _shift_working_date(predecessor.start, relationship.lag, resolver)
