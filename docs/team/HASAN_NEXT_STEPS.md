@@ -520,3 +520,13 @@ Status: **implemented, runtime-verified and merged**
 - Fresh issue/open-PR inspection confirms no new concrete, non-duplicate Hasan-owned Backend/Database/Application/API/Enterprise Integration gap is currently evidenced.
 - Existing P6 persistence slices and Stage 33.4.73 work remain complete; do not duplicate them.
 - Continue by monitoring for a concrete authoritative Shared Core contract or reproducible Backend/API/Persistence defect. When one appears, branch from that exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and record exact CI evidence.
+
+
+### 2026-09-30 — Web/API boundary deep audit
+
+- Deep current-main inspection covered the Web transport (apps/web/src/client.ts), Workspace read contract (apps/web/src/workspace-read-api.ts), Backend P0 API/application boundary (src/construction_pm/backend_p0/api.py, application.py) and Workspace read service.
+- The current Web layer is explicitly a framework-neutral integration foundation: it consumes versioned API/Application contracts through FetchApiTransport; the Web package does not claim to contain a concrete HTTP server/runtime.
+- The Backend P0 layer exposes typed application/API adapters and the Workspace Control Room read contract with tenant/project/revision authorization and validation; it does not contain a competing calculation engine.
+- No reproducible Hasan-owned defect was found in this boundary. A concrete HTTP server/runtime or complete Web Beta shell would be a product/runtime delivery item and must follow the registered ownership split rather than being invented as a backend duplicate.
+- Open PR #517 remains scheduling-owned by farmj22002-droid; PR #519 is governance-owned by Jalal. Neither is modified as Hasan work.
+- Continue from the first reproducible Backend/Database/Application/API defect or authoritative contract dependency; do not create implementation solely to manufacture progress.
