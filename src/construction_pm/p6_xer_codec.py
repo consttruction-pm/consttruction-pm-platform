@@ -117,7 +117,10 @@ class P6XerCodec:
             return ""
         if isinstance(value, bool):
             return "1" if value else "0"
-        return str(value)
+        text = str(value)
+        if "\t" in text or "\r" in text or "\n" in text:
+            raise P6XerCodecError("INVALID_XER_FIELD_VALUE_CONTROL_CHARACTER")
+        return text
 
 
 __all__ = ["P6XerCodec", "P6XerCodecError"]
