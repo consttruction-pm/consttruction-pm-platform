@@ -61,6 +61,9 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
         + _div(epbase, 2820) * 1029983
         + 1948320
     )
+    if month == 12 and day == 30 and jalali_to_jdn(year + 1, 1, 1) != jdn + 1:
+        raise CalendarDateError("invalid Jalali date")
+
     result = _jdn_to_gregorian(jdn)
     if gregorian_to_jalali(result) != (year, month, day):
         raise CalendarDateError("invalid Jalali date")
@@ -85,6 +88,10 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     year = ycycle + 2820 * cycle + 474
     if year <= 0:
         year -= 1
+
+    # Preserve the canonical 12/30 representation at a leap-year boundary.
+    if jalali_to_jdn(year - 1, 12, 30) == jdn:
+        return year - 1, 12, 30
 
     yday = jdn - jalali_to_jdn(year, 1, 1) + 1
     month = _div(yday - 1, 31) + 1 if yday <= 186 else _div(yday - 187, 30) + 7
