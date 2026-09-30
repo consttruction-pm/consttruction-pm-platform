@@ -35,11 +35,16 @@ def test_schedule_snapshot_live_concurrent_identical_upsert_is_idempotent() -> N
     snapshot = make_snapshot(suffix)
     barrier = Barrier(2)
 
+    # Initialize the schema once, outside the concurrent workers. Running
+    # CREATE TABLE IF NOT EXISTS concurrently can race in PostgreSQL's
+    # catalog and fail before either worker reaches the synchronization point.
+    with psycopg.connect(DSN) as connection:
+        PostgresScheduleInputSnapshotRepository(connection).initialize()
+        connection.commit()
+
     def worker() -> ScheduleInputSnapshot:
         with psycopg.connect(DSN) as connection:
             repository = PostgresScheduleInputSnapshotRepository(connection)
-            repository.initialize()
-            connection.commit()
             barrier.wait()
             return repository.save(snapshot)
 
