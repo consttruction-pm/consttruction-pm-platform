@@ -38,6 +38,8 @@ class P6MsProjectXmlCodec:
                         for field in child:
                             key=field.attrib.get("key")
                             if field.tag != "{"+EXT+"}Field" or not key: raise P6MsProjectXmlCodecError("INVALID_EXTENSION_FIELD")
+                            if key in ext:
+                                raise P6MsProjectXmlCodecError(f"DUPLICATE_EXTENSION_KEY:{key}")
                             ext[key]=field.text or ""
                         continue
                     key=self._local(child.tag)
@@ -66,7 +68,8 @@ class P6MsProjectXmlCodec:
                 if preserved:
                     x=ET.SubElement(element,"{"+EXT+"}Extensions")
                     for key,value in sorted(preserved): ET.SubElement(x,"{"+EXT+"}Field",{"key":key}).text=self._stringify(value)
-        return ET.tostring(root,encoding="unicode",short_empty_elements=True)+"\n"
+        return ET.tostring(root,encoding="unicode",short_empty_elements=True)+"
+"
 
     @staticmethod
     def _local(tag:str)->str:
