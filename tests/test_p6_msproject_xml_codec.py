@@ -30,3 +30,8 @@ def test_extension_round_trip():
     decoded=codec.decode(encoded,scope())
     assert decoded[0].values==rows[0].values
     assert decoded[0].extensions["vendor.custom"]=="keep"
+
+def test_rejects_duplicate_extension_keys_instead_of_overwriting():
+    doc='<Project><Tasks><Task><UID>1</UID><constructionpm:Extensions xmlns:constructionpm="https://constructionpm.example/p6-interchange"><constructionpm:Field key="vendor.custom">one</constructionpm:Field><constructionpm:Field key="vendor.custom">two</constructionpm:Field></constructionpm:Extensions></Task></Tasks></Project>'
+    with pytest.raises(P6MsProjectXmlCodecError,match="DUPLICATE_EXTENSION_KEY:vendor.custom"):
+        P6MsProjectXmlCodec().decode(doc,scope())
