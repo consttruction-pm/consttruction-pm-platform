@@ -38,7 +38,7 @@ This document defines the current three-person division of responsibilities for 
 
 **Boundary:** Hasan consumes the Shared Domain/Calculation Core rather than creating a competing scheduling/calculation implementation.
 
-## 3. Javad — Frontend / Web / Desktop / Mobile / UX
+## 3. Javad (Farmj22002) — Frontend / Web / Desktop / Mobile / UX
 
 **Primary ownership**
 - Web, Desktop and Mobile client implementation.
@@ -68,7 +68,7 @@ This workstream is a mandatory cross-team requirement under Product Principle 1A
 - Dependency graph, type checking, circular-dependency detection and deterministic rollups.
 - P6 semantic conformance and non-regression tests.
 
-### Javad — Columns / Layouts / Field UX
+### Javad (Farmj22002) — Columns / Layouts / Field UX
 **GitHub task:** #392
 - Web/Desktop/Mobile Field Chooser and complete shared field presentation.
 - Add/remove/hide/show/reorder/rename/width/alignment/pin/freeze.
@@ -97,6 +97,14 @@ Hasan consumes Shared Core semantics and must not create a competing scheduling/
 3. **Javad** consumes those contracts for client grids, layouts and editors.
 4. **Jalal** performs semantic integration/conformance acceptance.
 5. **All three** participate in cross-client/import-export regression where their boundary is affected.
+
+## 3A. Supervisor / Observer — NO ASSIGNED DEVELOPMENT DUTY
+
+The **Supervisor/Observer (ناظر)** has **no implementation, coding, testing, review, integration, roadmap, ownership, or delivery responsibility** in this three-person development model.
+
+- The Supervisor/Observer is not an owner of any workstream.
+- Do not assign development tasks, PR ownership, acceptance ownership, or technical duties to the Supervisor/Observer.
+- All implementation ownership is limited to **Jalal**, **Hasan**, and **Javad (Farmj22002)** according to the ownership model.
 
 ## 4. Shared Working Rules
 
@@ -135,7 +143,7 @@ The team is now operating under a **Finish Product / Finish Website priority**:
 - P3: AI, advanced automation and non-blocking enhancements after the core Web product path is commercially usable.
 - No new side feature may displace an unfinished P1 release path unless it is required to unblock P1.
 
-## 6. Javad — mandatory anti-duplication client rule
+## 6. Javad (Farmj22002) — mandatory anti-duplication client rule
 
 Javad owns the client experience, but **does not own a second business/calculation implementation**.
 
