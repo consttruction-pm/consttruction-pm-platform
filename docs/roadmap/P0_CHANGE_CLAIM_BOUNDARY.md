@@ -14,8 +14,8 @@ This boundary persists tenant/project-scoped change, variation, notice, and clai
 - No scheduling, duration, progress/EVM, resource/cost, or financial calculation is introduced here.
 - External providers remain behind explicit adapters.
 
-## Next integration point
-Add a PostgreSQL repository/transaction adapter using the existing transaction and idempotency primitives. Do not introduce a second transaction model.
+## Current PostgreSQL status
+The PostgreSQL repository/transaction adapter is implemented on current main using the existing transaction and idempotency primitives. Remaining work is runtime verification and regression maintenance; do not introduce a second transaction model.
 
 
 ## PostgreSQL persistence
