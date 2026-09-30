@@ -157,19 +157,6 @@ class SQLiteP6ReportProfileRepository:
         )
         return mapping
 
-    def get(self, scope: BackendScope, profile_id: str, field_id: str)
-            "FROM p6_report_profile_field_mapping "
-            "WHERE tenant_id=%s AND project_id=%s AND profile_id=%s AND field_id=%s",
-            (mapping.scope.tenant_id, mapping.scope.project_id, mapping.profile_id, mapping.field_id),
-        ).fetchone()
-        if row is None:
-            raise P6ReportProfilePersistenceError("REPORT_PROFILE_MAPPING_INSERT_FAILED")
-        if int(row[0]) != mapping.scope.project_revision:
-            raise P6ReportProfilePersistenceError("REVISION_CONFLICT")
-        if tuple(row[1:]) != values:
-            raise P6ReportProfilePersistenceError("IMMUTABLE_REPORT_PROFILE_MAPPING")
-        return mapping
-
     def get(self, scope: BackendScope, profile_id: str, field_id: str) -> P6ReportProfileFieldMapping | None:
         scope.validate()
         if not isinstance(profile_id, str) or not profile_id.strip():
