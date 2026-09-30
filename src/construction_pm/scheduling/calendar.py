@@ -43,16 +43,17 @@ class WorkingCalendar:
         holidays: Iterable[CalendarInputDate] = (),
     ) -> "WorkingCalendar":
         """Build a calendar from dates expressed in the selected system."""
+        holiday_values = tuple(holidays)
+        if system is not CalendarSystem.JALALI and any(
+            isinstance(value, JalaliDate) for value in holiday_values
+        ):
+            raise ValueError("Jalali holiday input requires a Jalali calendar")
         canonical_holidays = frozenset(
             value
             if isinstance(value, date) and not isinstance(value, JalaliDate)
             else value.to_gregorian()
-            for value in holidays
+            for value in holiday_values
         )
-        if system is not CalendarSystem.JALALI and any(
-            isinstance(value, JalaliDate) for value in holidays
-        ):
-            raise ValueError("Jalali holiday input requires a Jalali calendar")
         return cls(
             working_weekdays=working_weekdays,
             holidays=canonical_holidays,
