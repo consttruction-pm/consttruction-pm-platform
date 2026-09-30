@@ -120,29 +120,27 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
 
 
 def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
-    """Convert a Gregorian date to Jalali using Borkowski JDN arithmetic."""
+    """Convert Gregorian dates by locating the containing Jalali year first.
 
-    jdn = _gregorian_to_borkowski_jdn(value.year, value.month, value.day)
-    gy = _borkowski_jdn_to_gregorian(jdn).year
+    The year boundary is derived from the Gregorian dates of Farvardin 1 for
+    adjacent Jalali years. This avoids relying on a leap marker from the next
+    Gregorian year when a date falls on the final day of a common Jalali year.
+    """
+
+    gy = value.year
     year = gy - 621
-    _, march, leap, _ = _jalali_cal(year)
-    first_day = _gregorian_to_borkowski_jdn(gy, 3, march)
-    k = jdn - first_day
-
-    if k >= 0:
-        if k <= 185:
-            return year, 1 + _div(k, 31), _mod(k, 31) + 1
-        k -= 186
-    else:
+    first_day = jalali_to_gregorian(year, 1, 1)
+    if value < first_day:
         year -= 1
-        k += 179
-        # The pre-New-Year branch crosses into the previous Jalali year.
-        # Recompute the leap marker for that year rather than reusing the
-        # marker calculated for the following Gregorian year.
-        previous_leap = _jalali_cal(year)[2]
-        if previous_leap == 0:
-            k += 1
+        first_day = jalali_to_gregorian(year, 1, 1)
+    elif value >= jalali_to_gregorian(year + 1, 1, 1):
+        year += 1
+        first_day = jalali_to_gregorian(year, 1, 1)
 
+    k = (value - first_day).days
+    if k <= 185:
+        return year, 1 + _div(k, 31), _mod(k, 31) + 1
+    k -= 186
     return year, 7 + _div(k, 30), _mod(k, 30) + 1
 
 
