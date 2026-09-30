@@ -1,6 +1,8 @@
 from datetime import datetime, time, timezone
 
 from construction_pm.schedule_evaluator import evaluate_schedule_snapshot
+from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
+from construction_pm.scheduling.time_schedule import time_schedule
 from construction_pm.schedule_input_snapshot_repository import build_snapshot
 from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
@@ -83,6 +85,22 @@ def test_time_aware_activity_calendar_assignments_drive_evaluation():
             "CAL-A@1": calendar(time(8), time(12)),
             "CAL-B@1": calendar(time(13), time(17)),
         }
+    )
+
+    materialized = materialize_schedule_snapshot(snapshot, registry)
+    direct = time_schedule(
+        activities=materialized.schedule_input.activities,
+        relationships=materialized.schedule_input.relationships,
+        project_start=materialized.schedule_input.project_start,
+        project_finish=materialized.schedule_input.project_finish,
+        registry=materialized.calendar_registry,
+        constraints=materialized.schedule_input.constraints,
+    )
+    assert direct.activities["A"].finish == datetime(
+        2026, 9, 22, 12, tzinfo=timezone.utc
+    )
+    assert direct.activities["B"].start == datetime(
+        2026, 9, 22, 13, tzinfo=timezone.utc
     )
 
     result = evaluate_schedule_snapshot(snapshot, context, registry)
