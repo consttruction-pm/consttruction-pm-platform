@@ -468,6 +468,8 @@ def _multiple_float_paths(
     late_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     options: ScheduleOptions,
+    calendar_provider: ActivityCalendarProvider | None = None,
+    relationship_lag_resolver=None,
 ) -> tuple[MultipleFloatPath, ...]:
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
@@ -539,7 +541,9 @@ def _multiple_float_paths(
                 if options.multiple_float_paths_use_total_float:
                     metric = _relationship_total_float(
                         relationship, predecessor, late_schedule[current],
-                        activity_map[predecessor_id], resolver,
+                        activity_map[predecessor_id],
+                        calendar_provider.resolver_for(predecessor_id) if calendar_provider is not None else resolver,
+                        relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
                     )
                     driving_penalty = 0
                 else:
@@ -548,12 +552,14 @@ def _multiple_float_paths(
                         activity_map[predecessor_id], resolver,
                     )
                     driving_penalty = 0 if _relationship_is_driving(
-                        relationship, predecessor, successor, resolver
+                        relationship, predecessor, successor,
+                        calendar_provider.resolver_for(predecessor_id) if calendar_provider is not None else resolver,
+                        relationship_lag_resolver(relationship) if relationship_lag_resolver is not None else None,
                     ) else 1
                 activity_float = _working_delay_between(
                     early_schedule[predecessor_id].start,
                     late_schedule[predecessor_id].start,
-                    resolver,
+                    calendar_provider.resolver_for(predecessor_id) if calendar_provider is not None else resolver,
                 )
                 scored.append((
                     (
@@ -692,7 +698,9 @@ def schedule(
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options
+        activity_list, relationship_list, early, late, resolver, selected_options,
+        calendar_provider=calendar_provider,
+        relationship_lag_resolver=relationship_lag_resolver,
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
