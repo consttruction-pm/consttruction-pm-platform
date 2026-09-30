@@ -56,3 +56,117 @@ def test_registry_does_not_silently_fallback_to_another_version():
 def test_invalid_calendar_kind_is_rejected():
     with pytest.raises(ValueError):
         CalendarReference("x", "1", kind="unknown")
+
+
+def test_authoritative_activity_assignment_resolves_explicit_versioned_calendar():
+    from construction_pm.scheduling.authoritative_schedule import (
+        ActivityCalendarAssignment,
+        AuthoritativeScheduleInput,
+        AuthoritativeScheduleMode,
+    )
+    from construction_pm.scheduling.calendar_resolution import (
+        resolve_authoritative_activity_calendars,
+    )
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.relationships import Relationship
+    from construction_pm.scheduling.schedule import ScheduleOptions
+    from datetime import date
+
+    project_ref = CalendarReference("project", "1")
+    activity_ref = CalendarReference("activity-b", "3")
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    activity_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "activity-b@3": activity_resolver,
+        }
+    )
+    snapshot = AuthoritativeScheduleInput(
+        snapshot_id="S",
+        tenant_id="T",
+        project_id="P",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_ref,
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(Relationship("A", "B"),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("B", activity_ref),
+        ),
+        schedule_options=ScheduleOptions(),
+        project_start=date(2026, 9, 21),
+    )
+
+    resolved = resolve_authoritative_activity_calendars(snapshot, registry)
+
+    assert resolved.project is project_resolver
+    assert resolved.for_activity("A") is project_resolver
+    assert resolved.for_activity("B") is activity_resolver
+    assert resolved.reference_for("B") == activity_ref
+
+
+def test_authoritative_calendar_resolution_is_fail_fast_on_missing_version():
+    from construction_pm.scheduling.authoritative_schedule import (
+        ActivityCalendarAssignment,
+        AuthoritativeScheduleInput,
+        AuthoritativeScheduleMode,
+    )
+    from construction_pm.scheduling.calendar_resolution import (
+        resolve_authoritative_activity_calendars,
+    )
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.relationships import Relationship
+    from construction_pm.scheduling.schedule import ScheduleOptions
+    from datetime import date
+
+    project_ref = CalendarReference("project", "1")
+    missing_ref = CalendarReference("activity-b", "99")
+    registry = CalendarResolverRegistry(
+        day_resolvers={"project@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    snapshot = AuthoritativeScheduleInput(
+        snapshot_id="S",
+        tenant_id="T",
+        project_id="P",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_ref,
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(Relationship("A", "B"),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("B", missing_ref),
+        ),
+        schedule_options=ScheduleOptions(),
+        project_start=date(2026, 9, 21),
+    )
+
+    with pytest.raises(KeyError, match="activity-b@99"):
+        resolve_authoritative_activity_calendars(snapshot, registry)
+
+
+def test_resolved_activity_calendar_provider_preserves_activity_identity():
+    from construction_pm.scheduling.activity_calendar_provider import (
+        ResolvedActivityCalendarProvider,
+    )
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project_ref = CalendarReference("project", "1")
+    activity_ref = CalendarReference("activity-b", "3")
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    activity_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project_resolver,
+            activities={"A": project_resolver, "B": activity_resolver},
+            references={"A": project_ref, "B": activity_ref},
+        )
+    )
+
+    assert provider.resolver_for("A") is project_resolver
+    assert provider.resolver_for("B") is activity_resolver
+    assert provider.reference_for("B") == activity_ref
