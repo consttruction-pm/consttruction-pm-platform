@@ -16,6 +16,7 @@ from construction_pm.scheduling.schedule import (
     ScheduleMode,
     ScheduleOptions,
     TotalFloatCalculationType,
+    _multiple_float_paths,
     _relationship_holds,
     _relationship_total_float,
     backward_pass,
@@ -417,6 +418,44 @@ def test_multiple_float_paths_support_explicit_ending_activity(resolver):
     assert result.floats["A"].float_path == 1
     assert result.floats["B"].float_path == 1
     assert result.floats["C"].float_path is None
+
+
+def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(resolver):
+    activities = [Activity("A", 1), Activity("B", 1), Activity("C", 1)]
+    relationships = [
+        Relationship("A", "C", RelationshipType.SS, lag=1),
+        Relationship("B", "C", RelationshipType.SS, lag=1),
+    ]
+    early = {
+        "A": ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "B": ScheduledActivity("B", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "C": ScheduledActivity("C", date(2026, 9, 22), date(2026, 9, 22), 1),
+    }
+    late = {
+        "A": ScheduledActivity("A", date(2026, 9, 21), date(2026, 9, 21), 1),
+        "B": ScheduledActivity("B", date(2026, 9, 22), date(2026, 9, 22), 1),
+        "C": ScheduledActivity("C", date(2026, 9, 23), date(2026, 9, 23), 1),
+    }
+    options = ScheduleOptions(
+        multiple_float_paths_enabled=True,
+        maximum_multiple_float_paths=1,
+        multiple_float_paths_use_total_float=False,
+    )
+    holiday_lag = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+
+    project_paths = _multiple_float_paths(
+        activities, relationships, early, late, resolver, options,
+        {("A", "C"): resolver, ("B", "C"): resolver},
+    )
+    holiday_a_paths = _multiple_float_paths(
+        activities, relationships, early, late, resolver, options,
+        {("A", "C"): holiday_lag, ("B", "C"): resolver},
+    )
+
+    assert project_paths[0].activity_ids == ("A", "C")
+    assert holiday_a_paths[0].activity_ids == ("B", "C")
 
 
 def test_relationship_total_float_uses_selected_lag_calendar(resolver):
