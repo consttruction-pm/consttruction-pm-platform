@@ -500,3 +500,14 @@ Status: **implemented, runtime-verified and merged**
 - Current execution priority is: CI/branch hygiene, then Stage I/J scheduling work owned by Jalal, then P6 parity integration. Hasan continues only when a concrete Backend/Database/Application/API/Enterprise Integration gap is evidenced.
 - Open PRs must be treated by ownership and current-main ancestry; stale/non-mergeable branches are not active implementation bases.
 - No new Hasan feature is authorized by this reconciliation without a concrete missing contract/persistence/application boundary, focused tests, and runtime verification.
+
+
+### 2026-09-30 — Current-main CI gate / no concrete Hasan backend gap
+
+- Current main: `5c33d991ec6276640445a78a125c8c49da05d369` (`p6: reconcile Activity field evidence inventory on current main (#500)`).
+- Current-main push verification is green: ConstructionPM CI run #2128 (`36652211742`), Client Typecheck run #1831 (`36652211392`), and PostgreSQL Sync State Integration run #748 (`36652211405`).
+- PR #500 has already reconciled the Activity P6 evidence inventory on current main. No open PR currently supplies a new Hasan-owned Backend/Database/Application/API contract that is both non-duplicate and current-main based.
+- The stale branch `hasan/reconcile-p6-no-backend-gap-20260930` is 69 commits behind and diverged; its documentation conclusion remains valid but the branch itself must not be merged or revived.
+- Issue #382 (Field Assurance repository/application reconciliation) is already represented by merged current-main work (#383/#386 and subsequent CI coverage); do not duplicate it.
+- Issue #104 is an infrastructure-level GitHub-hosted runner entitlement/provisioning investigation, not an application/backend defect; do not alter application code to compensate for it.
+- Continuation rule: until a concrete authoritative Shared Core contract or reproducible Backend/API/Persistence defect appears, record the boundary rather than inventing a feature. When one appears, branch from that exact current `main`, add focused regression tests, obtain PostgreSQL verification where applicable, and record exact CI run identifiers.
