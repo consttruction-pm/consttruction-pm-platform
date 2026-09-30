@@ -17,6 +17,7 @@ from construction_pm.scheduling.resource_leveling import (
     detect_over_allocations,
     select_leveling_resources,
     propose_forward_leveling_within_float,
+    propose_forward_leveling,
 )
 
 
@@ -230,3 +231,41 @@ def test_propose_forward_leveling_rejects_unknown_selected_resource():
             (activity,), (), resolver=resolver,
             level_all_resources=False, resource_ids=("R9",),
         )
+
+
+def test_forward_leveling_can_consume_float_when_level_within_float_is_disabled():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),)),
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 0,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A2"),)),
+    )
+    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    shifts = propose_forward_leveling(
+        activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=2
+    )
+    assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("A1", 1, -1)]
+
+
+def test_forward_leveling_respects_float_when_enabled():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),)),
+        LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 0,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A2"),)),
+    )
+    capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
+    shifts = propose_forward_leveling(
+        activities, capacities, resolver=resolver, level_within_float=True
+    )
+    assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("A1", 1, 0)]
+
+
+def test_forward_leveling_shift_bound_is_explicit():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 0,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
+    with pytest.raises(ResourceLevelingError, match="INVALID_MAX_LEVELING_SHIFT"):
+        propose_forward_leveling((activity,), (), resolver=resolver, max_shift_working_days=-1)
