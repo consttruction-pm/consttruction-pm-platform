@@ -17,6 +17,11 @@ def test_rejects_root_and_duplicate_field():
     doc="<Project><Tasks><Task><UID>1</UID><UID>2</UID></Task></Tasks></Project>"
     with pytest.raises(P6MsProjectXmlCodecError,match="DUPLICATE_FIELD:Tasks:Task:UID"): P6MsProjectXmlCodec().decode(doc,scope())
 
+def test_rejects_unsupported_collection():
+    doc="<Project><CustomCollection><Item><UID>99</UID></Item></CustomCollection></Project>"
+    with pytest.raises(P6MsProjectXmlCodecError,match="UNSUPPORTED_MSPROJECT_COLLECTION:CustomCollection"):
+        P6MsProjectXmlCodec().decode(doc,scope())
+
 def test_extension_round_trip():
     doc='<Project><Tasks><Task><UID>1</UID><constructionpm:Extensions xmlns:constructionpm="https://constructionpm.example/p6-interchange"><constructionpm:Field key="vendor.custom">keep</constructionpm:Field></constructionpm:Extensions></Task></Tasks></Project>'
     codec=P6MsProjectXmlCodec(); rows=codec.decode(doc,scope())
