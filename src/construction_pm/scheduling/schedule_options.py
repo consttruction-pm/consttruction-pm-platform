@@ -57,7 +57,6 @@ class ScheduleOptions:
     )
     relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     data_date: date | None = None
-    use_expected_finish_dates: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.mode, ScheduleMode):
@@ -103,8 +102,6 @@ class ScheduleOptions:
             )
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
-        if not isinstance(self.use_expected_finish_dates, bool):
-            raise ValueError("use_expected_finish_dates must be a bool")
 
 
 
