@@ -653,6 +653,8 @@ def schedule(
     constraints: Iterable[ActivityConstraint] | None = None,
     options: ScheduleOptions | None = None,
     calculation_context: CalculationContext | None = None,
+    calendar_provider: ActivityCalendarProvider | None = None,
+    relationship_lag_resolver=None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
@@ -670,9 +672,13 @@ def schedule(
         calculation_context,
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
+        calendar_provider=calendar_provider,
+        relationship_lag_resolver=relationship_lag_resolver,
     )
     late = backward_pass(
-        activity_list, relationship_list, early, project_finish, resolver, constraint_list
+        activity_list, relationship_list, early, project_finish, resolver, constraint_list,
+        calendar_provider=calendar_provider,
+        relationship_lag_resolver=relationship_lag_resolver,
     )
     floats = calculate_floats(
         activity_list,
@@ -681,6 +687,8 @@ def schedule(
         late,
         resolver,
         selected_options,
+        calendar_provider=calendar_provider,
+        relationship_lag_resolver=relationship_lag_resolver,
     )
 
     float_paths = _multiple_float_paths(
@@ -708,7 +716,11 @@ def schedule(
             for activity_id, value in floats.items()
         }
 
-    effective_finish = resolver.normalize_finish(
+    finish_resolver = resolver
+    if calendar_provider is not None:
+        finish_activity_id = max(early, key=lambda activity_id: early[activity_id].finish)
+        finish_resolver = calendar_provider.resolver_for(finish_activity_id)
+    effective_finish = finish_resolver.normalize_finish(
         project_finish or max(item.finish for item in early.values())
     )
     selected = late if selected_options.mode is ScheduleMode.ALAP else early
