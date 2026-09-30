@@ -89,3 +89,23 @@ class ScheduleOptions:
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
 
+
+
+def start_to_start_lag_type_from_p6(value: bool) -> StartToStartLagCalculationType:
+    """Map the P6 boolean boundary field to the typed Shared Core option."""
+    if not isinstance(value, bool):
+        raise TypeError("P6 StartToStartLagCalculationType must be a bool")
+    return (
+        StartToStartLagCalculationType.ACTUAL_START
+        if value
+        else StartToStartLagCalculationType.EARLY_START
+    )
+
+
+def start_to_start_lag_type_to_p6(value: StartToStartLagCalculationType) -> bool:
+    """Map the typed Shared Core option back to the P6 boolean contract."""
+    if not isinstance(value, StartToStartLagCalculationType):
+        raise TypeError(
+            "start_to_start_lag_calculation_type must be a StartToStartLagCalculationType"
+        )
+    return value is StartToStartLagCalculationType.ACTUAL_START
