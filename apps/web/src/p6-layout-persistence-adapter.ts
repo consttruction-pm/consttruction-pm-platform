@@ -1,4 +1,8 @@
-import { LayoutDefinition, LayoutScope, P6LayoutPersistence } from "./p6-field-layout-foundation.js";
+import type {
+  LayoutDefinition,
+  LayoutScope,
+  P6LayoutPersistence,
+} from "./p6-field-layout-foundation.js";
 
 export interface P6LayoutPersistenceTransport {
   load(scope: LayoutScope, viewId: string): Promise<unknown>;
@@ -9,9 +13,7 @@ function assertLayout(value: unknown): LayoutDefinition {
   if (!value || typeof value !== "object") throw new Error("INVALID_LAYOUT_RESPONSE");
   const layout = value as Partial<LayoutDefinition>;
   if (layout.schema_version !== "p6-layout.v1") throw new Error("INVALID_LAYOUT_SCHEMA");
-  if (layout.scope !== "global" && layout.scope !== "project" && layout.scope !== "user") {
-    throw new Error("INVALID_LAYOUT_SCOPE");
-  }
+  if (layout.scope !== "global" && layout.scope !== "project" && layout.scope !== "user") throw new Error("INVALID_LAYOUT_SCOPE");
   if (typeof layout.view_id !== "string" || layout.view_id.length === 0) throw new Error("INVALID_LAYOUT_VIEW");
   if (!Number.isInteger(layout.revision) || layout.revision < 0) throw new Error("INVALID_LAYOUT_REVISION");
   if (!Array.isArray(layout.columns)) throw new Error("INVALID_LAYOUT_COLUMNS");
@@ -26,13 +28,10 @@ function assertLayout(value: unknown): LayoutDefinition {
     if (item.order !== index) throw new Error("NON_NORMALIZED_LAYOUT");
     if (typeof item.visible !== "boolean" || typeof item.width !== "number") throw new Error("INVALID_LAYOUT_PRESENTATION");
   });
-
   return layout as LayoutDefinition;
 }
 
-export function createP6LayoutPersistence(
-  transport: P6LayoutPersistenceTransport,
-): P6LayoutPersistence {
+export function createP6LayoutPersistence(transport: P6LayoutPersistenceTransport): P6LayoutPersistence {
   return {
     async load(scope, viewId) {
       const value = await transport.load(scope, viewId);
