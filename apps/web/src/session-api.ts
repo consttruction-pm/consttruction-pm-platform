@@ -1,4 +1,4 @@
-import type { ApiResult, ApiTransport, ClientError } from "./client.js";
+import type { ApiResult, ClientError } from "./client.js";
 
 export type Session = {
   session_id: string;
