@@ -79,6 +79,7 @@ class SQLiteP6ResourceSpreadRepository:
         CREATE INDEX IF NOT EXISTS idx_p6_resource_spread_scope
           ON p6_resource_spread_bucket(tenant_id, project_id, resource_id, period_id);
         """)
+
         self.connection.commit()
 
     def upsert(self, bucket: P6ResourceSpreadBucket) -> P6ResourceSpreadBucket:
@@ -201,14 +202,30 @@ class PostgresP6ResourceSpreadRepository:
             if tuple(row[1:]) != payload:
                 raise P6ResourceSpreadPersistenceError("IMMUTABLE_RESOURCE_SPREAD_BUCKET")
             return bucket
-        self.connection.execute(
+        inserted = self.connection.execute(
             "INSERT INTO p6_resource_spread_bucket "
             "(tenant_id,project_id,project_revision,spread_id,resource_id,period_id,period_start,period_end,"
-            "spread_type,metric,value,unit,currency) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "spread_type,metric,value,unit,currency) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,spread_id,period_id) DO NOTHING "
+            "RETURNING tenant_id",
             (bucket.scope.tenant_id,bucket.scope.project_id,bucket.scope.project_revision,bucket.spread_id,
              bucket.resource_id,bucket.period_id,bucket.period_start,bucket.period_end,bucket.spread_type,
              bucket.metric,str(bucket.value),bucket.unit,bucket.currency),
         )
+        if inserted.fetchone() is not None:
+            return bucket
+        row = self.connection.execute(
+            "SELECT project_revision,resource_id,period_start,period_end,spread_type,metric,value,unit,currency "
+            "FROM p6_resource_spread_bucket "
+            "WHERE tenant_id=%s AND project_id=%s AND spread_id=%s AND period_id=%s",
+            _key(bucket),
+        ).fetchone()
+        if row is None:
+            raise P6ResourceSpreadPersistenceError("RESOURCE_SPREAD_INSERT_FAILED")
+        if int(row[0]) != bucket.scope.project_revision:
+            raise P6ResourceSpreadPersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != payload:
+            raise P6ResourceSpreadPersistenceError("IMMUTABLE_RESOURCE_SPREAD_BUCKET")
         return bucket
 
     def get(self, scope: BackendScope, spread_id: str, period_id: str) -> P6ResourceSpreadBucket | None:
