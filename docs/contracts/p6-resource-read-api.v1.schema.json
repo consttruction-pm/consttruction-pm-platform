@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/p6-resource-read-api.schema.json",
+  "title": "P6 Resource Read API Contract v1",
+  "description": "Typed read contract for authoritative P6 resource assignment, period-value, and spread persistence.",
+  "oneOf": [
+    { "$ref": "#/$defs/assignment" },
+    { "$ref": "#/$defs/assignment_period" },
+    { "$ref": "#/$defs/spread" }
+  ],
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "project_revision": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "base": {
+      "type": "object",
+      "required": ["contract_version", "kind", "scope"],
+      "properties": {
+        "contract_version": { "const": "p6-resource-read-api.v1" },
+        "kind": {
+          "enum": ["resource_assignment", "resource_assignment_period", "resource_spread_bucket"]
+        },
+        "scope": { "$ref": "#/$defs/scope" }
+      },
+      "additionalProperties": false
+    },
+    "assignment": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "resource_assignment" },
+            "assignment": {
+              "type": "object",
+              "required": ["assignment_id", "activity_id", "resource_id", "role_id", "units", "actual_units", "remaining_units", "planned_cost", "actual_cost", "remaining_cost", "unit", "currency", "calendar_id", "note"],
+              "properties": {
+                "assignment_id": { "type": "string", "minLength": 1 },
+                "activity_id": { "type": "string", "minLength": 1 },
+                "resource_id": { "type": "string", "minLength": 1 },
+                "role_id": { "type": ["string", "null"] },
+                "units": { "type": ["string", "null"] },
+                "actual_units": { "type": ["string", "null"] },
+                "remaining_units": { "type": ["string", "null"] },
+                "planned_cost": { "type": ["string", "null"] },
+                "actual_cost": { "type": ["string", "null"] },
+                "remaining_cost": { "type": ["string", "null"] },
+                "unit": { "type": ["string", "null"] },
+                "currency": { "type": ["string", "null"] },
+                "calendar_id": { "type": ["string", "null"] },
+                "note": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["assignment"]
+        }
+      ]
+    },
+    "assignment_period": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "resource_assignment_period" },
+            "period": {
+              "type": "object",
+              "required": ["assignment_id", "activity_id", "resource_id", "period_start", "units", "cost"],
+              "properties": {
+                "assignment_id": { "type": "string", "minLength": 1 },
+                "activity_id": { "type": "string", "minLength": 1 },
+                "resource_id": { "type": "string", "minLength": 1 },
+                "period_start": { "type": "string", "minLength": 1 },
+                "units": { "type": ["string", "null"] },
+                "cost": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["period"]
+        }
+      ]
+    },
+    "spread": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "resource_spread_bucket" },
+            "spread": {
+              "type": "object",
+              "required": ["spread_id", "resource_id", "period_id", "period_start", "period_end", "spread_type", "metric", "value", "unit", "currency"],
+              "properties": {
+                "spread_id": { "type": "string", "minLength": 1 },
+                "resource_id": { "type": "string", "minLength": 1 },
+                "period_id": { "type": "string", "minLength": 1 },
+                "period_start": { "type": "string", "minLength": 1 },
+                "period_end": { "type": "string", "minLength": 1 },
+                "spread_type": { "enum": ["PLANNED", "ACTUAL", "REMAINING", "FORECAST"] },
+                "metric": { "enum": ["UNITS", "COST"] },
+                "value": { "type": "string", "minLength": 1 },
+                "unit": { "type": ["string", "null"] },
+                "currency": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["spread"]
+        }
+      ]
+    }
+  }
+}
