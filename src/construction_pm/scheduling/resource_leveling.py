@@ -241,6 +241,8 @@ def propose_forward_leveling_within_float(
     min_float_to_preserve: int = 0,
     over_allocation_percentage: Decimal = Decimal("0"),
     priorities: tuple[LevelingPriority, ...] = (),
+    level_all_resources: bool = True,
+    resource_ids: tuple[str, ...] = (),
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule."""
     if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
@@ -251,13 +253,30 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
     if not isinstance(priorities, tuple) or any(not isinstance(priority, LevelingPriority) for priority in priorities):
         raise ResourceLevelingError("INVALID_LEVELING_PRIORITIES")
+    if not isinstance(level_all_resources, bool):
+        raise ResourceLevelingError("INVALID_LEVEL_ALL_RESOURCES")
+    if not isinstance(resource_ids, tuple) or any(not isinstance(resource_id, str) or not resource_id.strip() for resource_id in resource_ids):
+        raise ResourceLevelingError("INVALID_RESOURCE_ID")
+    if len(set(resource_ids)) != len(resource_ids):
+        raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
     for activity in activities:
         for priority in priorities:
             _priority_value(activity, priority.field_name)
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
+    selected_resources = set(
+        select_leveling_resources(
+            [d for a in activity_list for d in a.resource_demands],
+            level_all_resources=level_all_resources,
+            resource_ids=resource_ids,
+        )
+    )
     selected = {a.activity_id: 0 for a in activity_list}
-    capacity_map = {(c.resource_id, c.period): c.units for c in capacities}
+    capacity_map = {
+        (c.resource_id, c.period): c.units
+        for c in capacities
+        if c.resource_id in selected_resources
+    }
 
     def effective_capacity(resource_id: str, period: date) -> Decimal:
         return capacity_map.get((resource_id, period), Decimal("0")) * (
@@ -267,7 +286,11 @@ def propose_forward_leveling_within_float(
     def current_demands() -> list[ResourceDemand]:
         out: list[ResourceDemand] = []
         for activity in activity_list:
-            out.extend(_shift_demands(activity.resource_demands, selected[activity.activity_id], resolver))
+            out.extend(
+                demand
+                for demand in _shift_demands(activity.resource_demands, selected[activity.activity_id], resolver)
+                if demand.resource_id in selected_resources
+            )
         return out
 
     shifts: list[LevelingShift] = []
@@ -275,7 +298,7 @@ def propose_forward_leveling_within_float(
         demands = current_demands()
         overloaded = [
             (resource_id, period)
-            for resource_id, period in sorted({(d.resource_id, d.period) for d in demands}, key=lambda x: (x[1], x[0]))
+            for resource_id, period in sorted({(d.resource_id, d.period) for d in demands if d.resource_id in selected_resources}, key=lambda x: (x[1], x[0]))
             if sum((d.units for d in demands if d.resource_id == resource_id and d.period == period), Decimal("0"))
             > effective_capacity(resource_id, period)
         ]
