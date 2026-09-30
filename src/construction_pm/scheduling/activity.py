@@ -11,6 +11,7 @@ class Activity:
     id: str
     duration: int
     actual_start: date | None = None
+    expected_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -21,3 +22,5 @@ class Activity:
             raise ValueError("duration must be non-negative")
         if self.actual_start is not None and not isinstance(self.actual_start, date):
             raise TypeError("actual_start must be a date or None")
+        if self.expected_finish is not None and not isinstance(self.expected_finish, date):
+            raise TypeError("expected_finish must be a date or None")
