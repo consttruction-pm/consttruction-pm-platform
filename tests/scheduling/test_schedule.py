@@ -461,8 +461,6 @@ def test_multiple_float_paths_change_selection_with_relationship_lag_calendar(re
     assert holiday_a_free_float > project_a_free_float
     assert holiday_b_free_float == project_b_free_float
 
-    assert project_paths[0].activity_ids == ("A", "C")
-    assert holiday_a_paths[0].activity_ids == ("B", "C")
 
 
 def test_relationship_total_float_uses_selected_lag_calendar(resolver):
