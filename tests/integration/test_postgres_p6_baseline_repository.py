@@ -56,16 +56,8 @@ def test_postgres_round_trip_isolation_revision_and_rollback():
 
 
 def test_postgres_baseline_concurrent_identical_upsert_is_idempotent():
-    scope = BackendScope("tenant-baseline-concurrent", "project-baseline", 5)
-    value = P6Baseline(
-        scope=scope,
-        baseline_id="BASE-CONCURRENT",
-        name="Concurrent baseline",
-        baseline_type="PRIMARY",
-        source_revision=5,
-        created_at="2026-09-30T00:00:00Z",
-        notes="Concurrent insert",
-    )
+    s = scope()
+    value = baseline(s, "BASE-CONCURRENT")
     barrier = threading.Barrier(2)
 
     def save():
