@@ -598,3 +598,38 @@ def test_backward_pass_uses_activity_calendar_provider_for_late_dates():
     assert early["B"].start == date(2026, 10, 4)
     assert late["B"].start == date(2026, 10, 4)
     assert late["A"].start == date(2026, 10, 2)
+
+
+def test_schedule_end_to_end_uses_activity_calendars():
+    from construction_pm.scheduling.activity_calendar_provider import ResolvedActivityCalendarProvider
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_resolution import ResolvedActivityCalendars
+
+    project = WorkingTimeResolver(WorkingCalendar())
+    sunday_thursday = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({6, 0, 1, 2, 3}))
+    )
+    provider = ResolvedActivityCalendarProvider(
+        ResolvedActivityCalendars(
+            project=project,
+            activities={"A": project, "B": sunday_thursday},
+            references={
+                "A": CalendarReference("project", "1"),
+                "B": CalendarReference("activity-b", "1"),
+            },
+        )
+    )
+    result = schedule(
+        activities=[Activity("A", 1), Activity("B", 1)],
+        relationships=[Relationship("A", "B", RelationshipType.FS)],
+        project_start=date(2026, 10, 2),
+        resolver=project,
+        calendar_provider=provider,
+    )
+
+    assert result.early_activities["A"].start == date(2026, 10, 2)
+    assert result.early_activities["B"].start == date(2026, 10, 4)
+    assert result.early_activities["B"].finish == date(2026, 10, 4)
+    assert result.late_activities["B"].start == date(2026, 10, 4)
+    assert result.floats["A"].total_float >= 0
+    assert result.project_finish == date(2026, 10, 4)
