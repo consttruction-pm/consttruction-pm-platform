@@ -47,3 +47,8 @@ def test_rejects_duplicate_extension_keys_instead_of_overwriting():
     payload=_extension_workbook([("Activities","vendor.custom","one"),("Activities","vendor.custom","two")])
     with pytest.raises(P6XlsxCodecError,match="DUPLICATE_EXTENSION_KEY:Activities:vendor.custom"):
         P6XlsxCodec().decode(payload,scope())
+
+def test_rejects_extension_reference_to_missing_sheet():
+    payload=_extension_workbook([("MissingActivities","vendor.custom","lost")])
+    with pytest.raises(P6XlsxCodecError,match="EXTENSION_SHEET_NOT_FOUND:MissingActivities"):
+        P6XlsxCodec().decode(payload,scope())

@@ -17,7 +17,6 @@ UNKNOWN_EXTENSION_FIELD = f"{{{EXTENSION_NAMESPACE}}}Field"
 
 @dataclass(frozen=True)
 class P6PrimaveraXmlCodec:
-    """Codec for the flat P6 API XML shape; P6 semantics stay in the mapping registry."""
     format: P6MappingFormat = P6MappingFormat.PRIMAVERA_XML
 
     def decode(self, payload: str | bytes, scope: BackendScope) -> Sequence[P6InterchangeRow]:
@@ -80,7 +79,10 @@ class P6PrimaveraXmlCodec:
         for field in element:
             if field.tag != UNKNOWN_EXTENSION_FIELD or not field.attrib.get("key"):
                 raise P6PrimaveraXmlCodecError("INVALID_EXTENSION_FIELD")
-            extensions[field.attrib["key"]] = field.text or ""
+            key = field.attrib["key"]
+            if key in extensions:
+                raise P6PrimaveraXmlCodecError(f"DUPLICATE_EXTENSION_KEY:{key}")
+            extensions[key] = field.text or ""
 
     @staticmethod
     def _stringify(value: Any) -> str:

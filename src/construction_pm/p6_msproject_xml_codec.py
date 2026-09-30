@@ -38,6 +38,8 @@ class P6MsProjectXmlCodec:
                         for field in child:
                             key=field.attrib.get("key")
                             if field.tag != "{"+EXT+"}Field" or not key: raise P6MsProjectXmlCodecError("INVALID_EXTENSION_FIELD")
+                            if key in ext:
+                                raise P6MsProjectXmlCodecError(f"DUPLICATE_EXTENSION_KEY:{key}")
                             ext[key]=field.text or ""
                         continue
                     key=self._local(child.tag)
