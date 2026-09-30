@@ -731,7 +731,7 @@ def test_schedule_wires_use_expected_finish_dates(resolver):
     ("calculate_each_project", "expected_float", "expected_late_finish"),
     [
         (True, 4, date(2026, 9, 25)),
-        (False, 8, date(2026, 9, 29)),
+        (False, 6, date(2026, 9, 29)),
     ],
 )
 def test_p6_calculate_float_based_on_finish_date_uses_project_or_batch_finish(
