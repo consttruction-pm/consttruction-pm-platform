@@ -102,7 +102,7 @@ class JalaliDate:
 
 
 def jalali_to_gregorian(year: int, month: int, day: int) -> date:
-    """Convert a Jalali date to Gregorian using Borkowski JDN arithmetic."""
+    """Convert a Jalali date to Gregorian using the Borkowski cycle and JDN arithmetic."""
 
     if year < 1:
         raise CalendarDateError("Jalali year must be positive")
