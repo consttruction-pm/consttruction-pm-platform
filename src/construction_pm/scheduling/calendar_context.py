@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Mapping
 
 from .calendar import WorkingTimeResolver
+from .calendar_system import CalendarSystem
 from .time_calendar import TimeAwareWorkingTimeResolver
 
 
@@ -51,12 +52,15 @@ class CalendarReference:
     calendar_id: str
     calendar_version: str
     kind: str = "working-day"
+    system: CalendarSystem = CalendarSystem.GREGORIAN
 
     def __post_init__(self) -> None:
         if not self.calendar_id or not self.calendar_version:
             raise ValueError("calendar_id and calendar_version are required")
         if self.kind not in {"working-day", "working-time"}:
             raise ValueError("unsupported calendar kind")
+        if not isinstance(self.system, CalendarSystem):
+            raise ValueError("system must be a CalendarSystem")
 
 
 @dataclass(frozen=True)
