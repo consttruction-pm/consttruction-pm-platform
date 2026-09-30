@@ -1,3 +1,5 @@
+from construction_pm.scheduling.calendar import WorkingTimeResolver
+
 from datetime import date
 from decimal import Decimal
 
