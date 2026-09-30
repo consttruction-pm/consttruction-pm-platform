@@ -32,6 +32,24 @@ def resolver():
     return WorkingTimeResolver(WorkingCalendar())
 
 
+def test_relationship_lag_uses_explicit_relationship_resolver(resolver):
+    from construction_pm.scheduling.forward_pass import _successor_start
+
+    holiday_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    predecessor = Activity("A", 1)
+    scheduled = _successor_start(
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        type("Scheduled", (), {"activity_id": "A", "start": date(2026, 9, 21), "finish": date(2026, 9, 21), "duration": 1})(),
+        1,
+        resolver,
+        predecessor,
+        lag_resolver=holiday_resolver,
+    )
+    assert scheduled == date(2026, 9, 24)
+
+
 def test_backward_pass_produces_zero_float_on_critical_chain(resolver):
     activities = [Activity("A", 2), Activity("B", 2), Activity("C", 1)]
     relationships = [Relationship("A", "B"), Relationship("B", "C")]
