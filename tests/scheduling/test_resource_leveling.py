@@ -1,4 +1,4 @@
-from construction_pm.scheduling.calendar import WorkingTimeResolver
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
 from datetime import date
 from decimal import Decimal
@@ -117,7 +117,7 @@ def test_select_leveling_resources_sorts_explicit_resource_ids():
 
 
 def test_propose_forward_leveling_consumes_only_allowed_float_and_preserves_minimum_float():
-    resolver = WorkingTimeResolver(working_weekdays={0, 1, 2, 3, 4}, holidays=set())
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activities = (
         LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 2), 2, (
             ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),
