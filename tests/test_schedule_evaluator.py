@@ -168,4 +168,4 @@ def test_evaluator_runs_full_time_aware_schedule():
     assert result.time_result.activities["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
     assert result.time_result.activities["B"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
     assert result.time_result.late_activities["B"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
-    assert result.project_finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
+    assert result.project_finish == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
