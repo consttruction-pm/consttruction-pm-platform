@@ -248,6 +248,7 @@ def _free_float(
     successors: list[Relationship],
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
 ) -> int:
     if not successors:
         return 0
@@ -544,6 +545,7 @@ def _multiple_float_paths(
                     metric = _relationship_free_float(
                         relationship, predecessor, successor,
                         activity_map[predecessor_id], resolver,
+                        (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     )
                     driving_penalty = 0 if _relationship_is_driving(
                         relationship, predecessor, successor, resolver,
@@ -614,7 +616,7 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver
+            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver, relationship_lag_resolvers
         )
         free = max(0, min(total, free))
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
