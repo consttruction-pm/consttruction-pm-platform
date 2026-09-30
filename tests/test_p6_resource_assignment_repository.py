@@ -70,3 +70,66 @@ def test_typed_decimal_and_invalid_values_fail_closed():
         P6ResourceAssignment(scope(), "ra-1", "act-1", " ").validate()
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_CURRENCY"):
         P6ResourceAssignment(scope(), "ra-1", "act-1", "res-1", currency="").validate()
+
+
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentPeriodValue,
+    SQLiteP6ResourceAssignmentPeriodRepository,
+)
+
+
+def period_value(
+    revision=1,
+    assignment_id="ra-1",
+    period_start="2026-10-01",
+    units="4.25",
+    cost="425.50",
+):
+    return P6ResourceAssignmentPeriodValue(
+        scope(revision),
+        assignment_id,
+        "act-1",
+        "res-1",
+        period_start,
+        Decimal(units),
+        Decimal(cost),
+    )
+
+
+def test_assignment_period_round_trip_and_deterministic_ordering():
+    repo = SQLiteP6ResourceAssignmentPeriodRepository(sqlite3.connect(":memory:"))
+    later = period_value(period_start="2026-10-02")
+    first = period_value(period_start="2026-10-01")
+    assert repo.upsert(later) == later
+    assert repo.upsert(first) == first
+    assert repo.get(scope(), "ra-1", "2026-10-01") == first
+    assert [x.period_start for x in repo.list(scope(), "ra-1")] == [
+        "2026-10-01",
+        "2026-10-02",
+    ]
+
+
+def test_assignment_period_scope_revision_and_immutability():
+    repo = SQLiteP6ResourceAssignmentPeriodRepository(sqlite3.connect(":memory:"))
+    item = period_value()
+    assert repo.upsert(item) == item
+    assert repo.upsert(item) == item
+    assert repo.get(BackendScope("tenant-b", "project-a", 1), "ra-1", "2026-10-01") is None
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="REVISION_CONFLICT"):
+        repo.get(scope(2), "ra-1", "2026-10-01")
+    changed = period_value(units="5.25")
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="IMMUTABLE_RESOURCE_ASSIGNMENT_PERIOD_VALUE",
+    ):
+        repo.upsert(changed)
+
+
+def test_assignment_period_decimal_validation_fails_closed():
+    item = period_value()
+    assert item.units == Decimal("4.25")
+    assert item.cost == Decimal("425.50")
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_UNITS"):
+        period_value(units="NaN").validate()
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_PERIOD_START"):
+        period_value(period_start="").validate()
