@@ -78,3 +78,15 @@ def test_decode_rejects_missing_end_marker() -> None:
 
     with pytest.raises(P6XerCodecError, match="MISSING_XER_END_MARKER"):
         P6XerCodec().decode(document, scope())
+
+
+
+def test_encode_rejects_control_characters_in_field_values() -> None:
+    from construction_pm.p6_interchange_mapping import P6InterchangeResult
+
+    row = P6InterchangeResult(
+        {"task_name": "Foundation\tCrew"},
+        {"p6.xer.table": "TASK"},
+    )
+    with pytest.raises(P6XerCodecError, match="INVALID_XER_FIELD_VALUE_CONTROL_CHARACTER"):
+        P6XerCodec().encode((row,), scope())
