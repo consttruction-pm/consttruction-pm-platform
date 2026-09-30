@@ -156,24 +156,25 @@ class PostgresP6FinancialPeriodRepository:
 
     def upsert(self, period: P6FinancialPeriod) -> P6FinancialPeriod:
         period.validate()
+        self.connection.execute(
+            "INSERT INTO p6_financial_period "
+            "(tenant_id,project_id,project_revision,period_id,name,start_date,end_date,status) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,period_id) DO NOTHING",
+            (period.scope.tenant_id, period.scope.project_id, period.scope.project_revision,
+             period.period_id, period.name, period.start_date, period.end_date, period.status),
+        )
         row = self.connection.execute(
             "SELECT project_revision,name,start_date,end_date,status FROM p6_financial_period "
             "WHERE tenant_id=%s AND project_id=%s AND period_id=%s",
             (period.scope.tenant_id, period.scope.project_id, period.period_id),
         ).fetchone()
-        if row is not None:
-            if int(row[0]) != period.scope.project_revision:
-                raise P6FinancialPeriodPersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != (period.name, period.start_date, period.end_date, period.status):
-                raise P6FinancialPeriodPersistenceError("IMMUTABLE_FINANCIAL_PERIOD")
-            return period
-        self.connection.execute(
-            "INSERT INTO p6_financial_period "
-            "(tenant_id,project_id,project_revision,period_id,name,start_date,end_date,status) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-            (period.scope.tenant_id, period.scope.project_id, period.scope.project_revision,
-             period.period_id, period.name, period.start_date, period.end_date, period.status),
-        )
+        if row is None:
+            raise P6FinancialPeriodPersistenceError("FINANCIAL_PERIOD_INSERT_FAILED")
+        if int(row[0]) != period.scope.project_revision:
+            raise P6FinancialPeriodPersistenceError("REVISION_CONFLICT")
+        if tuple(row[1:]) != (period.name, period.start_date, period.end_date, period.status):
+            raise P6FinancialPeriodPersistenceError("IMMUTABLE_FINANCIAL_PERIOD")
         return period
 
     def get(self, scope: BackendScope, period_id: str) -> P6FinancialPeriod | None:
