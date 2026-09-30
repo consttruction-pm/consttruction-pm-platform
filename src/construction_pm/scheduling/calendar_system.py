@@ -14,6 +14,14 @@ class CalendarDateError(ValueError):
     """Raised when a calendar date is outside the supported domain."""
 
 
+_JALALI_LEAP_YEAR_RESIDUES = frozenset({1, 5, 9, 13, 17, 22, 26, 30})
+
+
+def _is_jalali_leap_year(year: int) -> bool:
+    """Return the supported 33-year Jalali leap-year boundary."""
+    return year % 33 in _JALALI_LEAP_YEAR_RESIDUES
+
+
 @dataclass(frozen=True, order=True)
 class JalaliDate:
     """Proleptic Persian/Jalali date with deterministic Gregorian conversion."""
@@ -61,7 +69,7 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
         + _div(epbase, 2820) * 1029983
         + 1948320
     )
-    if month == 12 and day == 30 and jalali_to_jdn(year + 1, 1, 1) != jdn:
+    if month == 12 and day == 30 and not _is_jalali_leap_year(year):
         raise CalendarDateError("invalid Jalali date")
 
     result = _jdn_to_gregorian(jdn)
@@ -90,7 +98,7 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
         year -= 1
 
     # Preserve the canonical 12/30 representation at a leap-year boundary.
-    if jalali_to_jdn(year - 1, 12, 30) == jdn:
+    if _is_jalali_leap_year(year - 1) and jalali_to_jdn(year - 1, 12, 30) == jdn:
         return year - 1, 12, 30
 
     yday = jdn - jalali_to_jdn(year, 1, 1) + 1
