@@ -5,6 +5,8 @@ from datetime import date
 from decimal import Decimal
 from enum import Enum
 
+from .calendar import WorkingTimeResolver
+
 
 class ResourceLevelingError(ValueError):
     """Raised when a resource-leveling contract is invalid."""
