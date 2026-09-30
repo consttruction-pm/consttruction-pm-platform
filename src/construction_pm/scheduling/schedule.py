@@ -20,6 +20,7 @@ from .schedule_options import (
     ScheduleMode,
     ScheduleOptions,
     StartToStartLagCalculationType,
+    OutOfSequenceScheduleType,
     TotalFloatCalculationType,
 )
 
