@@ -65,7 +65,7 @@ def test_postgres_field_round_trip_and_immutability() -> None:
 
 def test_postgres_field_concurrent_identical_upsert_is_idempotent() -> None:
     current_scope = scope()
-    original = record(current_scope, field_id="activity.concurrent")
+    original = record(current_scope, field_id="activity.activity_id")
     barrier = threading.Barrier(2)
 
     def save() -> PersistedP6Field:
