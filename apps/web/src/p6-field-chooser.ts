@@ -5,7 +5,6 @@ import type {
 } from "./p6-field-layout-foundation.js";
 import {
   addField,
-  createColumnPresentation,
   removeField,
   reorderFields,
   updateFieldPresentation,
@@ -91,7 +90,7 @@ export function createP6FieldChooser(
     },
     reorder(fieldIds) {
       const fields = fieldIds.map((fieldId) => requireField(registry, fieldId));
-      const layout = reorderFields(initialLayout, fields);
+      const layout = reorderFields(initialLayout, fields.map((field) => field.field_id));
       syncState(layout);
       initialLayout = layout;
       return layout;
