@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "status": "semantic_reconciliation_tranche_5",
+  "reference": {
+    "release": "P6 EPPM REST API Release 26",
+    "source": "Oracle Export Projects ActivityFieldType",
+    "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+    "evidence": "ActivityFieldType is the authoritative Release 26 export field inventory; the page exposes the Activity field list and export schema."
+  },
+  "fields": [
+    {
+      "registry_name": "ActivityId",
+      "p6_field": "Id",
+      "classification": "candidate_alias",
+      "oracle_semantic": "short activity ID",
+      "data_type": "string",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes Id; exact registry equivalence remains un-certified."
+    },
+    {
+      "registry_name": "ActivityName",
+      "p6_field": "Name",
+      "classification": "candidate_alias",
+      "oracle_semantic": "activity name",
+      "data_type": "string",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes Name."
+    },
+    {
+      "registry_name": "ActivityOwner",
+      "p6_field": "ActivityOwnerUserId",
+      "classification": "candidate_alias",
+      "oracle_semantic": "activity owner user identifier",
+      "data_type": "identifier",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes ActivityOwnerUserId; current registry string type requires mapping verification."
+    },
+    {
+      "registry_name": "ActivityStatus",
+      "p6_field": "Status",
+      "classification": "candidate_alias",
+      "oracle_semantic": "activity status",
+      "data_type": "string/enum candidate",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes Status; enum semantics require endpoint/type evidence."
+    },
+    {
+      "registry_name": "ActivityType",
+      "p6_field": "Type",
+      "classification": "candidate_alias",
+      "oracle_semantic": "activity type",
+      "data_type": "string/enum",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes Type; documented activity-type values require semantic verification."
+    },
+    {
+      "registry_name": "Calendar",
+      "p6_field": "CalendarName",
+      "classification": "unresolved",
+      "oracle_semantic": "calendar name",
+      "data_type": "string",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes CalendarName and CalendarObjectId; registry field Calendar is not an exact P6 field name."
+    },
+    {
+      "registry_name": "RemainingStartDate",
+      "p6_field": "RemainingEarlyStartDate",
+      "classification": "candidate_alias",
+      "oracle_semantic": "scheduler-derived remaining early start",
+      "data_type": "date-time",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes RemainingEarlyStartDate; write semantics require Activity endpoint evidence."
+    },
+    {
+      "registry_name": "RemainingFinishDate",
+      "p6_field": "RemainingEarlyFinishDate / RemainingLateFinishDate",
+      "classification": "unresolved",
+      "oracle_semantic": "remaining finish has early/late forms",
+      "data_type": "date-time",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory exposes separate RemainingEarlyFinishDate and RemainingLateFinishDate; a single registry RemainingFinishDate cannot be certified to either."
+    },
+    {
+      "registry_name": "UpdateUser",
+      "p6_field": "LastUpdateUser",
+      "classification": "candidate_alias",
+      "oracle_semantic": "last update user",
+      "data_type": "string",
+      "writable": null,
+      "computed": null,
+      "evidence": "Release 26 inventory includes LastUpdateUser; UpdateUser is not an exact inventory name."
+    }
+  ],
+  "certification_rule": "No field is certified from name similarity alone. writable/computed remain null until endpoint or authoritative field-property evidence is attached.",
+  "next_tranche": "Expand semantic/type evidence to the remaining registry Activity fields and reconcile exact matches before any disposition changes.",
+  "registry_exact_match_audit": {
+    "registry_activity_field_count": 39,
+    "exact_inventory_matches": 30,
+    "non_exact_count": 9,
+    "exact_match_rule": "Exact name presence in the authoritative Release 26 Activity inventory only; this does not certify semantic equivalence, data type, writable/computed behavior, or implementation completeness.",
+    "exact_fields": [
+      "PlannedStartDate",
+      "PlannedFinishDate",
+      "ActualStartDate",
+      "ActualFinishDate",
+      "PlannedDuration",
+      "RemainingDuration",
+      "ActualDuration",
+      "DurationPercentComplete",
+      "PhysicalPercentComplete",
+      "PercentCompleteType",
+      "TotalFloat",
+      "FreeFloat",
+      "FloatPath",
+      "FloatPathOrder",
+      "EarlyStartDate",
+      "EarlyFinishDate",
+      "LateStartDate",
+      "LateFinishDate",
+      "PrimaryConstraintType",
+      "PrimaryConstraintDate",
+      "ExpectedFinishDate",
+      "PrimaryResourceName",
+      "ProjectId",
+      "ProjectName",
+      "WBSPath",
+      "BaselineStartDate",
+      "BaselineFinishDate",
+      "BaselineDuration",
+      "Duration1Variance",
+      "CreateUser"
+    ],
+    "non_exact_fields": [
+      "ActivityId",
+      "ActivityName",
+      "ActivityStatus",
+      "ActivityType",
+      "Calendar",
+      "RemainingStartDate",
+      "RemainingFinishDate",
+      "ActivityOwner",
+      "UpdateUser"
+    ]
+  }
+}
