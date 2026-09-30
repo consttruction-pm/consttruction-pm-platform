@@ -17,7 +17,7 @@ from .p6_mapping_registry import (
     PersistedP6Mapping,
 )
 
-P6_MAPPING_REGISTRY_API_VERSION = "p6-mapping-registry-api.v1"
+P6_MAPPING_REGISTRY_API_VERSION = "1.0"
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
