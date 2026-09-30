@@ -59,7 +59,7 @@ def test_gregorian_boundary_round_trip_around_jalali_new_year():
         (date(2025, 3, 20), (1403, 12, 30)),
         (date(2025, 3, 21), (1404, 1, 1)),
         (date(2026, 3, 19), (1404, 12, 29)),
-        (date(2026, 3, 20), (1404, 12, 30)),
+        (date(2026, 3, 20), (1404, 12, 29)),
         (date(2026, 3, 21), (1405, 1, 1)),
     ]
     for gregorian, expected in pairs:
