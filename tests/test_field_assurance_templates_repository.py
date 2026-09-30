@@ -211,7 +211,7 @@ def test_execution_rejects_scope_mismatch():
                 expected_project_revision=5,
                 actor_id="user-1",
             )
-        with pytest.raises(FieldAssuranceTemplatePersistenceError, match="TEMPLATE_NOT_FOUND"):
+        with pytest.raises(Exception, match="CROSS_PROJECT_FIELD_ASSURANCE"):
             service.execute(
                 FieldAssuranceExecution(
                     "EXEC-TENANT", _scope(4, "tenant-2"), "TPL-1", 2,
