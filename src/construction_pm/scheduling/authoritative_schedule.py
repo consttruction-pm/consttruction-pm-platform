@@ -53,7 +53,6 @@ class AuthoritativeScheduleInput:
     tenant_id: str
     project_id: str
     project_revision: int
-    project_leveling_priority: int = 10
     mode: AuthoritativeScheduleMode
     project_calendar: CalendarReference
     activities: tuple[Activity | TimeActivity, ...]
@@ -63,6 +62,7 @@ class AuthoritativeScheduleInput:
     schedule_options: ScheduleOptions = ScheduleOptions()
     project_start: date | datetime | None = None
     project_finish: date | datetime | None = None
+    project_leveling_priority: int = 10
 
     def __post_init__(self) -> None:
         if not self.snapshot_id.strip():
