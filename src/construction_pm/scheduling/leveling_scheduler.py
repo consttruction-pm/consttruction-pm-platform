@@ -10,6 +10,7 @@ from .resource_leveling import (
     BackwardLevelingShift,
     LevelingActivity,
     LevelingShift,
+    ResourceDemand,
     apply_leveling_shifts,
     propose_backward_leveling,
     propose_forward_leveling,
@@ -37,6 +38,23 @@ def backward_leveling_constraints(
         for shift in sorted(shifts, key=lambda item: (item.activity_id, item.shift_working_days))
         if shift.advanced_days > 0
     )
+
+
+def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift]) -> tuple[ActivityConstraint, ...]:
+    final_by_activity: dict[str, BackwardLevelingShift] = {}
+    for shift in shifts:
+        if shift.advanced_days <= 0:
+            continue
+        current = final_by_activity.get(shift.activity_id)
+        if current is None or shift.advanced_days > current.advanced_days:
+            final_by_activity[shift.activity_id] = shift
+    result: list[ActivityConstraint] = []
+    for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id):
+        result.extend((
+            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start),
+            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_LATER_THAN, shift.new_start),
+        ))
+    return tuple(result)
 
 
 def merge_leveling_constraints(
