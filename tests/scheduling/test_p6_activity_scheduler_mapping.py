@@ -40,7 +40,8 @@ def test_p6_remaining_activity_fields_are_sourced_from_authoritative_scheduler_o
         assert remaining_float == float_value.total_float
 
 
-def test_p6_remaining_float_uses_remaining_finish_not_canonical_total_float_for_progressed_activity():
+
+def test_p6_progressed_activity_remaining_output_uses_scheduler_remaining_duration():
     resolver = WorkingTimeResolver(WorkingCalendar())
     activity = Activity(
         "A",
@@ -62,16 +63,13 @@ def test_p6_remaining_float_uses_remaining_finish_not_canonical_total_float_for_
 
     early = result.early_activities["A"]
     late = result.late_activities["A"]
-    float_value = result.floats["A"]
 
+    assert early.duration == 1
+    assert early.start == date(2026, 9, 21)
+    assert early.finish == date(2026, 9, 22)
+
+    # P6 Remaining Float = Late Finish - Remaining Finish.
     remaining_float = resolver.working_days_between(early.finish, late.finish)
-
-    # This is the P6 Remaining Float relationship: Late Finish minus
-    # Remaining Finish. It is deliberately asserted independently from
-    # Total Float because progressed activities can have different remaining
-    # finish and early-finish semantics.
-    assert remaining_float == resolver.working_days_between(
-        early.finish, late.finish
-    )
-    assert float_value.late_finish == late.finish
-    assert float_value.early_finish == early.finish
+    assert late.start == date(2026, 9, 24)
+    assert late.finish == date(2026, 9, 25)
+    assert remaining_float == 3
