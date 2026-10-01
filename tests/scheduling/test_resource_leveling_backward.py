@@ -38,7 +38,7 @@ def test_backward_leveling_advances_activity_from_late_date_using_working_calend
         ),
     )
     capacities = (
-        ResourceCapacity("R1", date(2026, 10, 3), Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
         ResourceCapacity("R1", date(2026, 10, 5), Decimal("8")),
     )
 
