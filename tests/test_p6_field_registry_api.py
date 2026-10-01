@@ -58,7 +58,21 @@ def test_field_api_returns_versioned_typed_contract() -> None:
 
     assert result["contract_version"] == P6_FIELD_REGISTRY_API_VERSION
     assert result["field"]["data_type"] == "string"
+    assert result["field"]["reference_url"].startswith("https://docs.oracle.com/")
+    assert result["field"]["disposition"] == "seeded_not_certified"
+    assert result["field"]["read_only"] is None
+    assert result["field"]["filterable"] is None
+    assert result["field"]["orderable"] is None
+    assert result["field"]["nullable"] is None
     assert result["scope"]["project_revision"] == 2
+
+    loaded = api.get_field(
+        scope,
+        "p6-field-registry.v1",
+        "activity.activity_id",
+        auth_context=_auth("viewer"),
+    )
+    assert loaded == result
 
 
 def test_udf_api_returns_typed_definition() -> None:
