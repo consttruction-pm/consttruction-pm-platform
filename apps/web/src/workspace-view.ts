@@ -8,6 +8,8 @@ import { coerceP6TypedFieldValue } from "./p6-typed-field-editor.js";
 import { renderP6GridCell } from "./p6-grid-cell-view.js";
 import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
 import type { ColumnPresentation, P6Field } from "./p6-field-layout-foundation.js";
+import type { LayoutScope } from "./p6-field-layout-foundation.js";
+import { renderP6LayoutPersistenceControls } from "./p6-layout-persistence-controls-view.js";
 
 const labels = {
   en: {
@@ -47,6 +49,9 @@ export type WorkspaceRendererOptions = {
   onP6GridFilterChange?: (filters: readonly P6GridFilter[]) => void;
   onP6GridFilterAdd?: () => void;
   onP6GridFilterReorder?: (orderedIndexes: readonly number[]) => void;
+  p6LayoutPersistence?: { scope: LayoutScope } | null;
+  onP6LayoutLoad?: () => void;
+  onP6LayoutSave?: () => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -84,6 +89,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6ColumnPresentation(state, options)}
             ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
             ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
+            ${renderWorkspaceLayoutPersistence(state, options)}
             ${renderWorkspaceGridPresentation(state, options)}
             ${renderWorkspaceActivityGrid(state, t.noActivities)}
           </section>
@@ -161,6 +167,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = input.dataset.p6ColumnFrozen;
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: input.checked });
   }));
+
+  container.querySelectorAll<HTMLElement>("[data-p6-layout-load]").forEach((button) => button.addEventListener("click", () => options.onP6LayoutLoad?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-layout-save]").forEach((button) => button.addEventListener("click", () => options.onP6LayoutSave?.()));
 
   container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridSortAdd?.()));
   container.querySelectorAll<HTMLElement>("[data-p6-grid-group-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridGroupAdd?.()));
@@ -734,6 +743,13 @@ function renderChangeClaimControl(
       </div>
     </section>
   `;
+}
+
+function renderWorkspaceLayoutPersistence(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  if (!options.p6LayoutPersistence || !state.p6Layout) return "";
+  return renderP6LayoutPersistenceControls(options.p6LayoutPersistence.scope, state.locale === "fa"
+    ? { title: "ذخیره‌سازی چیدمان P6", load: "بارگذاری چیدمان", save: "ذخیره چیدمان", scope: "دامنه" }
+    : { title: "P6 Layout Persistence", load: "Load layout", save: "Save layout", scope: "Scope" });
 }
 
 function renderWorkspaceFormulaEditor(state: P6FormulaEditorState | null | undefined, locale: WorkspaceState["locale"]): string {
