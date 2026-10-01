@@ -5,7 +5,7 @@ This is the single governance baseline for progress reporting. It prevents PR co
 
 ## Baseline
 - Repository: consttruction-pm/consttruction-pm-platform
-- Current main checked before this baseline: `9445ec2`
+- Current main governance baseline before audit sync: `9445ec2`; audit sync commit: `e01e9e9`
 - Master audit: `docs/V1_MASTER_AUDIT_MATRIX.md`
 - Governing principles: `docs/architecture/PRODUCT_PRINCIPLES.md`
 - V1 master track: #459
