@@ -63,8 +63,6 @@ def _api():
     return conn, BackendP0API(service)
 
 
-
-
 def _rfq(rfq_id="RFQ-1"):
     return ProcurementRFQ(
         rfq_id, _scope(), "issued", "concrete.procurement", "requester-1",
@@ -150,17 +148,17 @@ def test_all_procurement_records_round_trip_through_resource_envelope():
         approved_at=datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
         evidence_refs=(_evidence(),)
     )
+    commitment = ProcurementCommitment(
+        "COM-2", _scope(), "committed", "SUP-1", "USD", Decimal("1052.6250"),
+        _audit(), po_id=None, cost_refs=("C-1",), activity_ids=("A-1",),
+        evidence_refs=(_evidence(),)
+    )
     po = PurchaseOrder(
         "PO-2", _scope(), "SUP-1", "issued", "USD",
         (PurchaseOrderItem("IT-1", "concrete.m3", Decimal("10.5000"), "m3", Decimal("100.2500"), ("A-1",)),),
         _audit(), rfq_id="RFQ-1", quote_id="Q-1",
         order_date=date(2026, 10, 1), required_delivery_date=date(2026, 10, 10),
         commitment_id="COM-2", approval_reference="APP-1", evidence_refs=(_evidence(),)
-    )
-    commitment = ProcurementCommitment(
-        "COM-2", _scope(), "committed", "SUP-1", "USD", Decimal("1052.6250"),
-        _audit(), po_id="PO-2", cost_refs=("C-1",), activity_ids=("A-1",),
-        evidence_refs=(_evidence(),)
     )
     delivery = ProcurementDelivery(
         "DEL-2", _scope(), "PO-2", "SUP-1", "partial", date(2026, 10, 5),
@@ -171,18 +169,31 @@ def test_all_procurement_records_round_trip_through_resource_envelope():
     results = [
         api.save_resource(quote, auth_context=_auth(), idempotency_key="q-1"),
         api.save_resource(comparison, auth_context=_auth(), idempotency_key="bc-2"),
-        api.save_resource(po, auth_context=_auth(), idempotency_key="po-2"),
         api.save_resource(commitment, auth_context=_auth(), idempotency_key="com-2"),
+        api.save_resource(po, auth_context=_auth(), idempotency_key="po-2"),
         api.save_resource(delivery, auth_context=_auth(), idempotency_key="del-2"),
     ]
 
+    linked_commitment = ProcurementCommitment(
+        "COM-2", _scope(), "committed", "SUP-1", "USD", Decimal("1052.6250"),
+        _audit(), po_id="PO-2", cost_refs=("C-1",), activity_ids=("A-1",),
+        evidence_refs=(_evidence(),)
+    )
+    linked_result = api.save_resource(
+        linked_commitment,
+        auth_context=_auth(),
+        expected_revision=1,
+        idempotency_key="com-2-link",
+    )
+
     assert [item["resource_type"] for item in results] == [
-        "quote", "bid_comparison", "purchase_order", "commitment", "delivery"
+        "quote", "bid_comparison", "commitment", "purchase_order", "delivery"
     ]
     assert all(item["revision"] == 1 for item in results)
+    assert linked_result["revision"] == 2
     assert results[0]["payload"]["items"][0]["quantity"] == "25.1250"
     assert results[0]["payload"]["items"][0]["unit_price"] == "125.5000"
-    assert results[3]["payload"]["committed_amount"] == "1052.6250"
+    assert results[2]["payload"]["committed_amount"] == "1052.6250"
     assert results[4]["payload"]["items"][0]["quantity_received"] == "4.2500"
 
     assert api.read_resource(quote, auth_context=_auth())["payload"]["supplier_id"] == "SUP-1"

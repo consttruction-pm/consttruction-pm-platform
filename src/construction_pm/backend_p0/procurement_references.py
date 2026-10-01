@@ -42,6 +42,8 @@ class ProcurementReferenceResolver:
                 rfq = self._require(record, "procurement_rfq", record.rfq_id, "RFQ")
             if record.quote_id is not None:
                 quote = self._require(record, "procurement_quote", record.quote_id, "quote")
+            if record.commitment_id is not None:
+                self._require(record, "procurement_commitment", record.commitment_id, "commitment")
             if rfq is not None and quote is not None and quote.record.rfq_id != record.rfq_id:
                 raise BackendApplicationError(
                     ErrorCategory.VALIDATION,
