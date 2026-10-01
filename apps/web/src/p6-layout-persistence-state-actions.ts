@@ -1,6 +1,5 @@
-import type { P6LayoutPersistence } from "./p6-field-layout-foundation.js";
+import type { LayoutScope, P6LayoutPersistence } from "./p6-field-layout-foundation.js";
 import type { WorkspaceState } from "./workspace-model.js";
-import type { P6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 
 export type P6LayoutPersistenceStateActions = {
@@ -10,7 +9,7 @@ export type P6LayoutPersistenceStateActions = {
 
 export function createP6LayoutPersistenceStateActions(
   persistence: P6LayoutPersistence,
-  scope: Parameters<P6LayoutPersistenceController["load"]>[0] extends never ? never : "global" | "project" | "user",
+  scope: LayoutScope,
   viewId: string,
   getState: () => WorkspaceState,
   setState: (state: WorkspaceState) => void,
