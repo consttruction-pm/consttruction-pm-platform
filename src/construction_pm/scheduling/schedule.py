@@ -706,6 +706,7 @@ def schedule(
         selected_options.data_date,
         relationship_lag_resolvers,
         selected_options.use_expected_finish_dates,
+        selected_options.out_of_sequence_schedule_type,
     )
     early_project_finish = resolver.normalize_finish(
         project_finish or max(item.finish for item in early.values())

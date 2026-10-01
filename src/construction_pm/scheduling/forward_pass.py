@@ -13,8 +13,9 @@ from .constraints import (
     validate_constraint_set,
     validate_upper_bound,
 )
+from .out_of_sequence import ProgressRelationAction, resolve_out_of_sequence_action
 from .relationships import Relationship, RelationshipType
-from .schedule_options import StartToStartLagCalculationType
+from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
 
 
 class SchedulingCycleError(ValueError):
@@ -163,6 +164,7 @@ def forward_pass(
     data_date: date | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
     use_expected_finish_dates: bool = False,
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType = OutOfSequenceScheduleType.RETAINED_LOGIC,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with P6 date options."""
     if calculation_context is not None:
@@ -206,14 +208,21 @@ def forward_pass(
 
     for activity_id in order:
         activity = activity_map[activity_id]
+        progressed = activity.actual_start is not None
+        scheduled_duration = (
+            activity.remaining_duration
+            if progressed and activity.actual_finish is None and activity.remaining_duration is not None
+            else activity.duration
+        )
         if not incoming[activity_id]:
             start = resolver.normalize_start(project_start)
+            oos_action = ProgressRelationAction.APPLY_LOGIC
         else:
-            start = max(
+            start_requirements = [
                 _successor_start(
                     rel,
                     result[rel.predecessor_id],
-                    activity.duration,
+                    scheduled_duration,
                     resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
@@ -229,19 +238,43 @@ def forward_pass(
                         item.type.value, item.lag
                     ),
                 )
-            )
+            ]
+            start = max(start_requirements)
+            oos_action = ProgressRelationAction.APPLY_LOGIC
+            if progressed and activity.actual_start is not None and activity.actual_start < start:
+                if data_date is None:
+                    raise ValueError("data_date is required for out-of-sequence progress")
+                oos_action = resolve_out_of_sequence_action(
+                    activity,
+                    relationship_required_start=start,
+                    data_date=data_date,
+                    mode=out_of_sequence_schedule_type,
+                )
+                if oos_action is ProgressRelationAction.IGNORE_LOGIC:
+                    if activity.actual_finish is not None:
+                        start = resolver.normalize_start(activity.actual_start)
+                        scheduled_duration = 0
+                    else:
+                        start = resolver.normalize_start(data_date)
+                elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
+                    if activity.actual_finish is not None:
+                        start = resolver.normalize_start(activity.actual_start)
+                        scheduled_duration = 0
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             start = apply_earliest_constraint(
-                constraint, start, activity.duration, resolver
+                constraint, start, scheduled_duration, resolver
             )
 
-        start = _apply_expected_finish_target(
-            start, activity, resolver, use_expected_finish_dates
-        )
-        finish = resolver.add_working_duration(start, activity.duration)
+        if not (oos_action is ProgressRelationAction.USE_ACTUAL_DATES and activity.actual_finish is not None):
+            start = _apply_expected_finish_target(
+                start, activity, resolver, use_expected_finish_dates
+            )
+            finish = resolver.add_working_duration(start, scheduled_duration)
+        else:
+            finish = resolver.normalize_finish(activity.actual_finish)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -249,7 +282,7 @@ def forward_pass(
             validate_upper_bound(constraint, start, finish, resolver)
 
         result[activity_id] = ScheduledActivity(
-            activity_id=activity_id, start=start, finish=finish, duration=activity.duration
+            activity_id=activity_id, start=start, finish=finish, duration=scheduled_duration
         )
 
     return result
