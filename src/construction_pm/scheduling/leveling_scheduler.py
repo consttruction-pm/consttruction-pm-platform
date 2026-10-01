@@ -17,7 +17,10 @@ from .resource_leveling import (
     ResourceLevelingError,
 )
 from .schedule_options import ScheduleOptions
-from .leveling_boundary import SchedulerLevelingInput
+from .leveling_boundary import (
+    SchedulerLevelingInput,
+    scheduler_leveling_input_from_options,
+)
 
 
 def forward_leveling_constraints(
@@ -137,14 +140,27 @@ def schedule_with_resource_leveling(
 
     Resource-leveling movement is converted to scheduler constraints; final
     relationships, calendars, constraints, early/late dates and floats are
-    recalculated by the normal CPM scheduler. ScheduleOptions leveling flags
-    remain gated on the explicit orchestration seam until full API wiring.
+    recalculated by the normal CPM scheduler. When ScheduleOptions are supplied,
+    their supported resource-leveling fields are mapped into the existing typed
+    Shared Core boundary; no second leveling engine is created.
     """
     if not isinstance(leveling_input, SchedulerLevelingInput):
         raise TypeError("leveling_input must be SchedulerLevelingInput")
     selected_options = options or ScheduleOptions()
     if selected_options.priority_list:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+
+    # ScheduleOptions is the public typed configuration surface. Map only its
+    # already-authoritative leveling fields into the existing Shared Core input;
+    # persistence/API adapters remain responsible for supplying demand/capacity.
+    if options is not None:
+        leveling_input = scheduler_leveling_input_from_options(
+            forward_activities=leveling_input.forward_activities,
+            backward_activities=leveling_input.backward_activities,
+            capacities=leveling_input.capacities,
+            options=selected_options,
+        )
+
     if selected_options.resource_list is not None:
         requested = tuple(x.strip() for x in selected_options.resource_list.split(",") if x.strip())
         if requested != leveling_input.options.resource_ids:
