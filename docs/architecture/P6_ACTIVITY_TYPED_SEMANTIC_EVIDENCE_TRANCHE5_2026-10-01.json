@@ -1,0 +1,177 @@
+{
+  "schema_version": "p6-activity-typed-semantic-evidence.v1",
+  "tranche": 5,
+  "subject_area": "Activity",
+  "status": "evidence_only_pending_full_activity_certification",
+  "p6_release": "P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "fields": [
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1StartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2StartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency"
+    }
+  ],
+  "guardrails": [
+    "No Activity dataclass expansion.",
+    "No second CPM/EVM implementation.",
+    "No alias-as-exact matching.",
+    "No full Activity certification claim.",
+    "Nullable/default/import-export evidence remains open."
+  ]
+}
