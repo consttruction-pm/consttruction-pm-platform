@@ -35,7 +35,7 @@ export function createP6FormulaEditor(
     authoritative: model.authoritative
       ? {
           validation: { ...model.authoritative.validation },
-          dependencies: { field_ids: [...model.authoritative.dependencies.field_ids] },
+          dependencies: { ...model.authoritative.dependencies, field_ids: [...model.authoritative.dependencies.field_ids] },
           result_type: { ...model.authoritative.result_type },
         }
       : null,
@@ -62,12 +62,12 @@ export function createP6FormulaEditor(
         if (requestId === validationRequest && model.expression === expressionAtRequest) {
           model = applyFormulaAuthority(model, result);
         }
-        return state();
       } finally {
         if (requestId === validationRequest && model.expression === expressionAtRequest) {
           validating = false;
         }
       }
+      return state();
     },
 
     applyAuthoritativeResult(result) {
