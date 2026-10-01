@@ -29,6 +29,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldPresentationChange?: (fieldId: string, patch: Partial<Omit<ColumnPresentation, "field_id">>) => void;
+  onP6CellValueChange?: (activityId: string, fieldId: string, value: string | boolean | null) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
   onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
@@ -114,6 +115,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     [orderedFieldIds[index], orderedFieldIds[target]] = [orderedFieldIds[target], orderedFieldIds[index]];
     options.onP6FieldReorder?.(orderedFieldIds);
   }));
+  container.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-p6-typed-value]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6TypedValue;
+    const row = input.closest<HTMLElement>("[data-activity-id]");
+    if (!fieldId || !row) return;
+    const activityId = row.dataset.activityId;
+    if (!activityId) return;
+    const value = input instanceof HTMLInputElement && input.type === "checkbox" ? input.checked : input.value;
+    options.onP6CellValueChange?.(activityId, fieldId, value);
+  }));
+
   container.querySelectorAll<HTMLInputElement>("[data-p6-column-label]").forEach((input) => input.addEventListener("change", () => {
     const fieldId = input.dataset.p6ColumnLabel;
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { label: input.value });
@@ -734,7 +745,8 @@ function renderWorkspaceActivityGrid(state: WorkspaceState, noActivitiesLabel: s
         const field = fields.get(column.field_id);
         if (!field) return "";
         const value = getP6ActivityCellValue(field.field_id, activity);
-        return `<td>${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale })}</td>`;
+        const editing = field.writable && !field.computed;
+        return `<td>${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale, editing })}</td>`;
       }).join("");
       return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${cells}</tr>`;
     }).join("");
