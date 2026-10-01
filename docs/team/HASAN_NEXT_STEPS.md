@@ -676,3 +676,20 @@ Status: **implemented, runtime-verified and merged**
 
 - Verify the fresh adapter branch with focused tests and all relevant GitHub Actions.
 - Open the Hasan PR with exact CI evidence; if a concrete integration gap remains, record the exact file/type/module rather than inventing semantics.
+
+
+### 2026-10-01 — Post-PR #683 current-main reconciliation
+
+- Current main is `94476f94ade2c7fc23aed2c756894dc5ce080d2d`; the latest main commit is governance documentation by Jalal, not a Hasan implementation change.
+- Hasan PR #683 (Change/Claim API → atomic PostgreSQL persistence) is merged as `ff6c7cc04a0019d87ae05dfc4a8cc19f4f960337`. Its final implementation head `7681a150c980516db7574d507922f7af15b77241` passed ConstructionPM CI #2674, PostgreSQL Integration #457 and Client Typecheck #2377.
+- The concrete defect found by PostgreSQL runtime verification was fixed: the API service now delegates to the authoritative PostgreSQL `persist()` path, and the read API unwraps the PostgreSQL stored envelope before serialization. No duplicate domain/calculation logic was introduced.
+- Issue #678 is closed as completed. Its runtime regression gate exposed the Change/Claim PostgreSQL seam and the follow-up #681/#683 work resolved it.
+- Current open-PR inspection shows no Hasan-owned implementation PR. Open PRs are outside this ownership lane (Web/client and Shared Core/P6 evidence/documentation); they must not be revived or modified as Hasan work.
+- The master audit matrix currently records PostgreSQL-backed Beta verification as `In progress` while #678 is completed; this is a governance-document synchronization issue for the matrix owner, not a reason to duplicate backend verification.
+
+### Current continuation point
+
+- No new non-duplicate Hasan Backend/Database/Application/API/Enterprise Integration implementation gap is currently evidenced on current `main`.
+- Remain at the evidence boundary until a new authoritative contract dependency or reproducible backend defect appears.
+- When a new gap appears: branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, update this document with exact commit/run identifiers, and only then merge.
+- Do not revive stale PRs or duplicate completed P6 persistence, API, interchange, resource-leveling, scheduling, calendar, duration, formula, Resource/Cost or EVM semantics.
