@@ -65,3 +65,14 @@ test("editable boolean and datetime cells use the shared typed editor", () => {
   assert.match(renderP6GridCell(booleanField, booleanLayout, true, { editing: true }), /type="checkbox"/);
   assert.match(renderP6GridCell(datetimeField, datetimeLayout, "2026-10-01T08:30", { editing: true }), /type="datetime-local"/);
 });
+
+
+test("renders custom and UDF values through the same display path when not editing", () => {
+  const custom = field("custom_text", "string", { disposition: "custom" });
+  const udf = field("udf_percent", "percentage", { disposition: "udf" });
+  const customLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "custom_text", visible: true, order: 3, width: 120, alignment: "start", pinned: false, frozen: false }] };
+  const udfLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "udf_percent", visible: true, order: 3, width: 120, alignment: "end", pinned: false, frozen: false }] };
+  assert.match(renderP6GridCell(custom, customLayout, "Custom value"), /data-disposition="custom"/);
+  assert.match(renderP6GridCell(udf, udfLayout, 25), /25%/);
+  assert.match(renderP6GridCell(udf, udfLayout, 25), /data-disposition="udf"/);
+});
