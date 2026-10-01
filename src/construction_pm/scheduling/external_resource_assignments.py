@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .resource_leveling import ResourceDemand, ResourceLevelingError
 
@@ -29,6 +29,8 @@ def select_resource_assignments_for_scheduling(
     *,
     scheduled_project_id: str,
     include_external_res_ass: bool,
+    project_leveling_priorities: Mapping[str, int] | None = None,
+    external_project_priority_limit: int = 100,
 ) -> tuple[ResourceDemand, ...]:
     """Resolve resource demand for a project scheduling batch.
 
@@ -41,12 +43,27 @@ def select_resource_assignments_for_scheduling(
         raise ResourceLevelingError("INVALID_SCHEDULED_PROJECT_ID")
     if not isinstance(include_external_res_ass, bool):
         raise ResourceLevelingError("INVALID_INCLUDE_EXTERNAL_RES_ASS")
+    if isinstance(external_project_priority_limit, bool) or not isinstance(external_project_priority_limit, int):
+        raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+    if not 1 <= external_project_priority_limit <= 100:
+        raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+    priorities = project_leveling_priorities or {}
+    for project_id, priority in priorities.items():
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
+        if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 100:
+            raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
 
     selected: list[ResourceDemand] = []
     for assignment in assignments:
         if not isinstance(assignment, ExternalResourceAssignment):
             raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
-        if assignment.project_id != scheduled_project_id and not include_external_res_ass:
-            continue
+        if assignment.project_id != scheduled_project_id:
+            if not include_external_res_ass:
+                continue
+            if assignment.project_id not in priorities:
+                raise ResourceLevelingError("MISSING_PROJECT_LEVELING_PRIORITY")
+            if priorities[assignment.project_id] > external_project_priority_limit:
+                continue
         selected.append(assignment.to_demand())
     return tuple(selected)
