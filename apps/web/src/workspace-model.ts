@@ -12,6 +12,7 @@ import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundati
 import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
 import { setGridFilters, setGridGroups, setGridSorts } from "./p6-activity-wbs-grid.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
+import { coerceP6TypedFieldValue } from "./p6-typed-field-editor.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -363,21 +364,22 @@ export function updateP6ActivityCell(
   state: WorkspaceState,
   activityId: string,
   fieldId: string,
-  value: WorkspaceCellValue,
+  value: string | boolean | null,
 ): WorkspaceState {
   if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
   const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
   if (!field) throw new Error("P6_FIELD_NOT_FOUND");
   if (!field.writable || field.computed) throw new Error("P6_FIELD_NOT_WRITABLE");
   if (!state.activities.some((activity) => activity.id === activityId)) throw new Error("ACTIVITY_NOT_FOUND");
-  validateCells({ [fieldId]: value });
+  const typedValue = coerceP6TypedFieldValue(field, value);
+  validateCells({ [fieldId]: typedValue });
   return {
     ...state,
     activities: state.activities.map((activity) => {
       if (activity.id !== activityId) return activity;
       return Object.freeze({
         ...activity,
-        cells: Object.freeze({ ...(activity.cells ?? {}), [fieldId]: value }),
+        cells: Object.freeze({ ...(activity.cells ?? {}), [fieldId]: typedValue }),
       });
     }),
   };
