@@ -410,6 +410,224 @@ def apply_leveling_shifts(
 
 
 
+
+@dataclass(frozen=True)
+class BackwardLevelingActivity:
+    """Late-date activity slice used by the P6 backward leveling pass."""
+    activity_id: str
+    early_start: date
+    early_finish: date
+    late_start: date
+    late_finish: date
+    resource_demands: tuple[ResourceDemand, ...] = ()
+    activity_priority: int | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
+        if any(not isinstance(value, date) for value in dates):
+            raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        if self.early_finish < self.early_start or self.late_finish < self.late_start:
+            raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        if self.late_start < self.early_start or self.late_finish < self.early_finish:
+            raise ResourceLevelingError("INVALID_LATE_WINDOW")
+        if self.activity_priority is not None and (
+            isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
+            raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
+
+
+@dataclass(frozen=True)
+class BackwardLevelingShift:
+    activity_id: str
+    shift_working_days: int
+    new_start: date
+    new_finish: date
+    advanced_days: int
+
+
+def _working_days_between(start: date, end: date, resolver: WorkingTimeResolver) -> int:
+    if end < start:
+        raise ResourceLevelingError("INVALID_DATE_ORDER")
+    try:
+        return resolver.working_days_between(start, end)
+    except ValueError as exc:
+        raise ResourceLevelingError("INVALID_DATE_ORDER") from exc
+
+
+def _shift_date_backward(
+    value: date,
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    if shift_working_days > 0:
+        raise ResourceLevelingError("INVALID_BACKWARD_SHIFT")
+    cursor = resolver.calendar.to_gregorian(value)
+    for _ in range(-shift_working_days):
+        cursor = resolver.previous_working_day(cursor)
+    return cursor
+
+
+def _shift_demands_backward(
+    demands: tuple[ResourceDemand, ...],
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> tuple[ResourceDemand, ...]:
+    return tuple(
+        ResourceDemand(
+            d.resource_id,
+            _shift_date_backward(d.period, shift_working_days, resolver),
+            d.units,
+            d.activity_id,
+        )
+        for d in demands
+    )
+
+
+def propose_backward_leveling(
+    activities: tuple[BackwardLevelingActivity, ...] | list[BackwardLevelingActivity],
+    capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
+    *,
+    resolver: WorkingTimeResolver,
+    over_allocation_percentage: Decimal = Decimal("0"),
+    priorities: tuple[LevelingPriority, ...] = (),
+    level_all_resources: bool = True,
+    resource_ids: tuple[str, ...] = (),
+) -> tuple[BackwardLevelingShift, ...]:
+    """Propose deterministic backward leveling from late dates toward early dates.
+
+    Relationship/CPM recalculation remains the authoritative scheduler boundary.
+    """
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+    if (
+        not isinstance(over_allocation_percentage, Decimal)
+        or not over_allocation_percentage.is_finite()
+        or not 0 <= over_allocation_percentage <= 100
+    ):
+        raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
+    if not isinstance(priorities, tuple) or any(not isinstance(p, LevelingPriority) for p in priorities):
+        raise ResourceLevelingError("INVALID_LEVELING_PRIORITIES")
+    if not isinstance(level_all_resources, bool):
+        raise ResourceLevelingError("INVALID_LEVEL_ALL_RESOURCES")
+    if not isinstance(resource_ids, tuple) or any(
+        not isinstance(resource_id, str) or not resource_id.strip() for resource_id in resource_ids
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_ID")
+    if len(set(resource_ids)) != len(resource_ids):
+        raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
+
+    activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
+    allowed = {
+        "activity_id", "activity_priority", "early_start", "planned_start",
+        "early_finish", "planned_finish", "total_float",
+    }
+    for priority in priorities:
+        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+
+    selected_resources = set(
+        select_leveling_resources(
+            [d for a in activity_list for d in a.resource_demands],
+            level_all_resources=level_all_resources,
+            resource_ids=resource_ids,
+        )
+    )
+    capacity_map = {
+        (c.resource_id, c.period): c.units
+        for c in capacities if c.resource_id in selected_resources
+    }
+    shifts = {a.activity_id: 0 for a in activity_list}
+
+    def effective_capacity(resource_id: str, period: date) -> Decimal:
+        return capacity_map.get((resource_id, period), Decimal("0")) * (
+            Decimal("1") + over_allocation_percentage / Decimal("100")
+        )
+
+    def current_demands() -> list[ResourceDemand]:
+        result: list[ResourceDemand] = []
+        for activity in activity_list:
+            result.extend(
+                d for d in _shift_demands_backward(
+                    activity.resource_demands, shifts[activity.activity_id], resolver
+                ) if d.resource_id in selected_resources
+            )
+        return result
+
+    result: list[BackwardLevelingShift] = []
+    while True:
+        demands = current_demands()
+        overloaded = [
+            (resource_id, period)
+            for resource_id, period in sorted(
+                {(d.resource_id, d.period) for d in demands},
+                key=lambda item: (item[1], item[0]),
+            )
+            if sum(
+                (d.units for d in demands if d.resource_id == resource_id and d.period == period),
+                Decimal("0"),
+            ) > effective_capacity(resource_id, period)
+        ]
+        if not overloaded:
+            break
+
+        candidates: list[tuple[tuple, Decimal, str]] = []
+        for resource_id, period in overloaded:
+            for activity in activity_list:
+                current_shift = shifts[activity.activity_id]
+                max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
+                if -current_shift >= max_advance:
+                    continue
+                current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
+                units = sum(
+                    (d.units for d in current if d.resource_id == resource_id and d.period == period),
+                    Decimal("0"),
+                )
+                if units <= 0:
+                    continue
+                values = {
+                    "activity_id": activity.activity_id,
+                    "activity_priority": activity.activity_priority,
+                    "early_start": activity.early_start,
+                    "planned_start": activity.early_start,
+                    "early_finish": activity.early_finish,
+                    "planned_finish": activity.early_finish,
+                    "total_float": max_advance,
+                }
+                key: list[tuple[int, object]] = []
+                for priority in priorities:
+                    value = values[priority.field_name.strip().lower().replace(" ", "_")]
+                    if value is None:
+                        key.append((1, ""))
+                    elif priority.sort_order is SortOrder.ASCENDING:
+                        key.append((0, value))
+                    else:
+                        key.append((0, _Descending(value)))
+                key.append((0, activity.activity_id))
+                candidates.append((tuple(key), -units, activity.activity_id))
+
+        if not candidates:
+            break
+
+        _, _, activity_id = min(candidates, key=lambda item: (item[0], item[1], item[2]))
+        activity = next(a for a in activity_list if a.activity_id == activity_id)
+        next_shift = shifts[activity_id] - 1
+        shifts[activity_id] = next_shift
+        result.append(
+            BackwardLevelingShift(
+                activity_id=activity_id,
+                shift_working_days=next_shift,
+                new_start=_shift_date_backward(activity.late_start, next_shift, resolver),
+                new_finish=_shift_date_backward(activity.late_finish, next_shift, resolver),
+                advanced_days=-next_shift,
+            )
+        )
+    return tuple(result)
+
+
 def resolve_leveling_passes(*, preserve_scheduled_early_and_late_dates: bool) -> tuple[str, ...]:
     """Return the P6 leveling pass sequence for the preserve-dates option.
 
