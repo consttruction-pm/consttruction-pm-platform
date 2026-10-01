@@ -93,8 +93,8 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const label = getWorkspaceNavigationLabel(item, state.locale);
   return `<section class="cp-panel cp-navigation-surface" aria-label="Current workspace surface">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
-    <nav aria-label="${escapeAttribute(item.label)} submenu">
-      ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu)}</span>`).join("")}
+    <nav aria-label="${escapeAttribute(label)} submenu">
+      ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu[state.locale])}</span>`).join("")}
     </nav>
   </section>`;
 }
