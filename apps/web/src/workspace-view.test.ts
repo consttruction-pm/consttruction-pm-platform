@@ -168,11 +168,13 @@ test("grid presentation forwards sort, group, and filter changes", () => {
   const sortField = { value: "duration", closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listener() };
   const sortDirection = { value: "descending", closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listener() };
   const groupField = { value: "duration", closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listener() };
+  const filterOperator = { value: "contains", closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listener() };
   const filterValue = { value: "10", closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listener() };
   container.querySelectorAll = ((selector: string) => {
     if (selector === "[data-p6-grid-sort-field]") return [sortField] as unknown as HTMLElement[];
     if (selector === "[data-p6-grid-sort-direction]") return [sortDirection] as unknown as HTMLElement[];
     if (selector === "[data-p6-grid-group-field]") return [groupField] as unknown as HTMLElement[];
+    if (selector === "[data-p6-grid-filter-operator]") return [filterOperator] as unknown as HTMLElement[];
     if (selector === "[data-p6-grid-filter-value]") return [filterValue] as unknown as HTMLElement[];
     return [];
   }) as RenderContainer["querySelectorAll"];
@@ -189,7 +191,8 @@ test("grid presentation forwards sort, group, and filter changes", () => {
   assert.equal((sorts[0] as Array<{ field_id: string }>)[0].field_id, "duration");
   assert.equal((sorts[1] as Array<{ direction: string }>)[0].direction, "descending");
   assert.equal((groups[0] as Array<{ field_id: string }>)[0].field_id, "duration");
-  assert.equal((filters[0] as Array<{ value: string }>)[0].value, "10");
+  assert.equal((filters[0] as Array<{ operator: string }>)[0].operator, "contains");
+  assert.equal((filters[1] as Array<{ value: string }>)[0].value, "10");
 });
 
 test("keeps the formula editor out of the workspace when no authoritative editor state is supplied", () => {
@@ -197,6 +200,24 @@ test("keeps the formula editor out of the workspace when no authoritative editor
   assert.doesNotMatch(html, /cp-p6-formula-editor/);
 });
 
+
+test("localizes P6 grid presentation labels and filter operators", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "fa"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "شناسه فعالیت", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6GridSorts: [{ field_id: "activity_id", direction: "ascending", order: 0 }],
+    p6GridFilters: [{ field_id: "activity_id", operator: "contains", value: "A" }],
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /ارائه گرید/);
+  assert.match(container.innerHTML, /مرتب‌سازی: 1/);
+  assert.match(container.innerHTML, /شامل/);
+  assert.match(container.innerHTML, /صعودی/);
+});
 
 test("renders the report/print field selection from authoritative registry and layout", () => {
   const state = {
