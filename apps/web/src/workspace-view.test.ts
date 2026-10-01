@@ -668,3 +668,40 @@ test("P6 column presentation controls forward label, width, alignment, pin, and 
     { fieldId: "activity_id", patch: { frozen: true } },
   ]);
 });
+
+
+test("P6 column presentation ignores invalid width input and forwards unchecked pin/freeze state", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: true, frozen: true }],
+    } as LayoutDefinition,
+  };
+  const changes: Array<{ fieldId: string; patch: Record<string, unknown> }> = [];
+  const listeners = new Map<string, () => void>();
+  const width = { dataset: { p6ColumnWidth: "activity_id" }, value: "0", addEventListener: (_event: string, listener: () => void) => listeners.set("width", listener) };
+  const pinned = { dataset: { p6ColumnPinned: "activity_id" }, checked: false, addEventListener: (_event: string, listener: () => void) => listeners.set("pinned", listener) };
+  const frozen = { dataset: { p6ColumnFrozen: "activity_id" }, checked: false, addEventListener: (_event: string, listener: () => void) => listeners.set("frozen", listener) };
+  const controls: Record<string, unknown[]> = {
+    "[data-p6-column-width]": [width], "[data-p6-column-pinned]": [pinned], "[data-p6-column-frozen]": [frozen],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => (controls[selector] ?? []) as HTMLElement[]) as RenderContainer["querySelectorAll"],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldPresentationChange: (fieldId, patch) => changes.push({ fieldId, patch: patch as Record<string, unknown> }),
+  });
+  listeners.get("width")?.();
+  listeners.get("pinned")?.();
+  listeners.get("frozen")?.();
+  assert.deepEqual(changes, [
+    { fieldId: "activity_id", patch: { pinned: false } },
+    { fieldId: "activity_id", patch: { frozen: false } },
+  ]);
+});
