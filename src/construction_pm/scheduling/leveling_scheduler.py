@@ -159,7 +159,7 @@ def schedule_with_resource_leveling(
     if not leveling_input.options.preserve_scheduled_early_and_late_dates:
         backward_activities = _backward_activities_from_intermediate(
             leveling_input,
-            early_schedule=intermediate.early_activities or intermediate.activities,
+            early_schedule=initial.early_activities or initial.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             forward_activities=shifted_forward,
         )
