@@ -49,3 +49,19 @@ test("supports custom and UDF fields through the same registry contract", () => 
   assert.match(renderP6TypedFieldEditor(custom, "x"), /data-p6-typed-value="custom_text"/);
   assert.match(renderP6TypedFieldEditor(udf, 3.5), /data-p6-typed-value="udf_001"/);
 });
+
+
+test("renders datetime and localized editable controls from registry metadata", () => {
+  const datetime = field("datetime", { field_id: "actual_start", display_name: "Actual Start" });
+  const boolean = field("boolean", { field_id: "critical", display_name: "Critical" });
+  assert.match(renderP6TypedFieldEditor(datetime, "2026-10-01T08:30"), /type="datetime-local"/);
+  assert.match(renderP6TypedFieldEditor(boolean, false, { locale: "fa" }), /ویرایش مقدار Critical/);
+  assert.match(renderP6TypedFieldEditor(boolean, false), /data-p6-typed-value="critical"/);
+});
+
+test("renders integer editors with integer step and preserves null values as empty", () => {
+  const html = renderP6TypedFieldEditor(field("integer", { field_id: "count" }), null);
+  assert.match(html, /type="number"/);
+  assert.match(html, /step="1"/);
+  assert.match(html, /value=""/);
+});
