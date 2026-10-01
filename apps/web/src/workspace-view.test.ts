@@ -74,3 +74,12 @@ test("menu selection wiring forwards the selected workspace surface", () => {
   listeners.get("reports")?.();
   assert.deepEqual(selected, ["reports"]);
 });
+
+
+test("rendered main menu exposes exactly one active workspace surface", () => {
+  const html = render("en", "reports");
+
+  assert.match(html, /data-menu="reports" aria-current="page">Reports<\/button>/);
+  assert.match(html, /data-menu="schedule" aria-current="false">Schedule<\/button>/);
+  assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
+});
