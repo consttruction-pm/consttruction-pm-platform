@@ -141,7 +141,7 @@ test("report/print field selection forwards checkbox changes and reset", () => {
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     p6ReportPrintSelection: { field_ids: ["activity_id"] },
     onP6ReportPrintSelectionChange: (fieldIds) => changes.push([...fieldIds]),
-    onP6ReportReset: () => { resetCount += 1; },
+    onP6ReportPrintReset: () => { resetCount += 1; },
   });
   assert.deepEqual(changes, [["activity_id"]]);
   assert.equal(resetCount, 1);
