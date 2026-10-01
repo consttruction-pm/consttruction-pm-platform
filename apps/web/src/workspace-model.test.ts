@@ -46,7 +46,8 @@ test("P6 grid presentation state is validated by the authoritative registry", ()
     ],
   } as Parameters<typeof setP6Presentation>[1];
   const layout = {
-    layout_id: "layout-1",
+    schema_version: "p6-layout.v1",
+    view_id: "activity",
     scope: "user",
     revision: 1,
     columns: [
