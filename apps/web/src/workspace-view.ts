@@ -1,6 +1,8 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
+import type { P6FormulaEditorState } from "./p6-formula-editor.js";
+import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
 
 const labels = {
   en: {
@@ -21,6 +23,7 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
+  p6FormulaEditorState?: P6FormulaEditorState | null;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -55,6 +58,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <section class="cp-panel cp-grid">
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
+            ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
             <div class="cp-table-wrap">
               <table>
                 <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
@@ -464,6 +468,19 @@ function renderChangeClaimControl(
       </div>
     </section>
   `;
+}
+
+function renderWorkspaceFormulaEditor(state: P6FormulaEditorState | null | undefined, locale: WorkspaceState["locale"]): string {
+  if (!state) return "";
+  return renderP6FormulaEditor(state, locale === "fa"
+    ? {
+        title: "ویرایشگر فرمول", expression: "عبارت", validating: "در حال اعتبارسنجی…",
+        valid: "معتبر", invalid: "نامعتبر", dependencies: "وابستگی‌ها", resultType: "نوع نتیجه",
+      }
+    : {
+        title: "Formula Editor", expression: "Expression", validating: "Validating…",
+        valid: "Valid", invalid: "Invalid", dependencies: "Dependencies", resultType: "Result type",
+      });
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
