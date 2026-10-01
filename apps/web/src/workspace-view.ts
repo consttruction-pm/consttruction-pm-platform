@@ -98,7 +98,11 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-hide]").forEach((button) => button.addEventListener("click", () => {\n    const fieldId = button.dataset.p6FieldHide;\n    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: false });\n  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
+  container.querySelectorAll<HTMLElement>("[data-p6-field-hide]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldHide;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: false });
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldShow;
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: true });
   }));
