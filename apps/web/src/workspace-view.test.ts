@@ -197,11 +197,12 @@ test("grid presentation forwards sort, group, and filter changes", () => {
     onP6GridGroupChange: (value) => groups.push(value),
     onP6GridFilterChange: (value) => filters.push(value),
   });
-  assert.equal((sorts[0] as Array<{ field_id: string }>)[0].field_id, "duration");
-  assert.equal((sorts[1] as Array<{ direction: string }>)[0].direction, "descending");
-  assert.deepEqual(sorts[2], []);
-  assert.equal((groups[0] as Array<{ field_id: string }>)[0].field_id, "duration");
-  assert.deepEqual(groups[1], []);
+  assert.deepEqual(sorts[0], []);
+  assert.deepEqual(sorts[1], []);
+  assert.equal((sorts[2] as Array<{ field_id: string }>)[0].field_id, "duration");
+  assert.equal((sorts[3] as Array<{ direction: string }>)[0].direction, "descending");
+  assert.deepEqual(groups[0], []);
+  assert.equal((groups[1] as Array<{ field_id: string }>)[0].field_id, "duration");
   assert.equal((filters[0] as Array<{ field_id: string }>)[0].field_id, "duration");
   assert.equal((filters[1] as Array<{ operator: string }>)[0].operator, "contains");
   assert.equal((filters[2] as Array<{ value: string }>)[0].value, "10");
