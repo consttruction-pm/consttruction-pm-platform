@@ -183,6 +183,27 @@ _ROWS = (
     ("schedule_options.use_expected_finish_dates","ScheduleOptions","UseExpectedFinishDates","Use Expected Finish Dates","boolean",True,False,None),
     ("schedule_options.user_name","ScheduleOptions","UserName","User Name","string",False,False,None),
     ("schedule_options.user_object_id","ScheduleOptions","UserObjectId","User Object ID","object-id",False,False,None),
+
+    ("activity.baseline1plannedmaterialcost","Activity","Baseline1PlannedMaterialCost","Baseline 1 Planned Material Cost","double",False,True,"currency"),
+    ("activity.baseline1plannednonlaborcost","Activity","Baseline1PlannedNonLaborCost","Baseline 1 Planned Nonlabor Cost","double",False,True,"currency"),
+    ("activity.baseline1plannednonlaborunits","Activity","Baseline1PlannedNonLaborUnits","Baseline 1 Planned Nonlabor Units","double",False,True,"units"),
+    ("activity.baseline1plannedtotalcost","Activity","Baseline1PlannedTotalCost","Baseline 1 Planned Total Cost","double",False,True,"currency"),
+    ("activity.baseline1startdate","Activity","Baseline1StartDate","Baseline 1 Start Date","date",False,True,None),
+    ("activity.baseline2duration","Activity","Baseline2Duration","Baseline 2 Duration","double",False,True,"working-time"),
+    ("activity.baseline2finishdate","Activity","Baseline2FinishDate","Baseline 2 Finish Date","date",False,True,None),
+    ("activity.baseline2plannedduration","Activity","Baseline2PlannedDuration","Baseline 2 Planned Duration","double",False,True,"working-time"),
+    ("activity.baseline2plannedexpensecost","Activity","Baseline2PlannedExpenseCost","Baseline 2 Planned Expense Cost","double",False,True,"currency"),
+    ("activity.baseline2plannedlaborcost","Activity","Baseline2PlannedLaborCost","Baseline 2 Planned Labor Cost","double",False,True,"currency"),
+    ("activity.baseline2plannedlaborunits","Activity","Baseline2PlannedLaborUnits","Baseline 2 Planned Labor Units","double",False,True,"units"),
+    ("activity.baseline2plannedmaterialcost","Activity","Baseline2PlannedMaterialCost","Baseline 2 Planned Material Cost","double",False,True,"currency"),
+    ("activity.baseline2plannednonlaborcost","Activity","Baseline2PlannedNonLaborCost","Baseline 2 Planned Nonlabor Cost","double",False,True,"currency"),
+    ("activity.baseline2plannednonlaborunits","Activity","Baseline2PlannedNonLaborUnits","Baseline 2 Planned Nonlabor Units","double",False,True,"units"),
+    ("activity.baseline2plannedtotalcost","Activity","Baseline2PlannedTotalCost","Baseline 2 Planned Total Cost","double",False,True,"currency"),
+    ("activity.baseline2startdate","Activity","Baseline2StartDate","Baseline 2 Start Date","date",False,True,None),
+    ("activity.baseline3duration","Activity","Baseline3Duration","Baseline 3 Duration","double",False,True,"working-time"),
+    ("activity.baseline3finishdate","Activity","Baseline3FinishDate","Baseline 3 Finish Date","date",False,True,None),
+    ("activity.baseline3plannedduration","Activity","Baseline3PlannedDuration","Baseline 3 Planned Duration","double",False,True,"working-time"),
+    ("activity.baseline3plannedexpensecost","Activity","Baseline3PlannedExpenseCost","Baseline 3 Planned Expense Cost","double",False,True,"currency"),
 )
 
 
