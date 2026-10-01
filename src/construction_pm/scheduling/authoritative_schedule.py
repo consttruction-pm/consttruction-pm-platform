@@ -106,6 +106,9 @@ class AuthoritativeScheduleInput:
             if self.project_start.tzinfo is None or self.project_start.utcoffset() is None:
                 raise ValueError("TIME_AWARE project_start must include a timezone")
 
+        if isinstance(self.project_leveling_priority, bool) or not isinstance(self.project_leveling_priority, int) or not 1 <= self.project_leveling_priority <= 100:
+            raise ValueError("project_leveling_priority must be between 1 and 100")
+
         activity_set = set(activity_ids)
         for relationship in self.relationships:
             if relationship.predecessor_id not in activity_set or relationship.successor_id not in activity_set:
@@ -129,6 +132,7 @@ class AuthoritativeScheduleInput:
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,
             "project_finish": self.project_finish,
+            "project_leveling_priority": self.project_leveling_priority,
         })
 
     def canonical_json(self) -> str:
