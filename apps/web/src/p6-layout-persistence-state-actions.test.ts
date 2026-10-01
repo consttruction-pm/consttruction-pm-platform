@@ -49,19 +49,43 @@ test("P6 layout persistence state actions commit loaded state", async () => {
     async load() { return loaded; },
     async save(value) { return value; },
   };
-  const actions = createP6LayoutPersistenceStateActions(
-    persistence,
-    "project",
-    "activity",
-    () => current,
-    (next) => { current = next; },
-  );
+  const actions = createP6LayoutPersistenceStateActions(persistence, "project", "activity", () => current, (next) => { current = next; });
 
   const result = await actions.load();
 
   assert.equal(result, current);
   assert.equal(current.p6Layout?.revision, 2);
   assert.equal(current.p6Layout?.columns[0]?.width, 240);
+});
+
+test("P6 layout persistence state actions preserve state when no layout is persisted", async () => {
+  let current = state();
+  const before = current;
+  const persistence: P6LayoutPersistence = {
+    async load() { return null; },
+    async save(value) { return value; },
+  };
+  const actions = createP6LayoutPersistenceStateActions(persistence, "project", "activity", () => current, (next) => { current = next; });
+
+  const result = await actions.load();
+
+  assert.equal(result, before);
+  assert.equal(current, before);
+});
+
+test("P6 layout persistence state actions do not commit when persistence fails", async () => {
+  let current = state();
+  const before = current;
+  const persistence: P6LayoutPersistence = {
+    async load() { throw new Error("LOAD_FAILED"); },
+    async save() { throw new Error("SAVE_FAILED"); },
+  };
+  const actions = createP6LayoutPersistenceStateActions(persistence, "project", "activity", () => current, (next) => { current = next; });
+
+  await assert.rejects(() => actions.load(), /LOAD_FAILED/);
+  assert.equal(current, before);
+  await assert.rejects(() => actions.save(), /SAVE_FAILED/);
+  assert.equal(current, before);
 });
 
 test("P6 layout persistence state actions commit saved state", async () => {
@@ -71,13 +95,7 @@ test("P6 layout persistence state actions commit saved state", async () => {
     async load() { return null; },
     async save() { return saved; },
   };
-  const actions = createP6LayoutPersistenceStateActions(
-    persistence,
-    "project",
-    "activity",
-    () => current,
-    (next) => { current = next; },
-  );
+  const actions = createP6LayoutPersistenceStateActions(persistence, "project", "activity", () => current, (next) => { current = next; });
 
   const result = await actions.save();
 
