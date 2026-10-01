@@ -359,6 +359,30 @@ export function setP6GridFilters(state: WorkspaceState, filters: readonly P6Grid
   return { ...state, p6GridFilters: setGridFilters(state.p6FieldRegistry, filters) };
 }
 
+export function updateP6ActivityCell(
+  state: WorkspaceState,
+  activityId: string,
+  fieldId: string,
+  value: WorkspaceCellValue,
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
+  if (!field) throw new Error("P6_FIELD_NOT_FOUND");
+  if (!field.writable || field.computed) throw new Error("P6_FIELD_NOT_WRITABLE");
+  if (!state.activities.some((activity) => activity.id === activityId)) throw new Error("ACTIVITY_NOT_FOUND");
+  validateCells({ [fieldId]: value });
+  return {
+    ...state,
+    activities: state.activities.map((activity) => {
+      if (activity.id !== activityId) return activity;
+      return Object.freeze({
+        ...activity,
+        cells: Object.freeze({ ...(activity.cells ?? {}), [fieldId]: value }),
+      });
+    }),
+  };
+}
+
 export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
   if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
   const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
