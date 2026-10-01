@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
+import type { P6GridFilter, P6GridSort } from "./p6-activity-wbs-grid.js";
 import { createWorkspaceState } from "./workspace-model.js";
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
@@ -208,8 +209,8 @@ test("localizes P6 grid presentation labels and filter operators", () => {
       registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
       fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "شناسه فعالیت", data_type: "string", writable: false, computed: false, disposition: "standard" }],
     } as FieldRegistry,
-    p6GridSorts: [{ field_id: "activity_id", direction: "ascending", order: 0 }],
-    p6GridFilters: [{ field_id: "activity_id", operator: "contains", value: "A" }],
+    p6GridSorts: [{ field_id: "activity_id", direction: "ascending", order: 0 } satisfies P6GridSort],
+    p6GridFilters: [{ field_id: "activity_id", operator: "contains", value: "A" } satisfies P6GridFilter],
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
