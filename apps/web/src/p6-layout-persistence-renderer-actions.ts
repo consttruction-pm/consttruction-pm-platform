@@ -11,10 +11,10 @@ export function createP6LayoutPersistenceRendererActions(
 ): P6LayoutPersistenceRendererActions {
   return {
     onP6LayoutLoad: () => {
-      void actions.load();
+      void actions.load().catch(() => undefined);
     },
     onP6LayoutSave: () => {
-      void actions.save();
+      void actions.save().catch(() => undefined);
     },
   };
 }
