@@ -9,7 +9,10 @@ import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
+import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
+import { setGridFilters, setGridGroups, setGridSorts } from "./p6-activity-wbs-grid.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
+import { coerceP6TypedFieldValue } from "./p6-typed-field-editor.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -94,6 +97,10 @@ export type WorkspaceState = {
   p6FieldRegistry: FieldRegistry | null;
   /** Authoritative/persisted layout projection for the current workspace view. */
   p6Layout: LayoutDefinition | null;
+  /** Authoritative P6 grid presentation state; values are presentation metadata only. */
+  p6GridSorts: readonly P6GridSort[];
+  p6GridGroups: readonly P6GridGroup[];
+  p6GridFilters: readonly P6GridFilter[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -146,6 +153,9 @@ export function createWorkspaceState(
     punchItems: [],
     p6FieldRegistry: null,
     p6Layout: null,
+    p6GridSorts: [],
+    p6GridGroups: [],
+    p6GridFilters: [],
   };
 }
 
@@ -333,6 +343,104 @@ export function setP6Presentation(
       });
     });
   return { ...state, columns: Object.freeze(columns), p6FieldRegistry: registry, p6Layout: layout };
+}
+
+export function addP6GridSort(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const used = new Set(state.p6GridSorts.map((sort) => sort.field_id));
+  const field = state.p6FieldRegistry.fields.find((candidate) => !used.has(candidate.field_id));
+  if (!field) return state;
+  return setP6GridSorts(state, [...state.p6GridSorts, { field_id: field.field_id, direction: "ascending", order: state.p6GridSorts.length }]);
+}
+
+export function addP6GridGroup(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const used = new Set(state.p6GridGroups.map((group) => group.field_id));
+  const field = state.p6FieldRegistry.fields.find((candidate) => !used.has(candidate.field_id));
+  if (!field) return state;
+  return setP6GridGroups(state, [...state.p6GridGroups, { field_id: field.field_id, order: state.p6GridGroups.length }]);
+}
+
+export function addP6GridFilter(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const field = state.p6FieldRegistry.fields[0];
+  if (!field) return state;
+  return setP6GridFilters(state, [...state.p6GridFilters, { field_id: field.field_id, operator: "equals", value: "" }]);
+}
+
+export function setP6GridSorts(state: WorkspaceState, sorts: readonly P6GridSort[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridSorts: setGridSorts(state.p6FieldRegistry, sorts) };
+}
+
+export function setP6GridGroups(state: WorkspaceState, groups: readonly P6GridGroup[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridGroups: setGridGroups(state.p6FieldRegistry, groups) };
+}
+
+export function setP6GridFilters(state: WorkspaceState, filters: readonly P6GridFilter[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridFilters: setGridFilters(state.p6FieldRegistry, filters) };
+}
+
+export function reorderP6GridSorts(
+  state: WorkspaceState,
+  orderedFieldIds: readonly string[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const byField = new Map(state.p6GridSorts.map((sort) => [sort.field_id, sort]));
+  const reordered = orderedFieldIds.map((fieldId) => byField.get(fieldId)).filter((sort): sort is P6GridSort => Boolean(sort));
+  if (reordered.length !== state.p6GridSorts.length) throw new Error("P6_GRID_SORT_ORDER_MISMATCH");
+  return setP6GridSorts(state, reordered.map((sort, order) => ({ ...sort, order })));
+}
+
+export function reorderP6GridGroups(
+  state: WorkspaceState,
+  orderedFieldIds: readonly string[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const byField = new Map(state.p6GridGroups.map((group) => [group.field_id, group]));
+  const reordered = orderedFieldIds.map((fieldId) => byField.get(fieldId)).filter((group): group is P6GridGroup => Boolean(group));
+  if (reordered.length !== state.p6GridGroups.length) throw new Error("P6_GRID_GROUP_ORDER_MISMATCH");
+  return setP6GridGroups(state, reordered.map((group, order) => ({ ...group, order })));
+}
+
+export function reorderP6GridFilters(
+  state: WorkspaceState,
+  orderedIndexes: readonly number[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  if (orderedIndexes.length !== state.p6GridFilters.length || new Set(orderedIndexes).size !== orderedIndexes.length) {
+    throw new Error("P6_GRID_FILTER_ORDER_MISMATCH");
+  }
+  const reordered = orderedIndexes.map((index) => state.p6GridFilters[index]);
+  if (reordered.some((filter) => !filter)) throw new Error("P6_GRID_FILTER_ORDER_MISMATCH");
+  return setP6GridFilters(state, reordered);
+}
+
+export function updateP6ActivityCell(
+  state: WorkspaceState,
+  activityId: string,
+  fieldId: string,
+  value: string | boolean | null,
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
+  if (!field) throw new Error("P6_FIELD_NOT_FOUND");
+  if (!field.writable || field.computed) throw new Error("P6_FIELD_NOT_WRITABLE");
+  if (!state.activities.some((activity) => activity.id === activityId)) throw new Error("ACTIVITY_NOT_FOUND");
+  const typedValue = coerceP6TypedFieldValue(field, value);
+  validateCells({ [fieldId]: typedValue });
+  return {
+    ...state,
+    activities: state.activities.map((activity) => {
+      if (activity.id !== activityId) return activity;
+      return Object.freeze({
+        ...activity,
+        cells: Object.freeze({ ...(activity.cells ?? {}), [fieldId]: typedValue }),
+      });
+    }),
+  };
 }
 
 export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
