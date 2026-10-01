@@ -3,6 +3,7 @@ import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
+import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
 
 const labels = {
   en: {
@@ -24,6 +25,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
+  p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -59,6 +61,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
             ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
+            ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
             <div class="cp-table-wrap">
               <table>
                 <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
@@ -481,6 +484,13 @@ function renderWorkspaceFormulaEditor(state: P6FormulaEditorState | null | undef
         title: "Formula Editor", expression: "Expression", validating: "Validating…",
         valid: "Valid", invalid: "Invalid", dependencies: "Dependencies", resultType: "Result type",
       });
+}
+
+function renderWorkspaceReportPrintSelection(state: WorkspaceState, selection: { field_ids: readonly string[] } | null | undefined): string {
+  if (!selection || !state.p6FieldRegistry || !state.p6Layout) return "";
+  return renderP6ReportPrintFieldSelection(state.p6Layout, state.p6FieldRegistry.fields, selection, state.locale === "fa"
+    ? { title: "فیلدهای گزارش / چاپ", selected: "انتخاب‌شده", visible: "قابل نمایش", reset: "بازنشانی به فیلدهای قابل نمایش" }
+    : { title: "Report / Print Fields", selected: "Selected", visible: "Visible", reset: "Reset to visible" });
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
