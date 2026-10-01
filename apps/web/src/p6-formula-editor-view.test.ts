@@ -12,6 +12,7 @@ const labels = {
   invalid: "Invalid",
   dependencies: "Dependencies",
   resultType: "Result type",
+  validate: "Validate",
 };
 
 function state(overrides: Partial<P6FormulaEditorState> = {}): P6FormulaEditorState {
@@ -29,7 +30,7 @@ test("renders expression and empty authoritative state without inventing calcula
 
   assert.match(html, /<textarea[^>]*data-p6-formula-expression[^>]*>Original Duration \* Units<\/textarea>/);
   assert.match(html, /data-p6-formula-dependencies><\/dd>/);
-  assert.match(html, /data-p6-formula-result-type><\/dd>/);
+  assert.match(html, /data-p6-formula-result-type><\/dd>/);\n  assert.match(html, /data-p6-formula-validate/);
   assert.doesNotMatch(html, /Valid<\/div>/);
 });
 
