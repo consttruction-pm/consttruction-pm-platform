@@ -26,6 +26,7 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
+  onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldPresentationChange?: (fieldId: string, patch: Partial<Omit<ColumnPresentation, "field_id">>) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
@@ -96,6 +97,18 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   container.querySelectorAll<HTMLElement>("[data-p6-field-remove]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-move-up], [data-p6-field-move-down]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldMoveUp ?? button.dataset.p6FieldMoveDown;
+    if (!fieldId || !state.p6Layout) return;
+    const orderedFieldIds = state.p6Layout.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id);
+    const index = orderedFieldIds.indexOf(fieldId);
+    if (index < 0) return;
+    const delta = button.dataset.p6FieldMoveUp !== undefined ? -1 : 1;
+    const target = index + delta;
+    if (target < 0 || target >= orderedFieldIds.length) return;
+    [orderedFieldIds[index], orderedFieldIds[target]] = [orderedFieldIds[target], orderedFieldIds[index]];
+    options.onP6FieldReorder?.(orderedFieldIds);
   }));
   container.querySelectorAll<HTMLInputElement>("[data-p6-column-label]").forEach((input) => input.addEventListener("change", () => {
     const fieldId = input.dataset.p6ColumnLabel;
@@ -666,10 +679,14 @@ function renderP6FieldChooser(state: WorkspaceState): string {
       <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
-      ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
+      ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column, index, visibleColumns) => {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
-        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="Remove">${escapeHtml(column.label ?? field.display_name)}</button>`;
+        const label = escapeHtml(column.label ?? field.display_name);
+        const fieldId = escapeAttribute(field.field_id);
+        const upDisabled = index === 0 ? " disabled" : "";
+        const downDisabled = index === visibleColumns.length - 1 ? " disabled" : "";
+        return `<div data-p6-field-row data-field-id="${fieldId}"><span>${label}</span><button type="button" data-p6-field-move-up="${fieldId}" title="Move up" aria-label="Move up"${upDisabled}>↑</button><button type="button" data-p6-field-move-down="${fieldId}" title="Move down" aria-label="Move down"${downDisabled}>↓</button><button type="button" data-p6-field-remove="${fieldId}" title="Remove">Remove</button></div>`;
       }).join("")}
       ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
