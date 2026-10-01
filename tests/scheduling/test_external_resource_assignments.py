@@ -87,3 +87,42 @@ def test_external_project_priority_limit_rejects_invalid_range(limit):
             include_external_res_ass=False,
             external_project_priority_limit=limit,
         )
+
+
+def test_batch_priority_map_drives_external_assignment_selection():
+    from construction_pm.scheduling.schedule_batch import AuthoritativeScheduleBatch
+    from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode, ActivityCalendarAssignment
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from datetime import date
+
+    def snap(project_id, priority):
+        cal = CalendarReference("CAL", "1")
+        return AuthoritativeScheduleInput(
+            snapshot_id=project_id,
+            tenant_id="T",
+            project_id=project_id,
+            project_revision=1,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=cal,
+            activities=(Activity(f"{project_id}-A", 1),),
+            relationships=(),
+            activity_calendar_assignments=(ActivityCalendarAssignment(f"{project_id}-A", cal),),
+            project_start=date(2026, 10, 1),
+            project_finish=date(2026, 10, 10),
+            project_leveling_priority=priority,
+        )
+
+    batch = AuthoritativeScheduleBatch.from_snapshots(
+        [snap("P1", 10), snap("P2", 5), snap("P3", 6)],
+        calculate_based_on_project_finish=False,
+    )
+    assignments = (_assignment("P1", "R1"), _assignment("P2", "R2"), _assignment("P3", "R3"))
+    result = select_resource_assignments_for_scheduling(
+        assignments,
+        scheduled_project_id="P1",
+        include_external_res_ass=True,
+        project_leveling_priorities=batch.leveling_priorities(),
+        external_project_priority_limit=5,
+    )
+    assert [d.resource_id for d in result] == ["R1", "R2"]
