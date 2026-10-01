@@ -46,6 +46,18 @@ def test_schedule_is_deterministic_when_activity_and_relationship_input_order_ch
     assert first.floats == second.floats
 
 
+def test_default_external_project_priority_limit_does_not_block_single_project_schedule(resolver):
+    result = schedule(
+        [Activity("A", 1)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(),
+    )
+
+    assert result.project_finish == date(2026, 9, 21)
+
+
 def test_holiday_and_weekend_boundaries_are_reproducible(resolver):
     holiday = date(2026, 9, 23)
     resolver = WorkingTimeResolver(

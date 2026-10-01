@@ -93,3 +93,42 @@ def test_time_aware_contract_requires_timezone():
             activity_calendar_assignments=(),
             project_start=datetime(2026, 9, 21, 8, 0),
         )
+
+
+def test_project_leveling_priority_is_validated_and_hashed():
+    first = make_input()
+    second = AuthoritativeScheduleInput(
+        snapshot_id=first.snapshot_id,
+        tenant_id=first.tenant_id,
+        project_id=first.project_id,
+        project_revision=first.project_revision,
+        mode=first.mode,
+        project_calendar=first.project_calendar,
+        activities=first.activities,
+        relationships=first.relationships,
+        activity_calendar_assignments=first.activity_calendar_assignments,
+        schedule_options=first.schedule_options,
+        project_start=first.project_start,
+        project_leveling_priority=5,
+    )
+    assert first.project_leveling_priority == 10
+    assert second.project_leveling_priority == 5
+    assert first.snapshot_hash != second.snapshot_hash
+
+
+@pytest.mark.parametrize("priority", [0, 101, True])
+def test_project_leveling_priority_rejects_invalid_values(priority):
+    with pytest.raises(ValueError, match="project_leveling_priority"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S",
+            tenant_id="T",
+            project_id="P",
+            project_revision=0,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=CalendarReference("CAL-1", "1"),
+            activities=(Activity("A", 1),),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 9, 21),
+            project_leveling_priority=priority,
+        )

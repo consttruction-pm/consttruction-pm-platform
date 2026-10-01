@@ -163,8 +163,8 @@ class ScheduleOptions:
             self.external_project_priority_limit, int
         ):
             raise ValueError("external_project_priority_limit must be an integer")
-        if self.external_project_priority_limit < 0:
-            raise ValueError("external_project_priority_limit must be non-negative")
+        if not 0 <= self.external_project_priority_limit <= 100:
+            raise ValueError("external_project_priority_limit must be between 0 and 100")
 
         for name in ("resource_list", "priority_list"):
             value = getattr(self, name)
