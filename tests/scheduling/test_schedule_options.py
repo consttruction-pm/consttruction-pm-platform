@@ -98,6 +98,11 @@ def test_boolean_p6_options_reject_non_boolean_values(field, value):
         ScheduleOptions(**{field: value})
 
 
+def test_external_project_priority_limit_rejects_bool():
+    with pytest.raises(ValueError, match="external_project_priority_limit"):
+        ScheduleOptions(external_project_priority_limit=True)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -108,11 +113,6 @@ def test_boolean_p6_options_reject_non_boolean_values(field, value):
         ("over_allocation_percentage", 100.1),
     ],
 )
-def test_external_project_priority_limit_rejects_bool():
-    with pytest.raises(ValueError, match="external_project_priority_limit"):
-        ScheduleOptions(external_project_priority_limit=True)
-
-
 def test_numeric_p6_options_reject_invalid_ranges(field, value):
     with pytest.raises(ValueError, match=field):
         ScheduleOptions(**{field: value})
