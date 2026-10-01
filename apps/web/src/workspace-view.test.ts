@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
+import type { WorkspaceMenuKey } from "./workspace-model.js";
 import { createWorkspaceState } from "./workspace-model.js";
 
 type RenderContainer = {
@@ -9,7 +10,7 @@ type RenderContainer = {
   querySelectorAll: () => HTMLElement[];
 };
 
-function render(locale: "en" | "fa", activeMenu: "schedule" | "reports"): string {
+function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   const state = {
     ...createWorkspaceState(
       { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
@@ -51,4 +52,25 @@ test("rendered navigation surface follows Persian locale and RTL direction", () 
   assert.match(html, /جدول فعالیت‌ها/);
   assert.match(html, /گانت/);
   assert.match(html, /data-surface-status="implemented">پیاده‌سازی‌شده<\/span>/);
+});
+
+
+test("menu selection wiring forwards the selected workspace surface", () => {
+  const state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const selected: WorkspaceMenuKey[] = [];
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const listeners = new Map<string, () => void>();
+  const buttons = ["schedule", "reports"].map((menu) => ({
+    dataset: { menu },
+    addEventListener: (_event: string, listener: () => void) => listeners.set(menu, listener),
+  }));
+  container.querySelectorAll = (() => buttons as unknown as HTMLElement[]) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onMenuSelect: (menu) => selected.push(menu),
+  });
+  listeners.get("reports")?.();
+  assert.deepEqual(selected, ["reports"]);
 });
