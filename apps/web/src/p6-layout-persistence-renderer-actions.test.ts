@@ -5,6 +5,7 @@ import { createP6LayoutPersistenceRendererActions } from "./p6-layout-persistenc
 test("P6 layout persistence renderer actions delegate load and save", async () => {
   const calls: string[] = [];
   const actions = createP6LayoutPersistenceRendererActions({
+    getState: () => ({ busy: false, error: null }),
     load: async () => {
       calls.push("load");
       return {} as never;
