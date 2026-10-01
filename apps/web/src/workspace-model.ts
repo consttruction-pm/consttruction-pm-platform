@@ -9,6 +9,8 @@ import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
+import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
+import { setGridFilters, setGridGroups, setGridSorts } from "./p6-activity-wbs-grid.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
 
 export type WorkspaceLocale = "fa" | "en";
@@ -94,6 +96,10 @@ export type WorkspaceState = {
   p6FieldRegistry: FieldRegistry | null;
   /** Authoritative/persisted layout projection for the current workspace view. */
   p6Layout: LayoutDefinition | null;
+  /** Authoritative P6 grid presentation state; values are presentation metadata only. */
+  p6GridSorts: readonly P6GridSort[];
+  p6GridGroups: readonly P6GridGroup[];
+  p6GridFilters: readonly P6GridFilter[];
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -146,6 +152,9 @@ export function createWorkspaceState(
     punchItems: [],
     p6FieldRegistry: null,
     p6Layout: null,
+    p6GridSorts: [],
+    p6GridGroups: [],
+    p6GridFilters: [],
   };
 }
 
@@ -333,6 +342,21 @@ export function setP6Presentation(
       });
     });
   return { ...state, columns: Object.freeze(columns), p6FieldRegistry: registry, p6Layout: layout };
+}
+
+export function setP6GridSorts(state: WorkspaceState, sorts: readonly P6GridSort[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridSorts: setGridSorts(state.p6FieldRegistry, sorts) };
+}
+
+export function setP6GridGroups(state: WorkspaceState, groups: readonly P6GridGroup[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridGroups: setGridGroups(state.p6FieldRegistry, groups) };
+}
+
+export function setP6GridFilters(state: WorkspaceState, filters: readonly P6GridFilter[]): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return { ...state, p6GridFilters: setGridFilters(state.p6FieldRegistry, filters) };
 }
 
 export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
