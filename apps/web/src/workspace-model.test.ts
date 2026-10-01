@@ -17,6 +17,9 @@ import {
   setFieldAssurance,
   setSiteDailyLogs,
   withActivities,
+  setP6Presentation,
+  addP6Field,
+  removeP6Field,
 } from "./workspace-model.js";
 
 const context = {
@@ -404,4 +407,36 @@ test("documents attach to the workspace without changing project context", () =>
   assert.equal(next.documents[0]?.resourceType, "rfi");
   assert.deepEqual(next.documents[0]?.linkedEntityRefs, ["A-101"]);
   assert.deepEqual(next.context, context);
+});
+
+
+test("P6 registry and persisted layout drive real workspace columns", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "activity_code", subject_area: "activity", p6_field: "ActivityId", display_name: "Activity Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [
+      { field_id: "activity_code", visible: true, order: 0, width: 140, alignment: "start" as const, pinned: false, frozen: false },
+      { field_id: "duration", visible: false, order: 1, width: 110, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = createWorkspaceState(context);
+  state = setP6Presentation(state, registry, layout);
+  assert.deepEqual(state.columns.map((column) => column.id), ["activity_code"]);
+  state = addP6Field(state, "duration");
+  assert.deepEqual(state.columns.map((column) => column.id), ["activity_code", "duration"]);
+  state = removeP6Field(state, "duration");
+  assert.deepEqual(state.columns.map((column) => column.id), ["activity_code"]);
+  assert.equal(state.p6FieldRegistry?.registry_version, "p6-field-registry.v1");
 });
