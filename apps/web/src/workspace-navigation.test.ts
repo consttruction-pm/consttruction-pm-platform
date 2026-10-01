@@ -19,7 +19,7 @@ test("schedule is the implemented Activity/WBS surface and exposes its review sc
   const item = getWorkspaceNavigation("schedule");
 
   assert.equal(item.status, "implemented");
-  assert.deepEqual(item.submenus, ["Activity Grid", "Gantt Chart"]);
+  assert.deepEqual(item.submenus.map((submenu) => submenu.en), ["Activity Grid", "Gantt Chart"]);
 });
 
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
