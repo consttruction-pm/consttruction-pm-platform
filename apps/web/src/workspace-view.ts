@@ -106,7 +106,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
     if (!row) return;
     const order = Number(row.dataset.order ?? "0");
-    const current = options.p6GridPresentation?.sorts ?? [];
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
     options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, direction: select.value as P6GridSort["direction"] } : sort));
   }));
   container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-group-field]").forEach((select) => select.addEventListener("change", () => {
@@ -144,13 +144,25 @@ function getWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceR
 }
 
 function renderWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  const locale = state.locale;
   const presentation = getWorkspaceGridPresentation(state, options);
   if (!presentation || !state.p6FieldRegistry) return "";
   const fields = state.p6FieldRegistry.fields;
   const sortRows = presentation.sorts.map((sort) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select></div>`).join("");
   const groupRows = presentation.groups.map((group) => `<div data-p6-grid-group-row data-order="${group.order}"><select data-p6-grid-group-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === group.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select></div>`).join("");
-  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><span>${escapeHtml(filter.field_id)}</span><span>${escapeHtml(filter.operator)}</span><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"></div>`).join("");
-  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="Grid presentation"><h3>Grid Presentation</h3><div data-p6-grid-sort-count>Sorts: ${presentation.sorts.length}</div><div data-p6-grid-group-count>Groups: ${presentation.groups.length}</div><div data-p6-grid-filter-count>Filters: ${presentation.filters.length}</div>${sortRows}${groupRows}${filterRows}</section>`;
+  const operatorLabels: Record<P6GridFilter["operator"], string> = locale === "fa"
+    ? { "equals": "برابر", "not-equals": "نابرابر", "contains": "شامل", "starts-with": "شروع با", "ends-with": "پایان با", "greater-than": "بزرگ‌تر", "greater-than-or-equal": "بزرگ‌تر یا برابر", "less-than": "کوچک‌تر", "less-than-or-equal": "کوچک‌تر یا برابر", "is-empty": "خالی است", "is-not-empty": "خالی نیست" }
+    : { "equals": "Equals", "not-equals": "Not equals", "contains": "Contains", "starts-with": "Starts with", "ends-with": "Ends with", "greater-than": "Greater than", "greater-than-or-equal": "Greater than or equal", "less-than": "Less than", "less-than-or-equal": "Less than or equal", "is-empty": "Is empty", "is-not-empty": "Is not empty" };
+  const sortDirectionLabels = locale === "fa" ? { ascending: "صعودی", descending: "نزولی" } : { ascending: "Ascending", descending: "Descending" };
+  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><span>${escapeHtml(filter.field_id)}</span><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"></div>`).join("");
+  const title = locale === "fa" ? "ارائه گرید" : "Grid Presentation";
+  const sortsLabel = locale === "fa" ? "مرتب‌سازی" : "Sorts";
+  const groupsLabel = locale === "fa" ? "گروه‌بندی" : "Groups";
+  const filtersLabel = locale === "fa" ? "فیلترها" : "Filters";
+  const ascending = sortDirectionLabels.ascending;
+  const descending = sortDirectionLabels.descending;
+  const localizedSortRows = sortRows.replaceAll("Ascending", ascending).replaceAll("Descending", descending);
+  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3><div data-p6-grid-sort-count>${escapeHtml(sortsLabel)}: ${presentation.sorts.length}</div><div data-p6-grid-group-count>${escapeHtml(groupsLabel)}: ${presentation.groups.length}</div><div data-p6-grid-filter-count>${escapeHtml(filtersLabel)}: ${presentation.filters.length}</div>${localizedSortRows}${groupRows}${filterRows}</section>`;
 }
 function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
