@@ -2,17 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
-import { createWorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, type WorkspaceMenuKey } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
   querySelectorAll: () => HTMLElement[];
 };
 
-function render(locale: "en" | "fa", activeMenu: Parameters<typeof createWorkspaceState>[1] extends infer _ ? never : never): never;
-function render(locale: "en" | "fa", activeMenu: "project" | "schedule" | "progress" | "resources" | "cost" | "documents" | "reports" | "control" | "settings") {
+function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   const state = {
-    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, locale),
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      locale,
+    ),
     activeMenu,
   };
   const container: RenderContainer = {
