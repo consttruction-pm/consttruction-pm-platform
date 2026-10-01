@@ -187,12 +187,16 @@ class ScheduleOptions:
         if not 0 <= self.external_project_priority_limit <= 100:
             raise ValueError("external_project_priority_limit must be between 0 and 100")
 
-        for name in ("resource_list", "priority_list"):
-            value = getattr(self, name)
-            if value is not None and not (
-                isinstance(value, str) and value.strip()
-            ):
-                raise ValueError(f"{name} must be a non-empty string or None")
+        if self.resource_list is not None and not (
+            isinstance(self.resource_list, str) and self.resource_list.strip()
+        ):
+            raise ValueError("resource_list must be a non-empty string or None")
+
+        if self.priority_list is not None:
+            if not isinstance(self.priority_list, tuple) or not self.priority_list:
+                raise ValueError("priority_list must be a non-empty tuple of PriorityListItem")
+            if not all(isinstance(item, PriorityListItem) for item in self.priority_list):
+                raise ValueError("priority_list must contain only PriorityListItem values")
 
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
