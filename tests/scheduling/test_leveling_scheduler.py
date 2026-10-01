@@ -146,3 +146,46 @@ def test_resource_leveling_without_preserve_runs_backward_from_late_dates():
     assert len(backward) == 1
     assert backward[0].advanced_days == 1
     assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 1)]
+
+
+
+def test_backward_exact_constraints_pin_accepted_start() -> None:
+    shifts = (
+        BackwardLevelingShift(
+            activity_id="A",
+            shift_working_days=-2,
+            new_start=date(2026, 10, 5),
+            new_finish=date(2026, 10, 7),
+            advanced_days=2,
+        ),
+    )
+
+    from construction_pm.scheduling.leveling_scheduler import backward_leveling_exact_constraints
+
+    assert backward_leveling_exact_constraints(shifts) == (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 5)),
+        ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 5)),
+    )
+
+
+def test_backward_exact_constraints_keep_existing_base_constraints_separate() -> None:
+    base = (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 8)),
+    )
+    shifts = (
+        BackwardLevelingShift(
+            activity_id="A",
+            shift_working_days=-1,
+            new_start=date(2026, 10, 7),
+            new_finish=date(2026, 10, 8),
+            advanced_days=1,
+        ),
+    )
+
+    from construction_pm.scheduling.leveling_scheduler import backward_leveling_exact_constraints
+
+    assert base + backward_leveling_exact_constraints(shifts) == (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 8)),
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 7)),
+        ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 7)),
+    )
