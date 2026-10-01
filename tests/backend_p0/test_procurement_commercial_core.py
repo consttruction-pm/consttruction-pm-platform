@@ -63,6 +63,16 @@ def _api():
     return conn, BackendP0API(service)
 
 
+
+
+def _rfq(rfq_id="RFQ-1"):
+    return ProcurementRFQ(
+        rfq_id, _scope(), "issued", "concrete.procurement", "requester-1",
+        (ProcurementRFQItem("IT-1", "concrete.m3", Decimal("25.1250"), "m3", ("A-1",)),),
+        ("SUP-1",), _audit(), due_at=datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc),
+    )
+
+
 def _quote():
     return ProcurementQuote(
         "Q-1", _scope(), "RFQ-1", "SUP-1", "submitted", "USD",
@@ -185,7 +195,26 @@ def test_quote_requires_existing_rfq_and_preserves_atomicity():
     result = api.save_resource(_quote(), auth_context=_auth(), idempotency_key="missing-rfq")
     assert result["error"]["category"] == "not_found"
     assert result["error"]["code"] == "PROCUREMENT_REFERENCE_NOT_FOUND"
-    assert api.read_resource(_quote(), auth_context=_auth())["error"]["category"] == "not_found"
+    assert api.read_resource(_quote(), auth_context=_auth()) is None
+    conn.close()
+
+
+def test_purchase_order_rejects_missing_commitment_reference():
+    conn, api = _api()
+    rfq = _rfq()
+    quote = _quote()
+    assert api.save_resource(rfq, auth_context=_auth(), idempotency_key="rfq-commitment")["resource_type"] == "rfq"
+    assert api.save_resource(quote, auth_context=_auth(), idempotency_key="quote-commitment")["resource_type"] == "quote"
+    po = PurchaseOrder(
+        "PO-MISSING-COMMITMENT", _scope(), "SUP-1", "issued", "USD",
+        (PurchaseOrderItem("IT-1", "concrete.m3", Decimal("1"), "m3", Decimal("10")),),
+        _audit(), rfq_id="RFQ-1", quote_id="Q-1", commitment_id="COM-MISSING",
+        evidence_refs=(_evidence(),)
+    )
+    result = api.save_resource(po, auth_context=_auth(), idempotency_key="po-missing-commitment")
+    assert result["error"]["category"] == "not_found"
+    assert result["error"]["code"] == "PROCUREMENT_REFERENCE_NOT_FOUND"
+    assert api.read_resource(po, auth_context=_auth()) is None
     conn.close()
 
 
