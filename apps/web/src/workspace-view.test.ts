@@ -29,7 +29,7 @@ test("rendered schedule surface exposes localized label and implemented status",
   const html = render("en", "schedule");
 
   assert.match(html, /<strong>Schedule<\/strong>/);
-  assert.match(html, /data-surface-status="implemented">پیاده‌سازی‌شده<\/span>/);
+  assert.match(html, /data-surface-status="implemented">Implemented<\/span>/);
   assert.match(html, /Activity Grid/);
   assert.match(html, /Gantt Chart/);
 });
