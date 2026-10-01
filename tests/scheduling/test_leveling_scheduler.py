@@ -1,6 +1,6 @@
 from datetime import date
 
-from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from construction_pm.scheduling.leveling_scheduler import (
     backward_leveling_constraints,
     forward_leveling_constraints,
@@ -146,3 +146,67 @@ def test_resource_leveling_without_preserve_runs_backward_from_late_dates():
     assert len(backward) == 1
     assert backward[0].advanced_days == 1
     assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 1)]
+
+def test_backward_leveling_cannot_override_existing_later_start_lower_bound() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    constraints = (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 5)),
+    )
+    exact = (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2)),
+        ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 2)),
+    )
+    from construction_pm.scheduling.schedule import schedule
+    try:
+        schedule((Activity("A", 1),), (), date(2026, 10, 1), resolver,
+                 project_finish=date(2026, 10, 6), constraints=constraints + exact)
+    except ConstraintViolation:
+        pass
+    else:
+        raise AssertionError("backward leveling must not override a later project lower bound")
+
+
+def test_backward_leveling_cannot_override_existing_earlier_start_upper_bound() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    constraints = (
+        ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 1)),
+    )
+    exact = (
+        ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2)),
+        ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 2)),
+    )
+    from construction_pm.scheduling.schedule import schedule
+    try:
+        schedule((Activity("A", 1),), (), date(2026, 10, 1), resolver,
+                 project_finish=date(2026, 10, 6), constraints=constraints + exact)
+    except ConstraintViolation:
+        pass
+    else:
+        raise AssertionError("backward leveling must not override an earlier project upper bound")
+
+
+def test_backward_leveling_cannot_override_relationship_driven_start() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    exact = (
+        ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 1)),
+        ActivityConstraint("B", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 1)),
+    )
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.schedule import schedule
+    try:
+        schedule(
+            (Activity("A", 1), Activity("B", 1)),
+            (Relationship("A", "B", RelationshipType.FS, 0),),
+            date(2026, 10, 1), resolver, project_finish=date(2026, 10, 5),
+            constraints=exact,
+        )
+    except ValueError as exc:
+        assert "backward schedule violates relationship" in str(exc)
+    else:
+        raise AssertionError("backward leveling must not override relationship-driven dates")
