@@ -252,3 +252,62 @@ test("renders the report/print field selection from authoritative registry and l
   assert.match(container.innerHTML, /Selected: 1/);
   assert.match(container.innerHTML, /data-p6-report-field-id="activity_id" checked/);
 });
+
+
+test("column presentation controls forward authoritative layout patches", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, label: "Activity ID", width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as LayoutDefinition,
+  };
+  const changes: Array<[string, Record<string, unknown>]> = [];
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const label = { dataset: { p6ColumnLabel: "activity_id" }, value: "ID", addEventListener: (_event: string, listener: () => void) => listener() };
+  const width = { dataset: { p6ColumnWidth: "activity_id" }, value: "180", addEventListener: (_event: string, listener: () => void) => listener() };
+  const alignment = { dataset: { p6ColumnAlignment: "activity_id" }, value: "center", addEventListener: (_event: string, listener: () => void) => listener() };
+  const pinned = { dataset: { p6ColumnPinned: "activity_id" }, checked: true, addEventListener: (_event: string, listener: () => void) => listener() };
+  const frozen = { dataset: { p6ColumnFrozen: "activity_id" }, checked: true, addEventListener: (_event: string, listener: () => void) => listener() };
+  container.querySelectorAll = ((selector: string) => {
+    if (selector === "[data-p6-column-label]") return [label] as unknown as HTMLElement[];
+    if (selector === "[data-p6-column-width]") return [width] as unknown as HTMLElement[];
+    if (selector === "[data-p6-column-alignment]") return [alignment] as unknown as HTMLElement[];
+    if (selector === "[data-p6-column-pinned]") return [pinned] as unknown as HTMLElement[];
+    if (selector === "[data-p6-column-frozen]") return [frozen] as unknown as HTMLElement[];
+    return [];
+  }) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldPresentationChange: (fieldId, patch) => changes.push([fieldId, patch]),
+  });
+  assert.deepEqual(changes, [
+    ["activity_id", { label: "ID" }],
+    ["activity_id", { width: 180 }],
+    ["activity_id", { alignment: "center" }],
+    ["activity_id", { pinned: true }],
+    ["activity_id", { frozen: true }],
+  ]);
+});
+
+test("localizes P6 column presentation controls", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "fa"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "شناسه فعالیت", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, label: "شناسه", width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as LayoutDefinition,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /تنظیمات ستون‌ها/);
+  assert.match(container.innerHTML, /شناسه/);
+  assert.match(container.innerHTML, /ابتدا/);
+});
