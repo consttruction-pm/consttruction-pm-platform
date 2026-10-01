@@ -266,7 +266,7 @@ def test_schedule_applies_oos_mode_to_in_progress_successor(
 ):
     resolver = WorkingTimeResolver(WorkingCalendar())
     predecessor = Activity("P", 2)
-    probe = Activity("S", 2)
+    probe = Activity("S", 1)
     from construction_pm.scheduling.forward_pass import forward_pass
 
     baseline = forward_pass(
