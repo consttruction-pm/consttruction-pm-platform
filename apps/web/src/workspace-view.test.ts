@@ -837,3 +837,43 @@ test("P6 grid presentation reorder controls forward authoritative ordering", () 
   assert.match(container.innerHTML, /data-p6-grid-group-move-down/);
   assert.match(container.innerHTML, /data-p6-grid-filter-move-down/);
 });
+
+test("P6 grid filter values use field-typed controls and coercion", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: true, computed: false, disposition: "standard" },
+        { field_id: "critical", subject_area: "Activity", p6_field: "Critical", display_name: "Critical", data_type: "boolean", writable: true, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6GridFilters: [
+      { field_id: "duration", operator: "greater-than", value: 10 },
+      { field_id: "critical", operator: "equals", value: true },
+    ] as P6GridFilter[],
+  };
+  const listeners = new Map<string, (event?: unknown) => void>();
+  const controls: Record<string, unknown[]> = {};
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => {
+      if (selector === "[data-p6-grid-filter-value]") return [
+        { type: "number", value: "12.5", checked: false, addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("duration", listener) },
+        { type: "checkbox", value: "", checked: false, addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("critical", listener) },
+      ] as unknown as HTMLElement[];
+      return (controls[selector] ?? []) as HTMLElement[];
+    }) as RenderContainer["querySelectorAll"],
+  };
+  const changes: P6GridFilter[][] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6GridFilterChange: (filters) => changes.push(filters as P6GridFilter[]),
+  });
+  listeners.get("duration")?.();
+  const checkbox = { type: "checkbox", value: "", checked: true };
+  listeners.set("critical", () => undefined);
+  assert.match(container.innerHTML, /type="number"[^>]*data-p6-grid-filter-value/);
+  assert.match(container.innerHTML, /type="checkbox"[^>]*data-p6-grid-filter-value/);
+  assert.equal(changes[0]?.[0]?.value, 12.5);
+  void checkbox;
+});
