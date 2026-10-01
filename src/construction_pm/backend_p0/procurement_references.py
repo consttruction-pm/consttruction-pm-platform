@@ -27,24 +27,12 @@ class ProcurementReferenceResolver:
             rfq = self._require(record, "procurement_rfq", record.rfq_id, "RFQ")
             for entry in record.entries:
                 quote = self._require(record, "procurement_quote", entry.quote_id, "quote")
-                if quote.record.scope.project_revision != record.scope.project_revision:
-                    raise BackendApplicationError(
-                        ErrorCategory.VALIDATION,
-                        "PROCUREMENT_REFERENCE_MISMATCH",
-                        f"Quote {entry.quote_id!r} has a different project revision from bid comparison {record.comparison_id!r}",
-                    )
                 if quote.record.rfq_id != record.rfq_id:
                     raise BackendApplicationError(
                         ErrorCategory.VALIDATION,
                         "PROCUREMENT_REFERENCE_MISMATCH",
                         f"Quote {entry.quote_id!r} does not belong to RFQ {record.rfq_id!r}",
                     )
-            if rfq.record.scope.project_revision != record.scope.project_revision:
-                raise BackendApplicationError(
-                    ErrorCategory.VALIDATION,
-                    "PROCUREMENT_REFERENCE_MISMATCH",
-                    f"RFQ {record.rfq_id!r} has a different project revision from bid comparison {record.comparison_id!r}",
-                )
             return
 
         if isinstance(record, PurchaseOrder):
