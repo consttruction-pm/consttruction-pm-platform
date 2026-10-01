@@ -20,6 +20,8 @@ import {
   setP6Presentation,
   addP6Field,
   removeP6Field,
+  reorderP6Fields,
+  updateP6FieldPresentation,
 } from "./workspace-model.js";
 
 const context = {
