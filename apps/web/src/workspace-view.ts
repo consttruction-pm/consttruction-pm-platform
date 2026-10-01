@@ -140,6 +140,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
     options.onP6GridGroupChange?.(current.map((group) => group.order === order ? { ...group, field_id: select.value } : group));
   }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-filter-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.map((filter, index) => index === order
+      ? { ...filter, field_id: select.value }
+      : filter));
+  }));
+
   container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-filter-operator]").forEach((select) => select.addEventListener("change", () => {
     const row = select.closest<HTMLElement>("[data-p6-grid-filter-row]");
     if (!row) return;
@@ -214,7 +224,7 @@ function renderWorkspaceGridPresentation(state: WorkspaceState, options: Workspa
     ? { "equals": "برابر", "not-equals": "نابرابر", "contains": "شامل", "starts-with": "شروع با", "ends-with": "پایان با", "greater-than": "بزرگ‌تر", "greater-than-or-equal": "بزرگ‌تر یا برابر", "less-than": "کوچک‌تر", "less-than-or-equal": "کوچک‌تر یا برابر", "is-empty": "خالی است", "is-not-empty": "خالی نیست" }
     : { "equals": "Equals", "not-equals": "Not equals", "contains": "Contains", "starts-with": "Starts with", "ends-with": "Ends with", "greater-than": "Greater than", "greater-than-or-equal": "Greater than or equal", "less-than": "Less than", "less-than-or-equal": "Less than or equal", "is-empty": "Is empty", "is-not-empty": "Is not empty" };
   const sortDirectionLabels = locale === "fa" ? { ascending: "صعودی", descending: "نزولی" } : { ascending: "Ascending", descending: "Descending" };
-  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><span>${escapeHtml(filter.field_id)}</span><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"></div>`).join("");
+  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><select data-p6-grid-filter-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === filter.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"></div>`).join("");
   const title = locale === "fa" ? "ارائه گرید" : "Grid Presentation";
   const sortsLabel = locale === "fa" ? "مرتب‌سازی" : "Sorts";
   const groupsLabel = locale === "fa" ? "گروه‌بندی" : "Groups";
