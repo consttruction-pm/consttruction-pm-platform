@@ -5,9 +5,9 @@
   "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
   "source_evidence_lines": "961-1235",
   "inventory_field_count": 275,
-  "registry_activity_field_count": 39,
-  "exact_matches": 30,
-  "missing_from_registry_count": 245,
+  "registry_activity_field_count": 55,
+  "exact_matches": 46,
+  "missing_from_registry_count": 229,
   "registry_names_not_exact_inventory_names": [
     "ActivityId",
     "ActivityName",
@@ -153,10 +153,10 @@
     }
   ],
   "next_tranche": "Reconcile all 275 inventory names against registry seeds and evidence, beginning with the 9 non-exact registry aliases and then typed semantic metadata.",
-  "gap_manifest_entry_count": 123,
+  "gap_manifest_entry_count": 122,
   "gap_manifest_coverage_status": "partial",
-  "unmaterialized_inventory_count": 122,
-  "coverage_note": "The 245 missing-from-registry count is derived from the 275-field authoritative inventory minus 30 exact registry-name matches. The current gap manifest materializes 123 of those 245 names; 122 inventory names remain to be materialized/reconciled in a later tranche.",
+  "unmaterialized_inventory_count": 107,
+  "coverage_note": "The 229 missing-from-registry count is derived from the 275-field authoritative inventory minus 46 exact registry-name matches. The current gap manifest materializes 122 of those 229 names; 107 inventory names remain to be materialized/reconciled in a later tranche.",
   "complete_inventory_artifact": "docs/architecture/P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json",
   "complete_inventory_status": "materialized_275_names_not_certified"
 }
