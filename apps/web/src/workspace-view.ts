@@ -119,6 +119,21 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: input.checked });
   }));
 
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
+    options.onP6GridSortChange?.(current.filter((_sort, index) => index !== order));
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-group-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-group-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
+    options.onP6GridGroupChange?.(current.filter((_group, index) => index !== order));
+  }));
+
   container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-field]").forEach((select) => select.addEventListener("change", () => {
     const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
     if (!row) return;
@@ -225,8 +240,8 @@ function renderWorkspaceGridPresentation(state: WorkspaceState, options: Workspa
   const presentation = getWorkspaceGridPresentation(state, options);
   if (!presentation || !state.p6FieldRegistry) return "";
   const fields = state.p6FieldRegistry.fields;
-  const sortRows = presentation.sorts.map((sort) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select></div>`).join("");
-  const groupRows = presentation.groups.map((group) => `<div data-p6-grid-group-row data-order="${group.order}"><select data-p6-grid-group-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === group.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select></div>`).join("");
+  const sortRows = presentation.sorts.map((sort) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select><button type="button" data-p6-grid-sort-remove aria-label="${locale === "fa" ? "حذف مرتب‌سازی" : "Remove sort"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`).join("");
+  const groupRows = presentation.groups.map((group) => `<div data-p6-grid-group-row data-order="${group.order}"><select data-p6-grid-group-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === group.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><button type="button" data-p6-grid-group-remove aria-label="${locale === "fa" ? "حذف گروه‌بندی" : "Remove group"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`).join("");
   const operatorLabels: Record<P6GridFilter["operator"], string> = locale === "fa"
     ? { "equals": "برابر", "not-equals": "نابرابر", "contains": "شامل", "starts-with": "شروع با", "ends-with": "پایان با", "greater-than": "بزرگ‌تر", "greater-than-or-equal": "بزرگ‌تر یا برابر", "less-than": "کوچک‌تر", "less-than-or-equal": "کوچک‌تر یا برابر", "is-empty": "خالی است", "is-not-empty": "خالی نیست" }
     : { "equals": "Equals", "not-equals": "Not equals", "contains": "Contains", "starts-with": "Starts with", "ends-with": "Ends with", "greater-than": "Greater than", "greater-than-or-equal": "Greater than or equal", "less-than": "Less than", "less-than-or-equal": "Less than or equal", "is-empty": "Is empty", "is-not-empty": "Is not empty" };
