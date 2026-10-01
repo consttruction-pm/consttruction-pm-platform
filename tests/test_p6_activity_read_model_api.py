@@ -35,7 +35,7 @@ def test_api_enforces_scope_and_preserves_typed_contract():
 def test_api_rejects_cross_tenant_scope():
     scope = BackendScope("tenant-a", "project-a", 7)
     sources = SimpleNamespace(list_expenses=lambda *args: (), list_actuals=lambda *args: (), list_baselines=lambda *args: ())
-    api = P6ActivityReadModelAPI(P6ActivityReadModelService(sources), AuthorizationPolicy())
+    api = P6ActivityReadModelAPI(P6ActivityReadModelService(sources), default_project_policy())
     with pytest.raises(PermissionError, match="CROSS_SCOPE_ACCESS"):
         api.get(scope, "A-100", auth_context=AuthorizationContext(
             user_id="user-1", tenant_id="tenant-b", project_id="project-a",
