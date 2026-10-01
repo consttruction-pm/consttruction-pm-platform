@@ -8,6 +8,8 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
+import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
+import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
 
 export type WorkspaceLocale = "fa" | "en";
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -88,6 +90,10 @@ export type WorkspaceState = {
   qualityRecords: readonly WorkspaceQualityRecord[];
   safetyObservations: readonly WorkspaceSafetyObservation[];
   punchItems: readonly WorkspacePunchItem[];
+  /** Authoritative P6 field metadata consumed by the Web presentation layer. */
+  p6FieldRegistry: FieldRegistry | null;
+  /** Authoritative/persisted layout projection for the current workspace view. */
+  p6Layout: LayoutDefinition | null;
 };
 
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
@@ -138,6 +144,8 @@ export function createWorkspaceState(
     qualityRecords: [],
     safetyObservations: [],
     punchItems: [],
+    p6FieldRegistry: null,
+    p6Layout: null,
   };
 }
 
@@ -295,6 +303,78 @@ export function setProcurementRecords(
       }),
     ),
   };
+}
+
+export function setP6Presentation(
+  state: WorkspaceState,
+  registry: FieldRegistry,
+  layout: LayoutDefinition,
+): WorkspaceState {
+  if (layout.revision < 0 || !Number.isInteger(layout.revision)) {
+    throw new Error("INVALID_P6_LAYOUT_REVISION");
+  }
+  if (registry.registry_version !== "p6-field-registry.v1") {
+    throw new Error("UNSUPPORTED_P6_FIELD_REGISTRY");
+  }
+  const fields = new Map(registry.fields.map((field) => [field.field_id, field]));
+  const columns = layout.columns
+    .filter((column) => column.visible)
+    .sort((a, b) => a.order - b.order)
+    .map((column) => {
+      const field = fields.get(column.field_id);
+      if (!field) throw new Error("P6_LAYOUT_FIELD_NOT_FOUND");
+      return Object.freeze({
+        id: field.field_id,
+        label: column.label ?? field.display_name,
+        dataType: toWorkspaceColumnDataType(field.data_type),
+        editable: field.writable && !field.computed,
+        formula: null,
+        width: column.width,
+      });
+    });
+  return { ...state, columns: Object.freeze(columns), p6FieldRegistry: registry, p6Layout: layout };
+}
+
+export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
+  if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
+  if (!field) throw new Error("P6_FIELD_NOT_FOUND");
+  return setP6Presentation(state, state.p6FieldRegistry, addField(state.p6Layout, field));
+}
+
+export function removeP6Field(state: WorkspaceState, fieldId: string): WorkspaceState {
+  if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return setP6Presentation(state, state.p6FieldRegistry, removeField(state.p6Layout, fieldId));
+}
+
+export function reorderP6Fields(state: WorkspaceState, orderedFieldIds: readonly string[]): WorkspaceState {
+  if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return setP6Presentation(state, state.p6FieldRegistry, reorderFields(state.p6Layout, orderedFieldIds));
+}
+
+export function updateP6FieldPresentation(
+  state: WorkspaceState,
+  fieldId: string,
+  patch: Parameters<typeof updateFieldPresentation>[2],
+): WorkspaceState {
+  if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  return setP6Presentation(state, state.p6FieldRegistry, updateFieldPresentation(state.p6Layout, fieldId, patch));
+}
+
+function toWorkspaceColumnDataType(dataType: string): WorkspaceColumnDataType {
+  switch (dataType) {
+    case "integer": return "integer";
+    case "decimal":
+    case "double":
+    case "percentage":
+    case "cost":
+    case "unit": return "decimal";
+    case "date":
+    case "datetime": return "date";
+    case "duration": return "duration";
+    case "boolean": return "boolean";
+    default: return "text";
+  }
 }
 
 export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn): WorkspaceState {
