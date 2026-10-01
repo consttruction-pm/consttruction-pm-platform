@@ -1,0 +1,197 @@
+{
+  "schema_version": "p6-activity-typed-semantic-evidence.v1",
+  "tranche": 4,
+  "subject_area": "Activity",
+  "status": "evidence_only_pending_full_activity_certification",
+  "p6_release": "P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "fields": [
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActivityOwnerUserId",
+      "data_type": "integer",
+      "writable": true,
+      "computed": false,
+      "semantic": "unique user ID of the activity owner",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual costs for all project expenses associated with the activity",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "sum of regular and overtime costs for material resources",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual costs for nonlabor resources; may be computed from actual nonlabor units and project default price",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual units for all nonlabor resources assigned to the activity",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual labor cost for the current financial period",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual labor units for the current financial period",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual material resource costs for the current period",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual nonlabor cost for the current period",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual nonlabor units for the current period",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual labor + nonlabor + expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual labor units + actual nonlabor units",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "at completion labor + nonlabor + expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "actual units + remaining units",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AutoComputeActuals",
+      "data_type": "boolean",
+      "writable": true,
+      "computed": false,
+      "semantic": "option controlling automatic computation of actual/remaining units, dates, and percent complete from plan and schedule percent complete",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "primary baseline activity duration",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "semantic": "current finish date of the activity in the primary baseline",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "planned duration for the activity in the primary baseline",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "planned project expense cost for the activity in the primary baseline",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "primary baseline labor cost at completion for the activity",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    }
+  ],
+  "guardrails": [
+    "No Activity dataclass expansion.",
+    "No second CPM/EVM implementation.",
+    "No alias treated as exact identity.",
+    "This tranche does not certify nullable/default/import-export semantics."
+  ],
+  "note": "Release 26 Activity REST schema evidence only; mutability is recorded conservatively and full certification remains gated by issue #405 acceptance evidence."
+}
