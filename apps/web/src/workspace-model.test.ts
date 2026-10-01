@@ -477,6 +477,36 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
   assert.equal(state.p6FieldRegistry?.registry_version, "p6-field-registry.v1");
 });
 
+test("P6 layout mutations support show and hide without changing registry authority", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "code", subject_area: "activity", p6_field: "ActivityId", display_name: "Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 3,
+    columns: [
+      { field_id: "code", visible: true, order: 0, width: 120, alignment: "start" as const, pinned: false, frozen: false },
+      { field_id: "duration", visible: false, order: 1, width: 110, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  state = updateP6FieldPresentation(state, "duration", { visible: true });
+  assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "duration")?.visible, true);
+  assert.equal(state.p6FieldRegistry?.fields.some((field) => field.field_id === "duration"), true);
+  state = updateP6FieldPresentation(state, "code", { visible: false });
+  assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.visible, false);
+  assert.equal(state.columns.length, 0);
+});
+
 test("P6 layout mutations remain authoritative for reorder and presentation", () => {
   const registry = {
     registry_version: "p6-field-registry.v1" as const,
