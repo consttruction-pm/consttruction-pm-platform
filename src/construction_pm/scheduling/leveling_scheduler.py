@@ -210,9 +210,7 @@ def schedule_with_resource_leveling(
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
         )
-        final_constraints = merge_leveling_constraints(
-            tuple(constraints or ()), forward=retained_forward, backward=backward_shifts
-        )
+        final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
 
     result = schedule(
         activities, relationships, project_start, resolver,
