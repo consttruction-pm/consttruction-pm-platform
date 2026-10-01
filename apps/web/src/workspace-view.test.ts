@@ -870,10 +870,9 @@ test("P6 grid filter values use field-typed controls and coercion", () => {
     onP6GridFilterChange: (filters) => changes.push(filters as P6GridFilter[]),
   });
   listeners.get("duration")?.();
-  const checkbox = { type: "checkbox", value: "", checked: true };
-  listeners.set("critical", () => undefined);
+  listeners.get("critical")?.();
   assert.match(container.innerHTML, /type="number"[^>]*data-p6-grid-filter-value/);
   assert.match(container.innerHTML, /type="checkbox"[^>]*data-p6-grid-filter-value/);
   assert.equal(changes[0]?.[0]?.value, 12.5);
-  void checkbox;
+
 });
