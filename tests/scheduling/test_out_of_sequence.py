@@ -11,6 +11,10 @@ from construction_pm.scheduling.out_of_sequence import (
 )
 from construction_pm.scheduling.schedule_options import OutOfSequenceScheduleType
 
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.schedule import ScheduleOptions, schedule
+
 
 def test_unstarted_activity_is_not_oos():
     activity = Activity("B", 5)
@@ -246,3 +250,107 @@ def test_oos_reference_matrix_completed_successor_preserves_progress_boundary(
         data_date=date(2026, 10, 2),
         mode=mode,
     ) is expected_action
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+@pytest.mark.parametrize(
+    ("mode", "expected_start"),
+    [
+        (OutOfSequenceScheduleType.RETAINED_LOGIC, None),
+        (OutOfSequenceScheduleType.PROGRESS_OVERRIDE, date(2026, 10, 2)),
+        (OutOfSequenceScheduleType.ACTUAL_DATES, None),
+    ],
+)
+def test_schedule_applies_oos_mode_to_in_progress_successor(
+    relationship_type, mode, expected_start
+):
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor = Activity("P", 2)
+    probe = Activity("S", 2)
+    from construction_pm.scheduling.forward_pass import forward_pass
+
+    baseline = forward_pass(
+        [predecessor, probe],
+        [Relationship("P", "S", relationship_type)],
+        date(2026, 9, 21),
+        resolver,
+    )
+    required_start = baseline["S"].start
+    actual_start = resolver.previous_working_day(required_start)
+    successor = Activity(
+        "S",
+        2,
+        actual_start=actual_start,
+        remaining_duration=1,
+    )
+    result = schedule(
+        [predecessor, successor],
+        [Relationship("P", "S", relationship_type)],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 10, 5),
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 2),
+            out_of_sequence_schedule_type=mode,
+        ),
+    )
+
+    assert result.early_activities is not None
+    if expected_start is not None:
+        assert result.early_activities["S"].start == expected_start
+        assert result.early_activities["S"].duration == 1
+    else:
+        assert result.early_activities["S"].start == required_start
+        assert result.early_activities["S"].duration == 1
+
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_schedule_actual_dates_uses_actual_dates_for_completed_oos_activity(relationship_type):
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor = Activity("P", 2)
+    probe = Activity("S", 1)
+    from construction_pm.scheduling.forward_pass import forward_pass
+
+    baseline = forward_pass(
+        [predecessor, probe],
+        [Relationship("P", "S", relationship_type)],
+        date(2026, 9, 21),
+        resolver,
+    )
+    required_start = baseline["S"].start
+    actual_start = resolver.previous_working_day(required_start)
+    activity = Activity(
+        "S",
+        1,
+        actual_start=actual_start,
+        actual_finish=actual_start,
+        remaining_duration=0,
+    )
+    result = schedule(
+        [predecessor, activity],
+        [Relationship("P", "S", relationship_type)],
+        date(2026, 9, 21),
+        resolver,
+        project_finish=date(2026, 10, 5),
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 2),
+            out_of_sequence_schedule_type=OutOfSequenceScheduleType.ACTUAL_DATES,
+        ),
+    )
+
+    assert result.early_activities is not None
+    assert result.early_activities["S"].start == actual_start
+    assert result.early_activities["S"].finish == actual_start
+    assert result.early_activities["S"].duration == 0
+
+
+def test_schedule_requires_data_date_only_when_progress_is_confirmed_out_of_sequence():
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    result = schedule(
+        [Activity("P", 2), Activity("S", 1, actual_start=date(2026, 9, 23), remaining_duration=1)],
+        [Relationship("P", "S", RelationshipType.FS)],
+        date(2026, 9, 21),
+        resolver,
+    )
+    assert result.early_activities is not None
+    assert result.early_activities["S"].start == date(2026, 9, 23)
