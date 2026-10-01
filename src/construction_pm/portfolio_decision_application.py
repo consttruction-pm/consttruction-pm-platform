@@ -46,6 +46,21 @@ class PortfolioDecisionApplicationService:
             occurred_at=occurred_at,
         )
 
+    def get(
+        self,
+        *,
+        tenant_id: str,
+        portfolio_id: str,
+        decision_id: str,
+        context: AuthorizationContext,
+    ) -> StoredPortfolioDecision:
+        if context.tenant_id != tenant_id:
+            raise AuthorizationError("CROSS_TENANT_PORTFOLIO_DECISION")
+        if not portfolio_id.strip():
+            raise ValueError("INVALID_PORTFOLIO_DECISION_PORTFOLIO_ID")
+        self._require(context, Permission.PROJECT_READ)
+        return self.store.get(tenant_id, portfolio_id, decision_id)
+
     def approve(
         self,
         decision: PortfolioDecisionBoundary,
