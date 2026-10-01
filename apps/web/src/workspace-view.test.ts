@@ -67,7 +67,7 @@ test("menu selection wiring forwards the selected workspace surface", () => {
     dataset: { menu },
     addEventListener: (_event: string, listener: () => void) => listeners.set(menu, listener),
   }));
-  container.querySelectorAll = (() => buttons as unknown as HTMLElement[]) as RenderContainer["querySelectorAll"];
+  container.querySelectorAll = ((selector: string) => selector === "[data-menu]" ? buttons as unknown as HTMLElement[] : []) as RenderContainer["querySelectorAll"];
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onMenuSelect: (menu) => selected.push(menu),
   });
