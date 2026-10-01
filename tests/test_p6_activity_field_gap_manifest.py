@@ -26,10 +26,10 @@ def test_activity_gap_report_exposes_partial_materialization():
     with open("shared/contracts/p6-activity-field-gap-manifest.v1.json", encoding="utf-8") as handle:
         manifest = json.load(handle)
     assert report["inventory_field_count"] == 275
-    assert report["exact_matches"] == 30
-    assert report["missing_from_registry_count"] == 245
+    assert report["exact_matches"] == 47
+    assert report["missing_from_registry_count"] == 228
     assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 123
-    assert report["unmaterialized_inventory_count"] == 122
+    assert report["unmaterialized_inventory_count"] == 105
     assert report["gap_manifest_coverage_status"] == "partial"
 
 
