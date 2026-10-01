@@ -47,6 +47,8 @@ export function createP6FormulaEditor(
     },
 
     setExpression(nextExpression) {
+      validationRequest += 1;
+      validating = false;
       model = { ...model, expression: nextExpression, authoritative: null };
       return state();
     },
