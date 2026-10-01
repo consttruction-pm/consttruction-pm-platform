@@ -147,6 +147,12 @@ def _field_dto(record: PersistedP6Field) -> dict[str, Any]:
             "writable": record.field.writable,
             "computed": record.field.computed,
             "unit": record.field.unit,
+            "reference_url": record.field.reference_url,
+            "read_only": record.field.read_only,
+            "filterable": record.field.filterable,
+            "orderable": record.field.orderable,
+            "nullable": record.field.nullable,
+            "disposition": record.field.disposition,
         },
     }
 
