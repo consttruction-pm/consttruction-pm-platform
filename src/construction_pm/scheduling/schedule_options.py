@@ -77,7 +77,7 @@ class ScheduleOptions:
     over_allocation_percentage: float = 0.0
     resource_list: str | None = None
     priority_list: str | None = None
-    external_project_priority_limit: int = 1
+    external_project_priority_limit: int = 0
     preserve_scheduled_early_and_late_dates: bool = False
     data_date: date | None = None
 
@@ -163,8 +163,8 @@ class ScheduleOptions:
             self.external_project_priority_limit, int
         ):
             raise ValueError("external_project_priority_limit must be an integer")
-        if not 1 <= self.external_project_priority_limit <= 100:
-            raise ValueError("external_project_priority_limit must be between 1 and 100")
+        if self.external_project_priority_limit < 0:
+            raise ValueError("external_project_priority_limit must be non-negative")
 
         for name in ("resource_list", "priority_list"):
             value = getattr(self, name)
