@@ -5,11 +5,14 @@ from decimal import Decimal
 
 from .resource_leveling import (
     BackwardLevelingActivity,
-    ResourceCapacity,
-    ResourceLevelingOptions,
     LevelingActivity,
+    LevelingPriority,
+    ResourceCapacity,
+    ResourceLevelingError,
+    ResourceLevelingOptions,
+    SortOrder,
 )
-from .schedule_options import ScheduleOptions
+from .schedule_options import PrioritySortOrder, ScheduleOptions
 
 
 @dataclass(frozen=True)
@@ -63,6 +66,34 @@ class SchedulerLevelingInput:
             raise ValueError("leveling capacity cannot be negative")
 
 
+def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]:
+    """Map typed P6 PriorityList entries to the existing Shared Core contract."""
+    if options.priority_list is None:
+        return ()
+
+    supported = {
+        "activity_id",
+        "activity_priority",
+        "early_start",
+        "planned_start",
+        "early_finish",
+        "planned_finish",
+        "total_float",
+    }
+    priorities: list[LevelingPriority] = []
+    for item in options.priority_list:
+        field_name = item.field_name.strip().lower().replace(" ", "_")
+        if field_name not in supported:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        sort_order = (
+            SortOrder.ASCENDING
+            if item.sort_order is PrioritySortOrder.ASCENDING
+            else SortOrder.DESCENDING
+        )
+        priorities.append(LevelingPriority(field_name, sort_order))
+    return tuple(priorities)
+
+
 def scheduler_leveling_input_from_options(
     *,
     forward_activities: tuple[LevelingActivity, ...],
@@ -85,7 +116,7 @@ def scheduler_leveling_input_from_options(
             item.strip() for item in options.resource_list.split(",")
             if item.strip()
         ) if options.resource_list else (),
-        priorities=(),
+        priorities=_map_priority_list(options),
     )
     return SchedulerLevelingInput(
         forward_activities=forward_activities,
