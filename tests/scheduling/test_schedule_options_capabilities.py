@@ -4,7 +4,7 @@ import pytest
 
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.schedule import (
+from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder\nfrom construction_pm.scheduling.schedule import (
     ScheduleOptions,
     UnsupportedScheduleOptionError,
     schedule,
@@ -25,7 +25,7 @@ def resolver():
         ("level_within_float", True),
         ("over_allocation_percentage", 10.0),
         ("resource_list", "R1"),
-        ("priority_list", "PRIORITY"),
+        ("priority_list", (PriorityListItem("PRIORITY", PrioritySortOrder.ASCENDING),)),
         ("min_float_to_preserve", 1),
         ("preserve_scheduled_early_and_late_dates", True),
     ],
@@ -59,7 +59,7 @@ def test_schedule_reports_all_enabled_unsupported_options_deterministically(reso
     options = ScheduleOptions(
         level_all_resources=True,
         min_float_to_preserve=2,
-        priority_list="CRITICAL_FIRST",
+        priority_list=(PriorityListItem("CRITICAL_FIRST", PrioritySortOrder.ASCENDING),),
     )
     with pytest.raises(
         UnsupportedScheduleOptionError,
@@ -72,3 +72,21 @@ def test_schedule_reports_all_enabled_unsupported_options_deterministically(reso
             resolver,
             options=options,
         )
+
+
+def test_priority_list_typed_contract_is_deterministic():
+    item = PriorityListItem("Total Float", PrioritySortOrder.DESCENDING)
+    options = ScheduleOptions(priority_list=(item,))
+    assert options.priority_list == (item,)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, (), (object(),), (PriorityListItem("", PrioritySortOrder.ASCENDING),)],
+)
+def test_priority_list_rejects_invalid_typed_values(value):
+    if value is None:
+        assert ScheduleOptions(priority_list=None).priority_list is None
+    else:
+        with pytest.raises(ValueError):
+            ScheduleOptions(priority_list=value)
