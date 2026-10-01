@@ -111,3 +111,37 @@ test("P6 layout persistence controller saves and consumes the authoritative resp
   assert.equal(result.p6Layout?.revision, 5);
   assert.equal(result.p6Layout?.columns[0]?.width, 220);
 });
+
+test("P6 layout persistence controller rejects load before registry initialization", async () => {
+  const persistence: P6LayoutPersistence = {
+    async load() {
+      throw new Error("SHOULD_NOT_LOAD");
+    },
+    async save(value) {
+      return value;
+    },
+  };
+  const controller = createP6LayoutPersistenceController(persistence, "project", "activity");
+
+  await assert.rejects(
+    () => controller.load({ p6FieldRegistry: null, p6Layout: null } as WorkspaceState),
+    /P6_PRESENTATION_NOT_INITIALIZED/,
+  );
+});
+
+test("P6 layout persistence controller rejects save without an authoritative layout", async () => {
+  const persistence: P6LayoutPersistence = {
+    async load() {
+      return null;
+    },
+    async save() {
+      throw new Error("SHOULD_NOT_SAVE");
+    },
+  };
+  const controller = createP6LayoutPersistenceController(persistence, "project", "activity");
+
+  await assert.rejects(
+    () => controller.save({ p6FieldRegistry: registry, p6Layout: null } as WorkspaceState),
+    /P6_PRESENTATION_NOT_INITIALIZED/,
+  );
+});
