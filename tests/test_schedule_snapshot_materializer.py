@@ -217,3 +217,29 @@ def test_materializes_time_aware_quantity_payloads():
     activity = result.schedule_input.activities[0]
     assert isinstance(activity, TimeActivity)
     assert activity.duration.value == 4
+
+
+
+def test_materializes_numeric_critical_float_threshold_and_short_name():
+    cal = CalendarReference("CAL-OPT", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-OPT", tenant_id="T-1", project_id="P-1", project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=cal,
+        activities=(Activity("A", 1),), relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("A", cal),),
+        schedule_options=ScheduleOptions(
+            critical_activity_float_threshold=1.5,
+            multiple_float_paths_ending_activity_object_id="A-OBJ",
+            multiple_float_paths_ending_activity_short_name="FIN-MILESTONE",
+        ),
+        project_start=date(2026, 10, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=1, calendar_id="CAL-OPT", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-10-01T08:00:00+00:00", input_snapshot_id="S-OPT", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 10, 1, 8, tzinfo=timezone.utc))
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry()).schedule_input.schedule_options
+    assert result.critical_activity_float_threshold == 1.5
+    assert result.multiple_float_paths_ending_activity_short_name == "FIN-MILESTONE"
