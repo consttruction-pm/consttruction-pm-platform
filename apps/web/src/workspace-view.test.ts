@@ -778,3 +778,61 @@ test("formula editor expression changes are forwarded without client-side evalua
   listeners.get("formula")?.();
   assert.deepEqual(expressions, ["Original Duration * Units"]);
 });
+
+
+test("P6 grid presentation reorder controls forward authoritative ordering", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [
+        { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6GridSorts: [
+      { field_id: "activity_id", direction: "ascending", order: 0 },
+      { field_id: "duration", direction: "descending", order: 1 },
+    ],
+    p6GridGroups: [
+      { field_id: "activity_id", order: 0 },
+      { field_id: "duration", order: 1 },
+    ],
+    p6GridFilters: [
+      { field_id: "activity_id", operator: "equals", value: "A-1" },
+      { field_id: "duration", operator: "greater-than", value: 10 },
+    ],
+  };
+  const listeners = new Map<string, () => void>();
+  const buttons = [
+    { dataset: { p6GridSortMoveDown: "duration" }, closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listeners.set("sort", listener) },
+    { dataset: { p6GridGroupMoveDown: "duration" }, closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listeners.set("group", listener) },
+    { dataset: { p6GridFilterMoveDown: "1" }, closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: () => void) => listeners.set("filter", listener) },
+  ];
+  const controls: Record<string, unknown[]> = {
+    "[data-p6-grid-sort-move-up], [data-p6-grid-sort-move-down]": [buttons[0]],
+    "[data-p6-grid-group-move-up], [data-p6-grid-group-move-down]": [buttons[1]],
+    "[data-p6-grid-filter-move-up], [data-p6-grid-filter-move-down]": [buttons[2]],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => (controls[selector] ?? []) as HTMLElement[]) as RenderContainer["querySelectorAll"],
+  };
+  const changes: Record<string, readonly (string | number)[]> = {};
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6GridSortReorder: (fieldIds) => { changes.sort = fieldIds; },
+    onP6GridGroupReorder: (fieldIds) => { changes.group = fieldIds; },
+    onP6GridFilterReorder: (indexes) => { changes.filter = indexes; },
+  });
+  listeners.get("sort")?.();
+  listeners.get("group")?.();
+  listeners.get("filter")?.();
+  assert.deepEqual(changes, {
+    sort: ["duration", "activity_id"],
+    group: ["duration", "activity_id"],
+    filter: [1, 0],
+  });
+  assert.match(container.innerHTML, /data-p6-grid-sort-move-down/);
+  assert.match(container.innerHTML, /data-p6-grid-group-move-down/);
+  assert.match(container.innerHTML, /data-p6-grid-filter-move-down/);
+});
