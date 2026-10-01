@@ -208,6 +208,35 @@ test("grid presentation forwards sort, group, and filter changes", () => {
   assert.deepEqual(filters[3], []);
 });
 
+test("grid presentation exposes add sort, group, and filter controls", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+  };
+  const calls: string[] = [];
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const controls = (name: string) => ({ dataset: {}, addEventListener: (_event: string, listener: () => void) => { listener(); calls.push(name); } });
+  container.querySelectorAll = ((selector: string) => {
+    if (selector === "[data-p6-grid-sort-add]") return [controls("sort")] as unknown as HTMLElement[];
+    if (selector === "[data-p6-grid-group-add]") return [controls("group")] as unknown as HTMLElement[];
+    if (selector === "[data-p6-grid-filter-add]") return [controls("filter")] as unknown as HTMLElement[];
+    return [];
+  }) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    p6GridPresentation: { sorts: [], groups: [], filters: [] },
+    onP6GridSortAdd: () => calls.push("sort-callback"),
+    onP6GridGroupAdd: () => calls.push("group-callback"),
+    onP6GridFilterAdd: () => calls.push("filter-callback"),
+  });
+  assert.deepEqual(calls, ["sort-callback", "sort", "group-callback", "group", "filter-callback", "filter"]);
+  assert.match(container.innerHTML, /data-p6-grid-sort-add/);
+  assert.match(container.innerHTML, /data-p6-grid-group-add/);
+  assert.match(container.innerHTML, /data-p6-grid-filter-add/);
+});
+
 test("keeps the formula editor out of the workspace when no authoritative editor state is supplied", () => {
   const html = render("en", "schedule");
   assert.doesNotMatch(html, /cp-p6-formula-editor/);
