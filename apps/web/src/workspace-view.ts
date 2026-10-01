@@ -116,6 +116,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
     options.onP6GridGroupChange?.(current.map((group) => group.order === order ? { ...group, field_id: select.value } : group));
   }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-filter-operator]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, operator: select.value as P6GridFilter["operator"] } : filter));
+  }));
+
   container.querySelectorAll<HTMLInputElement>("[data-p6-grid-filter-value]").forEach((input) => input.addEventListener("change", () => {
     const row = input.closest<HTMLElement>("[data-p6-grid-filter-row]");
     if (!row) return;
