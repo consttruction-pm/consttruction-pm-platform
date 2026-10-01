@@ -333,7 +333,8 @@ def propose_forward_leveling_within_float(
                 activity.total_float - next_shift,
             )
         )
-    return tuple(shifts)
+    final_shifts = {shift.activity_id: shift for shift in shifts}
+    return tuple(final_shifts[activity_id] for activity_id in sorted(final_shifts))
 
 
 
