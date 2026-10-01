@@ -428,7 +428,6 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
     revision: 1,
     columns: [
       { field_id: "activity_code", visible: true, order: 0, width: 140, alignment: "start" as const, pinned: false, frozen: false },
-      { field_id: "duration", visible: false, order: 1, width: 110, alignment: "end" as const, pinned: false, frozen: false },
     ],
   };
   let state = createWorkspaceState(context);
