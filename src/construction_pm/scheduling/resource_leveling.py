@@ -458,17 +458,28 @@ def _working_days_between(start: date, end: date, resolver: WorkingTimeResolver)
         raise ResourceLevelingError("INVALID_DATE_ORDER") from exc
 
 
+def _shift_date_backward(
+    value: date,
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    if shift_working_days > 0:
+        raise ResourceLevelingError("INVALID_BACKWARD_SHIFT")
+    cursor = resolver.calendar.to_gregorian(value)
+    for _ in range(-shift_working_days):
+        cursor = resolver.previous_working_day(cursor)
+    return cursor
+
+
 def _shift_demands_backward(
     demands: tuple[ResourceDemand, ...],
     shift_working_days: int,
     resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
-    if shift_working_days > 0:
-        raise ResourceLevelingError("INVALID_BACKWARD_SHIFT")
     return tuple(
         ResourceDemand(
             d.resource_id,
-            resolver.subtract_working_duration(d.period, -shift_working_days),
+            _shift_date_backward(d.period, shift_working_days, resolver),
             d.units,
             d.activity_id,
         )
@@ -609,8 +620,8 @@ def propose_backward_leveling(
             BackwardLevelingShift(
                 activity_id=activity_id,
                 shift_working_days=next_shift,
-                new_start=resolver.subtract_working_duration(activity.late_start, -next_shift),
-                new_finish=resolver.subtract_working_duration(activity.late_finish, -next_shift),
+                new_start=_shift_date_backward(activity.late_start, next_shift, resolver),
+                new_finish=_shift_date_backward(activity.late_finish, next_shift, resolver),
                 advanced_days=-next_shift,
             )
         )
