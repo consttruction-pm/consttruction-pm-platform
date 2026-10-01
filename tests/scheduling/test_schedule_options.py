@@ -46,6 +46,15 @@ def test_out_of_sequence_option_is_typed_and_defaults_to_retained_logic():
     )
 
 
+def test_external_project_priority_limit_defaults_to_p6_minimum():
+    assert ScheduleOptions().external_project_priority_limit == 1
+
+
+def test_external_project_priority_limit_accepts_p6_bounds():
+    assert ScheduleOptions(external_project_priority_limit=1).external_project_priority_limit == 1
+    assert ScheduleOptions(external_project_priority_limit=100).external_project_priority_limit == 100
+
+
 def test_multi_project_and_resource_leveling_options_are_preserved():
     options = ScheduleOptions(
         calculate_float_based_on_finish_date=True,
@@ -93,7 +102,8 @@ def test_boolean_p6_options_reject_non_boolean_values(field, value):
     ("field", "value"),
     [
         ("min_float_to_preserve", -1),
-        ("external_project_priority_limit", -1),
+        ("external_project_priority_limit", 0),
+        ("external_project_priority_limit", 101),
         ("over_allocation_percentage", -0.1),
         ("over_allocation_percentage", 100.1),
     ],
