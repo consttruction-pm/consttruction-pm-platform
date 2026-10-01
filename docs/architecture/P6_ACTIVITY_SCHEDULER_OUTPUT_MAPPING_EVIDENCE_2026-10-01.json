@@ -1,0 +1,21 @@
+{
+  "schema_version": "p6-activity-scheduler-output-mapping-evidence.v1",
+  "status": "evidence_only_pending_read_model_certification",
+  "subject_area": "Activity",
+  "release_baseline": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_of_truth": "Shared Core authoritative schedule() result",
+  "canonical_activity_model_unchanged": true,
+  "fields": [
+    {"p6_field":"RemainingEarlyStartDate","scheduler_source":"ScheduleResult.early_activities[activity_id].start","disposition":"scheduler_output_candidate","certified":false},
+    {"p6_field":"RemainingEarlyFinishDate","scheduler_source":"ScheduleResult.early_activities[activity_id].finish","disposition":"scheduler_output_candidate","certified":false},
+    {"p6_field":"RemainingLateStartDate","scheduler_source":"ScheduleResult.late_activities[activity_id].start","disposition":"scheduler_output_candidate","certified":false},
+    {"p6_field":"RemainingLateFinishDate","scheduler_source":"ScheduleResult.late_activities[activity_id].finish","disposition":"scheduler_output_candidate","certified":false},
+    {"p6_field":"RemainingFloat","scheduler_source":"late_finish minus remaining_finish using authoritative schedule output","disposition":"scheduler_output_candidate","certified":false}
+  ],
+  "guardrails": [
+    "Do not map scheduler-derived fields directly onto Activity.remaining_start.",
+    "Do not expand the canonical Activity dataclass solely to satisfy the P6 field inventory.",
+    "Do not implement a second CPM calculation in a read-model adapter.",
+    "Certification requires an integrated read-model/API contract and deterministic regression evidence."
+  ]
+}
