@@ -363,3 +363,21 @@ test("P6 field chooser forwards field reorder changes", () => {
   assert.match(container.innerHTML, /data-p6-field-move-up="activity_id"/);
   assert.match(container.innerHTML, /data-p6-field-move-down="activity_id"/);
 });
+
+
+test("P6 field chooser localizes reorder controls for Persian", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "fa"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "شناسه فعالیت", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: { schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2, columns: [{ field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }] } as LayoutDefinition,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /انتخابگر فیلدهای P6/);
+  assert.match(container.innerHTML, /انتقال به بالا/);
+  assert.match(container.innerHTML, /انتقال به پایین/);
+  assert.match(container.innerHTML, /حذف/);
+});
