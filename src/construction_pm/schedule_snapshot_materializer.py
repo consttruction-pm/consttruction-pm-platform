@@ -141,7 +141,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             compute_total_float_type=TotalFloatCalculationType(
                 str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
             ),
-            critical_activity_float_threshold=int(value.get("critical_activity_float_threshold", 0)),
+            critical_activity_float_threshold=float(value.get("critical_activity_float_threshold", 0)),
             critical_activity_path_type=CriticalActivityPathType(
                 str(value.get("critical_activity_path_type", CriticalActivityPathType.CRITICAL_FLOAT.value))
             ),
