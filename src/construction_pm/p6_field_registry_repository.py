@@ -200,7 +200,8 @@ class SQLiteP6FieldRegistryRepository:
 
         query = """
             SELECT project_revision, field_id, subject_area, p6_field,
-                   display_name, data_type, writable, computed, unit
+                   display_name, data_type, writable, computed, unit,
+                   reference_url, read_only, filterable, orderable, nullable, disposition
             FROM p6_field_registry
             WHERE tenant_id=? AND project_id=? AND registry_version=? AND project_revision=?
         """
@@ -333,7 +334,8 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
         row = self.connection.execute(
             """
             SELECT project_revision, field_id, subject_area, p6_field,
-                   display_name, data_type, writable, computed, unit
+                   display_name, data_type, writable, computed, unit,
+                   reference_url, read_only, filterable, orderable, nullable, disposition
             FROM p6_field_registry
             WHERE tenant_id=%s AND project_id=%s
               AND registry_version=%s AND field_id=%s
@@ -357,7 +359,8 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
             raise P6FieldRegistryPersistenceError("INVALID_SUBJECT_AREA")
         query = """
             SELECT project_revision, field_id, subject_area, p6_field,
-                   display_name, data_type, writable, computed, unit
+                   display_name, data_type, writable, computed, unit,
+                   reference_url, read_only, filterable, orderable, nullable, disposition
             FROM p6_field_registry
             WHERE tenant_id=%s AND project_id=%s
               AND registry_version=%s AND project_revision=%s
