@@ -4,6 +4,7 @@ import test from "node:test";
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import { createWorkspaceState } from "./workspace-model.js";
+import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -73,4 +74,32 @@ test("menu selection wiring forwards the selected workspace surface", () => {
   });
   listeners.get("reports")?.();
   assert.deepEqual(selected, ["reports"]);
+});
+
+
+test("renders the authoritative formula editor in the Activity workspace when supplied", () => {
+  const state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const formulaState: P6FormulaEditorState = {
+    field_id: "activity-cost",
+    expression: "Original Duration * Units",
+    validating: false,
+    authoritative: {
+      validation: { valid: true, error_code: null, message_key: null },
+      dependencies: { field_ids: ["activity-duration", "activity-units"] },
+      result_type: { data_type: "double" },
+    },
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { p6FormulaEditorState: formulaState });
+  assert.match(container.innerHTML, /cp-p6-formula-editor/);
+  assert.match(container.innerHTML, /activity-duration, activity-units/);
+  assert.match(container.innerHTML, /data-p6-formula-result-type>double/);
+});
+
+test("keeps the formula editor out of the workspace when no authoritative editor state is supplied", () => {
+  const html = render("en", "schedule");
+  assert.doesNotMatch(html, /cp-p6-formula-editor/);
 });
