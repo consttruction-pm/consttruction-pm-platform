@@ -66,6 +66,14 @@ def test_field_api_returns_versioned_typed_contract() -> None:
     assert result["field"]["nullable"] is None
     assert result["scope"]["project_revision"] == 2
 
+    loaded = api.get_field(
+        scope,
+        "p6-field-registry.v1",
+        "activity.activity_id",
+        auth_context=_auth("viewer"),
+    )
+    assert loaded == result
+
 
 def test_udf_api_returns_typed_definition() -> None:
     api = _api()
