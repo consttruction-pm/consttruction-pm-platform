@@ -22,6 +22,7 @@ import {
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
+  updateP6ActivityCell,
   setP6GridSorts,
   setP6GridGroups,
   setP6GridFilters,
@@ -535,4 +536,33 @@ test("P6 layout mutations remain authoritative for reorder and presentation", ()
   state = updateP6FieldPresentation(state, "code", { visible: false, width: 180 });
   assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.width, 180);
   assert.equal(state.columns.length, 0);
+});
+
+
+test("editable P6 activity cells are coerced and committed by field authority", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string" as const, writable: false, computed: false, disposition: "standard" as const },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration" as const, writable: true, computed: false, disposition: "standard" as const },
+      { field_id: "computed", subject_area: "Activity", p6_field: "Computed", display_name: "Computed", data_type: "decimal" as const, writable: true, computed: true, disposition: "standard" as const },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const, scope: "project" as const, view_id: "activity", revision: 1,
+    columns: [
+      { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start" as const, pinned: false, frozen: false },
+      { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end" as const, pinned: false, frozen: false },
+      { field_id: "computed", visible: true, order: 2, width: 120, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  state = withActivities(state, [{ id: "A-1", wbsId: "W-1", code: "01", name: "Foundation" }]);
+  state = updateP6ActivityCell(state, "A-1", "duration", "12.5");
+  assert.equal(state.activities[0]?.cells?.duration, 12.5);
+  assert.throws(() => updateP6ActivityCell(state, "A-1", "computed", "10"), /P6_FIELD_NOT_WRITABLE/);
+  assert.throws(() => updateP6ActivityCell(state, "missing", "duration", "10"), /ACTIVITY_NOT_FOUND/);
 });
