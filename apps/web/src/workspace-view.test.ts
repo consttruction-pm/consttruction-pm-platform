@@ -553,3 +553,44 @@ test("P6 field chooser localizes reorder controls for Persian", () => {
   assert.match(container.innerHTML, /انتقال به پایین/);
   assert.match(container.innerHTML, /حذف/);
 });
+
+
+test("P6 activity grid renders authoritative visible fields with typed cell values", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "test",
+      status: "active",
+      fields: [
+        { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard", unit: "h" },
+        { field_id: "progress", subject_area: "Activity", p6_field: "Physical % Complete", display_name: "Progress", data_type: "percentage", writable: false, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [
+        { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+        { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+        { field_id: "progress", visible: false, order: 2, width: 100, alignment: "end", pinned: false, frozen: false },
+      ],
+    } as LayoutDefinition,
+    activities: [{
+      id: "A-100",
+      wbsId: "WBS-1",
+      code: "A100",
+      name: "Excavate",
+      cells: { duration: 12, progress: 45 },
+    }],
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-p6-activity-grid/);
+  assert.match(container.innerHTML, /data-p6-grid-field-id="activity_id"/);
+  assert.match(container.innerHTML, /data-p6-grid-field-id="duration"/);
+  assert.doesNotMatch(container.innerHTML, /data-p6-grid-field-id="progress"/);
+  assert.match(container.innerHTML, /12 h/);
+  assert.match(container.innerHTML, /A-100/);
+});
