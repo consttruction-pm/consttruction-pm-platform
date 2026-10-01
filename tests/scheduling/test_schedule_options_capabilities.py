@@ -81,10 +81,12 @@ def test_priority_list_typed_contract_is_deterministic():
     assert options.priority_list == (item,)
 
 
-@pytest.mark.parametrize(
-    "value",
-    [(), (object(),), (PriorityListItem("", PrioritySortOrder.ASCENDING),)],
-)
+@pytest.mark.parametrize("value", [(), (object(),)])
 def test_priority_list_rejects_invalid_typed_values(value):
     with pytest.raises(ValueError):
         ScheduleOptions(priority_list=value)
+
+
+def test_priority_list_item_rejects_empty_field_name():
+    with pytest.raises(ValueError, match="field_name"):
+        PriorityListItem("", PrioritySortOrder.ASCENDING)
