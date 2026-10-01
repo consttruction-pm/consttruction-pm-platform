@@ -95,7 +95,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       .filter((fieldId): fieldId is string => Boolean(fieldId));
     options.onP6ReportPrintSelectionChange?.(fieldIds);
   }));
-  container.querySelectorAll<HTMLElement>("[data-p6-report-reset]").forEach((button) => button.addEventListener("click", () => options.onP6ReportReset?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-report-reset]").forEach((button) => button.addEventListener("click", () => options.onP6ReportPrintReset?.()));
 
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
