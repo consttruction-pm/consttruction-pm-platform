@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -190,7 +191,6 @@ def test_postgres_resource_period_write_api_round_trips_through_read_api() -> No
 
         with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
             write_api.save_assignment_period(value, auth_context=_auth(scope, role="viewer"))
-
 
 
 def test_postgres_change_claim_api_round_trips_through_atomic_store() -> None:
