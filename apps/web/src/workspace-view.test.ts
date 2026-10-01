@@ -11,7 +11,7 @@ import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundati
 
 type RenderContainer = {
   innerHTML: string;
-  querySelectorAll: () => HTMLElement[];
+  querySelectorAll: (selector?: string) => HTMLElement[];
 };
 
 function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
@@ -888,8 +888,8 @@ test("P6 layout persistence controls expose load and save callbacks", () => {
   };
   const listeners = new Map<string, () => void>();
   const controls = {
-    "[data-p6-layout-load]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("load", listener) }],
-    "[data-p6-layout-save]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("save", listener) }],
+    "[data-p6-layout-load]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("load", listener) }] as unknown as HTMLElement[],
+    "[data-p6-layout-save]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("save", listener) }] as unknown as HTMLElement[],
   };
   const container: RenderContainer = {
     innerHTML: "",
