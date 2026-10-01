@@ -4,6 +4,7 @@ import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNaviga
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
 import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
+import { renderP6GridCell } from "./p6-grid-cell-view.js";
 import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
 import type { ColumnPresentation } from "./p6-field-layout-foundation.js";
 
@@ -74,12 +75,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
             ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
             ${renderWorkspaceGridPresentation(state, options)}
-            <div class="cp-table-wrap">
-              <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
-                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
-              </table>
-            </div>
+            ${renderWorkspaceActivityGrid(state, t.noActivities)}
           </section>
           <section class="cp-panel cp-gantt"><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
         </section>
@@ -723,6 +719,47 @@ function renderP6FieldChooser(state: WorkspaceState): string {
     </div>
   </section>`;
 }
+function renderWorkspaceActivityGrid(state: WorkspaceState, noActivitiesLabel: string): string {
+  if (state.p6FieldRegistry && state.p6Layout) {
+    const columns = state.p6Layout.columns.filter((column) => column.visible).slice().sort((a, b) => a.order - b.order);
+    const fields = new Map(state.p6FieldRegistry.fields.map((field) => [field.field_id, field]));
+    const header = columns.map((column) => {
+      const field = fields.get(column.field_id);
+      if (!field) return "";
+      return `<th data-p6-grid-field-id="${escapeAttribute(field.field_id)}" style="width:${column.width}px">${escapeHtml(column.label ?? field.display_name)}</th>`;
+    }).join("");
+    const rows = state.activities.map((activity) => {
+      const selected = activity.id === state.selectedActivityId;
+      const cells = columns.map((column) => {
+        const field = fields.get(column.field_id);
+        if (!field) return "";
+        const value = getP6ActivityCellValue(field.field_id, activity);
+        return `<td>${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale })}</td>`;
+      }).join("");
+      return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${cells}</tr>`;
+    }).join("");
+    return `<div class="cp-table-wrap">
+      <table data-p6-activity-grid>
+        <thead><tr>${header}</tr></thead>
+        <tbody>${rows || `<tr><td colspan="${Math.max(1, columns.length)}">${escapeHtml(noActivitiesLabel)}</td></tr>`}</tbody>
+      </table>
+    </div>`;
+  }
+  return `<div class="cp-table-wrap">
+    <table>
+      <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+      <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${escapeHtml(noActivitiesLabel)}</td></tr>`}</tbody>
+    </table>
+  </div>`;
+}
+
+function getP6ActivityCellValue(fieldId: string, activity: WorkspaceActivityRow): WorkspaceCellValue {
+  if (fieldId === "activity_id") return activity.id;
+  if (fieldId === "activity_code") return activity.code;
+  if (fieldId === "activity_name") return activity.name;
+  return activity.cells?.[fieldId] ?? null;
+}
+
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
   const selected = activity.id === state.selectedActivityId;
   return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td>${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
