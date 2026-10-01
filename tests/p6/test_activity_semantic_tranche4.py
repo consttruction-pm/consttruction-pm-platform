@@ -7,7 +7,26 @@ from construction_pm.p6_field_registry import fields_by_subject, validate_catalo
 
 
 EXPECTED = {
-    "ActivityOwnerUserId",\n    "ActualExpenseCost",\n    "ActualMaterialCost",\n    "ActualNonLaborCost",\n    "ActualNonLaborUnits",\n    "ActualThisPeriodLaborCost",\n    "ActualThisPeriodLaborUnits",\n    "ActualThisPeriodMaterialCost",\n    "ActualThisPeriodNonLaborCost",\n    "ActualThisPeriodNonLaborUnits",\n    "ActualTotalCost",\n    "ActualTotalUnits",\n    "AtCompletionTotalCost",\n    "AtCompletionTotalUnits",\n    "AutoComputeActuals",\n    "Baseline1Duration",\n    "Baseline1FinishDate",\n    "Baseline1PlannedDuration",\n    "Baseline1PlannedExpenseCost",\n    "Baseline1PlannedLaborCost",
+    "ActivityOwnerUserId",
+    "ActualExpenseCost",
+    "ActualMaterialCost",
+    "ActualNonLaborCost",
+    "ActualNonLaborUnits",
+    "ActualThisPeriodLaborCost",
+    "ActualThisPeriodLaborUnits",
+    "ActualThisPeriodMaterialCost",
+    "ActualThisPeriodNonLaborCost",
+    "ActualThisPeriodNonLaborUnits",
+    "ActualTotalCost",
+    "ActualTotalUnits",
+    "AtCompletionTotalCost",
+    "AtCompletionTotalUnits",
+    "AutoComputeActuals",
+    "Baseline1Duration",
+    "Baseline1FinishDate",
+    "Baseline1PlannedDuration",
+    "Baseline1PlannedExpenseCost",
+    "Baseline1PlannedLaborCost",
 }
 
 
