@@ -64,6 +64,12 @@ class SQLiteP6FieldRegistryRepository:
                 writable INTEGER NOT NULL,
                 computed INTEGER NOT NULL,
                 unit TEXT,
+                reference_url TEXT NOT NULL,
+                read_only INTEGER,
+                filterable INTEGER,
+                orderable INTEGER,
+                nullable INTEGER,
+                disposition TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 PRIMARY KEY (
                     tenant_id, project_id, registry_version, field_id
@@ -75,6 +81,14 @@ class SQLiteP6FieldRegistryRepository:
                 );
             """
         )
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN reference_url TEXT")
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN read_only INTEGER")
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN filterable INTEGER")
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN orderable INTEGER")
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN nullable INTEGER")
+        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN disposition TEXT")
+        self.connection.execute("UPDATE p6_field_registry SET reference_url='https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html' WHERE reference_url IS NULL")
+        self.connection.execute("UPDATE p6_field_registry SET disposition='seeded_not_certified' WHERE disposition IS NULL")
         self.connection.commit()
 
     def upsert_field(self, record: PersistedP6Field) -> PersistedP6Field:
@@ -105,8 +119,9 @@ class SQLiteP6FieldRegistryRepository:
             INSERT INTO p6_field_registry (
                 tenant_id, project_id, project_revision, registry_version,
                 field_id, subject_area, p6_field, display_name, data_type,
-                writable, computed, unit, payload_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                writable, computed, unit, reference_url, read_only,
+                filterable, orderable, nullable, disposition, payload_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record.scope.tenant_id,
@@ -121,6 +136,12 @@ class SQLiteP6FieldRegistryRepository:
                 int(record.field.writable),
                 int(record.field.computed),
                 record.field.unit,
+                record.field.reference_url,
+                _optional_bool_int(record.field.read_only),
+                _optional_bool_int(record.field.filterable),
+                _optional_bool_int(record.field.orderable),
+                _optional_bool_int(record.field.nullable),
+                record.field.disposition,
                 payload,
             ),
         )
@@ -137,7 +158,8 @@ class SQLiteP6FieldRegistryRepository:
         row = self.connection.execute(
             """
             SELECT project_revision, field_id, subject_area, p6_field,
-                   display_name, data_type, writable, computed, unit
+                   display_name, data_type, writable, computed, unit,
+                   reference_url, read_only, filterable, orderable, nullable, disposition
             FROM p6_field_registry
             WHERE tenant_id=? AND project_id=? AND registry_version=? AND field_id=?
             """,
@@ -209,11 +231,28 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
                 writable BOOLEAN NOT NULL,
                 computed BOOLEAN NOT NULL,
                 unit TEXT,
+                reference_url TEXT NOT NULL,
+                read_only BOOLEAN,
+                filterable BOOLEAN,
+                orderable BOOLEAN,
+                nullable BOOLEAN,
+                disposition TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 PRIMARY KEY (tenant_id, project_id, registry_version, field_id)
             )
             """
         )
+        for statement in (
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS reference_url TEXT",
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS read_only BOOLEAN",
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS filterable BOOLEAN",
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS orderable BOOLEAN",
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS nullable BOOLEAN",
+            "ALTER TABLE p6_field_registry ADD COLUMN IF NOT EXISTS disposition TEXT",
+            "UPDATE p6_field_registry SET reference_url='https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html' WHERE reference_url IS NULL",
+            "UPDATE p6_field_registry SET disposition='seeded_not_certified' WHERE disposition IS NULL",
+        ):
+            self.connection.execute(statement)
         self.connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_p6_field_registry_scope_subject
@@ -247,8 +286,9 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
             INSERT INTO p6_field_registry (
                 tenant_id, project_id, project_revision, registry_version,
                 field_id, subject_area, p6_field, display_name, data_type,
-                writable, computed, unit, payload_json
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                writable, computed, unit, reference_url, read_only,
+                filterable, orderable, nullable, disposition, payload_json
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (tenant_id,project_id,registry_version,field_id) DO NOTHING
             """,
             (record.scope.tenant_id, record.scope.project_id,
@@ -256,7 +296,9 @@ class PostgresP6FieldRegistryRepository(P6FieldRegistryRepository):
              record.field.field_id, record.field.subject_area,
              record.field.p6_field, record.field.display_name,
              record.field.data_type.value, record.field.writable,
-             record.field.computed, record.field.unit, payload),
+             record.field.computed, record.field.unit, record.field.reference_url,
+             record.field.read_only, record.field.filterable, record.field.orderable,
+             record.field.nullable, record.field.disposition, payload),
         )
         row = self.connection.execute(
             """
@@ -378,8 +420,22 @@ def _record_payload(record: PersistedP6Field) -> dict[str, object]:
             "writable": record.field.writable,
             "computed": record.field.computed,
             "unit": record.field.unit,
+            "reference_url": record.field.reference_url,
+            "read_only": record.field.read_only,
+            "filterable": record.field.filterable,
+            "orderable": record.field.orderable,
+            "nullable": record.field.nullable,
+            "disposition": record.field.disposition,
         },
     }
+
+
+def _optional_bool_int(value: bool | None) -> int | None:
+    return None if value is None else int(value)
+
+
+def _optional_bool(value: object) -> bool | None:
+    return None if value is None else bool(value)
 
 
 def _record_from_row(
@@ -387,7 +443,9 @@ def _record_from_row(
     registry_version: str,
     row: tuple[object, ...],
 ) -> PersistedP6Field:
-    project_revision, field_id, subject_area, p6_field, display_name, data_type, writable, computed, unit = row
+    (project_revision, field_id, subject_area, p6_field, display_name, data_type,
+     writable, computed, unit, reference_url, read_only, filterable, orderable,
+     nullable, disposition) = row
     revision = int(project_revision)
     if revision < 0 or revision > MAX_SAFE_REVISION:
         raise P6FieldRegistryPersistenceError("INVALID_PROJECT_REVISION")
@@ -401,6 +459,12 @@ def _record_from_row(
             writable=bool(writable),
             computed=bool(computed),
             unit=None if unit is None else str(unit),
+            reference_url=str(reference_url),
+            read_only=_optional_bool(read_only),
+            filterable=_optional_bool(filterable),
+            orderable=_optional_bool(orderable),
+            nullable=_optional_bool(nullable),
+            disposition=str(disposition),
         )
     except (TypeError, ValueError) as exc:
         raise P6FieldRegistryPersistenceError("INVALID_STORED_FIELD") from exc
