@@ -25,6 +25,7 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
+  onP6FieldPresentationChange?: (fieldId: string, patch: Partial<Omit<ColumnPresentation, "field_id">>) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
   onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
@@ -67,6 +68,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <section class="cp-panel cp-grid">
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
+            ${renderP6ColumnPresentation(state, options)}
             ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
             ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
             ${renderWorkspaceGridPresentation(state, options)}
@@ -93,6 +95,27 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   container.querySelectorAll<HTMLElement>("[data-p6-field-remove]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-label]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnLabel;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { label: input.value });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-width]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnWidth;
+    const width = Number(input.value);
+    if (fieldId && Number.isFinite(width) && width > 0) options.onP6FieldPresentationChange?.(fieldId, { width });
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-column-alignment]").forEach((select) => select.addEventListener("change", () => {
+    const fieldId = select.dataset.p6ColumnAlignment;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { alignment: select.value as ColumnPresentation["alignment"] });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-pinned]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnPinned;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { pinned: input.checked });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-frozen]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnFrozen;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: input.checked });
   }));
 
   container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-field]").forEach((select) => select.addEventListener("change", () => {
@@ -145,6 +168,34 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
+}
+
+function renderP6ColumnPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  if (!state.p6Layout || !state.p6FieldRegistry) return "";
+  const fields = new Map(state.p6FieldRegistry.fields.map((field) => [field.field_id, field]));
+  const title = state.locale === "fa" ? "تنظیمات ستون‌ها" : "Column Presentation";
+  const alignmentLabels = state.locale === "fa"
+    ? { start: "ابتدا", center: "وسط", end: "انتها" }
+    : { start: "Start", center: "Center", end: "End" };
+  const rows = state.p6Layout.columns
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((column) => {
+      const field = fields.get(column.field_id);
+      if (!field) return "";
+      const label = column.label ?? field.display_name;
+      return `<div data-p6-column-presentation-row data-field-id="${escapeAttribute(column.field_id)}">
+        <strong>${escapeHtml(field.display_name)}</strong>
+        <input data-p6-column-label="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "عنوان ستون" : "Column label")}" value="${escapeAttribute(label)}">
+        <input data-p6-column-width="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "عرض ستون" : "Column width")}" type="number" min="1" value="${column.width}">
+        <select data-p6-column-alignment="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "تراز ستون" : "Column alignment")}">
+          ${(["start", "center", "end"] as const).map((alignment) => `<option value="${alignment}"${column.alignment === alignment ? " selected" : ""}>${escapeHtml(alignmentLabels[alignment])}</option>`).join("")}
+        </select>
+        <label><input data-p6-column-pinned="${escapeAttribute(column.field_id)}" type="checkbox"${column.pinned ? " checked" : ""}> ${state.locale === "fa" ? "ثابت" : "Pinned"}</label>
+        <label><input data-p6-column-frozen="${escapeAttribute(column.field_id)}" type="checkbox"${column.frozen ? " checked" : ""}> ${state.locale === "fa" ? "منجمد" : "Frozen"}</label>
+      </div>`;
+    }).join("");
+  return `<section class="cp-panel cp-p6-column-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3>${rows || '<div class="cp-empty">—</div>'}</section>`;
 }
 
 function getWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null {
