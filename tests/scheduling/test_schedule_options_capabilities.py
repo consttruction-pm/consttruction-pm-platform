@@ -4,7 +4,8 @@ import pytest
 
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder\nfrom construction_pm.scheduling.schedule import (
+from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder\nfrom construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder
+from construction_pm.scheduling.schedule import (
     ScheduleOptions,
     UnsupportedScheduleOptionError,
     schedule,
@@ -90,3 +91,18 @@ def test_priority_list_rejects_invalid_typed_values(value):
     else:
         with pytest.raises(ValueError):
             ScheduleOptions(priority_list=value)
+
+
+def test_priority_list_typed_contract_is_deterministic():
+    item = PriorityListItem("Total Float", PrioritySortOrder.DESCENDING)
+    options = ScheduleOptions(priority_list=(item,))
+    assert options.priority_list == (item,)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [(), (object(),), (PriorityListItem("", PrioritySortOrder.ASCENDING),)],
+)
+def test_priority_list_rejects_invalid_typed_values(value):
+    with pytest.raises(ValueError):
+        ScheduleOptions(priority_list=value)
