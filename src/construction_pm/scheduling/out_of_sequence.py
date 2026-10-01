@@ -8,7 +8,6 @@ from .activity import Activity
 
 if TYPE_CHECKING:
     from .forward_pass import ScheduledActivity
-from .forward_pass import ScheduledActivity
 from .relationships import Relationship, successor_earliest_start
 from .calendar import WorkingTimeResolver
 from .schedule_options import OutOfSequenceScheduleType
