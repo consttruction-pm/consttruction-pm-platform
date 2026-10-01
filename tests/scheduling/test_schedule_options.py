@@ -5,6 +5,8 @@ import pytest
 from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.schedule_options import (
     OutOfSequenceScheduleType,
+    PriorityListItem,
+    PrioritySortOrder,
     ScheduleOptions,
 )
 
@@ -56,6 +58,10 @@ def test_external_project_priority_limit_accepts_typed_bounds():
 
 
 def test_multi_project_and_resource_leveling_options_are_preserved():
+    priority_items = (
+        PriorityListItem("P1", PrioritySortOrder.ASCENDING),
+        PriorityListItem("P2", PrioritySortOrder.DESCENDING),
+    )
     options = ScheduleOptions(
         calculate_float_based_on_finish_date=True,
         ignore_other_project_relationships=True,
@@ -64,7 +70,7 @@ def test_multi_project_and_resource_leveling_options_are_preserved():
         level_within_float=True,
         over_allocation_percentage=12.5,
         resource_list="R1,R2",
-        priority_list="P1,P2",
+        priority_list=priority_items,
         external_project_priority_limit=7,
         preserve_scheduled_early_and_late_dates=True,
         min_float_to_preserve=3,
@@ -76,7 +82,7 @@ def test_multi_project_and_resource_leveling_options_are_preserved():
     assert options.level_within_float is True
     assert options.over_allocation_percentage == 12.5
     assert options.resource_list == "R1,R2"
-    assert options.priority_list == "P1,P2"
+    assert options.priority_list == priority_items
     assert options.external_project_priority_limit == 7
     assert options.preserve_scheduled_early_and_late_dates is True
     assert options.min_float_to_preserve == 3
@@ -118,7 +124,6 @@ def test_numeric_p6_options_reject_invalid_ranges(field, value):
         ScheduleOptions(**{field: value})
 
 
-@pytest.mark.parametrize("field", ["resource_list", "priority_list"])
-def test_p6_string_list_options_reject_blank_values(field):
-    with pytest.raises(ValueError, match=field):
-        ScheduleOptions(**{field: "   "})
+def test_resource_list_rejects_blank_values():
+    with pytest.raises(ValueError, match="resource_list"):
+        ScheduleOptions(resource_list="   ")
