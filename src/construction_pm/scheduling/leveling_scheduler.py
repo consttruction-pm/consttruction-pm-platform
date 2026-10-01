@@ -87,7 +87,7 @@ def _backward_activities_from_intermediate(
     forward_activities: tuple[LevelingActivity, ...],
     resolver: object,
 ) -> tuple[BackwardLevelingActivity, ...]:
-    forward_by_id = {a.activity_id: a for a in forward_activities}
+    forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
         early = early_schedule[activity.activity_id]
