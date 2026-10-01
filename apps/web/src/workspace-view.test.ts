@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
+import type { WorkspaceState } from "./workspace-model.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { P6GridFilter, P6GridSort } from "./p6-activity-wbs-grid.js";
 import { createWorkspaceState } from "./workspace-model.js";
@@ -793,15 +794,15 @@ test("P6 grid presentation reorder controls forward authoritative ordering", () 
     p6GridSorts: [
       { field_id: "activity_id", direction: "ascending", order: 0 },
       { field_id: "duration", direction: "descending", order: 1 },
-    ],
+    ] as P6GridSort[],
     p6GridGroups: [
       { field_id: "activity_id", order: 0 },
       { field_id: "duration", order: 1 },
-    ],
+    ] as WorkspaceState["p6GridGroups"],
     p6GridFilters: [
       { field_id: "activity_id", operator: "equals", value: "A-1" },
       { field_id: "duration", operator: "greater-than", value: 10 },
-    ],
+    ] as P6GridFilter[],
   };
   const listeners = new Map<string, () => void>();
   const buttons = [
