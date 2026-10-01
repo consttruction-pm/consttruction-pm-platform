@@ -113,7 +113,10 @@ test("renders the report/print field selection from authoritative registry and l
       "en",
     ),
     p6FieldRegistry: {
-      registry_version: "p6-fields.v1",
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "test",
+      status: "active",
       fields: [
         { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
         { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Original Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
