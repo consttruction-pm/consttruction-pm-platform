@@ -1,7 +1,7 @@
 # V1 Master Audit Matrix
 
 > **Snapshot:** 2026-10-01  
-> **Baseline:** `main` @ `2028b28f5a4799d0c6bb2be53ab7e8fed52ab0c4`  
+> **Baseline:** `main` @ `63d4aeb7175cd05b48da828a9ad4dd5d4d7edc01`  
 > **Parent:** #459 — V1: Full Project Audit + Functional Web Beta  
 > **Owner:** Jalal — Shared Core / P6 semantic reconciliation / integration acceptance
 >
@@ -24,7 +24,7 @@
 | API / Application / Repository separation | Current backend work contains application authorization/project lifecycle and repository/API seams. | Verified |
 | PostgreSQL persistence boundary | PostgreSQL-backed persistence and integration tests are present; recent #600 hardened schedule snapshot upsert concurrency. | Verified |
 | Tenant / project scope | Authorization and resource-read tests cover tenant/project isolation. | Verified |
-| Revision / optimistic concurrency | Existing idempotency/revision tests cover stale revision and atomic state behavior; #636 is verifying the complete Beta-facing contract. | In progress |
+| Revision / optimistic concurrency | Existing idempotency/revision tests cover stale revision and atomic state behavior; #636 evidence has been superseded by merged current-main work. | Verified |
 | Client business-rule isolation | P6-3 UI contracts consume authoritative registry/layout/formula results and do not implement a formula evaluator or scheduler. | Verified |
 
 ## P6 scheduling and calculation authority
@@ -66,7 +66,7 @@
 | Grid sort/group/filter | `p6-activity-wbs-grid.ts` provides typed presentation models and registry validation. | Verified |
 | Formula Editor | `p6-formula-editor.ts` consumes authoritative validation/dependency/type results only. | Verified |
 | Report / print field selection | `p6-report-print-field-selection.ts` provides normalized selection from the layout/registry. | Verified |
-| Real workspace integration of P6-3 contracts | Issue #637 is the active execution lane; its fresh branch is currently identical to main and has no commit/PR yet. | In progress |
+| Real workspace integration of P6-3 contracts | #674 merged the P6-3 presentation contracts into the real workspace; #677 then merged V1 navigation coverage with focused tests and green Web/Client/Core CI. | Verified |
 | Client scheduling/CPM calculations | Explicitly prohibited in #637; current architecture keeps those semantics out of the Web presentation layer. | Verified |
 
 ## Localization and language packs
@@ -75,7 +75,7 @@
 |---|---|---|
 | Shared language-pack infrastructure | Client-sync language manifest/resource/activation infrastructure exists. | Verified |
 | Web language-manager route | `apps/web/src/language-manager-route.ts` supports active pack, offline activation, update, rollback and error state. | Verified |
-| Workspace locale coverage | Current `workspace-model.ts` exposes `fa | en`; current workspace labels are only Persian/English. | Gap |
+| Workspace locale coverage | Current workspace navigation and rendering provide Persian/English plus RTL/LTR coverage; the product-wide all-language requirement remains a separate localization gap. | Gap |
 | All-language requirement | Product requirement is all-language UI/data with offline downloadable packs, RTL/LTR and typography support. Current workspace does not yet satisfy the all-language surface. | Gap |
 | README terminology | README still says “bilingual Persian/English”; this is stale relative to the current all-language requirement and should be corrected in a documentation-only follow-up. | Gap |
 
@@ -91,10 +91,10 @@
 
 | Work item | Owner | Current state | Next evidence |
 |---|---|---|---|
-| #636 Backend/API verification | Hasan / `hasanforoughi` | Fresh branch exists but is still identical to current main; no open PR. | Current-main audit result or focused PR + tests/CI |
-| #637 Web P6-3 workspace integration | Farmj22002 / `farmj22002-droid` | Fresh branch exists but is still identical to current main; no open PR. | Real workspace PR + focused tests + typecheck + build |
+| #636 Backend/API verification | Hasan / `hasanforoughi` | Completed/superseded by merged current-main backend evidence; no duplicate implementation is warranted. | Keep audit synchronized; assign only new material gaps |
+| #637 Web P6-3 workspace integration | Farmj22002 / `farmj22002-droid` | Completed via merged #674; navigation follow-up #677 is also merged. | Broader V1 Web surface under #459 |
 | #631 FS scheduling audit | Jalal | Closed; no reproducible current-main defect. | No rework; do not revive #517 |
-| #459 Master V1 audit | Jalal | This matrix is the current evidence index. | Keep statuses synchronized with merged/runtime evidence |
+| #459 Master V1 audit | Jalal | Active; this matrix has been refreshed against current `main` after Web #677 merge. | Continue current-main evidence reconciliation |
 | #403 P6 ScheduleOptions remaining parity | Shared Core track | Known remaining audit/implementation scope exists. | Typed option disposition + deterministic regression scenarios |
 
 ## Stale-work policy
