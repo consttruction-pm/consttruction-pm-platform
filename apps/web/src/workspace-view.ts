@@ -456,8 +456,8 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
-  const visible = new Set(layout.columns.filter((column) => column.visible).map((column) => column.field_id));
-  const available = registry.fields.filter((field) => !visible.has(field.field_id));
+  const inLayout = new Set(layout.columns.map((column) => column.field_id));
+  const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
   return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
     <div class="cp-p6-field-chooser-heading">
       <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
