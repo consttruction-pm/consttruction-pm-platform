@@ -26,3 +26,4 @@ export * from "./p6-report-print-field-selection-view.js";
 export * from "./p6-typed-field-editor.js";
 export * from "./p6-grid-cell-view.js";
 export * from "./p6-workspace-renderer-actions.js";
+export * from "./p6-layout-persistence-controller.js";
