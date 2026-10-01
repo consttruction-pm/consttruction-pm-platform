@@ -53,6 +53,7 @@ class AuthoritativeScheduleInput:
     tenant_id: str
     project_id: str
     project_revision: int
+    project_leveling_priority: int = 10
     mode: AuthoritativeScheduleMode
     project_calendar: CalendarReference
     activities: tuple[Activity | TimeActivity, ...]
