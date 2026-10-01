@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "p6-activity-read-model.v1",
+  "type": "object",
+  "required": ["contract_version", "kind", "scope", "activity_id", "cost_entries", "actual_entries", "baseline_entries", "evm"],
+  "properties": {
+    "contract_version": {"const": "p6-activity-read-model.v1"},
+    "kind": {"const": "p6_activity_read_model"},
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "activity_id": {"type": "string", "minLength": 1},
+    "cost_entries": {"type": "array", "items": {"type": "object"}},
+    "actual_entries": {"type": "array", "items": {"type": "object"}},
+    "baseline_entries": {"type": "array", "items": {"type": "object"}},
+    "evm": {
+      "type": "object",
+      "required": ["status", "reason", "calculation_owner"],
+      "properties": {
+        "status": {"const": "unavailable"},
+        "reason": {"const": "authoritative_shared_core_evm_result_required"},
+        "calculation_owner": {"const": "shared_core"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
