@@ -153,6 +153,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             multiple_float_paths_ending_activity_object_id=value.get(
                 "multiple_float_paths_ending_activity_object_id"
             ),
+            multiple_float_paths_ending_activity_short_name=value.get("multiple_float_paths_ending_activity_short_name"),
             multiple_float_paths_use_total_float=bool(
                 value.get("multiple_float_paths_use_total_float", True)
             ),
