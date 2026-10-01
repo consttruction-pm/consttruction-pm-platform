@@ -98,7 +98,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
+  container.querySelectorAll<HTMLElement>("[data-p6-field-hide]").forEach((button) => button.addEventListener("click", () => {\n    const fieldId = button.dataset.p6FieldHide;\n    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: false });\n  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldShow;
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: true });
   }));
@@ -687,6 +687,7 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   const moveDownLabel = fa ? "انتقال به پایین" : "Move down";
   const addLabel = fa ? "افزودن" : "Add";
   const showLabel = fa ? "نمایش" : "Show";
+  const hideLabel = fa ? "مخفی‌کردن" : "Hide";
   return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(title)}">
     <div class="cp-p6-field-chooser-heading">
       <strong>${escapeHtml(fieldsLabel)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
@@ -703,7 +704,7 @@ function renderP6FieldChooser(state: WorkspaceState): string {
           <span>${label}</span>
           <button type="button" data-p6-field-move-up="${fieldId}" title="${escapeAttribute(moveUpLabel)}" aria-label="${escapeAttribute(moveUpLabel)}"${upDisabled}>↑</button>
           <button type="button" data-p6-field-move-down="${fieldId}" title="${escapeAttribute(moveDownLabel)}" aria-label="${escapeAttribute(moveDownLabel)}"${downDisabled}>↓</button>
-          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
+          <button type="button" data-p6-field-hide="${fieldId}" title="${escapeAttribute(hideLabel)}">${escapeHtml(hideLabel)}</button>\n          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
         </div>`;
       }).join("")}
       ${hiddenColumns.map((column) => {
