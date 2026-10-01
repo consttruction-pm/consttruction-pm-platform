@@ -27,7 +27,6 @@ def resolver():
         ("resource_list", "R1"),
         ("priority_list", "PRIORITY"),
         ("min_float_to_preserve", 1),
-        ("external_project_priority_limit", 1),
         ("preserve_scheduled_early_and_late_dates", True),
     ],
 )
