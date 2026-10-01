@@ -13,7 +13,12 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceDemand,
     ResourceLevelingError,
 )
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.resource_leveling import SortOrder
+from construction_pm.scheduling.schedule_options import (
+    PriorityListItem,
+    PrioritySortOrder,
+    ScheduleOptions,
+)
 
 
 def _slices():
@@ -99,4 +104,43 @@ def test_leveling_activity_rejects_unknown_demand_activity():
             finish=date(2026, 10, 5),
             total_float=2,
             resource_demands=(bad,),
+        )
+
+
+def test_scheduler_leveling_boundary_maps_ordered_priority_list():
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(
+        priority_list=(
+            PriorityListItem("total_float", PrioritySortOrder.ASCENDING),
+            PriorityListItem("activity_priority", PrioritySortOrder.DESCENDING),
+            PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
+        ),
+    )
+
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+    )
+
+    assert [(item.field_name, item.sort_order) for item in boundary.options.priorities] == [
+        ("total_float", SortOrder.ASCENDING),
+        ("activity_priority", SortOrder.DESCENDING),
+        ("activity_id", SortOrder.ASCENDING),
+    ]
+
+
+def test_scheduler_leveling_boundary_rejects_unsupported_priority_field():
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(
+        priority_list=(PriorityListItem("resource_id", PrioritySortOrder.ASCENDING),),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        scheduler_leveling_input_from_options(
+            forward_activities=forward,
+            backward_activities=backward,
+            capacities=capacities,
+            options=options,
         )

@@ -147,9 +147,6 @@ def schedule_with_resource_leveling(
     if not isinstance(leveling_input, SchedulerLevelingInput):
         raise TypeError("leveling_input must be SchedulerLevelingInput")
     selected_options = options or ScheduleOptions()
-    if selected_options.priority_list:
-        raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
-
     # ScheduleOptions is the public typed configuration surface. Map only its
     # already-authoritative leveling fields into the existing Shared Core input;
     # persistence/API adapters remain responsible for supplying demand/capacity.
