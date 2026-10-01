@@ -103,3 +103,38 @@ test("P6 layout persistence state actions commit saved state", async () => {
   assert.equal(current.p6Layout?.revision, 3);
   assert.equal(current.p6Layout?.columns[0]?.width, 260);
 });
+
+test("P6 layout persistence state actions serialize concurrent operations", async () => {
+  let current = state();
+  let releaseLoad!: () => void;
+  let loadStarted = false;
+  const loadGate = new Promise<void>((resolve) => { releaseLoad = resolve; });
+  const events: string[] = [];
+  const persistence: P6LayoutPersistence = {
+    async load() {
+      loadStarted = true;
+      events.push("load-start");
+      await loadGate;
+      events.push("load-end");
+      return { ...layout, revision: 2 };
+    },
+    async save(value) {
+      events.push("save");
+      return { ...value, revision: 3 };
+    },
+  };
+  const actions = createP6LayoutPersistenceStateActions(
+    persistence, "project", "activity", () => current, (next) => { current = next; },
+  );
+
+  const loading = actions.load();
+  while (!loadStarted) await Promise.resolve();
+  const saving = actions.save();
+
+  await Promise.resolve();
+  assert.deepEqual(events, ["load-start"]);
+  releaseLoad();
+  await Promise.all([loading, saving]);
+  assert.deepEqual(events, ["load-start", "load-end", "save"]);
+  assert.equal(current.p6Layout?.revision, 3);
+});
