@@ -8,6 +8,7 @@ export type P6FormulaEditorViewLabels = {
   invalid: string;
   dependencies: string;
   resultType: string;
+  validate: string;
 };
 
 export function renderP6FormulaEditor(
@@ -30,7 +31,7 @@ export function renderP6FormulaEditor(
       <span>${escapeHtml(labels.expression)}</span>
       <textarea data-p6-formula-expression aria-describedby="p6-formula-status">${escapeHtml(state.expression)}</textarea>
     </label>
-    <div id="p6-formula-status" role="status" aria-live="polite">${escapeHtml(status)}</div>
+    <button type="button" data-p6-formula-validate${state.validating ? " disabled" : ""}>${escapeHtml(labels.validate)}</button>\n    <div id="p6-formula-status" role="status" aria-live="polite">${escapeHtml(status)}</div>
     ${validation && !validation.valid && validation.error_code
       ? `<div data-p6-formula-error="${escapeAttribute(validation.error_code)}">${escapeHtml(validation.message_key ?? validation.error_code)}</div>`
       : ""}
