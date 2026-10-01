@@ -30,12 +30,7 @@ from .scheduling.schedule import (
     ScheduleOptions,
     TotalFloatCalculationType,
 )
-from .scheduling.schedule_options import (
-    OutOfSequenceScheduleType,
-    PriorityListItem,
-    PrioritySortOrder,
-    StartToStartLagCalculationType,
-)
+from .scheduling.schedule_options import StartToStartLagCalculationType
 from .scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 from .scheduling.time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .scheduling.time_forward_pass import TimeActivity, TimeRelationship
@@ -140,88 +135,43 @@ def _duration_unit(value: Any) -> DurationUnit:
 def _schedule_options(value: Any) -> ScheduleOptions:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS")
-
-    def _bool(name: str, default: bool = False) -> bool:
-        raw = value.get(name, default)
-        if not isinstance(raw, bool):
-            raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{name}")
-        return raw
-
-    def _int(name: str, default: int) -> int:
-        raw = value.get(name, default)
-        if isinstance(raw, bool) or not isinstance(raw, int):
-            raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{name}")
-        return raw
-
     try:
-        priority_payload = value.get("priority_list")
-        if priority_payload is None:
-            priority_list = None
-        else:
-            if not isinstance(priority_payload, list) or not priority_payload:
-                raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
-            priority_list = tuple(
-                PriorityListItem(
-                    field_name=str(_required(item, "field_name")),
-                    sort_order=PrioritySortOrder(
-                        str(item.get("sort_order", PrioritySortOrder.ASCENDING.value))
-                    ),
-                )
-                for item in priority_payload
-                if isinstance(item, dict)
-            )
-            if len(priority_list) != len(priority_payload):
-                raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
-
         return ScheduleOptions(
             mode=ScheduleMode(str(value.get("mode", ScheduleMode.EARLIEST.value))),
             compute_total_float_type=TotalFloatCalculationType(
                 str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
             ),
-            critical_activity_float_threshold=_int("critical_activity_float_threshold", 0),
+            critical_activity_float_threshold=float(value.get("critical_activity_float_threshold", 0)),
             critical_activity_path_type=CriticalActivityPathType(
                 str(value.get("critical_activity_path_type", CriticalActivityPathType.CRITICAL_FLOAT.value))
             ),
-            make_open_ended_activities_critical=_bool("make_open_ended_activities_critical"),
-            multiple_float_paths_enabled=_bool("multiple_float_paths_enabled"),
-            maximum_multiple_float_paths=_int("maximum_multiple_float_paths", 0),
+            make_open_ended_activities_critical=bool(
+                value.get("make_open_ended_activities_critical", False)
+            ),
+            multiple_float_paths_enabled=bool(value.get("multiple_float_paths_enabled", False)),
+            maximum_multiple_float_paths=int(value.get("maximum_multiple_float_paths", 0)),
             multiple_float_paths_ending_activity_object_id=value.get(
                 "multiple_float_paths_ending_activity_object_id"
             ),
-            multiple_float_paths_use_total_float=_bool("multiple_float_paths_use_total_float", True),
-            min_float_to_preserve=_int("min_float_to_preserve", 0),
-            out_of_sequence_schedule_type=OutOfSequenceScheduleType(
-                str(value.get("out_of_sequence_schedule_type", OutOfSequenceScheduleType.RETAINED_LOGIC.value))
+            multiple_float_paths_ending_activity_short_name=value.get(
+                "multiple_float_paths_ending_activity_short_name"
+            ),
+            multiple_float_paths_use_total_float=bool(
+                value.get("multiple_float_paths_use_total_float", True)
             ),
             start_to_start_lag_calculation_type=StartToStartLagCalculationType(
-                str(value.get(
-                    "start_to_start_lag_calculation_type",
-                    StartToStartLagCalculationType.EARLY_START.value,
-                ))
+                str(
+                    value.get(
+                        "start_to_start_lag_calculation_type",
+                        StartToStartLagCalculationType.EARLY_START.value,
+                    )
+                )
             ),
-            relationship_lag_calendar=RelationshipLagCalendar(
-                str(value.get(
-                    "relationship_lag_calendar",
-                    RelationshipLagCalendar.PROJECT_DEFAULT.value,
-                ))
-            ),
-            use_expected_finish_dates=_bool("use_expected_finish_dates"),
-            calculate_float_based_on_finish_date=_bool("calculate_float_based_on_finish_date"),
-            ignore_other_project_relationships=_bool("ignore_other_project_relationships"),
-            include_external_res_ass=_bool("include_external_res_ass"),
-            level_all_resources=_bool("level_all_resources"),
-            level_within_float=_bool("level_within_float"),
-            over_allocation_percentage=float(value.get("over_allocation_percentage", 0.0)),
-            resource_list=value.get("resource_list"),
-            priority_list=priority_list,
-            external_project_priority_limit=_int("external_project_priority_limit", 0),
-            preserve_scheduled_early_and_late_dates=_bool("preserve_scheduled_early_and_late_dates"),
             data_date=_date(value["data_date"]) if value.get("data_date") is not None else None,
         )
-    except SnapshotMaterializationError:
-        raise
     except (TypeError, ValueError) as exc:
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS") from exc
+
 
 def _materialize_payload(
     payload: dict[str, Any],
@@ -366,5 +316,4 @@ def _materialize_payload(
             if project_finish_value is not None
             else None
         ),
-        project_leveling_priority=payload.get("project_leveling_priority", 10),
     )
