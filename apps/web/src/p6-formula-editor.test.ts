@@ -30,31 +30,22 @@ const authority: P6FormulaAuthority = {
 
 test("keeps expression state local and consumes authoritative validation results", async () => {
   const editor = createP6FormulaEditor("activity-cost", authority);
-
   assert.equal(editor.getState().authoritative, null);
-
   editor.setExpression("Original Duration * Units");
   assert.equal(editor.getState().expression, "Original Duration * Units");
   assert.equal(editor.getState().validating, false);
-
   const state = await editor.validate();
-
   assert.equal(state.authoritative?.validation.valid, true);
-  assert.deepEqual(state.authoritative?.dependencies.field_ids, [
-    "activity-duration",
-    "activity-units",
-  ]);
+  assert.deepEqual(state.authoritative?.dependencies.field_ids, ["activity-duration", "activity-units"]);
   assert.equal(state.authoritative?.result_type.data_type, "double");
   assert.equal(state.validating, false);
 });
 
 test("clears stale authority when expression changes", async () => {
   const editor = createP6FormulaEditor("activity-cost", authority);
-
   editor.setExpression("Original Duration * Units");
   await editor.validate();
   assert.notEqual(editor.getState().authoritative, null);
-
   editor.setExpression("Changed");
   assert.equal(editor.getState().authoritative, null);
 });
@@ -68,21 +59,16 @@ test("does not apply a stale validation result to a newer expression", async () 
       });
     },
   };
-
   const editor = createP6FormulaEditor("activity-cost", delayedAuthority);
   editor.setExpression("Old expression");
   const pending = editor.validate();
-
   editor.setExpression("New expression");
   resolveValidation?.(validResult);
   await pending;
-
   assert.equal(editor.getState().expression, "New expression");
   assert.equal(editor.getState().authoritative, null);
   assert.equal(editor.getState().validating, false);
 });
-
-
 
 test("keeps validating state owned by the newest validation request", async () => {
   const resolvers: Array<(result: FormulaAuthoritativeResult) => void> = [];
@@ -93,19 +79,16 @@ test("keeps validating state owned by the newest validation request", async () =
       });
     },
   };
-
   const editor = createP6FormulaEditor("activity-cost", concurrentAuthority);
   editor.setExpression("First");
   const first = editor.validate();
   editor.setExpression("Second");
   const second = editor.validate();
-
   assert.equal(editor.getState().validating, true);
   resolvers[0]?.(validResult);
   await first;
   assert.equal(editor.getState().validating, true);
   assert.equal(editor.getState().authoritative, null);
-
   resolvers[1]?.(validResult);
   await second;
   assert.equal(editor.getState().validating, false);
@@ -128,4 +111,16 @@ test("does not expose formula evaluation when authoritative validation is absent
   assert.equal(state.authoritative?.validation.valid, false);
   assert.equal(state.authoritative?.result_type.data_type, "double");
   assert.equal("evaluate" in editor, false);
+});
+
+test("clears validating state when authoritative validation rejects", async () => {
+  const editor = createP6FormulaEditor("activity-cost", {
+    async validate() {
+      throw new Error("VALIDATION_UNAVAILABLE");
+    },
+  });
+  editor.setExpression("Original Duration * Units");
+  await assert.rejects(editor.validate(), /VALIDATION_UNAVAILABLE/);
+  assert.equal(editor.getState().validating, false);
+  assert.equal(editor.getState().authoritative, null);
 });
