@@ -183,6 +183,27 @@ _ROWS = (
     ("schedule_options.use_expected_finish_dates","ScheduleOptions","UseExpectedFinishDates","Use Expected Finish Dates","boolean",True,False,None),
     ("schedule_options.user_name","ScheduleOptions","UserName","User Name","string",False,False,None),
     ("schedule_options.user_object_id","ScheduleOptions","UserObjectId","User Object ID","object-id",False,False,None),
+
+    ("activity.activity_owner_user_id","Activity","ActivityOwnerUserId","Activity Owner User ID","integer",True,False,None),
+    ("activity.actual_expense_cost","Activity","ActualExpenseCost","Actual Expense Cost","double",False,True,"currency"),
+    ("activity.actual_material_cost","Activity","ActualMaterialCost","Actual Material Cost","double",False,True,"currency"),
+    ("activity.actual_nonlabor_cost","Activity","ActualNonLaborCost","Actual Nonlabor Cost","double",False,True,"currency"),
+    ("activity.actual_nonlabor_units","Activity","ActualNonLaborUnits","Actual Nonlabor Units","double",False,True,"units"),
+    ("activity.actual_this_period_labor_cost","Activity","ActualThisPeriodLaborCost","Actual This Period Labor Cost","double",False,True,"currency"),
+    ("activity.actual_this_period_labor_units","Activity","ActualThisPeriodLaborUnits","Actual This Period Labor Units","double",False,True,"units"),
+    ("activity.actual_this_period_material_cost","Activity","ActualThisPeriodMaterialCost","Actual This Period Material Cost","double",False,True,"currency"),
+    ("activity.actual_this_period_nonlabor_cost","Activity","ActualThisPeriodNonLaborCost","Actual This Period Nonlabor Cost","double",False,True,"currency"),
+    ("activity.actual_this_period_nonlabor_units","Activity","ActualThisPeriodNonLaborUnits","Actual This Period Nonlabor Units","double",False,True,"units"),
+    ("activity.actual_total_cost","Activity","ActualTotalCost","Actual Total Cost","double",False,True,"currency"),
+    ("activity.actual_total_units","Activity","ActualTotalUnits","Actual Total Units","double",False,True,"units"),
+    ("activity.at_completion_total_cost","Activity","AtCompletionTotalCost","At Completion Total Cost","double",False,True,"currency"),
+    ("activity.at_completion_total_units","Activity","AtCompletionTotalUnits","At Completion Total Units","double",False,True,"units"),
+    ("activity.auto_compute_actuals","Activity","AutoComputeActuals","Auto Compute Actuals","boolean",True,False,None),
+    ("activity.baseline1_duration","Activity","Baseline1Duration","Baseline 1 Duration","double",False,True,"working-time"),
+    ("activity.baseline1_finish_date","Activity","Baseline1FinishDate","Baseline 1 Finish Date","date",False,True,None),
+    ("activity.baseline1_planned_duration","Activity","Baseline1PlannedDuration","Baseline 1 Planned Duration","double",False,True,"working-time"),
+    ("activity.baseline1_planned_expense_cost","Activity","Baseline1PlannedExpenseCost","Baseline 1 Planned Expense Cost","double",False,True,"currency"),
+    ("activity.baseline1_planned_labor_cost","Activity","Baseline1PlannedLaborCost","Baseline 1 Planned Labor Cost","double",False,True,"currency"),
 )
 
 
