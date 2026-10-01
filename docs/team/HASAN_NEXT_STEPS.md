@@ -630,3 +630,18 @@ Status: **implemented, runtime-verified and merged**
 
 - Reconcile current main for the next concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration acceptance gap or reproducible defect.
 - Do not revive stale PRs or modify Shared Scheduling/Core work. Any new change must branch from the exact current main, stay within Hasan ownership, add focused regression evidence, and obtain PostgreSQL verification where applicable.
+
+### 2026-10-01 — Post-PR #645 / #647 current-main reconciliation
+
+- Current main baseline is `435b61033284c579db88e45c4db29acef9cf08c9`, after PR #645 merged successfully.
+- PR #647 is Jalal/Shared Core-owned and remains open; its current head `041b9aa8f74c5dd0cb395433c42c27b401f7094e` has all three workflows green: ConstructionPM CI #2562, Client Typecheck #2265, PostgreSQL Integration #419.
+- The earlier #647 test failure was diagnosed as a test-construction error: the invalid `LevelingActivity` demand is rejected by authoritative model validation before the boundary call. No Hasan code was changed because this is Shared Core ownership.
+- Current open-PR inspection found no open Hasan-owned PR. Open Hasan issue tracks remain #393, #459, #79, #26 and process issue #3; none currently supplies a newly evidenced non-duplicate backend implementation gap.
+- Completed Hasan P6 slices through #635 and the current-main backend verification work #636/#643 are already merged; do not repeat resource-assignment spread persistence/read API, field/UDF verification, activity-period-actual API, or backend runtime authorization/revision tests.
+- PR #647's own stated next slice is the actual scheduler execution path with CPM recalculation and `PreserveScheduledEarlyAndLateDates` regression coverage; that work belongs to Shared Core/scheduling ownership, not Hasan backend ownership.
+
+### Current continuation point
+
+- Remain at the evidence boundary until a new authoritative backend/API/persistence contract or reproducible Backend/API/Persistence defect appears on current `main`.
+- When a Hasan-owned gap appears, branch from exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and update this document with exact commit/run identifiers before merge.
+- Do not modify PR #647 or invent duplicate P6 scheduling/resource-leveling semantics under the Hasan backend lane.
