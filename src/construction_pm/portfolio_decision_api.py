@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
-from .application.authorization import AuthorizationContext, Permission
+from .application.authorization import AuthorizationContext
 from .portfolio_decision_application import PortfolioDecisionApplicationService
 from .control_intelligence.portfolio_decision import PortfolioDecisionBoundary
 
@@ -54,8 +54,7 @@ class PortfolioDecisionAPI:
         request.validate()
         auth_context.validate()
         self._scope(auth_context, request.tenant_id)
-        self.service._require(auth_context, Permission.PROJECT_READ)
-        stored = self.service.store.get(request.tenant_id, request.portfolio_id, request.decision_id)
+        stored = self.service.get(tenant_id=request.tenant_id, portfolio_id=request.portfolio_id, decision_id=request.decision_id, context=auth_context)
         return self._serialize(stored)
     @staticmethod
     def _scope(auth_context: AuthorizationContext, tenant_id: str) -> None:
