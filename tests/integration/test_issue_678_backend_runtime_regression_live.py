@@ -23,6 +23,7 @@ from construction_pm.change_claim_api import (
     ChangeClaimAPI,
     ChangeClaimAPIError,
     ChangeClaimCreateRequest,
+    ChangeClaimReadRequest,
 )
 from construction_pm.change_claims import (
     ChangeClaimService,
@@ -38,8 +39,10 @@ from construction_pm.p6_field_registry_repository import (
     PostgresP6FieldRegistryRepository,
 )
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService,
     P6ResourceAssignmentPeriodValue,
+    PostgresP6ResourceAssignmentRepository,
     PostgresP6ResourceAssignmentPeriodRepository,
 )
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
@@ -85,6 +88,8 @@ def _field_api(connection: object) -> P6FieldRegistryAPI:
 
 
 def _resource_apis(connection: object) -> tuple[P6ResourceWriteAPI, P6ResourceReadAPI]:
+    assignment_repository = PostgresP6ResourceAssignmentRepository(connection)
+    assignment_repository.initialize()
     period_repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
     period_repository.initialize()
     spread_repository = PostgresP6ResourceSpreadRepository(connection)
@@ -96,7 +101,10 @@ def _resource_apis(connection: object) -> tuple[P6ResourceWriteAPI, P6ResourceRe
         transaction_manager,
     )
     read_api = P6ResourceReadAPI(
-        assignment_service=None,  # type: ignore[arg-type]
+        assignment_service=P6ResourceAssignmentApplicationService(
+            assignment_repository,
+            transaction_manager,
+        ),
         period_service=period_service,
         spread_service=P6ResourceSpreadApplicationService(
             spread_repository,
@@ -244,12 +252,11 @@ def test_postgres_change_claim_api_enforces_version_scope_authorization_and_idem
 
         with pytest.raises(AuthorizationError, match="CHANGE_CLAIM_SCOPE_MISMATCH"):
             api.get(
-                type("ReadRequest", (), {
-                    "contract_version": P0_CHANGE_CLAIM_API_VERSION,
-                    "tenant_id": scope.tenant_id + "-other",
-                    "project_id": scope.project_id,
-                    "resource_id": resource_id,
-                    "validate": lambda self: None,
-                })(),
+                ChangeClaimReadRequest(
+                    P0_CHANGE_CLAIM_API_VERSION,
+                    scope.tenant_id + "-other",
+                    scope.project_id,
+                    resource_id,
+                ),
                 auth_context=_auth(scope, role="viewer"),
             )
