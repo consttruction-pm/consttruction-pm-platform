@@ -64,3 +64,15 @@ test("renderer grid actions preserve authoritative field validation", () => {
   assert.deepEqual(state.p6GridGroups, [{ field_id: "activity_id", order: 0 }]);
   assert.deepEqual(state.p6GridFilters, [{ field_id: "duration", operator: "greater-than", value: 10 }]);
 });
+
+
+test("renderer cell edit action delegates typed value to workspace authority", () => {
+  let state = initialState();
+  state = {
+    ...state,
+    activities: [{ id: "A-1", wbsId: "W-1", code: "01", name: "Foundation" }],
+  };
+  const actions = createP6WorkspaceRendererActions(() => state, (next) => { state = next; });
+  actions.onP6CellValueChange?.("A-1", "duration", "7.5");
+  assert.equal(state.activities[0]?.cells?.duration, 7.5);
+});
