@@ -242,8 +242,11 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
         ),
     )
 
-    assert len(forward) == 1
+    # With the full ScheduleOptions path enabled, the authoritative
+    # leveling engine resolves the two competing demands by moving both
+    # activities one working day in sequence: Oct 2 and Oct 3.
+    assert len(forward) == 2
     assert backward == ()
     assert sorted(item.start for item in result.activities.values()) == [
-        date(2026, 10, 1), date(2026, 10, 2)
+        date(2026, 10, 2), date(2026, 10, 3)
     ]
