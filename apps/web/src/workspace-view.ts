@@ -18,6 +18,8 @@ export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onActivitySelect?: (activityId: string) => void;
+  onP6FieldAdd?: (fieldId: string) => void;
+  onP6FieldRemove?: (fieldId: string) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -50,6 +52,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <section class="cp-center">
           <section class="cp-panel cp-grid">
             <h2>${t.activities}</h2>
+            ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table>
                 <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
@@ -66,6 +69,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.addEventListener("click", () => options.onMenuSelect?.(button.dataset.menu as WorkspaceState["activeMenu"])));
   container.querySelectorAll<HTMLElement>("[data-wbs-id]").forEach((button) => button.addEventListener("click", () => { const wbsId = button.dataset.wbsId; if (wbsId) options.onWbsSelect?.(wbsId); }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-add]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldAdd;
+    if (fieldId) options.onP6FieldAdd?.(fieldId);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-remove]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldRemove;
+    if (fieldId) options.onP6FieldRemove?.(fieldId);
+  }));
+
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
     row.addEventListener("click", select);
@@ -438,6 +450,27 @@ function renderChangeClaimControl(
       </div>
     </section>
   `;
+}
+
+function renderP6FieldChooser(state: WorkspaceState): string {
+  const registry = state.p6FieldRegistry;
+  const layout = state.p6Layout;
+  if (!registry || !layout) return "";
+  const visible = new Set(layout.columns.filter((column) => column.visible).map((column) => column.field_id));
+  const available = registry.fields.filter((field) => !visible.has(field.field_id));
+  return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
+    <div class="cp-p6-field-chooser-heading">
+      <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+    </div>
+    <div class="cp-p6-field-list">
+      ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
+        const field = registry.fields.find((item) => item.field_id === column.field_id);
+        if (!field) return "";
+        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="Remove">${escapeHtml(column.label ?? field.display_name)}</button>`;
+      }).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
+    </div>
+  </section>`;
 }
 
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
