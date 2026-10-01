@@ -100,6 +100,53 @@ test("renders the authoritative formula editor in the Activity workspace when su
   assert.match(container.innerHTML, /data-p6-formula-result-type>double/);
 });
 
+test("report/print field selection forwards checkbox changes and reset", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "test",
+      status: "active",
+      fields: [
+        { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Original Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [
+        { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+        { field_id: "duration", visible: false, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+      ],
+    } as LayoutDefinition,
+  };
+  const changes: string[][] = [];
+  let resetCount = 0;
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const inputs = [
+    { dataset: { p6ReportFieldId: "activity_id" }, checked: true, addEventListener: (_event: string, listener: () => void) => listener() },
+    { dataset: { p6ReportFieldId: "duration" }, checked: false, addEventListener: () => undefined },
+  ];
+  const reset = { dataset: {}, addEventListener: (_event: string, listener: () => void) => listener() };
+  container.querySelectorAll = ((selector: string) => {
+    if (selector === "[data-p6-report-field-id]") return inputs as unknown as HTMLElement[];
+    if (selector === "[data-p6-report-field-id]:checked") return inputs.filter((input) => input.checked) as unknown as HTMLElement[];
+    if (selector === "[data-p6-report-reset]") return [reset] as unknown as HTMLElement[];
+    return [];
+  }) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    p6ReportPrintSelection: { field_ids: ["activity_id"] },
+    onP6ReportPrintSelectionChange: (fieldIds) => changes.push([...fieldIds]),
+    onP6ReportReset: () => { resetCount += 1; },
+  });
+  assert.deepEqual(changes, [["activity_id"]]);
+  assert.equal(resetCount, 1);
+});
+
 test("keeps the formula editor out of the workspace when no authoritative editor state is supplied", () => {
   const html = render("en", "schedule");
   assert.doesNotMatch(html, /cp-p6-formula-editor/);
