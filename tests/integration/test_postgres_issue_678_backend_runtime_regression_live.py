@@ -17,8 +17,6 @@ from construction_pm.application.authorization import (
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.change_claim_api import (
-)
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
