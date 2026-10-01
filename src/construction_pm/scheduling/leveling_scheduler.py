@@ -85,8 +85,9 @@ def _backward_activities_from_intermediate(
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     forward_activities: tuple[LevelingActivity, ...],
+    resolver: object,
 ) -> tuple[BackwardLevelingActivity, ...]:
-    forward_demands = {a.activity_id: a.resource_demands for a in forward_activities}
+    forward_by_id = {a.activity_id: a for a in forward_activities}
     result: list[BackwardLevelingActivity] = []
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
         early = early_schedule[activity.activity_id]
@@ -98,7 +99,21 @@ def _backward_activities_from_intermediate(
                 early_finish=early.finish,
                 late_start=late.start,
                 late_finish=late.finish,
-                resource_demands=forward_demands.get(activity.activity_id, activity.resource_demands),
+                resource_demands=tuple(
+                    ResourceDemand(
+                        demand.resource_id,
+                        resolver.add_working_duration(
+                            demand.period,
+                            resolver.working_days_between(
+                                forward_by_id[activity.activity_id].start,
+                                late.start,
+                            ),
+                        ),
+                        demand.units,
+                        demand.activity_id,
+                    )
+                    for demand in forward_by_id.get(activity.activity_id, activity).resource_demands
+                ),
                 activity_priority=activity.activity_priority,
             )
         )
@@ -180,6 +195,7 @@ def schedule_with_resource_leveling(
             early_schedule=initial.early_activities or initial.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             forward_activities=shifted_forward,
+            resolver=resolver,
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
