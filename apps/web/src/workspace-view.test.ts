@@ -196,7 +196,7 @@ test("grid presentation forwards sort, group, and filter changes", () => {
   assert.equal((groups[0] as Array<{ field_id: string }>)[0].field_id, "duration");
   assert.equal((filters[0] as Array<{ field_id: string }>)[0].field_id, "duration");
   assert.equal((filters[1] as Array<{ operator: string }>)[0].operator, "contains");
-  assert.equal((filters[1] as Array<{ value: string }>)[0].value, "10");
+  assert.equal((filters[2] as Array<{ value: string }>)[0].value, "10");
 });
 
 test("keeps the formula editor out of the workspace when no authoritative editor state is supplied", () => {
