@@ -1,5 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
+import { getWorkspaceNavigation } from "./workspace-navigation.js";
 
 const labels = {
   en: {
@@ -37,6 +38,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       <nav class="cp-menu" aria-label="Main Menu">
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
       </nav>
+      ${renderNavigationSurface(state)}
       <main class="cp-main">
         ${renderSmartGuide(state.smartGuide, t.smartGuide)}
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
@@ -83,6 +85,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
+}
+
+function renderNavigationSurface(state: WorkspaceState): string {
+  const item = getWorkspaceNavigation(state.activeMenu);
+  const statusLabel = item.status === "implemented" ? "Implemented" : item.status === "partial" ? "Partial" : "Preview";
+  return `<section class="cp-panel cp-navigation-surface" aria-label="Current workspace surface">
+    <div><strong>${escapeHtml(item.label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
+    <nav aria-label="${escapeAttribute(item.label)} submenu">
+      ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu)}</span>`).join("")}
+    </nav>
+  </section>`;
 }
 
 function renderSmartGuide(
