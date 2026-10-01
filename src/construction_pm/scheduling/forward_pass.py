@@ -241,7 +241,7 @@ def forward_pass(
             ]
             start = max(start_requirements)
             oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed:
+            if progressed and activity.actual_start is not None and activity.actual_start < start:
                 if data_date is None:
                     raise ValueError("data_date is required for out-of-sequence progress")
                 oos_action = resolve_out_of_sequence_action(
