@@ -5,7 +5,7 @@ import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import { createWorkspaceState } from "./workspace-model.js";
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
-import type { P6FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
+import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -118,7 +118,7 @@ test("renders the report/print field selection from authoritative registry and l
         { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
         { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Original Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
       ],
-    } as P6FieldRegistry,
+    } as FieldRegistry,
     p6Layout: {
       schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
       columns: [
