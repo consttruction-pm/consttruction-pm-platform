@@ -77,7 +77,11 @@ class ChangeClaimAPI:
         self._require_scope(auth_context, request.tenant_id, request.project_id)
         self.authorization.require(auth_context, Permission.PROJECT_READ)
         resource = self.repository.get(request.tenant_id, request.project_id, request.resource_id)
-        return None if resource is None else self._serialize(resource)
+        if resource is None:
+            return None
+        # PostgreSQL returns its atomic persistence envelope; the API exposes the domain resource.
+        resource = getattr(resource, "resource", resource)
+        return self._serialize(resource)
 
     @staticmethod
     def _require_scope(auth_context: AuthorizationContext, tenant_id: str, project_id: str) -> None:

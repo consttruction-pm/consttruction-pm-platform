@@ -91,6 +91,7 @@ class ChangeClaimAudit:
 
 
 class ChangeClaimRepository(Protocol):
+    def persist(self, resource: ChangeClaim, *, expected_project_revision: int, idempotency_key: str): ...
     def get(self, tenant_id: str, project_id: str, resource_id: str) -> ChangeClaim | None: ...
     def put(self, resource: ChangeClaim) -> None: ...
     def append_audit(self, audit: ChangeClaimAudit) -> None: ...
@@ -135,6 +136,10 @@ class ChangeClaimService:
         resource.validate()
         if resource.revision != expected_revision:
             raise ChangeClaimConflict("CHANGE_CLAIM_REVISION_CONFLICT")
+        persist = getattr(self.repository, "persist", None)
+        if persist is not None:
+            stored = persist(resource, expected_project_revision=expected_revision, idempotency_key=idempotency_key)
+            return stored.resource
         existing_key = self.repository.get_idempotency(
             resource.tenant_id, resource.project_id, idempotency_key
         )
