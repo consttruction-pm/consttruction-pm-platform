@@ -18,7 +18,7 @@ const labels = { title: "Report / Print Fields", selected: "Selected", visible: 
 
 test("renders selected and unselected fields from the authoritative layout", () => {
   const html = renderP6ReportPrintFieldSelection(layout, fields, { field_ids: ["activity_id"] }, labels);
-  assert.match(html, /Report \\/ Print Fields/);
+  assert.match(html, /Report \/ Print Fields/);
   assert.match(html, /data-p6-report-selected>Selected: 1/);
   assert.match(html, /data-p6-report-visible>Visible: 1/);
   assert.match(html, /data-p6-report-field-id="activity_id" checked/);
