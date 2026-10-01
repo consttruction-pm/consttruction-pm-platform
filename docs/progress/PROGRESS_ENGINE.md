@@ -21,3 +21,10 @@ Stage 32.7 Reporting/Print Engine is complete at 100%. Next planned stage is Sta
 - Deliberately did not invent supplier-consistency or lifecycle-transition rules where the inspected contracts/roadmap do not explicitly define them.
 - No production code or schema was changed in this section; this commit records the completed investigation and implementation boundary.
 - Next implementation section: define the resolver contract and exact error semantics, then add focused tests before changing production code.
+
+## Procurement reference test repair — 2026-10-01
+- Fixed the missing RFQ test fixture and corrected the atomicity read assertion.
+- Added coverage for a missing Purchase Order -> Commitment reference.
+- Resolver inspection confirms the optional PO -> Commitment reference is already enforced; no production change was needed for that relation.
+- Test commit: 979b732bd30f939fc8046424173a6bc8e092a824.
+- Next: verify main-push CI, then continue with scope-isolation and transactional/idempotency coverage.
