@@ -383,6 +383,41 @@ export function setP6GridFilters(state: WorkspaceState, filters: readonly P6Grid
   return { ...state, p6GridFilters: setGridFilters(state.p6FieldRegistry, filters) };
 }
 
+export function reorderP6GridSorts(
+  state: WorkspaceState,
+  orderedFieldIds: readonly string[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const byField = new Map(state.p6GridSorts.map((sort) => [sort.field_id, sort]));
+  const reordered = orderedFieldIds.map((fieldId) => byField.get(fieldId)).filter((sort): sort is P6GridSort => Boolean(sort));
+  if (reordered.length !== state.p6GridSorts.length) throw new Error("P6_GRID_SORT_ORDER_MISMATCH");
+  return setP6GridSorts(state, reordered.map((sort, order) => ({ ...sort, order })));
+}
+
+export function reorderP6GridGroups(
+  state: WorkspaceState,
+  orderedFieldIds: readonly string[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const byField = new Map(state.p6GridGroups.map((group) => [group.field_id, group]));
+  const reordered = orderedFieldIds.map((fieldId) => byField.get(fieldId)).filter((group): group is P6GridGroup => Boolean(group));
+  if (reordered.length !== state.p6GridGroups.length) throw new Error("P6_GRID_GROUP_ORDER_MISMATCH");
+  return setP6GridGroups(state, reordered.map((group, order) => ({ ...group, order })));
+}
+
+export function reorderP6GridFilters(
+  state: WorkspaceState,
+  orderedIndexes: readonly number[],
+): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  if (orderedIndexes.length !== state.p6GridFilters.length || new Set(orderedIndexes).size !== orderedIndexes.length) {
+    throw new Error("P6_GRID_FILTER_ORDER_MISMATCH");
+  }
+  const reordered = orderedIndexes.map((index) => state.p6GridFilters[index]);
+  if (reordered.some((filter) => !filter)) throw new Error("P6_GRID_FILTER_ORDER_MISMATCH");
+  return setP6GridFilters(state, reordered);
+}
+
 export function updateP6ActivityCell(
   state: WorkspaceState,
   activityId: string,
