@@ -260,7 +260,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     if (!row) return;
     const order = Number(row.dataset.order ?? "0");
     const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
-    options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: input.value } : filter));
+    const field = state.p6FieldRegistry?.fields.find((candidate) => candidate.field_id === current[order]?.field_id); if (!field) return; const rawValue = input.type === "checkbox" ? input.checked : input.value; const typedValue = coerceP6TypedFieldValue(field, rawValue); options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: typedValue } : filter));
   }));
   container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-remove]").forEach((button) => button.addEventListener("click", () => {
     const row = button.closest<HTMLElement>("[data-p6-grid-filter-row]");
@@ -317,6 +317,21 @@ function getWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceR
   return options.p6GridPresentation ?? (state.p6FieldRegistry ? { sorts: state.p6GridSorts, groups: state.p6GridGroups, filters: state.p6GridFilters } : null);
 }
 
+function renderP6GridFilterValue(field: P6Field, filter: P6GridFilter, locale: WorkspaceLocale): string {
+  const value = filter.value;
+  const disabled = filter.operator === "is-empty" || filter.operator === "is-not-empty";
+  const label = locale === "fa" ? "مقدار فیلتر" : "Filter value";
+  if (field.data_type === "boolean") {
+    return `<input type="checkbox" data-p6-grid-filter-value aria-label="${escapeAttribute(label)}"${value === true ? " checked" : ""}${disabled ? " disabled" : ""}>`;
+  }
+  const inputType = field.data_type === "date" ? "date"
+    : field.data_type === "datetime" ? "datetime-local"
+    : ["integer", "double", "decimal", "percentage", "cost", "duration", "unit"].includes(field.data_type) ? "number"
+    : "text";
+  const step = inputType === "number" ? ' step="any"' : "";
+  return `<input type="${inputType}" data-p6-grid-filter-value aria-label="${escapeAttribute(label)}" value="${escapeAttribute(String(value ?? ""))}"${step}${disabled ? " disabled" : ""}>`;
+}
+
 function renderWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
   const locale = state.locale;
   const presentation = getWorkspaceGridPresentation(state, options);
@@ -328,7 +343,7 @@ function renderWorkspaceGridPresentation(state: WorkspaceState, options: Workspa
     ? { "equals": "برابر", "not-equals": "نابرابر", "contains": "شامل", "starts-with": "شروع با", "ends-with": "پایان با", "greater-than": "بزرگ‌تر", "greater-than-or-equal": "بزرگ‌تر یا برابر", "less-than": "کوچک‌تر", "less-than-or-equal": "کوچک‌تر یا برابر", "is-empty": "خالی است", "is-not-empty": "خالی نیست" }
     : { "equals": "Equals", "not-equals": "Not equals", "contains": "Contains", "starts-with": "Starts with", "ends-with": "Ends with", "greater-than": "Greater than", "greater-than-or-equal": "Greater than or equal", "less-than": "Less than", "less-than-or-equal": "Less than or equal", "is-empty": "Is empty", "is-not-empty": "Is not empty" };
   const sortDirectionLabels = locale === "fa" ? { ascending: "صعودی", descending: "نزولی" } : { ascending: "Ascending", descending: "Descending" };
-  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><select data-p6-grid-filter-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === filter.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><button type="button" data-p6-grid-filter-move-up="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به بالا" : "Move filter up"}"${index === 0 ? " disabled" : ""}>↑</button><button type="button" data-p6-grid-filter-move-down="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به پایین" : "Move filter down"}"${index === presentation.filters.length - 1 ? " disabled" : ""}>↓</button><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"><button type="button" data-p6-grid-filter-remove aria-label="${locale === "fa" ? "حذف فیلتر" : "Remove filter"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`).join("");
+  const filterRows = presentation.filters.map((filter, index) => { const field = fields.find((candidate) => candidate.field_id === filter.field_id); if (!field) return ""; return `<div data-p6-grid-filter-row data-order="${index}"><select data-p6-grid-filter-field>${fields.map((candidate) => `<option value="${escapeAttribute(candidate.field_id)}"${candidate.field_id === filter.field_id ? " selected" : ""}>${escapeHtml(candidate.display_name)}</option>`).join("")}</select><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><button type="button" data-p6-grid-filter-move-up="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به بالا" : "Move filter up"}"${index === 0 ? " disabled" : ""}>↑</button><button type="button" data-p6-grid-filter-move-down="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به پایین" : "Move filter down"}"${index === presentation.filters.length - 1 ? " disabled" : ""}>↓</button>${renderP6GridFilterValue(field, filter, locale)}<button type="button" data-p6-grid-filter-remove aria-label="${locale === "fa" ? "حذف فیلتر" : "Remove filter"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`; }).join("");
   const title = locale === "fa" ? "ارائه گرید" : "Grid Presentation";
   const sortsLabel = locale === "fa" ? "مرتب‌سازی" : "Sorts";
   const groupsLabel = locale === "fa" ? "گروه‌بندی" : "Groups";
