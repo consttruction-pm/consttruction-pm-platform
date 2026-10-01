@@ -76,3 +76,16 @@ test("renderer cell edit action delegates typed value to workspace authority", (
   actions.onP6CellValueChange?.("A-1", "duration", "7.5");
   assert.equal(state.activities[0]?.cells?.duration, 7.5);
 });
+
+
+test("renderer presentation action delegates column metadata changes to workspace authority", () => {
+  let state = initialState();
+  const actions = createP6WorkspaceRendererActions(() => state, (next) => { state = next; });
+  actions.onP6FieldPresentationChange?.("activity_id", { label: "Activity", width: 240, alignment: "center", pinned: true, frozen: true });
+  const column = state.p6Layout?.columns.find((item) => item.field_id === "activity_id");
+  assert.equal(column?.label, "Activity");
+  assert.equal(column?.width, 240);
+  assert.equal(column?.alignment, "center");
+  assert.equal(column?.pinned, true);
+  assert.equal(column?.frozen, true);
+});
