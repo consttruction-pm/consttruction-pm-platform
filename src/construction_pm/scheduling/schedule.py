@@ -676,6 +676,38 @@ def calculate_floats(
     return result
 
 
+class UnsupportedScheduleOptionError(ValueError):
+    """Raised when a typed P6 option is enabled without an implemented scheduler capability."""
+
+
+def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
+    unsupported: list[str] = []
+    if options.ignore_other_project_relationships:
+        unsupported.append("ignore_other_project_relationships")
+    if options.include_external_res_ass:
+        unsupported.append("include_external_res_ass")
+    if options.level_all_resources:
+        unsupported.append("level_all_resources")
+    if options.level_within_float:
+        unsupported.append("level_within_float")
+    if float(options.over_allocation_percentage) != 0.0:
+        unsupported.append("over_allocation_percentage")
+    if options.resource_list is not None:
+        unsupported.append("resource_list")
+    if options.priority_list is not None:
+        unsupported.append("priority_list")
+    if options.min_float_to_preserve != 0:
+        unsupported.append("min_float_to_preserve")
+    if options.external_project_priority_limit != 0:
+        unsupported.append("external_project_priority_limit")
+    if options.preserve_scheduled_early_and_late_dates:
+        unsupported.append("preserve_scheduled_early_and_late_dates")
+    if unsupported:
+        raise UnsupportedScheduleOptionError(
+            "unsupported schedule options: " + ", ".join(sorted(unsupported))
+        )
+
+
 def schedule(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -690,6 +722,7 @@ def schedule(
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
+    _validate_supported_schedule_options(selected_options)
     if calculation_context is not None and calculation_context.project_version < 0:
         raise ValueError("invalid calculation context")
     activity_list = list(activities)
