@@ -19,15 +19,15 @@ export function renderP6ReportPrintFieldSelection(
   const items = ordered.map((column) => {
     const field = fields.find((candidate) => candidate.field_id === column.field_id);
     if (!field) return "";
-    return \`<label><input type="checkbox" data-p6-report-field-id="\${escapeAttribute(field.field_id)}"\${selected.has(field.field_id) ? " checked" : ""}>\${escapeHtml(column.label ?? field.display_name)}</label>\`;
+    return `<label><input type="checkbox" data-p6-report-field-id="${escapeAttribute(field.field_id)}"${selected.has(field.field_id) ? " checked" : ""}>${escapeHtml(column.label ?? field.display_name)}</label>`;
   }).join("");
-  return \`<section class="cp-p6-report-print-fields" aria-label="\${escapeAttribute(labels.title)}">
-    <h3>\${escapeHtml(labels.title)}</h3>
-    <div data-p6-report-selected>\${escapeHtml(labels.selected)}: \${selection.field_ids.length}</div>
-    <div data-p6-report-visible>\${escapeHtml(labels.visible)}: \${ordered.filter((column) => column.visible).length}</div>
-    <div>\${items}</div>
-    <button type="button" data-p6-report-reset>\${escapeHtml(labels.reset)}</button>
-  </section>\`;
+  return `<section class="cp-p6-report-print-fields" aria-label="${escapeAttribute(labels.title)}">
+    <h3>${escapeHtml(labels.title)}</h3>
+    <div data-p6-report-selected>${escapeHtml(labels.selected)}: ${selection.field_ids.length}</div>
+    <div data-p6-report-visible>${escapeHtml(labels.visible)}: ${ordered.filter((column) => column.visible).length}</div>
+    <div>${items}</div>
+    <button type="button" data-p6-report-reset>${escapeHtml(labels.reset)}</button>
+  </section>`;
 }
 
 function escapeHtml(value: string): string {
