@@ -5,6 +5,7 @@ import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
 import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
 import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
+import type { ColumnPresentation } from "./p6-field-layout-foundation.js";
 
 const labels = {
   en: {
