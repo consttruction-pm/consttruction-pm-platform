@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "reference": "Oracle Primavera P6 EPPM REST API Release 26",
+  "reference_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "purpose": "Evidence-only reconciliation of the nine non-exact Activity registry seed names. This artifact does not certify implementation, disposition, mutability, or calculation semantics.",
+  "status": "evidence_reconciled_pending_registry_decision",
+  "mappings": [
+    {"registry_name":"ActivityId","oracle_field":"Id","status":"candidate_alias","reason":"Oracle defines Id as the short activity ID. ObjectId is a separate unique system identifier; no equivalence is asserted."},
+    {"registry_name":"ActivityName","oracle_field":"Name","status":"confirmed_name_semantics","reason":"Oracle defines Name as the activity name."},
+    {"registry_name":"ActivityOwner","oracle_field":"ActivityOwnerUserId","status":"candidate_alias","reason":"Oracle exposes the activity owner as a user ID. OwnerIDArray and OwnerNamesArray also exist, so the current string seed cannot yet be certified as the canonical representation."},
+    {"registry_name":"ActivityStatus","oracle_field":"Status","status":"confirmed_name_semantics","reason":"Oracle defines Status as the current activity status."},
+    {"registry_name":"ActivityType","oracle_field":"Type","status":"confirmed_name_semantics","reason":"Oracle defines Type as the activity type and documents its allowed values."},
+    {"registry_name":"Calendar","oracle_field":"CalendarName","status":"candidate_alias","reason":"Oracle exposes CalendarName and CalendarObjectId. The generic seed name Calendar cannot yet be certified as either canonical field."},
+    {"registry_name":"RemainingStartDate","oracle_field":"RemainingEarlyStartDate","status":"candidate_alias","reason":"Oracle documents RemainingEarlyStartDate as the scheduled start of remaining work. Exact interchange aliasing still requires project regression evidence."},
+    {"registry_name":"RemainingFinishDate","oracle_field":"RemainingEarlyFinishDate","status":"unresolved","reason":"Oracle exposes RemainingEarlyFinishDate and RemainingLateFinishDate; the generic seed name does not identify which semantic is intended."},
+    {"registry_name":"UpdateUser","oracle_field":"LastUpdateUser","status":"candidate_alias","reason":"Oracle Release 26 uses LastUpdateUser for the user who last updated the activity; the seed name UpdateUser is not the official Activity field name."}
+  ],
+  "decision_rule": "Do not mutate the canonical registry from this evidence alone. Registry type, writable/computed flags, identity semantics, interchange mapping, and regression behavior must be certified separately.",
+  "next_step": "Use these mappings as the controlled input to the full 275-field typed semantic reconciliation tranche."
+}
