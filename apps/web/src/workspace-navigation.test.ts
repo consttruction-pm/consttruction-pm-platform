@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getWorkspaceNavigation,
   getWorkspaceNavigationStatus,
+  getWorkspaceNavigationStatusLabel,
   WORKSPACE_NAVIGATION,
 } from "./workspace-navigation.js";
 import { createWorkspaceState } from "./workspace-model.js";
@@ -41,4 +42,15 @@ test("navigation status follows the workspace active menu", () => {
     getWorkspaceNavigationStatus({ ...state, activeMenu: "reports" }),
     "preview",
   );
+});
+
+
+test("navigation status labels remain localized independently from status keys", () => {
+  const schedule = getWorkspaceNavigation("schedule");
+  const reports = getWorkspaceNavigation("reports");
+
+  assert.equal(getWorkspaceNavigationStatusLabel(schedule, "en"), "Implemented");
+  assert.equal(getWorkspaceNavigationStatusLabel(schedule, "fa"), "پیاده‌سازی‌شده");
+  assert.equal(getWorkspaceNavigationStatusLabel(reports, "en"), "Preview");
+  assert.equal(getWorkspaceNavigationStatusLabel(reports, "fa"), "پیش‌نمایش");
 });
