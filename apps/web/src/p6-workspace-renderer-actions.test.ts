@@ -89,3 +89,17 @@ test("renderer presentation action delegates column metadata changes to workspac
   assert.equal(column?.pinned, true);
   assert.equal(column?.frozen, true);
 });
+
+
+test("renderer grid add actions append authoritative presentation items", () => {
+  let state = initialState();
+  const actions = createP6WorkspaceRendererActions(() => state, (next) => { state = next; });
+
+  actions.onP6GridSortAdd?.();
+  actions.onP6GridGroupAdd?.();
+  actions.onP6GridFilterAdd?.();
+
+  assert.deepEqual(state.p6GridSorts, [{ field_id: "activity_id", direction: "ascending", order: 0 }]);
+  assert.deepEqual(state.p6GridGroups, [{ field_id: "activity_id", order: 0 }]);
+  assert.deepEqual(state.p6GridFilters, [{ field_id: "activity_id", operator: "equals", value: "" }]);
+});
