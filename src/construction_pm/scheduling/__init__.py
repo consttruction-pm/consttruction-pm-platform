@@ -56,6 +56,8 @@ from .schedule import (
 )
 from .schedule_options import (
     ScheduleMode,
+    PriorityListItem,
+    PrioritySortOrder,
     ScheduleOptions,
     StartToStartLagCalculationType,
     OutOfSequenceScheduleType,
@@ -76,6 +78,8 @@ __all__ = [
     "RelationshipType",
     "ScheduleMode",
     "ScheduleOptions",
+    "PriorityListItem",
+    "PrioritySortOrder",
     "ScheduleResult",
     "StartToStartLagCalculationType",
     "OutOfSequenceScheduleType",

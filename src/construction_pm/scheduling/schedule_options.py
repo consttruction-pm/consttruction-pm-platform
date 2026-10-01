@@ -30,6 +30,27 @@ class StartToStartLagCalculationType(str, Enum):
     ACTUAL_START = "ACTUAL_START"
 
 
+class PrioritySortOrder(str, Enum):
+    """P6 resource-leveling priority direction."""
+
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+
+
+@dataclass(frozen=True)
+class PriorityListItem:
+    """Typed P6 resource-leveling priority entry."""
+
+    field_name: str
+    sort_order: PrioritySortOrder = PrioritySortOrder.ASCENDING
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.field_name, str) or not self.field_name.strip():
+            raise ValueError("field_name must be a non-empty string")
+        if not isinstance(self.sort_order, PrioritySortOrder):
+            raise ValueError("sort_order must be a PrioritySortOrder")
+
+
 class OutOfSequenceScheduleType(str, Enum):
     RETAINED_LOGIC = "RETAINED_LOGIC"
     PROGRESS_OVERRIDE = "PROGRESS_OVERRIDE"
@@ -76,7 +97,7 @@ class ScheduleOptions:
     level_within_float: bool = False
     over_allocation_percentage: float = 0.0
     resource_list: str | None = None
-    priority_list: str | None = None
+    priority_list: tuple[PriorityListItem, ...] | None = None
     external_project_priority_limit: int = 0
     preserve_scheduled_early_and_late_dates: bool = False
     data_date: date | None = None
@@ -166,12 +187,16 @@ class ScheduleOptions:
         if not 0 <= self.external_project_priority_limit <= 100:
             raise ValueError("external_project_priority_limit must be between 0 and 100")
 
-        for name in ("resource_list", "priority_list"):
-            value = getattr(self, name)
-            if value is not None and not (
-                isinstance(value, str) and value.strip()
-            ):
-                raise ValueError(f"{name} must be a non-empty string or None")
+        if self.resource_list is not None and not (
+            isinstance(self.resource_list, str) and self.resource_list.strip()
+        ):
+            raise ValueError("resource_list must be a non-empty string or None")
+
+        if self.priority_list is not None:
+            if not isinstance(self.priority_list, tuple) or not self.priority_list:
+                raise ValueError("priority_list must be a non-empty tuple of PriorityListItem")
+            if not all(isinstance(item, PriorityListItem) for item in self.priority_list):
+                raise ValueError("priority_list must contain only PriorityListItem values")
 
         if self.data_date is not None and not isinstance(self.data_date, date):
             raise TypeError("data_date must be a date or None")
