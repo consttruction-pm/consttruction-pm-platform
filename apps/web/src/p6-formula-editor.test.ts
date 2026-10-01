@@ -81,3 +81,21 @@ test("does not apply a stale validation result to a newer expression", async () 
   assert.equal(editor.getState().authoritative, null);
   assert.equal(editor.getState().validating, false);
 });
+
+
+test("does not expose formula evaluation when authoritative validation is absent", async () => {
+  const editor = createP6FormulaEditor("activity-cost", {
+    async validate() {
+      return {
+        validation: { valid: false, error_code: "INVALID_FORMULA", message_key: "invalid" },
+        dependencies: { field_ids: [] },
+        result_type: { data_type: "double" },
+      };
+    },
+  });
+  editor.setExpression("Original Duration * Units");
+  const state = await editor.validate();
+  assert.equal(state.authoritative?.validation.valid, false);
+  assert.equal(state.authoritative?.result_type.data_type, "double");
+  assert.equal("evaluate" in editor, false);
+});
