@@ -22,6 +22,13 @@ import {
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
+  updateP6ActivityCell,
+  setP6GridSorts,
+  setP6GridGroups,
+  setP6GridFilters,
+  reorderP6GridSorts,
+  reorderP6GridGroups,
+  reorderP6GridFilters,
 } from "./workspace-model.js";
 
 const context = {
@@ -29,6 +36,38 @@ const context = {
   project_id: "project-1",
   revision: 4,
 };
+
+test("P6 grid presentation state is validated by the authoritative registry", () => {
+  const base = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+    ],
+  } as Parameters<typeof setP6Presentation>[1];
+  const layout = {
+    schema_version: "p6-layout.v1",
+    view_id: "activity",
+    scope: "user",
+    revision: 1,
+    columns: [
+      { field_id: "activity_id", order: 0, visible: true, width: 120, alignment: "start", pinned: false, frozen: false },
+      { field_id: "duration", order: 1, visible: true, width: 120, alignment: "end", pinned: false, frozen: false },
+    ],
+  } as Parameters<typeof setP6Presentation>[2];
+  let state = setP6Presentation(base, registry, layout);
+  state = setP6GridSorts(state, [{ field_id: "duration", direction: "descending", order: 4 }]);
+  state = setP6GridGroups(state, [{ field_id: "activity_id", order: 7 }]);
+  state = setP6GridFilters(state, [{ field_id: "duration", operator: "greater-than", value: 10 }]);
+  assert.deepEqual(state.p6GridSorts, [{ field_id: "duration", direction: "descending", order: 0 }]);
+  assert.deepEqual(state.p6GridGroups, [{ field_id: "activity_id", order: 0 }]);
+  assert.deepEqual(state.p6GridFilters, [{ field_id: "duration", operator: "greater-than", value: 10 }]);
+  assert.throws(() => setP6GridSorts(state, [{ field_id: "missing", direction: "ascending", order: 0 }]), /Unknown P6 field/);
+});
 
 test("workspace model creates a bilingual Main Workspace state", () => {
   const state = createWorkspaceState(context, "fa", "jalali");
@@ -442,6 +481,36 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
   assert.equal(state.p6FieldRegistry?.registry_version, "p6-field-registry.v1");
 });
 
+test("P6 layout mutations support show and hide without changing registry authority", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "code", subject_area: "activity", p6_field: "ActivityId", display_name: "Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 3,
+    columns: [
+      { field_id: "code", visible: true, order: 0, width: 120, alignment: "start" as const, pinned: false, frozen: false },
+      { field_id: "duration", visible: false, order: 1, width: 110, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  state = updateP6FieldPresentation(state, "duration", { visible: true });
+  assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "duration")?.visible, true);
+  assert.equal(state.p6FieldRegistry?.fields.some((field) => field.field_id === "duration"), true);
+  state = updateP6FieldPresentation(state, "code", { visible: false });
+  assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.visible, false);
+  assert.equal(state.columns.length, 1);
+});
+
 test("P6 layout mutations remain authoritative for reorder and presentation", () => {
   const registry = {
     registry_version: "p6-field-registry.v1" as const,
@@ -470,4 +539,76 @@ test("P6 layout mutations remain authoritative for reorder and presentation", ()
   state = updateP6FieldPresentation(state, "code", { visible: false, width: 180 });
   assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.width, 180);
   assert.equal(state.columns.length, 0);
+});
+
+
+test("editable P6 activity cells are coerced and committed by field authority", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string" as const, writable: false, computed: false, disposition: "standard" as const },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration" as const, writable: true, computed: false, disposition: "standard" as const },
+      { field_id: "computed", subject_area: "Activity", p6_field: "Computed", display_name: "Computed", data_type: "decimal" as const, writable: true, computed: true, disposition: "standard" as const },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const, scope: "project" as const, view_id: "activity", revision: 1,
+    columns: [
+      { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start" as const, pinned: false, frozen: false },
+      { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end" as const, pinned: false, frozen: false },
+      { field_id: "computed", visible: true, order: 2, width: 120, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  state = withActivities(state, [{ id: "A-1", wbsId: "W-1", code: "01", name: "Foundation" }]);
+  state = updateP6ActivityCell(state, "A-1", "duration", "12.5");
+  assert.equal(state.activities[0]?.cells?.duration, 12.5);
+  assert.throws(() => updateP6ActivityCell(state, "A-1", "computed", "10"), /P6_FIELD_NOT_WRITABLE/);
+  assert.throws(() => updateP6ActivityCell(state, "missing", "duration", "10"), /ACTIVITY_NOT_FOUND/);
+});
+
+
+test("P6 grid reorder contracts preserve authoritative ordering", () => {
+  const base = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+    ],
+  } as Parameters<typeof setP6Presentation>[1];
+  const layout = {
+    schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 1,
+    columns: [
+      { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+      { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+    ],
+  } as Parameters<typeof setP6Presentation>[2];
+  let state = setP6Presentation(base, registry, layout);
+  state = setP6GridSorts(state, [
+    { field_id: "activity_id", direction: "ascending", order: 0 },
+    { field_id: "duration", direction: "descending", order: 1 },
+  ]);
+  state = setP6GridGroups(state, [
+    { field_id: "activity_id", order: 0 },
+    { field_id: "duration", order: 1 },
+  ]);
+  state = setP6GridFilters(state, [
+    { field_id: "activity_id", operator: "equals", value: "A-1" },
+    { field_id: "duration", operator: "greater-than", value: 10 },
+  ]);
+  state = reorderP6GridSorts(state, ["duration", "activity_id"]);
+  state = reorderP6GridGroups(state, ["duration", "activity_id"]);
+  state = reorderP6GridFilters(state, [1, 0]);
+  assert.deepEqual(state.p6GridSorts.map((item) => [item.field_id, item.order]), [["duration", 0], ["activity_id", 1]]);
+  assert.deepEqual(state.p6GridGroups.map((item) => [item.field_id, item.order]), [["duration", 0], ["activity_id", 1]]);
+  assert.deepEqual(state.p6GridFilters.map((item) => item.field_id), ["duration", "activity_id"]);
+  assert.throws(() => reorderP6GridSorts(state, ["duration"]), /P6_GRID_SORT_ORDER_MISMATCH/);
+  assert.throws(() => reorderP6GridFilters(state, [0, 0]), /P6_GRID_FILTER_ORDER_MISMATCH/);
 });
