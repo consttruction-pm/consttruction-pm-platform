@@ -1,0 +1,179 @@
+{
+  "source": "Oracle P6 EPPM REST API Release 26 — Activity GET",
+  "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "tranche": 7,
+  "date": "2026-10-01",
+  "fields": [
+    {
+      "field": "ExpenseCost1Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExpenseCost2Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExpenseCost3Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExpenseCostPercentComplete",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExpenseCostVariance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExternalEarlyStartDate",
+      "type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "ExternalLateFinishDate",
+      "type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "Feedback",
+      "type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinancialPeriodTmplId",
+      "type": "integer",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinishDate",
+      "type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinishDate1Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinishDate2Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinishDate3Variance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "FinishDateVariance",
+      "type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "GUID",
+      "type": "string",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "HasFutureBucketData",
+      "type": "boolean",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "Id",
+      "type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "IsBaseline",
+      "type": "boolean",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "IsCritical",
+      "type": "boolean",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "field": "IsLongestPath",
+      "type": "boolean",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified"
+    }
+  ],
+  "guardrails": [
+    "No Activity dataclass expansion",
+    "No second calculation engine",
+    "No alias-as-exact mapping",
+    "No full Activity certification"
+  ],
+  "open": [
+    "nullable/default semantics",
+    "import/export mappings",
+    "full regression certification"
+  ]
+}
