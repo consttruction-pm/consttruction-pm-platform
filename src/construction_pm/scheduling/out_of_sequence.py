@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    
 from .activity import Activity
 from .forward_pass import ScheduledActivity
 from .relationships import Relationship, successor_earliest_start
@@ -24,7 +27,7 @@ class OutOfSequenceState(str, Enum):
 
 def relationship_required_start(
     relationship: Relationship,
-    predecessor: ScheduledActivity,
+    predecessor: "ScheduledActivity",
     successor_duration: int,
     *,
     resolver: WorkingTimeResolver,
