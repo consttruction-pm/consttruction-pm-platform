@@ -31,7 +31,7 @@ class TransactionManager:
 
 
 def auth(tenant="tenant-a", project="project-a", *, writer=True):
-    roles = frozenset({"viewer", "editor"}) if writer else frozenset({"viewer"})
+    roles = frozenset({"viewer", "planner"}) if writer else frozenset({"viewer"})
     return AuthorizationContext(tenant, project, "writer" if writer else "reader", roles)
 
 
