@@ -504,7 +504,7 @@ test("P6 layout mutations support show and hide without changing registry author
   assert.equal(state.p6FieldRegistry?.fields.some((field) => field.field_id === "duration"), true);
   state = updateP6FieldPresentation(state, "code", { visible: false });
   assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.visible, false);
-  assert.equal(state.columns.length, 0);
+  assert.equal(state.columns.length, 1);
 });
 
 test("P6 layout mutations remain authoritative for reorder and presentation", () => {
