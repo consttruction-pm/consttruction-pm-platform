@@ -99,7 +99,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
     if (!row) return;
     const order = Number(row.dataset.order ?? "0");
-    const current = options.p6GridPresentation?.sorts ?? [];
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
     options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, field_id: select.value } : sort));
   }));
   container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-direction]").forEach((select) => select.addEventListener("change", () => {
@@ -113,14 +113,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const row = select.closest<HTMLElement>("[data-p6-grid-group-row]");
     if (!row) return;
     const order = Number(row.dataset.order ?? "0");
-    const current = options.p6GridPresentation?.groups ?? [];
+    const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
     options.onP6GridGroupChange?.(current.map((group) => group.order === order ? { ...group, field_id: select.value } : group));
   }));
   container.querySelectorAll<HTMLInputElement>("[data-p6-grid-filter-value]").forEach((input) => input.addEventListener("change", () => {
     const row = input.closest<HTMLElement>("[data-p6-grid-filter-row]");
     if (!row) return;
     const order = Number(row.dataset.order ?? "0");
-    const current = options.p6GridPresentation?.filters ?? [];
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
     options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: input.value } : filter));
   }));
 
@@ -139,8 +139,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   });
 }
 
+function getWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null {
+  return options.p6GridPresentation ?? (state.p6FieldRegistry ? { sorts: state.p6GridSorts, groups: state.p6GridGroups, filters: state.p6GridFilters } : null);
+}
+
 function renderWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
-  const presentation = options.p6GridPresentation;
+  const presentation = getWorkspaceGridPresentation(state, options);
   if (!presentation || !state.p6FieldRegistry) return "";
   const fields = state.p6FieldRegistry.fields;
   const sortRows = presentation.sorts.map((sort) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select></div>`).join("");
