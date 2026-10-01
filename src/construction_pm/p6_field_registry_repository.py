@@ -81,12 +81,21 @@ class SQLiteP6FieldRegistryRepository:
                 );
             """
         )
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN reference_url TEXT")
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN read_only INTEGER")
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN filterable INTEGER")
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN orderable INTEGER")
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN nullable INTEGER")
-        self.connection.execute("ALTER TABLE p6_field_registry ADD COLUMN disposition TEXT")
+        columns = {
+            row[1]
+            for row in self.connection.execute("PRAGMA table_info(p6_field_registry)").fetchall()
+        }
+        migrations = {
+            "reference_url": "ALTER TABLE p6_field_registry ADD COLUMN reference_url TEXT",
+            "read_only": "ALTER TABLE p6_field_registry ADD COLUMN read_only INTEGER",
+            "filterable": "ALTER TABLE p6_field_registry ADD COLUMN filterable INTEGER",
+            "orderable": "ALTER TABLE p6_field_registry ADD COLUMN orderable INTEGER",
+            "nullable": "ALTER TABLE p6_field_registry ADD COLUMN nullable INTEGER",
+            "disposition": "ALTER TABLE p6_field_registry ADD COLUMN disposition TEXT",
+        }
+        for column, statement in migrations.items():
+            if column not in columns:
+                self.connection.execute(statement)
         self.connection.execute("UPDATE p6_field_registry SET reference_url='https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html' WHERE reference_url IS NULL")
         self.connection.execute("UPDATE p6_field_registry SET disposition='seeded_not_certified' WHERE disposition IS NULL")
         self.connection.commit()
