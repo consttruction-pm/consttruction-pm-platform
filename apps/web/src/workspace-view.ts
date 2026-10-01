@@ -1,6 +1,15 @@
-import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
+import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
+import type { P6FormulaEditorState } from "./p6-formula-editor.js";
+import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
+import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
+import { coerceP6TypedFieldValue } from "./p6-typed-field-editor.js";
+import { renderP6GridCell } from "./p6-grid-cell-view.js";
+import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
+import type { ColumnPresentation, P6Field } from "./p6-field-layout-foundation.js";
+import type { LayoutScope } from "./p6-field-layout-foundation.js";
+import { renderP6LayoutPersistenceControls } from "./p6-layout-persistence-controls-view.js";
 
 const labels = {
   en: {
@@ -21,6 +30,28 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
+  onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
+  onP6FieldPresentationChange?: (fieldId: string, patch: Partial<Omit<ColumnPresentation, "field_id">>) => void;
+  onP6CellValueChange?: (activityId: string, fieldId: string, value: string | boolean | null) => void;
+  p6FormulaEditorState?: P6FormulaEditorState | null;
+  onP6FormulaExpressionChange?: (expression: string) => void;
+  onP6FormulaValidate?: () => void;
+  p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
+  onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
+  onP6ReportPrintReset?: () => void;
+  p6GridPresentation?: { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null;
+  onP6GridSortChange?: (sorts: readonly P6GridSort[]) => void;
+  onP6GridSortAdd?: () => void;
+  onP6GridSortReorder?: (orderedFieldIds: readonly string[]) => void;
+  onP6GridGroupChange?: (groups: readonly P6GridGroup[]) => void;
+  onP6GridGroupAdd?: () => void;
+  onP6GridGroupReorder?: (orderedFieldIds: readonly string[]) => void;
+  onP6GridFilterChange?: (filters: readonly P6GridFilter[]) => void;
+  onP6GridFilterAdd?: () => void;
+  onP6GridFilterReorder?: (orderedIndexes: readonly number[]) => void;
+  p6LayoutPersistence?: { scope: LayoutScope } | null;
+  onP6LayoutLoad?: () => void;
+  onP6LayoutSave?: () => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -55,12 +86,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <section class="cp-panel cp-grid">
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
-            <div class="cp-table-wrap">
-              <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
-                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
-              </table>
-            </div>
+            ${renderP6ColumnPresentation(state, options)}
+            ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
+            ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
+            ${renderWorkspaceLayoutPersistence(state, options)}
+            ${renderWorkspaceGridPresentation(state, options)}
+            ${renderWorkspaceActivityGrid(state, t.noActivities)}
           </section>
           <section class="cp-panel cp-gantt"><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
         </section>
@@ -79,6 +110,183 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-hide]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldHide;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: false });
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldShow;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: true });
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-move-up], [data-p6-field-move-down]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldMoveUp ?? button.dataset.p6FieldMoveDown;
+    if (!fieldId || !state.p6Layout) return;
+    const orderedFieldIds = state.p6Layout.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id);
+    const index = orderedFieldIds.indexOf(fieldId);
+    if (index < 0) return;
+    const delta = button.dataset.p6FieldMoveUp !== undefined ? -1 : 1;
+    const target = index + delta;
+    if (target < 0 || target >= orderedFieldIds.length) return;
+    [orderedFieldIds[index], orderedFieldIds[target]] = [orderedFieldIds[target], orderedFieldIds[index]];
+    options.onP6FieldReorder?.(orderedFieldIds);
+  }));
+  container.querySelectorAll<HTMLTextAreaElement>("[data-p6-formula-expression]").forEach((input) => input.addEventListener("input", () => {
+    options.onP6FormulaExpressionChange?.(input.value);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-formula-validate]").forEach((button) => button.addEventListener("click", () => {
+    options.onP6FormulaValidate?.();
+  }));
+  container.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-p6-typed-value]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6TypedValue;
+    const row = input.closest<HTMLElement>("[data-activity-id]");
+    if (!fieldId || !row) return;
+    const activityId = row.dataset.activityId;
+    if (!activityId) return;
+    const value = input instanceof HTMLInputElement && input.type === "checkbox" ? input.checked : input.value;
+    options.onP6CellValueChange?.(activityId, fieldId, value);
+  }));
+
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-label]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnLabel;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { label: input.value });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-width]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnWidth;
+    const width = Number(input.value);
+    if (fieldId && Number.isFinite(width) && width > 0) options.onP6FieldPresentationChange?.(fieldId, { width });
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-column-alignment]").forEach((select) => select.addEventListener("change", () => {
+    const fieldId = select.dataset.p6ColumnAlignment;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { alignment: select.value as ColumnPresentation["alignment"] });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-pinned]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnPinned;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { pinned: input.checked });
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-column-frozen]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6ColumnFrozen;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: input.checked });
+  }));
+
+  container.querySelectorAll<HTMLElement>("[data-p6-layout-load]").forEach((button) => button.addEventListener("click", () => options.onP6LayoutLoad?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-layout-save]").forEach((button) => button.addEventListener("click", () => options.onP6LayoutSave?.()));
+
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridSortAdd?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-group-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridGroupAdd?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridFilterAdd?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-move-up], [data-p6-grid-sort-move-down]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "-1");
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
+    if (!Number.isInteger(order) || order < 0 || order >= current.length) return;
+    const target = order + (button.dataset.p6GridSortMoveUp !== undefined ? -1 : 1);
+    if (target < 0 || target >= current.length) return;
+    const ordered = current.slice().sort((a, b) => a.order - b.order).map((sort) => sort.field_id);
+    [ordered[order], ordered[target]] = [ordered[target], ordered[order]];
+    options.onP6GridSortReorder?.(ordered);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-group-move-up], [data-p6-grid-group-move-down]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-group-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "-1");
+    const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
+    if (!Number.isInteger(order) || order < 0 || order >= current.length) return;
+    const target = order + (button.dataset.p6GridGroupMoveUp !== undefined ? -1 : 1);
+    if (target < 0 || target >= current.length) return;
+    const ordered = current.slice().sort((a, b) => a.order - b.order).map((group) => group.field_id);
+    [ordered[order], ordered[target]] = [ordered[target], ordered[order]];
+    options.onP6GridGroupReorder?.(ordered);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-move-up], [data-p6-grid-filter-move-down]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "-1");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    if (!Number.isInteger(order) || order < 0 || order >= current.length) return;
+    const target = order + (button.dataset.p6GridFilterMoveUp !== undefined ? -1 : 1);
+    if (target < 0 || target >= current.length) return;
+    const ordered = current.map((_filter, index) => index);
+    [ordered[order], ordered[target]] = [ordered[target], ordered[order]];
+    options.onP6GridFilterReorder?.(ordered);
+  }));
+
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
+    options.onP6GridSortChange?.(current.filter((_sort, index) => index !== order));
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-group-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-group-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
+    options.onP6GridGroupChange?.(current.filter((_group, index) => index !== order));
+  }));
+
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
+    options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, field_id: select.value } : sort));
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-direction]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.sorts ?? [];
+    options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, direction: select.value as P6GridSort["direction"] } : sort));
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-group-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-group-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.groups ?? [];
+    options.onP6GridGroupChange?.(current.map((group) => group.order === order ? { ...group, field_id: select.value } : group));
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-filter-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.map((filter, index) => index === order
+      ? { ...filter, field_id: select.value }
+      : filter));
+  }));
+
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-filter-operator]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, operator: select.value as P6GridFilter["operator"] } : filter));
+  }));
+
+  container.querySelectorAll<HTMLInputElement>("[data-p6-grid-filter-value]").forEach((input) => input.addEventListener("change", () => {
+    const row = input.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    const field = state.p6FieldRegistry?.fields.find((candidate) => candidate.field_id === current[order]?.field_id); if (!field) return; const rawValue = input.type === "checkbox" ? input.checked : input.value; const typedValue = coerceP6TypedFieldValue(field, rawValue); options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: typedValue } : filter));
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.filter((_filter, index) => index !== order));
+  }));
+
+  container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]").forEach((input) => input.addEventListener("change", () => {
+    const fieldIds = Array.from(container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]:checked"))
+      .map((field) => field.dataset.p6ReportFieldId)
+      .filter((fieldId): fieldId is string => Boolean(fieldId));
+    options.onP6ReportPrintSelectionChange?.(fieldIds);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-report-reset]").forEach((button) => button.addEventListener("click", () => options.onP6ReportPrintReset?.()));
 
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
@@ -87,6 +295,77 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   });
 }
 
+function renderP6ColumnPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  if (!state.p6Layout || !state.p6FieldRegistry) return "";
+  const fields = new Map(state.p6FieldRegistry.fields.map((field) => [field.field_id, field]));
+  const title = state.locale === "fa" ? "تنظیمات ستون‌ها" : "Column Presentation";
+  const alignmentLabels = state.locale === "fa"
+    ? { start: "ابتدا", center: "وسط", end: "انتها" }
+    : { start: "Start", center: "Center", end: "End" };
+  const rows = state.p6Layout.columns
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((column) => {
+      const field = fields.get(column.field_id);
+      if (!field) return "";
+      const label = column.label ?? field.display_name;
+      return `<div data-p6-column-presentation-row data-field-id="${escapeAttribute(column.field_id)}">
+        <strong>${escapeHtml(field.display_name)}</strong>
+        <input data-p6-column-label="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "عنوان ستون" : "Column label")}" value="${escapeAttribute(label)}">
+        <input data-p6-column-width="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "عرض ستون" : "Column width")}" type="number" min="1" value="${column.width}">
+        <select data-p6-column-alignment="${escapeAttribute(column.field_id)}" aria-label="${escapeAttribute(state.locale === "fa" ? "تراز ستون" : "Column alignment")}">
+          ${(["start", "center", "end"] as const).map((alignment) => `<option value="${alignment}"${column.alignment === alignment ? " selected" : ""}>${escapeHtml(alignmentLabels[alignment])}</option>`).join("")}
+        </select>
+        <label><input data-p6-column-pinned="${escapeAttribute(column.field_id)}" type="checkbox"${column.pinned ? " checked" : ""}> ${state.locale === "fa" ? "ثابت" : "Pinned"}</label>
+        <label><input data-p6-column-frozen="${escapeAttribute(column.field_id)}" type="checkbox"${column.frozen ? " checked" : ""}> ${state.locale === "fa" ? "منجمد" : "Frozen"}</label>
+      </div>`;
+    }).join("");
+  return `<section class="cp-panel cp-p6-column-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3>${rows || '<div class="cp-empty">—</div>'}</section>`;
+}
+
+function getWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null {
+  return options.p6GridPresentation ?? (state.p6FieldRegistry ? { sorts: state.p6GridSorts, groups: state.p6GridGroups, filters: state.p6GridFilters } : null);
+}
+
+function renderP6GridFilterValue(field: P6Field, filter: P6GridFilter, locale: WorkspaceLocale): string {
+  const value = filter.value;
+  const disabled = filter.operator === "is-empty" || filter.operator === "is-not-empty";
+  const label = locale === "fa" ? "مقدار فیلتر" : "Filter value";
+  if (field.data_type === "boolean") {
+    return `<input type="checkbox" data-p6-grid-filter-value aria-label="${escapeAttribute(label)}"${value === true ? " checked" : ""}${disabled ? " disabled" : ""}>`;
+  }
+  const inputType = field.data_type === "date" ? "date"
+    : field.data_type === "datetime" ? "datetime-local"
+    : ["integer", "double", "decimal", "percentage", "cost", "duration", "unit"].includes(field.data_type) ? "number"
+    : "text";
+  const step = inputType === "number" ? ' step="any"' : "";
+  return `<input type="${inputType}" data-p6-grid-filter-value aria-label="${escapeAttribute(label)}" value="${escapeAttribute(String(value ?? ""))}"${step}${disabled ? " disabled" : ""}>`;
+}
+
+function renderWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  const locale = state.locale;
+  const presentation = getWorkspaceGridPresentation(state, options);
+  if (!presentation || !state.p6FieldRegistry) return "";
+  const fields = state.p6FieldRegistry.fields;
+  const sortRows = presentation.sorts.map((sort, index) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><button type="button" data-p6-grid-sort-move-up="${sort.field_id}" aria-label="${locale === "fa" ? "انتقال مرتب‌سازی به بالا" : "Move sort up"}"${index === 0 ? " disabled" : ""}>↑</button><button type="button" data-p6-grid-sort-move-down="${sort.field_id}" aria-label="${locale === "fa" ? "انتقال مرتب‌سازی به پایین" : "Move sort down"}"${index === presentation.sorts.length - 1 ? " disabled" : ""}>↓</button><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select><button type="button" data-p6-grid-sort-remove aria-label="${locale === "fa" ? "حذف مرتب‌سازی" : "Remove sort"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`).join("");
+  const groupRows = presentation.groups.map((group, index) => `<div data-p6-grid-group-row data-order="${group.order}"><select data-p6-grid-group-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === group.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><button type="button" data-p6-grid-group-move-up="${group.field_id}" aria-label="${locale === "fa" ? "انتقال گروه‌بندی به بالا" : "Move group up"}"${index === 0 ? " disabled" : ""}>↑</button><button type="button" data-p6-grid-group-move-down="${group.field_id}" aria-label="${locale === "fa" ? "انتقال گروه‌بندی به پایین" : "Move group down"}"${index === presentation.groups.length - 1 ? " disabled" : ""}>↓</button><button type="button" data-p6-grid-group-remove aria-label="${locale === "fa" ? "حذف گروه‌بندی" : "Remove group"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`).join("");
+  const operatorLabels: Record<P6GridFilter["operator"], string> = locale === "fa"
+    ? { "equals": "برابر", "not-equals": "نابرابر", "contains": "شامل", "starts-with": "شروع با", "ends-with": "پایان با", "greater-than": "بزرگ‌تر", "greater-than-or-equal": "بزرگ‌تر یا برابر", "less-than": "کوچک‌تر", "less-than-or-equal": "کوچک‌تر یا برابر", "is-empty": "خالی است", "is-not-empty": "خالی نیست" }
+    : { "equals": "Equals", "not-equals": "Not equals", "contains": "Contains", "starts-with": "Starts with", "ends-with": "Ends with", "greater-than": "Greater than", "greater-than-or-equal": "Greater than or equal", "less-than": "Less than", "less-than-or-equal": "Less than or equal", "is-empty": "Is empty", "is-not-empty": "Is not empty" };
+  const sortDirectionLabels = locale === "fa" ? { ascending: "صعودی", descending: "نزولی" } : { ascending: "Ascending", descending: "Descending" };
+  const filterRows = presentation.filters.map((filter, index) => { const field = fields.find((candidate) => candidate.field_id === filter.field_id); if (!field) return ""; return `<div data-p6-grid-filter-row data-order="${index}"><select data-p6-grid-filter-field>${fields.map((candidate) => `<option value="${escapeAttribute(candidate.field_id)}"${candidate.field_id === filter.field_id ? " selected" : ""}>${escapeHtml(candidate.display_name)}</option>`).join("")}</select><select data-p6-grid-filter-operator>${Object.entries(operatorLabels).map(([operator, label]) => `<option value="${escapeAttribute(operator)}"${operator === filter.operator ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><button type="button" data-p6-grid-filter-move-up="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به بالا" : "Move filter up"}"${index === 0 ? " disabled" : ""}>↑</button><button type="button" data-p6-grid-filter-move-down="${index}" aria-label="${locale === "fa" ? "انتقال فیلتر به پایین" : "Move filter down"}"${index === presentation.filters.length - 1 ? " disabled" : ""}>↓</button>${renderP6GridFilterValue(field, filter, locale)}<button type="button" data-p6-grid-filter-remove aria-label="${locale === "fa" ? "حذف فیلتر" : "Remove filter"}">${locale === "fa" ? "حذف" : "Remove"}</button></div>`; }).join("");
+  const title = locale === "fa" ? "ارائه گرید" : "Grid Presentation";
+  const sortsLabel = locale === "fa" ? "مرتب‌سازی" : "Sorts";
+  const groupsLabel = locale === "fa" ? "گروه‌بندی" : "Groups";
+  const filtersLabel = locale === "fa" ? "فیلترها" : "Filters";
+  const ascending = sortDirectionLabels.ascending;
+  const descending = sortDirectionLabels.descending;
+  const localizedSortRows = sortRows.replaceAll("Ascending", ascending).replaceAll("Descending", descending);
+  const addSort = locale === "fa" ? "افزودن مرتب‌سازی" : "Add sort";
+  const addGroup = locale === "fa" ? "افزودن گروه‌بندی" : "Add group";
+  const addFilter = locale === "fa" ? "افزودن فیلتر" : "Add filter";
+  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3><div data-p6-grid-sort-count>${escapeHtml(sortsLabel)}: ${presentation.sorts.length}</div><button type="button" data-p6-grid-sort-add>${escapeHtml(addSort)}</button>${localizedSortRows}<div data-p6-grid-group-count>${escapeHtml(groupsLabel)}: ${presentation.groups.length}</div><button type="button" data-p6-grid-group-add>${escapeHtml(addGroup)}</button>${groupRows}<div data-p6-grid-filter-count>${escapeHtml(filtersLabel)}: ${presentation.filters.length}</div><button type="button" data-p6-grid-filter-add>${escapeHtml(addFilter)}</button>${filterRows}</section>`;
+}
 function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
@@ -466,25 +745,121 @@ function renderChangeClaimControl(
   `;
 }
 
+function renderWorkspaceLayoutPersistence(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  if (!options.p6LayoutPersistence || !state.p6Layout) return "";
+  return renderP6LayoutPersistenceControls(options.p6LayoutPersistence.scope, state.locale === "fa"
+    ? { title: "ذخیره‌سازی چیدمان P6", load: "بارگذاری چیدمان", save: "ذخیره چیدمان", scope: "دامنه" }
+    : { title: "P6 Layout Persistence", load: "Load layout", save: "Save layout", scope: "Scope" });
+}
+
+function renderWorkspaceFormulaEditor(state: P6FormulaEditorState | null | undefined, locale: WorkspaceState["locale"]): string {
+  if (!state) return "";
+  return renderP6FormulaEditor(state, locale === "fa"
+    ? {
+        title: "ویرایشگر فرمول", expression: "عبارت", validating: "در حال اعتبارسنجی…", validate: "اعتبارسنجی",
+        valid: "معتبر", invalid: "نامعتبر", dependencies: "وابستگی‌ها", resultType: "نوع نتیجه",
+      }
+    : {
+        title: "Formula Editor", expression: "Expression", validating: "Validating…", validate: "Validate",
+        valid: "Valid", invalid: "Invalid", dependencies: "Dependencies", resultType: "Result type",
+      });
+}
+
+function renderWorkspaceReportPrintSelection(state: WorkspaceState, selection: { field_ids: readonly string[] } | null | undefined): string {
+  if (!selection || !state.p6FieldRegistry || !state.p6Layout) return "";
+  return renderP6ReportPrintFieldSelection(state.p6Layout, state.p6FieldRegistry.fields, selection, state.locale === "fa"
+    ? { title: "فیلدهای گزارش / چاپ", selected: "انتخاب‌شده", visible: "قابل نمایش", reset: "بازنشانی به فیلدهای قابل نمایش" }
+    : { title: "Report / Print Fields", selected: "Selected", visible: "Visible", reset: "Reset to visible" });
+}
+
 function renderP6FieldChooser(state: WorkspaceState): string {
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
-  return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
+  const hiddenColumns = layout.columns.filter((column) => !column.visible).sort((a, b) => a.order - b.order);
+  const fa = state.locale === "fa";
+  const title = fa ? "انتخابگر فیلدهای P6" : "P6 Field Chooser";
+  const fieldsLabel = fa ? "فیلدها" : "Fields";
+  const removeLabel = fa ? "حذف" : "Remove";
+  const moveUpLabel = fa ? "انتقال به بالا" : "Move up";
+  const moveDownLabel = fa ? "انتقال به پایین" : "Move down";
+  const addLabel = fa ? "افزودن" : "Add";
+  const showLabel = fa ? "نمایش" : "Show";
+  const hideLabel = fa ? "مخفی‌کردن" : "Hide";
+  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(title)}">
     <div class="cp-p6-field-chooser-heading">
-      <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+      <strong>${escapeHtml(fieldsLabel)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
-      ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
+      ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column, index, visibleColumns) => {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
-        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="Remove">${escapeHtml(column.label ?? field.display_name)}</button>`;
+        const label = escapeHtml(column.label ?? field.display_name);
+        const fieldId = escapeAttribute(field.field_id);
+        const upDisabled = index === 0 ? " disabled" : "";
+        const downDisabled = index === visibleColumns.length - 1 ? " disabled" : "";
+        return `<div data-p6-field-row data-field-id="${fieldId}">
+          <span>${label}</span>
+          <button type="button" data-p6-field-move-up="${fieldId}" title="${escapeAttribute(moveUpLabel)}" aria-label="${escapeAttribute(moveUpLabel)}"${upDisabled}>↑</button>
+          <button type="button" data-p6-field-move-down="${fieldId}" title="${escapeAttribute(moveDownLabel)}" aria-label="${escapeAttribute(moveDownLabel)}"${downDisabled}>↓</button>
+          <button type="button" data-p6-field-hide="${fieldId}" title="${escapeAttribute(hideLabel)}">${escapeHtml(hideLabel)}</button>
+          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
+        </div>`;
       }).join("")}
-      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
+      ${hiddenColumns.map((column) => {
+        const field = registry.fields.find((item) => item.field_id === column.field_id);
+        if (!field) return "";
+        return `<div data-p6-field-row data-p6-field-hidden data-field-id="${escapeAttribute(field.field_id)}">
+          <span>${escapeHtml(column.label ?? field.display_name)}</span>
+          <button type="button" data-p6-field-show="${escapeAttribute(field.field_id)}" title="${escapeAttribute(showLabel)}">${escapeHtml(showLabel)}</button>
+        </div>`;
+      }).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(addLabel)}">${escapeHtml(field.display_name)} · ${escapeHtml(addLabel)}</button>`).join("")}
     </div>
   </section>`;
+}
+function renderWorkspaceActivityGrid(state: WorkspaceState, noActivitiesLabel: string): string {
+  if (state.p6FieldRegistry && state.p6Layout) {
+    const columns = state.p6Layout.columns.filter((column) => column.visible).slice().sort((a, b) => a.order - b.order);
+    const fields = new Map(state.p6FieldRegistry.fields.map((field) => [field.field_id, field]));
+    const header = columns.map((column) => {
+      const field = fields.get(column.field_id);
+      if (!field) return "";
+      return `<th data-p6-grid-field-id="${escapeAttribute(field.field_id)}" data-p6-grid-alignment="${column.alignment}" data-p6-grid-pinned="${column.pinned ? "true" : "false"}" data-p6-grid-frozen="${column.frozen ? "true" : "false"}" style="width:${column.width}px;text-align:${column.alignment}">${escapeHtml(column.label ?? field.display_name)}</th>`;
+    }).join("");
+    const rows = state.activities.map((activity) => {
+      const selected = activity.id === state.selectedActivityId;
+      const cells = columns.map((column) => {
+        const field = fields.get(column.field_id);
+        if (!field) return "";
+        const value = getP6ActivityCellValue(field.field_id, activity);
+        const editing = field.writable && !field.computed;
+        return `<td data-p6-grid-field-id="${escapeAttribute(field.field_id)}" data-p6-grid-alignment="${column.alignment}" data-p6-grid-pinned="${column.pinned ? "true" : "false"}" data-p6-grid-frozen="${column.frozen ? "true" : "false"}" style="text-align:${column.alignment}">${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale, editing })}</td>`;
+      }).join("");
+      return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${cells}</tr>`;
+    }).join("");
+    return `<div class="cp-table-wrap">
+      <table data-p6-activity-grid>
+        <thead><tr>${header}</tr></thead>
+        <tbody>${rows || `<tr><td colspan="${Math.max(1, columns.length)}">${escapeHtml(noActivitiesLabel)}</td></tr>`}</tbody>
+      </table>
+    </div>`;
+  }
+  return `<div class="cp-table-wrap">
+    <table>
+      <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+      <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${escapeHtml(noActivitiesLabel)}</td></tr>`}</tbody>
+    </table>
+  </div>`;
+}
+
+function getP6ActivityCellValue(fieldId: string, activity: WorkspaceActivityRow): WorkspaceCellValue {
+  if (fieldId === "activity_id") return activity.id;
+  if (fieldId === "activity_code") return activity.code;
+  if (fieldId === "activity_name") return activity.name;
+  return activity.cells?.[fieldId] ?? null;
 }
 
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
