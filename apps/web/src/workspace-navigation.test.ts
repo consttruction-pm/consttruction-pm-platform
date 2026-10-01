@@ -54,3 +54,18 @@ test("navigation status labels remain localized independently from status keys",
   assert.equal(getWorkspaceNavigationStatusLabel(reports, "en"), "Preview");
   assert.equal(getWorkspaceNavigationStatusLabel(reports, "fa"), "پیش‌نمایش");
 });
+
+
+test("every V1 navigation surface has complete bilingual labels", () => {
+  for (const item of WORKSPACE_NAVIGATION) {
+    assert.ok(item.label.en.length > 0);
+    assert.ok(item.label.fa.length > 0);
+    assert.ok(item.statusLabel.en.length > 0);
+    assert.ok(item.statusLabel.fa.length > 0);
+    assert.ok(item.submenus.length > 0);
+    for (const submenu of item.submenus) {
+      assert.ok(submenu.en.length > 0);
+      assert.ok(submenu.fa.length > 0);
+    }
+  }
+});
