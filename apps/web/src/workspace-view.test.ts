@@ -232,6 +232,32 @@ test("localizes P6 grid presentation labels and filter operators", () => {
   assert.match(container.innerHTML, /صعودی/);
 });
 
+test("P6 field chooser forwards hide without removing the layout column", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as LayoutDefinition,
+  };
+  const hide = { dataset: { p6FieldHide: "activity_id" }, addEventListener: (_event: string, listener: () => void) => listener() };
+  const changes: Array<{ fieldId: string; patch: { visible?: boolean } }> = [];
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  container.querySelectorAll = ((selector: string) => (
+    selector === "[data-p6-field-hide]" ? [hide] as unknown as HTMLElement[] : []
+  )) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldPresentationChange: (fieldId, patch) => changes.push({ fieldId, patch }),
+  });
+  assert.match(container.innerHTML, /data-p6-field-hide="activity_id"/);
+  assert.match(container.innerHTML, /Hide/);
+  assert.deepEqual(changes, [{ fieldId: "activity_id", patch: { visible: false } }]);
+});
+
 test("localizes P6 hidden field show control", () => {
   const state = {
     ...createWorkspaceState(
