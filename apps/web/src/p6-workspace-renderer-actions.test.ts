@@ -34,21 +34,22 @@ function initialState() {
   );
 }
 
-test("renderer actions delegate field mutations to workspace authority", () => {
+test("renderer actions delegate hide/show and field mutations to workspace authority", () => {
   let state = initialState();
   const actions = createP6WorkspaceRendererActions(() => state, (next) => { state = next; });
 
   actions.onP6FieldPresentationChange?.("duration", { visible: false });
   assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "duration")?.visible, false);
 
+  actions.onP6FieldPresentationChange?.("duration", { visible: true });
+  actions.onP6FieldRemove?.("duration");
+  assert.equal(state.p6Layout?.columns.length, 1);
+
   actions.onP6FieldAdd?.("duration");
   assert.equal(state.p6Layout?.columns.length, 2);
 
   actions.onP6FieldReorder?.(["duration", "activity_id"]);
   assert.equal(state.p6Layout?.columns[0].field_id, "duration");
-
-  actions.onP6FieldRemove?.("duration");
-  assert.equal(state.p6Layout?.columns.length, 1);
 });
 
 test("renderer grid actions preserve authoritative field validation", () => {
