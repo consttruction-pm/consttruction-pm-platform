@@ -698,8 +698,6 @@ def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
         unsupported.append("priority_list")
     if options.min_float_to_preserve != 0:
         unsupported.append("min_float_to_preserve")
-    if options.external_project_priority_limit != 0:
-        unsupported.append("external_project_priority_limit")
     if options.preserve_scheduled_early_and_late_dates:
         unsupported.append("preserve_scheduled_early_and_late_dates")
     if unsupported:
