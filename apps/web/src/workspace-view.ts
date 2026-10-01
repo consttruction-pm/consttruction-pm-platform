@@ -31,6 +31,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldPresentationChange?: (fieldId: string, patch: Partial<Omit<ColumnPresentation, "field_id">>) => void;
   onP6CellValueChange?: (activityId: string, fieldId: string, value: string | boolean | null) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
+  onP6FormulaExpressionChange?: (expression: string) => void;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
   onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
   onP6ReportPrintReset?: () => void;
@@ -114,6 +115,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     if (target < 0 || target >= orderedFieldIds.length) return;
     [orderedFieldIds[index], orderedFieldIds[target]] = [orderedFieldIds[target], orderedFieldIds[index]];
     options.onP6FieldReorder?.(orderedFieldIds);
+  }));
+  container.querySelectorAll<HTMLTextAreaElement>("[data-p6-formula-expression]").forEach((input) => input.addEventListener("input", () => {
+    options.onP6FormulaExpressionChange?.(input.value);
   }));
   container.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-p6-typed-value]").forEach((input) => input.addEventListener("change", () => {
     const fieldId = input.dataset.p6TypedValue;
