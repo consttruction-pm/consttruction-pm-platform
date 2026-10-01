@@ -876,3 +876,34 @@ test("P6 grid filter values use field-typed controls and coercion", () => {
   assert.equal(changes[0]?.[0]?.value, 12.5);
 
 });
+
+
+test("P6 layout persistence controls expose load and save callbacks", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as LayoutDefinition,
+  };
+  const listeners = new Map<string, () => void>();
+  const controls = {
+    "[data-p6-layout-load]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("load", listener) }],
+    "[data-p6-layout-save]": [{ addEventListener: (_event: string, listener: () => void) => listeners.set("save", listener) }],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => (controls[selector as keyof typeof controls] ?? []) as HTMLElement[]) as RenderContainer["querySelectorAll"],
+  };
+  const calls: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    p6LayoutPersistence: { scope: "project" },
+    onP6LayoutLoad: () => calls.push("load"),
+    onP6LayoutSave: () => calls.push("save"),
+  });
+  listeners.get("load")?.();
+  listeners.get("save")?.();
+  assert.deepEqual(calls, ["load", "save"]);
+  assert.match(container.innerHTML, /data-p6-layout-load/);
+  assert.match(container.innerHTML, /data-p6-layout-save/);
+});
