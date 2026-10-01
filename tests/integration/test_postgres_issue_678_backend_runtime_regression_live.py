@@ -191,3 +191,48 @@ def test_postgres_resource_period_write_api_round_trips_through_read_api() -> No
         with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
             write_api.save_assignment_period(value, auth_context=_auth(scope, role="viewer"))
 
+
+
+def test_postgres_change_claim_api_round_trips_through_atomic_store() -> None:
+    scope = _scope("change")
+    from construction_pm.change_claim_api import (
+        P0_CHANGE_CLAIM_API_VERSION,
+        ChangeClaimAPI,
+        ChangeClaimCreateRequest,
+        ChangeClaimReadRequest,
+    )
+    from construction_pm.change_claims import (
+        ChangeClaimService,
+        ChangeClaimStatus,
+        ChangeClaimType,
+        PostgresChangeClaimStore,
+    )
+    request = ChangeClaimCreateRequest(
+        contract_version=P0_CHANGE_CLAIM_API_VERSION,
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        resource_id="change-1",
+        revision=0,
+        resource_type=ChangeClaimType.CLAIM,
+        status=ChangeClaimStatus.DRAFT,
+        actor_id="api-user",
+        occurred_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+        payload={"summary": "postgres api wiring"},
+        evidence_refs=("evidence-1",),
+        expected_revision=0,
+        idempotency_key=f"claim-{uuid.uuid4().hex}",
+    )
+    with psycopg.connect(DSN) as connection:
+        store = PostgresChangeClaimStore(connection)
+        store.initialize()
+        store.ensure_project(scope.tenant_id, scope.project_id)
+        connection.commit()
+        api = ChangeClaimAPI(ChangeClaimService(store), store, default_project_policy())
+        created = api.create(request, auth_context=_auth(scope))
+        replay = api.create(request, auth_context=_auth(scope))
+        assert replay == created
+        loaded = api.get(
+            ChangeClaimReadRequest(P0_CHANGE_CLAIM_API_VERSION, scope.tenant_id, scope.project_id, "change-1"),
+            auth_context=_auth(scope, role="viewer"),
+        )
+        assert loaded == created
