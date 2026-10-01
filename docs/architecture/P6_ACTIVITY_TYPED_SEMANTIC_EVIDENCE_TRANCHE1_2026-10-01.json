@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "reference": "Oracle Primavera P6 EPPM REST API Release 26",
+  "purpose": "First controlled typed-semantic evidence tranche. This artifact records Oracle API types and explicit computation/update wording without changing the canonical registry.",
+  "certification_status": "evidence_only_pending_internal_mapping_and_regression",
+  "fields": [
+    {"p6_field":"AccountingVariance","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle explicitly states AccountingVariance is computed as planned value minus actual cost."},
+    {"p6_field":"ActualDuration","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle explicitly states actual duration is computed from actual start/finish or data date using the activity calendar."},
+    {"p6_field":"ActualLaborCost","api_type":"double","computed":"conditional","writable":"not_certified","evidence":"Oracle states it is computed from actual labor units and default price when no resources are assigned; assignment-derived behavior also applies."},
+    {"p6_field":"ActualLaborUnits","api_type":"double","computed":"not_established","writable":"not_certified","evidence":"Oracle defines the value but the endpoint schema alone does not certify storage/mutability semantics."},
+    {"p6_field":"ActualStartDate","api_type":"date-time","computed":"not_established","writable":"not_certified","evidence":"Oracle defines the actual start date; update capability alone is insufficient to certify field mutability semantics."},
+    {"p6_field":"ActualFinishDate","api_type":"date-time","computed":"not_established","writable":"not_certified","evidence":"Oracle defines the actual finish date; update capability alone is insufficient to certify field mutability semantics."},
+    {"p6_field":"DurationPercentComplete","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle explicitly gives the formula (planned duration - remaining duration) / planned duration * 100."},
+    {"p6_field":"PercentComplete","api_type":"double","computed":"configuration-dependent","writable":"not_certified","evidence":"Oracle states it is tied to duration, units, or physical percent complete according to PercentCompleteType."},
+    {"p6_field":"PhysicalPercentComplete","api_type":"double","computed":"conditional","writable":"not_certified","evidence":"Oracle states physical percent complete can be user-entered or calculated from weighted activity steps."},
+    {"p6_field":"PerformancePercentComplete","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle states performance percent complete is used for earned value and depends on the WBS earned-value technique."},
+    {"p6_field":"PlannedDuration","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle states planned duration is working time between planned start and finish using the activity calendar."},
+    {"p6_field":"PlannedStartDate","api_type":"date-time","computed":"scheduler-derived-and-manually-updateable","writable":"not_certified","evidence":"Oracle explicitly states the date is computed by the scheduler but can be updated manually before the activity is started."},
+    {"p6_field":"PlannedFinishDate","api_type":"date-time","computed":"scheduler-derived-and-manually-updateable","writable":"not_certified","evidence":"Oracle explicitly states the date is computed by the scheduler but can be updated manually before the activity is started."},
+    {"p6_field":"PlannedTotalCost","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle explicitly gives the composition: planned labor + nonlabor + material + expense cost."},
+    {"p6_field":"PlannedTotalUnits","api_type":"double","computed":true,"writable":"not_certified","evidence":"Oracle explicitly states it is the sum of planned labor and planned nonlabor units."}
+  ],
+  "guardrail": "No field is promoted to Implemented, Equivalent Superset, or Outside Scope from this tranche. Internal writable/computed/storage semantics require mapping to the project model plus regression fixtures."
+}
