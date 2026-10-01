@@ -22,6 +22,9 @@ import {
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
+  setP6GridSorts,
+  setP6GridGroups,
+  setP6GridFilters,
 } from "./workspace-model.js";
 
 const context = {
@@ -29,6 +32,37 @@ const context = {
   project_id: "project-1",
   revision: 4,
 };
+
+test("P6 grid presentation state is validated by the authoritative registry", () => {
+  const base = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+    ],
+  } as Parameters<typeof setP6Presentation>[1];
+  const layout = {
+    layout_id: "layout-1",
+    scope: "user",
+    revision: 1,
+    columns: [
+      { field_id: "activity_id", order: 0, visible: true, width: 120 },
+      { field_id: "duration", order: 1, visible: true, width: 120 },
+    ],
+  } as Parameters<typeof setP6Presentation>[2];
+  let state = setP6Presentation(base, registry, layout);
+  state = setP6GridSorts(state, [{ field_id: "duration", direction: "descending", order: 4 }]);
+  state = setP6GridGroups(state, [{ field_id: "activity_id", order: 7 }]);
+  state = setP6GridFilters(state, [{ field_id: "duration", operator: "greater-than", value: 10 }]);
+  assert.deepEqual(state.p6GridSorts, [{ field_id: "duration", direction: "descending", order: 0 }]);
+  assert.deepEqual(state.p6GridGroups, [{ field_id: "activity_id", order: 0 }]);
+  assert.deepEqual(state.p6GridFilters, [{ field_id: "duration", operator: "greater-than", value: 10 }]);
+  assert.throws(() => setP6GridSorts(state, [{ field_id: "missing", direction: "ascending", order: 0 }]), /Unknown P6 field/);
+});
 
 test("workspace model creates a bilingual Main Workspace state", () => {
   const state = createWorkspaceState(context, "fa", "jalali");
