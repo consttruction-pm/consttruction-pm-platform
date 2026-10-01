@@ -119,7 +119,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   }));
   container.querySelectorAll<HTMLTextAreaElement>("[data-p6-formula-expression]").forEach((input) => input.addEventListener("input", () => {
     options.onP6FormulaExpressionChange?.(input.value);
-  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-formula-validate]").forEach((button) => button.addEventListener("click", () => {\n    options.onP6FormulaValidate?.();\n  }));
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-formula-validate]").forEach((button) => button.addEventListener("click", () => {
+    options.onP6FormulaValidate?.();
+  }));
   container.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-p6-typed-value]").forEach((input) => input.addEventListener("change", () => {
     const fieldId = input.dataset.p6TypedValue;
     const row = input.closest<HTMLElement>("[data-activity-id]");
@@ -720,7 +723,8 @@ function renderP6FieldChooser(state: WorkspaceState): string {
           <span>${label}</span>
           <button type="button" data-p6-field-move-up="${fieldId}" title="${escapeAttribute(moveUpLabel)}" aria-label="${escapeAttribute(moveUpLabel)}"${upDisabled}>↑</button>
           <button type="button" data-p6-field-move-down="${fieldId}" title="${escapeAttribute(moveDownLabel)}" aria-label="${escapeAttribute(moveDownLabel)}"${downDisabled}>↓</button>
-          <button type="button" data-p6-field-hide="${fieldId}" title="${escapeAttribute(hideLabel)}">${escapeHtml(hideLabel)}</button>\n          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
+          <button type="button" data-p6-field-hide="${fieldId}" title="${escapeAttribute(hideLabel)}">${escapeHtml(hideLabel)}</button>
+          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
         </div>`;
       }).join("")}
       ${hiddenColumns.map((column) => {
