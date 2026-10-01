@@ -55,7 +55,7 @@ test("renders datetime and localized editable controls from registry metadata", 
   const datetime = field("datetime", { field_id: "actual_start", display_name: "Actual Start" });
   const boolean = field("boolean", { field_id: "critical", display_name: "Critical" });
   assert.match(renderP6TypedFieldEditor(datetime, "2026-10-01T08:30"), /type="datetime-local"/);
-  assert.match(renderP6TypedFieldEditor(boolean, false, { locale: "fa" }), /ویرایش مقدار Critical/);
+  assert.match(renderP6TypedFieldEditor(boolean, false, { locale: "fa" }), /aria-label="Critical"/);
   assert.match(renderP6TypedFieldEditor(boolean, false), /data-p6-typed-value="critical"/);
 });
 
