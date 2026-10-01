@@ -648,15 +648,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "LevelingPriority",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "LocationId",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -1115,5 +1106,5 @@
       "reference_verified": false
     }
   ],
-  "entry_count": 123
+  "entry_count": 122
 }
