@@ -45,6 +45,7 @@ from .resource_leveling import (
     resolve_leveling_passes,
     select_leveling_resources,
 )
+from .leveling_scheduler import schedule_with_resource_leveling
 from .schedule import (
     FloatActivity,
     ScheduleResult,
@@ -138,5 +139,6 @@ __all__ = [
     "resolve_float_finish_date",
     "forward_pass",
     "schedule",
+    "schedule_with_resource_leveling",
     "successor_earliest_start",
 ]
