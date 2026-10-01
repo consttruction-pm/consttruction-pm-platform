@@ -98,6 +98,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-show]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldShow;
+    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { visible: true });
+  }));
   container.querySelectorAll<HTMLElement>("[data-p6-field-move-up], [data-p6-field-move-down]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldMoveUp ?? button.dataset.p6FieldMoveDown;
     if (!fieldId || !state.p6Layout) return;
@@ -674,6 +678,7 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
+  const hiddenColumns = layout.columns.filter((column) => !column.visible).sort((a, b) => a.order - b.order);
   const fa = state.locale === "fa";
   const title = fa ? "انتخابگر فیلدهای P6" : "P6 Field Chooser";
   const fieldsLabel = fa ? "فیلدها" : "Fields";
@@ -681,6 +686,7 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   const moveUpLabel = fa ? "انتقال به بالا" : "Move up";
   const moveDownLabel = fa ? "انتقال به پایین" : "Move down";
   const addLabel = fa ? "افزودن" : "Add";
+  const showLabel = fa ? "نمایش" : "Show";
   return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(title)}">
     <div class="cp-p6-field-chooser-heading">
       <strong>${escapeHtml(fieldsLabel)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
@@ -698,6 +704,14 @@ function renderP6FieldChooser(state: WorkspaceState): string {
           <button type="button" data-p6-field-move-up="${fieldId}" title="${escapeAttribute(moveUpLabel)}" aria-label="${escapeAttribute(moveUpLabel)}"${upDisabled}>↑</button>
           <button type="button" data-p6-field-move-down="${fieldId}" title="${escapeAttribute(moveDownLabel)}" aria-label="${escapeAttribute(moveDownLabel)}"${downDisabled}>↓</button>
           <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
+        </div>`;
+      }).join("")}
+      ${hiddenColumns.map((column) => {
+        const field = registry.fields.find((item) => item.field_id === column.field_id);
+        if (!field) return "";
+        return `<div data-p6-field-row data-p6-field-hidden data-field-id="${escapeAttribute(field.field_id)}">
+          <span>${escapeHtml(column.label ?? field.display_name)}</span>
+          <button type="button" data-p6-field-show="${escapeAttribute(field.field_id)}" title="${escapeAttribute(showLabel)}">${escapeHtml(showLabel)}</button>
         </div>`;
       }).join("")}
       ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(addLabel)}">${escapeHtml(field.display_name)} · ${escapeHtml(addLabel)}</button>`).join("")}
