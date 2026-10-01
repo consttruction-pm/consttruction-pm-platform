@@ -84,9 +84,10 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
-    forward_activities: tuple[LevelingActivity, ...],
     resolver: object,
 ) -> tuple[BackwardLevelingActivity, ...]:
+    # Demand periods are anchored to the original leveling input start dates.
+    # They must not be re-anchored to already-shifted forward dates.
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
@@ -194,7 +195,6 @@ def schedule_with_resource_leveling(
             leveling_input,
             early_schedule=initial.early_activities or initial.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
-            forward_activities=shifted_forward,
             resolver=resolver,
         )
         backward_shifts = propose_backward_leveling(
