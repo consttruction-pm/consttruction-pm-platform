@@ -56,7 +56,9 @@ from .schedule import (
 )
 from .schedule_options import (
     ScheduleMode,
-    PriorityListItem,\n    PrioritySortOrder,\n    ScheduleOptions,
+    PriorityListItem,
+    PrioritySortOrder,
+    ScheduleOptions,
     StartToStartLagCalculationType,
     OutOfSequenceScheduleType,
     TotalFloatCalculationType,
@@ -75,7 +77,9 @@ __all__ = [
     "Relationship",
     "RelationshipType",
     "ScheduleMode",
-    "ScheduleOptions",\n    "PriorityListItem",\n    "PrioritySortOrder",
+    "ScheduleOptions",
+    "PriorityListItem",
+    "PrioritySortOrder",
     "ScheduleResult",
     "StartToStartLagCalculationType",
     "OutOfSequenceScheduleType",
