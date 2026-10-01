@@ -13,6 +13,8 @@ from .schedule_snapshot_materializer import MaterializedScheduleInput, materiali
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
+from .scheduling.leveling_scheduler import schedule_with_resource_leveling
+from .scheduling.leveling_boundary import SchedulerLevelingInput
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity, time_forward_pass
 
@@ -48,11 +50,17 @@ def evaluate_schedule_snapshot(
     snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
     calendar_registry: CalendarResolverRegistry,
+    *,
+    leveling_input: SchedulerLevelingInput | None = None,
 ) -> ScheduleEvaluationResult:
     """Materialize and evaluate one immutable snapshot.
 
     The evaluator never reads mutable repositories during calculation. The
     snapshot and CalculationContext are the complete calculation inputs.
+
+    Resource-leveling ScheduleOptions are routed explicitly through the
+    authoritative leveling seam when the application supplies its already
+    mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
     """
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ScheduleEvaluationError("INPUT_SNAPSHOT_ID_MISMATCH")
@@ -66,28 +74,51 @@ def evaluate_schedule_snapshot(
         raise ScheduleEvaluationError("CALCULATION_IDENTITY_MISMATCH")
 
     materialized = materialize_schedule_snapshot(snapshot, calendar_registry)
-    return _evaluate_materialized(materialized, snapshot, calculation_context)
+    return _evaluate_materialized(
+        materialized,
+        snapshot,
+        calculation_context,
+        leveling_input=leveling_input,
+    )
 
 
 def _evaluate_materialized(
     materialized: MaterializedScheduleInput,
     snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
+    *,
+    leveling_input: SchedulerLevelingInput | None = None,
 ) -> ScheduleEvaluationResult:
     source = materialized.schedule_input
     try:
         if source.mode.value == "DATE_BASED":
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
-            result = schedule(
-                activities=source.activities,
-                relationships=source.relationships,
-                project_start=source.project_start,
-                resolver=resolver,
-                project_finish=source.project_finish,
-                constraints=source.constraints,
-                options=source.schedule_options,
-                calculation_context=calculation_context,
-            )
+            leveling_requested = _resource_leveling_requested(source.schedule_options)
+            if leveling_requested:
+                if leveling_input is None:
+                    raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
+                result, _, _ = schedule_with_resource_leveling(
+                    activities=source.activities,
+                    relationships=source.relationships,
+                    project_start=source.project_start,
+                    resolver=resolver,
+                    leveling_input=leveling_input,
+                    project_finish=source.project_finish,
+                    constraints=source.constraints,
+                    options=source.schedule_options,
+                    calculation_context=calculation_context,
+                )
+            else:
+                result = schedule(
+                    activities=source.activities,
+                    relationships=source.relationships,
+                    project_start=source.project_start,
+                    resolver=resolver,
+                    project_finish=source.project_finish,
+                    constraints=source.constraints,
+                    options=source.schedule_options,
+                    calculation_context=calculation_context,
+                )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
@@ -139,8 +170,25 @@ def _evaluate_materialized(
             mode=source.mode.value,
             time_activities=time_result,
         )
+    except ScheduleEvaluationError:
+        raise
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
+
+
+def _resource_leveling_requested(options: object) -> bool:
+    return any(
+        getattr(options, name)
+        for name in (
+            "level_all_resources",
+            "level_within_float",
+            "min_float_to_preserve",
+            "over_allocation_percentage",
+            "resource_list",
+            "priority_list",
+            "preserve_scheduled_early_and_late_dates",
+        )
+    )
 
 
 def _canonical_result(value: object) -> object:
