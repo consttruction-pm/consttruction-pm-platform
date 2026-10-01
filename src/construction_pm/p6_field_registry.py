@@ -183,6 +183,27 @@ _ROWS = (
     ("schedule_options.use_expected_finish_dates","ScheduleOptions","UseExpectedFinishDates","Use Expected Finish Dates","boolean",True,False,None),
     ("schedule_options.user_name","ScheduleOptions","UserName","User Name","string",False,False,None),
     ("schedule_options.user_object_id","ScheduleOptions","UserObjectId","User Object ID","object-id",False,False,None),
+    ("activity.expense_cost1_variance","Activity","ExpenseCost1Variance","Expense Cost 1 Variance","double",false,true,"currency"),
+    ("activity.expense_cost2_variance","Activity","ExpenseCost2Variance","Expense Cost 2 Variance","double",false,true,"currency"),
+    ("activity.expense_cost3_variance","Activity","ExpenseCost3Variance","Expense Cost 3 Variance","double",false,true,"currency"),
+    ("activity.expense_cost_percent_complete","Activity","ExpenseCostPercentComplete","Expense Cost % Complete","double",false,true,"percent"),
+    ("activity.expense_cost_variance","Activity","ExpenseCostVariance","Expense Cost Variance","double",false,true,"currency"),
+    ("activity.external_early_start_date","Activity","ExternalEarlyStartDate","External Early Start","date",false,true,None),
+    ("activity.external_late_finish_date","Activity","ExternalLateFinishDate","External Late Finish","date",false,true,None),
+    ("activity.feedback","Activity","Feedback","Feedback","string",true,false,None),
+    ("activity.financial_period_tmpl_id","Activity","FinancialPeriodTmplId","Financial Period Template ID","integer",false,false,None),
+    ("activity.finish_date","Activity","FinishDate","Finish Date","date",false,true,None),
+    ("activity.finish_date1_variance","Activity","FinishDate1Variance","Finish Date 1 Variance","double",false,true,"working-time"),
+    ("activity.finish_date2_variance","Activity","FinishDate2Variance","Finish Date 2 Variance","double",false,true,"working-time"),
+    ("activity.finish_date3_variance","Activity","FinishDate3Variance","Finish Date 3 Variance","double",false,true,"working-time"),
+    ("activity.finish_date_variance","Activity","FinishDateVariance","Finish Date Variance","double",false,true,"working-time"),
+    ("activity.guid","Activity","GUID","GUID","string",false,false,None),
+    ("activity.has_future_bucket_data","Activity","HasFutureBucketData","Has Future Bucket Data","boolean",false,false,None),
+    ("activity.id","Activity","Id","Short ID","string",true,false,None),
+    ("activity.is_baseline","Activity","IsBaseline","Is Baseline","boolean",false,false,None),
+    ("activity.is_critical","Activity","IsCritical","Is Critical","boolean",false,true,None),
+    ("activity.is_longest_path","Activity","IsLongestPath","Is Longest Path","boolean",false,true,None),
+
 )
 
 
