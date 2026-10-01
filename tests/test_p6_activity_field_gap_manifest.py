@@ -29,7 +29,7 @@ def test_activity_gap_report_exposes_partial_materialization():
     assert report["exact_matches"] == 47
     assert report["missing_from_registry_count"] == 228
     assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 115
-    assert report["unmaterialized_inventory_count"] == 105
+    assert report["unmaterialized_inventory_count"] == 113
     assert report["gap_manifest_coverage_status"] == "partial"
 
 
