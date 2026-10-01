@@ -859,8 +859,8 @@ test("P6 grid filter values use field-typed controls and coercion", () => {
     innerHTML: "",
     querySelectorAll: ((selector: string) => {
       if (selector === "[data-p6-grid-filter-value]") return [
-        { type: "number", value: "12.5", checked: false, addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("duration", listener) },
-        { type: "checkbox", value: "", checked: false, addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("critical", listener) },
+        { type: "number", value: "12.5", checked: false, closest: () => ({ dataset: { order: "0" } }), addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("duration", listener) },
+        { type: "checkbox", value: "", checked: false, closest: () => ({ dataset: { order: "1" } }), addEventListener: (_event: string, listener: (event?: unknown) => void) => listeners.set("critical", listener) },
       ] as unknown as HTMLElement[];
       return (controls[selector] ?? []) as HTMLElement[];
     }) as RenderContainer["querySelectorAll"],
