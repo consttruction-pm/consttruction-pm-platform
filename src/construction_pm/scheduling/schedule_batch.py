@@ -56,3 +56,10 @@ class AuthoritativeScheduleBatch:
 
     def finish_boundary_for(self, project_id: str):
         return self.float_boundary.finish_for(project_id)
+
+    def leveling_priority_for(self, project_id: str) -> int:
+        """Return the authoritative P6 project leveling priority (1..100)."""
+        for snapshot in self.snapshots:
+            if snapshot.project_id == project_id:
+                return snapshot.project_leveling_priority
+        raise ValueError(f"unknown schedule batch project: {project_id}")
