@@ -26,6 +26,8 @@ export type WorkspaceRendererOptions = {
   onP6FieldRemove?: (fieldId: string) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
+  onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
+  onP6ReportPrintReset?: () => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -86,6 +88,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
+
+  container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]").forEach((input) => input.addEventListener("change", () => {
+    const fieldIds = Array.from(container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]:checked"))
+      .map((field) => field.dataset.p6ReportFieldId)
+      .filter((fieldId): fieldId is string => Boolean(fieldId));
+    options.onP6ReportPrintSelectionChange?.(fieldIds);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-report-reset]").forEach((button) => button.addEventListener("click", () => options.onP6ReportReset?.()));
 
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
