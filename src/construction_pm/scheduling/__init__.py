@@ -45,7 +45,7 @@ from .resource_leveling import (
     resolve_leveling_passes,
     select_leveling_resources,
 )
-from .leveling_scheduler import schedule_with_resource_leveling
+from .leveling_scheduler import backward_leveling_exact_constraints, schedule_with_resource_leveling
 from .schedule import (
     FloatActivity,
     ScheduleResult,
@@ -140,5 +140,6 @@ __all__ = [
     "forward_pass",
     "schedule",
     "schedule_with_resource_leveling",
+    "backward_leveling_exact_constraints",
     "successor_earliest_start",
 ]
