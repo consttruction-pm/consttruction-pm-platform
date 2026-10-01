@@ -66,10 +66,10 @@ def test_p6_progressed_activity_remaining_output_uses_scheduler_remaining_durati
 
     assert early.duration == 1
     assert early.start == date(2026, 9, 21)
-    assert early.finish == date(2026, 9, 22)
+    assert early.finish == date(2026, 9, 21)
 
     # P6 Remaining Float = Late Finish - Remaining Finish.
     remaining_float = resolver.working_days_between(early.finish, late.finish)
-    assert late.start == date(2026, 9, 24)
+    assert late.start == date(2026, 9, 25)
     assert late.finish == date(2026, 9, 25)
-    assert remaining_float == 3
+    assert remaining_float == 4
