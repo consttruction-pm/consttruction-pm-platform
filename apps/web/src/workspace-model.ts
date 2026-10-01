@@ -345,6 +345,29 @@ export function setP6Presentation(
   return { ...state, columns: Object.freeze(columns), p6FieldRegistry: registry, p6Layout: layout };
 }
 
+export function addP6GridSort(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const used = new Set(state.p6GridSorts.map((sort) => sort.field_id));
+  const field = state.p6FieldRegistry.fields.find((candidate) => !used.has(candidate.field_id));
+  if (!field) return state;
+  return setP6GridSorts(state, [...state.p6GridSorts, { field_id: field.field_id, direction: "ascending", order: state.p6GridSorts.length }]);
+}
+
+export function addP6GridGroup(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const used = new Set(state.p6GridGroups.map((group) => group.field_id));
+  const field = state.p6FieldRegistry.fields.find((candidate) => !used.has(candidate.field_id));
+  if (!field) return state;
+  return setP6GridGroups(state, [...state.p6GridGroups, { field_id: field.field_id, order: state.p6GridGroups.length }]);
+}
+
+export function addP6GridFilter(state: WorkspaceState): WorkspaceState {
+  if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
+  const field = state.p6FieldRegistry.fields[0];
+  if (!field) return state;
+  return setP6GridFilters(state, [...state.p6GridFilters, { field_id: field.field_id, operator: "equals", value: "" }]);
+}
+
 export function setP6GridSorts(state: WorkspaceState, sorts: readonly P6GridSort[]): WorkspaceState {
   if (!state.p6FieldRegistry) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
   return { ...state, p6GridSorts: setGridSorts(state.p6FieldRegistry, sorts) };
