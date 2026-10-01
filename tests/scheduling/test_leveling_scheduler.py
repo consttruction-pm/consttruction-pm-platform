@@ -189,3 +189,61 @@ def test_backward_exact_constraints_keep_existing_base_constraints_separate() ->
         ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 7)),
         ActivityConstraint("A", ConstraintType.START_NO_LATER_THAN, date(2026, 10, 7)),
     )
+
+def test_schedule_options_map_all_authoritative_leveling_fields() -> None:
+    from construction_pm.scheduling.leveling_boundary import (
+        scheduler_leveling_input_from_options,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    base = _resource_leveling_input(preserve=True)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        level_within_float=True,
+        min_float_to_preserve=2,
+        over_allocation_percentage=12.5,
+        resource_list="R1, R2",
+        preserve_scheduled_early_and_late_dates=True,
+    )
+
+    mapped = scheduler_leveling_input_from_options(
+        forward_activities=base.forward_activities,
+        backward_activities=base.backward_activities,
+        capacities=base.capacities,
+        options=options,
+    )
+
+    assert mapped.options.level_all_resources is True
+    assert mapped.options.level_within_float is True
+    assert mapped.options.min_float_to_preserve == Decimal("2")
+    assert mapped.options.over_allocation_percentage == Decimal("12.5")
+    assert mapped.options.resource_ids == ("R1", "R2")
+    assert mapped.options.preserve_scheduled_early_and_late_dates is True
+
+
+def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    base = _resource_leveling_input(preserve=True)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)), (), date(2026, 10, 1), resolver,
+        base,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            min_float_to_preserve=0,
+            resource_list="R1",
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert len(forward) == 1
+    assert backward == ()
+    assert sorted(item.start for item in result.activities.values()) == [
+        date(2026, 10, 1), date(2026, 10, 2)
+    ]
