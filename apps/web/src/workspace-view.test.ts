@@ -83,3 +83,22 @@ test("rendered main menu exposes exactly one active workspace surface", () => {
   assert.match(html, /data-menu="schedule" aria-current="false">Schedule<\/button>/);
   assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
 });
+
+
+test("activity row wiring forwards the selected activity", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activities: [{ id: "A-101", wbsId: "WBS-1", code: "A101", name: "Mobilize" }],
+  };
+  const selected: string[] = [];
+  const listeners = new Map<string, () => void>();
+  const row = {
+    dataset: { activityId: "A-101" },
+    addEventListener: (_event: string, listener: () => void) => listeners.set(_event, listener),
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  container.querySelectorAll = ((selector: string) => selector === "[data-activity-id]" ? [row] as unknown as HTMLElement[] : []) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  listeners.get("click")?.();
+  assert.deepEqual(selected, ["A-101"]);
+});
