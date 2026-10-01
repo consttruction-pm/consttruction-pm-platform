@@ -1,12 +1,13 @@
-import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
+import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceLocale, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
 import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
+import { coerceP6TypedFieldValue } from "./p6-typed-field-editor.js";
 import { renderP6GridCell } from "./p6-grid-cell-view.js";
 import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
-import type { ColumnPresentation } from "./p6-field-layout-foundation.js";
+import type { ColumnPresentation, P6Field } from "./p6-field-layout-foundation.js";
 
 const labels = {
   en: {
