@@ -178,7 +178,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             compute_total_float_type=TotalFloatCalculationType(
                 str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
             ),
-            critical_activity_float_threshold=_int("critical_activity_float_threshold", 0),
+            critical_activity_float_threshold=float(value.get("critical_activity_float_threshold", 0)),
             critical_activity_path_type=CriticalActivityPathType(
                 str(value.get("critical_activity_path_type", CriticalActivityPathType.CRITICAL_FLOAT.value))
             ),
@@ -187,6 +187,9 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             maximum_multiple_float_paths=_int("maximum_multiple_float_paths", 0),
             multiple_float_paths_ending_activity_object_id=value.get(
                 "multiple_float_paths_ending_activity_object_id"
+            ),
+            multiple_float_paths_ending_activity_short_name=value.get(
+                "multiple_float_paths_ending_activity_short_name"
             ),
             multiple_float_paths_use_total_float=_bool("multiple_float_paths_use_total_float", True),
             min_float_to_preserve=_int("min_float_to_preserve", 0),

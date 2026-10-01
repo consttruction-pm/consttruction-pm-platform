@@ -72,7 +72,7 @@ class ScheduleOptions:
     compute_total_float_type: TotalFloatCalculationType = (
         TotalFloatCalculationType.START_FLOAT
     )
-    critical_activity_float_threshold: int = 0
+    critical_activity_float_threshold: float = 0.0
     critical_activity_path_type: CriticalActivityPathType = (
         CriticalActivityPathType.CRITICAL_FLOAT
     )
@@ -80,6 +80,7 @@ class ScheduleOptions:
     multiple_float_paths_enabled: bool = False
     maximum_multiple_float_paths: int = 0
     multiple_float_paths_ending_activity_object_id: str | None = None
+    multiple_float_paths_ending_activity_short_name: str | None = None
     multiple_float_paths_use_total_float: bool = True
     min_float_to_preserve: int = 0
     out_of_sequence_schedule_type: OutOfSequenceScheduleType = (
@@ -113,11 +114,9 @@ class ScheduleOptions:
             raise ValueError(
                 "critical_activity_path_type must be a CriticalActivityPathType"
             )
-        if isinstance(self.critical_activity_float_threshold, bool):
-            raise ValueError("critical_activity_float_threshold must be an integer")
-        if not isinstance(self.critical_activity_float_threshold, int):
-            raise ValueError("critical_activity_float_threshold must be an integer")
-        if self.critical_activity_float_threshold < 0:
+        if isinstance(self.critical_activity_float_threshold, bool) or not isinstance(self.critical_activity_float_threshold, (int, float)):
+            raise ValueError("critical_activity_float_threshold must be numeric")
+        if float(self.critical_activity_float_threshold) < 0:
             raise ValueError("critical_activity_float_threshold must be non-negative")
 
         for name in (
@@ -148,6 +147,9 @@ class ScheduleOptions:
             raise ValueError(
                 "multiple_float_paths_ending_activity_object_id must be a non-empty string"
             )
+
+        if self.multiple_float_paths_ending_activity_short_name is not None and not (isinstance(self.multiple_float_paths_ending_activity_short_name, str) and self.multiple_float_paths_ending_activity_short_name.strip()):
+            raise ValueError("multiple_float_paths_ending_activity_short_name must be a non-empty string")
 
         if isinstance(self.min_float_to_preserve, bool) or not isinstance(
             self.min_float_to_preserve, int
