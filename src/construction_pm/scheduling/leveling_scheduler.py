@@ -84,7 +84,6 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
-    forward_activities: tuple[LevelingActivity, ...],
     resolver: object,
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
@@ -194,7 +193,6 @@ def schedule_with_resource_leveling(
             leveling_input,
             early_schedule=initial.early_activities or initial.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
-            forward_activities=shifted_forward,
             resolver=resolver,
         )
         backward_shifts = propose_backward_leveling(
