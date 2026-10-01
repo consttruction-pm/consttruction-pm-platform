@@ -737,7 +737,7 @@ function renderWorkspaceActivityGrid(state: WorkspaceState, noActivitiesLabel: s
     const header = columns.map((column) => {
       const field = fields.get(column.field_id);
       if (!field) return "";
-      return `<th data-p6-grid-field-id="${escapeAttribute(field.field_id)}" style="width:${column.width}px">${escapeHtml(column.label ?? field.display_name)}</th>`;
+      return `<th data-p6-grid-field-id="${escapeAttribute(field.field_id)}" data-p6-grid-alignment="${column.alignment}" data-p6-grid-pinned="${column.pinned ? "true" : "false"}" data-p6-grid-frozen="${column.frozen ? "true" : "false"}" style="width:${column.width}px;text-align:${column.alignment}">${escapeHtml(column.label ?? field.display_name)}</th>`;
     }).join("");
     const rows = state.activities.map((activity) => {
       const selected = activity.id === state.selectedActivityId;
@@ -746,7 +746,7 @@ function renderWorkspaceActivityGrid(state: WorkspaceState, noActivitiesLabel: s
         if (!field) return "";
         const value = getP6ActivityCellValue(field.field_id, activity);
         const editing = field.writable && !field.computed;
-        return `<td>${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale, editing })}</td>`;
+        return `<td data-p6-grid-field-id="${escapeAttribute(field.field_id)}" data-p6-grid-alignment="${column.alignment}" data-p6-grid-pinned="${column.pinned ? "true" : "false"}" data-p6-grid-frozen="${column.frozen ? "true" : "false"}" style="text-align:${column.alignment}">${renderP6GridCell(field, state.p6Layout!, value, { locale: state.locale, editing })}</td>`;
       }).join("");
       return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${cells}</tr>`;
     }).join("");
