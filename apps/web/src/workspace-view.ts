@@ -165,6 +165,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
     options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: input.value } : filter));
   }));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-remove]").forEach((button) => button.addEventListener("click", () => {
+    const row = button.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = getWorkspaceGridPresentation(state, options)?.filters ?? [];
+    options.onP6GridFilterChange?.(current.filter((_filter, index) => index !== order));
+  }));
 
   container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]").forEach((input) => input.addEventListener("change", () => {
     const fieldIds = Array.from(container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]:checked"))
