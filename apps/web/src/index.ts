@@ -8,6 +8,7 @@ export * from "./workspace-gantt.js";
 export * from "./workspace-contract.js";
 export * from "./workspace-view.js";
 export * from "./workspace-navigation.js";
+export * from "./p6-formula-editor-view.js";
 export * from "./workspace-control-intelligence.js";
 export * from "./workspace-site-log.js";
 export * from "./workspace-field-ops.js";
