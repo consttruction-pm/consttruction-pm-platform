@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Iterable, Mapping
+from typing import TYPE_CHECKING, Iterable, Mapping
+
+if TYPE_CHECKING:
+    from .schedule_batch import AuthoritativeScheduleBatch
+    from .schedule_options import ScheduleOptions
 
 from .resource_leveling import ResourceDemand, ResourceLevelingError
 
@@ -67,3 +71,30 @@ def select_resource_assignments_for_scheduling(
                 continue
         selected.append(assignment.to_demand())
     return tuple(selected)
+
+
+
+def select_batch_resource_assignments_for_scheduling(
+    batch: "AuthoritativeScheduleBatch",
+    assignments: Iterable[ExternalResourceAssignment],
+    *,
+    scheduled_project_id: str,
+    options: "ScheduleOptions",
+) -> tuple[ResourceDemand, ...]:
+    """Apply authoritative batch priorities and ScheduleOptions to leveling demand.
+
+    This is the scheduler orchestration seam: ScheduleOptions owns the
+    include/limit decision, while AuthoritativeScheduleBatch owns the project
+    priority values. No caller supplies a second project-priority source.
+    """
+    from .schedule_options import ScheduleOptions
+
+    if not isinstance(options, ScheduleOptions):
+        raise ResourceLevelingError("INVALID_SCHEDULE_OPTIONS")
+    return select_resource_assignments_for_scheduling(
+        assignments,
+        scheduled_project_id=scheduled_project_id,
+        include_external_res_ass=options.include_external_res_ass,
+        project_leveling_priorities=batch.leveling_priorities(),
+        external_project_priority_limit=options.external_project_priority_limit,
+    )
