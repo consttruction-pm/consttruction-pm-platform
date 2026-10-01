@@ -90,3 +90,24 @@ def test_priority_list_rejects_invalid_typed_values(value):
 def test_priority_list_item_rejects_empty_field_name():
     with pytest.raises(ValueError, match="field_name"):
         PriorityListItem("", PrioritySortOrder.ASCENDING)
+
+
+@pytest.mark.parametrize("value", [0.0, 1.5, 12])
+def test_critical_activity_float_threshold_accepts_p6_numeric_duration(value):
+    options = ScheduleOptions(critical_activity_float_threshold=value)
+    assert options.critical_activity_float_threshold == value
+
+
+def test_critical_activity_float_threshold_rejects_bool():
+    with pytest.raises(ValueError, match="numeric"):
+        ScheduleOptions(critical_activity_float_threshold=True)
+
+
+def test_multiple_float_paths_ending_activity_short_name_is_typed():
+    options = ScheduleOptions(multiple_float_paths_ending_activity_short_name="FIN-MILESTONE")
+    assert options.multiple_float_paths_ending_activity_short_name == "FIN-MILESTONE"
+
+
+def test_multiple_float_paths_ending_activity_short_name_rejects_blank():
+    with pytest.raises(ValueError, match="short_name"):
+        ScheduleOptions(multiple_float_paths_ending_activity_short_name="   ")
