@@ -26,6 +26,9 @@ import {
   setP6GridSorts,
   setP6GridGroups,
   setP6GridFilters,
+  reorderP6GridSorts,
+  reorderP6GridGroups,
+  reorderP6GridFilters,
 } from "./workspace-model.js";
 
 const context = {
@@ -565,4 +568,47 @@ test("editable P6 activity cells are coerced and committed by field authority", 
   assert.equal(state.activities[0]?.cells?.duration, 12.5);
   assert.throws(() => updateP6ActivityCell(state, "A-1", "computed", "10"), /P6_FIELD_NOT_WRITABLE/);
   assert.throws(() => updateP6ActivityCell(state, "missing", "duration", "10"), /ACTIVITY_NOT_FOUND/);
+});
+
+
+test("P6 grid reorder contracts preserve authoritative ordering", () => {
+  const base = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+      { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+    ],
+  } as Parameters<typeof setP6Presentation>[1];
+  const layout = {
+    schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 1,
+    columns: [
+      { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+      { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+    ],
+  } as Parameters<typeof setP6Presentation>[2];
+  let state = setP6Presentation(base, registry, layout);
+  state = setP6GridSorts(state, [
+    { field_id: "activity_id", direction: "ascending", order: 0 },
+    { field_id: "duration", direction: "descending", order: 1 },
+  ]);
+  state = setP6GridGroups(state, [
+    { field_id: "activity_id", order: 0 },
+    { field_id: "duration", order: 1 },
+  ]);
+  state = setP6GridFilters(state, [
+    { field_id: "activity_id", operator: "equals", value: "A-1" },
+    { field_id: "duration", operator: "greater-than", value: 10 },
+  ]);
+  state = reorderP6GridSorts(state, ["duration", "activity_id"]);
+  state = reorderP6GridGroups(state, ["duration", "activity_id"]);
+  state = reorderP6GridFilters(state, [1, 0]);
+  assert.deepEqual(state.p6GridSorts.map((item) => [item.field_id, item.order]), [["duration", 0], ["activity_id", 1]]);
+  assert.deepEqual(state.p6GridGroups.map((item) => [item.field_id, item.order]), [["duration", 0], ["activity_id", 1]]);
+  assert.deepEqual(state.p6GridFilters.map((item) => item.field_id), ["duration", "activity_id"]);
+  assert.throws(() => reorderP6GridSorts(state, ["duration"]), /P6_GRID_SORT_ORDER_MISMATCH/);
+  assert.throws(() => reorderP6GridFilters(state, [0, 0]), /P6_GRID_FILTER_ORDER_MISMATCH/);
 });
