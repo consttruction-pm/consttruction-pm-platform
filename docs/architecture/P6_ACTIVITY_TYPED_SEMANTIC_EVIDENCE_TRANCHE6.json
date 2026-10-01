@@ -1,0 +1,119 @@
+{
+  "source": "Oracle P6 EPPM REST API Release 26 Activity GET",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "release": "26 / 26.4",
+  "tranche": 6,
+  "fields": [
+    {
+      "field_id": "activity.baseline3_planned_expense_cost",
+      "p6_field": "Baseline3PlannedExpenseCost",
+      "display_name": "Baseline 3 Planned Expense Cost",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_labor_cost",
+      "p6_field": "Baseline3PlannedLaborCost",
+      "display_name": "Baseline 3 Planned Labor Cost",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_labor_units",
+      "p6_field": "Baseline3PlannedLaborUnits",
+      "display_name": "Baseline 3 Planned Labor Units",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_material_cost",
+      "p6_field": "Baseline3PlannedMaterialCost",
+      "display_name": "Baseline 3 Planned Material Cost",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_nonlabor_cost",
+      "p6_field": "Baseline3PlannedNonLaborCost",
+      "display_name": "Baseline 3 Planned Nonlabor Cost",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_nonlabor_units",
+      "p6_field": "Baseline3PlannedNonLaborUnits",
+      "display_name": "Baseline 3 Planned Nonlabor Units",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_planned_total_cost",
+      "p6_field": "Baseline3PlannedTotalCost",
+      "display_name": "Baseline 3 Planned Total Cost",
+      "native_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    },
+    {
+      "field_id": "activity.baseline3_start",
+      "p6_field": "Baseline3StartDate",
+      "display_name": "Baseline 3 Start",
+      "native_type": "date-time",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "disposition": "seeded_not_certified",
+      "nullable_default": "open",
+      "import_export_mapping": "open",
+      "regression_fixture": "tranche6 registry validation"
+    }
+  ],
+  "guardrails": [
+    "no Activity dataclass expansion",
+    "no second CPM/EVM implementation",
+    "no alias-as-exact matching",
+    "no full Activity certification claim"
+  ]
+}
