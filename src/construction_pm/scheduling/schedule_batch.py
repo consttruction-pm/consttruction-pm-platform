@@ -63,3 +63,7 @@ class AuthoritativeScheduleBatch:
             if snapshot.project_id == project_id:
                 return snapshot.project_leveling_priority
         raise ValueError(f"unknown schedule batch project: {project_id}")
+
+    def leveling_priorities(self) -> dict[str, int]:
+        """Return the authoritative project-id to leveling-priority mapping."""
+        return {snapshot.project_id: snapshot.project_leveling_priority for snapshot in self.snapshots}
