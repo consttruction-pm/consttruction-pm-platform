@@ -1,8 +1,22 @@
 import {
+  addP6Field,
+  addP6GridFilter,
+  addP6GridGroup,
+  addP6GridSort,
   createWorkspaceState,
+  removeP6Field,
+  reorderP6Fields,
+  reorderP6GridFilters,
+  reorderP6GridGroups,
+  reorderP6GridSorts,
   selectActivity,
   selectWbs,
   setLocale,
+  setP6GridFilters,
+  setP6GridGroups,
+  setP6GridSorts,
+  updateP6ActivityCell,
+  updateP6FieldPresentation,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
@@ -28,6 +42,53 @@ function renderApp(container: HTMLElement, state: WorkspaceState): void {
     },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId));
+    },
+    onP6FieldAdd: (fieldId) => {
+      renderApp(container, addP6Field(state, fieldId));
+    },
+    onP6FieldRemove: (fieldId) => {
+      renderApp(container, removeP6Field(state, fieldId));
+    },
+    onP6FieldReorder: (orderedFieldIds) => {
+      renderApp(container, reorderP6Fields(state, orderedFieldIds));
+    },
+    onP6FieldPresentationChange: (fieldId, patch) => {
+      renderApp(container, updateP6FieldPresentation(state, fieldId, patch));
+    },
+    onP6CellValueChange: (activityId, fieldId, value) => {
+      renderApp(container, updateP6ActivityCell(state, activityId, fieldId, value));
+    },
+    p6GridPresentation: {
+      sorts: state.p6GridSorts,
+      groups: state.p6GridGroups,
+      filters: state.p6GridFilters,
+    },
+    onP6GridSortChange: (sorts) => {
+      renderApp(container, setP6GridSorts(state, sorts));
+    },
+    onP6GridSortAdd: () => {
+      renderApp(container, addP6GridSort(state));
+    },
+    onP6GridSortReorder: (orderedFieldIds) => {
+      renderApp(container, reorderP6GridSorts(state, orderedFieldIds));
+    },
+    onP6GridGroupChange: (groups) => {
+      renderApp(container, setP6GridGroups(state, groups));
+    },
+    onP6GridGroupAdd: () => {
+      renderApp(container, addP6GridGroup(state));
+    },
+    onP6GridGroupReorder: (orderedFieldIds) => {
+      renderApp(container, reorderP6GridGroups(state, orderedFieldIds));
+    },
+    onP6GridFilterChange: (filters) => {
+      renderApp(container, setP6GridFilters(state, filters));
+    },
+    onP6GridFilterAdd: () => {
+      renderApp(container, addP6GridFilter(state));
+    },
+    onP6GridFilterReorder: (orderedIndexes) => {
+      renderApp(container, reorderP6GridFilters(state, orderedIndexes));
     },
   });
 
