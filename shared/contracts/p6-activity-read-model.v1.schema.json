@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "p6-activity-read-model.v1",
+  "$id": "https://construction-pm.local/contracts/v1/p6-activity-read-model",
   "type": "object",
   "required": [
     "contract_version",
