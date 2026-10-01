@@ -693,3 +693,19 @@ Status: **implemented, runtime-verified and merged**
 - Remain at the evidence boundary until a new authoritative contract dependency or reproducible backend defect appears.
 - When a new gap appears: branch from the exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, update this document with exact commit/run identifiers, and only then merge.
 - Do not revive stale PRs or duplicate completed P6 persistence, API, interchange, resource-leveling, scheduling, calendar, duration, formula, Resource/Cost or EVM semantics.
+
+### 2026-10-01 — Post-PR #699 / P6-5 #697 reconciliation
+
+- Current `main` baseline: `149e115f4203c9cb78e50ebd53d4660a7de04761`, merge of PR #699.
+- PR #699 completed the last evidenced Hasan-owned P6 ScheduleOptions backend/application seam: resource-leveling requests are routed through the authoritative `schedule_with_resource_leveling()` boundary and missing authoritative leveling input is rejected explicitly.
+- Exact PR #699 head: `853d2edfd5d316d8226136a3441266940116ca22`.
+- Exact PR #699 verification: ConstructionPM CI run `36850622918` (#2792) passed; Client Typecheck run `36850622823` (#2495) passed.
+- Direct current-main inspection for issue #697 found no new persistence/API mapping defect. `AuthoritativeScheduleBatch` supplies batch boundary/priority data but does not execute multi-project scheduling; `evaluate_schedule_snapshot()` still evaluates one snapshot at a time.
+- Searches for alternate batch execution surfaces (`schedule_many`, `schedule_all`, `evaluate_batch`, `batch_evaluator`, `multi_project`, orchestration variants) found no authoritative multi-project execution harness on current main.
+- Issue #697 therefore remains a Shared-Core/E2E execution gap: the seven-case external-project conformance matrix requires an authoritative multi-project scheduler/orchestrator and runtime evidence. Hasan must not add duplicate scheduling semantics to Backend/API.
+
+### Current continuation point
+
+- Remain at the evidence boundary for Hasan Backend/Database/Application/API/Enterprise Integration.
+- Do not revive stale PRs or implement duplicate multi-project scheduling, CPM, calendar/duration, Resource/Cost, EVM, relationship, float, or external-assignment semantics in Backend/API.
+- When a concrete Hasan-owned dependency or reproducible backend defect is exposed by the authoritative E2E execution, branch from the exact current `main`, add the smallest focused regression, obtain PostgreSQL verification where applicable, and record exact commit/run identifiers here before merge.
