@@ -205,6 +205,7 @@ def _priority_value(activity: LevelingActivity, field_name: str):
 
 
 def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
+    """Return a deterministic P6-style leveling priority key."""
     parts: list[tuple[int, object]] = []
     for priority in priorities:
         value = _priority_value(activity, priority.field_name)
@@ -214,6 +215,7 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             parts.append((0, value))
         else:
             parts.append((0, _Descending(value)))
+    # Oracle documents Activity ID as the deterministic conflict tie-breaker.
     parts.append((0, activity.activity_id))
     return tuple(parts)
 
@@ -333,7 +335,10 @@ def propose_forward_leveling_within_float(
                 activity.total_float - next_shift,
             )
         )
-    return tuple(shifts)
+    final_shifts: dict[str, LevelingShift] = {}
+    for shift in shifts:
+        final_shifts[shift.activity_id] = shift
+    return tuple(final_shifts.values())
 
 
 
