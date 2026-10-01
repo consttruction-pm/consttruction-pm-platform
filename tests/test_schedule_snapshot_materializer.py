@@ -22,6 +22,7 @@ from construction_pm.scheduling.calendar_context import CalendarReference, Calen
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
+from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
 def make_snapshot():
