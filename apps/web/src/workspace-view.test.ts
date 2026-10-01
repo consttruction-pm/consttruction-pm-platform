@@ -727,3 +727,25 @@ test("P6 activity grid keeps presentation metadata on every rendered visible col
   assert.match(container.innerHTML, /<th[^>]*data-p6-grid-field-id="activity_id"[^>]*data-p6-grid-alignment="end"[^>]*data-p6-grid-pinned="true"[^>]*data-p6-grid-frozen="false"/);
   assert.match(container.innerHTML, /<td[^>]*data-p6-grid-field-id="activity_id"[^>]*data-p6-grid-alignment="end"[^>]*data-p6-grid-pinned="true"[^>]*data-p6-grid-frozen="false"/);
 });
+
+
+test("formula editor expression changes are forwarded without client-side evaluation", () => {
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const formulaState: P6FormulaEditorState = {
+    field_id: "activity-cost", expression: "Original Duration", validating: false, authoritative: null,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const listeners = new Map<string, () => void>();
+  const textarea = {
+    value: "Original Duration * Units",
+    addEventListener: (_event: string, listener: () => void) => listeners.set("formula", listener),
+  };
+  container.querySelectorAll = ((selector: string) => selector === "[data-p6-formula-expression]" ? [textarea] as unknown as HTMLElement[] : []) as RenderContainer["querySelectorAll"];
+  const expressions: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    p6FormulaEditorState: formulaState,
+    onP6FormulaExpressionChange: (expression) => expressions.push(expression),
+  });
+  listeners.get("formula")?.();
+  assert.deepEqual(expressions, ["Original Duration * Units"]);
+});
