@@ -5,6 +5,7 @@ import {
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
+  updateP6ActivityCell,
   setP6GridFilters,
   setP6GridGroups,
   setP6GridSorts,
@@ -21,6 +22,7 @@ export function createP6WorkspaceRendererActions(
   | "onP6FieldRemove"
   | "onP6FieldReorder"
   | "onP6FieldPresentationChange"
+  | "onP6CellValueChange"
   | "onP6GridSortChange"
   | "onP6GridGroupChange"
   | "onP6GridFilterChange"
@@ -35,6 +37,8 @@ export function createP6WorkspaceRendererActions(
     onP6FieldReorder: (fieldIds) => commit((state) => reorderP6Fields(state, fieldIds)),
     onP6FieldPresentationChange: (fieldId, patch) =>
       commit((state) => updateP6FieldPresentation(state, fieldId, patch)),
+    onP6CellValueChange: (activityId, fieldId, value) =>
+      commit((state) => updateP6ActivityCell(state, activityId, fieldId, value)),
     onP6GridSortChange: (sorts) => commit((state) => setP6GridSorts(state, sorts)),
     onP6GridGroupChange: (groups) => commit((state) => setP6GridGroups(state, groups)),
     onP6GridFilterChange: (filters) => commit((state) => setP6GridFilters(state, filters)),
