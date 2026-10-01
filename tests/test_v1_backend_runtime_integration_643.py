@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import date, datetime, timezone
+import sqlite3
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
@@ -14,7 +15,6 @@ from construction_pm.backend_p0.models import (
 )
 from construction_pm.backend_p0.repository import InMemoryBackendP0Repository
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-import sqlite3
 
 
 def _api() -> BackendP0API:
@@ -58,13 +58,15 @@ def test_runtime_api_round_trip_preserves_project_scope_revision_and_decimal_bou
 
     saved = api.save_resource(record, auth_context=_planner())
 
-    assert saved["record"]["log_id"] == "log-643"
-    assert saved["record"]["scope"] == {
+    assert saved["resource_id"] == "log-643"
+    assert saved["tenant_id"] == "tenant-a"
+    assert saved["project_id"] == "project-a"
+    assert saved["revision"] == 1
+    assert saved["payload"]["scope"] == {
         "tenant_id": "tenant-a",
         "project_id": "project-a",
         "project_revision": 7,
     }
-    assert saved["record_revision"] == 1
 
     read = api.read_resource(record, auth_context=_planner())
 
@@ -81,8 +83,8 @@ def test_runtime_api_rejects_stale_revision_and_cross_scope_access():
         auth_context=_planner(),
         expected_revision=0,
     )
-    assert stale["category"] == "conflict"
-    assert stale["code"] == "STALE_REVISION"
+    assert stale["error"]["category"] == "conflict"
+    assert stale["error"]["code"] == "STALE_REVISION"
 
     cross_scope = api.read(
         record,
@@ -90,8 +92,8 @@ def test_runtime_api_rejects_stale_revision_and_cross_scope_access():
             "tenant-b", "project-a", "user-b", frozenset({"viewer"})
         ),
     )
-    assert cross_scope["category"] == "authorization"
-    assert cross_scope["code"] == "CROSS_SCOPE_ACCESS"
+    assert cross_scope["error"]["category"] == "authorization"
+    assert cross_scope["error"]["code"] == "CROSS_SCOPE_ACCESS"
 
 
 def test_runtime_api_enforces_permission_at_application_boundary():
@@ -105,5 +107,5 @@ def test_runtime_api_enforces_permission_at_application_boundary():
         ),
     )
 
-    assert denied["category"] == "authorization"
-    assert denied["code"] == "FORBIDDEN"
+    assert denied["error"]["category"] == "authorization"
+    assert denied["error"]["code"] == "FORBIDDEN"
