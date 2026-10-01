@@ -99,6 +99,84 @@ def test_materializer_rejects_unsupported_date_duration_unit():
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
+def test_materializes_all_schedule_options_without_silent_field_loss():
+    cal = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-OPTIONS",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=3,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        schedule_options=__import__(
+            "construction_pm.scheduling.schedule_options",
+            fromlist=["ScheduleOptions", "PriorityListItem", "PrioritySortOrder"],
+        ).ScheduleOptions(
+            min_float_to_preserve=3,
+            out_of_sequence_schedule_type=__import__(
+                "construction_pm.scheduling.schedule_options",
+                fromlist=["OutOfSequenceScheduleType"],
+            ).OutOfSequenceScheduleType.PROGRESS_OVERRIDE,
+            relationship_lag_calendar=__import__(
+                "construction_pm.scheduling.calendar_context",
+                fromlist=["RelationshipLagCalendar"],
+            ).RelationshipLagCalendar.PREDECESSOR,
+            use_expected_finish_dates=True,
+            calculate_float_based_on_finish_date=True,
+            ignore_other_project_relationships=True,
+            include_external_res_ass=True,
+            level_all_resources=True,
+            level_within_float=True,
+            over_allocation_percentage=12.5,
+            resource_list="R1,R2",
+            priority_list=(
+                __import__(
+                    "construction_pm.scheduling.schedule_options",
+                    fromlist=["PriorityListItem", "PrioritySortOrder"],
+                ).PriorityListItem(
+                    "total_float",
+                    __import__(
+                        "construction_pm.scheduling.schedule_options",
+                        fromlist=["PrioritySortOrder"],
+                    ).PrioritySortOrder.DESCENDING,
+                ),
+            ),
+            external_project_priority_limit=7,
+            preserve_scheduled_early_and_late_dates=True,
+            data_date=date(2026, 9, 25),
+        ),
+        project_start=date(2026, 9, 21),
+        project_leveling_priority=4,
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=3, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00", input_snapshot_id="S-OPTIONS",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    options = result.schedule_input.schedule_options
+    assert options.include_external_res_ass is True
+    assert options.ignore_other_project_relationships is True
+    assert options.use_expected_finish_dates is True
+    assert options.calculate_float_based_on_finish_date is True
+    assert options.level_all_resources is True
+    assert options.level_within_float is True
+    assert options.over_allocation_percentage == 12.5
+    assert options.resource_list == "R1,R2"
+    assert options.priority_list is not None
+    assert options.priority_list[0].field_name == "total_float"
+    assert options.priority_list[0].sort_order.value == "DESCENDING"
+    assert options.external_project_priority_limit == 7
+    assert options.preserve_scheduled_early_and_late_dates is True
+    assert options.data_date == date(2026, 9, 25)
+    assert result.schedule_input.project_leveling_priority == 4
+
+
 def test_materializes_time_aware_quantity_payloads():
     from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
     from construction_pm.scheduling.time_duration import TimeQuantity
