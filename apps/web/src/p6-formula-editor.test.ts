@@ -83,6 +83,36 @@ test("does not apply a stale validation result to a newer expression", async () 
 });
 
 
+
+test("keeps validating state owned by the newest validation request", async () => {
+  const resolvers: Array<(result: FormulaAuthoritativeResult) => void> = [];
+  const concurrentAuthority: P6FormulaAuthority = {
+    validate() {
+      return new Promise<FormulaAuthoritativeResult>((resolve) => {
+        resolvers.push(resolve);
+      });
+    },
+  };
+
+  const editor = createP6FormulaEditor("activity-cost", concurrentAuthority);
+  editor.setExpression("First");
+  const first = editor.validate();
+  editor.setExpression("Second");
+  const second = editor.validate();
+
+  assert.equal(editor.getState().validating, true);
+  resolvers[0]?.(validResult);
+  await first;
+  assert.equal(editor.getState().validating, true);
+  assert.equal(editor.getState().authoritative, null);
+
+  resolvers[1]?.(validResult);
+  await second;
+  assert.equal(editor.getState().validating, false);
+  assert.equal(editor.getState().expression, "Second");
+  assert.equal(editor.getState().authoritative?.validation.valid, true);
+});
+
 test("does not expose formula evaluation when authoritative validation is absent", async () => {
   const editor = createP6FormulaEditor("activity-cost", {
     async validate() {
