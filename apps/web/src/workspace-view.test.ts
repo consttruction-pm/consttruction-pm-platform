@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
-import { createWorkspaceState, type WorkspaceMenuKey } from "./workspace-model.js";
+import { createWorkspaceState } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
   querySelectorAll: () => HTMLElement[];
 };
 
-function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
+function render(locale: "en" | "fa", activeMenu: "schedule" | "reports"): string {
   const state = {
     ...createWorkspaceState(
       { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
