@@ -27,6 +27,7 @@ export function createP6FormulaEditor(
     authoritative: null,
   };
   let validating = false;
+  let validationRequest = 0;
 
   const state = (): P6FormulaEditorState => ({
     ...model,
@@ -46,18 +47,21 @@ export function createP6FormulaEditor(
     },
 
     setExpression(nextExpression) {
+      validationRequest += 1;
+      validating = false;
       model = { ...model, expression: nextExpression, authoritative: null };
       return state();
     },
 
     async validate() {
+      const requestId = ++validationRequest;
       validating = true;
       const expressionAtRequest = model.expression;
       const result = await authority.validate(expressionAtRequest, model.field_id);
-      if (model.expression === expressionAtRequest) {
+      if (requestId === validationRequest && model.expression === expressionAtRequest) {
         model = applyFormulaAuthority(model, result);
+        validating = false;
       }
-      validating = false;
       return state();
     },
 
