@@ -366,5 +366,5 @@ def _materialize_payload(
             if project_finish_value is not None
             else None
         ),
-        project_leveling_priority=int(payload.get("project_leveling_priority", 10)),
+        project_leveling_priority=payload.get("project_leveling_priority", 10),
     )
