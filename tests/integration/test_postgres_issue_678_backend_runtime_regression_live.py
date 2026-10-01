@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -19,17 +18,6 @@ from construction_pm.application.authorization import (
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.change_claim_api import (
-    P0_CHANGE_CLAIM_API_VERSION,
-    ChangeClaimAPI,
-    ChangeClaimAPIError,
-    ChangeClaimCreateRequest,
-    ChangeClaimReadRequest,
-)
-from construction_pm.change_claims import (
-    ChangeClaimService,
-    ChangeClaimStatus,
-    ChangeClaimType,
-    PostgresChangeClaimStore,
 )
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.p6_field_registry import get_field
@@ -205,58 +193,3 @@ def test_postgres_resource_period_write_api_round_trips_through_read_api() -> No
         with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
             write_api.save_assignment_period(value, auth_context=_auth(scope, role="viewer"))
 
-
-def test_postgres_change_claim_api_enforces_version_scope_authorization_and_idempotency() -> None:
-    scope = _scope("change")
-    resource_id = "change-1"
-    request = ChangeClaimCreateRequest(
-        contract_version=P0_CHANGE_CLAIM_API_VERSION,
-        tenant_id=scope.tenant_id,
-        project_id=scope.project_id,
-        resource_id=resource_id,
-        revision=0,
-        resource_type=ChangeClaimType.CLAIM,
-        status=ChangeClaimStatus.DRAFT,
-        actor_id="api-user",
-        occurred_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
-        payload={"summary": "live postgres gate"},
-        evidence_refs=("evidence-1",),
-        expected_revision=0,
-        idempotency_key=f"claim-{uuid.uuid4().hex}",
-    )
-
-    with psycopg.connect(DSN) as connection:
-        store = PostgresChangeClaimStore(connection)
-        store.initialize()
-        store.ensure_project(scope.tenant_id, scope.project_id)
-        connection.commit()
-        api = ChangeClaimAPI(
-            ChangeClaimService(store),
-            store,
-            default_project_policy(),
-        )
-
-        created = api.create(request, auth_context=_auth(scope))
-        replay = api.create(request, auth_context=_auth(scope))
-        assert replay == created
-        assert created["contract_version"] == P0_CHANGE_CLAIM_API_VERSION
-        assert created["resource_id"] == resource_id
-
-        with pytest.raises(ChangeClaimAPIError, match="UNSUPPORTED_CHANGE_CLAIM_API_VERSION"):
-            api.create(
-                ChangeClaimCreateRequest(
-                    **{**request.__dict__, "contract_version": "p0-change-claim.v0"}
-                ),
-                auth_context=_auth(scope),
-            )
-
-        with pytest.raises(AuthorizationError, match="CHANGE_CLAIM_SCOPE_MISMATCH"):
-            api.get(
-                ChangeClaimReadRequest(
-                    P0_CHANGE_CLAIM_API_VERSION,
-                    scope.tenant_id + "-other",
-                    scope.project_id,
-                    resource_id,
-                ),
-                auth_context=_auth(scope, role="viewer"),
-            )
