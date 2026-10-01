@@ -618,3 +618,53 @@ test("P6 activity grid consumes column alignment, pinning, and freezing presenta
   assert.match(container.innerHTML, /text-align:center/);
 });
 
+
+
+test("P6 column presentation controls forward label, width, alignment, pin, and freeze changes", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "active",
+      fields: [{ field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" }],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [{ field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as LayoutDefinition,
+  };
+  const changes: Array<{ fieldId: string; patch: Record<string, unknown> }> = [];
+  const listeners = new Map<string, () => void>();
+  const makeInput = (dataset: Record<string, string>, value = "", checked = false) => ({
+    dataset, value, checked,
+    addEventListener: (_event: string, listener: () => void) => listeners.set(Object.keys(dataset)[0]!, listener),
+  });
+  const label = makeInput({ p6ColumnLabel: "activity_id" }, "Activity ID Updated");
+  const width = makeInput({ p6ColumnWidth: "activity_id" }, "240");
+  const alignment = makeInput({ p6ColumnAlignment: "activity_id" }, "center");
+  const pinned = makeInput({ p6ColumnPinned: "activity_id" }, "", true);
+  const frozen = makeInput({ p6ColumnFrozen: "activity_id" }, "", true);
+  const controls: Record<string, unknown[]> = {
+    "[data-p6-column-label]": [label], "[data-p6-column-width]": [width],
+    "[data-p6-column-alignment]": [alignment], "[data-p6-column-pinned]": [pinned],
+    "[data-p6-column-frozen]": [frozen],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => (controls[selector] ?? []) as HTMLElement[]) as RenderContainer["querySelectorAll"],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldPresentationChange: (fieldId, patch) => changes.push({ fieldId, patch: patch as Record<string, unknown> }),
+  });
+  listeners.get("p6ColumnLabel")?.();
+  listeners.get("p6ColumnWidth")?.();
+  listeners.get("p6ColumnAlignment")?.();
+  listeners.get("p6ColumnPinned")?.();
+  listeners.get("p6ColumnFrozen")?.();
+  assert.deepEqual(changes, [
+    { fieldId: "activity_id", patch: { label: "Activity ID Updated" } },
+    { fieldId: "activity_id", patch: { width: 240 } },
+    { fieldId: "activity_id", patch: { alignment: "center" } },
+    { fieldId: "activity_id", patch: { pinned: true } },
+    { fieldId: "activity_id", patch: { frozen: true } },
+  ]);
+});
