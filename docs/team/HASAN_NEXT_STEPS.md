@@ -661,3 +661,18 @@ Status: **implemented, runtime-verified and merged**
 
 - Verify this exact branch through GitHub Actions, including PostgreSQL verification where the existing resource-period integration suite applies.
 - After merge, reconcile #393/#597 against the new API seam and continue only from the next concrete Hasan-owned backend contract.
+
+
+### 2026-10-01 — P6 resource leveling read adapter
+
+- Current main baseline for this slice: c58e91b55ca7acaa925dacf1799791f884f9e9b4 after PR #661 merged the authoritative ResourceCapacity contract.
+- PR #661 resolves the previous blocker by defining capacity from ResourceCalendar.capacity_on(period) via assignment calendar_id; AssignmentPeriod and ResourceSpreadBucket remain demand/spread data.
+- This Hasan slice adds an application adapter that consumes only P6ResourceReadAPI for authoritative assignment/period data and maps it into the existing SchedulerLevelingInput boundary.
+- Capacity is consumed through p6_resource_capacity_contract.py; no second persistence model and no scheduling calculations are introduced.
+- Focused tests cover Decimal preservation, deterministic demand/capacity ordering, typed SchedulerLevelingInput output, and the existing API authorization boundary.
+- Documentation: docs/architecture/P6_RESOURCE_LEVELING_READ_ADAPTER_V1.md.
+
+### Current continuation point
+
+- Verify the fresh adapter branch with focused tests and all relevant GitHub Actions.
+- Open the Hasan PR with exact CI evidence; if a concrete integration gap remains, record the exact file/type/module rather than inventing semantics.
