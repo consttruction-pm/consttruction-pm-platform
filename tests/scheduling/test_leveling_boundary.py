@@ -11,6 +11,7 @@ from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     ResourceCapacity,
     ResourceDemand,
+    ResourceLevelingError,
 )
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 
@@ -89,23 +90,13 @@ def test_scheduler_leveling_boundary_rejects_mismatched_activity_sets():
         )
 
 
-def test_scheduler_leveling_boundary_rejects_unknown_demand_activity():
-    forward, backward, capacities = _slices()
+def test_leveling_activity_rejects_unknown_demand_activity():
     bad = ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "UNKNOWN")
-    forward = (
+    with pytest.raises(ResourceLevelingError, match="DEMAND_ACTIVITY_MISMATCH"):
         LevelingActivity(
             activity_id="A1",
             start=date(2026, 10, 5),
             finish=date(2026, 10, 5),
             total_float=2,
             resource_demands=(bad,),
-        ),
-    )
-
-    with pytest.raises(ValueError, match="unknown activity"):
-        scheduler_leveling_input_from_options(
-            forward_activities=forward,
-            backward_activities=backward,
-            capacities=capacities,
-            options=ScheduleOptions(),
         )
