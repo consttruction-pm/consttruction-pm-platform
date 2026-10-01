@@ -4,9 +4,10 @@ from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    
 from .activity import Activity
+
+if TYPE_CHECKING:
+    from .forward_pass import ScheduledActivity
 from .forward_pass import ScheduledActivity
 from .relationships import Relationship, successor_earliest_start
 from .calendar import WorkingTimeResolver
