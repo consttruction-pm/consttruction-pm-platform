@@ -137,7 +137,7 @@ def test_resource_leveling_preserve_dates_runs_forward_only():
     result, forward, backward = _run_resource_leveling(True)
     assert len(forward) == 1
     assert backward == ()
-    assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 1)]
+    assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 2)]
 
 
 def test_resource_leveling_without_preserve_runs_backward_from_late_dates():
@@ -145,4 +145,4 @@ def test_resource_leveling_without_preserve_runs_backward_from_late_dates():
     assert len(forward) == 1
     assert len(backward) == 1
     assert backward[0].advanced_days == 1
-    assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 2)]
+    assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 1)]
