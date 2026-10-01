@@ -55,3 +55,13 @@ test("computed fields remain display-only even when editing is requested", () =>
   assert.match(html, /data-p6-grid-cell/);
   assert.doesNotMatch(html, /data-p6-typed-editor/);
 });
+
+
+test("editable boolean and datetime cells use the shared typed editor", () => {
+  const booleanField = field("critical", "boolean", { writable: true });
+  const datetimeField = field("actual_start", "datetime", { writable: true });
+  const booleanLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "critical", visible: true, order: 3, width: 120, alignment: "center", pinned: false, frozen: false }] };
+  const datetimeLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "actual_start", visible: true, order: 3, width: 160, alignment: "start", pinned: false, frozen: false }] };
+  assert.match(renderP6GridCell(booleanField, booleanLayout, true, { editing: true }), /type="checkbox"/);
+  assert.match(renderP6GridCell(datetimeField, datetimeLayout, "2026-10-01T08:30", { editing: true }), /type="datetime-local"/);
+});
