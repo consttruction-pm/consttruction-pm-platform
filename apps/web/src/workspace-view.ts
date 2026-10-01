@@ -32,6 +32,7 @@ export type WorkspaceRendererOptions = {
   onP6CellValueChange?: (activityId: string, fieldId: string, value: string | boolean | null) => void;
   p6FormulaEditorState?: P6FormulaEditorState | null;
   onP6FormulaExpressionChange?: (expression: string) => void;
+  onP6FormulaValidate?: () => void;
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
   onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
   onP6ReportPrintReset?: () => void;
@@ -118,7 +119,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   }));
   container.querySelectorAll<HTMLTextAreaElement>("[data-p6-formula-expression]").forEach((input) => input.addEventListener("input", () => {
     options.onP6FormulaExpressionChange?.(input.value);
-  }));
+  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-formula-validate]").forEach((button) => button.addEventListener("click", () => {\n    options.onP6FormulaValidate?.();\n  }));
   container.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-p6-typed-value]").forEach((input) => input.addEventListener("change", () => {
     const fieldId = input.dataset.p6TypedValue;
     const row = input.closest<HTMLElement>("[data-activity-id]");
@@ -671,11 +672,11 @@ function renderWorkspaceFormulaEditor(state: P6FormulaEditorState | null | undef
   if (!state) return "";
   return renderP6FormulaEditor(state, locale === "fa"
     ? {
-        title: "ویرایشگر فرمول", expression: "عبارت", validating: "در حال اعتبارسنجی…",
+        title: "ویرایشگر فرمول", expression: "عبارت", validating: "در حال اعتبارسنجی…", validate: "اعتبارسنجی",
         valid: "معتبر", invalid: "نامعتبر", dependencies: "وابستگی‌ها", resultType: "نوع نتیجه",
       }
     : {
-        title: "Formula Editor", expression: "Expression", validating: "Validating…",
+        title: "Formula Editor", expression: "Expression", validating: "Validating…", validate: "Validate",
         valid: "Valid", invalid: "Invalid", dependencies: "Dependencies", resultType: "Result type",
       });
 }
