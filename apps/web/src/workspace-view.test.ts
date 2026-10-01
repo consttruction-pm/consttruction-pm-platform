@@ -323,3 +323,43 @@ test("localizes P6 column presentation controls", () => {
   assert.match(container.innerHTML, /شناسه/);
   assert.match(container.innerHTML, /ابتدا/);
 });
+
+
+test("P6 field chooser forwards field reorder changes", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "test",
+      status: "active",
+      fields: [
+        { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "Duration", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2,
+      columns: [
+        { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+        { field_id: "duration", visible: true, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+      ],
+    } as LayoutDefinition,
+  };
+  const reorderChanges: string[][] = [];
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const moveDown = {
+    dataset: { p6FieldMoveDown: "activity_id" },
+    addEventListener: (_event: string, listener: () => void) => listener(),
+  };
+  container.querySelectorAll = ((selector: string) => {
+    if (selector === "[data-p6-field-move-up], [data-p6-field-move-down]") return [moveDown] as unknown as HTMLElement[];
+    return [];
+  }) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldReorder: (fieldIds) => reorderChanges.push([...fieldIds]),
+  });
+  assert.deepEqual(reorderChanges, [["duration", "activity_id"]]);
+  assert.match(container.innerHTML, /data-p6-field-move-up="activity_id"/);
+  assert.match(container.innerHTML, /data-p6-field-move-down="activity_id"/);
+});
