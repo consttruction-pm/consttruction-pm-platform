@@ -1,6 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
-import { getWorkspaceNavigation } from "./workspace-navigation.js";
+import { getWorkspaceNavigation, getWorkspaceNavigationLabel } from "./workspace-navigation.js";
 
 const labels = {
   en: {
@@ -90,8 +90,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = item.status === "implemented" ? "Implemented" : item.status === "partial" ? "Partial" : "Preview";
+  const label = getWorkspaceNavigationLabel(item, state.locale);
   return `<section class="cp-panel cp-navigation-surface" aria-label="Current workspace surface">
-    <div><strong>${escapeHtml(item.label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
+    <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
     <nav aria-label="${escapeAttribute(item.label)} submenu">
       ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu)}</span>`).join("")}
     </nav>
