@@ -1,7 +1,7 @@
 # V1 Master Audit Matrix
 
 > **Snapshot:** 2026-10-01  
-> **Baseline:** `main` @ `63d4aeb7175cd05b48da828a9ad4dd5d4d7edc01`  
+> **Baseline:** `main` @ `94476f94ade2c7fc23aed2c756894dc5ce080d2d`  
 > **Parent:** #459 — V1: Full Project Audit + Functional Web Beta  
 > **Owner:** Jalal — Shared Core / P6 semantic reconciliation / integration acceptance
 >
@@ -51,8 +51,8 @@
 | Authorization | `application/authorization.py` and tests cover viewer/planner/admin and invalid tenant/roles. | Verified |
 | Atomic idempotency | Contract, lock, gateway and SQLite transaction tests exist; PostgreSQL lock coverage is present. | Verified |
 | Typed Assignment / Period / Spread API | #603 and subsequent #635 API work provide typed read/actual-period seams. | Verified |
-| Beta project/activity/WBS/calendar/schedule-option API surface | Current main contains multiple API modules, but #636 is explicitly verifying the complete Beta-facing read/write contract and runtime evidence. | In progress |
-| PostgreSQL-backed Beta verification | Required by #636 where persistence is authoritative; no current Hasan PR exists yet. | In progress |
+| Beta project/activity/WBS/calendar/schedule-option API surface | Current main contains multiple API modules; historical #636 work is superseded and is not a separate completion item. Remaining runtime verification is tracked by #678. | In progress |
+| PostgreSQL-backed Beta verification | Current bounded Hasan verification is #678; PostgreSQL evidence is required where available, with deterministic fallback coverage explicitly recorded if unavailable. | In progress |
 | Import / export compatibility | P6 mapping, project portability and typed round-trip work exist; complete P6-26.4 field coverage remains an audit track. | Audit required |
 
 ## Web-first Beta surface
@@ -91,10 +91,10 @@
 
 | Work item | Owner | Current state | Next evidence |
 |---|---|---|---|
-| #636 Backend/API verification | Hasan / `hasanforoughi` | Completed/superseded by merged current-main backend evidence; no duplicate implementation is warranted. | Keep audit synchronized; assign only new material gaps |
+| #636 Backend/API verification | Historical/superseded | Superseded; do not count as an active implementation task or duplicate #678. | No rework |
 | #637 Web P6-3 workspace integration | Farmj22002 / `farmj22002-droid` | Completed via merged #674; navigation follow-up #677 is also merged. | Broader V1 Web surface under #459 |
 | #631 FS scheduling audit | Jalal | Closed; no reproducible current-main defect. | No rework; do not revive #517 |
-| #459 Master V1 audit | Jalal | Active; this matrix has been refreshed against current `main` after Web #677 merge. | Continue current-main evidence reconciliation |
+| #459 Master V1 audit | Jalal | Active; matrix is synchronized to the current governance baseline. | Continue current-main evidence reconciliation and weighted refresh |
 | #403 P6 ScheduleOptions remaining parity | Shared Core track | Known remaining audit/implementation scope exists. | Typed option disposition + deterministic regression scenarios |
 
 ## Stale-work policy
