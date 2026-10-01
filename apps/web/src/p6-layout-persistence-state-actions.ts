@@ -2,7 +2,13 @@ import type { LayoutScope, P6LayoutPersistence } from "./p6-field-layout-foundat
 import type { WorkspaceState } from "./workspace-model.js";
 import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 
+export type P6LayoutPersistenceState = {
+  busy: boolean;
+  error: Error | null;
+};
+
 export type P6LayoutPersistenceStateActions = {
+  getState(): P6LayoutPersistenceState;
   load(): Promise<WorkspaceState>;
   save(): Promise<WorkspaceState>;
 };
@@ -15,6 +21,7 @@ export function createP6LayoutPersistenceStateActions(
   setState: (state: WorkspaceState) => void,
 ): P6LayoutPersistenceStateActions {
   const controller = createP6LayoutPersistenceController(persistence, scope, viewId);
+  let persistenceState: P6LayoutPersistenceState = { busy: false, error: null };
   let pending: Promise<void> = Promise.resolve();
 
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -23,20 +30,29 @@ export function createP6LayoutPersistenceStateActions(
     return result;
   };
 
+  const run = <T>(operation: () => Promise<T>): Promise<T> => enqueue(async () => {
+    persistenceState = { busy: true, error: null };
+    try {
+      return await operation();
+    } catch (error) {
+      persistenceState = { busy: false, error: error instanceof Error ? error : new Error(String(error)) };
+      throw error;
+    } finally {
+      persistenceState = { ...persistenceState, busy: false };
+    }
+  });
+
   return {
-    load() {
-      return enqueue(async () => {
-        const next = await controller.load(getState());
-        setState(next);
-        return next;
-      });
-    },
-    save() {
-      return enqueue(async () => {
-        const next = await controller.save(getState());
-        setState(next);
-        return next;
-      });
-    },
+    getState: () => persistenceState,
+    load: () => run(async () => {
+      const next = await controller.load(getState());
+      setState(next);
+      return next;
+    }),
+    save: () => run(async () => {
+      const next = await controller.save(getState());
+      setState(next);
+      return next;
+    }),
   };
 }
