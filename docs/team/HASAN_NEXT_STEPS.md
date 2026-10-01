@@ -645,3 +645,19 @@ Status: **implemented, runtime-verified and merged**
 - Remain at the evidence boundary until a new authoritative backend/API/persistence contract or reproducible Backend/API/Persistence defect appears on current `main`.
 - When a Hasan-owned gap appears, branch from exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and update this document with exact commit/run identifiers before merge.
 - Do not modify PR #647 or invent duplicate P6 scheduling/resource-leveling semantics under the Hasan backend lane.
+
+
+### 2026-10-01 — Post-PR #648 current-main reconciliation
+
+- Current `main` is `ee515ba0bed7e9413edfedeb0688b56f3ed31e8c`, the merge commit for PR #648 (Jalal/Shared Core: resource-leveling movement translated into scheduler constraints).
+- PR #648 passed ConstructionPM CI, Client Typecheck, and PostgreSQL Integration on its implementation head before merge; no Hasan-owned backend code was changed by that PR.
+- Fresh open-PR inspection after the merge found no open PR requiring Hasan-owned Backend/Database/Application/API work.
+- Current open Hasan workstreams remain #393 (P6 persistence/API/import-export), #459 (V1 backend/API/data verification), #79 (P0 backend/enterprise integration), and #26 (offline-capable client contracts). The concrete slices already completed on current main must not be duplicated.
+- Current-main backend inspection found no new reproducible Backend/API/Persistence defect or authoritative contract dependency that can be implemented without inventing semantics owned by Shared Core or client integration.
+- The active P6 scheduling gap identified by the V1 audit remains #595 / out-of-sequence scheduling consumption in the public scheduler; this is Shared Core/Jalal ownership, not a Hasan backend task.
+
+### Current continuation point
+
+- Hold at the evidence boundary until a new authoritative Backend/API/Persistence contract or reproducible backend defect appears on this exact main.
+- When one appears: branch from exact current main, implement only the narrow Hasan-owned boundary, add focused regression tests, obtain PostgreSQL verification where applicable, update this file with exact commit/run identifiers, and merge only after green evidence.
+- Do not revive stale PRs, duplicate completed P6 persistence/API slices, or implement Shared Core scheduling semantics in Backend/API.
