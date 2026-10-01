@@ -30,6 +30,27 @@ class StartToStartLagCalculationType(str, Enum):
     ACTUAL_START = "ACTUAL_START"
 
 
+class PrioritySortOrder(str, Enum):
+    """P6 resource-leveling priority direction."""
+
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+
+
+@dataclass(frozen=True)
+class PriorityListItem:
+    """Typed P6 resource-leveling priority entry."""
+
+    field_name: str
+    sort_order: PrioritySortOrder = PrioritySortOrder.ASCENDING
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.field_name, str) or not self.field_name.strip():
+            raise ValueError("field_name must be a non-empty string")
+        if not isinstance(self.sort_order, PrioritySortOrder):
+            raise ValueError("sort_order must be a PrioritySortOrder")
+
+
 class OutOfSequenceScheduleType(str, Enum):
     RETAINED_LOGIC = "RETAINED_LOGIC"
     PROGRESS_OVERRIDE = "PROGRESS_OVERRIDE"
@@ -76,7 +97,7 @@ class ScheduleOptions:
     level_within_float: bool = False
     over_allocation_percentage: float = 0.0
     resource_list: str | None = None
-    priority_list: str | None = None
+    priority_list: tuple[PriorityListItem, ...] | None = None
     external_project_priority_limit: int = 0
     preserve_scheduled_early_and_late_dates: bool = False
     data_date: date | None = None
