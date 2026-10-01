@@ -51,8 +51,8 @@ test("P6 grid presentation state is validated by the authoritative registry", ()
     scope: "user",
     revision: 1,
     columns: [
-      { field_id: "activity_id", order: 0, visible: true, width: 120 },
-      { field_id: "duration", order: 1, visible: true, width: 120 },
+      { field_id: "activity_id", order: 0, visible: true, width: 120, alignment: "start", pinned: false, frozen: false },
+      { field_id: "duration", order: 1, visible: true, width: 120, alignment: "end", pinned: false, frozen: false },
     ],
   } as Parameters<typeof setP6Presentation>[2];
   let state = setP6Presentation(base, registry, layout);
