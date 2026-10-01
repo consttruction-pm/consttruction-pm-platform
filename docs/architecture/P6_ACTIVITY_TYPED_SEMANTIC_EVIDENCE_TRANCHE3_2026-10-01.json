@@ -1,0 +1,196 @@
+{
+  "schema_version": "p6-activity-typed-semantic-evidence.v1",
+  "subject_area": "Activity",
+  "status": "evidence_only_pending_full_activity_certification",
+  "p6_release": "P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "fields": [
+    {
+      "subject_area": "Activity",
+      "p6_field": "AccountingVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed planned value - actual cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AccountingVarianceLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed planned value labor units - actual units",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed current start-to-current finish working time",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed VAC = BAC - EAC",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed primary baseline duration - at completion duration",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed secondary baseline duration - at completion duration",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Duration3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed tertiary baseline duration - at completion duration",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationPercentOfPlanned",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed actual duration / baseline duration * 100",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarlyFinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "semantic": "scheduler-computed earliest finish",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarlyStartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "semantic": "scheduler-computed earliest remaining-work start",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "EarnedValueCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed BAC * performance percent complete",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed primary baseline expense cost - at completion expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed secondary baseline expense cost - at completion expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed tertiary baseline expense cost - at completion expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostPercentComplete",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed actual expense cost / at completion expense cost * 100",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed project baseline expense cost - at completion expense cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPercentComplete",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed actual total cost / at completion total cost * 100",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPercentOfPlanned",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed actual total cost / baseline planned total cost * 100",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "CostPerformanceIndex",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed earned value / actual cost",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "DurationVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "semantic": "computed project baseline duration - at completion duration",
+      "disposition": "evidence_only_pending_full_activity_certification"
+    }
+  ],
+  "guardrails": [
+    "No Activity dataclass expansion.",
+    "No second CPM/EVM implementation.",
+    "No alias treated as exact identity.",
+    "This tranche does not certify nullable/default/import-export semantics."
+  ],
+  "note": "Types and computed semantics are grounded in the Release 26 Activity REST schema. Mutability is recorded conservatively for computed/scheduler-derived fields; full field certification still requires the remaining acceptance evidence in issue #405."
+}
