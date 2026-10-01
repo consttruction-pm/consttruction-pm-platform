@@ -313,9 +313,6 @@ export function setP6Presentation(
   if (layout.revision < 0 || !Number.isInteger(layout.revision)) {
     throw new Error("INVALID_P6_LAYOUT_REVISION");
   }
-  if (layout.revision !== state.context.revision) {
-    throw new Error("P6_LAYOUT_REVISION_MISMATCH");
-  }
   if (registry.registry_version !== "p6-field-registry.v1") {
     throw new Error("UNSUPPORTED_P6_FIELD_REGISTRY");
   }
