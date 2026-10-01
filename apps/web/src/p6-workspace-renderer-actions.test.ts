@@ -103,3 +103,34 @@ test("renderer grid add actions append authoritative presentation items", () => 
   assert.deepEqual(state.p6GridGroups, [{ field_id: "activity_id", order: 0 }]);
   assert.deepEqual(state.p6GridFilters, [{ field_id: "activity_id", operator: "equals", value: "" }]);
 });
+
+
+test("renderer grid reorder actions delegate to authoritative workspace contracts", () => {
+  let state = initialState();
+  const actions = createP6WorkspaceRendererActions(() => state, (next) => { state = next; });
+
+  actions.onP6GridSortChange?.([
+    { field_id: "activity_id", direction: "ascending", order: 0 },
+    { field_id: "duration", direction: "descending", order: 1 },
+  ]);
+  actions.onP6GridGroupChange?.([
+    { field_id: "activity_id", order: 0 },
+    { field_id: "duration", order: 1 },
+  ]);
+  actions.onP6GridFilterChange?.([
+    { field_id: "activity_id", operator: "equals", value: "A-1" },
+    { field_id: "duration", operator: "greater-than", value: 10 },
+  ]);
+
+  actions.onP6GridSortReorder?.(["duration", "activity_id"]);
+  actions.onP6GridGroupReorder?.(["duration", "activity_id"]);
+  actions.onP6GridFilterReorder?.([1, 0]);
+
+  assert.deepEqual(state.p6GridSorts.map((item) => [item.field_id, item.order]), [
+    ["duration", 0], ["activity_id", 1],
+  ]);
+  assert.deepEqual(state.p6GridGroups.map((item) => [item.field_id, item.order]), [
+    ["duration", 0], ["activity_id", 1],
+  ]);
+  assert.deepEqual(state.p6GridFilters.map((item) => item.field_id), ["duration", "activity_id"]);
+});
