@@ -468,7 +468,7 @@ def _shift_demands_backward(
     return tuple(
         ResourceDemand(
             d.resource_id,
-            resolver.add_working_duration(d.period, shift_working_days),
+            resolver.subtract_working_duration(d.period, -shift_working_days),
             d.units,
             d.activity_id,
         )
@@ -609,8 +609,8 @@ def propose_backward_leveling(
             BackwardLevelingShift(
                 activity_id=activity_id,
                 shift_working_days=next_shift,
-                new_start=resolver.add_working_duration(activity.late_start, next_shift),
-                new_finish=resolver.add_working_duration(activity.late_finish, next_shift),
+                new_start=resolver.subtract_working_duration(activity.late_start, -next_shift),
+                new_finish=resolver.subtract_working_duration(activity.late_finish, -next_shift),
                 advanced_days=-next_shift,
             )
         )
