@@ -129,7 +129,7 @@ def _run_resource_leveling(preserve: bool):
     ))
     return schedule_with_resource_leveling(
         (Activity("A", 1), Activity("B", 1)), (), date(2026, 10, 1), resolver,
-        _resource_leveling_input(preserve=preserve), project_finish=date(2026, 10, 2),
+        _resource_leveling_input(preserve=preserve), project_finish=date(2026, 10, 3),
     )
 
 
