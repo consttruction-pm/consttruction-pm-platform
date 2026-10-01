@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 import pytest
 
@@ -15,11 +16,19 @@ from construction_pm.scheduling.calendar_context import (
     CalendarResolverRegistry,
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
-from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_leveling import (
+    LevelingActivity,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingOptions,
+)
+from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
-def make_snapshot_and_context():
+def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
     calendar = CalendarReference("CAL-1", "1")
     source = AuthoritativeScheduleInput(
         snapshot_id="S-H",
@@ -38,6 +47,7 @@ def make_snapshot_and_context():
                 date(2026, 9, 23),
             ),
         ),
+        schedule_options=options,
         project_start=date(2026, 9, 21),
     )
     context = CalculationContext(
@@ -85,6 +95,47 @@ def test_evaluator_is_deterministic_for_same_snapshot_and_context():
 
     assert first.calculation_run_identity == second.calculation_run_identity
     assert first.date_result == second.date_result
+
+
+def test_evaluator_routes_leveling_options_to_authoritative_seam():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    snapshot, context = make_snapshot_and_context(options=options)
+    demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
+    demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
+    activity_a = LevelingActivity(
+        "A", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_a,)
+    )
+    activity_b = LevelingActivity(
+        "B", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_b,)
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(activity_a, activity_b),
+        backward_activities=(activity_a, activity_b),
+        capacities=(ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = evaluate_schedule_snapshot(
+        snapshot,
+        context,
+        registry(),
+        leveling_input=leveling_input,
+    )
+
+    assert result.date_result is not None
+    assert len(result.date_result.activities) == 2
+    assert len({item.start for item in result.date_result.activities.values()}) == 2
+
+
+def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input():
+    options = ScheduleOptions(level_all_resources=True)
+    snapshot, context = make_snapshot_and_context(options=options)
+
+    with pytest.raises(ScheduleEvaluationError, match="SCHEDULE_LEVELING_INPUT_REQUIRED"):
+        evaluate_schedule_snapshot(snapshot, context, registry())
 
 
 @pytest.mark.parametrize(
