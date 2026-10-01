@@ -4,6 +4,7 @@ import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNaviga
 import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 import { renderP6FormulaEditor } from "./p6-formula-editor-view.js";
 import { renderP6ReportPrintFieldSelection } from "./p6-report-print-field-selection-view.js";
+import type { P6GridFilter, P6GridGroup, P6GridSort } from "./p6-activity-wbs-grid.js";
 
 const labels = {
   en: {
@@ -28,6 +29,10 @@ export type WorkspaceRendererOptions = {
   p6ReportPrintSelection?: { field_ids: readonly string[] } | null;
   onP6ReportPrintSelectionChange?: (fieldIds: readonly string[]) => void;
   onP6ReportPrintReset?: () => void;
+  p6GridPresentation?: { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null;
+  onP6GridSortChange?: (sorts: readonly P6GridSort[]) => void;
+  onP6GridGroupChange?: (groups: readonly P6GridGroup[]) => void;
+  onP6GridFilterChange?: (filters: readonly P6GridFilter[]) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -64,6 +69,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             ${renderWorkspaceFormulaEditor(options.p6FormulaEditorState, state.locale)}
             ${renderWorkspaceReportPrintSelection(state, options.p6ReportPrintSelection)}
+            ${renderWorkspaceGridPresentation(state, options)}
             <div class="cp-table-wrap">
               <table>
                 <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
@@ -89,6 +95,35 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
 
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = options.p6GridPresentation?.sorts ?? [];
+    options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, field_id: select.value } : sort));
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-sort-direction]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-sort-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = options.p6GridPresentation?.sorts ?? [];
+    options.onP6GridSortChange?.(current.map((sort) => sort.order === order ? { ...sort, direction: select.value as P6GridSort["direction"] } : sort));
+  }));
+  container.querySelectorAll<HTMLSelectElement>("[data-p6-grid-group-field]").forEach((select) => select.addEventListener("change", () => {
+    const row = select.closest<HTMLElement>("[data-p6-grid-group-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = options.p6GridPresentation?.groups ?? [];
+    options.onP6GridGroupChange?.(current.map((group) => group.order === order ? { ...group, field_id: select.value } : group));
+  }));
+  container.querySelectorAll<HTMLInputElement>("[data-p6-grid-filter-value]").forEach((input) => input.addEventListener("change", () => {
+    const row = input.closest<HTMLElement>("[data-p6-grid-filter-row]");
+    if (!row) return;
+    const order = Number(row.dataset.order ?? "0");
+    const current = options.p6GridPresentation?.filters ?? [];
+    options.onP6GridFilterChange?.(current.map((filter, index) => index === order ? { ...filter, value: input.value } : filter));
+  }));
+
   container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]").forEach((input) => input.addEventListener("change", () => {
     const fieldIds = Array.from(container.querySelectorAll<HTMLInputElement>("[data-p6-report-field-id]:checked"))
       .map((field) => field.dataset.p6ReportFieldId)
@@ -104,6 +139,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   });
 }
 
+function renderWorkspaceGridPresentation(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  const presentation = options.p6GridPresentation;
+  if (!presentation || !state.p6FieldRegistry) return "";
+  const fields = state.p6FieldRegistry.fields;
+  const sortRows = presentation.sorts.map((sort) => `<div data-p6-grid-sort-row data-order="${sort.order}"><select data-p6-grid-sort-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === sort.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select><select data-p6-grid-sort-direction><option value="ascending"${sort.direction === "ascending" ? " selected" : ""}>Ascending</option><option value="descending"${sort.direction === "descending" ? " selected" : ""}>Descending</option></select></div>`).join("");
+  const groupRows = presentation.groups.map((group) => `<div data-p6-grid-group-row data-order="${group.order}"><select data-p6-grid-group-field>${fields.map((field) => `<option value="${escapeAttribute(field.field_id)}"${field.field_id === group.field_id ? " selected" : ""}>${escapeHtml(field.display_name)}</option>`).join("")}</select></div>`).join("");
+  const filterRows = presentation.filters.map((filter, index) => `<div data-p6-grid-filter-row data-order="${index}"><span>${escapeHtml(filter.field_id)}</span><span>${escapeHtml(filter.operator)}</span><input data-p6-grid-filter-value value="${escapeAttribute(String(filter.value ?? ""))}"></div>`).join("");
+  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="Grid presentation"><h3>Grid Presentation</h3><div data-p6-grid-sort-count>Sorts: ${presentation.sorts.length}</div><div data-p6-grid-group-count>Groups: ${presentation.groups.length}</div><div data-p6-grid-filter-count>Filters: ${presentation.filters.length}</div>${sortRows}${groupRows}${filterRows}</section>`;
+}
 function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
