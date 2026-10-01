@@ -645,3 +645,19 @@ Status: **implemented, runtime-verified and merged**
 - Remain at the evidence boundary until a new authoritative backend/API/persistence contract or reproducible Backend/API/Persistence defect appears on current `main`.
 - When a Hasan-owned gap appears, branch from exact current `main`, add focused regression coverage, obtain PostgreSQL verification where applicable, and update this document with exact commit/run identifiers before merge.
 - Do not modify PR #647 or invent duplicate P6 scheduling/resource-leveling semantics under the Hasan backend lane.
+
+
+### 2026-10-01 — P6 ResourceAssignment period write API seam
+
+- Current main baseline for this slice: `ee515ba0bed7e9413edfedeb0688b56f3ed31e8c`.
+- Fresh #393/#597 reconciliation identified the remaining backend seam as a versioned write boundary for already-persisted `ResourceAssignment` time-phased period values.
+- PR #608 already provides authoritative SQLite/PostgreSQL persistence and immutable/replay-safe application behavior; PR #609 already provides the corresponding read API. Neither is duplicated here.
+- This slice adds `p6-resource-write-api.v1` with `save_assignment_period`, enforcing tenant/project scope and `project.write` authorization while delegating revision/conflict/replay semantics to the existing repository/application service.
+- No leveling, CPM, calendar, spread calculation, cost calculation, or second resource model is introduced.
+- Focused tests cover typed Decimal round-trip, identical replay, immutable conflict, scope/authorization rejection, and revision-conflict propagation.
+- Documentation: `docs/architecture/P6_RESOURCE_PERIOD_WRITE_API_V1.md`.
+
+### Current continuation point
+
+- Verify this exact branch through GitHub Actions, including PostgreSQL verification where the existing resource-period integration suite applies.
+- After merge, reconcile #393/#597 against the new API seam and continue only from the next concrete Hasan-owned backend contract.
