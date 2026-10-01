@@ -28,3 +28,4 @@ export * from "./p6-grid-cell-view.js";
 export * from "./p6-workspace-renderer-actions.js";
 export * from "./p6-layout-persistence-controller.js";
 export * from "./p6-layout-persistence-state-actions.js";
+export * from "./p6-layout-persistence-controls-view.js";
