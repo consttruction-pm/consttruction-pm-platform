@@ -78,3 +78,49 @@ def test_postgres_field_registry_rejects_mutation_and_preserves_committed_row():
             repo.upsert_field(changed)
         conn.rollback()
         assert repo.get_field(scope, item.registry_version, item.field.field_id) == item
+
+
+def test_postgres_field_registry_upsert_is_idempotent_and_preserves_typed_metadata():
+    with connect() as conn:
+        repo = PostgresP6FieldRegistryRepository(conn)
+        repo.initialize()
+        scope = BackendScope("tenant-field-idem", "project-field-idem", 3)
+        item = PersistedP6Field(
+            scope=scope,
+            registry_version="p6-field-registry.v1",
+            field=get_field("activity.activity_id"),
+        )
+
+        assert repo.upsert_field(item) == item
+        assert repo.upsert_field(item) == item
+        loaded = repo.get_field(scope, item.registry_version, item.field.field_id)
+
+        assert loaded == item
+        assert loaded is not None
+        assert loaded.field.data_type == item.field.data_type
+        assert loaded.field.reference_url == item.field.reference_url
+        assert loaded.field.disposition == item.field.disposition
+        assert loaded.field.read_only == item.field.read_only
+        assert loaded.field.filterable == item.field.filterable
+        assert loaded.field.orderable == item.field.orderable
+        assert loaded.field.nullable == item.field.nullable
+
+
+def test_postgres_field_registry_list_is_revision_and_subject_scoped():
+    with connect() as conn:
+        repo = PostgresP6FieldRegistryRepository(conn)
+        repo.initialize()
+        scope = BackendScope("tenant-field-list", "project-field-list", 4)
+        repo.upsert_field(PersistedP6Field(scope=scope, registry_version="p6-field-registry.v1", field=get_field("activity.activity_name")))
+        repo.upsert_field(PersistedP6Field(scope=scope, registry_version="p6-field-registry.v1", field=get_field("activity.activity_id")))
+        repo.upsert_field(PersistedP6Field(scope=scope, registry_version="p6-field-registry.v1", field=get_field("project.id")))
+
+        fields = repo.list_fields(scope, "p6-field-registry.v1", "Activity")
+        assert [item.field.field_id for item in fields] == [
+            "activity.activity_id",
+            "activity.activity_name",
+        ]
+        assert repo.list_fields(
+            BackendScope(scope.tenant_id, scope.project_id, scope.project_revision + 1),
+            "p6-field-registry.v1",
+        ) == ()
