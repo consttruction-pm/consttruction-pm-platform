@@ -24,15 +24,8 @@ const layout: LayoutDefinition = {
 };
 
 const field = (field_id: string, data_type: P6Field["data_type"], overrides: Partial<P6Field> = {}): P6Field => ({
-  field_id,
-  subject_area: "Activity",
-  p6_field: field_id,
-  display_name: field_id,
-  data_type,
-  writable: false,
-  computed: false,
-  disposition: "standard",
-  ...overrides,
+  field_id, subject_area: "Activity", p6_field: field_id, display_name: field_id, data_type,
+  writable: false, computed: false, disposition: "standard", ...overrides,
 });
 
 test("renders read-only standard cells from authoritative field metadata", () => {
@@ -45,8 +38,8 @@ test("renders read-only standard cells from authoritative field metadata", () =>
 test("renders editable custom and UDF cells through the shared typed editor", () => {
   const custom = field("custom_text", "string", { writable: true, disposition: "custom" });
   const udf = field("udf_001", "decimal", { writable: true, disposition: "udf" });
-  const customLayout = { ...layout, columns: [...layout.columns, { field_id: "custom_text", visible: true, order: 3, width: 120, alignment: "start", pinned: false, frozen: false }] };
-  const udfLayout = { ...layout, columns: [...layout.columns, { field_id: "udf_001", visible: true, order: 3, width: 120, alignment: "end", pinned: false, frozen: false }] };
+  const customLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "custom_text", visible: true, order: 3, width: 120, alignment: "start", pinned: false, frozen: false }] };
+  const udfLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "udf_001", visible: true, order: 3, width: 120, alignment: "end", pinned: false, frozen: false }] };
   assert.match(renderP6GridCell(custom, customLayout, "x", { editing: true }), /data-p6-typed-editor/);
   assert.match(renderP6GridCell(udf, udfLayout, 2.5, { editing: true }), /type="number"/);
 });
@@ -57,7 +50,7 @@ test("does not render hidden columns", () => {
 
 test("computed fields remain display-only even when editing is requested", () => {
   const computed = field("calc", "decimal", { computed: true });
-  const calcLayout = { ...layout, columns: [...layout.columns, { field_id: "calc", visible: true, order: 3, width: 120, alignment: "end", pinned: false, frozen: false }] };
+  const calcLayout: LayoutDefinition = { ...layout, columns: [...layout.columns, { field_id: "calc", visible: true, order: 3, width: 120, alignment: "end", pinned: false, frozen: false }] };
   const html = renderP6GridCell(computed, calcLayout, 12, { editing: true });
   assert.match(html, /data-p6-grid-cell/);
   assert.doesNotMatch(html, /data-p6-typed-editor/);
