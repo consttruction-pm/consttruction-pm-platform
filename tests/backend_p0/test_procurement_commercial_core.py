@@ -180,7 +180,10 @@ def test_all_procurement_records_round_trip_through_resource_envelope():
         evidence_refs=(_evidence(),)
     )
     linked_result = api.save_resource(
-        linked_commitment, auth_context=_auth(), idempotency_key="com-2-link"
+        linked_commitment,
+        auth_context=_auth(),
+        expected_revision=1,
+        idempotency_key="com-2-link",
     )
 
     assert [item["resource_type"] for item in results] == [
