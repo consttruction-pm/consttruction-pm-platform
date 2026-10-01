@@ -14,6 +14,7 @@ from ..field_assurance_workflow import FieldAssuranceTransitionError, assert_tra
 from .idempotency import IdempotencyStore, fingerprint
 from .models import Record, record_id, resource_type
 from .persistence import _record_from_payload
+from .procurement_references import ProcurementReferenceResolver
 from .repository import BackendP0Repository, StoredRecord
 from .transactions import TransactionManager
 
@@ -43,6 +44,7 @@ class BackendP0ApplicationService:
         })
 
         def mutation() -> StoredRecord:
+            self._validate_procurement_references(record)
             current = self.repository.get(
                 record.scope.tenant_id,
                 record.scope.project_id,
@@ -87,6 +89,9 @@ class BackendP0ApplicationService:
             raise BackendApplicationError(
                 ErrorCategory.CONFLICT, "STALE_REVISION", str(exc), retryable=True
             ) from exc
+
+    def _validate_procurement_references(self, record: Record) -> None:
+        ProcurementReferenceResolver(self.repository).validate(record)
 
     def get(self, record: Record, *, auth_context: AuthorizationContext) -> StoredRecord | None:
         record.scope.validate()
