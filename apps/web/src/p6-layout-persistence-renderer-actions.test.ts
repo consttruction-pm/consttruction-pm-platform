@@ -22,3 +22,24 @@ test("P6 layout persistence renderer actions delegate load and save", async () =
 
   assert.deepEqual(calls, ["load", "save"]);
 });
+
+test("P6 layout persistence renderer actions contain rejected event operations", async () => {
+  const calls: string[] = [];
+  const actions = createP6LayoutPersistenceRendererActions({
+    getState: () => ({ busy: false, error: null }),
+    load: async () => {
+      calls.push("load");
+      throw new Error("LOAD_FAILED");
+    },
+    save: async () => {
+      calls.push("save");
+      throw new Error("SAVE_FAILED");
+    },
+  });
+
+  actions.onP6LayoutLoad?.();
+  actions.onP6LayoutSave?.();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(calls, ["load", "save"]);
+});
