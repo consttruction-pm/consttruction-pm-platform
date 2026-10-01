@@ -38,8 +38,11 @@ export type WorkspaceRendererOptions = {
   onP6ReportPrintReset?: () => void;
   p6GridPresentation?: { sorts: readonly P6GridSort[]; groups: readonly P6GridGroup[]; filters: readonly P6GridFilter[] } | null;
   onP6GridSortChange?: (sorts: readonly P6GridSort[]) => void;
+  onP6GridSortAdd?: () => void;
   onP6GridGroupChange?: (groups: readonly P6GridGroup[]) => void;
+  onP6GridGroupAdd?: () => void;
   onP6GridFilterChange?: (filters: readonly P6GridFilter[]) => void;
+  onP6GridFilterAdd?: () => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -154,6 +157,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = input.dataset.p6ColumnFrozen;
     if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: input.checked });
   }));
+
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridSortAdd?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-group-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridGroupAdd?.()));
+  container.querySelectorAll<HTMLElement>("[data-p6-grid-filter-add]").forEach((button) => button.addEventListener("click", () => options.onP6GridFilterAdd?.()));
 
   container.querySelectorAll<HTMLElement>("[data-p6-grid-sort-remove]").forEach((button) => button.addEventListener("click", () => {
     const row = button.closest<HTMLElement>("[data-p6-grid-sort-row]");
@@ -290,7 +297,10 @@ function renderWorkspaceGridPresentation(state: WorkspaceState, options: Workspa
   const ascending = sortDirectionLabels.ascending;
   const descending = sortDirectionLabels.descending;
   const localizedSortRows = sortRows.replaceAll("Ascending", ascending).replaceAll("Descending", descending);
-  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3><div data-p6-grid-sort-count>${escapeHtml(sortsLabel)}: ${presentation.sorts.length}</div><div data-p6-grid-group-count>${escapeHtml(groupsLabel)}: ${presentation.groups.length}</div><div data-p6-grid-filter-count>${escapeHtml(filtersLabel)}: ${presentation.filters.length}</div>${localizedSortRows}${groupRows}${filterRows}</section>`;
+  const addSort = locale === "fa" ? "افزودن مرتب‌سازی" : "Add sort";
+  const addGroup = locale === "fa" ? "افزودن گروه‌بندی" : "Add group";
+  const addFilter = locale === "fa" ? "افزودن فیلتر" : "Add filter";
+  return `<section class="cp-panel cp-p6-grid-presentation" aria-label="${escapeAttribute(title)}"><h3>${escapeHtml(title)}</h3><div data-p6-grid-sort-count>${escapeHtml(sortsLabel)}: ${presentation.sorts.length}</div><button type="button" data-p6-grid-sort-add>${escapeHtml(addSort)}</button>${localizedSortRows}<div data-p6-grid-group-count>${escapeHtml(groupsLabel)}: ${presentation.groups.length}</div><button type="button" data-p6-grid-group-add>${escapeHtml(addGroup)}</button>${groupRows}<div data-p6-grid-filter-count>${escapeHtml(filtersLabel)}: ${presentation.filters.length}</div><button type="button" data-p6-grid-filter-add>${escapeHtml(addFilter)}</button>${filterRows}</section>`;
 }
 function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
