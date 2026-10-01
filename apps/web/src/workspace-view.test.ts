@@ -232,6 +232,49 @@ test("localizes P6 grid presentation labels and filter operators", () => {
   assert.match(container.innerHTML, /صعودی/);
 });
 
+test("localizes P6 hidden field show control", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "fa",
+    ),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "test",
+      status: "active",
+      fields: [
+        { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "شناسه فعالیت", data_type: "string", writable: false, computed: false, disposition: "standard" },
+        { field_id: "duration", subject_area: "Activity", p6_field: "Original Duration", display_name: "مدت", data_type: "duration", writable: false, computed: false, disposition: "standard" },
+      ],
+    } as FieldRegistry,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity",
+      revision: 2,
+      columns: [
+        { field_id: "activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false },
+        { field_id: "duration", visible: false, order: 1, width: 120, alignment: "end", pinned: false, frozen: false },
+      ],
+    } as LayoutDefinition,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const show = {
+    dataset: { p6FieldShow: "duration" },
+    addEventListener: (_event: string, listener: () => void) => listener(),
+  };
+  const changes: Array<{ fieldId: string; patch: { visible?: boolean } }> = [];
+  container.querySelectorAll = ((selector: string) => (
+    selector === "[data-p6-field-show]" ? [show] as unknown as HTMLElement[] : []
+  )) as RenderContainer["querySelectorAll"];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldPresentationChange: (fieldId, patch) => changes.push({ fieldId, patch }),
+  });
+  assert.match(container.innerHTML, /نمایش/);
+  assert.deepEqual(changes, [{ fieldId: "duration", patch: { visible: true } }]);
+});
+
 test("renders the report/print field selection from authoritative registry and layout", () => {
   const state = {
     ...createWorkspaceState(
