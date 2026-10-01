@@ -452,13 +452,10 @@ class BackwardLevelingShift:
 def _working_days_between(start: date, end: date, resolver: WorkingTimeResolver) -> int:
     if end < start:
         raise ResourceLevelingError("INVALID_DATE_ORDER")
-    cursor, days = start, 0
-    while cursor < end:
-        cursor = resolver.add_working_duration(cursor, 1)
-        days += 1
-        if days > 100000:
-            raise ResourceLevelingError("LEVELING_DATE_RANGE_TOO_LARGE")
-    return days
+    try:
+        return resolver.working_days_between(start, end)
+    except ValueError as exc:
+        raise ResourceLevelingError("INVALID_DATE_ORDER") from exc
 
 
 def _shift_demands_backward(
