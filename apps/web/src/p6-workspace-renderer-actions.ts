@@ -1,0 +1,42 @@
+import type { WorkspaceRendererOptions } from "./workspace-view.js";
+import type { WorkspaceState } from "./workspace-model.js";
+import {
+  addP6Field,
+  removeP6Field,
+  reorderP6Fields,
+  updateP6FieldPresentation,
+  setP6GridFilters,
+  setP6GridGroups,
+  setP6GridSorts,
+} from "./workspace-model.js";
+
+export type P6WorkspaceStateSink = (state: WorkspaceState) => void;
+
+export function createP6WorkspaceRendererActions(
+  getState: () => WorkspaceState,
+  setState: P6WorkspaceStateSink,
+): Pick<
+  WorkspaceRendererOptions,
+  | "onP6FieldAdd"
+  | "onP6FieldRemove"
+  | "onP6FieldReorder"
+  | "onP6FieldPresentationChange"
+  | "onP6GridSortChange"
+  | "onP6GridGroupChange"
+  | "onP6GridFilterChange"
+> {
+  const commit = (mutate: (state: WorkspaceState) => WorkspaceState): void => {
+    setState(mutate(getState()));
+  };
+
+  return {
+    onP6FieldAdd: (fieldId) => commit((state) => addP6Field(state, fieldId)),
+    onP6FieldRemove: (fieldId) => commit((state) => removeP6Field(state, fieldId)),
+    onP6FieldReorder: (fieldIds) => commit((state) => reorderP6Fields(state, fieldIds)),
+    onP6FieldPresentationChange: (fieldId, patch) =>
+      commit((state) => updateP6FieldPresentation(state, fieldId, patch)),
+    onP6GridSortChange: (sorts) => commit((state) => setP6GridSorts(state, sorts)),
+    onP6GridGroupChange: (groups) => commit((state) => setP6GridGroups(state, groups)),
+    onP6GridFilterChange: (filters) => commit((state) => setP6GridFilters(state, filters)),
+  };
+}
