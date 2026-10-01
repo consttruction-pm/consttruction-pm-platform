@@ -674,9 +674,16 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
-  return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
+  const fa = state.locale === "fa";
+  const title = fa ? "انتخابگر فیلدهای P6" : "P6 Field Chooser";
+  const fieldsLabel = fa ? "فیلدها" : "Fields";
+  const removeLabel = fa ? "حذف" : "Remove";
+  const moveUpLabel = fa ? "انتقال به بالا" : "Move up";
+  const moveDownLabel = fa ? "انتقال به پایین" : "Move down";
+  const addLabel = fa ? "افزودن" : "Add";
+  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(title)}">
     <div class="cp-p6-field-chooser-heading">
-      <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+      <strong>${escapeHtml(fieldsLabel)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
       ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column, index, visibleColumns) => {
@@ -686,13 +693,17 @@ function renderP6FieldChooser(state: WorkspaceState): string {
         const fieldId = escapeAttribute(field.field_id);
         const upDisabled = index === 0 ? " disabled" : "";
         const downDisabled = index === visibleColumns.length - 1 ? " disabled" : "";
-        return `<div data-p6-field-row data-field-id="${fieldId}"><span>${label}</span><button type="button" data-p6-field-move-up="${fieldId}" title="Move up" aria-label="Move up"${upDisabled}>↑</button><button type="button" data-p6-field-move-down="${fieldId}" title="Move down" aria-label="Move down"${downDisabled}>↓</button><button type="button" data-p6-field-remove="${fieldId}" title="Remove">Remove</button></div>`;
+        return `<div data-p6-field-row data-field-id="${fieldId}">
+          <span>${label}</span>
+          <button type="button" data-p6-field-move-up="${fieldId}" title="${escapeAttribute(moveUpLabel)}" aria-label="${escapeAttribute(moveUpLabel)}"${upDisabled}>↑</button>
+          <button type="button" data-p6-field-move-down="${fieldId}" title="${escapeAttribute(moveDownLabel)}" aria-label="${escapeAttribute(moveDownLabel)}"${downDisabled}>↓</button>
+          <button type="button" data-p6-field-remove="${fieldId}" title="${escapeAttribute(removeLabel)}">${escapeHtml(removeLabel)}</button>
+        </div>`;
       }).join("")}
-      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(addLabel)}">${escapeHtml(field.display_name)} · ${escapeHtml(addLabel)}</button>`).join("")}
     </div>
   </section>`;
 }
-
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
   const selected = activity.id === state.selectedActivityId;
   return `<tr data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td>${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
