@@ -1,0 +1,22 @@
+from __future__ import annotations\n\nimport json\nfrom pathlib import Path\n\nfrom construction_pm.p6_field_registry import fields_by_subject, validate_catalog\n\nEXPECTED = [
+    "Baseline1PlannedMaterialCost",
+    "Baseline1PlannedNonLaborCost",
+    "Baseline1PlannedNonLaborUnits",
+    "Baseline1PlannedTotalCost",
+    "Baseline1StartDate",
+    "Baseline2Duration",
+    "Baseline2FinishDate",
+    "Baseline2PlannedDuration",
+    "Baseline2PlannedExpenseCost",
+    "Baseline2PlannedLaborCost",
+    "Baseline2PlannedLaborUnits",
+    "Baseline2PlannedMaterialCost",
+    "Baseline2PlannedNonLaborCost",
+    "Baseline2PlannedNonLaborUnits",
+    "Baseline2PlannedTotalCost",
+    "Baseline2StartDate",
+    "Baseline3Duration",
+    "Baseline3FinishDate",
+    "Baseline3PlannedDuration",
+    "Baseline3PlannedExpenseCost"
+]\n\ndef test_activity_tranche5_registry_fields_are_unique_and_computed() -> None:\n    validate_catalog()\n    rows = {row.p6_field: row for row in fields_by_subject("Activity")}\n    assert set(EXPECTED) <= rows.keys()\n    for name in EXPECTED:\n        assert rows[name].writable is False\n        assert rows[name].computed is True\n\ndef test_activity_tranche5_evidence_matches_registry_scope() -> None:\n    evidence = json.loads(Path("docs/architecture/P6_ACTIVITY_TYPED_SEMANTIC_EVIDENCE_TRANCHE5_2026-10-01.json").read_text(encoding="utf-8"))\n    assert evidence["status"] == "evidence_only_pending_full_activity_certification"\n    assert {item["p6_field"] for item in evidence["fields"]} == set(EXPECTED)\n
