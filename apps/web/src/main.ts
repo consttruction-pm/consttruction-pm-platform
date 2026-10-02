@@ -26,6 +26,18 @@ import { createP6ReadOnlyLayoutPersistence } from "./p6-api.js";
 import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 
+export function selectProjectId(projects: readonly { project_id: string }[], requestedProjectId: string | null): string {
+  if (projects.length === 0) throw new Error("NO_PROJECTS_AVAILABLE");
+  if (requestedProjectId !== null) {
+    if (!projects.some((project) => project.project_id === requestedProjectId)) {
+      throw new Error("PROJECT_NOT_AVAILABLE");
+    }
+    return requestedProjectId;
+  }
+  if (projects.length === 1) return projects[0]!.project_id;
+  throw new Error("PROJECT_SELECTION_REQUIRED");
+}
+
 function renderApp(container: HTMLElement, state: WorkspaceState): void {
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
   const workspace = container.querySelector<HTMLElement>("#workspace");
@@ -118,12 +130,8 @@ async function boot(): Promise<void> {
     const lifecycle = new FetchProjectLifecycleClient(baseUrl);
     const projects = await lifecycle.listProjects();
     if (!projects.ok) throw new Error(projects.error.code);
-    if (projects.data.projects.length === 0) throw new Error("NO_PROJECTS_AVAILABLE");
-
     const requestedProjectId = new URLSearchParams(window.location.search).get("project_id");
-    const projectId = requestedProjectId
-      ?? (projects.data.projects.length === 1 ? projects.data.projects[0]?.project_id : null);
-    if (!projectId) throw new Error("PROJECT_SELECTION_REQUIRED");
+    const projectId = selectProjectId(projects.data.projects, requestedProjectId);
 
     const opened = await lifecycle.openProject(projectId);
     if (!opened.ok) throw new Error(opened.error.code);
