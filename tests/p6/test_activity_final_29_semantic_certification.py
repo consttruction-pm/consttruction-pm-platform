@@ -62,9 +62,22 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         "WorkPackageName",
     }
     assert set(names) == expected
-    assert set(names).isdisjoint(registry_names)
-    assert all(item["registry_change"] == "none" for item in data["fields"])
-    assert all(item["certification_status"] == "pending" for item in data["fields"])
+    assert set(names) & registry_names == {"StatusCode"}
+    assert set(names) - registry_names == set(
+        data["baseline"]["remaining_reconciliation_fields"]
+    )
+    assert all(
+        item["registry_change"] == "implemented_in_main_by_PR_777"
+        and item["certification_status"] == "implemented_on_main"
+        for item in data["fields"]
+        if item["p6_field"] == "StatusCode"
+    )
+    assert all(
+        item["remaining_reconciliation"] and item["registry_change"] == "none"
+        and item["certification_status"] != "implemented_on_main"
+        for item in data["fields"]
+        if item["p6_field"] != "StatusCode"
+    )
     assert all(item["get_schema_exposed"] for item in data["fields"])
     assert all(item["put_schema_exposed"] for item in data["fields"])
     assert all(item["export_field_exposed"] for item in data["fields"])
@@ -164,3 +177,13 @@ def test_official_webservices_supporting_evidence_is_explicit():
             "WorkPackageName",
         ]
     )
+
+
+def test_current_main_baseline_is_reflected_in_matrix():
+    data = _load()
+    assert data["baseline"]["main_sha"] == "466dd08c0c9ea6824bcf678b0704d3d24e278129"
+    assert data["baseline"]["registry_activity_field_count"] == 135
+    assert data["baseline"]["exact_inventory_matches"] == 126
+    assert data["baseline"]["inventory_only_count"] == 149
+    assert data["baseline"]["remaining_reconciliation_count"] == 28
+    assert data["baseline"]["resolved_on_main_from_initial_tranche"] == ["StatusCode"]
