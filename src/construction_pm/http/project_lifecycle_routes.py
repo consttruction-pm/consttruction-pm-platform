@@ -10,6 +10,8 @@ from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.models import BackendScope
 from ..p6_field_registry import (
+    P6FieldDefinition,
+    P6FieldType,
     P6_FIELD_REGISTRY_REFERENCE_PRODUCT,
     P6_FIELD_REGISTRY_REFERENCE_VERSION,
     P6_FIELD_REGISTRY_STATUS,
@@ -80,6 +82,49 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/fields/" in path:
+                if self._p6_field_registry_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, registry_version = path.split("/p6/fields/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not registry_version or "/" in registry_version:
+                    return self._error(400, "P6_FIELD_REGISTRY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_FIELD_REQUEST_INVALID", "error.request.invalid")
+                field = P6FieldDefinition(
+                    field_id=str(payload.get("field_id", "")),
+                    subject_area=str(payload.get("subject_area", "")),
+                    p6_field=str(payload.get("p6_field", "")),
+                    display_name=str(payload.get("display_name", "")),
+                    data_type=P6FieldType(str(payload.get("data_type", ""))),
+                    writable=bool(payload.get("writable", False)),
+                    computed=bool(payload.get("computed", False)),
+                    unit=payload.get("unit"),
+                    source=payload.get("source", P6_FIELD_REGISTRY_REFERENCE_PRODUCT),
+                    reference_url=payload.get("reference_url", P6FieldDefinition.reference_url),
+                    read_only=payload.get("read_only"),
+                    filterable=payload.get("filterable"),
+                    orderable=payload.get("orderable"),
+                    nullable=payload.get("nullable"),
+                    disposition=payload.get("disposition", P6_FIELD_REGISTRY_STATUS),
+                )
+                result = self._p6_field_registry_api.save_field(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    registry_version,
+                    field,
+                    auth_context=auth,
+                )
+                return self._json(200, result["field"])
+
             if method == "GET" and path.startswith("/api/projects/") and "/p6/fields/" in path:
                 if self._p6_field_registry_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
