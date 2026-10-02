@@ -122,7 +122,7 @@ def test_postgres_field_registry_persists_typed_metadata_and_scope(connection):
     loaded = repo.get_field(scope, "p6-field-registry.v1", "activity.activity_id")
     assert loaded == record
     assert loaded is not None
-    assert loaded.field.data_type.value == "STRING"
+    assert loaded.field.data_type.value == "string"
 
     other_scope = BackendScope("other-tenant", scope.project_id, scope.project_revision)
     assert repo.get_field(other_scope, "p6-field-registry.v1", "activity.activity_id") is None
