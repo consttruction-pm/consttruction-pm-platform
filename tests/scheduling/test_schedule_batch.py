@@ -122,25 +122,24 @@ def test_authoritative_batch_executes_project_or_batch_float_boundary():
     assert shared_result.results["P1"].floats["P1-A"].total_float > 0
 
 
-def test_authoritative_batch_rejects_external_graph_without_shared_executor():
+def test_authoritative_batch_rejects_external_resource_executor_gap():
+    from dataclasses import replace
     from construction_pm.scheduling.batch_scheduler import (
         MultiProjectSchedulingError,
         execute_authoritative_schedule_batch,
     )
     from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
     from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
-    from construction_pm.scheduling.relationships import Relationship, RelationshipType
 
     resolver = WorkingTimeResolver(WorkingCalendar())
     registry = CalendarResolverRegistry({"CAL@1": resolver})
     p1 = snapshot("P1", date(2026, 10, 10))
     p2 = snapshot("P2", date(2026, 10, 20))
-    p1 = AuthoritativeScheduleInput(
-        **{**p1.__dict__, "relationships": (Relationship("P2-A", "P1-A", RelationshipType.FS, 0),)}
-    )
+    options = replace(p1.schedule_options, include_external_res_ass=True)
+    p1 = replace(p1, schedule_options=options)
     batch = AuthoritativeScheduleBatch.from_snapshots(
         [p1, p2],
         calculate_based_on_project_finish=False,
     )
-    with pytest.raises(MultiProjectSchedulingError, match="SHARED_BATCH_GRAPH"):
+    with pytest.raises(MultiProjectSchedulingError, match="EXTERNAL_RESOURCE"):
         execute_authoritative_schedule_batch(batch, registry)
