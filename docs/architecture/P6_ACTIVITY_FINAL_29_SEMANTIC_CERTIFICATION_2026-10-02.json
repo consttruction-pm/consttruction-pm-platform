@@ -37,7 +37,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "The percent complete for the activity if the percent complete type is set to scope; scope is calculated in Oracle Primavera Cloud for scope management integration."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -65,7 +70,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -93,7 +101,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "Status",
@@ -121,7 +132,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "StatusCode",
@@ -149,7 +163,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "SuspendDate",
@@ -177,7 +194,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -205,7 +225,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "Completion status of the activity and associated tasks from an integrated Oracle Primavera Cloud project used for lean scheduling."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TaskStatusDates",
@@ -233,7 +258,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "Date status of tasks and activities from an integrated Oracle Primavera Cloud project used for lean scheduling."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -261,7 +291,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "Indicator covering task dates outside activity dates or task/activity completion mismatches."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -289,7 +324,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -317,7 +355,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -345,7 +386,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -373,7 +417,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalCostVariance",
@@ -401,7 +448,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -429,7 +479,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -457,7 +510,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -485,7 +541,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -513,7 +572,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -541,7 +603,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -569,7 +634,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "Type",
@@ -597,7 +665,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -625,7 +696,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -653,7 +727,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WBSCode",
@@ -681,7 +758,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WBSName",
@@ -709,7 +789,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WBSNamePath",
@@ -737,7 +820,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "Hierarchy of parent WBS names, ordered parent-to-child and separated by dots."
+      ],
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WBSObjectId",
@@ -765,7 +853,10 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": true
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WorkPackageId",
@@ -793,7 +884,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "ID of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     },
     {
       "p6_field": "WorkPackageName",
@@ -821,7 +917,12 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false
+      "semantic_definition_verified": false,
+      "official_webservices_2025_semantics": [
+        "Name of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate."
     }
   ],
   "notes": [
@@ -840,10 +941,9 @@
     "second_cpm_engine": "forbidden"
   },
   "semantic_summary": {
-    "documented_semantics_confirmed": 22,
-    "schema_type_only": 7,
-    "documented_semantics_rule": "A field is semantically verified only when Oracle Release 26 publishes a field-level description; this does not certify writability, persistence, import behavior, or registry identity.",
-    "schema_type_only_fields": [
+    "documented_semantics_confirmed_release26": 22,
+    "supporting_official_semantics_confirmed_webservices_2025": 7,
+    "release26_schema_only_fields": [
       "ScopePercentComplete",
       "TaskStatusCompletion",
       "TaskStatusDates",
@@ -851,6 +951,19 @@
       "WBSNamePath",
       "WorkPackageId",
       "WorkPackageName"
-    ]
+    ],
+    "official_webservices_2025_read_only_fields": [
+      "StatusCode",
+      "ToCompletePerformanceIndex",
+      "TotalCost1Variance",
+      "TotalCost2Variance",
+      "TotalCost3Variance",
+      "TotalCostVariance",
+      "UnreadCommentCount",
+      "WBSCode",
+      "WBSName",
+      "WBSNamePath"
+    ],
+    "rule": "Web Services Read Only metadata is historical/supporting evidence and is not promoted to current Release 26 REST writability certification without direct current-version confirmation."
   }
 }
