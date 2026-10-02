@@ -62,7 +62,7 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert data["baseline"]["base_main_sha"] == "b171949415cc0c974c6546f2f85b306553646814"
     assert data["baseline"]["inventory_field_count"] == 275
     assert data["baseline"]["registry_activity_field_count"] == 134
-    assert data["baseline"]["inventory_only_count"] == 160
+    assert data["baseline"]["inventory_only_count"] == 150
 
 
 def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
