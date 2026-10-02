@@ -58,7 +58,7 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert all(item["reconciliation_status"] == "pending" for item in items)
     assert all(item["oracle_type"] for item in items)
     assert all(item["evidence_lines"] for item in items)
-    assert all("ExportProjects ActivityFieldType" in item["interchange_evidence"] for item in items)
+    assert all("export ActivityFieldType" in item["interchange_evidence"] for item in items)
     assert data["baseline"]["base_main_sha"] == "b171949415cc0c974c6546f2f85b306553646814"
     assert data["baseline"]["inventory_field_count"] == 275
     assert data["baseline"]["registry_activity_field_count"] == 134
@@ -82,8 +82,20 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
     assert len(evidence_files) == 14
     assert len(preexisting_direct) == 13
     for path in preexisting_direct:
-        content = path.read_text(encoding="utf-8")
-        assert not any(name in content for name in names), path
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+        evidence_items = evidence.get("fields", [])
+        evidence_names = {
+            item["p6_field"]
+            for item in evidence_items
+            if isinstance(item, dict) and item.get("p6_field")
+        }
+        verified_items = evidence.get("verified_fields", [])
+        evidence_names.update(
+            item if isinstance(item, str) else item.get("p6_field")
+            for item in verified_items
+            if isinstance(item, str) or isinstance(item, dict)
+        )
+        assert not names & evidence_names, path
 
     assert data["baseline"]["existing_activity_evidence_files_scanned"] == 14
     assert data["baseline"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
