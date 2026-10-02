@@ -73,7 +73,22 @@ test("P6 API adapters map missing layouts and reject unsupported saves", async (
   await assert.rejects(persistence.save({} as any), /P6_LAYOUT_SAVE_UNSUPPORTED/);
 });
 
-test("P6 field registry adapter rejects duplicate field ids", async () => {\n  const provider = createP6FieldRegistryProvider(transport({ ok: true, data: {\n    registry_version: "p6-field-registry.v1",\n    reference_product: "Oracle Primavera P6 Professional",\n    reference_version: "26 / 26.4",\n    status: "seeded_not_certified",\n    fields: [\n      { field_id: "activity.id", subject_area: "Activity", p6_field: "ActivityId", display_name: "Activity ID", data_type: "string", writable: true, computed: false, disposition: "seeded_not_certified" },\n      { field_id: "activity.id", subject_area: "Activity", p6_field: "OtherId", display_name: "Other ID", data_type: "string", writable: true, computed: false, disposition: "seeded_not_certified" },\n    ],\n  }}), context);\n\n  await assert.rejects(() => provider.getRegistry(), /INVALID_P6_FIELD_REGISTRY/);\n});\n\ntest("P6 read-only layout adapter requests the selected project activity layout", async () => {
+test("P6 field registry adapter rejects duplicate field ids", async () => {
+  const provider = createP6FieldRegistryProvider(transport({ ok: true, data: {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "26 / 26.4",
+    status: "seeded_not_certified",
+    fields: [
+      { field_id: "activity.id", subject_area: "Activity", p6_field: "ActivityId", display_name: "Activity ID", data_type: "string", writable: true, computed: false, disposition: "seeded_not_certified" },
+      { field_id: "activity.id", subject_area: "Activity", p6_field: "OtherId", display_name: "Other ID", data_type: "string", writable: true, computed: false, disposition: "seeded_not_certified" },
+    ],
+  }}), context);
+
+  await assert.rejects(() => provider.getRegistry(), /INVALID_P6_FIELD_REGISTRY/);
+});
+
+test("P6 read-only layout adapter requests the selected project activity layout", async () => {
   let requestedPath = "";
   let requestedContext: unknown = null;
   const persistence = createP6ReadOnlyLayoutPersistence({
