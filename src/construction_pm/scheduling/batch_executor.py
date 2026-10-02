@@ -86,6 +86,9 @@ def _validate_batch_inputs(
         for snapshot in batch.snapshots
     ):
         raise BatchScheduleEvaluationError("MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED")
+    snapshot_ids = [snapshot.snapshot_id for snapshot in batch.snapshots]
+    if len(snapshot_ids) != len(set(snapshot_ids)):
+        raise BatchScheduleEvaluationError("DUPLICATE_SNAPSHOT_ID")
     tenants = {snapshot.tenant_id for snapshot in batch.snapshots}
     if len(tenants) != 1:
         raise BatchScheduleEvaluationError("MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED")
