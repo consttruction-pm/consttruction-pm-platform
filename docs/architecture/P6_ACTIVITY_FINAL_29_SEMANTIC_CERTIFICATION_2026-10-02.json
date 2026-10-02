@@ -1,0 +1,305 @@
+{
+  "schema_version": "1.0",
+  "title": "P6 Activity Final 29 Semantic Certification Matrix",
+  "effective_date": "2026-10-02",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+  },
+  "rule": "This matrix records semantic evidence only. It does not promote Registry identity, does not certify field mutability unless explicitly evidenced, and does not introduce a second calculation engine.",
+  "status": "evidence_consolidated_pending_field_level_certification",
+  "fields": [
+    {
+      "p6_field": "ScopePercentComplete",
+      "oracle_type": "number(double)",
+      "evidence_class": "unresolved_schema_only",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "REST schema exposes the field but current source pass does not establish its calculation, write, or canonical mapping semantics.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "SecondaryConstraintDate",
+      "oracle_type": "string(date-time)",
+      "evidence_class": "scheduler_constraint_input",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Date used for the cstr_type2 assignment when a secondary constraint exists; activity constraints are used by the scheduler.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "SecondaryConstraintType",
+      "oracle_type": "string",
+      "evidence_class": "scheduler_constraint_input",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Additional scheduler constraint; assigned secondary value is restricted to Start On or Before, Start On or After, Finish On or Before, or Finish On or After.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "Status",
+      "oracle_type": "string",
+      "evidence_class": "typed_activity_status",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Current activity status: Not Started, In Progress, or Completed; kept distinct from StatusCode.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "StatusCode",
+      "oracle_type": "string",
+      "evidence_class": "typed_project_status_code",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Project status code: Planned, Active, Inactive, What-If, Requested, or Template; kept distinct from Activity.Status.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "SuspendDate",
+      "oracle_type": "string(date-time)",
+      "evidence_class": "time_aware_progress_boundary",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Suspend date must be later than actual start; suspend/resume interval behaves as nonworktime for relevant task/resource-dependent activities.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TaskStatusCompletion",
+      "oracle_type": "string",
+      "evidence_class": "unresolved_schema_only",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "REST schema exposes a string field without a field-level description in the current evidence pass.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TaskStatusDates",
+      "oracle_type": "string",
+      "evidence_class": "unresolved_schema_only",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "REST schema exposes a string field without a field-level description in the current evidence pass.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TaskStatusIndicator",
+      "oracle_type": "boolean",
+      "evidence_class": "unresolved_schema_only",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "REST schema exposes a boolean field without a field-level description in the current evidence pass.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "ToCompletePerformanceIndex",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_ev_metric",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "TCPI = (Budget at Completion - Earned Value) / (Estimate at Completion - ACWP).",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalCost1Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Primary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalCost2Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Secondary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalCost3Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Tertiary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalCostVariance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Project baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodExpenseCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period expense cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period labor cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborUnits",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period labor units for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodMaterialCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period material cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period nonlabor cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborUnits",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period nonlabor units for the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "Type",
+      "oracle_type": "string",
+      "evidence_class": "typed_activity_type",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Activity type with documented values Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "UnitsPercentComplete",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_units_percent",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Computed as actual units / at-completion units * 100; range 0-100.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "UnreadCommentCount",
+      "oracle_type": "integer(int32)",
+      "evidence_class": "derived_collaboration_count",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Number of unread Team Member Discussion comments associated with the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WBSCode",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "WBS short code used for identification; not treated as a standalone Activity business object identity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WBSName",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Name of the WBS element associated with the activity.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WBSNamePath",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "WBS name path exposed on the Activity API.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WBSObjectId",
+      "oracle_type": "integer(int32)",
+      "evidence_class": "required_wbs_reference",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Unique WBS ID for the activity; Oracle Activity schema requires WBSObjectId.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WorkPackageId",
+      "oracle_type": "string",
+      "evidence_class": "derived_workpackage_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Work Package identifier exposed on Activity; canonical persistence mapping remains to be certified.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    },
+    {
+      "p6_field": "WorkPackageName",
+      "oracle_type": "string",
+      "evidence_class": "derived_workpackage_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Work Package name exposed on Activity; canonical persistence mapping remains to be certified.",
+      "registry_change": "none",
+      "certification_status": "pending"
+    }
+  ]
+}
