@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getProjectSelectionOptions, selectProjectId } from "./project-bootstrap.js";
+import { buildProjectSelectionUrl, getProjectSelectionOptions, selectProjectId } from "./project-bootstrap.js";
 
 test("project bootstrap selects the requested project only when it is available", () => {
   const projects = [{ project_id: "p1" }, { project_id: "p2" }];
@@ -19,6 +19,16 @@ test("project bootstrap exposes stable project selection options", () => {
       { project_id: "p1", label: "Project One" },
       { project_id: "p2", label: "p2" },
     ],
+  );
+});
+
+test("project bootstrap persists the selected project in the URL", () => {
+  assert.equal(
+    buildProjectSelectionUrl(
+      "https://example.test/workspace?view=activity",
+      "project with spaces",
+    ),
+    "https://example.test/workspace?view=activity&project_id=project+with+spaces",
   );
 });
 
