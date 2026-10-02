@@ -65,7 +65,7 @@ test("returns defensive dependency and validation copies", () => {
   const original = state();
   const presentation = getP6FormulaEditorPresentation(original);
 
-  presentation.dependencyFieldIds.push("unexpected");
+  (presentation.dependencyFieldIds as string[]).push("unexpected");
   assert.deepEqual(original.authoritative?.dependencies.field_ids, [
     "activity-duration",
     "activity-units",
