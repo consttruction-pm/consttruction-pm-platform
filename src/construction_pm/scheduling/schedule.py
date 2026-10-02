@@ -319,6 +319,7 @@ def _longest_path_activity_ids(
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> frozenset[str]:
     """Trace P6-style driving relationships from the latest early finishes."""
     activity_list = list(activities)
@@ -349,7 +350,11 @@ def _longest_path_activity_ids(
             if predecessor_id in longest:
                 continue
             predecessor = early_schedule[predecessor_id]
-            if _relationship_is_driving(relationship, predecessor, successor, resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
+            if _relationship_is_driving(
+                    relationship, predecessor, successor,
+                    (activity_resolvers or {}).get(predecessor_id, resolver),
+                    (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
+                ):
                 longest.add(predecessor_id)
                 stack.append(predecessor_id)
     return frozenset(longest)
@@ -639,10 +644,12 @@ def calculate_floats(
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
-"
     selected_options = options or ScheduleOptions()
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
+        _longest_path_activity_ids(
+            activities, relationships, early_schedule, resolver,
+            relationship_lag_resolvers, activity_resolvers
+        )
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
@@ -790,7 +797,8 @@ def schedule(
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers
+        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers,
+        activity_resolvers,
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
