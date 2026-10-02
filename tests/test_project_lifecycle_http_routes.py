@@ -291,3 +291,59 @@ def test_p6_udf_route_rejects_cross_scope_project_context():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_p6_field_write_route_persists_authenticated_field():
+    r, _, _ = p6_routes()
+    payload = {
+        "field_id": "activity.custom_flag",
+        "subject_area": "Activity",
+        "p6_field": "CustomFlag",
+        "display_name": "Custom Flag",
+        "data_type": "boolean",
+        "writable": True,
+        "computed": False,
+        "unit": None,
+        "disposition": "implemented",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/fields/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["field_id"] == "activity.custom_flag"
+    assert saved["data_type"] == "boolean"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/fields/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert any(item["field_id"] == "activity.custom_flag" for item in json.loads(body)["fields"])
+
+
+def test_p6_field_write_route_rejects_non_object_json():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/fields/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=b"[]",
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_FIELD_REQUEST_INVALID"
+
+
+def test_p6_field_write_route_requires_session_cookie():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/fields/p6-field-registry.v1",
+        body=b"{}",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
