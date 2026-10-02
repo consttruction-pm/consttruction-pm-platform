@@ -28,7 +28,7 @@ from construction_pm.scheduling.authoritative_schedule_batch import (
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.external_resource_assignments import ExternalResourceAssignment
-from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
@@ -192,12 +192,13 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
         [p1, p2],
         resolvers={"P1": resolver(), "P2": resolver()},
         calendar_registry=calendar_registry(),
-        external_relationships=(Relationship("P1-A", "P2-A"),),
+        external_relationships=(Relationship("P1-A", "P2-A", type=RelationshipType.SS),),
         activity_project_ids={"P1-A": "P1", "P2-A": "P2"},
     )
 
     assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 2)
-    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 3)
+    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 2)
+    assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
 def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
