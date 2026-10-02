@@ -22,6 +22,15 @@ class ActivityStatusCode(str, Enum):
     REQUESTED = "Requested"
     TEMPLATE = "Template"
 
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityStatusCode":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported P6 Activity.StatusCode value: {value!r}"
+            ) from exc
+
 
 @dataclass(frozen=True)
 class Activity:
