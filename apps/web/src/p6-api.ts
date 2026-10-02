@@ -1,6 +1,6 @@
 import type { ApiTransport, ApiResult, ProjectContext } from "./client.js";
 import {
-  createP6LayoutPersistence,
+  createP6LayoutPersistence as createLayoutPersistence,
   type P6LayoutPersistenceTransport,
 } from "./p6-layout-persistence-adapter.js";
 import type {
@@ -104,7 +104,7 @@ export function createP6LayoutPersistence(
       return assertLayout(unwrap(result));
     },
   };
-  return createP6LayoutPersistence(adapterTransport);
+  return createLayoutPersistence(adapterTransport);
 }
 
 export async function loadP6Presentation(
