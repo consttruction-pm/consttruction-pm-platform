@@ -56,6 +56,7 @@ export class CachedWorkspaceReadClient {
     };
 
     const snapshotContext = readProjectContext(cached.cache.workspace_read);
+    assertSameProjectContext(context, snapshotContext);
     const result = await new WorkspaceReadClient(transport).load(snapshotContext, { ...options, hydrateP6Registry: false });
     if (!result.ok) {
       throw new Error(result.error.code);
@@ -69,6 +70,16 @@ export class CachedWorkspaceReadClient {
   }
 
   constructor(private readonly cacheReader: WorkspaceReadCacheReader) {}
+}
+
+function assertSameProjectContext(expected: ProjectContext, actual: ProjectContext): void {
+  if (
+    expected.tenant_id !== actual.tenant_id ||
+    expected.project_id !== actual.project_id ||
+    expected.revision !== actual.revision
+  ) {
+    throw new Error("WORKSPACE_CACHE_CONTEXT_MISMATCH");
+  }
 }
 
 function readProjectContext(
