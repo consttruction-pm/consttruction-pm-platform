@@ -54,6 +54,8 @@ from .schedule import (
     resolve_float_finish_date,
     schedule,
 )
+from .schedule_batch import AuthoritativeScheduleBatch
+from .batch_scheduler import MultiProjectSchedulingError, ScheduleBatchResult, execute_authoritative_schedule_batch
 from .schedule_options import (
     ScheduleMode,
     PriorityListItem,
@@ -100,6 +102,10 @@ __all__ = [
     "OOSPolicyResult",
     "resolve_oos_policy",
     "MultiProjectFloatBoundary",
+    "AuthoritativeScheduleBatch",
+    "ScheduleBatchResult",
+    "MultiProjectSchedulingError",
+    "execute_authoritative_schedule_batch",
     "ProjectFinishBoundary",
     "resolve_multi_project_float_boundary",
     "SchedulingCycleError",
