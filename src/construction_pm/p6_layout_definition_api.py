@@ -34,6 +34,17 @@ class P6LayoutDefinitionAPI:
         self.repository = repository
         self.authorization_policy = authorization_policy
 
+    def save(
+        self,
+        layout: PersistedP6Layout,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        _require_scope(layout.scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied")
+        return _dto(self.repository.upsert(layout))
+
     def get(self, scope: BackendScope, layout_scope: str, view_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
