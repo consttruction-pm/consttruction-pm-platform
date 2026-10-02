@@ -63,15 +63,13 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
     }
     assert set(names) == expected
     assert set(names) & registry_names == {"StatusCode"}
-    assert set(names) - registry_names == set(
-        data["baseline"]["remaining_reconciliation_fields"]
-    )
-    assert all(
-        item["registry_change"] == "implemented_in_main_by_PR_777"
-        and item["certification_status"] == "implemented_on_main"
-        for item in data["fields"]
-        if item["p6_field"] == "StatusCode"
-    )
+    assert set(names) == {
+        *data["baseline"]["remaining_reconciliation_fields"],
+    }
+    status_code = next(item for item in data["fields"] if item["p6_field"] == "StatusCode")
+    assert status_code["registry_change"] == "implemented_in_main_by_PR_777_mutability_conflict"
+    assert status_code["certification_status"] == "implemented_identity_pending_mutability_correction_PR_781"
+    assert status_code["remaining_reconciliation"] is True
     assert all(
         item["remaining_reconciliation"] and item["registry_change"] == "none"
         and item["certification_status"] != "implemented_on_main"
@@ -189,18 +187,20 @@ def test_current_main_baseline_is_reflected_in_matrix():
     assert data["baseline"]["registry_activity_field_count"] == 135
     assert data["baseline"]["exact_inventory_matches"] == 126
     assert data["baseline"]["inventory_only_count"] == 149
-    assert data["baseline"]["remaining_reconciliation_count"] == 28
-    assert data["baseline"]["resolved_on_main_from_initial_tranche"] == ["StatusCode"]
+    assert data["baseline"]["remaining_reconciliation_count"] == 29
+    assert data["baseline"]["resolved_on_main_from_initial_tranche"] == []
 
 
-def test_mutability_review_partitions_remaining_28():
+def test_mutability_review_partitions_remaining_29():
     data = _load()
     review = data["mutability_review"]
-    assert review["remaining_28_total"] == 28
+    assert review["remaining_29_total"] == 29
+    assert review["status_code_conflict_count"] == 1
+    assert review["remaining_28_excluding_status_code"] == 28
     assert review["read_only_supporting_evidence_count"] == 9
     assert review["writability_unconfirmed_count"] == 19
     assert (
         review["read_only_supporting_evidence_count"]
         + review["writability_unconfirmed_count"]
-        == review["remaining_28_total"]
+        == review["remaining_28_excluding_status_code"]
     )
