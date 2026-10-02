@@ -27,6 +27,7 @@ from construction_pm.scheduling.authoritative_schedule_batch import (
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.external_resource_assignments import ExternalResourceAssignment
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
@@ -177,27 +178,37 @@ def test_authoritative_batch_uses_activity_calendar_context():
 def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
     p1 = replace(
         snapshot("P1", date(2026, 10, 10)),
-        project_start=date(2026, 10, 2),
+        project_start=date(2026, 10, 1),
         activities=(Activity("P1-A", 1),),
     )
     p2 = replace(
         snapshot("P2", date(2026, 10, 10)),
-        project_start=date(2026, 10, 2),
+        project_start=date(2026, 10, 1),
         activities=(Activity("P2-A", 1),),
         activity_calendar_assignments=(
             ActivityCalendarAssignment("P2-A", CalendarReference("WEEKEND", "1")),
+        ),
+        constraints=(
+            ActivityConstraint(
+                "P2-A",
+                ConstraintType.START_NO_EARLIER_THAN,
+                date(2026, 10, 3),
+            ),
         ),
     )
     result = execute_authoritative_schedule_batch(
         [p1, p2],
         resolvers={"P1": resolver(), "P2": resolver()},
         calendar_registry=calendar_registry(),
-        external_relationships=(Relationship("P1-A", "P2-A", type=RelationshipType.SS),),
+        external_relationships=(Relationship("P1-A", "P2-A"),),
         activity_project_ids={"P1-A": "P1", "P2-A": "P2"},
     )
 
-    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 2)
-    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 2)
+    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 1)
+    # FS lag stays on the separate relationship-lag calendar (Mon-Fri).
+    # The successor's WEEKEND activity calendar normalizes the constraint
+    # target to Saturday, Oct 3.
+    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 3)
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
