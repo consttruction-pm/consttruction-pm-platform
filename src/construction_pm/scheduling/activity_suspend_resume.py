@@ -36,11 +36,7 @@ def validate_activity_suspend_resume(
             raise ActivitySuspendResumeError(
                 "resume_date must be later than suspend_date"
             )
-        if actual_finish is None:
-            raise ActivitySuspendResumeError(
-                "resume_date requires actual_finish for P6 ordering validation"
-            )
-        if resume_date >= actual_finish:
+        if actual_finish is not None and resume_date >= actual_finish:
             raise ActivitySuspendResumeError(
                 "resume_date must be earlier than actual_finish"
             )
