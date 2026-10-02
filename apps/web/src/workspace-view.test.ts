@@ -230,10 +230,10 @@ test("Gantt activity selection forwards to the shared Activity selection callbac
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, () => void>();
+  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
   const ganttRow = {
     dataset: { ganttActivityId: "A-1" },
-    addEventListener: (_event: string, listener: () => void) => listeners.set("gantt", listener),
+    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
   };
   const container: RenderContainer = {
     innerHTML: "",
@@ -243,7 +243,7 @@ test("Gantt activity selection forwards to the shared Activity selection callbac
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onGanttActivitySelect: (activityId) => selected.push(activityId),
   });
-  listeners.get("gantt")?.();
+  listeners.get("click")?.();
   assert.deepEqual(selected, ["A-1"]);
   assert.match(container.innerHTML, /data-gantt-activity-id="A-1"/);
   assert.match(container.innerHTML, /tabindex="0"/);
