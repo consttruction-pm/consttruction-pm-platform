@@ -151,8 +151,13 @@ class ProjectLifecycleHttpRoutes:
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
                 payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "INVALID_LAYOUT_REQUEST", "error.request.invalid")
                 revision = int(payload.get("revision", 0))
-                columns = tuple(LayoutColumn(**item) for item in payload.get("columns", []))
+                raw_columns = payload.get("columns", [])
+                if not isinstance(raw_columns, list):
+                    return self._error(400, "INVALID_LAYOUT_COLUMNS", "error.request.invalid")
+                columns = tuple(LayoutColumn(**item) for item in raw_columns)
                 metadata = payload.get("metadata", {})
                 if not isinstance(metadata, dict):
                     return self._error(400, "INVALID_LAYOUT_METADATA", "error.request.invalid")
