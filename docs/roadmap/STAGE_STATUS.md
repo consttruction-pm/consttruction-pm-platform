@@ -1039,3 +1039,13 @@ Status: **implemented, merged and runtime-verified**
 - The merged change is Activity evidence-inventory reconciliation and does not establish a new Hasan-owned Backend/API/Persistence gap.
 - Fresh open-PR inspection found no open Hasan-owned Backend/API/Persistence/Import-Export implementation PR. Activity evidence PR #787 is Jalal/Shared-Core ownership.
 - Hasan remains at the evidence boundary under issue #709; no new backend feature is authorized without a concrete current-main contract/persistence/integration gap.
+
+
+### 2026-10-02 — Current-main P6 client presentation reconciliation
+- Current main after Jalal PRs #788 and #789: `2da2533c0b70cd3f5d82df08af09a3a92d3a45f5`.
+- PR #788 (typed `RecalculateResourceCosts` ScheduleOptions boundary) was squash-merged after all Python 3.11/3.12/3.13, Web/Desktop/Mobile/client-sync typechecks and PostgreSQL checks passed.
+- PR #789 (final 29-field Activity semantic certification matrix refresh) was squash-merged after all Python 3.11/3.12/3.13 and client typechecks passed.
+- Stale Javad/Farmj PRs #745 and #747 were closed as superseded; their validated presentation-only work was rebuilt from the current main in PR #791.
+- PR #791 is the current P6-3 client presentation reconciliation. It adds typed P6 field-editor descriptors and authoritative formula-result presentation only; no client-side calculation or parser/evaluator is introduced.
+- Runtime checks for the new #791 head are not yet present, so #791 is not counted as complete until its configured CI/typecheck gates execute successfully.
+- Hasan remains on the evidence-boundary task #709; no new Backend/API/Persistence feature is inferred from the current audit.
