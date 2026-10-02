@@ -46,6 +46,27 @@ test("P6 API adapters load and filter the authoritative field registry", async (
   assert.equal((await provider.getRegistry()).reference_product, "Oracle Primavera P6 Professional");
 });
 
+test("P6 field registry adapter rejects malformed field metadata", async () => {
+  const provider = createP6FieldRegistryProvider(transport({ ok: true, data: {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "26 / 26.4",
+    status: "seeded_not_certified",
+    fields: [{
+      field_id: "activity.id",
+      subject_area: "Activity",
+      p6_field: "ActivityId",
+      display_name: "Activity ID",
+      data_type: "unknown",
+      writable: true,
+      computed: false,
+      disposition: "seeded_not_certified",
+    }],
+  }}), context);
+
+  await assert.rejects(() => provider.getRegistry(), /INVALID_P6_FIELD_REGISTRY/);
+});
+
 test("P6 API adapters map missing layouts and reject unsupported saves", async () => {
   const persistence = createP6ReadOnlyLayoutPersistence(transport({ ok: false, error: { code: "P6_LAYOUT_NOT_FOUND", retryable: false, message_key: "error.p6.layout.not_found", available_actions: [] } }), context);
   assert.equal(await persistence.load("project", "activity"), null);
