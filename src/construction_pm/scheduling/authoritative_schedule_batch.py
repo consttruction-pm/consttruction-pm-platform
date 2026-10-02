@@ -69,12 +69,19 @@ def execute_authoritative_schedule_batch(
     if not isinstance(resolvers, Mapping):
         raise TypeError('resolvers must be a mapping')
 
+    float_basis = {
+        snapshot.schedule_options.calculate_float_based_on_finish_date
+        for snapshot in snapshot_list
+    }
+    if len(float_basis) > 1:
+        raise UnsupportedMultiProjectSchedulingError(
+            'mixed calculate_float_based_on_finish_date settings are not supported '
+            'within one authoritative scheduling batch'
+        )
+
     batch = AuthoritativeScheduleBatch.from_snapshots(
         snapshot_list,
-        calculate_based_on_project_finish=all(
-            snapshot.schedule_options.calculate_float_based_on_finish_date
-            for snapshot in snapshot_list
-        ),
+        calculate_based_on_project_finish=float_basis.pop(),
     )
 
     all_activity_projects = dict(activity_project_ids or {})
