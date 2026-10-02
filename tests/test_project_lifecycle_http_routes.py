@@ -195,6 +195,30 @@ def test_p6_layout_write_route_persists_authenticated_layout():
     assert json.loads(body) == saved
 
 
+def test_p6_layout_write_route_rejects_non_object_json():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+        body=b"[]",
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "INVALID_LAYOUT_REQUEST"
+
+
+def test_p6_layout_write_route_rejects_non_list_columns():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"columns": {}}).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "INVALID_LAYOUT_COLUMNS"
+
+
 def test_p6_layout_write_route_requires_session_cookie():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
