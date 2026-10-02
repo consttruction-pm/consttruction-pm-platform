@@ -17,7 +17,7 @@ export type ProjectBootstrapDependencies = {
   sessionApi: SessionApi;
   syncRuntime: WebSyncRuntime;
   workspaceReadClient: WorkspaceReadClient;
-  p6PresentationLoader?: typeof loadP6Presentation;
+  p6PresentationLoader?: (state: WorkspaceState, context: ProjectContext) => ReturnType<typeof loadP6Presentation>;
 };
 
 function localError(code: string, messageKey: string, actions: string[] = []): ClientError {
