@@ -167,7 +167,7 @@ class PostgresP6LayoutRepository:
             return None
         if int(row[0]) != scope.project_revision:
             raise P6LayoutPersistenceError("REVISION_CONFLICT")
-        return _from_row(scope, layout_scope, view_id, row)
+        return _from_row(scope, layout_scope, view_id, row[1:])
 
 
 __all__ = ["LayoutColumn", "PersistedP6Layout", "P6LayoutPersistenceError", "SQLiteP6LayoutRepository", "PostgresP6LayoutRepository"]
