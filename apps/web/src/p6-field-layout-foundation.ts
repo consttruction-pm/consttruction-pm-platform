@@ -55,6 +55,7 @@ export type LayoutDefinition = {
   view_id: string;
   revision: number;
   columns: readonly ColumnPresentation[];
+  metadata?: Readonly<Record<string, unknown>>;
 };
 
 export type FormulaValidationResult = {

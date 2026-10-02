@@ -1,31 +1,78 @@
 import { FetchApiTransport } from "./client.js";
+import { createP6LayoutPersistence, loadP6Presentation } from "./p6-api.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
 import { FetchSessionApi } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
+  addP6Field,
+  removeP6Field,
+  reorderP6Fields,
+  updateP6FieldPresentation,
   selectActivity,
   selectWbs,
+  setP6Presentation,
   setLocale,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 
-function renderApp(container: HTMLElement, state: WorkspaceState): void {
+function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
+  const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
   const workspace = container.querySelector<HTMLElement>("#workspace");
   if (!workspace) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
 
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
-      renderApp(container, { ...state, activeMenu: menu });
+      renderApp(container, { ...state, activeMenu: menu }, persistence);
     },
     onWbsSelect: (wbsId) => {
-      renderApp(container, selectWbs(state, wbsId));
+      renderApp(container, selectWbs(state, wbsId), persistence);
     },
     onActivitySelect: (activityId) => {
-      renderApp(container, selectActivity(state, activityId));
+      renderApp(container, selectActivity(state, activityId), persistence);
+    },
+    onP6FieldAdd: async (fieldId) => {
+      try {
+        const next = addP6Field(state, fieldId);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
+    onP6FieldReorder: async (orderedFieldIds) => {
+      try {
+        const next = reorderP6Fields(state, orderedFieldIds);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
+    onP6FieldWidthChange: async (fieldId, width) => {
+      try {
+        const next = updateP6FieldPresentation(state, fieldId, { width });
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
+    onP6FieldRemove: async (fieldId) => {
+      try {
+        const next = removeP6Field(state, fieldId);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
     },
   });
 
@@ -38,7 +85,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState): void {
   languageButton.setAttribute("aria-label", state.locale === "fa" ? "Switch to English" : "تغییر به فارسی");
   languageButton.addEventListener("click", () => {
     const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
-    renderApp(container, setLocale(state, next));
+    renderApp(container, setLocale(state, next), persistence);
   });
 
   const status = document.createElement("div");
@@ -135,6 +182,8 @@ async function boot(): Promise<void> {
     sessionApi,
     syncRuntime,
     workspaceReadClient,
+    p6PresentationLoader: (state, context) =>
+      loadP6Presentation(state, new FetchApiTransport(window.location.origin), context),
   });
 
   renderBootstrapState(container, { status: "loading" }, bootstrap);

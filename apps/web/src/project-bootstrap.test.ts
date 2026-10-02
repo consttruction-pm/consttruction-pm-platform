@@ -210,3 +210,32 @@ test("a stale bootstrap result cannot replace a newer selection", async () => {
 
   assert.equal(await stale, null);
 });
+
+
+test("P6 presentation loader runs after authoritative workspace hydration", async () => {
+  const setup = deps();
+  setup.dependencies.p6PresentationLoader = async (state) => ({
+    ...state,
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26 / 26.4",
+      status: "seeded_not_certified",
+      fields: [],
+    },
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity",
+      revision: 0,
+      columns: [],
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "ready");
+  assert.equal(state?.status === "ready" ? state.workspace.p6FieldRegistry?.registry_version : "", "p6-field-registry.v1");
+  assert.equal(state?.status === "ready" ? state.workspace.p6Layout?.view_id : "", "activity");
+});
