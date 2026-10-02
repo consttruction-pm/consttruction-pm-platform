@@ -47,12 +47,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
         ${renderProcurement(state.procurementRecords, t.procurement)}
-        <aside class="cp-panel cp-wbs" aria-label="${escapeAttribute(t.wbs)}">
+        <aside class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
         </aside>
         <section class="cp-center">
-          <section class="cp-panel cp-grid">
+          <section class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
@@ -62,9 +62,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section class="cp-panel cp-gantt"><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
+          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
         </section>
-        <aside class="cp-panel cp-details"><h2>${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""}><h2>${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
     </section>
   `;
