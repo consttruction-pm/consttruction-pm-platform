@@ -53,6 +53,75 @@ def resolver():
     return WorkingTimeResolver(WorkingCalendar())
 
 
+def test_duplicate_snapshot_id_is_rejected_before_graph_construction():
+    first = snapshot("P1", date(2026, 10, 10))
+    duplicate = AuthoritativeScheduleInput(
+        snapshot_id=first.snapshot_id,
+        tenant_id="tenant",
+        project_id="P2",
+        project_revision=1,
+        project_leveling_priority=10,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL", "1"),
+        activities=(Activity(id="P2-A", duration=1),),
+        relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("P2-A", CalendarReference("CAL", "1")),),
+        project_finish=date(2026, 10, 20),
+        project_start=date(2026, 10, 1),
+        schedule_options=ScheduleOptions(),
+    )
+    with pytest.raises(UnsupportedMultiProjectSchedulingError, match="DUPLICATE_SNAPSHOT_ID"):
+        execute_authoritative_schedule_batch(
+            [first, duplicate], resolvers={"P1": resolver(), "P2": resolver()}
+        )
+
+
+def test_mixed_tenants_are_rejected_before_graph_construction():
+    first = snapshot("P1", date(2026, 10, 10))
+    second = AuthoritativeScheduleInput(
+        snapshot_id="s-P2",
+        tenant_id="other-tenant",
+        project_id="P2",
+        project_revision=1,
+        project_leveling_priority=10,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL", "1"),
+        activities=(Activity(id="P2-A", duration=1),),
+        relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("P2-A", CalendarReference("CAL", "1")),),
+        project_finish=date(2026, 10, 20),
+        project_start=date(2026, 10, 1),
+        schedule_options=ScheduleOptions(),
+    )
+    with pytest.raises(UnsupportedMultiProjectSchedulingError, match="MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED"):
+        execute_authoritative_schedule_batch(
+            [first, second], resolvers={"P1": resolver(), "P2": resolver()}
+        )
+
+
+def test_time_aware_snapshot_is_rejected_before_graph_construction():
+    first = snapshot("P1", date(2026, 10, 10))
+    second = AuthoritativeScheduleInput(
+        snapshot_id="s-P2",
+        tenant_id="tenant",
+        project_id="P2",
+        project_revision=1,
+        project_leveling_priority=10,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=CalendarReference("CAL", "1"),
+        activities=(Activity(id="P2-A", duration=1),),
+        relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("P2-A", CalendarReference("CAL", "1")),),
+        project_finish=date(2026, 10, 20),
+        project_start=date(2026, 10, 1),
+        schedule_options=ScheduleOptions(),
+    )
+    with pytest.raises(UnsupportedMultiProjectSchedulingError, match="MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED"):
+        execute_authoritative_schedule_batch(
+            [first, second], resolvers={"P1": resolver(), "P2": resolver()}
+        )
+
+
 def test_batch_uses_each_project_finish_when_option_enabled():
     result = execute_authoritative_schedule_batch(
         [
