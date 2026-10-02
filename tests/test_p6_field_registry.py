@@ -37,6 +37,15 @@ def test_registry_field_identity_and_types_are_stable():
     assert total_float.unit == "working-time"
 
 
+def test_activity_status_code_registry_mapping_is_canonical():
+    status_code = get_field("activity.status_code")
+    assert status_code.subject_area == "Activity"
+    assert status_code.p6_field == "StatusCode"
+    assert status_code.data_type is P6FieldType.ENUM
+    assert status_code.writable is True
+    assert status_code.computed is False
+
+
 def test_registry_does_not_allow_writable_computed_fields():
     for field in field_catalog():
         assert not (field.writable and field.computed)
