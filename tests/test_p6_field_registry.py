@@ -76,3 +76,13 @@ def test_remaining_duration_registry_is_derived():
     remaining = get_field("activity.remaining_duration")
     assert remaining.writable is False
     assert remaining.computed is True
+
+
+def test_activity_suspend_date_registry_metadata_is_explicit() -> None:
+    field = get_field("activity.suspend_date")
+    assert field.subject_area == "Activity"
+    assert field.p6_field == "SuspendDate"
+    assert field.data_type is P6FieldType.DATETIME
+    assert field.writable is True
+    assert field.computed is False
+    assert field.disposition == "seeded_not_certified"
