@@ -41,3 +41,22 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     assert endpoint_schema_fields <= names
     assert set(write["explicitly_computed_or_derived_on_update_schema"]) == {"ToCompletePerformanceIndex", "TotalCost1Variance", "TotalCost2Variance", "TotalCost3Variance", "TotalCostVariance"}
     assert all(x["calculation_status"] for x in data["fields"])
+
+
+def test_status_and_type_write_evidence_matches_repository_enums():
+    evidence_path = Path(
+        "docs/architecture/P6_ACTIVITY_STATUS_TYPE_WRITE_EVIDENCE_2026-10-02.json"
+    )
+    data = json.loads(evidence_path.read_text(encoding="utf-8"))
+    fields = {item["p6_field"]: item for item in data["fields"]}
+
+    from construction_pm.scheduling.activity import ActivityStatus, ActivityType
+
+    assert set(fields) == {"Status", "Type"}
+    assert fields["Status"]["oracle_values"] == [item.value for item in ActivityStatus]
+    assert fields["Type"]["oracle_values"] == [item.value for item in ActivityType]
+    assert all(item["semantic_value_set_match"] for item in fields.values())
+    assert all(item["endpoint_schema_exposure"] for item in fields.values())
+    assert all(not item["field_level_mutability_certified"] for item in fields.values())
+    assert all(not item["repository_persistence_mapping_certified"] for item in fields.values())
+    assert data["decision"]["promote_registry_identity"] is False
