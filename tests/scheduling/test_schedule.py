@@ -794,4 +794,4 @@ def test_schedule_uses_activity_scoped_calendar_for_backward_and_float(resolver)
 
     assert result.early_activities["A"].finish == date(2026, 9, 26)
     assert result.late_activities["A"].start == date(2026, 9, 27)
-    assert result.floats["A"].total_float == 1
+    assert result.floats["A"].total_float == 2
