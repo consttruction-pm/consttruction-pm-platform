@@ -187,6 +187,29 @@ test("P6 read-only layout adapter rejects malformed layout presentation", async 
   );
 });
 
+test("P6 read-only layout adapter accepts nullable and custom column labels", async () => {
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async () => ({
+      ok: true,
+      data: {
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: 4,
+        columns: [
+          { field_id: "activity.id", visible: true, order: 0, label: null, width: 120, alignment: "start", pinned: false, frozen: false },
+          { field_id: "activity.name", visible: true, order: 1, label: "Activity Name", width: 180, alignment: "start", pinned: false, frozen: false },
+        ],
+      },
+    } as any),
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  const layout = await persistence.load("project", "activity");
+  assert.equal(layout?.columns[0]?.label, null);
+  assert.equal(layout?.columns[1]?.label, "Activity Name");
+});
+
 test("P6 read-only layout adapter rejects duplicate layout field ids", async () => {
   const persistence = createP6ReadOnlyLayoutPersistence({
     get: async () => ({
