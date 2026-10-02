@@ -107,18 +107,24 @@ def assignment(project_id, resource_id):
     )
 
 
-def test_external_resource_assignment_boundary_respects_limit_and_option():
+@pytest.mark.parametrize(
+    ('external_priority', 'expected_external'),
+    [(4, True), (5, True), (6, False)],
+)
+def test_external_resource_assignment_priority_limit_boundary(
+    external_priority, expected_external
+):
     options = ScheduleOptions(include_external_res_ass=True, external_project_priority_limit=5)
     result = execute_authoritative_schedule_batch(
         [
             snapshot('P1', date(2026, 10, 10), options=options, priority=10),
-            snapshot('P2', date(2026, 10, 20), priority=5),
-            snapshot('P3', date(2026, 10, 30), priority=6),
+            snapshot('P2', date(2026, 10, 20), priority=external_priority),
         ],
-        resolvers={'P1': resolver(), 'P2': resolver(), 'P3': resolver()},
-        resource_assignments=(assignment('P1', 'R1'), assignment('P2', 'R2'), assignment('P3', 'R3')),
+        resolvers={'P1': resolver(), 'P2': resolver()},
+        resource_assignments=(assignment('P1', 'R1'), assignment('P2', 'R2')),
     )
-    assert [d.resource_id for d in result.project('P1').resource_demands] == ['R1', 'R2']
+    resource_ids = [d.resource_id for d in result.project('P1').resource_demands]
+    assert ('R2' in resource_ids) is expected_external
 
 
 def test_single_project_preserves_existing_behavior_with_multi_project_options_disabled():
