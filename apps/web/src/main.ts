@@ -22,6 +22,8 @@ import {
 } from "./workspace-model.js";
 import { FetchApiTransport, FetchProjectLifecycleClient } from "./client.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
+import { createP6ReadOnlyLayoutPersistence } from "./p6-api.js";
+import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState): void {
@@ -130,7 +132,18 @@ async function boot(): Promise<void> {
     const workspace = await workspaceRead.load(opened.data.context);
     if (!workspace.ok) throw new Error(workspace.error.code);
 
-    renderApp(container, workspace.data);
+    const layoutPersistence = createP6ReadOnlyLayoutPersistence(
+      new FetchApiTransport(baseUrl),
+      opened.data.context,
+    );
+    const layoutController = createP6LayoutPersistenceController(
+      layoutPersistence,
+      "project",
+      "activity",
+    );
+    const hydratedWorkspace = await layoutController.load(workspace.data);
+
+    renderApp(container, hydratedWorkspace);
   } catch (error) {
     container.innerHTML = '<main class="cp-shell-error"><h1>Construction PM</h1><p>Unable to initialize the Web workspace.</p></main>';
     console.error(error);
