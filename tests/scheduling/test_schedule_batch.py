@@ -94,3 +94,53 @@ def test_batch_exposes_authoritative_leveling_priorities():
     assert batch.leveling_priorities() == {"P1": 1, "P2": 5}
     with pytest.raises(ValueError, match="unknown schedule batch project"):
         batch.leveling_priority_for("P3")
+
+
+def test_authoritative_batch_executes_project_or_batch_float_boundary():
+    from construction_pm.scheduling.batch_scheduler import execute_authoritative_schedule_batch
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry({"CAL@1": resolver})
+
+    project_one = snapshot("P1", date(2026, 10, 10))
+    project_two = snapshot("P2", date(2026, 10, 20))
+
+    local = AuthoritativeScheduleBatch.from_snapshots(
+        [project_one, project_two],
+        calculate_based_on_project_finish=True,
+    )
+    local_result = execute_authoritative_schedule_batch(local, registry)
+    assert local_result.results["P1"].floats["P1-A"].total_float == 0
+
+    shared = AuthoritativeScheduleBatch.from_snapshots(
+        [project_one, project_two],
+        calculate_based_on_project_finish=False,
+    )
+    shared_result = execute_authoritative_schedule_batch(shared, registry)
+    assert shared_result.results["P1"].floats["P1-A"].total_float > 0
+
+
+def test_authoritative_batch_rejects_external_graph_without_shared_executor():
+    from construction_pm.scheduling.batch_scheduler import (
+        MultiProjectSchedulingError,
+        execute_authoritative_schedule_batch,
+    )
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry({"CAL@1": resolver})
+    p1 = snapshot("P1", date(2026, 10, 10))
+    p2 = snapshot("P2", date(2026, 10, 20))
+    p1 = AuthoritativeScheduleInput(
+        **{**p1.__dict__, "relationships": (Relationship("P2-A", "P1-A", RelationshipType.FS, 0),)}
+    )
+    batch = AuthoritativeScheduleBatch.from_snapshots(
+        [p1, p2],
+        calculate_based_on_project_finish=False,
+    )
+    with pytest.raises(MultiProjectSchedulingError, match="SHARED_BATCH_GRAPH"):
+        execute_authoritative_schedule_batch(batch, registry)
