@@ -310,6 +310,16 @@ def execute_authoritative_schedule_batch(
                         result=replace(
                             final_result,
                             activities=project_activities,
+                            early_activities={
+                                key: value
+                                for key, value in (final_result.early_activities or {}).items()
+                                if key in owned_ids
+                            },
+                            late_activities={
+                                key: value
+                                for key, value in (final_result.late_activities or {}).items()
+                                if key in owned_ids
+                            },
                             floats=project_floats,
                             project_finish=max(
                                 item.finish for item in project_activities.values()
@@ -358,6 +368,16 @@ def execute_authoritative_schedule_batch(
                     result=replace(
                         global_result,
                         activities=project_activities,
+                        early_activities={
+                            key: value
+                            for key, value in (global_result.early_activities or {}).items()
+                            if key in owned_ids
+                        },
+                        late_activities={
+                            key: value
+                            for key, value in (global_result.late_activities or {}).items()
+                            if key in owned_ids
+                        },
                         floats=project_floats,
                         project_finish=max(
                             item.finish for item in project_activities.values()
