@@ -1,5 +1,14 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
+import { setP6FieldRegistry, type WorkspaceState } from "./workspace-model.js";
 import type { FieldRegistry, LayoutDefinition, LayoutScope, P6Field, P6FieldRegistryProvider, P6LayoutPersistence } from "./p6-field-layout-foundation.js";
+
+export async function loadP6FieldRegistryIntoWorkspace(
+  state: WorkspaceState,
+  provider: P6FieldRegistryProvider & { getRegistry(): Promise<FieldRegistry> },
+): Promise<WorkspaceState> {
+  const registry = await provider.getRegistry();
+  return setP6FieldRegistry(state, registry);
+}
 
 export function createP6FieldRegistryProvider(transport: ApiTransport, context: ProjectContext, registryVersion: FieldRegistry["registry_version"] = "p6-field-registry.v1"): P6FieldRegistryProvider & { getRegistry(): Promise<FieldRegistry> } {
   let registry: FieldRegistry | null = null;
