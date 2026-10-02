@@ -12,37 +12,24 @@ class PercentCompleteType(str, Enum):
     SCOPE = "SCOPE"
 
 
-class ActivityStatus(str, Enum):
-    """P6 Activity.Status semantic values."""
+class ActivityStatusCode(str, Enum):
+    """P6 Activity.StatusCode semantic values."""
 
-    NOT_STARTED = "Not Started"
-    IN_PROGRESS = "In Progress"
-    COMPLETED = "Completed"
+    PLANNED = "Planned"
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    WHAT_IF = "What-If"
+    REQUESTED = "Requested"
+    TEMPLATE = "Template"
 
     @classmethod
-    def from_p6_value(cls, value: str) -> "ActivityStatus":
+    def from_p6_value(cls, value: str) -> "ActivityStatusCode":
         try:
             return cls(value)
         except ValueError as exc:
-            raise ValueError(f"unsupported P6 Activity.Status value: {value!r}") from exc
-
-
-class ActivityType(str, Enum):
-    """P6 Activity.Type semantic values."""
-
-    TASK_DEPENDENT = "Task Dependent"
-    RESOURCE_DEPENDENT = "Resource Dependent"
-    LEVEL_OF_EFFORT = "Level of Effort"
-    START_MILESTONE = "Start Milestone"
-    FINISH_MILESTONE = "Finish Milestone"
-    WBS_SUMMARY = "WBS Summary"
-
-    @classmethod
-    def from_p6_value(cls, value: str) -> "ActivityType":
-        try:
-            return cls(value)
-        except ValueError as exc:
-            raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
+            raise ValueError(
+                f"unsupported P6 Activity.StatusCode value: {value!r}"
+            ) from exc
 
 
 @dataclass(frozen=True)
@@ -58,8 +45,7 @@ class Activity:
     percent_complete: float | None = None
     percent_complete_type: PercentCompleteType = PercentCompleteType.DURATION
     expected_finish: date | None = None
-    status: ActivityStatus = ActivityStatus.NOT_STARTED
-    activity_type: ActivityType = ActivityType.TASK_DEPENDENT
+    status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -94,10 +80,8 @@ class Activity:
                 raise ValueError("percent_complete must be between 0 and 100")
         if not isinstance(self.percent_complete_type, PercentCompleteType):
             raise TypeError("percent_complete_type must be a PercentCompleteType")
-        if not isinstance(self.status, ActivityStatus):
-            raise TypeError("status must be an ActivityStatus")
-        if not isinstance(self.activity_type, ActivityType):
-            raise TypeError("activity_type must be an ActivityType")
+        if not isinstance(self.status_code, ActivityStatusCode):
+            raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and not isinstance(self.expected_finish, date):
             raise TypeError("expected_finish must be a date or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
