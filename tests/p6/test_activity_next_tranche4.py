@@ -25,7 +25,11 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     assert all(x["oracle_type"] and not x["oracle_type"].startswith("pending_") for x in data["fields"])
     assert all(x["evidence_lines"] for x in data["fields"])
     assert data["status"]=="oracle_get_put_schema_reconciled_field_level_write_behavior_pending"
+    assert data["source_urls"]["activity_put"].endswith("/op-activity-put.html")
     write=data["oracle_write_evidence"]
+    assert write["endpoint_method"]=="PUT /activity"
+    assert write["endpoint_request_schema"]=="List<Activity>"
+    assert write["schema_exposure_interpretation"].startswith("The Release 26 PUT endpoint")
     assert write["field_level_write_behavior"]=="pending_for_all_29"
     assert set(write["still_requires_field_level_write_behavior"])==names
     endpoint_schema_fields=set(write["endpoint_schema_fields"])
