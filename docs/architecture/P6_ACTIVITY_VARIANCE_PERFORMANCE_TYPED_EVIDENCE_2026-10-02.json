@@ -1,0 +1,33 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 variance/performance typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies only documented read-side API type and semantic description. Writable/default/nullability/import-export certification remains open; no Registry identity is changed by this tranche.",
+  "fields": [
+    {"p6_field":"AccountingVariance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"95-97","description":"Difference between planned value of work scheduled and actual cost of work performed; accounting variance = planned value - actual cost."},
+    {"p6_field":"AccountingVarianceLaborUnits","data_type":"double","unit":"units","computed":true,"writable":null,"evidence_lines":"99-100","description":"Difference between planned value of work scheduled and actual work performed; accounting variance labor units = planned value labor units - actual units."},
+    {"p6_field":"AtCompletionLaborUnitsVariance","data_type":"double","unit":"units","computed":true,"writable":null,"evidence_lines":"175-177","description":"Project baseline planned total labor units minus estimate at completion labor units."},
+    {"p6_field":"AtCompletionVariance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"196-197","description":"Difference between project baseline total cost and current estimate of total cost; VAC = BAC - EAC."},
+    {"p6_field":"CostPercentComplete","data_type":"double","unit":"percent","computed":true,"writable":null,"evidence_lines":"365-366","description":"Percent complete of costs for labor, nonlabor and expenses; actual total cost / at completion total cost * 100."},
+    {"p6_field":"CostPercentOfPlanned","data_type":"double","unit":"percent","computed":true,"writable":null,"evidence_lines":"368-370","description":"Percent complete of planned costs; actual total cost / baseline planned total cost * 100; value can exceed 100."},
+    {"p6_field":"CostPerformanceIndex","data_type":"double","unit":"ratio","computed":true,"writable":null,"evidence_lines":"372-373","description":"Earned value divided by actual cost."},
+    {"p6_field":"CostPerformanceIndexLaborUnits","data_type":"double","unit":"ratio","computed":true,"writable":null,"evidence_lines":"375-377","description":"Earned value labor units divided by actual labor units."},
+    {"p6_field":"CostVariance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"379-380","description":"Earned value minus actual costs; CV = earned value - actual costs."},
+    {"p6_field":"CostVarianceIndex","data_type":"double","unit":"ratio","computed":true,"writable":null,"evidence_lines":"382-384","description":"Cost variance divided by earned value; CVI = cost variance / earned value."},
+    {"p6_field":"CostVarianceIndexLaborUnits","data_type":"double","unit":"ratio","computed":true,"writable":null,"evidence_lines":"386-387","description":"Cost variance labor units divided by earned value labor units."},
+    {"p6_field":"CostVarianceLaborUnits","data_type":"double","unit":"units","computed":true,"writable":null,"evidence_lines":"389-391","description":"Earned value planned units minus actual units."},
+    {"p6_field":"ExpenseCostVariance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"471-473","description":"Project baseline expense cost minus at completion expense cost."},
+    {"p6_field":"LaborCost1Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"553-554","description":"Primary baseline labor cost minus at completion labor cost."},
+    {"p6_field":"LaborCost2Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"556-558","description":"Secondary baseline labor cost minus at completion labor cost."},
+    {"p6_field":"LaborCost3Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"560-562","description":"Tertiary baseline labor cost minus at completion labor cost."},
+    {"p6_field":"MaterialCost1Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"614-615","description":"Primary baseline planned material cost minus at completion material cost."},
+    {"p6_field":"MaterialCost2Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"617-619","description":"Secondary baseline planned material cost minus at completion material cost."},
+    {"p6_field":"MaterialCost3Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"621-623","description":"Tertiary baseline planned material cost minus at completion material cost."},
+    {"p6_field":"NonLaborCost1Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"647-649","description":"Primary baseline nonlabor cost minus at completion nonlabor cost."},
+    {"p6_field":"NonLaborCost2Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"651-652","description":"Secondary baseline nonlabor cost minus at completion nonlabor cost."},
+    {"p6_field":"NonLaborCost3Variance","data_type":"double","unit":"currency","computed":true,"writable":null,"evidence_lines":"654-656","description":"Tertiary baseline nonlabor cost minus at completion nonlabor cost."}
+  ]
+}
