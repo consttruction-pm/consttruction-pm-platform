@@ -45,6 +45,26 @@ class ActivityType(str, Enum):
             raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
 
 
+class ActivityStatusCode(str, Enum):
+    """P6 Activity.StatusCode semantic values."""
+
+    PLANNED = "Planned"
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    WHAT_IF = "What-If"
+    REQUESTED = "Requested"
+    TEMPLATE = "Template"
+
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityStatusCode":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported P6 Activity.StatusCode value: {value!r}"
+            ) from exc
+
+
 @dataclass(frozen=True)
 class Activity:
     """Portable scheduling activity used by the Shared Scheduling Core."""
@@ -60,6 +80,7 @@ class Activity:
     expected_finish: date | None = None
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
+    status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -98,6 +119,8 @@ class Activity:
             raise TypeError("status must be an ActivityStatus")
         if not isinstance(self.activity_type, ActivityType):
             raise TypeError("activity_type must be an ActivityType")
+        if not isinstance(self.status_code, ActivityStatusCode):
+            raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and not isinstance(self.expected_finish, date):
             raise TypeError("expected_finish must be a date or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
