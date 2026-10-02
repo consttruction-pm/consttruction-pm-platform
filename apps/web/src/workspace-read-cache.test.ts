@@ -98,6 +98,19 @@ test("Web hydrates from the shared cache adapter while preserving fresh state", 
   assert.equal(reader.calls, 1);
 });
 
+test("Web rejects a cached snapshot from another project", async () => {
+  const reader = new StubCacheReader({
+    mode: "offline",
+    state: "fresh",
+    cache: { workspace_read: readSnapshot() },
+  });
+
+  await assert.rejects(
+    () => new CachedWorkspaceReadClient(reader).load({ ...context, project_id: "project-2" }, false),
+    /WORKSPACE_CACHE_CONTEXT_MISMATCH/,
+  );
+});
+
 test("Web can render a stale cached snapshot while offline without recalculating it", async () => {
   const reader = new StubCacheReader({
     mode: "offline",
