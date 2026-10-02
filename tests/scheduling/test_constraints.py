@@ -6,8 +6,12 @@ from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.constraints import (
     ActivityConstraint,
+    ActivitySecondaryConstraint,
     ConstraintType,
     ConstraintViolation,
+    SecondaryConstraintError,
+    SecondaryConstraintType,
+    resolve_secondary_constraint,
 )
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
@@ -304,3 +308,51 @@ def test_p6_lower_bound_can_create_negative_total_float_and_criticality(resolver
     assert result.late_activities["A"].start == date(2026, 9, 22)
     assert result.floats["A"].total_float == -3
     assert result.floats["A"].critical is True
+
+
+def test_secondary_constraint_maps_supported_values_to_existing_constraint_types():
+    expected = {
+        SecondaryConstraintType.START_ON_OR_BEFORE: ConstraintType.START_NO_LATER_THAN,
+        SecondaryConstraintType.START_ON_OR_AFTER: ConstraintType.START_NO_EARLIER_THAN,
+        SecondaryConstraintType.FINISH_ON_OR_BEFORE: ConstraintType.FINISH_NO_LATER_THAN,
+        SecondaryConstraintType.FINISH_ON_OR_AFTER: ConstraintType.FINISH_NO_EARLIER_THAN,
+    }
+    for secondary_type, expected_type in expected.items():
+        secondary = ActivitySecondaryConstraint("A", secondary_type, date(2026, 10, 1))
+        resolved = resolve_secondary_constraint(
+            primary=ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 1)),
+            secondary=secondary,
+        )
+        assert resolved is not None
+        assert resolved.type is expected_type
+
+
+@pytest.mark.parametrize(
+    "secondary_type",
+    [
+        SecondaryConstraintType.START_ON,
+        SecondaryConstraintType.FINISH_ON,
+        SecondaryConstraintType.AS_LATE_AS_POSSIBLE,
+        SecondaryConstraintType.MANDATORY_START,
+        SecondaryConstraintType.MANDATORY_FINISH,
+    ],
+)
+def test_secondary_constraint_rejects_unsupported_values(secondary_type):
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(
+            primary=ActivityConstraint("A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 1)),
+            secondary=ActivitySecondaryConstraint("A", secondary_type, date(2026, 10, 1)),
+        )
+
+
+def test_secondary_constraint_requires_matching_primary_and_activity():
+    secondary = ActivitySecondaryConstraint(
+        "A", SecondaryConstraintType.START_ON_OR_AFTER, date(2026, 10, 1)
+    )
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(primary=None, secondary=secondary)
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(
+            primary=ActivityConstraint("B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 1)),
+            secondary=secondary,
+        )

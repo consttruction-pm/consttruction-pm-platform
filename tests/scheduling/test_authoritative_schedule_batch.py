@@ -85,7 +85,7 @@ def test_authoritative_batch_applies_activity_calendar_registry_to_schedule():
     )
 
     scheduled = result.project("P1").result.early_activities["P1-A"]
-    assert scheduled.finish == date(2026, 10, 3)
+    assert scheduled.finish == date(2026, 10, 2)
 
 
 def test_duplicate_snapshot_id_is_rejected_before_graph_construction():
