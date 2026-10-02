@@ -227,7 +227,7 @@ def forward_pass(
                     rel,
                     result[rel.predecessor_id],
                     scheduled_duration,
-                    resolver,
+                    activity_resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
