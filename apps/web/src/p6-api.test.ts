@@ -156,3 +156,57 @@ test("P6 read-only layout adapter rejects an invalid revision", async () => {
     /INVALID_P6_LAYOUT_REVISION/,
   );
 });
+
+test("P6 read-only layout adapter rejects malformed layout presentation", async () => {
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async () => ({
+      ok: true,
+      data: {
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: 4,
+        columns: [{
+          field_id: "activity.id",
+          visible: true,
+          order: 0,
+          label: null,
+          width: Number.NaN,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        }],
+      },
+    } as any),
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  await assert.rejects(
+    () => persistence.load("project", "activity"),
+    /INVALID_P6_LAYOUT/,
+  );
+});
+
+test("P6 read-only layout adapter rejects duplicate layout field ids", async () => {
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async () => ({
+      ok: true,
+      data: {
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: 4,
+        columns: [
+          { field_id: "activity.id", visible: true, order: 0, label: null, width: 120, alignment: "start", pinned: false, frozen: false },
+          { field_id: "activity.id", visible: true, order: 1, label: null, width: 120, alignment: "start", pinned: false, frozen: false },
+        ],
+      },
+    } as any),
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  await assert.rejects(
+    () => persistence.load("project", "activity"),
+    /INVALID_P6_LAYOUT/,
+  );
+});
