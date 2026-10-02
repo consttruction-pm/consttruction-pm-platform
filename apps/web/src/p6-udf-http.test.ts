@@ -50,3 +50,13 @@ test("rejects malformed UDF metadata", async () => {
     /P6_UDF_RESPONSE_INVALID/,
   );
 });
+
+test("rejects a UDF response from the wrong registry version", async () => {
+  await assert.rejects(
+    () => fetchP6ActivityUdfs("p1", "p6-field-registry.v1", async () => response({
+      registry_version: "p6-field-registry.v2",
+      udfs: [],
+    })),
+    /P6_UDF_RESPONSE_INVALID/,
+  );
+});
