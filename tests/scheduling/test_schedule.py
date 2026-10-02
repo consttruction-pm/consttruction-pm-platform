@@ -798,3 +798,19 @@ def test_schedule_uses_activity_scoped_calendar_for_backward_and_float(resolver)
         result.early_activities["A"].start,
         result.late_activities["A"].start,
     )
+
+
+def test_activity_calendar_does_not_override_relationship_lag_calendar(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        activity_resolvers={"A": resolver, "B": seven_day},
+        relationship_lag_resolvers={("A", "B"): seven_day},
+    )
+    assert result.early_activities["A"].finish == date(2026, 9, 25)
+    assert result.early_activities["B"].start == date(2026, 9, 26)
