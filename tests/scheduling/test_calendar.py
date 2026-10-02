@@ -78,3 +78,36 @@ def test_month_and_year_boundaries_preserve_working_day_count():
     resolver = WorkingTimeResolver(WorkingCalendar())
     assert resolver.calculate_duration(date(2026, 12, 31), date(2027, 1, 1)) == 2
     assert resolver.calculate_duration(date(2026, 3, 20), date(2026, 3, 23)) == 2
+
+
+def test_p6_calendar_time_period_factors_are_explicit_metadata():
+    from construction_pm.scheduling import CalendarTimePeriodFactors
+
+    factors = CalendarTimePeriodFactors("8", 40, "176", 2112)
+    assert factors.hours_per_day == Decimal("8")
+    assert factors.hours_per_week == Decimal("40")
+    assert factors.hours_per_month == Decimal("176")
+    assert factors.hours_per_year == Decimal("2112")
+    assert factors.value_for("Month") == Decimal("176")
+    assert factors.as_p6_fields()["HoursPerYear"] == Decimal("2112")
+
+
+def test_p6_calendar_time_period_factors_reject_invalid_values():
+    from construction_pm.scheduling import CalendarTimePeriodFactors
+
+    with pytest.raises(ValueError, match="hours_per_day"):
+        CalendarTimePeriodFactors(hours_per_day=0)
+    with pytest.raises(ValueError, match="unsupported calendar time period"):
+        CalendarTimePeriodFactors().value_for("quarter")
+
+
+def test_working_calendar_exposes_time_period_factors_without_changing_day_arithmetic():
+    from construction_pm.scheduling import CalendarTimePeriodFactors
+
+    calendar = WorkingCalendar(
+        time_period_factors=CalendarTimePeriodFactors(hours_per_day=10, hours_per_week=50),
+    )
+    resolver = WorkingTimeResolver(calendar)
+    assert calendar.hours_per_day == Decimal("10")
+    assert calendar.hours_per_week == Decimal("50")
+    assert resolver.add_working_duration(date(2026, 10, 5), 2) == date(2026, 10, 6)
