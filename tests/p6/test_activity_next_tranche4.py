@@ -24,7 +24,7 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     assert all(x["reconciliation_status"]=="pending" for x in data["fields"])
     assert all(x["oracle_type"] and not x["oracle_type"].startswith("pending_") for x in data["fields"])
     assert all(x["evidence_lines"] for x in data["fields"])
-    assert data["status"]=="oracle_get_put_schema_reconciled_field_level_write_behavior_pending"
+    assert data["status"]=="tranche_4_certification_pending_repository_field_level_mapping"
     assert data["source_urls"]["activity_put"].endswith("/op-activity-put.html")
     write=data["oracle_write_evidence"]
     assert write["endpoint_method"]=="PUT /activity"
