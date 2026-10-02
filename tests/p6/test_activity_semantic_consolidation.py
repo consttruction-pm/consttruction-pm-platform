@@ -21,7 +21,7 @@ def test_activity_consolidation_evidence_is_registered_without_aliases():
     assert len(evidence["fields"]) == 83
     for item in evidence["fields"]:
         field = registry[item["p6_field"]]
-        assert field.data_type.value == ("date" if item["data_type"] == "date-time" else item["data_type"])
+        assert field.data_type.value == ("datetime" if item["data_type"] == "date-time" else item["data_type"])
         assert field.writable is item["writable"]
         assert field.computed is item["computed"]
         assert field.unit == item["unit"]
