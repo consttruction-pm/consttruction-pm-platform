@@ -424,6 +424,15 @@
     "Next step: resolve each field against Oracle field-level write/import behavior and the repository's authoritative mapping paths, then certify only evidence-backed semantics.",
     "Baseline refreshed onto current main at b5dd8448bfdb9efc8d6d8f5c80602a91b795d599 after merged PR #760. Raw inventory-vs-registry inventory-only count remains 150; the governed remaining reconciliation tranche remains the exact 28-field subset."
   ],
+  "repository_mapping_review": {
+    "checked_on": "2026-10-02",
+    "activity_model": "src/construction_pm/scheduling/activity.py",
+    "confirmed_internal_semantics": ["ActivityStatus", "ActivityType", "ActivityStatusCode", "PercentCompleteType"],
+    "registry_already_contains": ["ActivityStatus", "ActivityType", "StatusCode", "PercentCompleteType", "PhysicalPercentComplete", "WBSCode", "WBSName"],
+    "remaining_gap": "No repository-side Activity serializer/import/export mapper was found for the remaining Tranche 4 fields. P6FieldRegistryAPI exposes registry metadata but does not itself serialize or persist Activity field values.",
+    "constraint_gap": "The scheduling core has primary constraint concepts, but no verified SecondaryConstraint model or SuspendDate/TaskStatus/WorkPackage persistence model was found. These fields therefore remain uncertified.",
+    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Continue reconciliation only where an authoritative repository mapping and regression path can be demonstrated."
+  },
   "oracle_write_evidence": {
     "source": "P6 EPPM REST API Release 26 - Update Activities",
     "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
