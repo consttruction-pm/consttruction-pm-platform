@@ -4,6 +4,7 @@ import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceState } from "./workspace-model.js";
 import type { WorkspaceReadClient } from "./workspace-read-api.js";
+import type { loadP6Presentation } from "./p6-api.js";
 
 export type ProjectBootstrapState =
   | { status: "loading" }
@@ -16,6 +17,7 @@ export type ProjectBootstrapDependencies = {
   sessionApi: SessionApi;
   syncRuntime: WebSyncRuntime;
   workspaceReadClient: WorkspaceReadClient;
+  p6PresentationLoader?: typeof loadP6Presentation;
 };
 
 function localError(code: string, messageKey: string, actions: string[] = []): ClientError {
@@ -104,7 +106,12 @@ export class ProjectBootstrap {
     if (!this.isCurrent(generation)) return null;
     if (!workspace.ok) return { status: "error", error: workspace.error };
 
-    return { status: "ready", context, workspace: workspace.data };
+    const hydratedWorkspace = this.dependencies.p6PresentationLoader
+      ? await this.dependencies.p6PresentationLoader(workspace.data, context)
+      : workspace.data;
+
+    if (!this.isCurrent(generation)) return null;
+    return { status: "ready", context, workspace: hydratedWorkspace };
   }
 
   private isCurrent(generation: number): boolean {
