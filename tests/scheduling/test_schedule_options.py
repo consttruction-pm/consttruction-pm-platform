@@ -127,3 +127,14 @@ def test_numeric_p6_options_reject_invalid_ranges(field, value):
 def test_resource_list_rejects_blank_values():
     with pytest.raises(ValueError, match="resource_list"):
         ScheduleOptions(resource_list="   ")
+
+
+
+def test_recalculate_resource_costs_matches_p6_option_and_defaults_off():
+    assert ScheduleOptions().recalculate_resource_costs is False
+    assert ScheduleOptions(recalculate_resource_costs=True).recalculate_resource_costs is True
+
+
+def test_recalculate_resource_costs_rejects_non_boolean_values():
+    with pytest.raises(ValueError, match="recalculate_resource_costs"):
+        ScheduleOptions(recalculate_resource_costs=1)

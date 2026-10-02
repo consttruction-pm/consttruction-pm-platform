@@ -204,6 +204,7 @@ _ROWS = (
     ("schedule_options.resource_list","ScheduleOptions","ResourceList","Resource List","string-array",True,False,None),
     ("schedule_options.start_to_start_lag_calculation_type","ScheduleOptions","StartToStartLagCalculationType","Start-to-Start Lag Calculation Type","boolean",True,False,None),
     ("schedule_options.use_expected_finish_dates","ScheduleOptions","UseExpectedFinishDates","Use Expected Finish Dates","boolean",True,False,None),
+    ("schedule_options.recalculate_resource_costs","ScheduleOptions","RecalculateResourceCosts","Recalculate Resource Costs","boolean",True,False,None),
     ("schedule_options.user_name","ScheduleOptions","UserName","User Name","string",False,False,None),
     ("schedule_options.user_object_id","ScheduleOptions","UserObjectId","User Object ID","object-id",False,False,None),
 

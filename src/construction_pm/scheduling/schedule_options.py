@@ -91,6 +91,7 @@ class ScheduleOptions:
     )
     relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     use_expected_finish_dates: bool = False
+    recalculate_resource_costs: bool = False
     calculate_float_based_on_finish_date: bool = False
     ignore_other_project_relationships: bool = False
     include_external_res_ass: bool = False
@@ -123,6 +124,7 @@ class ScheduleOptions:
             "multiple_float_paths_enabled",
             "multiple_float_paths_use_total_float",
             "use_expected_finish_dates",
+            "recalculate_resource_costs",
             "calculate_float_based_on_finish_date",
             "ignore_other_project_relationships",
             "include_external_res_ass",
