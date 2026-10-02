@@ -8,6 +8,9 @@ from typing import Mapping, Protocol
 from ..application.authorization import AuthorizationError
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
+from ..backend_p0.models import BackendScope
+from ..p6_field_registry_api import P6FieldRegistryAPI
+from ..p6_layout_definition_api import P6LayoutDefinitionAPI
 
 
 class Clock(Protocol):
@@ -30,9 +33,18 @@ class ProjectLifecycleHttpRoutes:
 
     SESSION_COOKIE = "cp_session"
 
-    def __init__(self, api: ProjectLifecycleAPI, clock: Clock | None = None) -> None:
+    def __init__(
+        self,
+        api: ProjectLifecycleAPI,
+        clock: Clock | None = None,
+        *,
+        p6_field_registry_api: P6FieldRegistryAPI | None = None,
+        p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
+    ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
+        self._p6_field_registry_api = p6_field_registry_api
+        self._p6_layout_definition_api = p6_layout_definition_api
 
     def handle(
         self,
@@ -62,6 +74,38 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/fields/" in path:
+                if self._p6_field_registry_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, registry_version = path.split("/p6/fields/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not registry_version:
+                    return self._error(400, "P6_FIELD_REGISTRY_REQUEST_INVALID", "error.request.invalid")
+                context = self._api.open_project(session_id, project_id, now=now).context
+                auth = context.authorization_context(self._api.get_session(session_id, now=now).roles)
+                fields = self._p6_field_registry_api.list_fields(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    registry_version, "Activity", auth_context=auth,
+                )
+                return self._json(200, {"registry_version": registry_version, "fields": [item["field"] for item in fields]})
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
+                if self._p6_layout_definition_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, layout_path = path.split("/p6/layouts/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = layout_path.split("/", 1)
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_LAYOUT_REQUEST_INVALID", "error.request.invalid")
+                layout_scope, view_id = parts
+                context = self._api.open_project(session_id, project_id, now=now).context
+                auth = context.authorization_context(self._api.get_session(session_id, now=now).roles)
+                result = self._p6_layout_definition_api.get(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    layout_scope, view_id, auth_context=auth,
+                )
+                if result is None:
+                    return self._json(404, {"code": "P6_LAYOUT_NOT_FOUND", "retryable": False, "message_key": "error.p6.layout.not_found", "available_actions": []})
+                return self._json(200, result["layout"])
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
                 if not project_id:
