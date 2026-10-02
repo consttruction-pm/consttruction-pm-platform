@@ -4,6 +4,9 @@ from decimal import Decimal
 import pytest
 
 from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity
 from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -100,7 +103,11 @@ def test_mixed_tenants_are_rejected_before_graph_construction():
 
 
 def test_time_aware_snapshot_is_rejected_before_graph_construction():
+    from datetime import datetime, timezone
+
     first = snapshot("P1", date(2026, 10, 10))
+    reference = CalendarReference("TIME-CAL", "1", kind="working-time")
+    context = SchedulingCalendarContext(project=reference, activity=reference)
     second = AuthoritativeScheduleInput(
         snapshot_id="s-P2",
         tenant_id="tenant",
@@ -108,20 +115,18 @@ def test_time_aware_snapshot_is_rejected_before_graph_construction():
         project_revision=1,
         project_leveling_priority=10,
         mode=AuthoritativeScheduleMode.TIME_AWARE,
-        project_calendar=CalendarReference("CAL", "1"),
-        activities=(Activity(id="P2-A", duration=1),),
+        project_calendar=reference,
+        activities=(TimeActivity(id="P2-A", duration=TimeQuantity.working_hours(1), calendar_context=context),),
         relationships=(),
-        activity_calendar_assignments=(ActivityCalendarAssignment("P2-A", CalendarReference("CAL", "1")),),
-        project_finish=date(2026, 10, 20),
-        project_start=date(2026, 10, 1),
+        activity_calendar_assignments=(ActivityCalendarAssignment("P2-A", reference),),
+        project_finish=datetime(2026, 10, 20, tzinfo=timezone.utc),
+        project_start=datetime(2026, 10, 1, tzinfo=timezone.utc),
         schedule_options=ScheduleOptions(),
     )
     with pytest.raises(UnsupportedMultiProjectSchedulingError, match="MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED"):
         execute_authoritative_schedule_batch(
             [first, second], resolvers={"P1": resolver(), "P2": resolver()}
         )
-
-
 def test_batch_uses_each_project_finish_when_option_enabled():
     result = execute_authoritative_schedule_batch(
         [
