@@ -9,6 +9,14 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingOptions,
+)
 from construction_pm.scheduling.authoritative_schedule_batch import (
     UnsupportedMultiProjectSchedulingError,
     execute_authoritative_schedule_batch,
@@ -220,3 +228,64 @@ def test_missing_external_project_membership_is_explicit():
             resolvers={'P1': resolver()},
             external_relationships=(Relationship('P1-A', 'UNKNOWN-A'),),
         )
+
+def test_shared_resource_leveling_runs_once_for_the_batch_graph():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=False,
+        calculate_float_based_on_finish_date=False,
+    )
+    leveling_options = ResourceLevelingOptions(level_all_resources=True)
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity(
+                "P1-A",
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                0,
+                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A"),),
+            ),
+            LevelingActivity(
+                "P2-A",
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                0,
+                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A"),),
+            ),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "P1-A",
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A"),),
+            ),
+            BackwardLevelingActivity(
+                "P2-A",
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                date(2026, 10, 1),
+                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A"),),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ),
+        options=leveling_options,
+    )
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", date(2026, 10, 10), options=options),
+            snapshot("P2", date(2026, 10, 20), options=options),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    first = result.project("P1").result.activities["P1-A"]
+    second = result.project("P2").result.activities["P2-A"]
+    assert first.finish < second.start or second.finish < first.start
