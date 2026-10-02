@@ -300,3 +300,79 @@ def test_case_7_unsupported_batch_resource_leveling_fails_explicitly():
             registry(),
             calculate_based_on_project_finish=False,
         )
+
+
+
+def test_duplicate_activity_identity_fails_before_graph_construction():
+    first = snapshot("P1", finish=date(2026, 10, 10))
+    second = snapshot("P2", finish=date(2026, 10, 20))
+    second = AuthoritativeScheduleInput(
+        snapshot_id=second.snapshot_id,
+        tenant_id=second.tenant_id,
+        project_id=second.project_id,
+        project_revision=second.project_revision,
+        mode=second.mode,
+        project_calendar=second.project_calendar,
+        activities=(Activity("P1-A", 1),),
+        relationships=second.relationships,
+        activity_calendar_assignments=(ActivityCalendarAssignment("P1-A", CAL),),
+        schedule_options=second.schedule_options,
+        project_start=second.project_start,
+        project_finish=second.project_finish,
+        constraints=second.constraints,
+        project_leveling_priority=second.project_leveling_priority,
+    )
+    with pytest.raises(BatchScheduleEvaluationError, match="DUPLICATE_ACTIVITY_ID_ACROSS_PROJECTS"):
+        execute_authoritative_schedule_batch(
+            (first, second), registry(), calculate_based_on_project_finish=False
+        )
+
+
+def test_mixed_tenant_batch_fails_before_graph_construction():
+    first = snapshot("P1", finish=date(2026, 10, 10))
+    second = snapshot("P2", finish=date(2026, 10, 20))
+    second = AuthoritativeScheduleInput(
+        snapshot_id=second.snapshot_id,
+        tenant_id="OTHER",
+        project_id=second.project_id,
+        project_revision=second.project_revision,
+        mode=second.mode,
+        project_calendar=second.project_calendar,
+        activities=second.activities,
+        relationships=second.relationships,
+        activity_calendar_assignments=second.activity_calendar_assignments,
+        schedule_options=second.schedule_options,
+        project_start=second.project_start,
+        project_finish=second.project_finish,
+        constraints=second.constraints,
+        project_leveling_priority=second.project_leveling_priority,
+    )
+    with pytest.raises(BatchScheduleEvaluationError, match="MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED"):
+        execute_authoritative_schedule_batch(
+            (first, second), registry(), calculate_based_on_project_finish=False
+        )
+
+
+def test_time_aware_batch_fails_explicitly():
+    first = snapshot("P1", finish=date(2026, 10, 10))
+    second = snapshot("P2", finish=date(2026, 10, 20))
+    second = AuthoritativeScheduleInput(
+        snapshot_id=second.snapshot_id,
+        tenant_id=second.tenant_id,
+        project_id=second.project_id,
+        project_revision=second.project_revision,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=second.project_calendar,
+        activities=second.activities,
+        relationships=second.relationships,
+        activity_calendar_assignments=second.activity_calendar_assignments,
+        schedule_options=second.schedule_options,
+        project_start=second.project_start,
+        project_finish=second.project_finish,
+        constraints=second.constraints,
+        project_leveling_priority=second.project_leveling_priority,
+    )
+    with pytest.raises(BatchScheduleEvaluationError, match="MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED"):
+        execute_authoritative_schedule_batch(
+            (first, second), registry(), calculate_based_on_project_finish=False
+        )
