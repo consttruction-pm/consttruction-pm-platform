@@ -4,12 +4,13 @@ import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNaviga
 
 const labels = {
   en: {
-    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings",
-    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "P6 Field Chooser", fields: "Fields", add: "Add", remove: "Remove", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: "Human approval required", noApprovalFlag: "No approval flag", sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links",
+    wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    
   },
   fa: {
-    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
-    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات", mainMenu: "منوی اصلی", currentSurface: "سطح فعلی محیط کار", submenu: "زیرمنو", formulaColumn: "ستون فرمول", fieldChooser: "انتخاب‌گر فیلد P6", fields: "فیلدها", add: "افزودن", remove: "حذف", findings: "یافته‌ها", proposedActions: "اقدامات پیشنهادی", traceability: "ردیابی", sources: "منابع", approvalRequired: "نیازمند تأیید", humanApprovalRequired: "نیازمند تأیید انسانی", noApprovalFlag: "بدون پرچم تأیید", sourceUnit: "منبع", activityLinkUnit: "پیوند فعالیت", evidenceUnit: "مستند", inspections: "بازرسی‌ها", qualityNcr: "کیفیت / NCR", safety: "ایمنی", punchCloseout: "پانچ / بستن موارد", due: "سررسید", supplier: "تأمین‌کننده", reference: "مرجع", amount: "مبلغ", itemUnit: "مورد", linkedReferenceUnit: "مرجع پیوندشده", stored: "ذخیره‌شده", noStorage: "بدون ذخیره‌سازی", approval: "تأیید", date: "تاریخ", notices: "اعلان‌ها", changeCases: "موارد تغییر", claims: "ادعاها", impactLinks: "پیوندهای اثر", scheduleLabel: "زمان‌بندی", costLabel: "هزینه", noticeLabel: "اعلان", changeLabel: "تغییر", entitlement: "استحقاق", decision: "تصمیم", impactLinkLabel: "پیوندهای اثر",
+    wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
 
@@ -35,18 +36,18 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
       </header>
-      <nav class="cp-menu" aria-label="Main Menu">
+      <nav class="cp-menu" aria-label="${escapeAttribute(t.mainMenu)}">
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
       </nav>
       ${renderNavigationSurface(state)}
       <main class="cp-main">
-        ${renderSmartGuide(state.smartGuide, t.smartGuide)}
+        ${renderSmartGuide(state.smartGuide, t.smartGuide, t)}
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
-        ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
-        ${renderProcurement(state.procurementRecords, t.procurement)}
+        ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
+        ${renderProcurement(state.procurementRecords, t.procurement, t)}
         <aside class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -57,7 +58,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
@@ -88,12 +89,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
+  const t = labels[state.locale];
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
-  return `<section class="cp-panel cp-navigation-surface" aria-label="Current workspace surface">
+  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
-    <nav aria-label="${escapeAttribute(label)} submenu">
+    <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu[state.locale])}</span>`).join("")}
     </nav>
   </section>`;
@@ -102,6 +104,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
 function renderSmartGuide(
   guide: WorkspaceState["smartGuide"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!guide) return "";
 
@@ -124,8 +127,8 @@ function renderSmartGuide(
             `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
-              <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
-              <span>${action.sourceCount} source(s)</span>
+              <span>${action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag}</span>
+              <span>${action.sourceCount} ${escapeHtml(t.sourceUnit)}</span>
             </article>`,
         )
         .join("")
@@ -142,18 +145,18 @@ function renderSmartGuide(
       </div>
       <div class="cp-field-grid">
         <div>
-          <h3>Findings</h3>
+          <h3>${escapeHtml(t.findings)}</h3>
           <div class="cp-field-list">${findings}</div>
         </div>
         <div>
-          <h3>Proposed Actions</h3>
+          <h3>${escapeHtml(t.proposedActions)}</h3>
           <div class="cp-field-list">${actions}</div>
         </div>
         <div>
-          <h3>Traceability</h3>
+          <h3>${escapeHtml(t.traceability)}</h3>
           <div class="cp-control-metrics">
-            <div class="cp-control-metric"><span>Sources</span><strong>${guide.sourceCount}</strong></div>
-            <div class="cp-control-metric"><span>Approval Required</span><strong>${guide.approvalRequiredCount}</strong></div>
+            <div class="cp-control-metric"><span>${escapeHtml(t.sources)}</span><strong>${guide.sourceCount}</strong></div>
+            <div class="cp-control-metric"><span>${escapeHtml(t.approvalRequired)}</span><strong>${guide.approvalRequiredCount}</strong></div>
           </div>
         </div>
       </div>
@@ -250,7 +253,7 @@ function renderFieldOperations(
           <span>${escapeHtml(issue.category)}</span>
           <span>${escapeHtml(issue.severity)} · ${escapeHtml(issue.status)}</span>
           <span>${escapeHtml(issue.locationKey ?? "—")}</span>
-          <span>${issue.activityIds.length} activity link(s) · ${issue.evidenceCount} evidence</span>
+          <span>${issue.activityIds.length} ${escapeHtml(t.activityLinkUnit)} · ${issue.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
         </div>`).join("")
     : '<div class="cp-empty">—</div>';
 
@@ -301,6 +304,7 @@ function renderFieldAssurance(
   safetyObservations: WorkspaceState["safetyObservations"],
   punchItems: WorkspaceState["punchItems"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!inspections.length && !qualityRecords.length && !safetyObservations.length && !punchItems.length) return "";
 
@@ -309,27 +313,27 @@ function renderFieldAssurance(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-field-assurance-grid">
         <div>
-          <h3>Inspections</h3>
+          <h3>${escapeHtml(t.inspections)}</h3>
           ${inspections.length ? inspections.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.inspectionTypeKey)}</strong>
               <span>${escapeHtml(item.subjectId)}</span>
               <span>${escapeHtml(item.result)} · ${escapeHtml(item.status)}</span>
-              <span>${item.checklist.length} checklist item(s)</span>
+              <span>${item.checklist.length} ${escapeHtml(t.itemUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Quality / NCR</h3>
+          <h3>${escapeHtml(t.qualityNcr)}</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
-              <span>${item.evidenceCount} evidence · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Safety</h3>
+          <h3>${escapeHtml(t.safety)}</h3>
           ${safetyObservations.length ? safetyObservations.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
@@ -339,13 +343,13 @@ function renderFieldAssurance(
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Punch / Closeout</h3>
+          <h3>${escapeHtml(t.punchCloseout)}</h3>
           ${punchItems.length ? punchItems.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.priority)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(item.locationKey ?? "—")}</span>
-              <span>Due: ${escapeHtml(item.dueDate ?? "—")}</span>
+              <span>${escapeHtml(t.due)}: ${escapeHtml(item.dueDate ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
@@ -356,6 +360,7 @@ function renderFieldAssurance(
 function renderProcurement(
   records: WorkspaceState["procurementRecords"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!records.length) return "";
 
@@ -372,12 +377,12 @@ function renderProcurement(
               <span>${escapeHtml(record.type)}</span>
               <span>${escapeHtml(record.status)}</span>
             </div>
-            ${record.supplierId ? `<div>Supplier: ${escapeHtml(record.supplierId)}</div>` : ""}
-            ${record.referenceId ? `<div>Ref: ${escapeHtml(record.referenceId)}</div>` : ""}
-            ${record.amount !== null ? `<div>Amount: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
-            <div>${record.itemCount} item(s) · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
-            ${record.approvalRef ? `<div>Approval: ${escapeHtml(record.approvalRef)}</div>` : ""}
-            ${record.date ? `<div>Date: ${escapeHtml(record.date)}</div>` : ""}
+            ${record.supplierId ? `<div>${escapeHtml(t.supplier)}: ${escapeHtml(record.supplierId)}</div>` : ""}
+            ${record.referenceId ? `<div>${escapeHtml(t.reference)}: ${escapeHtml(record.referenceId)}</div>` : ""}
+            ${record.amount !== null ? `<div>${escapeHtml(t.amount)}: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
+            <div>${record.itemCount} ${escapeHtml(t.itemUnit)} · ${record.activityIds.length} ${escapeHtml(t.activityLinkUnit)} · ${record.evidenceCount} ${escapeHtml(t.evidenceUnit)}</div>
+            ${record.approvalRef ? `<div>${escapeHtml(t.approval)}: ${escapeHtml(record.approvalRef)}</div>` : ""}
+            ${record.date ? `<div>${escapeHtml(t.date)}: ${escapeHtml(record.date)}</div>` : ""}
           </article>`).join("")}
       </div>
     </section>
@@ -391,19 +396,20 @@ function renderChangeClaimControl(
   impacts: WorkspaceState["changeClaimImpacts"],
   label: string,
   documents: WorkspaceState["documents"] = [],
+  t: WorkspaceLabels,
 ): string {
   if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
 
   const documentSection = documents.length === 0
     ? ""
     : `<section class="control-room-section" data-section="documents">
-      <h2>Documents</h2>
+      <h2>${escapeHtml(t.documents)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? "stored" : "no storage"}</small>
+          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -416,49 +422,49 @@ function renderChangeClaimControl(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-change-claim-grid">
         <div>
-          <h3>Notices</h3>
+          <h3>${escapeHtml(t.notices)}</h3>
           ${notices.length ? notices.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.noticeType)} · ${escapeHtml(item.status)}</span>
-              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
-              <span>Cost: ${renderRefs(item.costRefs)}</span>
-              <span>${item.evidenceCount} evidence · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(t.costLabel)}: ${renderRefs(item.costRefs)}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Change Cases</h3>
+          <h3>${escapeHtml(t.changeCases)}</h3>
           ${changes.length ? changes.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.changeType)} · ${escapeHtml(item.status)}</span>
-              <span>Notice: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
-              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
-              <span>Impact links: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(t.noticeLabel)}: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Claims</h3>
+          <h3>${escapeHtml(t.claims)}</h3>
           ${claims.length ? claims.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.claimType)} · ${escapeHtml(item.status)}</span>
-              <span>Change: ${escapeHtml(item.changeId ?? "—")}</span>
-              <span>Entitlement: ${escapeHtml(item.entitlementReference ?? "—")}</span>
-              <span>Decision: ${escapeHtml(item.decisionReference ?? "—")}</span>
-              <span>${item.evidenceCount} evidence</span>
+              <span>${escapeHtml(t.changeLabel)}: ${escapeHtml(item.changeId ?? "—")}</span>
+              <span>${escapeHtml(t.entitlement)}: ${escapeHtml(item.entitlementReference ?? "—")}</span>
+              <span>${escapeHtml(t.decision)}: ${escapeHtml(item.decisionReference ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Impact Links</h3>
+          <h3>${escapeHtml(t.impactLinks)}</h3>
           ${impacts.length ? impacts.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.recordType)} · ${escapeHtml(item.recordId)}</strong>
               <span>${escapeHtml(item.impactedDomain)} / ${escapeHtml(item.impactedEntityType)} / ${escapeHtml(item.impactedEntityId)}</span>
               <span>${escapeHtml(item.impactType)}</span>
-              <span>Schedule: ${escapeHtml(item.scheduleReference ?? "—")}</span>
-              <span>Cost: ${escapeHtml(item.costReference ?? "—")}</span>
-              <span>Approval: ${item.requiresApplicationApproval ? "required" : "no"}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${escapeHtml(item.scheduleReference ?? "—")}</span>
+              <span>${escapeHtml(t.costLabel)}: ${escapeHtml(item.costReference ?? "—")}</span>
+              <span>${escapeHtml(t.approval)}: ${item.requiresApplicationApproval ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
@@ -467,22 +473,23 @@ function renderChangeClaimControl(
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
+  const t = labels[state.locale];
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
-  return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
+  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(t.fieldChooser)}">
     <div class="cp-p6-field-chooser-heading">
-      <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+      <strong>${escapeHtml(t.fields)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
       ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
-        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="Remove">${escapeHtml(column.label ?? field.display_name)}</button>`;
+        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.remove)}">${escapeHtml(column.label ?? field.display_name)}</button>`;
       }).join("")}
-      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
   </section>`;
 }
