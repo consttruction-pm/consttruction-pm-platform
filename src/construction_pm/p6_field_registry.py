@@ -186,6 +186,12 @@ _ROWS = (
 )
 
 
+P6_FIELD_REGISTRY_VERSION = "p6-field-registry.v1"
+P6_FIELD_REGISTRY_REFERENCE_PRODUCT = "Oracle Primavera P6 Professional"
+P6_FIELD_REGISTRY_REFERENCE_VERSION = "26 / 26.4"
+P6_FIELD_REGISTRY_STATUS = "seeded_not_certified"
+
+
 P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
     P6FieldDefinition(
         field_id=field_id,
