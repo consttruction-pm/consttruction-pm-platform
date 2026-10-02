@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -83,10 +83,10 @@ def test_activity_calendar_context_rejects_mixed_time_aware_batch():
         activities=(TimeActivity("T", TimeQuantity.working_hours(8)),),
         relationships=(),
         activity_calendar_assignments=(),
-        project_start=None,
+        project_start=datetime(2026, 9, 25, tzinfo=timezone.utc),
+        project_finish=datetime(2026, 9, 29, tzinfo=timezone.utc),
     )
-    with pytest.raises(ValueError):
-        # The authoritative input itself owns the DATE/TIME activity contract.
+    with pytest.raises(ActivityCalendarContextError, match="DATE_BASED snapshots only"):
         ActivityCalendarContext.from_snapshots([snapshot(), timeaware], registry())
 
 
