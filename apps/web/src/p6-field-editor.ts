@@ -1,7 +1,7 @@
 import type { P6Field, P6FieldDataType } from "./p6-field-layout-foundation.js";
 
 export type P6FieldEditorControl =
-  | "text" | "number" | "date" | "duration" | "boolean";
+  | "text" | "number" | "date" | "duration" | "boolean" | "select";
 
 export type P6FieldEditorDescriptor = {
   fieldId: string;
@@ -12,6 +12,7 @@ export type P6FieldEditorDescriptor = {
   nullable: boolean;
   computed: boolean;
   writable: boolean;
+  allowedValues: readonly string[] | null;
 };
 
 const NUMERIC_TYPES: ReadonlySet<P6FieldDataType> = new Set([
@@ -23,11 +24,12 @@ export function getP6FieldEditorDescriptor(field: P6Field): P6FieldEditorDescrip
     fieldId: field.field_id,
     label: field.display_name,
     dataType: field.data_type,
-    control: toEditorControl(field.data_type),
+    control: field.data_type === "enum" && field.allowed_values?.length ? "select" : toEditorControl(field.data_type),
     editable: field.writable && !field.computed,
     nullable: field.nullable === true,
     computed: field.computed,
     writable: field.writable,
+    allowedValues: field.allowed_values ? [...field.allowed_values] : null,
   };
 }
 
