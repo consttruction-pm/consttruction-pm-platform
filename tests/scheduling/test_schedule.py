@@ -814,3 +814,35 @@ def test_activity_calendar_does_not_override_relationship_lag_calendar(resolver)
     )
     assert result.early_activities["A"].finish == date(2026, 9, 25)
     assert result.early_activities["B"].start == date(2026, 9, 26)
+
+def test_mixed_activity_calendars_drive_ff_dates_and_float_through_shared_core():
+    default = WorkingTimeResolver(WorkingCalendar())
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    activities = [Activity("A", 2), Activity("B", 3)]
+    relationship = Relationship("A", "B", RelationshipType.FF)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 25),
+        default,
+        project_finish=date(2026, 9, 30),
+        activity_resolvers={"A": default, "B": seven_day},
+    )
+
+    assert result.early_activities is not None
+    assert result.late_activities is not None
+    assert result.early_activities["A"].finish == date(2026, 9, 28)
+    assert result.early_activities["B"].start == date(2026, 9, 26)
+    assert result.early_activities["B"].finish == date(2026, 9, 28)
+    assert result.late_activities["B"].finish == date(2026, 9, 30)
+    assert result.late_activities["B"].start == date(2026, 9, 28)
+    assert result.floats["B"].total_float == 2
+    assert _relationship_holds(
+        relationship,
+        result.early_activities["A"],
+        result.early_activities["B"],
+        default,
+    )
