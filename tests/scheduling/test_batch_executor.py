@@ -65,8 +65,20 @@ def test_case_1_relationship_boundary_is_authoritative():
     )
     external = Relationship("P1-A", "P2-A", RelationshipType.FS)
 
+    ignore = (
+        snapshot(
+            "P1",
+            finish=date(2026, 10, 10),
+            options=ScheduleOptions(ignore_other_project_relationships=True),
+        ),
+        snapshot(
+            "P2",
+            finish=date(2026, 10, 20),
+            options=ScheduleOptions(ignore_other_project_relationships=True),
+        ),
+    )
     result = execute_authoritative_schedule_batch(
-        snapshots,
+        ignore,
         registry(),
         calculate_based_on_project_finish=False,
         relationships=(external,),
