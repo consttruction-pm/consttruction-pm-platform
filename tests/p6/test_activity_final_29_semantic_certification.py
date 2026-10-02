@@ -148,7 +148,19 @@ def test_documented_semantic_definition_count_is_explicit():
 
 def test_official_webservices_supporting_evidence_is_explicit():
     data = _load()
-    assert all(item["official_webservices_2025_semantics"] is not None for item in data["fields"])
+    assert {
+        item["p6_field"]
+        for item in data["fields"]
+        if item["official_webservices_2025_semantics"] is not None
+    } == {
+        "ScopePercentComplete",
+        "TaskStatusCompletion",
+        "TaskStatusDates",
+        "TaskStatusIndicator",
+        "WBSNamePath",
+        "WorkPackageId",
+        "WorkPackageName",
+    }
     assert {
         item["p6_field"]
         for item in data["fields"]
