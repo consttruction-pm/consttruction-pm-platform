@@ -43,17 +43,15 @@ function transport(): ApiTransport {
     async post<TRequest, TResponse>(path: string, request: TRequest): Promise<{ ok: true; data: TResponse }> {
       assert.equal(path, "/api/projects/p1/p6/layouts/project/activity");
       const payload = request as { revision: number; columns: unknown; metadata?: unknown };
-      return {
-        ok: true,
-        data: {
-          schema_version: "p6-layout.v1",
-          scope: "project",
-          view_id: "activity",
-          revision: payload.revision,
-          columns: payload.columns,
-          metadata: payload.metadata,
-        },
-      } as any;
+      const response = {
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: payload.revision,
+        columns: payload.columns,
+        metadata: payload.metadata,
+      };
+      return { ok: true, data: response as TResponse };
     },
   };
 }
