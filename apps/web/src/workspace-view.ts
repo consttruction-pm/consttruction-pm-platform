@@ -20,6 +20,7 @@ export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onActivitySelect?: (activityId: string) => void;
+  onGanttActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
@@ -65,7 +66,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
+          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
         </section>
         <aside class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""}><h2>${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
@@ -107,6 +108,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     [ordered[index], ordered[adjacentIndex]] = [ordered[adjacentIndex], ordered[index]];
     options.onP6FieldReorder?.(ordered);
   }));
+
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
+    const select = () => { const id = row.dataset.ganttActivityId; if (id) options.onGanttActivitySelect?.(id); };
+    row.addEventListener("click", select);
+    row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
+  });
 
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
@@ -541,7 +548,7 @@ function renderCellValue(columnId: string, value: WorkspaceCellValue): string {
   return escapeHtml(String(value));
 }
 
-function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string): string {
+function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string, selectedActivityId: string | null): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
   const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is NonNullable<typeof bar> => Boolean(bar));
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
