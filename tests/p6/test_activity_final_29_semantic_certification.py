@@ -83,14 +83,15 @@ def test_final_29_matrix_preserves_semantic_classes_without_promoting_registry()
         "typed_activity_type",
         "time_aware_progress_boundary",
         "derived_wbs_reference",
+        "task_status_integration_field",
     }
 
     assert len(by_class["computed_baseline_variance"]) == 4
     assert len(by_class["stored_period_value"]) == 6
     assert by_class["computed_ev_metric"] == ["ToCompletePerformanceIndex"]
     assert by_class["computed_units_percent"] == ["UnitsPercentComplete"]
-    assert by_class["unresolved_schema_only"] == [
-        "ScopePercentComplete",
+    assert by_class["unresolved_schema_only"] == ["ScopePercentComplete"]
+    assert by_class["task_status_integration_field"] == [
         "TaskStatusCompletion",
         "TaskStatusDates",
         "TaskStatusIndicator",
