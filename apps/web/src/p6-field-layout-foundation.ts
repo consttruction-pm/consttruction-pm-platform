@@ -24,6 +24,8 @@ export type P6Field = {
   filterable?: boolean | null;
   orderable?: boolean | null;
   nullable?: boolean | null;
+  /** Authoritative option values supplied by the field/UDF metadata contract. */
+  allowed_values?: readonly string[] | null;
 };
 
 export type FieldRegistry = {
