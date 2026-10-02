@@ -172,3 +172,19 @@ def test_forward_pass_expected_finish_does_not_override_network_logic(resolver):
     assert result["A"].finish == date(2026, 9, 23)
     assert result["B"].start == date(2026, 9, 24)
     assert result["B"].finish == date(2026, 9, 25)
+
+
+def test_forward_pass_uses_activity_scoped_resolver():
+    default = WorkingTimeResolver(WorkingCalendar())
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = forward_pass(
+        [Activity("A", 2)],
+        [],
+        date(2026, 9, 25),
+        default,
+        activity_resolvers={"A": seven_day},
+    )
+    assert result["A"].start == date(2026, 9, 25)
+    assert result["A"].finish == date(2026, 9, 26)

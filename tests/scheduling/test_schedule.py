@@ -778,3 +778,106 @@ def test_p6_calculate_float_based_on_finish_date_rejects_earlier_batch_finish(
             options=ScheduleOptions(calculate_float_based_on_finish_date=False),
             batch_scheduled_finish=date(2026, 9, 24),
         )
+
+
+def test_schedule_uses_activity_scoped_calendar_for_backward_and_float(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 2)],
+        [],
+        date(2026, 9, 25),
+        resolver,
+        project_finish=date(2026, 9, 29),
+        activity_resolvers={"A": seven_day},
+    )
+    assert result.early_activities["A"].finish == date(2026, 9, 26)
+    assert result.late_activities["A"].start == date(2026, 9, 28)
+    assert result.floats["A"].total_float == seven_day.working_days_between(
+        result.early_activities["A"].start,
+        result.late_activities["A"].start,
+    )
+
+
+def test_activity_calendar_does_not_override_relationship_lag_calendar(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        activity_resolvers={"A": resolver, "B": seven_day},
+        relationship_lag_resolvers={("A", "B"): seven_day},
+    )
+    assert result.early_activities["A"].finish == date(2026, 9, 25)
+    assert result.early_activities["B"].start == date(2026, 9, 26)
+
+def test_mixed_activity_calendars_drive_ff_dates_and_float_through_shared_core():
+    default = WorkingTimeResolver(WorkingCalendar())
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    activities = [Activity("A", 2), Activity("B", 3)]
+    relationship = Relationship("A", "B", RelationshipType.FF)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 25),
+        default,
+        project_finish=date(2026, 9, 30),
+        activity_resolvers={"A": default, "B": seven_day},
+    )
+
+    assert result.early_activities is not None
+    assert result.late_activities is not None
+    assert result.early_activities["A"].finish == date(2026, 9, 28)
+    assert result.early_activities["B"].start == date(2026, 9, 26)
+    assert result.early_activities["B"].finish == date(2026, 9, 28)
+    assert result.late_activities["B"].finish == date(2026, 9, 30)
+    assert result.late_activities["B"].start == date(2026, 9, 28)
+    assert result.floats["B"].total_float == 2
+    assert _relationship_holds(
+        relationship,
+        result.early_activities["A"],
+        result.early_activities["B"],
+        default,
+    )
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_mixed_activity_calendars_preserve_all_relationship_types(
+    relationship_type,
+):
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar())
+    successor_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        predecessor_resolver,
+        project_finish=date(2026, 10, 2),
+        activity_resolvers={"A": predecessor_resolver, "B": successor_resolver},
+    )
+
+    early = result.early_activities
+    assert early is not None
+    assert early["A"].finish == predecessor_resolver.add_working_duration(
+        early["A"].start, activities[0].duration
+    )
+    assert early["B"].finish == successor_resolver.add_working_duration(
+        early["B"].start, activities[1].duration
+    )
+    assert _relationship_holds(
+        relationship,
+        early["A"],
+        early["B"],
+        predecessor_resolver,
+    )
