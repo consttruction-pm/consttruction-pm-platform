@@ -29,6 +29,8 @@ def test_activity_schedule_performance_variance_evidence_is_formula_backed():
     }
     assert all(item["unit"] == "ratio" for item in artifact["fields"] if item["p6_field"] in ratio_fields)
     assert artifact["fields"][0]["unit"] == "percent"
+    assert artifact["fields"][3]["p6_field"] == "ScheduleVariance"
+    assert artifact["fields"][3]["unit"] is None
     assert all(
         item["unit"] == "working-time"
         for item in artifact["fields"]
