@@ -8,7 +8,7 @@
     "inventory_field_count": 275,
     "registry_activity_field_count": 134,
     "inventory_only_count": 150,
-    "existing_activity_evidence_files_scanned": 14,
+    "existing_activity_evidence_files_scanned": 16,
     "inventory_only_fields_with_direct_evidence_artifact": 61,
     "inventory_only_fields_without_direct_evidence_artifact": 89
   },
