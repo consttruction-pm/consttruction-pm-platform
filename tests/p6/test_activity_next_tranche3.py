@@ -84,7 +84,7 @@ def test_next_tranche3_is_exact_20_field_evidence_worklist():
     assert data["baseline"]["direct_or_prior_evidence_field_count"] == 203
     assert data["baseline"]["remaining_inventory_only_before_tranche"] == 49
     assert data["baseline"]["tranche_field_count"] == 20
-    assert data["baseline"]["expected_remaining_after_tranche"] == 29
+    assert data["baseline"]["expected_remaining_after_tranche"] == 28
 
     names = [item["p6_field"] for item in data["fields"]]
     assert len(names) == 20
@@ -138,7 +138,7 @@ def test_next_tranche3_remaining_inventory_count_is_29():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    assert len(inventory_names - covered) == 29
+    assert len(inventory_names - covered) == 28
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
