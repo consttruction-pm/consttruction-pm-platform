@@ -778,3 +778,22 @@ def test_p6_calculate_float_based_on_finish_date_rejects_earlier_batch_finish(
             options=ScheduleOptions(calculate_float_based_on_finish_date=False),
             batch_scheduled_finish=date(2026, 9, 24),
         )
+
+
+def test_schedule_uses_activity_scoped_calendar_for_backward_and_float(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 2)],
+        [],
+        date(2026, 9, 25),
+        resolver,
+        project_finish=date(2026, 9, 29),
+        activity_resolvers={"A": seven_day},
+    )
+    assert result.early_activities["A"].finish == date(2026, 9, 26)
+    assert result.late_activities["A"].start == date(2026, 9, 28)
+    assert result.floats["A"].total_float == seven_day.working_days_between(
+        date(2026, 9, 26), date(2026, 9, 28)
+    )
