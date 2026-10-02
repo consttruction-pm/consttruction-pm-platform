@@ -702,6 +702,8 @@ def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
         unsupported.append("external_project_priority_limit")
     if options.preserve_scheduled_early_and_late_dates:
         unsupported.append("preserve_scheduled_early_and_late_dates")
+    if options.multiple_float_paths_ending_activity_short_name is not None:
+        unsupported.append("multiple_float_paths_ending_activity_short_name")
     if unsupported:
         raise UnsupportedScheduleOptionError(
             "unsupported schedule options: " + ", ".join(sorted(unsupported))
