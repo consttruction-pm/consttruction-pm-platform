@@ -784,3 +784,17 @@ Status: **implemented, runtime-verified and merged**
 - No Hasan-owned PR is currently open. The next action remains a fresh audit of #393 for the first newly reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam.
 - Do not infer semantics from names/presentation code, revive superseded PRs, or duplicate Shared Core scheduling/calendar/formula/resource/cost behavior.
 - If no concrete Hasan-owned gap is evidenced, record the dependency and remain at the evidence boundary rather than creating speculative implementation.
+
+### 2026-10-03 — Post-PR #812 current-main reconciliation
+
+- Current main is `7ff2d364231cb1467a9214e08613a15ab9518401`, the merge commit for PR #812.
+- PR #812 exposed the authenticated P6 layout write HTTP route over the existing `P6LayoutDefinitionAPI.save()` boundary, with session/project scope binding and focused round-trip/invalid-request/unauthenticated tests.
+- PR #812 passed ConstructionPM CI #3262 and Client Typecheck #2965 and was merged without changes to Shared Core scheduling/calendar/formula/resource/cost semantics.
+- Fresh #393 audit after the merge reviewed the remaining backend-owned P6 categories and current Web consumers. No newly reproducible Hasan-owned persistence/API/import-export defect or authoritative contract-backed seam is currently proven beyond the completed #810/#812 slices.
+- The Web formula API files are empty placeholders and do not constitute a backend contract requirement; no speculative HTTP formula adapter is being created. Baseline/financial-period/mapping/interchange/field-registry persistence and DB verification are already covered by existing current-main work.
+
+### Current continuation point
+
+- Remain at the evidence boundary under #393 until a new authoritative contract dependency or reproducible Backend/Database/Application/API/Import-Export defect appears.
+- Do not duplicate P6 layout HTTP/API, PostgreSQL concurrency, field/UDF, baseline, financial-period, mapping/interchange, resource-period, activity-period-actual, or Shared Core scheduling/calendar/formula semantics.
+- Next executable action: fresh current-main audit when new evidence appears; if a concrete Hasan-owned gap is found, branch from the exact current `main`, add focused regression coverage and PostgreSQL verification where applicable, then update this checkpoint before merge.
