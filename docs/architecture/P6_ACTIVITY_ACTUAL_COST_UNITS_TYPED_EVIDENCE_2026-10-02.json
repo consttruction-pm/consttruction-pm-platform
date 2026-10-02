@@ -1,0 +1,119 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 actual cost/units typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies only the documented read-side API type and semantic description. Writable/default/nullability/import-export certification is intentionally left open; no Registry identity is changed by this tranche.",
+  "fields": [
+    {
+      "p6_field": "ActualLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "117-118",
+      "description": "Actual labor resource costs; if no resources are assigned, Oracle documents a computed value from actual labor units and project default price/time."
+    },
+    {
+      "p6_field": "ActualLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "120-122",
+      "description": "Actual units for labor resources assigned to the activity."
+    },
+    {
+      "p6_field": "ActualMaterialCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "124-126",
+      "description": "Sum of regular and overtime costs for material resources."
+    },
+    {
+      "p6_field": "ActualNonLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "128-129",
+      "description": "Actual nonlabor resource costs; if no resources are assigned, Oracle documents a computed value from actual nonlabor units and project default price/time."
+    },
+    {
+      "p6_field": "ActualNonLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "131-133",
+      "description": "Actual units for nonlabor resources assigned to the activity."
+    },
+    {
+      "p6_field": "ActualThisPeriodLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "139-140",
+      "description": "Actual labor cost for the current period."
+    },
+    {
+      "p6_field": "ActualThisPeriodLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "142-144",
+      "description": "Actual labor units for the current period."
+    },
+    {
+      "p6_field": "ActualThisPeriodMaterialCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "146-148",
+      "description": "Sum of material resource costs for the current period."
+    },
+    {
+      "p6_field": "ActualThisPeriodNonLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "150-151",
+      "description": "Actual nonlabor cost for the current period; if no resources are assigned, Oracle documents a computed value from actual nonlabor units and project default price/time."
+    },
+    {
+      "p6_field": "ActualThisPeriodNonLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "153-155",
+      "description": "Actual nonlabor units for the current period."
+    },
+    {
+      "p6_field": "ActualTotalCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "157-158",
+      "description": "Actual total cost including labor, nonlabor, and project expenses; actual total cost = actual labor cost + actual nonlabor cost + actual expense cost."
+    },
+    {
+      "p6_field": "ActualTotalUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "160-162",
+      "description": "Sum of actual labor units and actual nonlabor units."
+    }
+  ]
+}
