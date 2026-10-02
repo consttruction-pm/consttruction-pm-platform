@@ -237,6 +237,41 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
         include_external_res_ass=False,
         calculate_float_based_on_finish_date=False,
     )
+
+def test_shared_resource_leveling_runs_once_for_the_batch_graph():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=False,
+        calculate_float_based_on_finish_date=False,
+    )
     leveling_options = ResourceLevelingOptions(level_all_resources=True)
+    demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p1,)),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p1,)),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p2,)),
+    )
     leveling_input = SchedulerLevelingInput(
-        forward_activities=(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ),
+        options=leveling_options,
+    )
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", date(2026, 10, 10), options=options),
+            snapshot("P2", date(2026, 10, 10), options=options),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    assert p1.finish < p2.start or p2.finish < p1.start
