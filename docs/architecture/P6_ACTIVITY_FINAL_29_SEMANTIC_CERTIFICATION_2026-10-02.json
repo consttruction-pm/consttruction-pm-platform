@@ -994,7 +994,8 @@
     "Oracle Release 26 confirms the Activity schema fields and field-level descriptions for the documented subset; the official P6 Integration API reference fills the semantic descriptions for the remaining REST schema-only fields.",
     "TaskStatus*, ScopePercentComplete, WBSNamePath and WorkPackage* now have official semantic definitions from Oracle Integration API evidence; their current REST mutability/persistence behavior remains a separate gate.",
     "No field identity is promoted into the canonical Activity Registry by this artifact.",
-    "PR #777 merged into main and resolved StatusCode, reducing the governed remaining Activity reconciliation tranche from 29 to 28."
+    "PR #777 merged into main and resolved StatusCode, reducing the governed remaining Activity reconciliation tranche from 29 to 28.",
+    "Baseline refreshed onto current main after FarmJ22002 calendar-test commit 38cdbb46; the commit changes tests only and does not change the P6 Activity registry counts."
   ],
   "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
   "certification_gate": {
@@ -1025,7 +1026,7 @@
     ]
   },
   "baseline": {
-    "main_sha": "466dd08c0c9ea6824bcf678b0704d3d24e278129",
+    "main_sha": "38cdbb46b8e292bacf5ea597e2e0e9e6f45f41d5",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
