@@ -138,8 +138,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 prefix, layout_path = path.split("/p6/layouts/", 1)
                 project_id = prefix[len("/api/projects/"):]
-                if not project_id or "/" in layout_path:
+                parts = layout_path.split("/", 1)
+                if not project_id or len(parts) != 2 or not all(parts):
                     return self._error(400, "P6_LAYOUT_REQUEST_INVALID", "error.request.invalid")
+                layout_scope, view_id = parts
                 try:
                     context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
@@ -149,8 +151,6 @@ class ProjectLifecycleHttpRoutes:
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
                 payload = json.loads(body.decode("utf-8") or "{}")
-                layout_scope = str(payload.get("scope", ""))
-                view_id = str(payload.get("view_id", ""))
                 revision = int(payload.get("revision", 0))
                 columns = tuple(LayoutColumn(**item) for item in payload.get("columns", []))
                 metadata = payload.get("metadata", {})
