@@ -28,6 +28,70 @@ class ActivityConstraint:
             raise ValueError("activity_id is required")
 
 
+class SecondaryConstraintError(ValueError):
+    """Raised when P6 secondary constraint semantics cannot be represented."""
+
+
+class SecondaryConstraintType(str, Enum):
+    """Oracle P6 Activity.SecondaryConstraintType wire values."""
+    START_ON = "Start On"
+    START_ON_OR_BEFORE = "Start On or Before"
+    START_ON_OR_AFTER = "Start On or After"
+    FINISH_ON = "Finish On"
+    FINISH_ON_OR_BEFORE = "Finish On or Before"
+    FINISH_ON_OR_AFTER = "Finish On or After"
+    AS_LATE_AS_POSSIBLE = "As Late As Possible"
+    MANDATORY_START = "Mandatory Start"
+    MANDATORY_FINISH = "Mandatory Finish"
+
+
+_SECONDARY_EXECUTABLE_TYPES = frozenset({
+    SecondaryConstraintType.START_ON_OR_BEFORE,
+    SecondaryConstraintType.START_ON_OR_AFTER,
+    SecondaryConstraintType.FINISH_ON_OR_BEFORE,
+    SecondaryConstraintType.FINISH_ON_OR_AFTER,
+})
+
+
+@dataclass(frozen=True)
+class ActivitySecondaryConstraint:
+    activity_id: str
+    type: SecondaryConstraintType
+    date: date
+
+    def __post_init__(self) -> None:
+        if not self.activity_id:
+            raise ValueError("activity_id is required")
+        if not isinstance(self.type, SecondaryConstraintType):
+            raise TypeError("type must be a SecondaryConstraintType")
+
+    def to_activity_constraint(self) -> ActivityConstraint:
+        try:
+            mapped_type = {
+                SecondaryConstraintType.START_ON_OR_BEFORE: ConstraintType.START_NO_LATER_THAN,
+                SecondaryConstraintType.START_ON_OR_AFTER: ConstraintType.START_NO_EARLIER_THAN,
+                SecondaryConstraintType.FINISH_ON_OR_BEFORE: ConstraintType.FINISH_NO_LATER_THAN,
+                SecondaryConstraintType.FINISH_ON_OR_AFTER: ConstraintType.FINISH_NO_EARLIER_THAN,
+            }[self.type]
+        except KeyError as exc:
+            raise SecondaryConstraintError(
+                f"{self.type.value!r} is documented by P6 but is not an executable secondary constraint value in P6 EPPM REST Release 26"
+            ) from exc
+        return ActivityConstraint(self.activity_id, mapped_type, self.date)
+
+
+def resolve_secondary_constraint(*, primary: ActivityConstraint | None, secondary: ActivitySecondaryConstraint | None) -> ActivityConstraint | None:
+    if secondary is None:
+        return None
+    if primary is None:
+        raise SecondaryConstraintError(f"secondary constraint for {secondary.activity_id} requires a primary constraint")
+    if secondary.type not in _SECONDARY_EXECUTABLE_TYPES:
+        raise SecondaryConstraintError(f"{secondary.type.value!r} is not permitted as a secondary constraint in P6 EPPM REST Release 26")
+    if primary.activity_id != secondary.activity_id:
+        raise SecondaryConstraintError("primary and secondary constraints must target the same activity")
+    return secondary.to_activity_constraint()
+
+
 class ConstraintViolation(ValueError):
     """Raised when constraints cannot be satisfied simultaneously."""
 
