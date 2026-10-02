@@ -50,7 +50,33 @@ def test_decode_rejects_field_count_mismatch() -> None:
         P6MpxCodec().decode(document, scope())
 
 
-def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() -> None:\n    with pytest.raises(P6MpxCodecError, match="UNREPRESENTABLE_MPX_EXTENSIONS:p6.interchange.t1.p1.task_name"):\n        P6MpxCodec().encode(\n            (P6InterchangeResult(\n                {"Name": "Pour cement", "Duration": "6d"},\n                {\n                    "p6.mpx.record": "TASK",\n                    "p6.mpx.separator": ",",\n                    "p6.mpx.file_creation": ("Microsoft Project", "4.0", "850"),\n                    "p6.interchange.t1.p1.task_name": "Foundation",\n                },\n            ),),\n            scope(),\n        )\n\n\ndef test_encode_round_trips_task_rows() -> None:
+def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() -> None:
+    with pytest.raises(P6MpxCodecError, match="UNREPRESENTABLE_MPX_EXTENSIONS:p6.interchange.t1.p1.task_name"):
+        P6MpxCodec().encode(
+            (P6InterchangeResult(
+                {"Name": "Pour cement", "Duration": "6d"},
+                {
+                    "p6.mpx.record": "TASK",
+                    "p6.mpx.separator": ",",
+                    "p6.mpx.file_creation": ("Microsoft Project", "4.0", "850"),
+                    "p6.interchange.t1.p1.task_name": "Foundation",
+                },
+            ),),
+            scope(),
+        )
+
+
+    @staticmethod
+    def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
+        structural = {"p6.mpx.record", "p6.mpx.separator", "p6.mpx.file_creation"}
+        for row in rows:
+            unsupported = sorted(key for key in row.extensions if key not in structural)
+            if unsupported:
+                raise P6MpxCodecError(
+                    "UNREPRESENTABLE_MPX_EXTENSIONS:" + ",".join(unsupported)
+                )
+
+def test_encode_round_trips_task_rows() -> None:
     codec = P6MpxCodec()
     document = "MPX,Microsoft Project,4.0,850\n60,Name,Duration\n70,Pour cement,6d\n"
     decoded = codec.decode(document, scope())
