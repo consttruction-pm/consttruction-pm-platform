@@ -199,3 +199,16 @@ def test_current_main_baseline_is_reflected_in_matrix():
     assert data["baseline"]["inventory_only_count"] == 149
     assert data["baseline"]["remaining_reconciliation_count"] == 28
     assert data["baseline"]["resolved_on_main_from_initial_tranche"] == ["StatusCode"]
+
+
+def test_mutability_review_partitions_remaining_28():
+    data = _load()
+    review = data["mutability_review"]
+    assert review["remaining_28_total"] == 28
+    assert review["read_only_supporting_evidence_count"] == 9
+    assert review["writability_unconfirmed_count"] == 19
+    assert (
+        review["read_only_supporting_evidence_count"]
+        + review["writability_unconfirmed_count"]
+        == review["remaining_28_total"]
+    )
