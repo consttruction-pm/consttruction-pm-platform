@@ -157,6 +157,55 @@ def test_p6_layout_route_returns_persisted_layout():
     assert payload["metadata"] == {"density": "compact"}
 
 
+def test_p6_layout_write_route_persists_authenticated_layout():
+    r, _, _ = p6_routes()
+    payload = {
+        "revision": 1,
+        "columns": [{
+            "field_id": "activity_id",
+            "visible": True,
+            "order": 0,
+            "label": None,
+            "width": 120.0,
+            "alignment": "start",
+            "pinned": False,
+            "frozen": False,
+        }],
+        "metadata": {"density": "compact"},
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["schema_version"] == "p6-layout.v1"
+    assert saved["scope"] == "project"
+    assert saved["view_id"] == "activity"
+    assert saved["metadata"] == {"density": "compact"}
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body) == saved
+
+
+def test_p6_layout_write_route_requires_session_cookie():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/layouts/project/activity",
+        body=b"{}",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
 def test_p6_layout_route_returns_not_found_for_missing_layout():
     r, _, _ = p6_routes()
     status, _, body = r.handle("GET", "/api/projects/p1/p6/layouts/project/missing", cookies={"cp_session": "s1"})
