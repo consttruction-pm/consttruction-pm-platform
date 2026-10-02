@@ -62,6 +62,10 @@ from .schedule import (
     resolve_float_finish_date,
     schedule,
 )
+from .p6_activity_scheduler_outputs import (
+    P6ActivitySchedulerOutputs,
+    p6_activity_scheduler_outputs,
+)
 from .schedule_options import (
     ScheduleMode,
     PriorityListItem,
@@ -93,6 +97,8 @@ __all__ = [
     "PriorityListItem",
     "PrioritySortOrder",
     "ScheduleResult",
+    "P6ActivitySchedulerOutputs",
+    "p6_activity_scheduler_outputs",
     "StartToStartLagCalculationType",
     "OutOfSequenceScheduleType",
     "TotalFloatCalculationType",
