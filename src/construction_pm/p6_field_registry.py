@@ -196,6 +196,7 @@ _ROWS = (
     ("schedule_options.out_of_sequence_schedule_type","ScheduleOptions","OutOfSequenceScheduleType","Out of Sequence Schedule Type","enum",True,False,None),
     ("schedule_options.over_allocation_percentage","ScheduleOptions","OverAllocationPercentage","Over Allocation Percentage","double",True,False,"percent"),
     ("schedule_options.preserve_scheduled_early_and_late_dates","ScheduleOptions","PreserveScheduledEarlyAndLateDates","Preserve Scheduled Early and Late Dates","boolean",True,False,None),
+    ("schedule_options.recalculate_resource_costs","ScheduleOptions","RecalculateResourceCosts","Recalculate Resource Costs","boolean",True,False,None),
     ("schedule_options.priority_list","ScheduleOptions","PriorityList","Priority List","string-array",True,False,None),
     ("schedule_options.project_id","ScheduleOptions","ProjectId","Project ID","string",False,False,None),
     ("schedule_options.project_object_id","ScheduleOptions","ProjectObjectId","Project Object ID","object-id",False,False,None),
