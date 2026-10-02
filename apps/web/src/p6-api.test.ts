@@ -50,6 +50,7 @@ function transport(): ApiTransport {
           view_id: "activity",
           revision: request.revision,
           columns: request.columns,
+          metadata: request.metadata,
         },
       } as any;
     },
@@ -77,7 +78,10 @@ describe("P6 Web API adapters", () => {
       view_id: "activity",
       revision: 1,
       columns: [],
+      metadata: { source: "user-layout" },
     };
-    assert.equal((await persistence.save(layout)).revision, 1);
+    const saved = await persistence.save(layout);
+    assert.equal(saved.revision, 1);
+    assert.deepEqual(saved.metadata, { source: "user-layout" });
   });
 });
