@@ -16,6 +16,7 @@ export function createP6FieldRegistryProvider(transport: ApiTransport, context: 
     const result = await transport.get<FieldRegistry>(`/api/projects/${encodeURIComponent(context.project_id)}/p6/fields/${encodeURIComponent(registryVersion)}`, context);
     if (!result.ok) throw new Error(result.error.code);
     if (result.data.registry_version !== registryVersion) throw new Error("P6_FIELD_REGISTRY_VERSION_MISMATCH");
+    validateP6FieldRegistry(result.data);
     registry = result.data;
     return registry;
   };
@@ -48,4 +49,44 @@ export function createP6ReadOnlyLayoutPersistence(transport: ApiTransport, conte
       throw new Error("P6_LAYOUT_SAVE_UNSUPPORTED");
     },
   };
+}
+
+function validateP6FieldRegistry(registry: FieldRegistry): void {
+  if (
+    !registry ||
+    registry.reference_product !== "Oracle Primavera P6 Professional" ||
+    !Array.isArray(registry.fields)
+  ) {
+    throw new Error("INVALID_P6_FIELD_REGISTRY");
+  }
+
+  const validDataTypes = new Set([
+    "string", "date", "datetime", "duration", "decimal", "percentage",
+    "boolean", "enum", "integer", "double", "cost", "unit",
+    "object-id", "object-id-array", "string-array", "complex", "spread",
+  ]);
+  const fieldIds = new Set<string>();
+  for (const field of registry.fields) {
+    if (
+      !field ||
+      typeof field.field_id !== "string" ||
+      !field.field_id.trim() ||
+      typeof field.subject_area !== "string" ||
+      !field.subject_area.trim() ||
+      typeof field.p6_field !== "string" ||
+      !field.p6_field.trim() ||
+      typeof field.display_name !== "string" ||
+      !field.display_name.trim() ||
+      typeof field.writable !== "boolean" ||
+      typeof field.computed !== "boolean" ||
+      typeof field.disposition !== "string" ||
+      !validDataTypes.has(field.data_type)
+    ) {
+      throw new Error("INVALID_P6_FIELD_REGISTRY");
+    }
+    if (fieldIds.has(field.field_id)) {
+      throw new Error("INVALID_P6_FIELD_REGISTRY");
+    }
+    fieldIds.add(field.field_id);
+  }
 }
