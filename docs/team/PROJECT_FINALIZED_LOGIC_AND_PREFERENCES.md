@@ -729,3 +729,28 @@ Compatibility impact:
 - Testing: authorization allow/deny, malformed scope/role rejection, stable error behavior and context preservation are mandatory regression coverage.
 
 Next action: continue from a fresh current-main Backend/Application/API gap; do not reopen completed authorization work.
+
+
+## 39. Current-main P6 Activity evidence consolidation gate — 2026-10-02
+
+The P6 Activity semantic evidence track is governed by current-main reconciliation.
+
+Mandatory rules:
+- Evidence-only Activity field tranches must not be merged from stale bases when another tranche has already changed the canonical registry.
+- Open PRs do not count as completed capability evidence until merged and runtime-verified.
+- Activity field evidence remains evidence-only unless writable/computed/default/nullability/import-export semantics are independently certified.
+- No Activity dataclass expansion, second CPM/EVM engine, fabricated alias, or client-side calculation is permitted.
+- Overlapping Activity evidence tranches must be consolidated onto a fresh current-main branch rather than merging conflicting stale branches.
+- Shared Scheduling Core remains the only source for scheduler-derived Activity values such as early/late dates and criticality.
+
+Current reconciliation:
+- PR #701 was green and merged as `9c346626b791f810ed6af83ceb510c6cf60f2607`.
+- PRs #702/#703/#705 have failed ConstructionPM CI and are not accepted as complete.
+- PRs #704/#706 became merge-conflicted after #701 and require fresh current-main reconciliation.
+- Client PRs #708/#710 are not counted until they are based on current main and pass their full acceptance gates.
+
+Compatibility impact:
+- P6/Scheduling semantics: unchanged.
+- Shared Core authority: preserved.
+- Backend/API: no duplicate semantic model is authorized.
+- Web/client: consumes authoritative registry/results and must not implement calculations.
