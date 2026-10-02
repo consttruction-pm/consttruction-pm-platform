@@ -7,6 +7,8 @@ from typing import Iterable, Mapping
 
 from .authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from .calendar import WorkingTimeResolver
+from .calendar_context import CalendarResolverRegistry
+from .activity_calendar_context import ActivityCalendarContext
 from .external_resource_assignments import (
     ExternalResourceAssignment,
     select_batch_resource_assignments_for_scheduling,
@@ -51,6 +53,7 @@ def execute_authoritative_schedule_batch(
     snapshots: Iterable[AuthoritativeScheduleInput],
     *,
     resolvers: Mapping[str, WorkingTimeResolver],
+    calendar_registry: CalendarResolverRegistry | None = None,
     external_relationships: Iterable = (),
     activity_project_ids: Mapping[str, str] | None = None,
     resource_assignments: Iterable[ExternalResourceAssignment] = (),
@@ -97,6 +100,17 @@ def execute_authoritative_schedule_batch(
     batch = AuthoritativeScheduleBatch.from_snapshots(
         snapshot_list,
         calculate_based_on_project_finish=float_basis.pop(),
+    )
+
+    activity_calendar_context = (
+        ActivityCalendarContext.from_snapshots(snapshot_list, calendar_registry)
+        if len(snapshot_list) > 1 and calendar_registry is not None
+        else None
+    )
+    activity_resolvers = (
+        activity_calendar_context.as_mapping()
+        if activity_calendar_context is not None
+        else None
     )
 
     all_activity_projects = dict(activity_project_ids or {})
@@ -147,14 +161,32 @@ def execute_authoritative_schedule_batch(
             raise KeyError(
                 f"calendar resolver not registered for project: {snapshot_list[0].project_id}"
             )
-        if any(
-            resolvers.get(snapshot.project_id) is None
-            or resolvers[snapshot.project_id].calendar != first_resolver.calendar
+        for snapshot in snapshot_list[1:]:
+            if resolvers.get(snapshot.project_id) is None:
+                raise KeyError(
+                    f"calendar resolver not registered for project: {snapshot.project_id}"
+                )
+
+        if activity_calendar_context is None and any(
+            resolvers[snapshot.project_id].calendar != first_resolver.calendar
             for snapshot in snapshot_list
         ):
             raise UnsupportedMultiProjectSchedulingError(
                 "MULTI_PROJECT_CALENDAR_EXECUTION_REQUIRED"
             )
+
+        resolver = first_resolver
+        if leveling_input is not None and activity_resolvers is not None:
+            activity_resolver_values = tuple(activity_resolvers.values())
+            reference_activity_resolver = activity_resolver_values[0]
+            if any(
+                item.calendar != reference_activity_resolver.calendar
+                for item in activity_resolver_values[1:]
+            ):
+                raise UnsupportedMultiProjectSchedulingError(
+                    "MULTI_PROJECT_ACTIVITY_CALENDAR_LEVELING_NOT_SUPPORTED"
+                )
+            resolver = reference_activity_resolver
 
         if any(
             snapshot.schedule_options.calculate_float_based_on_finish_date
@@ -164,7 +196,6 @@ def execute_authoritative_schedule_batch(
                 "MULTI_PROJECT_LOCAL_FLOAT_WITH_SHARED_BATCH_GRAPH_REQUIRED"
             )
 
-        resolver = first_resolver
         global_activities = tuple(
             activity for snapshot in snapshot_list for activity in snapshot.activities
         )
@@ -239,6 +270,7 @@ def execute_authoritative_schedule_batch(
                 constraints=global_constraints,
                 options=initial_options,
                 batch_scheduled_finish=batch_finish,
+                activity_resolvers=activity_resolvers,
             )
 
             selected_demands = tuple(
@@ -368,6 +400,7 @@ def execute_authoritative_schedule_batch(
             constraints=global_constraints,
             options=project_options,
             batch_scheduled_finish=batch_finish,
+            activity_resolvers=activity_resolvers,
         )
         for snapshot in snapshot_list:
             owned_ids = {activity.id for activity in snapshot.activities}
