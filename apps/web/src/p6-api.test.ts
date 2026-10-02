@@ -28,7 +28,7 @@ function transport(): ApiTransport {
               disposition: "implemented",
             }],
           },
-        } as any;
+        } as { ok: true; data: TResponse };
       }
       return {
         ok: false,
@@ -40,7 +40,7 @@ function transport(): ApiTransport {
         },
       } as any;
     },
-    async post<TRequest, TResponse>(path: string, request: TRequest): Promise<any> {
+    async post<TRequest, TResponse>(path: string, request: TRequest): Promise<{ ok: true; data: TResponse }> {
       assert.equal(path, "/api/projects/p1/p6/layouts/project/activity");
       const payload = request as { revision: number; columns: unknown; metadata?: unknown };
       return {
