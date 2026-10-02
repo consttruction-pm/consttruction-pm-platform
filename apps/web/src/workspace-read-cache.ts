@@ -56,7 +56,7 @@ export class CachedWorkspaceReadClient {
     };
 
     const snapshotContext = readProjectContext(cached.cache.workspace_read);
-    const result = await new WorkspaceReadClient(transport).load(snapshotContext, options);
+    const result = await new WorkspaceReadClient(transport).load(snapshotContext, { ...options, hydrateP6Registry: false });
     if (!result.ok) {
       throw new Error(result.error.code);
     }
