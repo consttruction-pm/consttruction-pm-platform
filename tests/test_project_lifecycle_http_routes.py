@@ -160,8 +160,6 @@ def test_p6_layout_route_returns_persisted_layout():
 def test_p6_layout_write_route_persists_authenticated_layout():
     r, _, _ = p6_routes()
     payload = {
-        "scope": "project",
-        "view_id": "activity",
         "revision": 1,
         "columns": [{
             "field_id": "activity_id",
@@ -177,7 +175,7 @@ def test_p6_layout_write_route_persists_authenticated_layout():
     }
     status, _, body = r.handle(
         "POST",
-        "/api/projects/p1/p6/layouts/activity",
+        "/api/projects/p1/p6/layouts/project/activity",
         cookies={"cp_session": "s1"},
         body=json.dumps(payload).encode("utf-8"),
     )
