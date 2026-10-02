@@ -25,14 +25,23 @@ from construction_pm.scheduling.authoritative_schedule_batch import (
     execute_authoritative_schedule_batch,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarReference
+from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.external_resource_assignments import ExternalResourceAssignment
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
-def snapshot(project_id, finish, *, options=None, priority=10):
-    reference = CalendarReference('CAL', '1')
+def snapshot(
+    project_id,
+    finish,
+    *,
+    options=None,
+    priority=10,
+    project_calendar=None,
+    activity_calendar=None,
+):
+    reference = project_calendar or CalendarReference('CAL', '1')
+    assigned_calendar = activity_calendar or reference
     return AuthoritativeScheduleInput(
         snapshot_id=f's-{project_id}',
         tenant_id='tenant',
@@ -44,7 +53,7 @@ def snapshot(project_id, finish, *, options=None, priority=10):
         activities=(Activity(id=f'{project_id}-A', duration=1),),
         relationships=(),
         activity_calendar_assignments=(
-            ActivityCalendarAssignment(f'{project_id}-A', reference),
+            ActivityCalendarAssignment(f'{project_id}-A', assigned_calendar),
         ),
         project_finish=finish,
         project_start=date(2026, 10, 1),
@@ -372,3 +381,89 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
+
+
+def test_batch_uses_activity_scoped_calendars_for_mixed_project_calendars():
+    project_cal_1 = CalendarReference("CAL-1", "1")
+    project_cal_2 = CalendarReference("CAL-2", "1")
+    resolver_1 = WorkingTimeResolver(WorkingCalendar())
+    resolver_2 = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3}))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": resolver_1,
+            "CAL-2@1": resolver_2,
+        }
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot(
+                "P1",
+                date(2026, 10, 10),
+                project_calendar=project_cal_1,
+                activity_calendar=project_cal_1,
+            ),
+            snapshot(
+                "P2",
+                date(2026, 10, 20),
+                project_calendar=project_cal_2,
+                activity_calendar=project_cal_2,
+            ),
+        ],
+        resolvers={"P1": resolver_1, "P2": resolver_2},
+        calendar_registry=registry,
+        external_relationships=(Relationship("P1-A", "P2-A"),),
+        activity_project_ids={"P1-A": "P1", "P2-A": "P2"},
+    )
+
+    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 1)
+    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 5)
+
+
+def test_batch_rejects_mixed_activity_calendars_for_resource_leveling():
+    project_cal_1 = CalendarReference("CAL-1", "1")
+    project_cal_2 = CalendarReference("CAL-2", "1")
+    resolver_1 = WorkingTimeResolver(WorkingCalendar())
+    resolver_2 = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3}))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": resolver_1,
+            "CAL-2@1": resolver_2,
+        }
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_ACTIVITY_CALENDAR_LEVELING_NOT_SUPPORTED",
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot(
+                    "P1",
+                    date(2026, 10, 10),
+                    options=ScheduleOptions(level_all_resources=True),
+                    project_calendar=project_cal_1,
+                    activity_calendar=project_cal_1,
+                ),
+                snapshot(
+                    "P2",
+                    date(2026, 10, 20),
+                    options=ScheduleOptions(level_all_resources=True),
+                    project_calendar=project_cal_2,
+                    activity_calendar=project_cal_2,
+                ),
+            ],
+            resolvers={"P1": resolver_1, "P2": resolver_2},
+            calendar_registry=registry,
+            leveling_input=leveling_input,
+        )
