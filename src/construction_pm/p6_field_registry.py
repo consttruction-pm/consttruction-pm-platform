@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+P6_FIELD_REGISTRY_REFERENCE_PRODUCT = "Oracle P6 Version 26 / 26.4"
+P6_FIELD_REGISTRY_REFERENCE_VERSION = "26.4"
+P6_FIELD_REGISTRY_STATUS = "seeded_not_certified"
+
+
 class P6FieldType(str, Enum):
     STRING = "string"
     DATE = "date"
