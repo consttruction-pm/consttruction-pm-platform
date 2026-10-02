@@ -21,9 +21,15 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     assert data["baseline"]["remaining_inventory_only_before_tranche"]==29
     assert data["baseline"]["expected_remaining_after_tranche"]==0
     assert all(x["registry_change"]=="none" for x in data["fields"])
-    assert all(x["reconciliation_status"]=="pending" for x in data["fields"])\n    assert all(x["oracle_type"] and not x["oracle_type"].startswith("pending_") for x in data["fields"])\n    assert all(x["evidence_lines"] for x in data["fields"])\n    assert data["status"]=="oracle_get_put_schema_reconciled_field_level_write_behavior_pending"
-    write = data["oracle_write_evidence"]
+    assert all(x["reconciliation_status"]=="pending" for x in data["fields"])
+    assert all(x["oracle_type"] and not x["oracle_type"].startswith("pending_") for x in data["fields"])
+    assert all(x["evidence_lines"] for x in data["fields"])
+    assert data["status"]=="oracle_get_put_schema_reconciled_field_level_write_behavior_pending"
+    write=data["oracle_write_evidence"]
     assert write["field_level_write_behavior"]=="pending_for_all_29"
     assert set(write["still_requires_field_level_write_behavior"])==names
-    assert set(write["endpoint_schema_fields"]) >= names
-    assert set(write["explicitly_computed_or_derived_on_update_schema"]) == {"ToCompletePerformanceIndex", "TotalCost1Variance", "TotalCost2Variance", "TotalCost3Variance", "TotalCostVariance"}\n    assert all(x["calculation_status"] for x in data["fields"])
+    endpoint_schema_fields=set(write["endpoint_schema_fields"])
+    assert endpoint_schema_fields
+    assert endpoint_schema_fields <= names
+    assert set(write["explicitly_computed_or_derived_on_update_schema"]) == {"ToCompletePerformanceIndex", "TotalCost1Variance", "TotalCost2Variance", "TotalCost3Variance", "TotalCostVariance"}
+    assert all(x["calculation_status"] for x in data["fields"])
