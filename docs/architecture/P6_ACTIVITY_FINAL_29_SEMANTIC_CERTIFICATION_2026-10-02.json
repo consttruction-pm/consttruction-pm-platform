@@ -1068,9 +1068,11 @@
     "expected_remaining_after_certification": 0
   },
   "mutability_review": {
-    "remaining_28_total": 28,
+    "remaining_29_total": 29,
+    "status_code_conflict_count": 1,
+    "remaining_28_excluding_status_code": 28,
     "read_only_supporting_evidence_count": 9,
     "writability_unconfirmed_count": 19,
-    "rule": "Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before registry certification."
+    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before final certification."
   }
 }
