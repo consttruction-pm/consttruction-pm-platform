@@ -33,7 +33,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -57,7 +59,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -81,7 +85,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "Status",
@@ -105,7 +111,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "StatusCode",
@@ -129,7 +137,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "SuspendDate",
@@ -153,7 +163,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -177,7 +189,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TaskStatusDates",
@@ -201,7 +215,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -225,7 +241,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -249,7 +267,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -273,7 +293,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -297,7 +319,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -321,7 +345,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalCostVariance",
@@ -345,7 +371,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -369,7 +397,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -393,7 +423,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -417,7 +449,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -441,7 +475,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -465,7 +501,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -489,7 +527,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "Type",
@@ -513,7 +553,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -537,7 +579,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -561,7 +605,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WBSCode",
@@ -585,7 +631,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WBSName",
@@ -609,7 +657,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WBSNamePath",
@@ -633,7 +683,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WBSObjectId",
@@ -657,7 +709,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WorkPackageId",
@@ -681,7 +735,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     },
     {
       "p6_field": "WorkPackageName",
@@ -705,7 +761,9 @@
           "type": "oracle_release_26_export_projects",
           "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
         }
-      ]
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true
     }
   ],
   "notes": [
@@ -713,5 +771,13 @@
     "TaskStatus* remain semantically uncertified because the current Oracle Release 26 field descriptions do not define their calculation or persistence behavior.",
     "No field identity is promoted into the canonical Activity Registry by this artifact."
   ],
-  "evidence_policy": "Every field points to the three authoritative Release 26 endpoints used for the semantic pass; absence of a field description is preserved as an explicit evidence limitation."
+  "evidence_policy": "Every field points to the three authoritative Release 26 endpoints used for the semantic pass; absence of a field description is preserved as an explicit evidence limitation.",
+  "certification_gate": {
+    "get_schema_exposed": "confirmed",
+    "put_schema_exposed": "confirmed",
+    "export_mapping": "pending_field_level_confirmation",
+    "persistence_and_mutability": "pending_field_level_confirmation",
+    "registry_promotion": "blocked_until_all_field_level_gates_pass",
+    "second_cpm_engine": "forbidden"
+  }
 }
