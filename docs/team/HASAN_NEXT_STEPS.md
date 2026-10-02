@@ -723,3 +723,13 @@ Status: **implemented, runtime-verified and merged**
 
 - Re-run the Hasan current-main conformance audit when a concrete backend contract, persistence, import/export, authorization, revision/idempotency, or PostgreSQL defect is evidenced.
 - Until then, preserve the ownership/evidence boundary and do not revive stale PRs or duplicate P6 Shared-Core/Activity evidence work.
+
+
+### 2026-10-02 — Current-main coordination recheck
+
+- Current main baseline: `8bb47a49300ac3ae1f900c8d85f67ca91a3277e2`.
+- Hasan currently has no open PR; Issue #709 remains the active bounded backend continuation.
+- Do not create a duplicate feature task while #709 is open.
+- First action: audit current `main` against the P6-2 backend acceptance criteria and reconcile already-merged work.
+- Implement only the first concrete Hasan-owned backend/API/persistence gap proven by evidence; otherwise record the blocking dependency and stop without speculative code.
+- Preserve the single authoritative Shared Scheduling/Core calculation boundary and do not revive stale PRs.
