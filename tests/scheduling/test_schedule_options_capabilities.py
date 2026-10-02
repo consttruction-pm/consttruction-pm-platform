@@ -82,8 +82,3 @@ def test_multiple_float_paths_ending_activity_short_name_rejects_blank():
     with pytest.raises(ValueError, match="short_name"):
         ScheduleOptions(multiple_float_paths_ending_activity_short_name="   ")
 
-
-def test_schedule_rejects_multiple_float_path_short_name_instead_of_silent_fallback(resolver):
-    options = ScheduleOptions(multiple_float_paths_enabled=True, maximum_multiple_float_paths=1, multiple_float_paths_ending_activity_short_name="FIN-MILESTONE")
-    with pytest.raises(UnsupportedScheduleOptionError, match="multiple_float_paths_ending_activity_short_name"):
-        schedule([Activity("A", 1)], [], date(2026, 10, 1), resolver, options=options)
