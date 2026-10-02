@@ -27,96 +27,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "ActualMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualThisPeriodCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualThisPeriodMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalLaborCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalMaterialCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalNonLaborCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ActualTotalNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "AtCompletionCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "AtCompletionLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -144,15 +54,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "AtCompletionMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "AtCompletionNonLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -163,177 +64,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "AtCompletionNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "AtCompletionStartDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionFinishDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionLaborCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionMaterialCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionNonLaborCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline1AtCompletionStartDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline2AtCompletionCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline2AtCompletionDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline2AtCompletionFinishDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline2AtCompletionStartDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline3AtCompletionCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline3AtCompletionDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline3AtCompletionFinishDate",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Baseline3AtCompletionStartDate",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -423,61 +153,7 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "EstimateToCompleteCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ExpenseLaborCostVariance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ExpenseNonLaborCostVariance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "LocationId",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "MaterialCostVariance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "MaterialLaborCostVariance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "MaterialNonLaborCostVariance",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -531,15 +207,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "OwnerNames",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "PercentComplete",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -550,15 +217,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "PerformancePercentComplete",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "PlannedActivityCost",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -586,15 +244,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "PlannedMaterialCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "PlannedMaterialUnits",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -639,24 +288,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "RemainingActivityCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "RemainingDurationAtCompletion",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "RemainingEarlyStartDate",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -693,15 +324,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "RemainingMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "RemainingNonLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -712,15 +334,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "RemainingNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ResourceNames",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -783,33 +396,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "SuspendResumeStatus",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalFloatHours",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalPastPeriodCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "TotalPastPeriodLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -837,15 +423,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "TotalPastPeriodMaterialUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "TotalPastPeriodNonLaborCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -856,15 +433,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "TotalPastPeriodNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalUnitsVariance",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -897,16 +465,8 @@
       "writable": null,
       "computed": null,
       "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "WorkPackageObjectId",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
     }
   ],
-  "entry_count": 100
+  "entry_count": 51,
+  "coverage_note": "Manifest entries are restricted to names present in the 275-field Release 26 Activity inventory. Registry-only legacy names are excluded from this gap manifest."
 }
