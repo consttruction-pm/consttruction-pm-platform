@@ -45,7 +45,9 @@
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
       "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
-      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -78,7 +80,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -111,7 +115,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "Status",
@@ -144,7 +150,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "StatusCode",
@@ -210,7 +218,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -714,7 +724,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -747,7 +759,9 @@
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -997,7 +1011,7 @@
     "PR #777 established the StatusCode identity on main, but its writable=true metadata conflicts with Oracle Read Only evidence; PR #781 carries the corrective mutability fix. Until #781 merges, StatusCode remains certification-pending.",
     "Baseline refreshed onto current main at 73ea4cb after FarmJ22002 repository-mapping evidence commit. This commit is documentation-only and leaves Activity Registry counts unchanged."
   ],
-  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
+  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip. Oracle Gateway Providers Data Dictionary is supplementary mutability evidence and is not treated as a substitute for current Release 26 REST field-level certification.",
   "certification_gate": {
     "get_schema_exposed": "confirmed_for_all_29",
     "put_schema_exposed": "confirmed_for_all_29",
@@ -1073,6 +1087,16 @@
     "remaining_28_excluding_status_code": 28,
     "read_only_supporting_evidence_count": 9,
     "writability_unconfirmed_count": 19,
-    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before final certification."
+    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before final certification.",
+    "gateway_supporting_non_readonly_fields": [
+      "ScopePercentComplete",
+      "SecondaryConstraintDate",
+      "SecondaryConstraintType",
+      "Status",
+      "SuspendDate",
+      "Type",
+      "UnitsPercentComplete"
+    ],
+    "gateway_supporting_non_readonly_count": 7
   }
 }
