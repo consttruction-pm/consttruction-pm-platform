@@ -33,8 +33,8 @@ def test_activity_consolidation_parity_metrics_are_reconciled():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 
     assert report["inventory_field_count"] == 275
-    assert report["registry_activity_field_count"] == 134
-    assert report["exact_matches"] == 125
-    assert report["missing_from_registry_count"] == 150
-    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 51
-    assert report["unmaterialized_inventory_count"] == 99
+    assert report["registry_activity_field_count"] == 155
+    assert report["exact_matches"] == 146
+    assert report["missing_from_registry_count"] == 129
+    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 46
+    assert report["unmaterialized_inventory_count"] == 83

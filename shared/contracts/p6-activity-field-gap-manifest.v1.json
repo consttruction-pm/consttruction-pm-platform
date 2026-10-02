@@ -162,51 +162,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "MaximumDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "MostLikelyDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "MinimumDuration",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "NotesToResources",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ObjectId",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "PercentComplete",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -467,6 +422,6 @@
       "reference_verified": false
     }
   ],
-  "entry_count": 51,
+  "entry_count": 46,
   "coverage_note": "Manifest entries are restricted to names present in the 275-field Release 26 Activity inventory. Registry-only legacy names are excluded from this gap manifest."
 }

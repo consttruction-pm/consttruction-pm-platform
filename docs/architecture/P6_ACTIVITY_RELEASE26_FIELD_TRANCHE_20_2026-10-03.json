@@ -1,0 +1,160 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-release26-tranche-20/v1",
+  "title": "P6 Activity Release 26 typed field tranche 20 evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "status": "typed_seed_not_certified",
+  "registry_source": "src/construction_pm/p6_field_registry.py",
+  "rule": "Fields are added to the typed registry only; internal implementation/mapping certification is not inferred from the Oracle API schema.",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "export_project": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportproject-post.html"
+  },
+  "fields": [
+    [
+      "LastUpdateDate",
+      "datetime",
+      false,
+      false,
+      "stored audit metadata"
+    ],
+    [
+      "LastUpdateUser",
+      "string",
+      false,
+      false,
+      "stored audit metadata"
+    ],
+    [
+      "MaterialCostPercentComplete",
+      "double",
+      false,
+      true,
+      "scheduler/financially computed percentage"
+    ],
+    [
+      "MaximumDuration",
+      "double",
+      true,
+      false,
+      "activity duration input"
+    ],
+    [
+      "MinimumDuration",
+      "double",
+      true,
+      false,
+      "activity duration input"
+    ],
+    [
+      "MostLikelyDuration",
+      "double",
+      true,
+      false,
+      "activity duration input"
+    ],
+    [
+      "Name",
+      "string",
+      true,
+      false,
+      "activity name input"
+    ],
+    [
+      "NonLaborCostPercentComplete",
+      "double",
+      false,
+      true,
+      "computed nonlabor cost percentage"
+    ],
+    [
+      "NonLaborCostVariance",
+      "double",
+      false,
+      true,
+      "computed nonlabor cost variance"
+    ],
+    [
+      "NonLaborUnits1Variance",
+      "double",
+      false,
+      true,
+      "computed primary nonlabor units variance"
+    ],
+    [
+      "NonLaborUnits2Variance",
+      "double",
+      false,
+      true,
+      "computed secondary nonlabor units variance"
+    ],
+    [
+      "NonLaborUnits3Variance",
+      "double",
+      false,
+      true,
+      "computed tertiary nonlabor units variance"
+    ],
+    [
+      "NonLaborUnitsPercentComplete",
+      "double",
+      false,
+      true,
+      "computed nonlabor units percentage"
+    ],
+    [
+      "NonLaborUnitsVariance",
+      "double",
+      false,
+      true,
+      "computed nonlabor units variance"
+    ],
+    [
+      "NotesToResources",
+      "string",
+      true,
+      false,
+      "project-manager notes for timesheet resources"
+    ],
+    [
+      "ObjectId",
+      "object-id",
+      false,
+      false,
+      "system-generated activity identifier"
+    ],
+    [
+      "OwnerIDArray",
+      "string",
+      true,
+      false,
+      "comma-separated activity owner IDs"
+    ],
+    [
+      "ReviewFinishDate",
+      "datetime",
+      true,
+      false,
+      "timesheet review proposal date"
+    ],
+    [
+      "ReviewRequired",
+      "boolean",
+      true,
+      false,
+      "Team Member approval requirement"
+    ],
+    [
+      "ReviewStatus",
+      "enum",
+      true,
+      false,
+      "review lifecycle status"
+    ]
+  ],
+  "evidence_notes": {
+    "activity_get_lines": "Oracle Release 26 Activity GET documents names/types/meanings for all 20 fields.",
+    "activity_put_lines": "Oracle Release 26 Activity PUT exposes the writable operation surface for editable activity fields; computed fields remain modeled as computed in this registry.",
+    "certification_gap": "Internal canonical mapping, persistence roundtrip, null/default behavior and regression fixtures remain separate certification gates."
+  }
+}
