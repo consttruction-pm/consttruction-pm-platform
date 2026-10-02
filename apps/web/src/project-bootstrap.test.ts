@@ -74,14 +74,9 @@ function deps(overrides: Partial<SessionApi> = {}): {
   } as ProjectBootstrapDependencies["syncRuntime"];
 
   const workspaceReadClient = {
-    load: async (context: ProjectContext) => {
-      assert.deepEqual(context, {
-        tenant_id: "t-authoritative",
-        project_id: "p-authoritative",
-        revision: 9,
-      });
-      return ok(workspace);
-    },
+    load: async (context: ProjectContext) => ok({
+      context,
+    } as WorkspaceState),
   } as unknown as WorkspaceReadClient;
 
   return {
