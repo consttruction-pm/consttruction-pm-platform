@@ -110,9 +110,15 @@ def test_cross_project_relationship_executes_through_shared_batch_graph():
         external_relationships=(relationship,),
         activity_project_ids={'P1-A': 'P1', 'P2-A': 'P2'},
     )
-    p1 = result.project('P1').result.activities['P1-A']
-    p2 = result.project('P2').result.activities['P2-A']
+    p1_result = result.project('P1').result
+    p2_result = result.project('P2').result
+    p1 = p1_result.activities['P1-A']
+    p2 = p2_result.activities['P2-A']
     assert p2.start > p1.finish
+    assert set(p1_result.early_activities or {}) == {'P1-A'}
+    assert set(p1_result.late_activities or {}) == {'P1-A'}
+    assert set(p2_result.early_activities or {}) == {'P2-A'}
+    assert set(p2_result.late_activities or {}) == {'P2-A'}
 
 
 def test_cross_project_relationship_is_ignored_when_option_enabled():
@@ -231,12 +237,6 @@ def test_missing_external_project_membership_is_explicit():
             external_relationships=(Relationship('P1-A', 'UNKNOWN-A'),),
         )
 
-def test_shared_resource_leveling_runs_once_for_the_batch_graph():
-    options = ScheduleOptions(
-        level_all_resources=True,
-        include_external_res_ass=False,
-        calculate_float_based_on_finish_date=False,
-    )
 
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     options = ScheduleOptions(
