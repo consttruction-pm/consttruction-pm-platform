@@ -36,7 +36,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -46,7 +47,7 @@
       "computed": false,
       "semantic_note": "Date used for the cstr_type2 assignment when a secondary constraint exists; activity constraints are used by the scheduler.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -63,7 +64,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -73,7 +75,7 @@
       "computed": false,
       "semantic_note": "Additional scheduler constraint; assigned secondary value is restricted to Start On or Before, Start On or After, Finish On or Before, or Finish On or After.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -90,7 +92,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "Status",
@@ -100,7 +103,7 @@
       "computed": false,
       "semantic_note": "Current activity status: Not Started, In Progress, or Completed; kept distinct from StatusCode.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -117,7 +120,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "StatusCode",
@@ -127,7 +131,7 @@
       "computed": false,
       "semantic_note": "Project status code: Planned, Active, Inactive, What-If, Requested, or Template; kept distinct from Activity.Status.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -144,7 +148,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "SuspendDate",
@@ -154,7 +159,7 @@
       "computed": false,
       "semantic_note": "Suspend date must be later than actual start; suspend/resume interval behaves as nonworktime for relevant task/resource-dependent activities.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -171,7 +176,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -198,7 +204,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "TaskStatusDates",
@@ -225,7 +232,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -252,7 +260,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -262,7 +271,7 @@
       "computed": true,
       "semantic_note": "TCPI = (Budget at Completion - Earned Value) / (Estimate at Completion - ACWP).",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -279,7 +288,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -289,7 +299,7 @@
       "computed": true,
       "semantic_note": "Primary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -306,7 +316,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -316,7 +327,7 @@
       "computed": true,
       "semantic_note": "Secondary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -333,7 +344,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -343,7 +355,7 @@
       "computed": true,
       "semantic_note": "Tertiary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -360,7 +372,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalCostVariance",
@@ -370,7 +383,7 @@
       "computed": true,
       "semantic_note": "Project baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -387,7 +400,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -397,7 +411,7 @@
       "computed": false,
       "semantic_note": "Total stored-period expense cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -414,7 +428,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -424,7 +439,7 @@
       "computed": false,
       "semantic_note": "Total stored-period labor cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -441,7 +456,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -451,7 +467,7 @@
       "computed": false,
       "semantic_note": "Total stored-period labor units for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -468,7 +484,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -478,7 +495,7 @@
       "computed": false,
       "semantic_note": "Total stored-period material cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -495,7 +512,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -505,7 +523,7 @@
       "computed": false,
       "semantic_note": "Total stored-period nonlabor cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -522,7 +540,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -532,7 +551,7 @@
       "computed": false,
       "semantic_note": "Total stored-period nonlabor units for the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -549,7 +568,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "Type",
@@ -559,7 +579,7 @@
       "computed": false,
       "semantic_note": "Activity type with documented values Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -576,7 +596,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -586,7 +607,7 @@
       "computed": true,
       "semantic_note": "Computed as actual units / at-completion units * 100; range 0-100.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -603,7 +624,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -613,7 +635,7 @@
       "computed": true,
       "semantic_note": "Number of unread Team Member Discussion comments associated with the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -630,7 +652,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "WBSCode",
@@ -640,7 +663,7 @@
       "computed": false,
       "semantic_note": "Oracle Activity exposes the WBS short code used to identify each WBS element; its canonical relationship remains a WBS-domain concern.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -657,7 +680,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "WBSName",
@@ -667,7 +691,7 @@
       "computed": false,
       "semantic_note": "Oracle Activity exposes the name of the WBS element associated with the activity; canonical relationship remains a WBS-domain concern.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -684,7 +708,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "WBSNamePath",
@@ -711,7 +736,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "WBSObjectId",
@@ -721,7 +747,7 @@
       "computed": false,
       "semantic_note": "Required unique WBS ID for the activity; required in the Oracle Activity schema. Canonical Activity Registry identity remains pending.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -738,7 +764,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": true
     },
     {
       "p6_field": "WorkPackageId",
@@ -765,7 +792,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     },
     {
       "p6_field": "WorkPackageName",
@@ -792,7 +820,8 @@
       ],
       "get_schema_exposed": true,
       "put_schema_exposed": true,
-      "export_field_exposed": true
+      "export_field_exposed": true,
+      "semantic_definition_verified": false
     }
   ],
   "notes": [
@@ -809,5 +838,19 @@
     "persistence_and_mutability": "pending_field_level_confirmation",
     "registry_promotion": "blocked_until_field_level_gates_pass",
     "second_cpm_engine": "forbidden"
+  },
+  "semantic_summary": {
+    "documented_semantics_confirmed": 22,
+    "schema_type_only": 7,
+    "documented_semantics_rule": "A field is semantically verified only when Oracle Release 26 publishes a field-level description; this does not certify writability, persistence, import behavior, or registry identity.",
+    "schema_type_only_fields": [
+      "ScopePercentComplete",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "WBSNamePath",
+      "WorkPackageId",
+      "WorkPackageName"
+    ]
   }
 }
