@@ -54,6 +54,8 @@ export type WorkspaceReadOptions = {
   locale?: WorkspaceLocale;
   calendarMode?: WorkspaceCalendarMode;
   path?: string;
+  /** Skip the live authoritative P6 registry request for cache-backed reads. */
+  hydrateP6Registry?: boolean;
 };
 
 export class WorkspaceReadClient {
@@ -90,8 +92,10 @@ export class WorkspaceReadClient {
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
       state = withActivities(state, activities);
 
-      const p6RegistryProvider = createP6FieldRegistryProvider(this.transport, context);
-      state = setP6FieldRegistry(state, await p6RegistryProvider.getRegistry());
+      if (options.hydrateP6Registry !== false) {
+        const p6RegistryProvider = createP6FieldRegistryProvider(this.transport, context);
+        state = setP6FieldRegistry(state, await p6RegistryProvider.getRegistry());
+      }
 
       const summary = result.data.control_intelligence
         ? projectControlIntelligence(result.data.control_intelligence, context)
