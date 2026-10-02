@@ -768,3 +768,19 @@ Status: **implemented, runtime-verified and merged**
 - The next Hasan action is a fresh audit of the still-open P6 parity track (#393), limited to Backend/Database/Application/API/Import-Export and database-backed verification.
 - Implement only a newly reproducible Hasan-owned defect or an authoritative contract-backed seam. Do not infer missing Activity/WBS/WorkPackage semantics from names or presentation code, and do not duplicate Shared Core calculations.
 - If no concrete defect is found, record the evidence and dependency rather than creating speculative code.
+
+
+### 2026-10-03 — P6 PostgreSQL concurrency verification completed (PR #810)
+
+- Fresh #393 audit identified a concrete DB-backed verification gap: concurrent writers to the same P6 baseline key were not covered by PostgreSQL runtime evidence.
+- PR #810 added a two-connection PostgreSQL regression proving that the unique-key race produces exactly one committed writer and an explicit immutable conflict for the losing writer, without changing production semantics.
+- Exact implementation head: `f5d95a2b24e61af1e29923f02e56dc48864ed83b`.
+- ConstructionPM CI run #3256 passed on Python 3.11/3.12/3.13; Client Typecheck #2959 also passed.
+- PR #810 merged to `main` as `8428d94298b19346d73c9c818756eaf69aa9978c`.
+
+### Current continuation point
+
+- Continue from exact current `main` `8428d94298b19346d73c9c818756eaf69aa9978c`.
+- No Hasan-owned PR is currently open. The next action remains a fresh audit of #393 for the first newly reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam.
+- Do not infer semantics from names/presentation code, revive superseded PRs, or duplicate Shared Core scheduling/calendar/formula/resource/cost behavior.
+- If no concrete Hasan-owned gap is evidenced, record the dependency and remain at the evidence boundary rather than creating speculative implementation.
