@@ -9,7 +9,7 @@
     "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
   },
   "rule": "This matrix records semantic evidence only. It does not promote Registry identity, does not certify field mutability unless explicitly evidenced, and does not introduce a second calculation engine.",
-  "status": "status_code_resolved_on_main_28_field_certification_pending",
+  "status": "29_field_semantics_defined_current_rest_plus_official_integration_api_28_remaining_certification_pending",
   "fields": [
     {
       "p6_field": "ScopePercentComplete",
@@ -17,9 +17,9 @@
       "evidence_class": "unresolved_schema_only",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "REST schema exposes the field but current source pass does not establish its calculation, write, or canonical mapping semantics.",
+      "semantic_note": "Official Oracle Integration API defines this as the scope percent complete imported from Prime via integration; no local calculation is inferred.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -37,14 +37,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "The percent complete for the activity if the percent complete type is set to scope; scope is calculated in Oracle Primavera Cloud for scope management integration."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -217,9 +218,9 @@
       "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
+      "semantic_note": "Official Oracle Integration API defines this as the completion status of the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -237,14 +238,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "Completion status of the activity and associated tasks from an integrated Oracle Primavera Cloud project used for lean scheduling."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "TaskStatusDates",
@@ -252,9 +254,9 @@
       "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
+      "semantic_note": "Official Oracle Integration API defines this as the status of the activity according to its activity dates.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -272,14 +274,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "Date status of tasks and activities from an integrated Oracle Primavera Cloud project used for lean scheduling."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -287,9 +290,9 @@
       "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
+      "semantic_note": "Official Oracle Integration API defines this boolean as indicating the status of the activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -307,14 +310,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "Indicator covering task dates outside activity dates or task/activity completion mismatches."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -850,9 +854,9 @@
       "evidence_class": "derived_wbs_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Oracle Activity exposes the WBS name path; Oracle Release 26 schema does not publish field-level calculation/persistence rules here.",
+      "semantic_note": "Official Oracle Integration API defines this as the WBS name hierarchy of the Activity.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -870,14 +874,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "Hierarchy of parent WBS names, ordered parent-to-child and separated by dots."
       ],
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "WBSObjectId",
@@ -918,9 +923,9 @@
       "evidence_class": "derived_workpackage_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Oracle Activity exposes WorkPackageId as string without a field-level Release 26 description; canonical persistence mapping remains pending.",
+      "semantic_note": "Official Oracle Integration API defines this as the ID of the work package coming from Prime.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -938,14 +943,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "ID of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     },
     {
       "p6_field": "WorkPackageName",
@@ -953,9 +959,9 @@
       "evidence_class": "derived_workpackage_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Oracle Activity exposes WorkPackageName as string without a field-level Release 26 description; canonical persistence mapping remains pending.",
+      "semantic_note": "Official Oracle Integration API defines this as the name of the work package coming from Prime.",
       "registry_change": "none",
-      "certification_status": "pending",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -973,14 +979,15 @@
       "get_schema_exposed": true,
       "put_schema_exposed": true,
       "export_field_exposed": true,
-      "semantic_definition_verified": false,
+      "semantic_definition_verified": true,
       "official_webservices_2025_semantics": [
         "Name of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
       "remaining_reconciliation": true,
-      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
     }
   ],
   "notes": [
@@ -1002,30 +1009,11 @@
     "second_cpm_engine": "forbidden"
   },
   "semantic_summary": {
-    "documented_semantics_confirmed_release26": 22,
-    "supporting_official_semantics_confirmed_webservices_2025": 7,
-    "release26_schema_only_fields": [
-      "ScopePercentComplete",
-      "TaskStatusCompletion",
-      "TaskStatusDates",
-      "TaskStatusIndicator",
-      "WBSNamePath",
-      "WorkPackageId",
-      "WorkPackageName"
-    ],
-    "official_webservices_2025_read_only_fields": [
-      "StatusCode",
-      "ToCompletePerformanceIndex",
-      "TotalCost1Variance",
-      "TotalCost2Variance",
-      "TotalCost3Variance",
-      "TotalCostVariance",
-      "UnreadCommentCount",
-      "WBSCode",
-      "WBSName",
-      "WBSNamePath"
-    ],
-    "rule": "Web Services Read Only metadata is historical/supporting evidence and is not promoted to current Release 26 REST writability certification without direct current-version confirmation."
+    "documented_semantics_total": 29,
+    "release26_rest_semantics_explicit": 22,
+    "integration_api_semantics_filling_rest_schema_gaps": 7,
+    "remaining_semantic_definition_gaps": 0,
+    "rule": "Semantic definition is distinct from mutability, persistence, import round-trip, and canonical Registry identity. No calculation is inferred where Oracle does not define one."
   },
   "baseline": {
     "main_sha": "466dd08c0c9ea6824bcf678b0704d3d24e278129",
