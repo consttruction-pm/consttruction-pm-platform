@@ -10,7 +10,12 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
-from construction_pm.p6_field_registry import get_field
+from construction_pm.p6_field_registry import (
+    P6_FIELD_REGISTRY_REFERENCE_PRODUCT,
+    P6_FIELD_REGISTRY_REFERENCE_VERSION,
+    P6_FIELD_REGISTRY_STATUS,
+    get_field,
+)
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
@@ -134,7 +139,7 @@ def test_p6_field_registry_route_returns_authorized_activity_fields():
     r, field_api, _ = p6_routes()
     scope = BackendScope("t1", "p1", 2)
     from construction_pm.application.authorization import AuthorizationContext
-    auth_context = AuthorizationContext("t1", "p1", "u1", auth.roles)
+    auth_context = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
     field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth_context)
     field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_name"), auth_context=auth_context)
 
@@ -146,6 +151,9 @@ def test_p6_field_registry_route_returns_authorized_activity_fields():
     assert status == 200
     payload = json.loads(body)
     assert payload["registry_version"] == "p6-field-registry.v1"
+    assert payload["reference_product"] == P6_FIELD_REGISTRY_REFERENCE_PRODUCT
+    assert payload["reference_version"] == P6_FIELD_REGISTRY_REFERENCE_VERSION
+    assert payload["status"] == P6_FIELD_REGISTRY_STATUS
     assert [item["field_id"] for item in payload["fields"]] == [
         "activity.activity_id",
         "activity.activity_name",
