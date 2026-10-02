@@ -104,7 +104,7 @@ it("propagates an authoritative layout save conflict", async () => {
       return {
         ok: false,
         error: {
-          code: "LAYOUT_REVISION_CONFLICT",
+          code: "REVISION_CONFLICT",
           retryable: true,
           message_key: "error.p6.layout.conflict",
           available_actions: ["reload"],
@@ -122,6 +122,6 @@ it("propagates an authoritative layout save conflict", async () => {
         revision: 2,
         columns: [],
       }),
-    /LAYOUT_REVISION_CONFLICT/,
+    /REVISION_CONFLICT/,
   );
 });
