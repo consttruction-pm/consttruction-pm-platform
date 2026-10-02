@@ -7,7 +7,6 @@ import pytest
 from construction_pm.application.authorization import (
     AuthorizationContext,
     AuthorizationError,
-    Permission,
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope
@@ -95,7 +94,7 @@ def test_mapping_api_rejects_cross_scope_and_read_without_permission() -> None:
         )
     a.create(record(), auth_context=auth())
     with pytest.raises(AuthorizationError):
-        a.get(scope(), "activity.code", auth_context=auth("observer"))
+        a.get(scope(), "activity.code", auth_context=auth("viewer"))
 
 
 def test_mapping_api_write_requires_project_write() -> None:
