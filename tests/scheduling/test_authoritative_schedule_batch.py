@@ -121,6 +121,29 @@ def test_cross_project_relationship_executes_through_shared_batch_graph():
     assert set(p2_result.late_activities or {}) == {'P2-A'}
 
 
+def test_mixed_external_relationship_options_fail_fast():
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_RELATIONSHIP_OPTION_MISMATCH",
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot(
+                    "P1",
+                    date(2026, 10, 10),
+                    options=ScheduleOptions(ignore_other_project_relationships=True),
+                ),
+                snapshot(
+                    "P2",
+                    date(2026, 10, 20),
+                    options=ScheduleOptions(ignore_other_project_relationships=False),
+                ),
+            ],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            external_relationships=(Relationship("P1-A", "P2-A"),),
+        )
+
+
 def test_cross_project_relationship_is_ignored_when_option_enabled():
     options = ScheduleOptions(ignore_other_project_relationships=True)
     result = execute_authoritative_schedule_batch(
