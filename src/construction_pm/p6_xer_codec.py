@@ -81,7 +81,6 @@ class P6XerCodec:
         scope.validate()
         grouped: dict[str, list[P6InterchangeResult]] = {}
         self._validate_extensions(rows)
-        self._validate_extensions(rows)
         for row in rows:
             table = row.extensions.get("p6.xer.table")
             if not isinstance(table, str) or not table:
@@ -98,9 +97,7 @@ class P6XerCodec:
                     "%R\t" + "\t".join(self._stringify(row.values.get(field, "")) for field in fields)
                 )
         output.append("%E")
-        return "
-".join(output) + "
-"
+        return "\n".join(output) + "\n"
 
     @staticmethod
     def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
