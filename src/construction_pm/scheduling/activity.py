@@ -36,6 +36,7 @@ class Activity:
     percent_complete: float | None = None
     percent_complete_type: PercentCompleteType = PercentCompleteType.DURATION
     expected_finish: date | None = None
+    status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -70,6 +71,8 @@ class Activity:
                 raise ValueError("percent_complete must be between 0 and 100")
         if not isinstance(self.percent_complete_type, PercentCompleteType):
             raise TypeError("percent_complete_type must be a PercentCompleteType")
+        if not isinstance(self.status_code, ActivityStatusCode):
+            raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and not isinstance(self.expected_finish, date):
             raise TypeError("expected_finish must be a date or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
