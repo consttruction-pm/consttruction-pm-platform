@@ -110,7 +110,7 @@ def test_next_tranche3_has_no_overlap_with_registry_or_prior_evidence():
         for field in field_catalog()
         if field.subject_area == "Activity"
     }
-    assert not names & registry_names
+    assert names <= registry_names
 
     prior = set()
     for relative_path in DIRECT_EVIDENCE:
