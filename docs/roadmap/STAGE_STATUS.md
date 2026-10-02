@@ -1058,3 +1058,10 @@ Status: **implemented, merged and runtime-verified**
 - PRs #797 and #798 were superseded/closed after main advanced and are not counted as completed work.
 - PR #800 is the fresh Web continuation for #742. It consumes the authenticated UDF metadata contract and exposes typed editor presentation only; no client parser/evaluator or scheduling/CPM/EVM calculation is introduced. PR #800 remains open and unverified until its configured gates pass.
 - No second CPM/P6/formula engine is authorized.
+
+### 2026-10-03 — P6 Backend current-main reconciliation after PR #812
+- Current main after documentation reconciliation: `327df7e8d009c59f65a2a7b6ef027bc363c8520e`.
+- PR #812 is merged as `7ff2d364231cb1467a9214e08613a15ab9518401`; its exact head passed ConstructionPM CI #3262 and Client Typecheck #2965.
+- The completed slice exposes authenticated P6 layout writes through the existing versioned API boundary and HTTP project/session scope, with focused round-trip and rejection coverage.
+- Fresh Hasan #393 audit found no additional contract-backed Backend/API/Persistence/Import-Export defect that is safe to implement without inventing Shared Core semantics. The lane remains at the evidence boundary.
+- Do not count empty Web formula placeholder files as an API requirement or introduce a speculative HTTP formula adapter.
