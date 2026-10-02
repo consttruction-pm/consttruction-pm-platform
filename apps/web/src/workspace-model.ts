@@ -315,6 +315,13 @@ export function setProcurementRecords(
   };
 }
 
+export function setP6FieldRegistry(state: WorkspaceState, registry: FieldRegistry): WorkspaceState {
+  if (registry.registry_version !== "p6-field-registry.v1") {
+    throw new Error("UNSUPPORTED_P6_FIELD_REGISTRY");
+  }
+  return { ...state, p6FieldRegistry: registry };
+}
+
 export function setP6Presentation(
   state: WorkspaceState,
   registry: FieldRegistry,
