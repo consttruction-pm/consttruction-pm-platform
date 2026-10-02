@@ -62,7 +62,7 @@ def test_encode_groups_rows_by_table_and_round_trips_shape() -> None:
     assert codec.decode(encoded, scope())[0].values == rows[0].values
 
 
-def test_encode_requires_table_metadata() -> None:
+def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() -> None:\n    from construction_pm.p6_interchange_mapping import P6InterchangeResult\n\n    with pytest.raises(P6XerCodecError, match="UNREPRESENTABLE_XER_EXTENSIONS:p6.interchange.t1.p1.task_name"):\n        P6XerCodec().encode(\n            (P6InterchangeResult(\n                {"task_code": "A-10"},\n                {"p6.xer.table": "TASK", "p6.interchange.t1.p1.task_name": "Foundation"},\n            ),),\n            scope(),\n        )\n\n\ndef test_encode_requires_table_metadata() -> None:
     from construction_pm.p6_interchange_mapping import P6InterchangeResult
 
     with pytest.raises(P6XerCodecError, match="MISSING_XER_TABLE"):
