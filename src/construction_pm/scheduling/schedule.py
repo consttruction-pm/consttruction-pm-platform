@@ -387,15 +387,17 @@ def _relationship_total_float(
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
     lag_resolver: WorkingTimeResolver | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> int:
     lag_resolver = lag_resolver or resolver
+    activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
     delay = 0
     while delay < 10000:
-        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
         if not _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver):
@@ -554,6 +556,7 @@ def _multiple_float_paths(
                         relationship, predecessor, late_schedule[current],
                         activity_map[predecessor_id], resolver,
                         (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
+                        activity_resolvers,
                     )
                     driving_penalty = 0
                 else:
@@ -561,6 +564,7 @@ def _multiple_float_paths(
                         relationship, predecessor, successor,
                         activity_map[predecessor_id], resolver,
                         (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
+                        activity_resolvers,
                     )
                     driving_penalty = 0 if _relationship_is_driving(
                         relationship, predecessor, successor, resolver,
