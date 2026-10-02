@@ -37,11 +37,11 @@
     {
       "p6_field": "ScheduleVariance",
       "data_type": "double",
-      "unit": "currency",
+      "unit": null,
       "computed": true,
       "writable": null,
       "evidence_lines": "885-887",
-      "description": "Schedule variance = earned value - planned value. Negative values indicate less work performed than scheduled."
+      "description": "Schedule variance = earned value - planned value. Negative values indicate less work performed than scheduled. Oracle documents this Activity field as a double with this formula but does not declare a currency unit in the Activity schema."
     },
     {
       "p6_field": "ScheduleVarianceIndex",
