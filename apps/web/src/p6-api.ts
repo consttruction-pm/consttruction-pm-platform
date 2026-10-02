@@ -90,7 +90,7 @@ export function createP6LayoutPersistence(
     },
     async save(layout) {
       const result = await transport.post<
-        Pick<LayoutDefinition, "revision" | "columns"> & { metadata?: Record<string, unknown> },
+        Pick<LayoutDefinition, "revision" | "columns"> & { metadata?: Readonly<Record<string, unknown>> },
         LayoutDefinition
       >(
         layoutPath(context, layout.scope, layout.view_id),
