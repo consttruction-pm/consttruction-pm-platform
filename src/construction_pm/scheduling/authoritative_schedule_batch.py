@@ -113,6 +113,15 @@ def execute_authoritative_schedule_batch(
             "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
         )
 
+    relationship_settings = {
+        snapshot.schedule_options.ignore_other_project_relationships
+        for snapshot in snapshot_list
+    }
+    if len(snapshot_list) > 1 and external_relationship_list and len(relationship_settings) > 1:
+        raise UnsupportedMultiProjectSchedulingError(
+            "MULTI_PROJECT_RELATIONSHIP_OPTION_MISMATCH"
+        )
+
     include_external_relationships = any(
         not snapshot.schedule_options.ignore_other_project_relationships
         for snapshot in snapshot_list
