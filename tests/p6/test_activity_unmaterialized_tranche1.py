@@ -34,7 +34,7 @@ def test_tranche1_is_a_current_inventory_only_worklist():
     assert all(item["registry_change"] == "none" for item in data["fields"])
     assert data["audit_basis"]["inventory_field_count"] == 275
     assert data["audit_basis"]["registry_activity_field_count"] == 134
-    assert data["audit_basis"]["inventory_only_count"] == 160
+    assert data["audit_basis"]["inventory_only_count"] == 150
     assert data["audit_basis"]["existing_activity_evidence_files_scanned"] == 16
     assert data["audit_basis"]["inventory_only_fields_with_direct_evidence_artifact"] == 61
     assert data["audit_basis"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
