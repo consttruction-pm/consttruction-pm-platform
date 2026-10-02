@@ -44,7 +44,7 @@ def definition(current_scope: BackendScope, udf_id: str, data_type: P6FieldType,
     )
 
 
-def test_postgres_typed_udf_value_round_trip_and_scope_isolation() -> None:
+def test_postgres_typed_udf_value_round_trip_and_cross_scope_rejected() -> None:
     current_scope = scope()
     udf = definition(current_scope, "udf.decimal", P6FieldType.DECIMAL)
     value = P6UserDefinedFieldValue(
@@ -63,13 +63,14 @@ def test_postgres_typed_udf_value_round_trip_and_scope_isolation() -> None:
             values.upsert_value(value, udf)
 
         assert values.get_value(current_scope, udf.udf_id, "activity", "A-1", udf) == value
-        assert values.get_value(
-            BackendScope(current_scope.tenant_id + "-other", current_scope.project_id, current_scope.project_revision),
-            udf.udf_id,
-            "activity",
-            "A-1",
-            udf,
-        ) is None
+        with pytest.raises(P6UserDefinedFieldValuePersistenceError, match="REVISION_CONFLICT"):
+            values.get_value(
+                BackendScope(current_scope.tenant_id + "-other", current_scope.project_id, current_scope.project_revision),
+                udf.udf_id,
+                "activity",
+                "A-1",
+                udf,
+            )
 
 
 def test_postgres_udf_value_preserves_duration_and_datetime_types() -> None:
