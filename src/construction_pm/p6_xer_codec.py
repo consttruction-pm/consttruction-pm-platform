@@ -79,7 +79,7 @@ class P6XerCodec:
         scope: BackendScope,
     ) -> str:
         scope.validate()
-        grouped: dict[str, list[P6InterchangeResult]] = {}
+        grouped: dict[str, list[P6InterchangeResult]] = {}\n        self._validate_extensions(rows)
         for row in rows:
             table = row.extensions.get("p6.xer.table")
             if not isinstance(table, str) or not table:
