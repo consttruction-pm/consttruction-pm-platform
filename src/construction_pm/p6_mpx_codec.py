@@ -98,6 +98,7 @@ class P6MpxCodec:
         scope.validate()
         if not rows:
             raise P6MpxCodecError("EMPTY_MPX_DOCUMENT")
+        self._validate_extensions(rows)
         first = rows[0].extensions
         separator = first.get("p6.mpx.separator", ",")
         creation = first.get("p6.mpx.file_creation")
@@ -130,6 +131,16 @@ class P6MpxCodec:
                 ordered = [row.values[k] for k in sorted(row.values, key=self._field_order)]
                 output.append(self._line(record, ordered, separator))
         return "\r\n".join(output) + "\r\n"
+
+    @staticmethod
+    def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
+        structural = {"p6.mpx.record", "p6.mpx.separator", "p6.mpx.file_creation"}
+        for row in rows:
+            unsupported = sorted(key for key in row.extensions if key not in structural)
+            if unsupported:
+                raise P6MpxCodecError(
+                    "UNREPRESENTABLE_MPX_EXTENSIONS:" + ",".join(unsupported)
+                )
 
     @staticmethod
     def _parse_creation(line: str) -> tuple[str, tuple[str, ...]]:

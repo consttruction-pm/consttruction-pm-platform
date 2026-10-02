@@ -80,6 +80,7 @@ class P6XerCodec:
     ) -> str:
         scope.validate()
         grouped: dict[str, list[P6InterchangeResult]] = {}
+        self._validate_extensions(rows)
         for row in rows:
             table = row.extensions.get("p6.xer.table")
             if not isinstance(table, str) or not table:
@@ -97,6 +98,15 @@ class P6XerCodec:
                 )
         output.append("%E")
         return "\n".join(output) + "\n"
+
+    @staticmethod
+    def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
+        for row in rows:
+            unsupported = sorted(key for key in row.extensions if key != "p6.xer.table")
+            if unsupported:
+                raise P6XerCodecError(
+                    "UNREPRESENTABLE_XER_EXTENSIONS:" + ",".join(unsupported)
+                )
 
     @staticmethod
     def _ordered_fields(rows: Sequence[P6InterchangeResult]) -> tuple[str, ...]:
