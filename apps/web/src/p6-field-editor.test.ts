@@ -67,11 +67,10 @@ test("enum fields do not invent option values before authoritative allowed-value
 
 
 test("enum fields preserve authoritative allowed values and select control", () => {
-  const descriptor = getP6FieldEditorDescriptor(
-    field({ data_type: "enum", allowed_values: ["A", "B"] }),
-  );
+  const source = field({ data_type: "enum", allowed_values: ["A", "B"] });
+  const descriptor = getP6FieldEditorDescriptor(source);
   assert.equal(descriptor.control, "select");
   assert.deepEqual(descriptor.allowedValues, ["A", "B"]);
-  descriptor.allowedValues!.push("C");
-  assert.deepEqual(field({ allowed_values: ["A", "B"] }).allowed_values, ["A", "B"]);
+  (descriptor.allowedValues as string[]).push("C");
+  assert.deepEqual(source.allowed_values, ["A", "B"]);
 });
