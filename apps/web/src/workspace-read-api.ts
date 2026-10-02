@@ -89,6 +89,9 @@ export class WorkspaceReadClient {
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
       state = withActivities(state, activities);
 
+      const p6RegistryProvider = createP6FieldRegistryProvider(this.transport, context);
+      state = setP6FieldRegistry(state, await p6RegistryProvider.getRegistry());
+
       const summary = result.data.control_intelligence
         ? projectControlIntelligence(result.data.control_intelligence, context)
         : null;
