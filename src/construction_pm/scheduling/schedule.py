@@ -173,7 +173,7 @@ def backward_pass(
             late_start = apply_latest_constraint(
                 constraint, late_start, activity.duration, activity_resolver
             )
-            late_finish = resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
 
         if late_finish > activity_resolver.normalize_finish(finish):
             raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
