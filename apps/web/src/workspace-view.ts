@@ -22,7 +22,8 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
-  onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;\n  onP6FieldWidthChange?: (fieldId: string, width: number) => void;
+  onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
+  onP6FieldWidthChange?: (fieldId: string, width: number) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -81,7 +82,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
   }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {\n    const fieldId = button.dataset.p6FieldWidth;\n    const delta = button.dataset.p6FieldWidthDelta;\n    if (!fieldId || (delta !== "increase" && delta !== "decrease")) return;\n    const column = state.p6Layout?.columns.find((item) => item.field_id === fieldId);\n    if (!column) return;\n    const nextWidth = Math.max(40, column.width + (delta === "increase" ? 20 : -20));\n    options.onP6FieldWidthChange?.(fieldId, nextWidth);\n  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-field-move]").forEach((button) => button.addEventListener("click", () => {
+  container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldWidth;
+    const delta = button.dataset.p6FieldWidthDelta;
+    if (!fieldId || (delta !== "increase" && delta !== "decrease")) return;
+    const column = state.p6Layout?.columns.find((item) => item.field_id === fieldId);
+    if (!column) return;
+    const nextWidth = Math.max(40, column.width + (delta === "increase" ? 20 : -20));
+    options.onP6FieldWidthChange?.(fieldId, nextWidth);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-move]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldMove;
     const direction = button.dataset.p6FieldDirection;
     if (!fieldId || (direction !== "up" && direction !== "down")) return;
