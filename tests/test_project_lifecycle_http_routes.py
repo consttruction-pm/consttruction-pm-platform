@@ -133,9 +133,6 @@ def p6_routes():
 def test_p6_field_registry_route_returns_authorized_activity_fields():
     r, field_api, _ = p6_routes()
     scope = BackendScope("t1", "p1", 2)
-    auth = AuthenticatedSession(
-        "s1", "u1", "t1", frozenset({"project_admin"}), datetime(2026, 10, 1, tzinfo=timezone.utc)
-    )
     from construction_pm.application.authorization import AuthorizationContext
     auth_context = AuthorizationContext("t1", "p1", "u1", auth.roles)
     field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth_context)
@@ -175,7 +172,7 @@ def test_p6_layout_route_returns_persisted_layout():
     )
     assert status == 200
     payload = json.loads(body)
-    assert payload["schema_version"] == "1"
+    assert payload["schema_version"] == "p6-layout.v1"
     assert payload["scope"] == "project"
     assert payload["view_id"] == "activity"
     assert payload["metadata"] == {"density": "compact"}
