@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -54,6 +55,16 @@ def snapshot(project_id, finish, *, options=None, priority=10):
 
 def resolver():
     return WorkingTimeResolver(WorkingCalendar())
+
+def calendar_registry() -> CalendarResolverRegistry:
+    return CalendarResolverRegistry(
+        {
+            "CAL@1": WorkingTimeResolver(WorkingCalendar()),
+            "WEEKEND@1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset(range(7)))
+            ),
+        }
+    )
 
 
 def test_duplicate_snapshot_id_is_rejected_before_graph_construction():
@@ -137,6 +148,51 @@ def test_batch_uses_each_project_finish_when_option_enabled():
     )
     assert result.project('P1').result.floats['P1-A'].total_float == 6
     assert result.project('P2').result.floats['P2-A'].total_float == 13
+
+
+def test_authoritative_batch_uses_activity_calendar_context():
+    p1 = replace(
+        snapshot("P1", date(2026, 10, 10)),
+        project_start=date(2026, 10, 2),
+        activities=(Activity("P1-A", 2),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
+        ),
+    )
+    p2 = replace(
+        snapshot("P2", date(2026, 10, 10)),
+        project_start=date(2026, 10, 2),
+        activities=(Activity("P2-A", 2),),
+    )
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        calendar_registry=calendar_registry(),
+    )
+
+    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 3)
+    assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 5)
+
+
+def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
+    p1 = replace(
+        snapshot("P1", date(2026, 10, 10)),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
+        ),
+    )
+    p2 = snapshot("P2", date(2026, 10, 10))
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED",
+    ):
+        execute_authoritative_schedule_batch(
+            [p1, p2],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            leveling_input=object(),
+            calendar_registry=calendar_registry(),
+        )
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
