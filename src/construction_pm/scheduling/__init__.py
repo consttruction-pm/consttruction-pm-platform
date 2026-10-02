@@ -17,7 +17,7 @@ from .time_duration import DurationUnit, LagQuantity, TimeQuantity
 from .time_constraints import TimeActivityConstraint, TimeConstraintType, TimeConstraintViolation
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .time_schedule import TimeFloatActivity, TimeScheduleResult, calculate_time_floats, time_backward_pass, time_schedule
-from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
+from .constraints import (\n    ActivityConstraint, ActivitySecondaryConstraint, ConstraintType, ConstraintViolation,\n    SecondaryConstraintError, SecondaryConstraintType, resolve_secondary_constraint,\n)
 from .forward_pass import ScheduledActivity, SchedulingCycleError, forward_pass
 from .out_of_sequence import OutOfSequenceState, ProgressRelationAction, classify_out_of_sequence, relationship_required_start, resolve_out_of_sequence_action
 from .progress_state import ActivityProgressState, ProgressState, resolve_progress_state
@@ -72,7 +72,7 @@ __all__ = [
     "AuthoritativeScheduleMode",
     "ActivityConstraint",
     "ConstraintType",
-    "ConstraintViolation",
+    "ConstraintViolation",\n    "ActivitySecondaryConstraint",\n    "SecondaryConstraintError",\n    "SecondaryConstraintType",\n    "resolve_secondary_constraint",
     "FloatActivity",
     "Relationship",
     "RelationshipType",
