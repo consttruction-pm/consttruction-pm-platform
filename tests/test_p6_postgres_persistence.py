@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 
 import pytest
@@ -133,3 +134,89 @@ def test_postgres_field_registry_persists_typed_metadata_and_scope(connection):
             "p6-field-registry.v1",
             "activity.activity_id",
         )
+
+
+def test_postgres_baseline_concurrent_writers_report_conflict(postgres_dsn):
+    scope = _scope()
+    first = P6Baseline(
+        scope, "baseline-race", "Writer 1", "PRIMARY", 3,
+        "2026-10-02T10:00:00Z", "writer-1",
+    )
+    second = P6Baseline(
+        scope, "baseline-race", "Writer 2", "PRIMARY", 3,
+        "2026-10-02T10:00:00Z", "writer-2",
+    )
+
+    setup = psycopg.connect(postgres_dsn)
+    conn1 = psycopg.connect(postgres_dsn)
+    conn2 = psycopg.connect(postgres_dsn)
+    try:
+        PostgresP6BaselineRepository(setup).initialize()
+        setup.commit()
+
+        ready = threading.Barrier(2)
+        inserted = threading.Event()
+        outcomes: list[str] = []
+        errors: list[BaseException] = []
+
+        def writer(conn, item, hold_commit: bool) -> None:
+            try:
+                repo = PostgresP6BaselineRepository(conn)
+                with conn.transaction():
+                    ready.wait(timeout=5)
+                    repo.upsert(item)
+                    if hold_commit:
+                        inserted.set()
+                        assert not inserted.is_set() is False
+                        # Keep the unique-key insert uncommitted while writer 2 reaches
+                        # the same key. PostgreSQL then serializes the conflict check.
+                        ready.wait(timeout=5)
+                outcomes.append("committed")
+            except BaseException as exc:
+                errors.append(exc)
+
+        # The first writer must reach the insert before the second writer is allowed
+        # to attempt the same unique key.
+        first_inserted = threading.Event()
+
+        def writer1() -> None:
+            try:
+                with conn1.transaction():
+                    PostgresP6BaselineRepository(conn1).upsert(first)
+                    first_inserted.set()
+                    ready.wait(timeout=5)
+            except BaseException as exc:
+                errors.append(exc)
+
+        def writer2() -> None:
+            try:
+                first_inserted.wait(timeout=5)
+                with conn2.transaction():
+                    PostgresP6BaselineRepository(conn2).upsert(second)
+                    outcomes.append("unexpected-success")
+            except P6BaselinePersistenceError as exc:
+                errors.append(exc)
+
+        t1 = threading.Thread(target=writer1)
+        t2 = threading.Thread(target=writer2)
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        assert not t1.is_alive()
+        assert not t2.is_alive()
+        assert not any(isinstance(exc, AssertionError) for exc in errors)
+        assert any(
+            isinstance(exc, P6BaselinePersistenceError)
+            and str(exc) == "IMMUTABLE_BASELINE"
+            for exc in errors
+        )
+        assert "unexpected-success" not in outcomes
+    finally:
+        conn1.rollback()
+        conn2.rollback()
+        setup.rollback()
+        conn1.close()
+        conn2.close()
+        setup.close()
