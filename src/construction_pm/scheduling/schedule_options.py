@@ -101,6 +101,7 @@ class ScheduleOptions:
     priority_list: tuple[PriorityListItem, ...] | None = None
     external_project_priority_limit: int = 0
     preserve_scheduled_early_and_late_dates: bool = False
+    recalculate_resource_costs: bool = False
     data_date: date | None = None
 
     def __post_init__(self) -> None:
@@ -129,6 +130,7 @@ class ScheduleOptions:
             "level_all_resources",
             "level_within_float",
             "preserve_scheduled_early_and_late_dates",
+            "recalculate_resource_costs",
         ):
             if not isinstance(getattr(self, name), bool):
                 raise ValueError(f"{name} must be a bool")
