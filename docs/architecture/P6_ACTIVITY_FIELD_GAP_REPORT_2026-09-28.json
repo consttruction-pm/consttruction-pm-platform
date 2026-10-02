@@ -153,10 +153,10 @@
     }
   ],
   "next_tranche": "Reconcile all 275 inventory names against registry seeds and evidence, beginning with the 9 non-exact registry aliases and then typed semantic metadata.",
-  "gap_manifest_entry_count": 100,
+  "gap_manifest_entry_count": 51,
   "gap_manifest_coverage_status": "partial",
-  "unmaterialized_inventory_count": 50,
-  "coverage_note": "The 150 inventory names not yet exact-matched are compared against the 100 materialized gap-manifest entries; 50 remain to be materialized/reconciled in later tranches.",
+  "unmaterialized_inventory_count": 99,
+  "coverage_note": "The 150 inventory names not yet exact-matched are compared against gap-manifest entries that are themselves present in the 275-field inventory; registry-only legacy names are excluded.",
   "complete_inventory_artifact": "docs/architecture/P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json",
   "complete_inventory_status": "materialized_275_names_not_certified"
 }
