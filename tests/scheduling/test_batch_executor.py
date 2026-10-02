@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
 
 from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity
 from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -363,11 +365,11 @@ def test_time_aware_batch_fails_explicitly():
         project_revision=second.project_revision,
         mode=AuthoritativeScheduleMode.TIME_AWARE,
         project_calendar=second.project_calendar,
-        activities=second.activities,
-        relationships=second.relationships,
+        activities=(TimeActivity("P2-A", TimeQuantity.working_hours(8)),),
+        relationships=(),
         activity_calendar_assignments=second.activity_calendar_assignments,
         schedule_options=second.schedule_options,
-        project_start=second.project_start,
+        project_start=datetime(2026, 10, 1, tzinfo=timezone.utc),
         project_finish=second.project_finish,
         constraints=second.constraints,
         project_leveling_priority=second.project_leveling_priority,
