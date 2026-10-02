@@ -84,7 +84,7 @@ def test_next_tranche3_is_exact_20_field_evidence_worklist():
     assert data["baseline"]["direct_or_prior_evidence_field_count"] == 203
     assert data["baseline"]["remaining_inventory_only_before_tranche"] == 49
     assert data["baseline"]["tranche_field_count"] == 20
-    assert data["baseline"]["expected_remaining_after_tranche"] == 28
+    assert data["baseline"]["expected_remaining_after_tranche"] == 29
 
     names = [item["p6_field"] for item in data["fields"]]
     assert len(names) == 20
