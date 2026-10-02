@@ -1049,3 +1049,12 @@ Status: **implemented, merged and runtime-verified**
 - PR #791 is the current P6-3 client presentation reconciliation. It adds typed P6 field-editor descriptors and authoritative formula-result presentation only; no client-side calculation or parser/evaluator is introduced.
 - Runtime checks for the new #791 head are not yet present, so #791 is not counted as complete until its configured CI/typecheck gates execute successfully.
 - Hasan remains on the evidence-boundary task #709; no new Backend/API/Persistence feature is inferred from the current audit.
+
+
+### 2026-10-02 — Current-main P6 UDF contract and Web continuation
+- Current `main`: `187d23cd8bb5b29e50078621ace2964a45bb6612` after squash-merged PR #796.
+- PR #796 (Hasan, backend/API) passed ConstructionPM CI and Client Typecheck on the exact head and exposed authenticated `GET /api/projects/{project_id}/p6/udfs/{registry_version}`, reusing the existing P6FieldRegistryAPI and preserving authoritative `data_type`, `writable`, `nullable`, `unit` and `allowed_values`.
+- Issue #795 is completed; no PostgreSQL/persistence change was required because the seam is read-only and delegates to the existing application service.
+- PRs #797 and #798 were superseded/closed after main advanced and are not counted as completed work.
+- PR #800 is the fresh Web continuation for #742. It consumes the authenticated UDF metadata contract and exposes typed editor presentation only; no client parser/evaluator or scheduling/CPM/EVM calculation is introduced. PR #800 remains open and unverified until its configured gates pass.
+- No second CPM/P6/formula engine is authorized.

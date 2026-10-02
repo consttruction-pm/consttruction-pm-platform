@@ -10,7 +10,7 @@
     "activity_create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
   },
   "baseline": {
-    "base_main_sha": "2da2533c0b70cd3f5d82df08af09a3a92d3a45f5",
+    "base_main_sha": "187d23cd8bb5b29e50078621ace2964a45bb6612",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
@@ -423,7 +423,10 @@
     "No Activity Registry identity was promoted from name similarity.",
     "Next step: resolve each field against Oracle field-level write/import behavior and the repository's authoritative mapping paths, then certify only evidence-backed semantics.",
     "Baseline refreshed onto current main at b5dd8448bfdb9efc8d6d8f5c80602a91b795d599 after merged PR #760. Raw inventory-vs-registry inventory-only count remains 150; the governed remaining reconciliation tranche remains the exact 28-field subset.",
-    "Rebased reconciliation onto current main at 2da2533c0b70cd3f5d82df08af09a3a92d3a45f5. Closed/unmerged implementation PRs are not counted as current-main capability."
+    "Rebased reconciliation onto current main at 2da2533c0b70cd3f5d82df08af09a3a92d3a45f5. Closed/unmerged implementation PRs are not counted as current-main capability.",
+    "Current main is now 187d23cd8bb5b29e50078621ace2964a45bb6612 after squash-merged PR #796. The merged UDF HTTP seam reuses P6FieldRegistryAPI and exposes authoritative data_type, writable, nullable, unit and allowed_values; it does not change Activity persistence or calculation semantics.",
+    "PRs #797 and #798 were closed as superseded when main advanced; they are not counted as completed capability. Fresh documentation reconciliation must start from this current main.",
+    "PR #800 is the active Web continuation consuming the authenticated UDF metadata contract and preserving presentation-only boundaries; it is not counted as complete until its configured CI/typecheck gates pass."
   ],
   "repository_mapping_review": {
     "checked_on": "2026-10-02",
