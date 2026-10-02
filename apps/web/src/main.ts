@@ -25,7 +25,7 @@ import { WorkspaceReadClient } from "./workspace-read-api.js";
 import { createP6ReadOnlyLayoutPersistence } from "./p6-api.js";
 import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-import { getProjectSelectionOptions, selectProjectId } from "./project-bootstrap.js";
+import { buildProjectSelectionUrl, getProjectSelectionOptions, selectProjectId } from "./project-bootstrap.js";
 
 function renderProjectSelection(
   container: HTMLElement,
