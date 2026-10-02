@@ -65,6 +65,9 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
     assert set(names).isdisjoint(registry_names)
     assert all(item["registry_change"] == "none" for item in data["fields"])
     assert all(item["certification_status"] == "pending" for item in data["fields"])
+    assert all(item["get_schema_exposed"] for item in data["fields"])
+    assert all(item["put_schema_exposed"] for item in data["fields"])
+    assert all(item["export_field_exposed"] for item in data["fields"])
 
 
 def test_final_29_matrix_preserves_semantic_classes_without_promoting_registry():
