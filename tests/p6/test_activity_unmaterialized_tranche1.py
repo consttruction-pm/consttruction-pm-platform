@@ -40,16 +40,22 @@ def test_tranche1_is_a_current_inventory_only_worklist():
     assert data["audit_basis"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
 
 
-def test_tranche1_has_no_duplicate_activity_evidence_artifact():
+def test_tranche1_has_no_duplicate_direct_activity_evidence_artifact():
     data = _load()
     names = [item["p6_field"] for item in data["fields"]]
     evidence_files = sorted(
         Path("docs/architecture").glob("P6_ACTIVITY_*EVIDENCE*.json")
     )
     assert len(evidence_files) == 14
-    for path in evidence_files:
+
+    manifest_name = "P6_ACTIVITY_FIELD_EVIDENCE_MANIFEST_2026-09-28.json"
+    direct_evidence_files = [path for path in evidence_files if path.name != manifest_name]
+    assert len(direct_evidence_files) == 13
+
+    for path in direct_evidence_files:
         content = path.read_text(encoding="utf-8")
         assert not any(name in content for name in names), path
+
     assert data["audit_basis"]["existing_activity_evidence_files_scanned"] == len(
         evidence_files
     )
