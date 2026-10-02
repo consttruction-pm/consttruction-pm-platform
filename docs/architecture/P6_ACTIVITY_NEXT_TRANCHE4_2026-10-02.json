@@ -301,9 +301,9 @@
     },
     {
       "p6_field": "Type",
-      "oracle_type": "string (schema type confirmed; semantic description not yet extracted)",
+      "oracle_type": "string",
       "calculation_status": "pending_authoritative_reconciliation",
-      "evidence_lines": "find result confirms schema; exact description/type not yet semantically certified",
+      "evidence_lines": "3381-3389",
       "registry_change": "none",
       "reconciliation_status": "pending",
       "writable_semantics": "not_certified",
@@ -311,7 +311,7 @@
       "filter_order_semantics": "not_certified",
       "import_mapping": "not_certified",
       "export_mapping": "listed_in_Release_26_ActivityFieldType",
-      "evidence_basis": "Oracle P6 EPPM REST API Release 26 Activity GET schema"
+      "evidence_basis": "Oracle P6 EPPM REST API Release 26 Activity GET schema; includes activity-type values and scheduling semantics"
     },
     {
       "p6_field": "UnitsPercentComplete",
