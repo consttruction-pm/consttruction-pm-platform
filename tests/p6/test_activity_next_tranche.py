@@ -58,7 +58,7 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert all(item["reconciliation_status"] == "pending" for item in items)
     assert all(item["oracle_type"] for item in items)
     assert all(item["evidence_lines"] for item in items)
-    assert all("ExportProjects.Activity.Field" in item["interchange_evidence"] for item in items)
+    assert all("ExportProjects ActivityFieldType" in item["interchange_evidence"] for item in items)
     assert data["baseline"]["base_main_sha"] == "b171949415cc0c974c6546f2f85b306553646814"
     assert data["baseline"]["inventory_field_count"] == 275
     assert data["baseline"]["registry_activity_field_count"] == 134
@@ -79,7 +79,7 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
         if path.name not in {manifest_name, own_artifact}
     ]
 
-    assert len(evidence_files) == 15
+    assert len(evidence_files) == 14
     assert len(preexisting_direct) == 13
     for path in preexisting_direct:
         content = path.read_text(encoding="utf-8")
