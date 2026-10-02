@@ -43,7 +43,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -75,7 +76,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -107,7 +109,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "Status",
@@ -139,7 +142,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "StatusCode",
@@ -171,7 +175,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": false
+      "remaining_reconciliation": false,
+      "mutability_review_bucket": "implemented_current_main"
     },
     {
       "p6_field": "SuspendDate",
@@ -203,7 +208,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -237,7 +243,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TaskStatusDates",
@@ -271,7 +278,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -305,7 +313,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -337,7 +346,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -369,7 +379,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -401,7 +412,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -433,7 +445,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalCostVariance",
@@ -465,7 +478,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -497,7 +511,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -529,7 +544,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -561,7 +577,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -593,7 +610,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -625,7 +643,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -657,7 +676,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "Type",
@@ -689,7 +709,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -721,7 +742,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -753,7 +775,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WBSCode",
@@ -785,7 +808,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WBSName",
@@ -817,7 +841,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WBSNamePath",
@@ -851,7 +876,8 @@
       ],
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WBSObjectId",
@@ -883,7 +909,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WorkPackageId",
@@ -917,7 +944,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     },
     {
       "p6_field": "WorkPackageName",
@@ -951,7 +979,8 @@
       ],
       "official_webservices_2025_read_only": false,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": true
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
     }
   ],
   "notes": [
@@ -1040,5 +1069,11 @@
       "WorkPackageName"
     ],
     "expected_remaining_after_certification": 0
+  },
+  "mutability_review": {
+    "remaining_28_total": 28,
+    "read_only_supporting_evidence_count": 9,
+    "writability_unconfirmed_count": 19,
+    "rule": "Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before registry certification."
   }
 }
