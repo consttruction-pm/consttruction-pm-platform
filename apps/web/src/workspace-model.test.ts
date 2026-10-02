@@ -18,6 +18,7 @@ import {
   setSiteDailyLogs,
   withActivities,
   setP6Presentation,
+  setP6FieldRegistry,
   addP6Field,
   removeP6Field,
   reorderP6Fields,
@@ -36,6 +37,26 @@ const context = {
   project_id: "project-1",
   revision: 4,
 };
+
+test("P6 registry can be bootstrapped before persisted layout", () => {
+  const base = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1",
+    reference_product: "Oracle Primavera P6 Professional",
+    reference_version: "test",
+    status: "active",
+    fields: [
+      { field_id: "activity_id", subject_area: "Activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "standard" },
+    ],
+  } as Parameters<typeof setP6FieldRegistry>[1];
+
+  const next = setP6FieldRegistry(base, registry);
+  assert.equal(next.p6FieldRegistry?.registry_version, "p6-field-registry.v1");
+  assert.equal(next.p6Layout, null);
+  assert.equal(next.p6FieldRegistry?.fields[0]?.field_id, "activity_id");
+  assert.deepEqual(next.context, context);
+  assert.throws(() => setP6FieldRegistry(base, { ...registry, registry_version: "p6-field-registry.v2" }), /UNSUPPORTED_P6_FIELD_REGISTRY/);
+});
 
 test("P6 grid presentation state is validated by the authoritative registry", () => {
   const base = createWorkspaceState(context);
