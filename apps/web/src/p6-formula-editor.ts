@@ -58,10 +58,10 @@ export function createP6FormulaEditor(
         if (model.expression === expressionAtRequest) {
           model = applyFormulaAuthority(model, result);
         }
-        return state();
       } finally {
         validating = false;
       }
+      return state();
     },
 
     applyAuthoritativeResult(result) {
