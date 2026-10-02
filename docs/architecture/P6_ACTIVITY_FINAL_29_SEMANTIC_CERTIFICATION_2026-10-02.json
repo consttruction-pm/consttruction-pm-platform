@@ -19,7 +19,21 @@
       "computed": false,
       "semantic_note": "REST schema exposes the field but current source pass does not establish its calculation, write, or canonical mapping semantics.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -29,7 +43,21 @@
       "computed": false,
       "semantic_note": "Date used for the cstr_type2 assignment when a secondary constraint exists; activity constraints are used by the scheduler.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -39,7 +67,21 @@
       "computed": false,
       "semantic_note": "Additional scheduler constraint; assigned secondary value is restricted to Start On or Before, Start On or After, Finish On or Before, or Finish On or After.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "Status",
@@ -49,7 +91,21 @@
       "computed": false,
       "semantic_note": "Current activity status: Not Started, In Progress, or Completed; kept distinct from StatusCode.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "StatusCode",
@@ -59,7 +115,21 @@
       "computed": false,
       "semantic_note": "Project status code: Planned, Active, Inactive, What-If, Requested, or Template; kept distinct from Activity.Status.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "SuspendDate",
@@ -69,7 +139,21 @@
       "computed": false,
       "semantic_note": "Suspend date must be later than actual start; suspend/resume interval behaves as nonworktime for relevant task/resource-dependent activities.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -79,7 +163,21 @@
       "computed": false,
       "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TaskStatusDates",
@@ -89,7 +187,21 @@
       "computed": false,
       "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -99,7 +211,21 @@
       "computed": false,
       "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -109,7 +235,21 @@
       "computed": true,
       "semantic_note": "TCPI = (Budget at Completion - Earned Value) / (Estimate at Completion - ACWP).",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -119,7 +259,21 @@
       "computed": true,
       "semantic_note": "Primary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -129,7 +283,21 @@
       "computed": true,
       "semantic_note": "Secondary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -139,7 +307,21 @@
       "computed": true,
       "semantic_note": "Tertiary baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalCostVariance",
@@ -149,7 +331,21 @@
       "computed": true,
       "semantic_note": "Project baseline total cost minus at-completion total cost.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -159,7 +355,21 @@
       "computed": false,
       "semantic_note": "Total stored-period expense cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -169,7 +379,21 @@
       "computed": false,
       "semantic_note": "Total stored-period labor cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -179,7 +403,21 @@
       "computed": false,
       "semantic_note": "Total stored-period labor units for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -189,7 +427,21 @@
       "computed": false,
       "semantic_note": "Total stored-period material cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -199,7 +451,21 @@
       "computed": false,
       "semantic_note": "Total stored-period nonlabor cost for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -209,7 +475,21 @@
       "computed": false,
       "semantic_note": "Total stored-period nonlabor units for the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "Type",
@@ -219,7 +499,21 @@
       "computed": false,
       "semantic_note": "Activity type with documented values Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -229,7 +523,21 @@
       "computed": true,
       "semantic_note": "Computed as actual units / at-completion units * 100; range 0-100.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -239,7 +547,21 @@
       "computed": true,
       "semantic_note": "Number of unread Team Member Discussion comments associated with the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WBSCode",
@@ -249,7 +571,21 @@
       "computed": false,
       "semantic_note": "WBS short code used for identification; not treated as a standalone Activity business object identity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WBSName",
@@ -259,7 +595,21 @@
       "computed": false,
       "semantic_note": "Name of the WBS element associated with the activity.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WBSNamePath",
@@ -269,7 +619,21 @@
       "computed": false,
       "semantic_note": "WBS name path exposed on the Activity API.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WBSObjectId",
@@ -279,7 +643,21 @@
       "computed": false,
       "semantic_note": "Unique WBS ID for the activity; Oracle Activity schema requires WBSObjectId.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WorkPackageId",
@@ -289,7 +667,21 @@
       "computed": false,
       "semantic_note": "Work Package identifier exposed on Activity; canonical persistence mapping remains to be certified.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     },
     {
       "p6_field": "WorkPackageName",
@@ -299,12 +691,27 @@
       "computed": false,
       "semantic_note": "Work Package name exposed on Activity; canonical persistence mapping remains to be certified.",
       "registry_change": "none",
-      "certification_status": "pending"
+      "certification_status": "pending",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ]
     }
   ],
   "notes": [
     "Oracle Release 26 confirms Status, StatusCode, SuspendDate, TCPI, TotalCost*Variance, Type, UnitsPercentComplete, WBS fields and the three TaskStatus* field types.",
     "TaskStatus* remain semantically uncertified because the current Oracle Release 26 field descriptions do not define their calculation or persistence behavior.",
     "No field identity is promoted into the canonical Activity Registry by this artifact."
-  ]
+  ],
+  "evidence_policy": "Every field points to the three authoritative Release 26 endpoints used for the semantic pass; absence of a field description is preserved as an explicit evidence limitation."
 }
