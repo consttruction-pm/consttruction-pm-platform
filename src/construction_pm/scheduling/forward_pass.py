@@ -107,7 +107,9 @@ def _successor_start(
         target_finish = _shift_working_date(
             predecessor.start, relationship.lag, lag_resolver
         )
-        return resolver.subtract_working_duration(target_finish, successor_duration)
+        return (successor_resolver or resolver).subtract_working_duration(
+            target_finish, successor_duration
+        )
 
     raise ValueError(f"unsupported relationship type: {relationship.type}")
 
