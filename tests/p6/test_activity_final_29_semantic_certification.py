@@ -130,19 +130,11 @@ def test_documented_semantic_definition_count_is_explicit():
         for item in data["fields"]
         if item["semantic_definition_verified"]
     ]
-    assert len(verified) == 22
-    assert {
+    assert len(verified) == 29
+    assert not {
         item["p6_field"]
         for item in data["fields"]
         if not item["semantic_definition_verified"]
-    } == {
-        "ScopePercentComplete",
-        "TaskStatusCompletion",
-        "TaskStatusDates",
-        "TaskStatusIndicator",
-        "WBSNamePath",
-        "WorkPackageId",
-        "WorkPackageName",
     }
 
 
