@@ -78,3 +78,24 @@ test("P6 read-only layout adapter requests the selected project activity layout"
   assert.equal(layout?.revision, 4);
   assert.deepEqual(requestedContext, context);
 });
+
+test("P6 read-only layout adapter rejects an unsupported schema version", async () => {
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async () => ({
+      ok: true,
+      data: {
+        schema_version: "p6-layout.v2",
+        scope: "project",
+        view_id: "activity",
+        revision: 4,
+        columns: [],
+      },
+    } as any),
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  await assert.rejects(
+    () => persistence.load("project", "activity"),
+    /P6_LAYOUT_SCHEMA_VERSION_MISMATCH/,
+  );
+});
