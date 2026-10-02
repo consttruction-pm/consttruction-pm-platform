@@ -1,0 +1,79 @@
+{
+  "schema_version": "p6-activity-repository-boundary-evidence.v1",
+  "checked_on": "2026-10-02",
+  "subject_area": "Activity",
+  "tranche": "P6_ACTIVITY_NEXT_TRANCHE4_2026-10-02",
+  "baseline_main_sha": "06a8f9dd6f2aa66430e4c5e58f1badaf900683d0",
+  "oracle_reference": "P6 EPPM REST API Release 26",
+  "repository_boundaries": {
+    "canonical_activity_model": {
+      "path": "src/construction_pm/scheduling/activity.py",
+      "confirmed_status_semantics": "ActivityStatus contains Not Started, In Progress, and Completed.",
+      "confirmed_type_semantics": "ActivityType contains Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
+      "finding": "The canonical scheduling Activity model already has the semantic enums needed for P6 Status and Type, but it is not itself an interchange serializer or persistence adapter."
+    },
+    "authoritative_activity_persistence": {
+      "path": "src/construction_pm/activity_master_repository.py",
+      "entity": "ActivityMaster",
+      "persisted_fields": [
+        "activity_id",
+        "duration_value",
+        "duration_unit",
+        "actual_start",
+        "expected_finish",
+        "record_revision",
+        "tenant_id",
+        "project_id",
+        "project_revision"
+      ],
+      "missing_tranche_fields": [
+        "Status",
+        "Type",
+        "SuspendDate",
+        "SecondaryConstraintDate",
+        "SecondaryConstraintType",
+        "TaskStatusCompletion",
+        "TaskStatusDates",
+        "TaskStatusIndicator",
+        "TotalPastPeriodExpenseCost",
+        "TotalPastPeriodLaborCost",
+        "TotalPastPeriodLaborUnits",
+        "TotalPastPeriodMaterialCost",
+        "TotalPastPeriodNonLaborCost",
+        "TotalPastPeriodNonLaborUnits",
+        "WBSCode",
+        "WBSName",
+        "WBSNamePath",
+        "WBSObjectId",
+        "WorkPackageId",
+        "WorkPackageName"
+      ],
+      "finding": "ActivityMaster is an authoritative Activity persistence boundary, but the current persisted contract does not contain the Tranche 4 fields. Extending it would therefore be a domain/persistence contract change, not a harmless alias or registry-only mapping."
+    },
+    "interchange_boundary": {
+      "mapping_path": "src/construction_pm/p6_mapping_registry.py",
+      "mapper_path": "src/construction_pm/p6_interchange_mapping.py",
+      "adapter_path": "src/construction_pm/p6_interchange_adapter.py",
+      "codec_path": "src/construction_pm/p6_xer_codec.py",
+      "finding": "The repository has a provider-neutral P6 interchange mapping boundary. P6InterchangeMapper only applies persisted P6MappingDefinition records; codecs parse/serialize provider grammar and do not define canonical P6 semantics. No persisted mapping for the Tranche 4 Status/Type fields was verified in this review."
+    }
+  },
+  "certification_effect": {
+    "status": "boundary_identified_mapping_not_certified",
+    "promote_registry_identity": false,
+    "change_activity_persistence_contract": false,
+    "add_parallel_activity_serializer": false,
+    "reason": "The repository ingress/egress boundary is now identified, but field-level Oracle write/import semantics and a persisted canonical mapping record are still not jointly evidenced. Adding fields to ActivityMaster or creating a parallel serializer before that evidence would bypass the existing mapping boundary."
+  },
+  "next_implementation_gate": {
+    "first_candidates": ["Status", "Type"],
+    "required_evidence": [
+      "field-level Oracle create/update write behavior",
+      "authoritative persisted canonical field contract",
+      "P6MappingDefinition for the exact interchange format",
+      "focused import/export regression through P6InterchangeAdapter",
+      "round-trip or lossless behavior evidence appropriate to the format"
+    ],
+    "guardrail": "Do not create duplicate registry identities or a second Activity serialization path."
+  }
+}
