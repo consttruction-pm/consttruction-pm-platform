@@ -733,3 +733,12 @@ Status: **implemented, runtime-verified and merged**
 - First action: audit current `main` against the P6-2 backend acceptance criteria and reconcile already-merged work.
 - Implement only the first concrete Hasan-owned backend/API/persistence gap proven by evidence; otherwise record the blocking dependency and stop without speculative code.
 - Preserve the single authoritative Shared Scheduling/Core calculation boundary and do not revive stale PRs.
+
+
+### 2026-10-02 — Tranche 4 WBS/WorkPackage evidence boundary
+
+- Exact current main inspected: `9261a0781f230cafc319925445edfbd8cd31a1ac`.
+- Repository-wide recursive tree inspection found only two WBS-named implementation files: `apps/web/src/p6-activity-wbs-grid.ts` and its test. The WBS grid is a Web presentation contract; it is not a canonical WBS/WorkPackage persistence, mapper, or API contract.
+- Searches for backend/domain WBS and WorkPackage contracts, persistence, API, and mapping returned no additional implementation surface. Therefore no Hasan-owned backend seam can be safely derived from the presentation layer.
+- Issue #713 identifies the remaining Release 26 Activity semantic reconciliation as Jalal / Shared Core ownership. Tranche 4 fields including `WBSCode`, `WBSName`, `WBSNamePath`, `WBSObjectId`, `WorkPackageId`, and `WorkPackageName` remain pending certification rather than registry promotion.
+- Disposition: Blocked at the evidence boundary. Do not invent a WBS/WorkPackage mapper or persistence/API semantics under Hasan ownership. The next executable step is authoritative field-level WBS/WorkPackage mapping/certification from Shared Core; once that contract exists, Hasan can implement only the resulting concrete backend persistence/API seam.
