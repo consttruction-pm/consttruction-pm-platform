@@ -53,12 +53,15 @@ export function createP6FormulaEditor(
     async validate() {
       validating = true;
       const expressionAtRequest = model.expression;
-      const result = await authority.validate(expressionAtRequest, model.field_id);
-      if (model.expression === expressionAtRequest) {
-        model = applyFormulaAuthority(model, result);
+      try {
+        const result = await authority.validate(expressionAtRequest, model.field_id);
+        if (model.expression === expressionAtRequest) {
+          model = applyFormulaAuthority(model, result);
+        }
+        return state();
+      } finally {
+        validating = false;
       }
-      validating = false;
-      return state();
     },
 
     applyAuthoritativeResult(result) {
