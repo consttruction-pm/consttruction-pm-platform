@@ -99,18 +99,20 @@ def test_mixed_float_basis_is_explicitly_unsupported():
         )
 
 
-def test_cross_project_relationship_is_explicitly_unsupported_when_not_ignored():
+def test_cross_project_relationship_executes_through_shared_batch_graph():
     relationship = Relationship('P1-A', 'P2-A')
-    with pytest.raises(UnsupportedMultiProjectSchedulingError, match='cross-project relationship execution'):
-        execute_authoritative_schedule_batch(
-            [
-                snapshot('P1', date(2026, 10, 10)),
-                snapshot('P2', date(2026, 10, 20)),
-            ],
-            resolvers={'P1': resolver(), 'P2': resolver()},
-            external_relationships=(relationship,),
-            activity_project_ids={'P1-A': 'P1', 'P2-A': 'P2'},
-        )
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot('P1', date(2026, 10, 10)),
+            snapshot('P2', date(2026, 10, 20)),
+        ],
+        resolvers={'P1': resolver(), 'P2': resolver()},
+        external_relationships=(relationship,),
+        activity_project_ids={'P1-A': 'P1', 'P2-A': 'P2'},
+    )
+    p1 = result.project('P1').result.activities['P1-A']
+    p2 = result.project('P2').result.activities['P2-A']
+    assert p2.start > p1.finish
 
 
 def test_cross_project_relationship_is_ignored_when_option_enabled():
@@ -238,54 +240,3 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     leveling_options = ResourceLevelingOptions(level_all_resources=True)
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity(
-                "P1-A",
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                0,
-                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A"),),
-            ),
-            LevelingActivity(
-                "P2-A",
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                0,
-                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A"),),
-            ),
-        ),
-        backward_activities=(
-            BackwardLevelingActivity(
-                "P1-A",
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A"),),
-            ),
-            BackwardLevelingActivity(
-                "P2-A",
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                date(2026, 10, 1),
-                (ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A"),),
-            ),
-        ),
-        capacities=(
-            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
-            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
-        ),
-        options=leveling_options,
-    )
-    result = execute_authoritative_schedule_batch(
-        [
-            snapshot("P1", date(2026, 10, 10), options=options),
-            snapshot("P2", date(2026, 10, 20), options=options),
-        ],
-        resolvers={"P1": resolver(), "P2": resolver()},
-        leveling_input=leveling_input,
-    )
-
-    first = result.project("P1").result.activities["P1-A"]
-    second = result.project("P2").result.activities["P2-A"]
-    assert first.finish < second.start or second.finish < first.start
