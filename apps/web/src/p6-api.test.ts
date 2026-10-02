@@ -1,4 +1,6 @@
 import test from "node:test";
+import { createWorkspaceState } from "./workspace-model.js";
+import { loadP6FieldRegistryIntoWorkspace } from "./p6-api.js";
 import assert from "node:assert/strict";
 import { createP6FieldRegistryProvider, createP6ReadOnlyLayoutPersistence } from "./p6-api.js";
 import type { ApiTransport } from "./client.js";
@@ -11,6 +13,23 @@ function transport(result: unknown): ApiTransport {
 }
 
 const context = { tenant_id: "t1", project_id: "p1", revision: 2 };
+
+test("P6 registry bootstrap installs authoritative registry without layout", async () => {
+  const context = { tenant_id: "tenant-1", project_id: "project-1", revision: 4 };
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "test",
+    status: "seeded_not_certified",
+    fields: [],
+  };
+  const state = await loadP6FieldRegistryIntoWorkspace(createWorkspaceState(context), {
+    async getFields() { return []; },
+    async getRegistry() { return registry; },
+  });
+  assert.equal(state.p6FieldRegistry?.reference_product, "Oracle Primavera P6 Professional");
+  assert.equal(state.p6Layout, null);
+});
 
 test("P6 API adapters load and filter the authoritative field registry", async () => {
 
