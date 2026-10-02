@@ -108,3 +108,26 @@ def test_final_29_matrix_explicitly_separates_status_and_status_code():
     assert fields["Status"]["evidence_class"] == "typed_activity_status"
     assert fields["StatusCode"]["evidence_class"] == "typed_project_status_code"
     assert fields["Status"]["p6_field"] != fields["StatusCode"]["p6_field"]
+
+
+def test_documented_semantic_definition_count_is_explicit():
+    data = _load()
+    verified = [
+        item["p6_field"]
+        for item in data["fields"]
+        if item["semantic_definition_verified"]
+    ]
+    assert len(verified) == 22
+    assert {
+        item["p6_field"]
+        for item in data["fields"]
+        if not item["semantic_definition_verified"]
+    } == {
+        "ScopePercentComplete",
+        "TaskStatusCompletion",
+        "TaskStatusDates",
+        "TaskStatusIndicator",
+        "WBSNamePath",
+        "WorkPackageId",
+        "WorkPackageName",
+    }
