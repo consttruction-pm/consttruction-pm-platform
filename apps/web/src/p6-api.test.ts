@@ -84,3 +84,44 @@ describe("P6 Web API adapters", () => {
     assert.deepEqual(saved.metadata, { source: "user-layout" });
   });
 });
+
+
+it("propagates an authoritative layout save conflict", async () => {
+  const conflictTransport: ApiTransport = {
+    async get() {
+      return {
+        ok: true,
+        data: {
+          schema_version: "p6-layout.v1",
+          scope: "project",
+          view_id: "activity",
+          revision: 2,
+          columns: [],
+        },
+      } as { ok: true; data: any };
+    },
+    async post<TRequest, TResponse>() {
+      return {
+        ok: false,
+        error: {
+          code: "LAYOUT_REVISION_CONFLICT",
+          retryable: true,
+          message_key: "error.p6.layout.conflict",
+          available_actions: ["reload"],
+        },
+      } as { ok: false; error: { code: string; retryable: boolean; message_key: string; available_actions: string[] } };
+    },
+  };
+  const persistence = createP6LayoutPersistence(conflictTransport, context);
+  await assert.rejects(
+    () =>
+      persistence.save({
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: 2,
+        columns: [],
+      }),
+    /LAYOUT_REVISION_CONFLICT/,
+  );
+});
