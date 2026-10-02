@@ -1,0 +1,173 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 earned value, estimate and remaining typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies documented read-side API type, unit, and published semantic description only. Writable/default/nullability/import-export certification remains open; conditional computed behavior is preserved as documented rather than generalized.",
+  "fields": [
+    {
+      "p6_field": "AtCompletionTotalCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "189-190",
+      "description": "The total cost at completion for the activity, including labor resources, nonlabor resources, and project expenses. At completion total cost = at completion labor cost + at completion nonlabor cost + at completion expense cost."
+    },
+    {
+      "p6_field": "AtCompletionTotalUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "192-194",
+      "description": "The sum of the actual plus remaining units for the resource assignment on the activity."
+    },
+    {
+      "p6_field": "EarnedValueLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "438-439",
+      "description": "The portion of the project baseline labor units actually completed as of the project data date. Computed as project baseline labor units * performance percent complete; the performance technique depends on the activity WBS earned-value technique."
+    },
+    {
+      "p6_field": "EstimateAtCompletionLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "444-445",
+      "description": "Estimated labor units at completion. Calculated as actual labor units + estimate to complete labor units; ETC labor units are calculated from the WBS earned-value setting."
+    },
+    {
+      "p6_field": "EstimateToComplete",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "449-450",
+      "description": "Estimated cost to complete the activity. Computed either as remaining total cost or as PF * (BAC - earned value), depending on the WBS earned-value technique."
+    },
+    {
+      "p6_field": "EstimateToCompleteLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "452-453",
+      "description": "Estimated quantity to complete. Computed either as remaining total units or PF * (baseline labor units - earned value), depending on the WBS earned-value technique."
+    },
+    {
+      "p6_field": "RemainingExpenseCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "824-826",
+      "description": "Remaining costs for all project expenses associated with the activity."
+    },
+    {
+      "p6_field": "RemainingLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "831-832",
+      "description": "Remaining costs for all labor resources assigned to the activity. If no resources are assigned, computed as remaining labor units * project default price / time."
+    },
+    {
+      "p6_field": "RemainingLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "834-835",
+      "description": "Remaining units for all labor resources assigned to the activity. Before start, remaining units equal planned units; after completion, remaining units are zero."
+    },
+    {
+      "p6_field": "RemainingMaterialCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "844-846",
+      "description": "Sum of all material resource remaining costs."
+    },
+    {
+      "p6_field": "RemainingNonLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "848-850",
+      "description": "Remaining costs for all nonlabor resources assigned to the activity. If no resources are assigned, computed as remaining nonlabor units * project default price / time."
+    },
+    {
+      "p6_field": "RemainingNonLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "852-853",
+      "description": "Remaining units for all nonlabor resources assigned to the activity. Before start, remaining units equal planned units; after completion, remaining units are zero."
+    },
+    {
+      "p6_field": "RemainingTotalCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "855-856",
+      "description": "Remaining total cost including labor, nonlabor, and project expenses. Remaining total cost = remaining labor costs + remaining nonlabor costs + remaining expense costs."
+    },
+    {
+      "p6_field": "RemainingTotalUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "858-860",
+      "description": "The sum of remaining labor units and remaining nonlabor units."
+    },
+    {
+      "p6_field": "TotalPastPeriodEarnedValueCostBCWP",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": false,
+      "writable": null,
+      "evidence_lines": "963-964",
+      "description": "The total stored period earned value cost for each activity."
+    },
+    {
+      "p6_field": "TotalPastPeriodEarnedValueLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": false,
+      "writable": null,
+      "evidence_lines": "966-968",
+      "description": "The total stored period earned value labor units for each activity."
+    },
+    {
+      "p6_field": "TotalPastPeriodPlannedValueCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": false,
+      "writable": null,
+      "evidence_lines": "993-994",
+      "description": "The total stored period planned value cost for each activity."
+    },
+    {
+      "p6_field": "TotalPastPeriodPlannedValueLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": false,
+      "writable": null,
+      "evidence_lines": "996-998",
+      "description": "The total stored period planned value labor units for each activity."
+    }
+  ]
+}
