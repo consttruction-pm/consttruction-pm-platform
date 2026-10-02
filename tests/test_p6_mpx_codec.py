@@ -66,16 +66,6 @@ def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() ->
         )
 
 
-    @staticmethod
-    def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
-        structural = {"p6.mpx.record", "p6.mpx.separator", "p6.mpx.file_creation"}
-        for row in rows:
-            unsupported = sorted(key for key in row.extensions if key not in structural)
-            if unsupported:
-                raise P6MpxCodecError(
-                    "UNREPRESENTABLE_MPX_EXTENSIONS:" + ",".join(unsupported)
-                )
-
 def test_encode_round_trips_task_rows() -> None:
     codec = P6MpxCodec()
     document = "MPX,Microsoft Project,4.0,850\n60,Name,Duration\n70,Pour cement,6d\n"
