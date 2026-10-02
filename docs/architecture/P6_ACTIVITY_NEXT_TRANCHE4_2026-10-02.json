@@ -527,5 +527,24 @@
       "WBSObjectId": "987-989",
       "WorkPackageId": "995-996"
     }
+  },
+  "oracle_current_verification": {
+    "checked_on": "2026-10-02",
+    "source": "P6 EPPM REST API Release 26 - Update Activities",
+    "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "confirmed_documented_semantics": {
+      "SecondaryConstraintDate": "Constraint date used with the secondary constraint type; activity constraints are used by the project scheduler.",
+      "SecondaryConstraintType": "Additional scheduler constraint with documented start/finish on-or-before/on-or-after values.",
+      "Status": "Current activity status values are documented.",
+      "StatusCode": "Project status values are documented separately from activity status.",
+      "SuspendDate": "Suspend date is constrained relative to actual start and suspend/resume affects scheduling calendar treatment.",
+      "ToCompletePerformanceIndex": "TCPI is documented as a computed performance metric.",
+      "TotalCost1Variance": "Primary-baseline total-cost variance is documented as a computed value.",
+      "TotalCost2Variance": "Secondary-baseline total-cost variance is documented as a computed value.",
+      "TotalCost3Variance": "Tertiary-baseline total-cost variance is documented as a computed value.",
+      "TotalCostVariance": "Project-baseline total-cost variance is documented as a computed value."
+    },
+    "certification_effect": "This current Oracle check strengthens field-level semantic evidence, but does not by itself certify internal persistence mapping, defaults/nullability, filtering/orderability, or import/export behavior. Those remain pending until repository-side evidence exists.",
+    "non_regression_rule": "No field is promoted to the canonical Activity Registry solely from REST schema exposure or name similarity."
   }
 }
