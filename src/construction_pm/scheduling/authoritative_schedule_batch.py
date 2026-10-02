@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 
-from .authoritative_schedule import AuthoritativeScheduleInput
+from .authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from .calendar import WorkingTimeResolver
 from .external_resource_assignments import (
     ExternalResourceAssignment,
@@ -72,6 +72,17 @@ def execute_authoritative_schedule_batch(
         raise ValueError('at least one schedule snapshot is required')
     if not isinstance(resolvers, Mapping):
         raise TypeError('resolvers must be a mapping')
+
+    snapshot_ids = [snapshot.snapshot_id for snapshot in snapshot_list]
+    if len(snapshot_ids) != len(set(snapshot_ids)):
+        raise UnsupportedMultiProjectSchedulingError("DUPLICATE_SNAPSHOT_ID")
+
+    tenants = {snapshot.tenant_id for snapshot in snapshot_list}
+    if len(tenants) != 1:
+        raise UnsupportedMultiProjectSchedulingError("MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED")
+
+    if any(snapshot.mode is not AuthoritativeScheduleMode.DATE_BASED for snapshot in snapshot_list):
+        raise UnsupportedMultiProjectSchedulingError("MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED")
 
     float_basis = {
         snapshot.schedule_options.calculate_float_based_on_finish_date
