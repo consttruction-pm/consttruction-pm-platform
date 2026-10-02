@@ -569,7 +569,7 @@
       "evidence_class": "derived_wbs_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "WBS short code used for identification; not treated as a standalone Activity business object identity.",
+      "semantic_note": "Oracle Activity exposes the WBS short code used to identify each WBS element; its canonical relationship remains a WBS-domain concern.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
@@ -593,7 +593,7 @@
       "evidence_class": "derived_wbs_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Name of the WBS element associated with the activity.",
+      "semantic_note": "Oracle Activity exposes the name of the WBS element associated with the activity; canonical relationship remains a WBS-domain concern.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
@@ -617,7 +617,7 @@
       "evidence_class": "derived_wbs_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "WBS name path exposed on the Activity API.",
+      "semantic_note": "Oracle Activity exposes the WBS name path; Oracle Release 26 schema does not publish field-level calculation/persistence rules here.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
@@ -641,7 +641,7 @@
       "evidence_class": "required_wbs_reference",
       "shared_seam_present": true,
       "computed": false,
-      "semantic_note": "Unique WBS ID for the activity; Oracle Activity schema requires WBSObjectId.",
+      "semantic_note": "Required unique WBS ID for the activity; required in the Oracle Activity schema. Canonical Activity Registry identity remains pending.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
@@ -665,7 +665,7 @@
       "evidence_class": "derived_workpackage_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Work Package identifier exposed on Activity; canonical persistence mapping remains to be certified.",
+      "semantic_note": "Oracle Activity exposes WorkPackageId as string without a field-level Release 26 description; canonical persistence mapping remains pending.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
@@ -689,7 +689,7 @@
       "evidence_class": "derived_workpackage_reference",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "Work Package name exposed on Activity; canonical persistence mapping remains to be certified.",
+      "semantic_note": "Oracle Activity exposes WorkPackageName as string without a field-level Release 26 description; canonical persistence mapping remains pending.",
       "registry_change": "none",
       "certification_status": "pending",
       "evidence_sources": [
