@@ -126,6 +126,18 @@ def test_external_resource_assignment_priority_limit_boundary(
     resource_ids = [d.resource_id for d in result.project('P1').resource_demands]
     assert ('R2' in resource_ids) is expected_external
 
+def test_external_resource_assignment_is_excluded_when_option_disabled():
+    options = ScheduleOptions(include_external_res_ass=False, external_project_priority_limit=5)
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot('P1', date(2026, 10, 10), options=options, priority=10),
+            snapshot('P2', date(2026, 10, 20), priority=1),
+        ],
+        resolvers={'P1': resolver(), 'P2': resolver()},
+        resource_assignments=(assignment('P1', 'R1'), assignment('P2', 'R2')),
+    )
+    assert [d.resource_id for d in result.project('P1').resource_demands] == []
+
 
 def test_single_project_preserves_existing_behavior_with_multi_project_options_disabled():
     result = execute_authoritative_schedule_batch(
