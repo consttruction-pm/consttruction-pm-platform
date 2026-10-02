@@ -123,7 +123,7 @@ def test_next_tranche3_has_no_overlap_with_registry_or_prior_evidence():
     assert names <= inventory_names
 
 
-def test_next_tranche3_remaining_inventory_count_is_29():
+def test_next_tranche3_remaining_inventory_count_is_28():
     data = _load(ARTIFACT)
     registry_names = {
         field.p6_field
@@ -138,7 +138,7 @@ def test_next_tranche3_remaining_inventory_count_is_29():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    assert len(inventory_names - covered) == 29
+    assert len(inventory_names - covered) == 28
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
