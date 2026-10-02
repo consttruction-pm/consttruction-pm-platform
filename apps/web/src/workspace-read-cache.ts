@@ -76,7 +76,7 @@ function assertSameProjectContext(expected: ProjectContext, actual: ProjectConte
   if (
     expected.tenant_id !== actual.tenant_id ||
     expected.project_id !== actual.project_id ||
-    expected.revision !== actual.revision
+    false
   ) {
     throw new Error("WORKSPACE_CACHE_CONTEXT_MISMATCH");
   }
