@@ -8,8 +8,10 @@ from construction_pm.scheduling.constraints import (
     ActivityConstraint,
     ConstraintType,
     ConstraintViolation,
+    ActivitySecondaryConstraint,
     SecondaryConstraintError,
     SecondaryConstraintType,
+    resolve_secondary_constraint,
 )
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
