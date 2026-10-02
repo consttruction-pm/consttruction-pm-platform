@@ -176,6 +176,9 @@ def test_combined_external_boundary_options_are_deterministic():
     )
     assert first.project('P1').result == second.project('P1').result
     assert first.project('P1').resource_demands == second.project('P1').resource_demands
+    assert first.batch.finish_boundary_for('P1') == date(2026, 10, 20)
+    assert first.project('P1').result.floats['P1-A'].total_float == 13
+    assert [d.resource_id for d in first.project('P1').resource_demands] == ['R2']
 
 
 def test_unsupported_multi_project_resource_leveling_never_silently_falls_back():
