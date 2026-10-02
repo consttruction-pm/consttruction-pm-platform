@@ -4,7 +4,7 @@ from pathlib import Path
 ARTIFACT=Path("docs/architecture/P6_ACTIVITY_NEXT_TRANCHE4_2026-10-02.json")
 INVENTORY=Path("docs/architecture/P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json")
 REGISTRY=Path("src/construction_pm/p6_field_registry.py")
-EXPECTED={"ScopePercentComplete", "SecondaryConstraintDate", "SecondaryConstraintType", "Status", "StatusCode", "SuspendDate", "TaskStatusCompletion", "TaskStatusDates", "TaskStatusIndicator", "ToCompletePerformanceIndex", "TotalCost1Variance", "TotalCost2Variance", "TotalCost3Variance", "TotalCostVariance", "TotalPastPeriodExpenseCost", "TotalPastPeriodLaborCost", "TotalPastPeriodLaborUnits", "TotalPastPeriodMaterialCost", "TotalPastPeriodNonLaborCost", "TotalPastPeriodNonLaborUnits", "Type", "UnitsPercentComplete", "UnreadCommentCount", "WBSCode", "WBSName", "WBSNamePath", "WBSObjectId", "WorkPackageId", "WorkPackageName"}
+EXPECTED={"ScopePercentComplete", "SecondaryConstraintDate", "SecondaryConstraintType", "Status", "SuspendDate", "TaskStatusCompletion", "TaskStatusDates", "TaskStatusIndicator", "ToCompletePerformanceIndex", "TotalCost1Variance", "TotalCost2Variance", "TotalCost3Variance", "TotalCostVariance", "TotalPastPeriodExpenseCost", "TotalPastPeriodLaborCost", "TotalPastPeriodLaborUnits", "TotalPastPeriodMaterialCost", "TotalPastPeriodNonLaborCost", "TotalPastPeriodNonLaborUnits", "Type", "UnitsPercentComplete", "UnreadCommentCount", "WBSCode", "WBSName", "WBSNamePath", "WBSObjectId", "WorkPackageId", "WorkPackageName"}
 
 def test_next_tranche4_is_exact_remaining_inventory_only():
     data=json.loads(ARTIFACT.read_text(encoding="utf-8"))
@@ -15,10 +15,10 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     registry.update(m.group(1) for m in re.finditer(r'\("activity\.[^"]+","Activity","([^"]+)"',text))
     names={x["p6_field"] for x in data["fields"]}
     assert names==EXPECTED
-    assert len(names)==29
+    assert len(names)==28
     assert names <= inventory
     assert not names & registry
-    assert data["baseline"]["remaining_inventory_only_before_tranche"]==29
+    assert data["baseline"]["remaining_inventory_only_before_tranche"]==28
     assert data["baseline"]["expected_remaining_after_tranche"]==0
     assert all(x["registry_change"]=="none" for x in data["fields"])
     assert all(x["reconciliation_status"]=="pending" for x in data["fields"])
