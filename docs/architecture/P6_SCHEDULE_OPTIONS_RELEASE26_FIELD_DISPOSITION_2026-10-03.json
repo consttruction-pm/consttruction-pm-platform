@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "title": "P6 ScheduleOptions Release 26 Field Disposition",
+  "effective_date": "2026-10-03",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html",
+  "rule": "Every current Release 26 ScheduleOptions REST field must have an explicit disposition. Metadata fields are classified separately from calculation-core options. Historical Integration API-only extensions are not silently treated as current REST fields.",
+  "current_rest_fields": [
+    {"p6_field":"CalculateFloatBasedOnFinishDate","category":"calculation_core","registry_field_id":"schedule_options.calculate_float_based_on_finish_date","status":"verified_contract"},
+    {"p6_field":"ComputeTotalFloatType","category":"calculation_core","registry_field_id":"schedule_options.compute_total_float_type","status":"verified_contract"},
+    {"p6_field":"CreateDate","category":"api_metadata","registry_field_id":"schedule_options.create_date","status":"verified_metadata"},
+    {"p6_field":"CreateUser","category":"api_metadata","registry_field_id":"schedule_options.create_user","status":"verified_metadata"},
+    {"p6_field":"CriticalActivityFloatThreshold","category":"calculation_core","registry_field_id":"schedule_options.critical_activity_float_threshold","status":"verified_contract"},
+    {"p6_field":"CriticalActivityPathType","category":"calculation_core","registry_field_id":"schedule_options.critical_activity_path_type","status":"verified_contract"},
+    {"p6_field":"ExternalProjectPriorityLimit","category":"calculation_core","registry_field_id":"schedule_options.external_project_priority_limit","status":"verified_contract"},
+    {"p6_field":"IgnoreOtherProjectRelationships","category":"calculation_core","registry_field_id":"schedule_options.ignore_other_project_relationships","status":"verified_contract"},
+    {"p6_field":"IncludeExternalResAss","category":"calculation_core","registry_field_id":"schedule_options.include_external_res_ass","status":"verified_contract"},
+    {"p6_field":"LastUpdateDate","category":"api_metadata","registry_field_id":"schedule_options.last_update_date","status":"verified_metadata"},
+    {"p6_field":"LastUpdateUser","category":"api_metadata","registry_field_id":"schedule_options.last_update_user","status":"verified_metadata"},
+    {"p6_field":"LevelAllResources","category":"calculation_core","registry_field_id":"schedule_options.level_all_resources","status":"verified_contract"},
+    {"p6_field":"LevelWithinFloat","category":"calculation_core","registry_field_id":"schedule_options.level_within_float","status":"verified_contract"},
+    {"p6_field":"MakeOpenEndedActivitiesCritical","category":"calculation_core","registry_field_id":"schedule_options.make_open_ended_activities_critical","status":"verified_contract"},
+    {"p6_field":"MaximumMultipleFloatPaths","category":"calculation_core","registry_field_id":"schedule_options.maximum_multiple_float_paths","status":"verified_contract"},
+    {"p6_field":"MinFloatToPreserve","category":"calculation_core","registry_field_id":"schedule_options.min_float_to_preserve","status":"verified_contract"},
+    {"p6_field":"MultipleFloatPathsEnabled","category":"calculation_core","registry_field_id":"schedule_options.multiple_float_paths_enabled","status":"verified_contract"},
+    {"p6_field":"MultipleFloatPathsEndingActivityObjectId","category":"calculation_core","registry_field_id":"schedule_options.multiple_float_paths_ending_activity_object_id","status":"verified_contract"},
+    {"p6_field":"MultipleFloatPathsEndingActivityShortName","category":"calculation_core","registry_field_id":"schedule_options.multiple_float_paths_ending_activity_short_name","status":"verified_contract"},
+    {"p6_field":"MultipleFloatPathsUseTotalFloat","category":"calculation_core","registry_field_id":"schedule_options.multiple_float_paths_use_total_float","status":"verified_contract"},
+    {"p6_field":"OutOfSequenceScheduleType","category":"calculation_core","registry_field_id":"schedule_options.out_of_sequence_schedule_type","status":"verified_contract"},
+    {"p6_field":"OverAllocationPercentage","category":"calculation_core","registry_field_id":"schedule_options.over_allocation_percentage","status":"verified_contract"},
+    {"p6_field":"PreserveScheduledEarlyAndLateDates","category":"calculation_core","registry_field_id":"schedule_options.preserve_scheduled_early_and_late_dates","status":"verified_contract"},
+    {"p6_field":"PriorityList","category":"calculation_core","registry_field_id":"schedule_options.priority_list","status":"verified_contract_with_typed_internal_representation"},
+    {"p6_field":"ProjectId","category":"api_metadata","registry_field_id":"schedule_options.project_id","status":"verified_metadata_read_only"},
+    {"p6_field":"ProjectObjectId","category":"api_metadata","registry_field_id":"schedule_options.project_object_id","status":"verified_metadata_read_only"},
+    {"p6_field":"RelationshipLagCalendar","category":"calculation_core","registry_field_id":"schedule_options.relationship_lag_calendar","status":"verified_contract"},
+    {"p6_field":"ResourceList","category":"calculation_core","registry_field_id":"schedule_options.resource_list","status":"verified_contract_with_typed_internal_representation"},
+    {"p6_field":"StartToStartLagCalculationType","category":"calculation_core","registry_field_id":"schedule_options.start_to_start_lag_calculation_type","status":"verified_contract"},
+    {"p6_field":"UseExpectedFinishDates","category":"calculation_core","registry_field_id":"schedule_options.use_expected_finish_dates","status":"verified_contract"},
+    {"p6_field":"UserName","category":"api_metadata","registry_field_id":"schedule_options.user_name","status":"verified_metadata_read_only"},
+    {"p6_field":"UserObjectId","category":"api_metadata","registry_field_id":"schedule_options.user_object_id","status":"verified_metadata_read_only"}
+  ],
+  "historical_or_extended_fields": [
+    {"p6_field":"RecalculateResourceCosts","category":"integration_api_extension","registry_field_id":"schedule_options.recalculate_resource_costs","status":"supported_extension_not_current_release26_rest_schema"}
+  ],
+  "internal_only_fields": [
+    {"field":"mode","category":"shared_core_internal_context","status":"not_a_current_release26_rest_ScheduleOptions_field"},
+    {"field":"data_date","category":"shared_core_project_context","status":"project-level_context_not_a_current_release26_rest_ScheduleOptions_field"}
+  ],
+  "summary": {
+    "current_rest_total": 32,
+    "current_rest_calculation_core": 24,
+    "current_rest_api_metadata": 8,
+    "historical_integration_extension": 1,
+    "internal_only_shared_core_fields": 2,
+    "registry_coverage_required": "32/32"
+  }
+}
