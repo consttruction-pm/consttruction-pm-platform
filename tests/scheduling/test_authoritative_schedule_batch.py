@@ -69,6 +69,28 @@ def test_batch_uses_latest_finish_when_option_disabled():
     assert result.project('P1').result.floats['P1-A'].total_float == 13
 
 
+def test_mixed_float_basis_is_explicitly_unsupported():
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match='mixed calculate_float_based_on_finish_date settings',
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot(
+                    'P1',
+                    date(2026, 10, 10),
+                    options=ScheduleOptions(calculate_float_based_on_finish_date=True),
+                ),
+                snapshot(
+                    'P2',
+                    date(2026, 10, 20),
+                    options=ScheduleOptions(calculate_float_based_on_finish_date=False),
+                ),
+            ],
+            resolvers={'P1': resolver(), 'P2': resolver()},
+        )
+
+
 def test_cross_project_relationship_is_explicitly_unsupported_when_not_ignored():
     relationship = Relationship('P1-A', 'P2-A')
     with pytest.raises(UnsupportedMultiProjectSchedulingError, match='cross-project relationship execution'):
@@ -125,6 +147,7 @@ def test_external_resource_assignment_priority_limit_boundary(
     )
     resource_ids = [d.resource_id for d in result.project('P1').resource_demands]
     assert ('R2' in resource_ids) is expected_external
+
 
 def test_external_resource_assignment_is_excluded_when_option_disabled():
     options = ScheduleOptions(include_external_res_ass=False, external_project_priority_limit=5)
