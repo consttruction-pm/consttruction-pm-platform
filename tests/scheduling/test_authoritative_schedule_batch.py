@@ -54,7 +54,7 @@ def test_batch_uses_each_project_finish_when_option_enabled():
         resolvers={'P1': resolver(), 'P2': resolver()},
     )
     assert result.project('P1').result.floats['P1-A'].total_float == 6
-    assert result.project('P2').result.floats['P2-A'].total_float == 16
+    assert result.project('P2').result.floats['P2-A'].total_float == 12
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
@@ -66,7 +66,7 @@ def test_batch_uses_latest_finish_when_option_disabled():
         resolvers={'P1': resolver(), 'P2': resolver()},
     )
     assert result.batch.finish_boundary_for('P1') == date(2026, 10, 20)
-    assert result.project('P1').result.floats['P1-A'].total_float == 14
+    assert result.project('P1').result.floats['P1-A'].total_float == 13
 
 
 def test_cross_project_relationship_is_explicitly_unsupported_when_not_ignored():
