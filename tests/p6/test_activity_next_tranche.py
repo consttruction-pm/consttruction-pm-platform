@@ -79,8 +79,8 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
         if path.name not in {manifest_name, own_artifact}
     ]
 
-    assert len(evidence_files) == 14
-    assert len(preexisting_direct) == 13
+    assert len(evidence_files) == 16
+    assert len(preexisting_direct) == 15
     for path in preexisting_direct:
         evidence = json.loads(path.read_text(encoding="utf-8"))
         evidence_items = evidence.get("fields", [])
@@ -97,7 +97,7 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
         )
         assert not names & evidence_names, path
 
-    assert data["baseline"]["existing_activity_evidence_files_scanned"] == 14
+    assert data["baseline"]["existing_activity_evidence_files_scanned"] == 16
     assert data["baseline"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
     assert data["interchange"]["import"].startswith(
         "No independent Release 26 import-field certification"

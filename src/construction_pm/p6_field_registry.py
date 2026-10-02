@@ -89,7 +89,7 @@ _ROWS = (
     ("activity.activity_name","Activity","ActivityName","Activity Name","string",True,False,None),
     ("activity.activity_status","Activity","ActivityStatus","Activity Status","enum",True,False,None),
     ("activity.activity_type","Activity","ActivityType","Activity Type","enum",True,False,None),
-    ("activity.status_code","Activity","StatusCode","Status Code","enum",True,False,None),
+    ("activity.status_code","Activity","StatusCode","Status Code","enum",False,False,None),
     ("activity.calendar","Activity","Calendar","Calendar","string",True,False,None),
     ("activity.planned_start","Activity","PlannedStartDate","Planned Start","date",True,False,None),
     ("activity.planned_finish","Activity","PlannedFinishDate","Planned Finish","date",True,False,None),

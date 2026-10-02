@@ -35,7 +35,7 @@ def test_tranche1_is_a_current_inventory_only_worklist():
     assert data["audit_basis"]["inventory_field_count"] == 275
     assert data["audit_basis"]["registry_activity_field_count"] == 134
     assert data["audit_basis"]["inventory_only_count"] == 150
-    assert data["audit_basis"]["existing_activity_evidence_files_scanned"] == 14
+    assert data["audit_basis"]["existing_activity_evidence_files_scanned"] == 16
     assert data["audit_basis"]["inventory_only_fields_with_direct_evidence_artifact"] == 61
     assert data["audit_basis"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
 
@@ -46,11 +46,11 @@ def test_tranche1_has_no_duplicate_direct_activity_evidence_artifact():
     evidence_files = sorted(
         Path("docs/architecture").glob("P6_ACTIVITY_*EVIDENCE*.json")
     )
-    assert len(evidence_files) == 14
+    assert len(evidence_files) == 16
 
     manifest_name = "P6_ACTIVITY_FIELD_EVIDENCE_MANIFEST_2026-09-28.json"
     direct_evidence_files = [path for path in evidence_files if path.name != manifest_name]
-    assert len(direct_evidence_files) == 13
+    assert len(direct_evidence_files) == 15
 
     for path in direct_evidence_files:
         content = path.read_text(encoding="utf-8")
