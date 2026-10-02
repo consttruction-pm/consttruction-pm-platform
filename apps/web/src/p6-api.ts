@@ -39,6 +39,9 @@ export function createP6ReadOnlyLayoutPersistence(transport: ApiTransport, conte
       if (result.data.schema_version !== "p6-layout.v1") {
         throw new Error("P6_LAYOUT_SCHEMA_VERSION_MISMATCH");
       }
+      if (!Number.isInteger(result.data.revision) || result.data.revision < 0) {
+        throw new Error("INVALID_P6_LAYOUT_REVISION");
+      }
       return result.data;
     },
     async save(): Promise<LayoutDefinition> {
