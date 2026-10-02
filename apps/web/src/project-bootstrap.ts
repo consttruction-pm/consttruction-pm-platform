@@ -1,3 +1,17 @@
+export type ProjectSelectionOption = {
+  project_id: string;
+  label: string;
+};
+
+export function getProjectSelectionOptions(
+  projects: readonly { project_id: string; name: string }[],
+): readonly ProjectSelectionOption[] {
+  return projects.map((project) => ({
+    project_id: project.project_id,
+    label: project.name.trim() || project.project_id,
+  }));
+}
+
 export function selectProjectId(
   projects: readonly { project_id: string }[],
   requestedProjectId: string | null,
