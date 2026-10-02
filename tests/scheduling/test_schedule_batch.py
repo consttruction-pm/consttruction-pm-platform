@@ -143,3 +143,35 @@ def test_authoritative_batch_rejects_external_resource_executor_gap():
     )
     with pytest.raises(MultiProjectSchedulingError, match="EXTERNAL_RESOURCE"):
         execute_authoritative_schedule_batch(batch, registry)
+
+
+def test_batch_rejects_cross_tenant_cross_mode_and_duplicate_activity_identity():
+    from dataclasses import replace
+
+    base = snapshot("P1", date(2026, 10, 10))
+    other_tenant = replace(base, project_id="P2", snapshot_id="s-P2", tenant_id="other")
+    with pytest.raises(ValueError, match="tenant ids"):
+        AuthoritativeScheduleBatch.from_snapshots(
+            [base, other_tenant], calculate_based_on_project_finish=False
+        )
+
+    other_mode = replace(base, project_id="P2", snapshot_id="s-P2",
+                         mode=AuthoritativeScheduleMode.TIME_AWARE)
+    with pytest.raises(ValueError, match="modes"):
+        AuthoritativeScheduleBatch.from_snapshots(
+            [base, other_mode], calculate_based_on_project_finish=False
+        )
+
+    duplicate_activity = replace(
+        base,
+        project_id="P2",
+        snapshot_id="s-P2",
+        activities=(Activity(id="P1-A", duration=1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("P1-A", CalendarReference("CAL", 1)),
+        ),
+    )
+    with pytest.raises(ValueError, match="activity ids"):
+        AuthoritativeScheduleBatch.from_snapshots(
+            [base, duplicate_activity], calculate_based_on_project_finish=False
+        )
