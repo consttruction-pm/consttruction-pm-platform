@@ -99,7 +99,6 @@ class P6MpxCodec:
         if not rows:
             raise P6MpxCodecError("EMPTY_MPX_DOCUMENT")
         self._validate_extensions(rows)
-        self._validate_extensions(rows)
         first = rows[0].extensions
         separator = first.get("p6.mpx.separator", ",")
         creation = first.get("p6.mpx.file_creation")
@@ -131,9 +130,7 @@ class P6MpxCodec:
             else:
                 ordered = [row.values[k] for k in sorted(row.values, key=self._field_order)]
                 output.append(self._line(record, ordered, separator))
-        return "\r
-".join(output) + "\r
-"
+        return "\r\n".join(output) + "\r\n"
 
     @staticmethod
     def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
