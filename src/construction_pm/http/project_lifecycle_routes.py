@@ -9,6 +9,11 @@ from ..application.authorization import AuthorizationError
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.models import BackendScope
+from ..p6_field_registry import (
+    P6_FIELD_REGISTRY_REFERENCE_PRODUCT,
+    P6_FIELD_REGISTRY_REFERENCE_VERSION,
+    P6_FIELD_REGISTRY_STATUS,
+)
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
 
@@ -87,7 +92,13 @@ class ProjectLifecycleHttpRoutes:
                     BackendScope(context.tenant_id, context.project_id, context.revision),
                     registry_version, "Activity", auth_context=auth,
                 )
-                return self._json(200, {"registry_version": registry_version, "fields": [item["field"] for item in fields]})
+                return self._json(200, {
+                    "registry_version": registry_version,
+                    "reference_product": P6_FIELD_REGISTRY_REFERENCE_PRODUCT,
+                    "reference_version": P6_FIELD_REGISTRY_REFERENCE_VERSION,
+                    "status": P6_FIELD_REGISTRY_STATUS,
+                    "fields": [item["field"] for item in fields],
+                })
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
