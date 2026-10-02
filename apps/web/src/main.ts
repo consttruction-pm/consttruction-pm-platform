@@ -30,14 +30,14 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       renderApp(container, selectWbs(state, wbsId), persistence);
     },
     onActivitySelect: (activityId) => {
-      renderApp(container, selectActivity(state, activityId), p6Persistence);
+      renderApp(container, selectActivity(state, activityId), persistence);
     },
     onP6FieldAdd: async (fieldId) => {
       try {
         const next = addP6Field(state, fieldId);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
         const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
       } catch (error) {
         console.error("P6 layout save failed", error);
       }
@@ -47,7 +47,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
         const next = removeP6Field(state, fieldId);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
         const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
       } catch (error) {
         console.error("P6 layout save failed", error);
       }
@@ -63,7 +63,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   languageButton.setAttribute("aria-label", state.locale === "fa" ? "Switch to English" : "تغییر به فارسی");
   languageButton.addEventListener("click", () => {
     const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
-    renderApp(container, setLocale(state, next));
+    renderApp(container, setLocale(state, next), persistence);
   });
 
   const status = document.createElement("div");
