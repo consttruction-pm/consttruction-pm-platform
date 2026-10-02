@@ -97,7 +97,7 @@ def execute_authoritative_schedule_batch(
             constraints=snapshot.constraints,
             options=options,
             relationship_lag_resolvers=lag_resolvers,
-            batch_scheduled_finish=batch.float_boundary.latest_finish,
+            batch_scheduled_finish=batch.finish_boundary_for(snapshot.project_id),
             activity_resolvers=calendars.activities,
         )
         results[snapshot.project_id] = result
