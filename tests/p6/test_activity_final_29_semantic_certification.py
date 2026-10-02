@@ -204,3 +204,23 @@ def test_mutability_review_partitions_remaining_29():
         + review["writability_unconfirmed_count"]
         == review["remaining_28_excluding_status_code"]
     )
+
+
+def test_gateway_supporting_mutability_evidence_is_explicit():
+    data = _load()
+    expected = {
+        "ScopePercentComplete",
+        "SecondaryConstraintDate",
+        "SecondaryConstraintType",
+        "Status",
+        "SuspendDate",
+        "Type",
+        "UnitsPercentComplete",
+    }
+    actual = {
+        item["p6_field"]
+        for item in data["fields"]
+        if item.get("oracle_gateway_2026_read_only") is False
+    }
+    assert actual == expected
+    assert data["mutability_review"]["gateway_supporting_non_readonly_count"] == 7
