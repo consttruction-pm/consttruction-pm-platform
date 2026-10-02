@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 
+from .activity_calendar_context import ActivityCalendarContext
 from .authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from .calendar import WorkingTimeResolver
+from .calendar_context import CalendarResolverRegistry
 from .external_resource_assignments import (
     ExternalResourceAssignment,
     select_batch_resource_assignments_for_scheduling,
@@ -55,6 +57,7 @@ def execute_authoritative_schedule_batch(
     activity_project_ids: Mapping[str, str] | None = None,
     resource_assignments: Iterable[ExternalResourceAssignment] = (),
     leveling_input: SchedulerLevelingInput | None = None,
+    calendar_registry: CalendarResolverRegistry | None = None,
 ) -> AuthoritativeScheduleBatchExecution:
     """Execute the safe multi-project P6 scheduling boundary.
 
@@ -62,10 +65,10 @@ def execute_authoritative_schedule_batch(
     schedule() implementation. Multi-project-only relationship and resource
     options are resolved at this boundary rather than being reimplemented in CPM.
 
-    Cross-project graph execution remains explicitly unsupported: when
-    ignore_other_project_relationships is false, an external relationship
-    touching the scheduled project raises instead of silently dropping the edge.
-    When it is true, those external edges are intentionally excluded.
+    Cross-project relationships are executed through one shared authoritative
+    schedule() graph when the option requires them; ignored external edges are
+    intentionally excluded. Activity calendars are resolved once at this
+    orchestration boundary when a registry is supplied.
     """
     snapshot_list = tuple(snapshots)
     if not snapshot_list:
@@ -108,6 +111,20 @@ def execute_authoritative_schedule_batch(
             all_activity_projects[activity.id] = snapshot.project_id
 
     external_relationship_list = tuple(external_relationships)
+    activity_calendar_resolvers = None
+    if calendar_registry is not None:
+        activity_calendar_context = ActivityCalendarContext.from_snapshots(
+            snapshot_list, calendar_registry
+        )
+        activity_calendar_resolvers = activity_calendar_context.as_mapping()
+        if leveling_input is not None:
+            activity_calendars = {
+                resolver.calendar for resolver in activity_calendar_resolvers.values()
+            }
+            if len(activity_calendars) > 1:
+                raise UnsupportedMultiProjectSchedulingError(
+                    "MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED"
+                )
     executions: list[AuthoritativeProjectScheduleExecution] = []
 
     has_leveling_options = any(
@@ -147,7 +164,7 @@ def execute_authoritative_schedule_batch(
             raise KeyError(
                 f"calendar resolver not registered for project: {snapshot_list[0].project_id}"
             )
-        if any(
+        if calendar_registry is None and any(
             resolvers.get(snapshot.project_id) is None
             or resolvers[snapshot.project_id].calendar != first_resolver.calendar
             for snapshot in snapshot_list
@@ -239,6 +256,7 @@ def execute_authoritative_schedule_batch(
                 constraints=global_constraints,
                 options=initial_options,
                 batch_scheduled_finish=batch_finish,
+                activity_resolvers=activity_calendar_resolvers,
             )
 
             selected_demands = tuple(
@@ -368,6 +386,7 @@ def execute_authoritative_schedule_batch(
             constraints=global_constraints,
             options=project_options,
             batch_scheduled_finish=batch_finish,
+            activity_resolvers=activity_calendar_resolvers,
         )
         for snapshot in snapshot_list:
             owned_ids = {activity.id for activity in snapshot.activities}
@@ -454,6 +473,7 @@ def execute_authoritative_schedule_batch(
             constraints=snapshot.constraints,
             options=project_options,
             batch_scheduled_finish=batch_finish,
+            activity_resolvers=activity_calendar_resolvers,
         )
         executions.append(
             AuthoritativeProjectScheduleExecution(
