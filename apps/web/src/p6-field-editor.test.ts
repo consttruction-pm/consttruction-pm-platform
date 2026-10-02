@@ -14,6 +14,7 @@ function field(overrides: Partial<P6Field> = {}): P6Field {
     computed: false,
     disposition: "standard",
     nullable: true,
+    allowed_values: null,
     ...overrides,
   };
 }
@@ -28,6 +29,7 @@ test("maps writable nullable standard fields to an editable typed descriptor", (
     nullable: true,
     computed: false,
     writable: true,
+    allowedValues: null,
   });
 });
 
@@ -61,4 +63,15 @@ test("enum fields do not invent option values before authoritative allowed-value
   assert.equal(descriptor.control, "text");
   assert.equal(descriptor.editable, true);
   assert.equal(descriptor.nullable, false);
+});
+
+
+test("enum fields preserve authoritative allowed values and select control", () => {
+  const descriptor = getP6FieldEditorDescriptor(
+    field({ data_type: "enum", allowed_values: ["A", "B"] }),
+  );
+  assert.equal(descriptor.control, "select");
+  assert.deepEqual(descriptor.allowedValues, ["A", "B"]);
+  descriptor.allowedValues!.push("C");
+  assert.deepEqual(field({ allowed_values: ["A", "B"] }).allowed_values, ["A", "B"]);
 });
