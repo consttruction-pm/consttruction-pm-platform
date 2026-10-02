@@ -86,3 +86,13 @@ def test_remaining_duration_registry_is_derived():
     assert remaining.writable is False
     assert remaining.computed is True
 
+
+
+
+def test_recalculate_resource_costs_is_registered_as_schedule_option() -> None:
+    field = get_field("schedule_options.recalculate_resource_costs")
+    assert field.subject_area == "ScheduleOptions"
+    assert field.p6_field == "RecalculateResourceCosts"
+    assert field.data_type is P6FieldType.BOOLEAN
+    assert field.writable is True
+    assert field.computed is False
