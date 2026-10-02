@@ -709,3 +709,17 @@ Status: **implemented, runtime-verified and merged**
 - Remain at the evidence boundary for Hasan Backend/Database/Application/API/Enterprise Integration.
 - Do not revive stale PRs or implement duplicate multi-project scheduling, CPM, calendar/duration, Resource/Cost, EVM, relationship, float, or external-assignment semantics in Backend/API.
 - When a concrete Hasan-owned dependency or reproducible backend defect is exposed by the authoritative E2E execution, branch from the exact current `main`, add the smallest focused regression, obtain PostgreSQL verification where applicable, and record exact commit/run identifiers here before merge.
+
+
+### 2026-10-02 — Post-PR #786 current-main reconciliation
+
+- Current `main` includes PR #786 with merge commit `98a277a2c292c58529542b21f7ee741a56ae9831`.
+- Exact PR #786 head `fccf0e5881bac5635aaad26cc38dc6b4f2f32496` passed the final ConstructionPM CI run **3190** and Client Typecheck run **2893** before merge.
+- PR #786 reconciled the current Activity evidence-inventory count only; it did not add a Hasan-owned Backend/API/Persistence seam.
+- Fresh open-PR inspection after the merge found no open Hasan-owned Backend/API/Persistence/Import-Export implementation PR. Open P6 Activity evidence work (#787 and related stale evidence PRs) remains Jalal/Shared-Core ownership and is not a Hasan task.
+- Issue #709 therefore remains the audit parent. No concrete new Hasan-owned implementation gap is evidenced at this checkpoint; do not invent or duplicate functionality.
+
+### Current continuation point
+
+- Re-run the Hasan current-main conformance audit when a concrete backend contract, persistence, import/export, authorization, revision/idempotency, or PostgreSQL defect is evidenced.
+- Until then, preserve the ownership/evidence boundary and do not revive stale PRs or duplicate P6 Shared-Core/Activity evidence work.
