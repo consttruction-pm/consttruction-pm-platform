@@ -12,6 +12,7 @@ export type P6FieldEditorDescriptor = {
   nullable: boolean;
   computed: boolean;
   writable: boolean;
+  unit: string | null;
   allowedValues: readonly string[] | null;
 };
 
@@ -40,6 +41,7 @@ export function getP6FieldEditorDescriptor(field: P6Field): P6FieldEditorDescrip
     nullable: field.nullable === true,
     computed: field.computed,
     writable: field.writable,
+    unit: field.unit ?? null,
     allowedValues: field.allowed_values ? [...field.allowed_values] : null,
   };
 }
@@ -54,6 +56,7 @@ export function getP6UdfEditorDescriptor(udf: P6UdfEditorMetadata): P6FieldEdito
     nullable: udf.nullable,
     computed: false,
     writable: udf.writable,
+    unit: udf.unit,
     allowedValues: udf.allowed_values ? [...udf.allowed_values] : null,
   };
 }
