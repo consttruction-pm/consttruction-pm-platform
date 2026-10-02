@@ -152,9 +152,9 @@
       "evidence_class": "typed_project_status_code",
       "shared_seam_present": true,
       "computed": false,
-      "semantic_note": "Canonical Activity Registry mapping now exists on main via merged PR #777: enum, writable=true, computed=false. This matrix records the resolved state and does not duplicate the implementation.",
-      "registry_change": "implemented_in_main_by_PR_777",
-      "certification_status": "implemented_on_main",
+      "semantic_note": "Canonical identity exists on main via #777, but Oracle Integration API marks Activity.StatusCode Read Only while main currently declares writable=true; #781 corrects the mutability metadata.",
+      "registry_change": "implemented_in_main_by_PR_777_mutability_conflict",
+      "certification_status": "implemented_identity_pending_mutability_correction_PR_781",
       "evidence_sources": [
         {
           "type": "oracle_release_26_activity_get",
@@ -176,8 +176,8 @@
       "official_webservices_2025_semantics": null,
       "official_webservices_2025_read_only": true,
       "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
-      "remaining_reconciliation": false,
-      "mutability_review_bucket": "implemented_current_main"
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "oracle_read_only_conflicts_with_current_main_writable_true"
     },
     {
       "p6_field": "SuspendDate",
@@ -994,8 +994,8 @@
     "Oracle Release 26 confirms the Activity schema fields and field-level descriptions for the documented subset; the official P6 Integration API reference fills the semantic descriptions for the remaining REST schema-only fields.",
     "TaskStatus*, ScopePercentComplete, WBSNamePath and WorkPackage* now have official semantic definitions from Oracle Integration API evidence; their current REST mutability/persistence behavior remains a separate gate.",
     "No field identity is promoted into the canonical Activity Registry by this artifact.",
-    "PR #777 merged into main and resolved StatusCode, reducing the governed remaining Activity reconciliation tranche from 29 to 28.",
-    "Baseline refreshed onto current main after FarmJ22002 calendar-test commit 38cdbb46; the commit changes tests only and does not change the P6 Activity registry counts."
+    "Baseline refreshed onto current main after FarmJ22002 calendar-test commit 38cdbb46; the commit changes tests only and does not change the P6 Activity registry counts.",
+    "PR #777 established the StatusCode identity on main, but its writable=true metadata conflicts with Oracle Read Only evidence; PR #781 carries the corrective mutability fix. Until #781 merges, StatusCode remains certification-pending."
   ],
   "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
   "certification_gate": {
@@ -1003,10 +1003,10 @@
     "put_schema_exposed": "confirmed_for_all_29",
     "export_field_exposed": "confirmed_for_all_29",
     "field_level_semantics": "29/29 semantically defined from current Release 26 REST plus official Oracle Integration API evidence",
-    "mutability_current_rest": "pending_for_28_remaining",
-    "persistence": "pending_for_28_remaining",
-    "import_roundtrip": "pending_for_28_remaining",
-    "registry_promotion": "blocked_for_remaining_28; StatusCode already resolved on main",
+    "mutability_current_rest": "StatusCode conflicting; remaining 28 pending",
+    "persistence": "pending_for_29_certification_set",
+    "import_roundtrip": "pending_for_29_certification_set",
+    "registry_promotion": "blocked_for_all_29_until_StatusCode_mutability_conflict_and_remaining_28_field_level_gates_are resolved",
     "second_cpm_engine": "forbidden"
   },
   "semantic_summary": {
@@ -1032,11 +1032,10 @@
     "exact_inventory_matches": 126,
     "inventory_only_count": 149,
     "governed_initial_tranche_count": 29,
-    "resolved_on_main_from_initial_tranche": [
-      "StatusCode"
-    ],
-    "remaining_reconciliation_count": 28,
+    "resolved_on_main_from_initial_tranche": [],
+    "remaining_reconciliation_count": 29,
     "remaining_reconciliation_fields": [
+      "StatusCode",
       "ScopePercentComplete",
       "SecondaryConstraintDate",
       "SecondaryConstraintType",
