@@ -247,7 +247,7 @@ _ROWS = (
     ("activity.baseline3_planned_non_labor_cost","Activity","Baseline3PlannedNonLaborCost","Baseline3 Planned Non Labor Cost","double",False,True,"currency"),
     ("activity.baseline3_planned_non_labor_units","Activity","Baseline3PlannedNonLaborUnits","Baseline3 Planned Non Labor Units","double",False,True,"units"),
     ("activity.baseline3_planned_total_cost","Activity","Baseline3PlannedTotalCost","Baseline3 Planned Total Cost","double",False,True,"currency"),
-    ("activity.baseline3_start_date","Activity","Baseline3StartDate","Baseline3 Start Date","date",False,True,None),
+    ("activity.baseline3_start_date","Activity","Baseline3StartDate","Baseline3 Start Date","datetime",False,True,None),
     ("activity.external_early_start_date","Activity","ExternalEarlyStartDate","External Early Start Date","date",False,True,None),
     ("activity.external_late_finish_date","Activity","ExternalLateFinishDate","External Late Finish Date","date",False,True,None),
     ("activity.feedback","Activity","Feedback","Feedback","string",True,False,None),
