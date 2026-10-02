@@ -35,7 +35,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "SecondaryConstraintDate",
@@ -61,7 +62,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "SecondaryConstraintType",
@@ -87,7 +89,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "Status",
@@ -113,7 +116,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "StatusCode",
@@ -139,7 +143,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "SuspendDate",
@@ -165,7 +170,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TaskStatusCompletion",
@@ -191,7 +197,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TaskStatusDates",
@@ -217,7 +224,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TaskStatusIndicator",
@@ -243,7 +251,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "ToCompletePerformanceIndex",
@@ -269,7 +278,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalCost1Variance",
@@ -295,7 +305,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalCost2Variance",
@@ -321,7 +332,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalCost3Variance",
@@ -347,7 +359,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalCostVariance",
@@ -373,7 +386,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodExpenseCost",
@@ -399,7 +413,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodLaborCost",
@@ -425,7 +440,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodLaborUnits",
@@ -451,7 +467,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodMaterialCost",
@@ -477,7 +494,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborCost",
@@ -503,7 +521,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "TotalPastPeriodNonLaborUnits",
@@ -529,7 +548,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "Type",
@@ -555,7 +575,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "UnitsPercentComplete",
@@ -581,7 +602,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "UnreadCommentCount",
@@ -607,7 +629,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WBSCode",
@@ -633,7 +656,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WBSName",
@@ -659,7 +683,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WBSNamePath",
@@ -685,7 +710,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WBSObjectId",
@@ -711,7 +737,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WorkPackageId",
@@ -737,7 +764,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     },
     {
       "p6_field": "WorkPackageName",
@@ -763,7 +791,8 @@
         }
       ],
       "get_schema_exposed": true,
-      "put_schema_exposed": true
+      "put_schema_exposed": true,
+      "export_field_exposed": true
     }
   ],
   "notes": [
@@ -771,13 +800,14 @@
     "TaskStatus* remain semantically uncertified because the current Oracle Release 26 field descriptions do not define their calculation or persistence behavior.",
     "No field identity is promoted into the canonical Activity Registry by this artifact."
   ],
-  "evidence_policy": "Every field points to the three authoritative Release 26 endpoints used for the semantic pass; absence of a field description is preserved as an explicit evidence limitation.",
+  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Exposure is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
   "certification_gate": {
-    "get_schema_exposed": "confirmed",
-    "put_schema_exposed": "confirmed",
-    "export_mapping": "pending_field_level_confirmation",
+    "get_schema_exposed": "confirmed_for_all_29",
+    "put_schema_exposed": "confirmed_for_all_29",
+    "export_field_exposed": "confirmed_for_all_29",
+    "export_mapping": "name-level exposure confirmed; canonical import/export semantics pending",
     "persistence_and_mutability": "pending_field_level_confirmation",
-    "registry_promotion": "blocked_until_all_field_level_gates_pass",
+    "registry_promotion": "blocked_until_field_level_gates_pass",
     "second_cpm_engine": "forbidden"
   }
 }
