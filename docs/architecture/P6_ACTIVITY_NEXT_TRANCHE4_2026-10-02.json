@@ -10,7 +10,7 @@
     "activity_create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
   },
   "baseline": {
-    "base_main_sha": "b5dd8448bfdb9efc8d6d8f5c80602a91b795d599",
+    "base_main_sha": "87a443ffd3852cb0576dd7a05e8f9f131da65a5c",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
