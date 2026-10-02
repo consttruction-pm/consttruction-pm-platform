@@ -30,6 +30,38 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
     assert len(names) == 29
     assert len(set(names)) == 29
     assert set(names).issubset(inventory_names)
+    expected = {
+        "ScopePercentComplete",
+        "SecondaryConstraintDate",
+        "SecondaryConstraintType",
+        "Status",
+        "StatusCode",
+        "SuspendDate",
+        "TaskStatusCompletion",
+        "TaskStatusDates",
+        "TaskStatusIndicator",
+        "ToCompletePerformanceIndex",
+        "TotalCost1Variance",
+        "TotalCost2Variance",
+        "TotalCost3Variance",
+        "TotalCostVariance",
+        "TotalPastPeriodExpenseCost",
+        "TotalPastPeriodLaborCost",
+        "TotalPastPeriodLaborUnits",
+        "TotalPastPeriodMaterialCost",
+        "TotalPastPeriodNonLaborCost",
+        "TotalPastPeriodNonLaborUnits",
+        "Type",
+        "UnitsPercentComplete",
+        "UnreadCommentCount",
+        "WBSCode",
+        "WBSName",
+        "WBSNamePath",
+        "WBSObjectId",
+        "WorkPackageId",
+        "WorkPackageName",
+    }
+    assert set(names) == expected
     assert set(names).isdisjoint(registry_names)
     assert all(item["registry_change"] == "none" for item in data["fields"])
     assert all(item["certification_status"] == "pending" for item in data["fields"])
