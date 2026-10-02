@@ -16,6 +16,7 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
+from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
 
 
 class Clock(Protocol):
@@ -132,6 +133,39 @@ class ProjectLifecycleHttpRoutes:
                     "registry_version": registry_version,
                     "udfs": [item["udf"] for item in udfs],
                 })
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
+                if self._p6_layout_definition_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, layout_path = path.split("/p6/layouts/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or "/" in layout_path:
+                    return self._error(400, "P6_LAYOUT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                payload = json.loads(body.decode("utf-8") or "{}")
+                layout_scope = str(payload.get("scope", ""))
+                view_id = str(payload.get("view_id", ""))
+                revision = int(payload.get("revision", 0))
+                columns = tuple(LayoutColumn(**item) for item in payload.get("columns", []))
+                metadata = payload.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    return self._error(400, "INVALID_LAYOUT_METADATA", "error.request.invalid")
+                layout = PersistedP6Layout(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    layout_scope,
+                    view_id,
+                    revision,
+                    columns,
+                    metadata,
+                )
+                result = self._p6_layout_definition_api.save(layout, auth_context=auth)
+                return self._json(200, result["layout"])
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
