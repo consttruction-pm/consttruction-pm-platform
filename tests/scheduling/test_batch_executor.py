@@ -256,6 +256,36 @@ def test_case_6_combined_boundary_is_deterministic():
     assert [item.resource_id for item in first.selected_resource_demands["P1"]] == ["R1", "R2"]
 
 
+def test_duplicate_snapshot_identity_fails_before_graph_construction():
+    first = snapshot("P1", finish=date(2026, 10, 10))
+    duplicate = snapshot("P2", finish=date(2026, 10, 20))
+    duplicate = AuthoritativeScheduleInput(
+        snapshot_id=first.snapshot_id,
+        tenant_id=duplicate.tenant_id,
+        project_id=duplicate.project_id,
+        project_revision=duplicate.project_revision,
+        mode=duplicate.mode,
+        project_calendar=duplicate.project_calendar,
+        activities=duplicate.activities,
+        relationships=duplicate.relationships,
+        activity_calendar_assignments=duplicate.activity_calendar_assignments,
+        schedule_options=duplicate.schedule_options,
+        project_start=duplicate.project_start,
+        project_finish=duplicate.project_finish,
+        constraints=duplicate.constraints,
+        project_leveling_priority=duplicate.project_leveling_priority,
+    )
+    with pytest.raises(
+        BatchScheduleEvaluationError,
+        match="DUPLICATE_SNAPSHOT_ID",
+    ):
+        execute_authoritative_schedule_batch(
+            (first, duplicate),
+            registry(),
+            calculate_based_on_project_finish=False,
+        )
+
+
 def test_case_7_unsupported_batch_resource_leveling_fails_explicitly():
     options = ScheduleOptions(level_all_resources=True)
     with pytest.raises(
