@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 
 import pytest
@@ -133,3 +134,59 @@ def test_postgres_field_registry_persists_typed_metadata_and_scope(connection):
             "p6-field-registry.v1",
             "activity.activity_id",
         )
+
+
+def test_postgres_baseline_concurrent_writers_report_conflict(postgres_dsn):
+    scope = _scope()
+    first = P6Baseline(
+        scope, "baseline-race", "Writer 1", "PRIMARY", 3,
+        "2026-10-02T10:00:00Z", "writer-1",
+    )
+    second = P6Baseline(
+        scope, "baseline-race", "Writer 2", "PRIMARY", 3,
+        "2026-10-02T10:00:00Z", "writer-2",
+    )
+
+    setup = psycopg.connect(postgres_dsn)
+    conn1 = psycopg.connect(postgres_dsn)
+    conn2 = psycopg.connect(postgres_dsn)
+    try:
+        PostgresP6BaselineRepository(setup).initialize()
+        setup.commit()
+
+        start = threading.Barrier(2)
+        outcomes: list[str] = []
+        errors: list[BaseException] = []
+        lock = threading.Lock()
+
+        def writer(conn, item) -> None:
+            try:
+                with conn.transaction():
+                    start.wait(timeout=5)
+                    PostgresP6BaselineRepository(conn).upsert(item)
+                with lock:
+                    outcomes.append("committed")
+            except BaseException as exc:
+                with lock:
+                    errors.append(exc)
+
+        t1 = threading.Thread(target=writer, args=(conn1, first))
+        t2 = threading.Thread(target=writer, args=(conn2, second))
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        assert not t1.is_alive()
+        assert not t2.is_alive()
+        assert outcomes.count("committed") == 1
+        assert len(errors) == 1
+        assert isinstance(errors[0], P6BaselinePersistenceError)
+        assert str(errors[0]) == "IMMUTABLE_BASELINE"
+    finally:
+        conn1.rollback()
+        conn2.rollback()
+        setup.rollback()
+        conn1.close()
+        conn2.close()
+        setup.close()
