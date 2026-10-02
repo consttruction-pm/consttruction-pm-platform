@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "title": "P6 Activity Final 29 Reconciliation Matrix (28 Remaining)",
+  "title": "P6 Activity Final 29 Reconciliation Matrix (29 Certification Set)",
   "effective_date": "2026-10-02",
   "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
   "source_urls": {
@@ -9,7 +9,7 @@
     "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
   },
   "rule": "This matrix records semantic evidence only. It does not promote Registry identity, does not certify field mutability unless explicitly evidenced, and does not introduce a second calculation engine.",
-  "status": "29_field_semantics_defined_current_rest_plus_official_integration_api_28_remaining_certification_pending",
+  "status": "29_field_semantics_defined_current_rest_plus_official_integration_api_29_certification_pending",
   "fields": [
     {
       "p6_field": "ScopePercentComplete",
@@ -1017,7 +1017,7 @@
     "put_schema_exposed": "confirmed_for_all_29",
     "export_field_exposed": "confirmed_for_all_29",
     "field_level_semantics": "29/29 semantically defined from current Release 26 REST plus official Oracle Integration API evidence",
-    "mutability_current_rest": "StatusCode conflicting; remaining 28 pending",
+    "mutability_current_rest": "StatusCode identity implemented on main but mutability conflicts with current REST/Web Services Read Only evidence; #781 corrects writable=false/read_only=true. Remaining 28 require field-level mutability evidence.",
     "persistence": "pending_for_29_certification_set",
     "import_roundtrip": "pending_for_29_certification_set",
     "registry_promotion": "blocked_for_all_29_until_StatusCode_mutability_conflict_and_remaining_28_field_level_gates_are resolved",
@@ -1040,7 +1040,7 @@
     ]
   },
   "baseline": {
-    "main_sha": "73ea4cb48bd32554f844c519eb7917531f020d82",
+    "main_sha": "87a443ffd3852cb0576dd7a05e8f9f131da65a5c",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
@@ -1087,7 +1087,7 @@
     "remaining_28_excluding_status_code": 28,
     "read_only_supporting_evidence_count": 9,
     "writability_unconfirmed_count": 19,
-    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services metadata is supporting evidence only; current Release 26 REST mutability must be confirmed before final certification.",
+    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services and Gateway Data Dictionary metadata are supporting evidence only; current Release 26 REST mutability must be reconciled before final certification.",
     "gateway_supporting_non_readonly_fields": [
       "ScopePercentComplete",
       "SecondaryConstraintDate",
