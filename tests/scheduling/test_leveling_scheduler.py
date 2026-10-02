@@ -250,3 +250,33 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
     assert len(forward) == 2
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
+
+
+def test_schedule_options_priority_list_maps_into_leveling_boundary() -> None:
+    from construction_pm.scheduling.leveling_boundary import (
+        scheduler_leveling_input_from_options,
+    )
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+        ScheduleOptions,
+    )
+
+    base = _resource_leveling_input(preserve=True)
+    mapped = scheduler_leveling_input_from_options(
+        forward_activities=base.forward_activities,
+        backward_activities=base.backward_activities,
+        capacities=base.capacities,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            priority_list=(
+                PriorityListItem("Total Float", PrioritySortOrder.DESCENDING),
+                PriorityListItem("Activity ID", PrioritySortOrder.ASCENDING),
+            ),
+        ),
+    )
+
+    assert [(item.field_name, item.sort_order.value) for item in mapped.options.priorities] == [
+        ("total_float", "DESCENDING"),
+        ("activity_id", "ASCENDING"),
+    ]
