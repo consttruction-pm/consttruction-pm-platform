@@ -742,3 +742,13 @@ Status: **implemented, runtime-verified and merged**
 - Searches for backend/domain WBS and WorkPackage contracts, persistence, API, and mapping returned no additional implementation surface. Therefore no Hasan-owned backend seam can be safely derived from the presentation layer.
 - Issue #713 identifies the remaining Release 26 Activity semantic reconciliation as Jalal / Shared Core ownership. Tranche 4 fields including `WBSCode`, `WBSName`, `WBSNamePath`, `WBSObjectId`, `WorkPackageId`, and `WorkPackageName` remain pending certification rather than registry promotion.
 - Disposition: Blocked at the evidence boundary. Do not invent a WBS/WorkPackage mapper or persistence/API semantics under Hasan ownership. The next executable step is authoritative field-level WBS/WorkPackage mapping/certification from Shared Core; once that contract exists, Hasan can implement only the resulting concrete backend persistence/API seam.
+
+
+### 2026-10-02 — Status/Type/StatusCode persistence gate rechecked
+
+- Current main was rechecked against the Activity Status/Type/StatusCode seam.
+- `src/construction_pm/activity_master_repository.py` is the authoritative Activity Master persistence surface, but its persisted model currently contains only activity_id, duration, duration_unit, actual_start, record_revision and expected_finish; it has no Status, Type or StatusCode columns or fields.
+- `src/construction_pm/scheduling/activity.py` contains canonical typed `ActivityStatus`, `ActivityType` and `ActivityStatusCode` values and P6 wire-value validation, but this is Shared Scheduling/Core semantics rather than persistence.
+- `docs/architecture/P6_ACTIVITY_STATUS_TYPE_WRITE_EVIDENCE_2026-10-02.json` explicitly records that Status and Type persistence mapping is not certified and requires an authoritative persisted P6 mapping definition before changing ActivityMaster or adding an interchange mapping.
+- `src/construction_pm/p6_interchange_mapping.py` is deliberately registry-driven; it cannot establish a Status/Type/StatusCode mapping by itself. Repository code search found no certified Activity Status/Type/StatusCode mapping definition on current main.
+- Disposition: no Hasan implementation is authorized at this gate. The actual dependency is a certified persisted/interchange mapping definition for the exact P6 Activity fields. Once supplied by the semantic authority, the smallest resulting persistence/API seam can be implemented with focused PostgreSQL regression coverage.
