@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import type { FieldRegistry } from "./p6-field-layout-foundation.js";
 import {
   WORKSPACE_CONTROL_ROOM_READ_PATH,
   WORKSPACE_CONTROL_ROOM_READ_VERSION,
@@ -93,12 +94,26 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
 class StubTransport implements ApiTransport {
   public path = "";
   public context: ProjectContext | null = null;
+  public registryPath = "";
 
   constructor(private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>) {}
 
   async get<T>(path: string, contextValue: ProjectContext): Promise<ApiResult<T>> {
-    this.path = path;
     this.context = contextValue;
+    if (path.includes("/p6/fields/")) {
+      this.registryPath = path;
+      return {
+        ok: true,
+        data: {
+          registry_version: "p6-field-registry.v1",
+          reference_product: "Oracle Primavera P6 Professional",
+          reference_version: "test",
+          status: "seeded_not_certified",
+          fields: [],
+        } as FieldRegistry,
+      } as ApiResult<T>;
+    }
+    this.path = path;
     return this.result as ApiResult<T>;
   }
 
@@ -122,7 +137,9 @@ test("workspace read client hydrates the control room and field issue projection
   assert.equal(result.data.direction, "rtl");
   assert.equal(result.data.calendarMode, "jalali");
   assert.equal(transport.path, WORKSPACE_CONTROL_ROOM_READ_PATH);
+  assert.equal(transport.registryPath, "/api/projects/project-1/p6/fields/p6-field-registry.v1");
   assert.deepEqual(transport.context, context);
+  assert.equal(result.data.p6FieldRegistry?.status, "seeded_not_certified");
 });
 
 test("workspace read client preserves API errors without masking them", async () => {
