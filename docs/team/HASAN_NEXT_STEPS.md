@@ -798,3 +798,13 @@ Status: **implemented, runtime-verified and merged**
 - Remain at the evidence boundary under #393 until a new authoritative contract dependency or reproducible Backend/Database/Application/API/Import-Export defect appears.
 - Do not duplicate P6 layout HTTP/API, PostgreSQL concurrency, field/UDF, baseline, financial-period, mapping/interchange, resource-period, activity-period-actual, or Shared Core scheduling/calendar/formula semantics.
 - Next executable action: fresh current-main audit when new evidence appears; if a concrete Hasan-owned gap is found, branch from the exact current `main`, add focused regression coverage and PostgreSQL verification where applicable, then update this checkpoint before merge.
+
+
+### 2026-10-03 — Post-PR #826 fresh #393 evidence audit
+
+- Current main at audit start: `33b691ef53611e6c2d3ed64c56330842bcd0af92`.
+- PR #826 (PostgreSQL verification for Financial Period, Baseline, and Formula Definition repositories) is already represented in current main; no duplicate verification was created.
+- Current-main P6 persistence inventory was rechecked for remaining PostgreSQL-backed repositories, including Code, Code Assignment, Cost Account, Expense, Report Profile, and Activity Period Actual. Existing live/integration tests already cover round-trip, scope/revision, rollback and/or concurrency for these repositories.
+- ScheduleOptions was rechecked against the authoritative Release 26 disposition artifact. The current Shared Core type and registry contain the documented fields, but the architecture document still marks the formal time-aware schedule-options contract as a remaining gate. Therefore no Hasan-owned Backend/API contract was invented from the Shared Core type alone.
+- Disposition: evidence boundary. No new reproducible Hasan-owned Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam was proven in this audit.
+- Next executable action: re-audit current main when new authoritative evidence appears. If a concrete seam appears, branch from that exact main, add the smallest focused regression and PostgreSQL verification where applicable, then record exact commit/CI/merge identifiers here.
