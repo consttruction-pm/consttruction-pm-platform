@@ -9,7 +9,7 @@
     "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
   },
   "rule": "This matrix records semantic evidence only. It does not promote Registry identity, does not certify field mutability unless explicitly evidenced, and does not introduce a second calculation engine.",
-  "status": "evidence_consolidated_pending_field_level_certification",
+  "status": "evidence_consolidated_with_task_status_type_confirmation_pending_field_level_certification",
   "fields": [
     {
       "p6_field": "ScopePercentComplete",
@@ -74,30 +74,30 @@
     {
       "p6_field": "TaskStatusCompletion",
       "oracle_type": "string",
-      "evidence_class": "unresolved_schema_only",
+      "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "REST schema exposes a string field without a field-level description in the current evidence pass.",
+      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
       "certification_status": "pending"
     },
     {
       "p6_field": "TaskStatusDates",
       "oracle_type": "string",
-      "evidence_class": "unresolved_schema_only",
+      "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "REST schema exposes a string field without a field-level description in the current evidence pass.",
+      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
       "certification_status": "pending"
     },
     {
       "p6_field": "TaskStatusIndicator",
       "oracle_type": "boolean",
-      "evidence_class": "unresolved_schema_only",
+      "evidence_class": "task_status_integration_field",
       "shared_seam_present": false,
       "computed": false,
-      "semantic_note": "REST schema exposes a boolean field without a field-level description in the current evidence pass.",
+      "semantic_note": "Official Activity field and type exposed by Oracle; Oracle does not publish a field-level calculation or business-rule description in Release 26, so no calculation or write semantics are inferred.",
       "registry_change": "none",
       "certification_status": "pending"
     },
@@ -301,5 +301,10 @@
       "registry_change": "none",
       "certification_status": "pending"
     }
+  ],
+  "notes": [
+    "Oracle Release 26 confirms Status, StatusCode, SuspendDate, TCPI, TotalCost*Variance, Type, UnitsPercentComplete, WBS fields and the three TaskStatus* field types.",
+    "TaskStatus* remain semantically uncertified because the current Oracle Release 26 field descriptions do not define their calculation or persistence behavior.",
+    "No field identity is promoted into the canonical Activity Registry by this artifact."
   ]
 }
