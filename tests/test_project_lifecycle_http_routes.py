@@ -10,10 +10,14 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-from construction_pm.p6_field_registry import get_field
+from construction_pm.p6_field_registry import get_field, P6FieldType
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import P6FieldRegistryApplicationService, SQLiteP6FieldRegistryRepository
-from construction_pm.p6_user_defined_fields_repository import P6UserDefinedFieldApplicationService, SQLiteP6UserDefinedFieldRepository
+from construction_pm.p6_user_defined_fields_repository import (
+    P6UserDefinedFieldApplicationService,
+    P6UserDefinedFieldDefinition,
+    SQLiteP6UserDefinedFieldRepository,
+)
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_layout_definition_repository import LayoutColumn, PersistedP6Layout, SQLiteP6LayoutRepository
 
@@ -158,3 +162,59 @@ def test_p6_layout_route_returns_not_found_for_missing_layout():
     status, _, body = r.handle("GET", "/api/projects/p1/p6/layouts/project/missing", cookies={"cp_session": "s1"})
     assert status == 404
     assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
+
+def test_p6_udf_route_requires_session_cookie():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/udfs/p6-field-registry.v1")
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
+def test_p6_udf_route_returns_authoritative_allowed_values():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_udf(
+        P6UserDefinedFieldDefinition(
+            scope=scope,
+            registry_version="p6-field-registry.v1",
+            udf_id="activity.status",
+            subject_area="Activity",
+            display_name="Status",
+            data_type=P6FieldType.ENUM,
+            writable=True,
+            nullable=False,
+            unit=None,
+            allowed_values=("Planned", "In Progress", "Complete"),
+        ),
+        auth_context=auth,
+    )
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["registry_version"] == "p6-field-registry.v1"
+    assert payload["udfs"] == [{
+        "udf_id": "activity.status",
+        "subject_area": "Activity",
+        "display_name": "Status",
+        "data_type": "enum",
+        "writable": True,
+        "nullable": False,
+        "unit": None,
+        "allowed_values": ["Planned", "In Progress", "Complete"],
+    }]
+
+
+def test_p6_udf_route_rejects_cross_scope_project_context():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p2/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
