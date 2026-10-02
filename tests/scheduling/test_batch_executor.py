@@ -52,8 +52,16 @@ def snapshot(project_id: str, *, finish: date, options: ScheduleOptions | None =
 
 def test_case_1_relationship_boundary_is_authoritative():
     snapshots = (
-        snapshot("P1", finish=date(2026, 10, 10)),
-        snapshot("P2", finish=date(2026, 10, 20)),
+        snapshot(
+            "P1",
+            finish=date(2026, 10, 10),
+            options=ScheduleOptions(ignore_other_project_relationships=True),
+        ),
+        snapshot(
+            "P2",
+            finish=date(2026, 10, 20),
+            options=ScheduleOptions(ignore_other_project_relationships=True),
+        ),
     )
     external = Relationship("P1-A", "P2-A", RelationshipType.FS)
 
