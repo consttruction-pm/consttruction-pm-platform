@@ -28,7 +28,7 @@ function transport(): ApiTransport {
               disposition: "implemented",
             }],
           },
-        } as { ok: true; data: TResponse };
+        } as { ok: true; data: any };
       }
       return {
         ok: false,
