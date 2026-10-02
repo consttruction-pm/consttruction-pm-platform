@@ -1,4 +1,4 @@
-from construction_pm.p6_field_registry import P6FieldType, get_field
+from construction_pm.p6_field_registry import P6FieldType, field_catalog
 
 
 EXPECTED = {
@@ -29,7 +29,7 @@ def test_release26_activity_tranche_20_is_typed_and_non_duplicated():
     for p6_field, (data_type, writable, computed) in EXPECTED.items():
         matches = [
             field
-            for field in __import__("construction_pm.p6_field_registry", fromlist=["field_catalog"]).field_catalog()
+            for field in field_catalog()
             if field.subject_area == "Activity" and field.p6_field == p6_field
         ]
         assert len(matches) == 1, p6_field
@@ -44,7 +44,7 @@ def test_release26_activity_tranche_20_cannot_create_writable_computed_fields():
     for p6_field in EXPECTED:
         field = next(
             field
-            for field in __import__("construction_pm.p6_field_registry", fromlist=["field_catalog"]).field_catalog()
+            for field in field_catalog()
             if field.subject_area == "Activity" and field.p6_field == p6_field
         )
         assert not (field.writable and field.computed)
