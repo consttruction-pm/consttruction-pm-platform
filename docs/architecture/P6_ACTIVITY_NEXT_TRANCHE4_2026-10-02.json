@@ -544,9 +544,25 @@
       "TotalCost1Variance": "Primary-baseline total-cost variance is documented as a computed value.",
       "TotalCost2Variance": "Secondary-baseline total-cost variance is documented as a computed value.",
       "TotalCost3Variance": "Tertiary-baseline total-cost variance is documented as a computed value.",
-      "TotalCostVariance": "Project-baseline total-cost variance is documented as a computed value."
+      "TotalCostVariance": "Project-baseline total-cost variance is documented as a computed value.",
+      "ScopePercentComplete": "Release 26 Activity schema exposes this as number (double), but the endpoint text supplies no field description; semantic use remains schema-only pending further field-level evidence.",
+      "UnitsPercentComplete": "The percentage of units for labor and nonlabor resources assigned to the activity; Oracle documents it as computed as actual units / at-completion units * 100.",
+      "UnreadCommentCount": "The number of Team Member Discussion comments associated with the Activity that have not yet been read.",
+      "WBSCode": "The short code assigned to each WBS element; Oracle documents parent-code concatenation for WBS identification.",
+      "WBSName": "The name of the WBS element.",
+      "WBSNamePath": "The activity's WBS name path is exposed as a string field.",
+      "WBSObjectId": "The unique ID of the WBS for the activity; ProjectObjectId and WBSObjectId are required in the Activity schema.",
+      "WorkPackageId": "The Work Package identifier is exposed as a string field.",
+      "WorkPackageName": "The Work Package name is exposed as a string field.",
+      "Type": "The Activity Type field is exposed as a string; type-specific scheduling semantics require field-level mapping evidence before canonical implementation."
     },
     "certification_effect": "This current Oracle check strengthens field-level semantic evidence, but does not by itself certify internal persistence mapping, defaults/nullability, filtering/orderability, or import/export behavior. Those remain pending until repository-side evidence exists.",
-    "non_regression_rule": "No field is promoted to the canonical Activity Registry solely from REST schema exposure or name similarity."
+    "non_regression_rule": "No field is promoted to the canonical Activity Registry solely from REST schema exposure or name similarity.",
+    "additional_source_evidence": [
+      "Oracle Release 26 Activity GET documents UnitsPercentComplete as a computed percentage of assigned labor/nonlabor units.",
+      "Oracle Release 26 Activity GET documents UnreadCommentCount as the count of unread Team Member Discussion comments.",
+      "Oracle Release 26 Activity GET documents WBSCode, WBSName, WBSNamePath, WBSObjectId, WorkPackageId and WorkPackageName in the Activity schema.",
+      "Oracle Release 26 Activity schema requires ProjectObjectId and WBSObjectId."
+    ]
   }
 }
