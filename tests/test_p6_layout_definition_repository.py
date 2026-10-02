@@ -42,3 +42,35 @@ def test_layout_rejects_non_normalized_columns():
         (LayoutColumn("activity_id", True, 4, None, 120, "start", False, False),), bad.metadata)
     with pytest.raises(P6LayoutPersistenceError, match="NON_NORMALIZED_LAYOUT"):
         bad.validate()
+
+
+class _FakePostgresConnection:
+    def __init__(self, row):
+        self.row = row
+
+    def execute(self, query, params):
+        class Result:
+            def __init__(self, row):
+                self.row = row
+
+            def fetchone(self):
+                return self.row
+
+        return Result(self.row)
+
+
+def test_postgres_layout_get_decodes_without_project_revision_as_layout_revision():
+    from construction_pm.p6_layout_definition_repository import PostgresP6LayoutRepository
+
+    value = layout()
+    columns_json = '[{"alignment":"start","field_id":"activity_id","frozen":false,"label":null,"order":0,"pinned":false,"visible":true,"width":120}]'
+    metadata_json = '{"future":{"enabled":true}}'
+    connection = _FakePostgresConnection(
+        (value.scope.project_revision, value.revision, columns_json, metadata_json)
+    )
+
+    loaded = PostgresP6LayoutRepository(connection).get(
+        value.scope, value.layout_scope, value.view_id
+    )
+
+    assert loaded == value
