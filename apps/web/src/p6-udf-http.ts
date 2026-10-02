@@ -33,7 +33,7 @@ export async function fetchP6ActivityUdfs(
   }
 
   const payload = await response.json();
-  if (!isP6UdfHttpResponse(payload)) {
+  if (!isP6UdfHttpResponse(payload) || payload.registry_version !== registryVersion) {
     throw new Error("P6_UDF_RESPONSE_INVALID");
   }
   return payload;
