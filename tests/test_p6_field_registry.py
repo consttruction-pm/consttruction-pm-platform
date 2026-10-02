@@ -85,3 +85,4 @@ def test_remaining_duration_registry_is_derived():
     remaining = get_field("activity.remaining_duration")
     assert remaining.writable is False
     assert remaining.computed is True
+
