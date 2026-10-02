@@ -427,11 +427,29 @@
   "repository_mapping_review": {
     "checked_on": "2026-10-02",
     "activity_model": "src/construction_pm/scheduling/activity.py",
-    "confirmed_internal_semantics": ["ActivityStatus", "ActivityType", "ActivityStatusCode", "PercentCompleteType"],
-    "registry_already_contains": ["ActivityStatus", "ActivityType", "StatusCode", "PercentCompleteType", "PhysicalPercentComplete", "WBSCode", "WBSName"],
-    "remaining_gap": "No repository-side Activity serializer/import/export mapper was found for the remaining Tranche 4 fields. P6FieldRegistryAPI exposes registry metadata but does not itself serialize or persist Activity field values.",
-    "constraint_gap": "The scheduling core has primary constraint concepts, but no verified SecondaryConstraint model or SuspendDate/TaskStatus/WorkPackage persistence model was found. These fields therefore remain uncertified.",
-    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Continue reconciliation only where an authoritative repository mapping and regression path can be demonstrated."
+    "confirmed_internal_semantics": [
+      "ActivityStatus",
+      "ActivityType",
+      "ActivityStatusCode",
+      "PercentCompleteType"
+    ],
+    "registry_already_contains": [
+      "ActivityStatus",
+      "ActivityType",
+      "StatusCode",
+      "PercentCompleteType",
+      "PhysicalPercentComplete",
+      "WBSCode",
+      "WBSName"
+    ],
+    "remaining_gap": "No repository-side Activity serializer/import/export mapper is currently certified for the remaining tranche fields. P6FieldRegistryAPI exposes metadata but does not itself serialize or persist Activity field values.",
+    "constraint_gap": "SecondaryConstraint boundary now exists on active PR #779 (rebased target required); SuspendDate has validated Shared Core semantics in #774; TaskStatus and WorkPackage persistence remain uncertified and require authoritative repository mapping evidence.",
+    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Treat #779 as the active SecondaryConstraint implementation candidate, keep SuspendDate evidence separate, and continue field-level reconciliation only where an authoritative repository mapping and regression path can be demonstrated.",
+    "active_candidates": [
+      "#779 SecondaryConstraint boundary",
+      "#774 SuspendDate semantics",
+      "#775 RecalculateResourceCosts"
+    ]
   },
   "oracle_write_evidence": {
     "source": "P6 EPPM REST API Release 26 - Update Activities",
