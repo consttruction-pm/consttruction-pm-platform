@@ -75,8 +75,7 @@ export class CachedWorkspaceReadClient {
 function assertSameProjectContext(expected: ProjectContext, actual: ProjectContext): void {
   if (
     expected.tenant_id !== actual.tenant_id ||
-    expected.project_id !== actual.project_id ||
-    false
+    expected.project_id !== actual.project_id
   ) {
     throw new Error("WORKSPACE_CACHE_CONTEXT_MISMATCH");
   }
