@@ -71,7 +71,7 @@ def execute_authoritative_schedule_batch(
 
     batch = AuthoritativeScheduleBatch.from_snapshots(
         snapshot_list,
-        calculate_based_on_project_finish=not all(
+        calculate_based_on_project_finish=all(
             snapshot.schedule_options.calculate_float_based_on_finish_date
             for snapshot in snapshot_list
         ),
