@@ -1031,3 +1031,11 @@ Status: **implemented, merged and runtime-verified**
 - PRs #702/#703/#704/#705/#706 were stale/conflicting evidence tranches after current-main movement; they were closed and are not counted as completed work.
 - Fresh Jalal consolidation task: **Issue #711**. It must port only unique valid fields from those tranches onto current main, recalculate parity/gap evidence, and pass the full verification gate.
 - Client PRs #708/#710 are not counted until rebased/reconciled to the post-#701 current main and fully verified.
+
+
+### 2026-10-02 — Hasan post-#786 evidence checkpoint
+- Current `main` after PR #786: `98a277a2c292c58529542b21f7ee741a56ae9831`.
+- PR #786 was merged only after exact-head ConstructionPM CI **3190** and Client Typecheck **2893** passed.
+- The merged change is Activity evidence-inventory reconciliation and does not establish a new Hasan-owned Backend/API/Persistence gap.
+- Fresh open-PR inspection found no open Hasan-owned Backend/API/Persistence/Import-Export implementation PR. Activity evidence PR #787 is Jalal/Shared-Core ownership.
+- Hasan remains at the evidence boundary under issue #709; no new backend feature is authorized without a concrete current-main contract/persistence/integration gap.
