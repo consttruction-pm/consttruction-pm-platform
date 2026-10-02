@@ -29,6 +29,10 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     write=data["oracle_write_evidence"]
     assert write["endpoint_method"]=="PUT /activity"
     assert write["endpoint_request_schema"]=="List<Activity>"
+    assert data["source_urls"]["activity_create"].endswith("/op-activity-post.html")
+    assert write["create_endpoint_method"]=="POST /activity"
+    assert write["create_endpoint_request_schema"]=="List<Activity>"
+    assert set(write["create_required_fields"])=={"ProjectObjectId","WBSObjectId"}
     assert write["schema_exposure_interpretation"].startswith("The Release 26 PUT endpoint")
     assert write["field_level_write_behavior"]=="pending_for_all_29"
     assert set(write["still_requires_field_level_write_behavior"])==names
