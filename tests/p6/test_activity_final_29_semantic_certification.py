@@ -170,7 +170,7 @@ def test_official_webservices_supporting_evidence_is_explicit():
         "WBSNamePath",
     }
     assert (
-        data["semantic_summary"]["release26_schema_only_fields"]
+        data["semantic_summary"]["release26_rest_schema_only_fields"]
         == [
             "ScopePercentComplete",
             "TaskStatusCompletion",
