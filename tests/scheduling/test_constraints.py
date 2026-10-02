@@ -304,3 +304,35 @@ def test_p6_lower_bound_can_create_negative_total_float_and_criticality(resolver
     assert result.late_activities["A"].start == date(2026, 9, 22)
     assert result.floats["A"].total_float == -3
     assert result.floats["A"].critical is True
+
+
+
+def test_secondary_constraint_maps_supported_p6_values():
+    primary = ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 21))
+    assert resolve_secondary_constraint(
+        primary=primary,
+        secondary=ActivitySecondaryConstraint("A", SecondaryConstraintType.START_ON_OR_BEFORE, date(2026, 9, 23)),
+    ).type is ConstraintType.START_NO_LATER_THAN
+    assert resolve_secondary_constraint(
+        primary=primary,
+        secondary=ActivitySecondaryConstraint("A", SecondaryConstraintType.START_ON_OR_AFTER, date(2026, 9, 23)),
+    ).type is ConstraintType.START_NO_EARLIER_THAN
+
+
+def test_secondary_constraint_rejects_unsupported_or_mismatched_values():
+    primary = ActivityConstraint("A", ConstraintType.MANDATORY_START, date(2026, 9, 21))
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(
+            primary=primary,
+            secondary=ActivitySecondaryConstraint("A", SecondaryConstraintType.START_ON, date(2026, 9, 23)),
+        )
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(
+            primary=primary,
+            secondary=ActivitySecondaryConstraint("B", SecondaryConstraintType.START_ON_OR_BEFORE, date(2026, 9, 23)),
+        )
+    with pytest.raises(SecondaryConstraintError):
+        resolve_secondary_constraint(
+            primary=None,
+            secondary=ActivitySecondaryConstraint("A", SecondaryConstraintType.START_ON_OR_BEFORE, date(2026, 9, 23)),
+        )
