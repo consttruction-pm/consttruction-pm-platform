@@ -12,6 +12,17 @@ class PercentCompleteType(str, Enum):
     SCOPE = "SCOPE"
 
 
+class ActivityStatusCode(str, Enum):
+    """P6 Activity.StatusCode semantic values."""
+
+    PLANNED = "Planned"
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    WHAT_IF = "What-If"
+    REQUESTED = "Requested"
+    TEMPLATE = "Template"
+
+
 @dataclass(frozen=True)
 class Activity:
     """Portable scheduling activity used by the Shared Scheduling Core."""
