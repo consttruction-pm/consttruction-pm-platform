@@ -62,7 +62,7 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert data["baseline"]["base_main_sha"] == "b171949415cc0c974c6546f2f85b306553646814"
     assert data["baseline"]["inventory_field_count"] == 275
     assert data["baseline"]["registry_activity_field_count"] == 134
-    assert data["baseline"]["inventory_only_count"] == 150
+    assert data["baseline"]["inventory_only_count"] == 160
 
 
 def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
@@ -79,8 +79,8 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
         if path.name not in {manifest_name, own_artifact}
     ]
 
-    assert len(evidence_files) == 15
-    assert len(preexisting_direct) == 14
+    assert len(evidence_files) == 16
+    assert len(preexisting_direct) == 15
     for path in preexisting_direct:
         evidence = json.loads(path.read_text(encoding="utf-8"))
         evidence_items = evidence.get("fields", [])
@@ -97,7 +97,7 @@ def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
         )
         assert not names & evidence_names, path
 
-    assert data["baseline"]["existing_activity_evidence_files_scanned"] == 15
+    assert data["baseline"]["existing_activity_evidence_files_scanned"] == 16
     assert data["baseline"]["inventory_only_fields_without_direct_evidence_artifact"] == 89
     assert data["interchange"]["import"].startswith(
         "No independent Release 26 import-field certification"
