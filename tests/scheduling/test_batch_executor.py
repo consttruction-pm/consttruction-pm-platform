@@ -100,16 +100,18 @@ def test_case_1_relationship_boundary_is_authoritative():
             options=ScheduleOptions(ignore_other_project_relationships=False),
         ),
     )
-    with pytest.raises(
-        BatchScheduleEvaluationError,
-        match="MULTI_PROJECT_RELATIONSHIP_EXECUTION_REQUIRED",
-    ):
-        execute_authoritative_schedule_batch(
-            include,
-            registry(),
-            calculate_based_on_project_finish=False,
-            relationships=(external,),
-        )
+    included = execute_authoritative_schedule_batch(
+        include,
+        registry(),
+        calculate_based_on_project_finish=False,
+        relationships=(external,),
+    )
+    assert included.scoped_relationships["P1"] == (external,)
+    assert included.scoped_relationships["P2"] == (external,)
+    assert (
+        included.project_results["P2"].early_activities["P2-A"].start
+        > included.project_results["P1"].early_activities["P1-A"].finish
+    )
 
 
 def test_case_2_float_boundary_changes_project_result_deterministically():
