@@ -96,7 +96,10 @@ class StubTransport implements ApiTransport {
   public context: ProjectContext | null = null;
   public registryPath = "";
 
-  constructor(private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>) {}
+  constructor(
+    private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>,
+    private readonly registryResult?: ApiResult<FieldRegistry>,
+  ) {}
 
   async get<T>(path: string, contextValue: ProjectContext): Promise<ApiResult<T>> {
     this.context = contextValue;
@@ -140,6 +143,27 @@ test("workspace read client hydrates the control room and field issue projection
   assert.equal(transport.registryPath, "/api/projects/project-1/p6/fields/p6-field-registry.v1");
   assert.deepEqual(transport.context, context);
   assert.equal(result.data.p6FieldRegistry?.status, "seeded_not_certified");
+});
+
+test("workspace read client preserves P6 registry API errors", async () => {
+  const transport = new StubTransport(
+    { ok: true, data: workspaceSnapshot() },
+    {
+      ok: false,
+      error: {
+        code: "P6_REGISTRY_FORBIDDEN",
+        retryable: false,
+        message_key: "error.p6_registry.forbidden",
+        available_actions: [],
+      },
+    },
+  );
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected P6 registry error");
+  assert.equal(result.error.code, "P6_REGISTRY_FORBIDDEN");
 });
 
 test("workspace read client preserves API errors without masking them", async () => {
