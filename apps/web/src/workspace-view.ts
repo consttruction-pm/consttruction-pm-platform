@@ -59,7 +59,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
@@ -90,6 +90,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
+  const t = labels[state.locale];
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
@@ -473,6 +474,7 @@ function renderChangeClaimControl(
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
+  const t = labels[state.locale];
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
