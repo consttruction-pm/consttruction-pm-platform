@@ -23,7 +23,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence 
 
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
-      renderApp(container, { ...state, activeMenu: menu });
+      renderApp(container, { ...state, activeMenu: menu }, p6Persistence);
     },
     onWbsSelect: (wbsId) => {
       renderApp(container, selectWbs(state, wbsId), p6Persistence);
@@ -32,16 +32,24 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence 
       renderApp(container, selectActivity(state, activityId), p6Persistence);
     },
     onP6FieldAdd: async (fieldId) => {
-      const next = addP6Field(state, fieldId);
-      if (!next.p6Layout || !next.p6FieldRegistry) return;
-      const saved = await p6Persistence.save(next.p6Layout);
-      renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+      try {
+        const next = addP6Field(state, fieldId);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await p6Persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
     },
     onP6FieldRemove: async (fieldId) => {
-      const next = removeP6Field(state, fieldId);
-      if (!next.p6Layout || !next.p6FieldRegistry) return;
-      const saved = await p6Persistence.save(next.p6Layout);
-      renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+      try {
+        const next = removeP6Field(state, fieldId);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await p6Persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
     },
   });
 
