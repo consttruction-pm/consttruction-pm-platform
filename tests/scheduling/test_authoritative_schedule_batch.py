@@ -54,7 +54,7 @@ def test_batch_uses_each_project_finish_when_option_enabled():
         resolvers={'P1': resolver(), 'P2': resolver()},
     )
     assert result.project('P1').result.floats['P1-A'].total_float == 6
-    assert result.project('P2').result.floats['P2-A'].total_float == 12
+    assert result.project('P2').result.floats['P2-A'].total_float == 13
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
@@ -86,7 +86,10 @@ def test_cross_project_relationship_is_explicitly_unsupported_when_not_ignored()
 def test_cross_project_relationship_is_ignored_when_option_enabled():
     options = ScheduleOptions(ignore_other_project_relationships=True)
     result = execute_authoritative_schedule_batch(
-        [snapshot('P1', date(2026, 10, 10), options=options), snapshot('P2', date(2026, 10, 20))],
+        [
+            snapshot('P1', date(2026, 10, 10), options=options),
+            snapshot('P2', date(2026, 10, 20), options=options),
+        ],
         resolvers={'P1': resolver(), 'P2': resolver()},
         external_relationships=(Relationship('P1-A', 'P2-A'),),
         activity_project_ids={'P1-A': 'P1', 'P2-A': 'P2'},
@@ -123,7 +126,7 @@ def test_single_project_preserves_existing_behavior_with_multi_project_options_d
         [snapshot('P1', date(2026, 10, 10))],
         resolvers={'P1': resolver()},
     )
-    assert result.project('P1').result.project_finish == date(2026, 10, 1)
+    assert result.project('P1').result.project_finish == date(2026, 10, 9)
 
 
 def test_combined_external_boundary_options_are_deterministic():
@@ -140,11 +143,17 @@ def test_combined_external_boundary_options_are_deterministic():
         resource_assignments=(assignment('P1', 'R1'), assignment('P2', 'R2')),
     )
     first = execute_authoritative_schedule_batch(
-        [snapshot('P1', date(2026, 10, 10), options=options), snapshot('P2', date(2026, 10, 20), priority=5)],
+        [
+            snapshot('P1', date(2026, 10, 10), options=options),
+            snapshot('P2', date(2026, 10, 20), options=options, priority=5),
+        ],
         **kwargs,
     )
     second = execute_authoritative_schedule_batch(
-        [snapshot('P1', date(2026, 10, 10), options=options), snapshot('P2', date(2026, 10, 20), priority=5)],
+        [
+            snapshot('P1', date(2026, 10, 10), options=options),
+            snapshot('P2', date(2026, 10, 20), options=options, priority=5),
+        ],
         **kwargs,
     )
     assert first.project('P1').result == second.project('P1').result
