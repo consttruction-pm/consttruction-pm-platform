@@ -10,7 +10,7 @@
     "activity_create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
   },
   "baseline": {
-    "base_main_sha": "2da2533c0b70cd3f5d82df08af09a3a92d3a45f5",
+    "base_main_sha": "0c8dbc7ed349efe1676abd4c0514f857fa97a5f8",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
@@ -423,7 +423,9 @@
     "No Activity Registry identity was promoted from name similarity.",
     "Next step: resolve each field against Oracle field-level write/import behavior and the repository's authoritative mapping paths, then certify only evidence-backed semantics.",
     "Baseline refreshed onto current main at b5dd8448bfdb9efc8d6d8f5c80602a91b795d599 after merged PR #760. Raw inventory-vs-registry inventory-only count remains 150; the governed remaining reconciliation tranche remains the exact 28-field subset.",
-    "Rebased reconciliation onto current main at 2da2533c0b70cd3f5d82df08af09a3a92d3a45f5. Closed/unmerged implementation PRs are not counted as current-main capability."
+    "Rebased reconciliation onto current main at 2da2533c0b70cd3f5d82df08af09a3a92d3a45f5. Closed/unmerged implementation PRs are not counted as current-main capability.",
+    "Current-main evidence refreshed after PR #793 merge. SecondaryConstraint implementation is present in current main via 022cecad0e907f930eab917e2a26ef04c9cac60d; SuspendDate/Suspend-Resume semantics are present via 8bb47a49300ac3ae1f900c8d85f67ca91a3277e2.",
+    "The current-main reconciliation does not promote SecondaryConstraint, SuspendDate, TaskStatus or WorkPackage to canonical Activity Registry identity without field-level repository mapping and write/import-export evidence."
   ],
   "repository_mapping_review": {
     "checked_on": "2026-10-02",
@@ -444,8 +446,8 @@
       "WBSName"
     ],
     "remaining_gap": "No repository-side Activity serializer/import/export mapper is currently certified for the remaining tranche fields. P6FieldRegistryAPI exposes metadata but does not itself serialize or persist Activity field values.",
-    "constraint_gap": "SecondaryConstraint boundary was implemented in #779 but that PR was closed without merge; SuspendDate semantics were validated in #774 but that PR was closed without merge; TaskStatus and WorkPackage persistence remain uncertified and require authoritative repository mapping evidence.",
-    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Treat closed/unmerged PRs #779/#774/#775 as evidence only; continue field-level reconciliation only where an authoritative repository mapping and regression path can be demonstrated.",
+    "constraint_gap": "TaskStatus and WorkPackage persistence remain uncertified and require authoritative repository mapping evidence. SecondaryConstraint semantics are implemented on current main (commit 022cecad0e907f930eab917e2a26ef04c9cac60d) and Activity SuspendDate/Suspend-Resume semantics are implemented on current main (commit 8bb47a49300ac3ae1f900c8d85f67ca91a3277e2), but these fields are not promoted to canonical Activity Registry identity without repository mapping/write/import-export evidence.",
+    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Count the current-main SecondaryConstraint and SuspendDate/Suspend-Resume implementations as Shared Core semantic evidence, while keeping TaskStatus and WorkPackage persistence uncertified until authoritative repository mapping evidence is demonstrated.",
     "active_candidates": []
   },
   "oracle_write_evidence": {
