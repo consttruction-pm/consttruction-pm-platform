@@ -97,7 +97,7 @@ export function createP6LayoutPersistence(
         {
           revision: layout.revision,
           columns: layout.columns,
-          metadata: {},
+          metadata: layout.metadata ?? {},
         },
         context,
       );
