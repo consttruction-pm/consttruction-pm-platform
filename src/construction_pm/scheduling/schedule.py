@@ -253,6 +253,7 @@ def _free_float(
     early_schedule: Mapping[str, ScheduledActivity],
     resolver: WorkingTimeResolver,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> int:
     if not successors:
         return 0
@@ -260,13 +261,14 @@ def _free_float(
     limits: list[int] = []
     for rel in successors:
         successor = early_schedule[rel.successor_id]
+        activity_resolver = (activity_resolvers or {}).get(activity.id, resolver)
         delay = 0
         while delay < 10000:
-            candidate_start = resolver.add_working_duration(early.start, delay)
+            candidate_start = activity_resolver.add_working_duration(early.start, delay)
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
                 start=candidate_start,
-                finish=resolver.add_working_duration(candidate_start, activity.duration),
+                finish=activity_resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
             if not _relationship_holds(
@@ -624,8 +626,10 @@ def calculate_floats(
     resolver: WorkingTimeResolver,
     options: ScheduleOptions | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
+"
     selected_options = options or ScheduleOptions()
     longest_path_ids = (
         _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
@@ -642,8 +646,9 @@ def calculate_floats(
     for activity_id in sorted(activity_map):
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
-        start_float = _working_delay_between(early.start, late.start, resolver)
-        finish_float = _working_delay_between(early.finish, late.finish, resolver)
+        activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        start_float = _working_delay_between(early.start, late.start, activity_resolver)
+        finish_float = _working_delay_between(early.finish, late.finish, activity_resolver)
         # P6 can calculate total float from Start Float, Finish Float, or the
         # smaller of the two. Negative float remains a valid reportable value.
         if selected_options.compute_total_float_type is TotalFloatCalculationType.FINISH_FLOAT:
@@ -653,7 +658,8 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id], early, outgoing[activity_id], early_schedule, resolver, relationship_lag_resolvers
+            activity_map[activity_id], early, outgoing[activity_id], early_schedule,
+            activity_resolver, relationship_lag_resolvers, activity_resolvers
         )
         free = max(0, min(total, free))
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
@@ -723,6 +729,7 @@ def schedule(
     calculation_context: CalculationContext | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
     batch_scheduled_finish: date | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> ScheduleResult:
     """Run CPM passes and select either earliest or ALAP output."""
     selected_options = options or ScheduleOptions()
@@ -744,6 +751,7 @@ def schedule(
         relationship_lag_resolvers,
         selected_options.use_expected_finish_dates,
         selected_options.out_of_sequence_schedule_type,
+        activity_resolvers,
     )
     early_project_finish = resolver.normalize_finish(
         project_finish or max(item.finish for item in early.values())
@@ -758,6 +766,7 @@ def schedule(
     late = backward_pass(
         activity_list, relationship_list, early, float_finish, resolver, constraint_list,
         relationship_lag_resolvers,
+        activity_resolvers,
     )
     floats = calculate_floats(
         activity_list,
@@ -767,6 +776,7 @@ def schedule(
         resolver,
         selected_options,
         relationship_lag_resolvers,
+        activity_resolvers,
     )
 
     float_paths = _multiple_float_paths(
