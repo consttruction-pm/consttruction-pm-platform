@@ -991,17 +991,17 @@
     }
   ],
   "notes": [
-    "Oracle Release 26 confirms Status, StatusCode, SuspendDate, TCPI, TotalCost*Variance, Type, UnitsPercentComplete, WBS fields and the three TaskStatus* field types.",
-    "TaskStatus* remain semantically uncertified because the current Oracle Release 26 field descriptions do not define their calculation or persistence behavior.",
+    "Oracle Release 26 confirms the Activity schema fields and field-level descriptions for the documented subset; the official P6 Integration API reference fills the semantic descriptions for the remaining REST schema-only fields.",
+    "TaskStatus*, ScopePercentComplete, WBSNamePath and WorkPackage* now have official semantic definitions from Oracle Integration API evidence; their current REST mutability/persistence behavior remains a separate gate.",
     "No field identity is promoted into the canonical Activity Registry by this artifact.",
     "PR #777 merged into main and resolved StatusCode, reducing the governed remaining Activity reconciliation tranche from 29 to 28."
   ],
-  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Exposure is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
+  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip.",
   "certification_gate": {
     "get_schema_exposed": "confirmed_for_all_29",
     "put_schema_exposed": "confirmed_for_all_29",
     "export_field_exposed": "confirmed_for_all_29",
-    "field_level_semantics": "22 documented in Release 26 + 7 supported by official 2025 Web Services reference",
+    "field_level_semantics": "29/29 semantically defined from current Release 26 REST plus official Oracle Integration API evidence",
     "mutability_current_rest": "pending_for_28_remaining",
     "persistence": "pending_for_28_remaining",
     "import_roundtrip": "pending_for_28_remaining",
@@ -1013,7 +1013,16 @@
     "release26_rest_semantics_explicit": 22,
     "integration_api_semantics_filling_rest_schema_gaps": 7,
     "remaining_semantic_definition_gaps": 0,
-    "rule": "Semantic definition is distinct from mutability, persistence, import round-trip, and canonical Registry identity. No calculation is inferred where Oracle does not define one."
+    "rule": "Semantic definition is distinct from mutability, persistence, import round-trip, and canonical Registry identity. No calculation is inferred where Oracle does not define one.",
+    "release26_rest_schema_only_fields": [
+      "ScopePercentComplete",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "WBSNamePath",
+      "WorkPackageId",
+      "WorkPackageName"
+    ]
   },
   "baseline": {
     "main_sha": "466dd08c0c9ea6824bcf678b0704d3d24e278129",
