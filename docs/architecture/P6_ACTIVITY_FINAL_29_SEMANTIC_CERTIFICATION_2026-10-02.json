@@ -1087,7 +1087,7 @@
     "remaining_28_excluding_status_code": 28,
     "read_only_supporting_evidence_count": 9,
     "writability_unconfirmed_count": 19,
-    "rule": "StatusCode currently has a canonical identity but conflicting writable metadata on main; #781 corrects it. Historical Web Services and Gateway Data Dictionary metadata are supporting evidence only; current Release 26 REST mutability must be reconciled before final certification.",
+    "rule": "StatusCode now has canonical identity and current-main mutability aligned to Oracle Read Only via #784. Historical Web Services and Gateway Data Dictionary metadata remain supporting evidence; persistence and import round-trip are still separate certification gates.",
     "gateway_supporting_non_readonly_fields": [
       "ScopePercentComplete",
       "SecondaryConstraintDate",
