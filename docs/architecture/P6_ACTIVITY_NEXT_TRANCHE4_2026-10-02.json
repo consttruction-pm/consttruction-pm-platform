@@ -6,7 +6,8 @@
   "source_urls": {
     "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
     "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
-    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "activity_create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
   },
   "baseline": {
     "base_main_sha": "e352ea0e5f2c61f9582ac1b42786ae7c80856845",
@@ -506,6 +507,25 @@
     "endpoint_method": "PUT /activity",
     "endpoint_request_schema": "List<Activity>",
     "schema_exposure_interpretation": "The Release 26 PUT endpoint accepts Activity objects and exposes the tranche fields in the Activity schema. This establishes endpoint-schema exposure, not field-level mutability certification.",
-    "next_certification_step": "Resolve field-level writable/read-only semantics from Oracle create/update behavior and authoritative internal mapping/import/export paths before any canonical Activity or registry promotion."
+    "next_certification_step": "Resolve field-level writable/read-only semantics and canonical mapping from Oracle create/update behavior plus authoritative internal mapping/import/export paths. Do not promote from schema presence alone.",
+    "create_endpoint_method": "POST /activity",
+    "create_endpoint_request_schema": "List<Activity>",
+    "create_schema_exposure": "Oracle Release 26 Create Activities exposes the tranche fields in the Activity request schema. WBSObjectId is explicitly required in the Activity schema; schema exposure still does not certify the internal canonical mapping or field-level persistence semantics.",
+    "create_required_fields": [
+      "ProjectObjectId",
+      "WBSObjectId"
+    ],
+    "oracle_create_evidence_lines": {
+      "SecondaryConstraintDate": "866-872",
+      "Status": "892-897",
+      "TotalPastPeriodExpenseCost": "936-957",
+      "Type": "966-969",
+      "UnitsPercentComplete": "970-972",
+      "WBSCode": "978-979",
+      "WBSName": "981-983",
+      "WBSNamePath": "985-985",
+      "WBSObjectId": "987-989",
+      "WorkPackageId": "995-996"
+    }
   }
 }
