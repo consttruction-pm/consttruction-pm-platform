@@ -42,7 +42,7 @@ def test_registry_exposes_canonical_activity_status_code():
     assert status_code.subject_area == "Activity"
     assert status_code.p6_field == "StatusCode"
     assert status_code.data_type is P6FieldType.ENUM
-    assert status_code.writable is True
+    assert status_code.writable is False
     assert status_code.computed is False
 
 
