@@ -57,8 +57,9 @@ test("P6 API adapters map missing layouts and reject unsupported saves", async (
 test("P6 read-only layout adapter requests the selected project activity layout", async () => {
   let requestedPath = "";\n  let requestedContext: unknown = null;
   const persistence = createP6ReadOnlyLayoutPersistence({
-    get: async (path) => {
+    get: async (path, receivedContext) => {
       requestedPath = path;
+      requestedContext = receivedContext;
       return {
         ok: true,
         data: {
