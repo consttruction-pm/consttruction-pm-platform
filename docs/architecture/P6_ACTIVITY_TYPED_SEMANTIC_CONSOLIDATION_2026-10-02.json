@@ -1,0 +1,866 @@
+{
+  "schema_version": "p6-activity-typed-semantic-consolidation.v1",
+  "tranche": "current-main-consolidation",
+  "date": "2026-10-02",
+  "base": "main",
+  "source_prs": [
+    702,
+    703,
+    704,
+    705,
+    706
+  ],
+  "source_release": "Oracle P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "status": "evidence_only_pending_full_activity_certification",
+  "fields": [
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActivityOwnerUserId",
+      "data_type": "integer",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualThisPeriodNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ActualTotalUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AtCompletionTotalUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "AutoComputeActuals",
+      "data_type": "boolean",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 702,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1PlannedTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline1StartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2PlannedTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline2StartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3Duration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedDuration",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 703,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedExpenseCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedMaterialCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedNonLaborCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedNonLaborUnits",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3PlannedTotalCost",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Baseline3StartDate",
+      "data_type": "date-time",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 704,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCost3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostPercentComplete",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExpenseCostVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExternalEarlyStartDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "ExternalLateFinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Feedback",
+      "data_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinancialPeriodTmplId",
+      "data_type": "integer",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate",
+      "data_type": "date",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDate3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "FinishDateVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "GUID",
+      "data_type": "string",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "HasFutureBucketData",
+      "data_type": "boolean",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "Id",
+      "data_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsBaseline",
+      "data_type": "boolean",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsCritical",
+      "data_type": "boolean",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "IsLongestPath",
+      "data_type": "boolean",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "source_tranche": 705,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCost3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCostPercentComplete",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborCostVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnits3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnitsPercentComplete",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LaborUnitsVariance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LevelingPriority",
+      "data_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LocationName",
+      "data_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "LocationObjectId",
+      "data_type": "integer",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost1Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost2Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    },
+    {
+      "subject_area": "Activity",
+      "p6_field": "MaterialCost3Variance",
+      "data_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "source_tranche": 706,
+      "disposition": "seeded_not_certified"
+    }
+  ],
+  "guardrails": [
+    "No Activity dataclass expansion.",
+    "No second CPM/EVM implementation.",
+    "No alias-as-exact matching.",
+    "No full Activity certification claim.",
+    "Nullable/default/import-export semantics remain open.",
+    "Scheduler-derived Activity fields remain sourced from Shared Scheduling Core."
+  ],
+  "reconciliation": {
+    "stale_source_fields": 83,
+    "newly_added_registry_fields": 78,
+    "registry_activity_field_count_after": 134,
+    "exact_matches_after": 125,
+    "inventory_field_count": 275,
+    "missing_from_registry_after": 150,
+    "gap_manifest_entry_count_after": 100,
+    "unmaterialized_inventory_count_after": 50
+  }
+}
