@@ -7,6 +7,7 @@ import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
   addP6Field,
   removeP6Field,
+  reorderP6Fields,
   selectActivity,
   selectWbs,
   setP6Presentation,
@@ -35,6 +36,16 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onP6FieldAdd: async (fieldId) => {
       try {
         const next = addP6Field(state, fieldId);
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
+    onP6FieldReorder: async (orderedFieldIds) => {
+      try {
+        const next = reorderP6Fields(state, orderedFieldIds);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
         const saved = await persistence.save(next.p6Layout);
         renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
