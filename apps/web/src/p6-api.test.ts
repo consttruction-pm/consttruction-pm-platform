@@ -99,3 +99,24 @@ test("P6 read-only layout adapter rejects an unsupported schema version", async 
     /P6_LAYOUT_SCHEMA_VERSION_MISMATCH/,
   );
 });
+
+test("P6 read-only layout adapter rejects an invalid revision", async () => {
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async () => ({
+      ok: true,
+      data: {
+        schema_version: "p6-layout.v1",
+        scope: "project",
+        view_id: "activity",
+        revision: -1,
+        columns: [],
+      },
+    } as any),
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  await assert.rejects(
+    () => persistence.load("project", "activity"),
+    /INVALID_P6_LAYOUT_REVISION/,
+  );
+});
