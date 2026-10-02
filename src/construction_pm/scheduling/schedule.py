@@ -474,6 +474,7 @@ def _multiple_float_paths(
     resolver: WorkingTimeResolver,
     options: ScheduleOptions,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[MultipleFloatPath, ...]:
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
