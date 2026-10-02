@@ -81,3 +81,18 @@ test("does not apply a stale validation result to a newer expression", async () 
   assert.equal(editor.getState().authoritative, null);
   assert.equal(editor.getState().validating, false);
 });
+test("clears validating state when authoritative validation rejects", async () => {
+  const expected = new Error("AUTHORITY_UNAVAILABLE");
+  const failingAuthority: P6FormulaAuthority = {
+    async validate() {
+      throw expected;
+    },
+  };
+
+  const editor = createP6FormulaEditor("activity-cost", failingAuthority);
+  editor.setExpression("Original Duration * Units");
+
+  await assert.rejects(editor.validate(), expected);
+  assert.equal(editor.getState().validating, false);
+  assert.equal(editor.getState().authoritative, null);
+});
