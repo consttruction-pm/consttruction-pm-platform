@@ -1,0 +1,1102 @@
+{
+  "schema_version": "1.0",
+  "title": "P6 Activity Final 29 Reconciliation Matrix (29 Certification Set)",
+  "effective_date": "2026-10-02",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+  },
+  "rule": "This matrix records semantic evidence only. It does not promote Registry identity, does not certify field mutability unless explicitly evidenced, and does not introduce a second calculation engine.",
+  "status": "29_field_semantics_defined_current_rest_plus_official_integration_api_29_certification_pending",
+  "fields": [
+    {
+      "p6_field": "ScopePercentComplete",
+      "oracle_type": "number(double)",
+      "evidence_class": "unresolved_schema_only",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the scope percent complete imported from Prime via integration; no local calculation is inferred.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "The percent complete for the activity if the percent complete type is set to scope; scope is calculated in Oracle Primavera Cloud for scope management integration."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "SecondaryConstraintDate",
+      "oracle_type": "string(date-time)",
+      "evidence_class": "scheduler_constraint_input",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Date used for the cstr_type2 assignment when a secondary constraint exists; activity constraints are used by the scheduler.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "SecondaryConstraintType",
+      "oracle_type": "string",
+      "evidence_class": "scheduler_constraint_input",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Additional scheduler constraint; assigned secondary value is restricted to Start On or Before, Start On or After, Finish On or Before, or Finish On or After.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "Status",
+      "oracle_type": "string",
+      "evidence_class": "typed_activity_status",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Current activity status: Not Started, In Progress, or Completed; kept distinct from StatusCode.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "StatusCode",
+      "oracle_type": "string",
+      "evidence_class": "typed_project_status_code",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Canonical identity exists on main via #777, and Oracle Integration API marks Activity.StatusCode Read Only; #784 aligned the current-main registry mutability metadata to writable=false/read_only=true.",
+      "registry_change": "implemented_in_main_by_PR_777_mutability_aligned_by_PR_784",
+      "certification_status": "implemented_identity_mutability_aligned_pending_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "oracle_read_only_aligned_with_current_main"
+    },
+    {
+      "p6_field": "SuspendDate",
+      "oracle_type": "string(date-time)",
+      "evidence_class": "time_aware_progress_boundary",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Suspend date must be later than actual start; suspend/resume interval behaves as nonworktime for relevant task/resource-dependent activities.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "TaskStatusCompletion",
+      "oracle_type": "string",
+      "evidence_class": "task_status_integration_field",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the completion status of the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "Completion status of the activity and associated tasks from an integrated Oracle Primavera Cloud project used for lean scheduling."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    },
+    {
+      "p6_field": "TaskStatusDates",
+      "oracle_type": "string",
+      "evidence_class": "task_status_integration_field",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the status of the activity according to its activity dates.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "Date status of tasks and activities from an integrated Oracle Primavera Cloud project used for lean scheduling."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    },
+    {
+      "p6_field": "TaskStatusIndicator",
+      "oracle_type": "boolean",
+      "evidence_class": "task_status_integration_field",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this boolean as indicating the status of the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "Indicator covering task dates outside activity dates or task/activity completion mismatches."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    },
+    {
+      "p6_field": "ToCompletePerformanceIndex",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_ev_metric",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "TCPI = (Budget at Completion - Earned Value) / (Estimate at Completion - ACWP).",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalCost1Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Primary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalCost2Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Secondary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalCost3Variance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Tertiary baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalCostVariance",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_baseline_variance",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Project baseline total cost minus at-completion total cost.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodExpenseCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period expense cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period labor cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborUnits",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period labor units for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodMaterialCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period material cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborCost",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period nonlabor cost for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborUnits",
+      "oracle_type": "number(double)",
+      "evidence_class": "stored_period_value",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Total stored-period nonlabor units for the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "Type",
+      "oracle_type": "string",
+      "evidence_class": "typed_activity_type",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Activity type with documented values Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "UnitsPercentComplete",
+      "oracle_type": "number(double)",
+      "evidence_class": "computed_units_percent",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Computed as actual units / at-completion units * 100; range 0-100.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "oracle_gateway_2026_read_only": false,
+      "oracle_gateway_evidence_note": "Oracle Gateway Providers Data Dictionary lists this Activity field as Read-Only: No. Supporting evidence only; current Release 26 REST mutability and repository persistence remain separate certification gates."
+    },
+    {
+      "p6_field": "UnreadCommentCount",
+      "oracle_type": "integer(int32)",
+      "evidence_class": "derived_collaboration_count",
+      "shared_seam_present": false,
+      "computed": true,
+      "semantic_note": "Number of unread Team Member Discussion comments associated with the activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "WBSCode",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Oracle Activity exposes the WBS short code used to identify each WBS element; its canonical relationship remains a WBS-domain concern.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "WBSName",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Oracle Activity exposes the name of the WBS element associated with the activity; canonical relationship remains a WBS-domain concern.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "WBSNamePath",
+      "oracle_type": "string",
+      "evidence_class": "derived_wbs_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the WBS name hierarchy of the Activity.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "Hierarchy of parent WBS names, ordered parent-to-child and separated by dots."
+      ],
+      "official_webservices_2025_read_only": true,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "read_only_supporting_evidence_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    },
+    {
+      "p6_field": "WBSObjectId",
+      "oracle_type": "integer(int32)",
+      "evidence_class": "required_wbs_reference",
+      "shared_seam_present": true,
+      "computed": false,
+      "semantic_note": "Required unique WBS ID for the activity; required in the Oracle Activity schema. Canonical Activity Registry identity remains pending.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": null,
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation"
+    },
+    {
+      "p6_field": "WorkPackageId",
+      "oracle_type": "string",
+      "evidence_class": "derived_workpackage_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the ID of the work package coming from Prime.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "ID of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    },
+    {
+      "p6_field": "WorkPackageName",
+      "oracle_type": "string",
+      "evidence_class": "derived_workpackage_reference",
+      "shared_seam_present": false,
+      "computed": false,
+      "semantic_note": "Official Oracle Integration API defines this as the name of the work package coming from Prime.",
+      "registry_change": "none",
+      "certification_status": "semantic_defined_pending_mutability_persistence_roundtrip",
+      "evidence_sources": [
+        {
+          "type": "oracle_release_26_activity_get",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html"
+        },
+        {
+          "type": "oracle_release_26_activity_put",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+        },
+        {
+          "type": "oracle_release_26_export_projects",
+          "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+        }
+      ],
+      "get_schema_exposed": true,
+      "put_schema_exposed": true,
+      "export_field_exposed": true,
+      "semantic_definition_verified": true,
+      "official_webservices_2025_semantics": [
+        "Name of the work package associated with an activity when P6 is integrated with Oracle Primavera Cloud for scope management."
+      ],
+      "official_webservices_2025_read_only": false,
+      "webservices_evidence_note": "Supporting evidence only; published 2025-10-14 Oracle P6 EPPM Web Services Activity Fields reference. Current Release 26 REST writability remains a separate gate.",
+      "remaining_reconciliation": true,
+      "mutability_review_bucket": "writability_unconfirmed_needs_current_rest_confirmation",
+      "semantic_source": "Oracle P6 Integration API Business Object Classes and Fields"
+    }
+  ],
+  "notes": [
+    "Oracle Release 26 confirms the Activity schema fields and field-level descriptions for the documented subset; the official P6 Integration API reference fills the semantic descriptions for the remaining REST schema-only fields.",
+    "TaskStatus*, ScopePercentComplete, WBSNamePath and WorkPackage* now have official semantic definitions from Oracle Integration API evidence; their current REST mutability/persistence behavior remains a separate gate.",
+    "No field identity is promoted into the canonical Activity Registry by this artifact.",
+    "PR #777 established the StatusCode identity on main; PR #784 aligned the canonical registry metadata with Oracle Read Only evidence. StatusCode still remains in the reconciliation set because persistence and import round-trip evidence are pending.",
+    "Baseline refreshed onto current main after #784 and #787. #784 aligns StatusCode mutability metadata and #787 validates the focused SuspendDate suspend/resume semantic seam; neither promotes additional registry identity. Activity Registry counts remain unchanged."
+  ],
+  "evidence_policy": "Oracle Release 26 GET and PUT expose all 29 field names/types; Export Project/Projects exposes all 29 Activity export field names. Official Oracle Integration API field definitions supplement Release 26 where the REST schema omits descriptions. Exposure/description is not treated as proof of mutability, persistence, formula ownership, or import round-trip. Oracle Gateway Providers Data Dictionary is supplementary mutability evidence and is not treated as a substitute for current Release 26 REST field-level certification.",
+  "certification_gate": {
+    "get_schema_exposed": "confirmed_for_all_29",
+    "put_schema_exposed": "confirmed_for_all_29",
+    "export_field_exposed": "confirmed_for_all_29",
+    "field_level_semantics": "29/29 semantically defined from current Release 26 REST plus official Oracle Integration API evidence",
+    "mutability_current_rest": "StatusCode identity is implemented on main and its current registry metadata is aligned to Oracle Read Only via #784; persistence and import round-trip remain pending. The remaining 28 fields require field-level mutability evidence.",
+    "persistence": "pending_for_29_certification_set",
+    "import_roundtrip": "pending_for_29_certification_set",
+    "registry_promotion": "blocked_for_remaining_fields_until_the_remaining_28_field_level_gates_are_resolved",
+    "second_cpm_engine": "forbidden"
+  },
+  "semantic_summary": {
+    "documented_semantics_total": 29,
+    "release26_rest_semantics_explicit": 22,
+    "integration_api_semantics_filling_rest_schema_gaps": 7,
+    "remaining_semantic_definition_gaps": 0,
+    "rule": "Semantic definition is distinct from mutability, persistence, import round-trip, and canonical Registry identity. No calculation is inferred where Oracle does not define one.",
+    "release26_rest_schema_only_fields": [
+      "ScopePercentComplete",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "WBSNamePath",
+      "WorkPackageId",
+      "WorkPackageName"
+    ]
+  },
+  "baseline": {
+    "main_sha": "8bb47a49300ac3ae1f900c8d85f67ca91a3277e2",
+    "inventory_field_count": 275,
+    "registry_activity_field_count": 135,
+    "exact_inventory_matches": 126,
+    "inventory_only_count": 149,
+    "governed_initial_tranche_count": 29,
+    "resolved_on_main_from_initial_tranche": [],
+    "remaining_reconciliation_count": 29,
+    "remaining_reconciliation_fields": [
+      "StatusCode",
+      "ScopePercentComplete",
+      "SecondaryConstraintDate",
+      "SecondaryConstraintType",
+      "Status",
+      "SuspendDate",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "ToCompletePerformanceIndex",
+      "TotalCost1Variance",
+      "TotalCost2Variance",
+      "TotalCost3Variance",
+      "TotalCostVariance",
+      "TotalPastPeriodExpenseCost",
+      "TotalPastPeriodLaborCost",
+      "TotalPastPeriodLaborUnits",
+      "TotalPastPeriodMaterialCost",
+      "TotalPastPeriodNonLaborCost",
+      "TotalPastPeriodNonLaborUnits",
+      "Type",
+      "UnitsPercentComplete",
+      "UnreadCommentCount",
+      "WBSCode",
+      "WBSName",
+      "WBSNamePath",
+      "WBSObjectId",
+      "WorkPackageId",
+      "WorkPackageName"
+    ],
+    "expected_remaining_after_certification": 0
+  },
+  "mutability_review": {
+    "remaining_29_total": 29,
+    "status_code_conflict_count": 0,
+    "remaining_28_excluding_status_code": 28,
+    "read_only_supporting_evidence_count": 9,
+    "writability_unconfirmed_count": 19,
+    "rule": "StatusCode now has canonical identity and current-main mutability aligned to Oracle Read Only via #784. Historical Web Services and Gateway Data Dictionary metadata remain supporting evidence; persistence and import round-trip are still separate certification gates.",
+    "gateway_supporting_non_readonly_fields": [
+      "ScopePercentComplete",
+      "SecondaryConstraintDate",
+      "SecondaryConstraintType",
+      "Status",
+      "SuspendDate",
+      "Type",
+      "UnitsPercentComplete"
+    ],
+    "gateway_supporting_non_readonly_count": 7
+  }
+}
