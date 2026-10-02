@@ -907,3 +907,32 @@ test("P6 layout persistence controls expose load and save callbacks", () => {
   assert.match(container.innerHTML, /data-p6-layout-load/);
   assert.match(container.innerHTML, /data-p6-layout-save/);
 });
+
+
+test("P6 editable cell controls do not bubble into activity-row selection", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activities: [{ id: "A-100", wbsId: "WBS-1", code: "A100", name: "Excavate" }],
+  };
+  const listeners = new Map<string, (event: { target: unknown }) => void>();
+  const row = {
+    dataset: { activityId: "A-100" },
+    addEventListener: (event: string, listener: (payload: { target: unknown }) => void) => {
+      if (event === "click") listeners.set("click", listener);
+    },
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) => selector === "[data-activity-id]" ? [row] as unknown as HTMLElement[] : []) as RenderContainer["querySelectorAll"],
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onActivitySelect: (activityId) => selected.push(activityId),
+  });
+
+  listeners.get("click")?.({ target: { closest: () => ({}) } });
+  assert.deepEqual(selected, []);
+
+  listeners.get("click")?.({ target: { closest: () => null } });
+  assert.deepEqual(selected, ["A-100"]);
+});
