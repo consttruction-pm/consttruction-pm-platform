@@ -12,7 +12,7 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     registry=set()
     import re
     text=REGISTRY.read_text(encoding="utf-8")
-    registry.update(m.group(1) for m in re.finditer(r'\\("activity\\.[^\"]+","Activity","([^\"]+)"',text))
+    registry.update(m.group(1) for m in re.finditer(r'\("activity\.[^"]+","Activity","([^"]+)"',text))
     names={x["p6_field"] for x in data["fields"]}
     assert names==EXPECTED
     assert len(names)==29
