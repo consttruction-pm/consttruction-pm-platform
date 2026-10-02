@@ -125,7 +125,7 @@ test("Persian workspace localizes accessibility and chooser labels", () => {
           disposition: "verified",
         },
       ],
-    },
+    } as const,
     p6Layout: {
       schema_version: "p6-layout.v1",
       scope: "project",
@@ -143,7 +143,7 @@ test("Persian workspace localizes accessibility and chooser labels", () => {
           frozen: false,
         },
       ],
-    },
+    } as const,
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
