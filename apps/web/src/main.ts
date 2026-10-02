@@ -165,6 +165,7 @@ async function boot(): Promise<void> {
           try {
             const opened = await lifecycle.openProject(selectedProjectId);
             if (!opened.ok) throw new Error(opened.error.code);
+            window.history.replaceState({}, "", buildProjectSelectionUrl(window.location.href, selectedProjectId));
 
             const workspaceRead = new WorkspaceReadClient(new FetchApiTransport(baseUrl));
             const workspace = await workspaceRead.load(opened.data.context);
