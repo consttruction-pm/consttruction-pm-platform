@@ -13,6 +13,8 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleMode,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
@@ -78,7 +80,7 @@ def test_activity_calendar_context_rejects_mixed_time_aware_batch():
         project_revision=1,
         mode=AuthoritativeScheduleMode.TIME_AWARE,
         project_calendar=CAL_PROJECT,
-        activities=(),
+        activities=(TimeActivity("T", TimeQuantity.working_hours(8)),),
         relationships=(),
         activity_calendar_assignments=(),
         project_start=None,
