@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Shared-Core boundary for safe multi-project P6 batch scheduling orchestration."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 
 from .authoritative_schedule import (
@@ -178,12 +178,26 @@ def execute_authoritative_schedule_batch(
                 "over_allocation_percentage",
                 "resource_list",
                 "priority_list",
-                "preserve_scheduled_early_and_late_dates",
             )
         ):
             raise BatchScheduleEvaluationError(
                 "MULTI_PROJECT_RESOURCE_LEVELING_EXECUTION_REQUIRED"
             )
+        if options.preserve_scheduled_early_and_late_dates:
+            raise BatchScheduleEvaluationError(
+                "MULTI_PROJECT_SCHEDULE_OPTION_EXECUTION_REQUIRED"
+            )
+
+        # These P6 multi-project/resource-selection flags have already been
+        # consumed by this orchestrator. Do not pass them back to the
+        # single-project CPM engine, which correctly rejects them as
+        # unsupported standalone options.
+        engine_options = replace(
+            options,
+            ignore_other_project_relationships=False,
+            include_external_res_ass=False,
+            external_project_priority_limit=0,
+        )
 
         resolver = calendar_registry.resolve(snapshot.project_calendar)
         project_results[snapshot.project_id] = schedule(
@@ -193,7 +207,7 @@ def execute_authoritative_schedule_batch(
             resolver=resolver,
             project_finish=snapshot.project_finish,
             constraints=snapshot.constraints,
-            options=options,
+            options=engine_options,
             batch_scheduled_finish=batch.finish_boundary_for(snapshot.project_id),
         )
 
