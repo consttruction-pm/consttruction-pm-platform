@@ -668,7 +668,13 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id], early, outgoing[activity_id], early_schedule, activity_resolver, relationship_lag_resolvers, activity_resolvers
+            activity_map[activity_id],
+            early,
+            outgoing[activity_id],
+            early_schedule,
+            resolver,
+            relationship_lag_resolvers,
+            activity_resolvers,
         )
         free = max(0, min(total, free))
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
