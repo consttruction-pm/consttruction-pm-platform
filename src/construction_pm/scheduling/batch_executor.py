@@ -5,20 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
-from .scheduling.authoritative_schedule import (
+from .authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
-from .scheduling.external_resource_assignments import (
+from .external_resource_assignments import (
     ExternalResourceAssignment,
     select_batch_resource_assignments_for_scheduling,
 )
-from .scheduling.project_relationships import resolve_project_relationships
-from .scheduling.relationships import Relationship
-from .scheduling.schedule import ScheduleResult, schedule
-from .scheduling.schedule_batch import AuthoritativeScheduleBatch
-from .scheduling.schedule_options import ScheduleOptions
-from .scheduling.calendar_context import CalendarResolverRegistry
+from .project_relationships import resolve_project_relationships
+from .relationships import Relationship
+from .schedule import ScheduleResult, schedule
+from .schedule_batch import AuthoritativeScheduleBatch
+from .schedule_options import ScheduleOptions
+from .calendar_context import CalendarResolverRegistry
 
 
 class BatchScheduleEvaluationError(ValueError):
@@ -31,7 +31,7 @@ class BatchScheduleResult:
 
     project_results: Mapping[str, ScheduleResult]
     scoped_relationships: Mapping[str, tuple[Relationship, ...]]
-    selected_resource_demands: Mapping[str, tuple[object, ...]]
+    selected_resource_demands: Mapping[str, tuple]
     calculate_based_on_project_finish: bool
 
 
@@ -89,8 +89,7 @@ def _validate_batch_inputs(
     if len(tenants) != 1:
         raise BatchScheduleEvaluationError("MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED")
     for snapshot in batch.snapshots:
-        if snapshot.schedule_options.calculate_float_based_on_finish_date != calculate_based_on_project_finish:
-            raise BatchScheduleEvaluationError(
+        if snapshot.schedule_options.calculate_float_based_on_finish_date != calculate_based_on_project_finish:\n            raise BatchScheduleEvaluationError(
                 "BATCH_FLOAT_OPTION_MISMATCH"
             )
 
@@ -123,7 +122,7 @@ def execute_authoritative_schedule_batch(
 
     assignment_tuple = tuple(external_resource_assignments)
     known_projects = {snapshot.project_id for snapshot in batch.snapshots}
-    if any(assignment.project_id not in known_projects for assignment in assignment_tuple):
+    if any(\n        assignment.project_id not in known_projects for assignment in assignment_tuple\n    ):
         raise BatchScheduleEvaluationError("UNKNOWN_EXTERNAL_ASSIGNMENT_PROJECT")
 
     project_results: dict[str, ScheduleResult] = {}
