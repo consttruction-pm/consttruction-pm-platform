@@ -46,7 +46,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       try {
         const next = removeP6Field(state, fieldId);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await p6Persistence.save(next.p6Layout);
+        const saved = await persistence.save(next.p6Layout);
         renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
       } catch (error) {
         console.error("P6 layout save failed", error);
