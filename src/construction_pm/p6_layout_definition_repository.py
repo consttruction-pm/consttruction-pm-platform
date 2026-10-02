@@ -146,25 +146,20 @@ class PostgresP6LayoutRepository:
     def upsert(self, layout: PersistedP6Layout) -> PersistedP6Layout:
         layout.validate()
         payload = _encode(layout)
-        row = self.connection.execute(
-            "SELECT project_revision, revision, columns_json, metadata_json FROM p6_layout_definitions "
-            "WHERE tenant_id=%s AND project_id=%s AND layout_scope=%s AND view_id=%s",
-            (layout.scope.tenant_id, layout.scope.project_id, layout.layout_scope, layout.view_id),
-        ).fetchone()
-        if row is not None:
-            if int(row[0]) != layout.scope.project_revision:
-                raise P6LayoutPersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != payload:
-                raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
-            return layout
         self.connection.execute(
             "INSERT INTO p6_layout_definitions "
             "(tenant_id, project_id, project_revision, layout_scope, view_id, revision, columns_json, metadata_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id, project_id, layout_scope, view_id) DO NOTHING",
             (layout.scope.tenant_id, layout.scope.project_id, layout.scope.project_revision,
              layout.layout_scope, layout.view_id, *payload),
         )
-        return layout
+        existing = self.get(layout.scope, layout.layout_scope, layout.view_id)
+        if existing is None:
+            return layout
+        if _encode(existing) != payload:
+            raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
+        return existing
 
     def get(self, scope: BackendScope, layout_scope: str, view_id: str) -> PersistedP6Layout | None:
         scope.validate()
