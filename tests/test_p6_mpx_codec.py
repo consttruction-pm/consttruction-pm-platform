@@ -50,7 +50,7 @@ def test_decode_rejects_field_count_mismatch() -> None:
         P6MpxCodec().decode(document, scope())
 
 
-def test_encode_round_trips_task_rows() -> None:
+def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() -> None:\n    with pytest.raises(P6MpxCodecError, match="UNREPRESENTABLE_MPX_EXTENSIONS:p6.interchange.t1.p1.task_name"):\n        P6MpxCodec().encode(\n            (P6InterchangeResult(\n                {"Name": "Pour cement", "Duration": "6d"},\n                {\n                    "p6.mpx.record": "TASK",\n                    "p6.mpx.separator": ",",\n                    "p6.mpx.file_creation": ("Microsoft Project", "4.0", "850"),\n                    "p6.interchange.t1.p1.task_name": "Foundation",\n                },\n            ),),\n            scope(),\n        )\n\n\ndef test_encode_round_trips_task_rows() -> None:
     codec = P6MpxCodec()
     document = "MPX,Microsoft Project,4.0,850\n60,Name,Duration\n70,Pour cement,6d\n"
     decoded = codec.decode(document, scope())
