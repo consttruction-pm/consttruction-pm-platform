@@ -1022,3 +1022,12 @@ Status: **implemented, merged and runtime-verified**
 - Stage 33.4.73 is already runtime-verified through PR #171 and is not an open implementation gap.
 - PR #482 was closed as stale/duplicate after current-main reconciliation; its authoritative scheduling work is already represented on main.
 - Further Hasan work remains evidence-driven: no duplicate scheduling semantics or already-merged P6 persistence/API slices may be introduced.
+
+
+### 2026-10-02 — Current-main P6 Activity evidence consolidation gate
+- Current main after PR #701: `9c346626b791f810ed6af83ceb510c6cf60f2607`.
+- Stage I Query → Real Scheduling is already implemented through the authoritative schedule query provider and real Shared Scheduling evaluator; no duplicate scheduling work is authorized.
+- PR #701 (Activity semantic evidence tranche 3) was green on ConstructionPM CI, PostgreSQL Integration and Client Typecheck and was merged.
+- PRs #702/#703/#704/#705/#706 were stale/conflicting evidence tranches after current-main movement; they were closed and are not counted as completed work.
+- Fresh Jalal consolidation task: **Issue #711**. It must port only unique valid fields from those tranches onto current main, recalculate parity/gap evidence, and pass the full verification gate.
+- Client PRs #708/#710 are not counted until rebased/reconciled to the post-#701 current main and fully verified.
