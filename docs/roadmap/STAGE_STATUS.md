@@ -1049,3 +1049,13 @@ Status: **implemented, merged and runtime-verified**
 - PR #791 is the current P6-3 client presentation reconciliation. It adds typed P6 field-editor descriptors and authoritative formula-result presentation only; no client-side calculation or parser/evaluator is introduced.
 - Runtime checks for the new #791 head are not yet present, so #791 is not counted as complete until its configured CI/typecheck gates execute successfully.
 - Hasan remains on the evidence-boundary task #709; no new Backend/API/Persistence feature is inferred from the current audit.
+
+
+### 2026-10-02 — P6 current-main reconciliation checkpoint
+- Current `main`: `0c8dbc7ed349efe1676abd4c0514f857fa97a5f8` after merged PR #793.
+- PR #793 (Tranche 4 evidence refresh) is merged; its documentation-only reconciliation is counted as current-main governance evidence.
+- PR #794 was superseded and closed because the branch became stale and the UDF allowed-values HTTP dependency was isolated as Issue #795. Its validated client changes remain evidence and must be rebuilt from current main after the backend contract is available.
+- Issue #795 is the active Hasan-owned backend/API seam for authenticated UDF metadata and authoritative allowed-values. It reuses the existing P6FieldRegistryAPI and must not introduce duplicate field semantics or calculation logic.
+- Current main already contains SecondaryConstraint semantics (commit `022cecad0e907f930eab917e2a26ef04c9cac60d`) and SuspendDate/Suspend-Resume semantics (commit `8bb47a49300ac3ae1f900c8d85f67ca91a3277e2`). These are Shared Core evidence, but Activity Registry certification still requires field-level repository mapping/write/import-export evidence.
+- PR #797 is the fresh documentation reconciliation for the Tranche 4 record. No scheduling/client calculation changes are introduced.
+- No second CPM engine, client-side P6 calculation, or duplicate backend semantics are authorized.
