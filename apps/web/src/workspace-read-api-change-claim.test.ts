@@ -181,11 +181,11 @@ class StubTransport implements ApiTransport {
   constructor(private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>) {}
 
   async get<T>(path: string, contextValue: ProjectContext): Promise<ApiResult<T>> {
-    this.path = path;
     this.context = contextValue;
     if (path.includes("/p6/fields/")) {
       return { ok: true, data: { registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "test", status: "seeded_not_certified", fields: [] } } as ApiResult<T>;
     }
+    this.path = path;
     return this.result as ApiResult<T>;
   }
 
