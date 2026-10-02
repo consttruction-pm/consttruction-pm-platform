@@ -174,6 +174,32 @@ def test_authoritative_batch_uses_activity_calendar_context():
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 5)
 
 
+def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
+    p1 = replace(
+        snapshot("P1", date(2026, 10, 10)),
+        project_start=date(2026, 10, 2),
+        activities=(Activity("P1-A", 1),),
+    )
+    p2 = replace(
+        snapshot("P2", date(2026, 10, 10)),
+        project_start=date(2026, 10, 2),
+        activities=(Activity("P2-A", 1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("P2-A", CalendarReference("WEEKEND", "1")),
+        ),
+    )
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        calendar_registry=calendar_registry(),
+        external_relationships=(Relationship("P1-A", "P2-A"),),
+        activity_project_ids={"P1-A": "P1", "P2-A": "P2"},
+    )
+
+    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 2)
+    assert result.project("P2").result.activities["P2-A"].start == date(2026, 10, 3)
+
+
 def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
     p1 = replace(
         snapshot("P1", date(2026, 10, 10)),
@@ -182,6 +208,12 @@ def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
         ),
     )
     p2 = snapshot("P2", date(2026, 10, 10))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
 
     with pytest.raises(
         UnsupportedMultiProjectSchedulingError,
@@ -190,7 +222,7 @@ def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
         execute_authoritative_schedule_batch(
             [p1, p2],
             resolvers={"P1": resolver(), "P2": resolver()},
-            leveling_input=object(),
+            leveling_input=leveling_input,
             calendar_registry=calendar_registry(),
         )
 
