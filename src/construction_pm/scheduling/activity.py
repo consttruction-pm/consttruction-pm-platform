@@ -19,6 +19,13 @@ class ActivityStatus(str, Enum):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"
 
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityStatus":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(f"unsupported P6 Activity.Status value: {value!r}") from exc
+
 
 class ActivityType(str, Enum):
     """P6 Activity.Type semantic values."""
@@ -29,6 +36,13 @@ class ActivityType(str, Enum):
     START_MILESTONE = "Start Milestone"
     FINISH_MILESTONE = "Finish Milestone"
     WBS_SUMMARY = "WBS Summary"
+
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityType":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
 
 
 @dataclass(frozen=True)
