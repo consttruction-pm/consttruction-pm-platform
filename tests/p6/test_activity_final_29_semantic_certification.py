@@ -183,7 +183,7 @@ def test_official_webservices_supporting_evidence_is_explicit():
 
 def test_current_main_baseline_is_reflected_in_matrix():
     data = _load()
-    assert data["baseline"]["main_sha"] == "38cdbb46b8e292bacf5ea597e2e0e9e6f45f41d5"
+    assert data["baseline"]["main_sha"] == "73ea4cb48bd32554f844c519eb7917531f020d82"
     assert data["baseline"]["registry_activity_field_count"] == 135
     assert data["baseline"]["exact_inventory_matches"] == 126
     assert data["baseline"]["inventory_only_count"] == 149
