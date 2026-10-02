@@ -38,7 +38,7 @@ export type ColumnPresentation = {
   field_id: string;
   visible: boolean;
   order: number;
-  label?: string;
+  label?: string | null;
   width: number;
   alignment: "start" | "center" | "end";
   pinned: boolean;
