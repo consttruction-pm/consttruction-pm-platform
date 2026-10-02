@@ -8,6 +8,7 @@ import {
   addP6Field,
   removeP6Field,
   reorderP6Fields,
+  updateP6FieldPresentation,
   selectActivity,
   selectWbs,
   setP6Presentation,
