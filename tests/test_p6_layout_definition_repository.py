@@ -36,6 +36,17 @@ def test_layout_revision_is_immutable_and_project_revision_checked():
         repo.get(BackendScope("t1", "p1", 8), "project", "activity")
 
 
+def test_layout_rejects_blank_field_id():
+    bad = layout()
+    bad = PersistedP6Layout(
+        bad.scope, bad.layout_scope, bad.view_id, bad.revision,
+        (LayoutColumn("   ", True, 0, None, 120, "start", False, False),),
+        bad.metadata,
+    )
+    with pytest.raises(P6LayoutPersistenceError, match="INVALID_LAYOUT_FIELDS"):
+        bad.validate()
+
+
 def test_layout_rejects_non_normalized_columns():
     bad = layout()
     bad = PersistedP6Layout(bad.scope, bad.layout_scope, bad.view_id, bad.revision,
