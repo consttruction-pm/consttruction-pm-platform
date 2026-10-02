@@ -49,3 +49,15 @@ def test_activity_rejects_untyped_p6_status_and_type_values(
     kwargs = {field_name: value}
     with pytest.raises(TypeError, match=field_name):
         Activity(id="A-1", duration=2, **kwargs)
+
+
+def test_activity_status_and_type_map_only_supported_p6_wire_values() -> None:
+    assert ActivityStatus.from_p6_value("In Progress") is ActivityStatus.IN_PROGRESS
+    assert ActivityType.from_p6_value("WBS Summary") is ActivityType.WBS_SUMMARY
+
+
+def test_activity_status_and_type_reject_unknown_wire_values() -> None:
+    with pytest.raises(ValueError, match="unsupported P6 Activity.Status"):
+        ActivityStatus.from_p6_value("Running")
+    with pytest.raises(ValueError, match="unsupported P6 Activity.Type"):
+        ActivityType.from_p6_value("Unknown")
