@@ -34,6 +34,22 @@ class AuthoritativeScheduleBatch:
         if len(project_ids) != len(set(project_ids)):
             raise ValueError("schedule batch project ids must be unique")
 
+        tenant_ids = {snapshot.tenant_id for snapshot in snapshot_list}
+        if len(tenant_ids) != 1:
+            raise ValueError("schedule batch tenant ids must be identical")
+
+        modes = {snapshot.mode for snapshot in snapshot_list}
+        if len(modes) != 1:
+            raise ValueError("schedule batch modes must be identical")
+
+        activity_ids: set[str] = set()
+        for snapshot in snapshot_list:
+            snapshot_activity_ids = {activity.id for activity in snapshot.activities}
+            overlap = activity_ids & snapshot_activity_ids
+            if overlap:
+                raise ValueError("schedule batch activity ids must be globally unique")
+            activity_ids.update(snapshot_activity_ids)
+
         finishes: list[ProjectFinishBoundary] = []
         for snapshot in snapshot_list:
             if snapshot.project_finish is None:
