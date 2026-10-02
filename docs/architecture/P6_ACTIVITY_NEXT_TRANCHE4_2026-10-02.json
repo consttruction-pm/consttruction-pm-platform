@@ -557,5 +557,19 @@
       "Oracle Release 26 Activity GET documents WBSCode, WBSName, WBSNamePath, WBSObjectId, WorkPackageId and WorkPackageName in the Activity schema.",
       "Oracle Release 26 Activity schema requires ProjectObjectId and WBSObjectId."
     ]
+  },
+  "latest_evidence_review": {
+    "checked_on": "2026-10-02",
+    "oracle_put_source": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "confirmed_put_schema_semantics": {
+      "ToCompletePerformanceIndex": "Oracle documents this value as calculated.",
+      "TotalCost1Variance": "Oracle documents this value as calculated.",
+      "TotalCost2Variance": "Oracle documents this value as calculated.",
+      "TotalCost3Variance": "Oracle documents this value as calculated.",
+      "TotalCostVariance": "Oracle documents this value as calculated.",
+      "UnitsPercentComplete": "Oracle documents this value as computed from actual units divided by at-completion units."
+    },
+    "certification_decision": "These descriptions strengthen calculation/derived evidence but do not establish field-level writable/read-only behavior or repository import mapping. No registry identity or production implementation is promoted from this review.",
+    "next_bounded_section": "Continue field-level certification for Status, Type, SecondaryConstraintDate, SecondaryConstraintType, and SuspendDate by reconciling Oracle write behavior with authoritative repository mapping."
   }
 }
