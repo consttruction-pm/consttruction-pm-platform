@@ -290,7 +290,11 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
-    row.addEventListener("click", select);
+    row.addEventListener("click", (event) => {
+      const target = event.target as { closest?: (selector: string) => unknown } | null;
+      if (target?.closest?.("input,select,textarea,button")) return;
+      select();
+    });
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
 }
