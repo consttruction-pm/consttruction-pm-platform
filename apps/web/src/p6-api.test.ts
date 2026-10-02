@@ -52,3 +52,28 @@ test("P6 API adapters map missing layouts and reject unsupported saves", async (
     assert.equal(await persistence.load("project", "activity"), null);
     await assert.rejects(persistence.save({} as any), /P6_LAYOUT_SAVE_UNSUPPORTED/);
 });
+
+
+test("P6 read-only layout adapter requests the selected project activity layout", async () => {
+  let requestedPath = "";
+  const persistence = createP6ReadOnlyLayoutPersistence({
+    get: async (path) => {
+      requestedPath = path;
+      return {
+        ok: true,
+        data: {
+          schema_version: "p6-layout.v1",
+          scope: "project",
+          view_id: "activity",
+          revision: 4,
+          columns: [],
+        },
+      } as any;
+    },
+    post: async () => { throw new Error("UNUSED"); },
+  }, context);
+
+  const layout = await persistence.load("project", "activity");
+  assert.equal(requestedPath, "/api/projects/p1/p6/layouts/project/activity");
+  assert.equal(layout?.revision, 4);
+});
