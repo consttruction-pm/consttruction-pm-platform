@@ -55,7 +55,7 @@ test("P6 registry can be bootstrapped before persisted layout", () => {
   assert.equal(next.p6Layout, null);
   assert.equal(next.p6FieldRegistry?.fields[0]?.field_id, "activity_id");
   assert.deepEqual(next.context, context);
-  assert.throws(() => setP6FieldRegistry(base, { ...registry, registry_version: "p6-field-registry.v2" }), /UNSUPPORTED_P6_FIELD_REGISTRY/);
+  assert.throws(() => setP6FieldRegistry(base, { ...registry, registry_version: "p6-field-registry.v2" as any }), /UNSUPPORTED_P6_FIELD_REGISTRY/);
 });
 
 test("P6 grid presentation state is validated by the authoritative registry", () => {
