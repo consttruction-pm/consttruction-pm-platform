@@ -15,7 +15,7 @@
     "direct_or_prior_evidence_field_count": 203,
     "remaining_inventory_only_before_tranche": 49,
     "tranche_field_count": 20,
-    "expected_remaining_after_tranche": 29
+    "expected_remaining_after_tranche": 28
   },
   "status": "evidence_worklist_pending_authoritative_reconciliation",
   "certification_policy": "Oracle published type/description evidence does not by itself certify canonical storage, mutability, defaults/nullability, filter/order, import semantics, or exact internal mapping. Those remain pending unless independently evidenced.",
