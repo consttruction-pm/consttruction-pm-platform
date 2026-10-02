@@ -154,51 +154,24 @@ def test_postgres_baseline_concurrent_writers_report_conflict(postgres_dsn):
         PostgresP6BaselineRepository(setup).initialize()
         setup.commit()
 
-        ready = threading.Barrier(2)
-        inserted = threading.Event()
+        start = threading.Barrier(2)
         outcomes: list[str] = []
         errors: list[BaseException] = []
+        lock = threading.Lock()
 
-        def writer(conn, item, hold_commit: bool) -> None:
+        def writer(conn, item) -> None:
             try:
-                repo = PostgresP6BaselineRepository(conn)
                 with conn.transaction():
-                    ready.wait(timeout=5)
-                    repo.upsert(item)
-                    if hold_commit:
-                        inserted.set()
-                        assert not inserted.is_set() is False
-                        # Keep the unique-key insert uncommitted while writer 2 reaches
-                        # the same key. PostgreSQL then serializes the conflict check.
-                        ready.wait(timeout=5)
-                outcomes.append("committed")
+                    start.wait(timeout=5)
+                    PostgresP6BaselineRepository(conn).upsert(item)
+                with lock:
+                    outcomes.append("committed")
             except BaseException as exc:
-                errors.append(exc)
+                with lock:
+                    errors.append(exc)
 
-        # The first writer must reach the insert before the second writer is allowed
-        # to attempt the same unique key.
-        first_inserted = threading.Event()
-
-        def writer1() -> None:
-            try:
-                with conn1.transaction():
-                    PostgresP6BaselineRepository(conn1).upsert(first)
-                    first_inserted.set()
-                    ready.wait(timeout=5)
-            except BaseException as exc:
-                errors.append(exc)
-
-        def writer2() -> None:
-            try:
-                first_inserted.wait(timeout=5)
-                with conn2.transaction():
-                    PostgresP6BaselineRepository(conn2).upsert(second)
-                    outcomes.append("unexpected-success")
-            except P6BaselinePersistenceError as exc:
-                errors.append(exc)
-
-        t1 = threading.Thread(target=writer1)
-        t2 = threading.Thread(target=writer2)
+        t1 = threading.Thread(target=writer, args=(conn1, first))
+        t2 = threading.Thread(target=writer, args=(conn2, second))
         t1.start()
         t2.start()
         t1.join(timeout=10)
@@ -206,13 +179,10 @@ def test_postgres_baseline_concurrent_writers_report_conflict(postgres_dsn):
 
         assert not t1.is_alive()
         assert not t2.is_alive()
-        assert not any(isinstance(exc, AssertionError) for exc in errors)
-        assert any(
-            isinstance(exc, P6BaselinePersistenceError)
-            and str(exc) == "IMMUTABLE_BASELINE"
-            for exc in errors
-        )
-        assert "unexpected-success" not in outcomes
+        assert outcomes.count("committed") == 1
+        assert len(errors) == 1
+        assert isinstance(errors[0], P6BaselinePersistenceError)
+        assert str(errors[0]) == "IMMUTABLE_BASELINE"
     finally:
         conn1.rollback()
         conn2.rollback()
