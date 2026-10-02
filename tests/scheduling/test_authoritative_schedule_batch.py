@@ -26,7 +26,7 @@ from construction_pm.scheduling.authoritative_schedule_batch import (
     execute_authoritative_schedule_batch,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarReference
+from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.external_resource_assignments import ExternalResourceAssignment
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.schedule_options import ScheduleOptions
