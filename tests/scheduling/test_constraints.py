@@ -6,8 +6,12 @@ from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.constraints import (
     ActivityConstraint,
+    ActivitySecondaryConstraint,
     ConstraintType,
     ConstraintViolation,
+    SecondaryConstraintError,
+    SecondaryConstraintType,
+    resolve_secondary_constraint,
 )
 from construction_pm.scheduling.forward_pass import forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
