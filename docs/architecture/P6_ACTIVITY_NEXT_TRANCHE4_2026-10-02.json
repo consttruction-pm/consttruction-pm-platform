@@ -14,9 +14,10 @@
     "inventory_field_count": 275,
     "registry_activity_field_count": 134,
     "exact_inventory_matches": 125,
-    "remaining_inventory_only_before_tranche": 150,
+    "remaining_inventory_only_before_tranche": 29,
     "tranche_field_count": 29,
-    "expected_remaining_after_tranche": 121
+    "expected_remaining_after_tranche": 0,
+    "raw_inventory_only_against_current_registry": 150
   },
   "status": "oracle_get_put_schema_reconciled_field_level_write_behavior_pending",
   "certification_policy": "Do not promote a field to canonical implementation or registry identity from name similarity or published type alone. Type, mutability, defaults/nullability, import/export and exact internal mapping require evidence. Scheduler-derived values remain Shared Scheduling Core authority.",
@@ -435,7 +436,7 @@
     "All 29 fields remain pending for field-level writable/read-only, defaults/nullability, canonical mapping, import/export and regression certification.",
     "No Activity Registry identity was promoted from name similarity.",
     "Next step: resolve each field against Oracle field-level write/import behavior and the repository's authoritative mapping paths, then certify only evidence-backed semantics.",
-    "Baseline refreshed onto current main at f58708496f6578ee82b8cdf9451d144f49dbc22c; current inventory/registry counts remain 275/134 with 125 exact matches."
+    "Baseline refreshed onto current main at f58708496f6578ee82b8cdf9451d144f49dbc22c. Raw inventory-vs-registry inventory-only count is 150; the governed remaining reconciliation tranche is still the 29-field subset defined by the preceding reconciliation tranches."
   ],
   "oracle_write_evidence": {
     "source": "P6 EPPM REST API Release 26 - Update Activities",
