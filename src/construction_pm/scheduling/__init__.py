@@ -7,6 +7,7 @@ from .authoritative_schedule import (
     AuthoritativeScheduleMode,
 )
 from .calendar import WorkingCalendar, WorkingTimeResolver
+from .calendar_periods import CalendarTimePeriodFactors, P6_CALENDAR_PERIOD_FIELDS
 from .calendar_system import CalendarDateError, CalendarSystem, JalaliDate, gregorian_to_jalali, jalali_to_gregorian
 from .calendar_context import CalendarReference, CalendarResolverRegistry, RelationshipLagCalendar, SchedulingCalendarContext
 from .calendar_resolution import ResolvedActivityCalendars, resolve_authoritative_activity_calendars, resolve_relationship_lag_calendar, resolve_relationship_lag_resolvers
@@ -122,6 +123,8 @@ __all__ = [
     "resolve_multi_project_float_boundary",
     "SchedulingCycleError",
     "WorkingCalendar",
+    "CalendarTimePeriodFactors",
+    "P6_CALENDAR_PERIOD_FIELDS",
     "CalendarDateError",
     "CalendarSystem",
     "JalaliDate",
