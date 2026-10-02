@@ -5,10 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 
-from .authoritative_schedule import (
-    AuthoritativeScheduleInput,
-    AuthoritativeScheduleMode,
-)
+from .authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
+from .constraints import ActivityConstraint, ConstraintType
 from .external_resource_assignments import (
     ExternalResourceAssignment,
     select_batch_resource_assignments_for_scheduling,
@@ -28,7 +26,7 @@ class BatchScheduleEvaluationError(ValueError):
 
 @dataclass(frozen=True)
 class BatchScheduleResult:
-    """Deterministic result of the currently supported multi-project boundary."""
+    """Deterministic result of authoritative multi-project batch execution."""
 
     project_results: Mapping[str, ScheduleResult]
     scoped_relationships: Mapping[str, tuple[Relationship, ...]]
@@ -94,9 +92,47 @@ def _validate_batch_inputs(
         raise BatchScheduleEvaluationError("MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED")
     for snapshot in batch.snapshots:
         if snapshot.schedule_options.calculate_float_based_on_finish_date != calculate_based_on_project_finish:
-            raise BatchScheduleEvaluationError(
-                "BATCH_FLOAT_OPTION_MISMATCH"
+            raise BatchScheduleEvaluationError("BATCH_FLOAT_OPTION_MISMATCH")
+
+    relationship_modes = {
+        snapshot.schedule_options.ignore_other_project_relationships
+        for snapshot in batch.snapshots
+    }
+    if len(relationship_modes) > 1:
+        raise BatchScheduleEvaluationError("BATCH_RELATIONSHIP_OPTION_MISMATCH")
+
+
+def _project_constraints(
+    snapshots: tuple[AuthoritativeScheduleInput, ...],
+) -> tuple[ActivityConstraint, ...]:
+    """Anchor each project's activities at or after its authoritative start."""
+    result: list[ActivityConstraint] = []
+    for snapshot in snapshots:
+        for activity in snapshot.activities:
+            result.append(
+                ActivityConstraint(
+                    activity.id,
+                    ConstraintType.START_NO_EARLIER_THAN,
+                    snapshot.project_start,
+                )
             )
+    return tuple(result)
+
+
+def _global_relationships(
+    relationships: tuple[Relationship, ...],
+    activity_projects: Mapping[str, str],
+) -> tuple[Relationship, ...]:
+    """Return relationships executable by the single shared CPM graph."""
+    result: list[Relationship] = []
+    for relationship in relationships:
+        if (
+            relationship.predecessor_id not in activity_projects
+            or relationship.successor_id not in activity_projects
+        ):
+            raise BatchScheduleEvaluationError("RELATIONSHIP_REFERENCES_UNKNOWN_ACTIVITY")
+        result.append(relationship)
+    return tuple(result)
 
 
 def execute_authoritative_schedule_batch(
@@ -107,12 +143,13 @@ def execute_authoritative_schedule_batch(
     relationships: Iterable[Relationship] | None = None,
     external_resource_assignments: Iterable[ExternalResourceAssignment] = (),
 ) -> BatchScheduleResult:
-    """Execute the supported P6 multi-project scheduling boundary.
+    """Execute the authoritative P6 multi-project DATE_BASED batch.
 
-    The function deliberately composes existing authoritative Shared-Core
-    scheduling, relationship, float-boundary, and external-resource seams.
-    Cross-project graph execution and multi-project resource leveling are
-    rejected explicitly until their authoritative execution model exists.
+    Local-only batches retain the existing per-project scheduler path. When
+    cross-project relationships are enabled, all selected activities and
+    relationships are sent through one existing CPM graph so the relationship
+    is executable rather than merely filtered. No second CPM implementation is
+    introduced.
     """
 
     snapshot_tuple = tuple(snapshots)
@@ -124,11 +161,11 @@ def execute_authoritative_schedule_batch(
 
     all_relationships = _all_relationships(batch.snapshots, relationships)
     activity_projects = _activity_project_ids(batch.snapshots)
-
     assignment_tuple = tuple(external_resource_assignments)
     known_projects = {snapshot.project_id for snapshot in batch.snapshots}
     if any(
-        assignment.project_id not in known_projects for assignment in assignment_tuple
+        assignment.project_id not in known_projects
+        for assignment in assignment_tuple
     ):
         raise BatchScheduleEvaluationError("UNKNOWN_EXTERNAL_ASSIGNMENT_PROJECT")
 
@@ -136,8 +173,11 @@ def execute_authoritative_schedule_batch(
     scoped_relationships: dict[str, tuple[Relationship, ...]] = {}
     selected_resource_demands: dict[str, tuple[ResourceDemand, ...]] = {}
 
+    options_by_project = {
+        snapshot.project_id: snapshot.schedule_options for snapshot in batch.snapshots
+    }
     for snapshot in batch.snapshots:
-        options: ScheduleOptions = snapshot.schedule_options
+        options = snapshot.schedule_options
         scoped = resolve_project_relationships(
             all_relationships,
             activity_project_ids=activity_projects,
@@ -145,17 +185,6 @@ def execute_authoritative_schedule_batch(
             ignore_other_project_relationships=options.ignore_other_project_relationships,
         )
         scoped_relationships[snapshot.project_id] = scoped
-
-        external_edges = tuple(
-            relationship
-            for relationship in scoped
-            if activity_projects[relationship.predecessor_id] != snapshot.project_id
-            or activity_projects[relationship.successor_id] != snapshot.project_id
-        )
-        if external_edges:
-            raise BatchScheduleEvaluationError(
-                "MULTI_PROJECT_RELATIONSHIP_EXECUTION_REQUIRED"
-            )
 
         selected_resource_demands[snapshot.project_id] = tuple(
             select_batch_resource_assignments_for_scheduling(
@@ -191,28 +220,104 @@ def execute_authoritative_schedule_batch(
                 "MULTI_PROJECT_SCHEDULE_OPTION_EXECUTION_REQUIRED"
             )
 
-        # These P6 multi-project/resource-selection flags have already been
-        # consumed by this orchestrator. Do not pass them back to the
-        # single-project CPM engine, which correctly rejects them as
-        # unsupported standalone options.
-        engine_options = replace(
-            options,
-            ignore_other_project_relationships=False,
-            include_external_res_ass=False,
-            external_project_priority_limit=0,
-        )
+    # These fields have already been consumed by the batch boundary.
+    engine_options = replace(
+        batch.snapshots[0].schedule_options,
+        ignore_other_project_relationships=False,
+        include_external_res_ass=False,
+        external_project_priority_limit=0,
+    )
 
-        resolver = calendar_registry.resolve(snapshot.project_calendar)
-        project_results[snapshot.project_id] = schedule(
-            activities=snapshot.activities,
-            relationships=tuple(scoped),
-            project_start=snapshot.project_start,
-            resolver=resolver,
-            project_finish=snapshot.project_finish,
-            constraints=snapshot.constraints,
-            options=engine_options,
-            batch_scheduled_finish=batch.finish_boundary_for(snapshot.project_id),
+    has_external_relationship = any(
+        activity_projects[relationship.predecessor_id]
+        != activity_projects[relationship.successor_id]
+        for relationship in all_relationships
+    )
+    include_external_relationships = not batch.snapshots[0].schedule_options.ignore_other_project_relationships
+
+    if has_external_relationship and include_external_relationships:
+        if calculate_based_on_project_finish:
+            raise BatchScheduleEvaluationError(
+                "MULTI_PROJECT_LOCAL_FLOAT_WITH_CROSS_PROJECT_RELATIONSHIPS_REQUIRED"
+            )
+        calendars = {snapshot.project_calendar for snapshot in batch.snapshots}
+        if len(calendars) != 1:
+            raise BatchScheduleEvaluationError(
+                "MULTI_PROJECT_CALENDAR_EXECUTION_REQUIRED"
+            )
+        resolver = calendar_registry.resolve(batch.snapshots[0].project_calendar)
+        activities = tuple(
+            activity
+            for snapshot in batch.snapshots
+            for activity in snapshot.activities
         )
+        constraints = tuple(
+            constraint
+            for snapshot in batch.snapshots
+            for constraint in snapshot.constraints
+        ) + _project_constraints(batch.snapshots)
+        global_result = schedule(
+            activities=activities,
+            relationships=_global_relationships(all_relationships, activity_projects),
+            project_start=min(snapshot.project_start for snapshot in batch.snapshots),
+            resolver=resolver,
+            project_finish=None,
+            constraints=constraints,
+            options=engine_options,
+            batch_scheduled_finish=max(
+                snapshot.project_finish
+                or snapshot.project_start
+                for snapshot in batch.snapshots
+            ),
+        )
+        for snapshot in batch.snapshots:
+            owned = {activity.id for activity in snapshot.activities}
+            project_results[snapshot.project_id] = replace(
+                global_result,
+                activities={
+                    activity_id: value
+                    for activity_id, value in global_result.activities.items()
+                    if activity_id in owned
+                },
+                early_activities={
+                    activity_id: value
+                    for activity_id, value in (global_result.early_activities or {}).items()
+                    if activity_id in owned
+                },
+                late_activities={
+                    activity_id: value
+                    for activity_id, value in (global_result.late_activities or {}).items()
+                    if activity_id in owned
+                },
+                floats={
+                    activity_id: value
+                    for activity_id, value in global_result.floats.items()
+                    if activity_id in owned
+                },
+                project_finish=snapshot.project_finish
+                or global_result.project_finish,
+            )
+    else:
+        for snapshot in batch.snapshots:
+            resolver = calendar_registry.resolve(snapshot.project_calendar)
+            options = options_by_project[snapshot.project_id]
+            scoped = scoped_relationships[snapshot.project_id]
+            engine_options = replace(
+                options,
+                ignore_other_project_relationships=False,
+                include_external_res_ass=False,
+                external_project_priority_limit=0,
+            )
+            project_results[snapshot.project_id] = schedule(
+                activities=snapshot.activities,
+                relationships=tuple(scoped),
+                project_start=snapshot.project_start,
+                resolver=resolver,
+                project_finish=snapshot.project_finish,
+                constraints=snapshot.constraints,
+                options=engine_options,
+                batch_scheduled_finish=batch.finish_boundary_for(snapshot.project_id),
+            )
 
     return BatchScheduleResult(
         project_results=project_results,
