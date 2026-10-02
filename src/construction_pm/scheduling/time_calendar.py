@@ -20,7 +20,6 @@ class WorkingTimeCalendar:
 
     working_weekdays: FrozenSet[int] = frozenset({0, 1, 2, 3, 4})
     holidays: FrozenSet[date] = field(default_factory=frozenset)
-    time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
     daily_intervals: Mapping[int, Tuple[Tuple[time, time], ...]] = field(
         default_factory=lambda: {
             0: ((time(8, 0), time(17, 0)),),
@@ -30,6 +29,7 @@ class WorkingTimeCalendar:
             4: ((time(8, 0), time(17, 0)),),
         }
     )
+    time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
 
     def __post_init__(self) -> None:
         if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
