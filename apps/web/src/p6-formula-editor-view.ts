@@ -3,9 +3,9 @@ import type { P6FormulaEditorState } from "./p6-formula-editor.js";
 export type P6FormulaEditorPresentation = {
   expression: string;
   validating: boolean;
-  validation: P6FormulaEditorState["authoritative"]["validation"] | null;
+  validation: NonNullable<P6FormulaEditorState["authoritative"]>["validation"] | null;
   dependencyFieldIds: readonly string[];
-  resultDataType: P6FormulaEditorState["authoritative"]["result_type"]["data_type"] | null;
+  resultDataType: NonNullable<P6FormulaEditorState["authoritative"]>["result_type"]["data_type"] | null;
 };
 
 export function getP6FormulaEditorPresentation(
