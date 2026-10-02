@@ -63,6 +63,7 @@ def _successor_start(
     data_date: date | None = None,
     lag_resolver: WorkingTimeResolver | None = None,
     predecessor_resolver: WorkingTimeResolver | None = None,
+    successor_resolver: WorkingTimeResolver | None = None,
 ) -> date:
     lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.SS:
@@ -100,7 +101,7 @@ def _successor_start(
         target_finish = _shift_working_date(
             predecessor.finish, relationship.lag, lag_resolver
         )
-        return resolver.subtract_working_duration(target_finish, successor_duration)
+        return (successor_resolver or resolver).subtract_working_duration(target_finish, successor_duration)
 
     if relationship.type is RelationshipType.SF:
         target_finish = _shift_working_date(
@@ -227,7 +228,7 @@ def forward_pass(
                     rel,
                     result[rel.predecessor_id],
                     scheduled_duration,
-                    activity_resolver,
+                    resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
@@ -235,6 +236,7 @@ def forward_pass(
                         (rel.predecessor_id, rel.successor_id)
                     ),
                     (activity_resolvers or {}).get(rel.predecessor_id, resolver),
+                    activity_resolver,
                 )
                 for rel in sorted(
                     incoming[activity_id],
@@ -244,7 +246,7 @@ def forward_pass(
                     ),
                 )
             ]
-            start = max(start_requirements)
+            start = activity_resolver.normalize_start(max(start_requirements))
             oos_action = ProgressRelationAction.APPLY_LOGIC
             if progressed and activity.actual_start is not None and activity.actual_start < start:
                 if data_date is None:
