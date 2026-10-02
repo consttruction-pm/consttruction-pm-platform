@@ -5,7 +5,8 @@
   "p6_reference": "P6 EPPM REST API Release 26",
   "source_urls": {
     "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
-    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
   },
   "baseline": {
     "base_main_sha": "e352ea0e5f2c61f9582ac1b42786ae7c80856845",
@@ -501,6 +502,10 @@
       "WorkPackageId",
       "WorkPackageName"
     ],
-    "field_level_write_behavior": "pending_for_all_29"
+    "field_level_write_behavior": "pending_for_all_29",
+    "endpoint_method": "PUT /activity",
+    "endpoint_request_schema": "List<Activity>",
+    "schema_exposure_interpretation": "The Release 26 PUT endpoint accepts Activity objects and exposes the tranche fields in the Activity schema. This establishes endpoint-schema exposure, not field-level mutability certification.",
+    "next_certification_step": "Resolve field-level writable/read-only semantics from Oracle create/update behavior and authoritative internal mapping/import/export paths before any canonical Activity or registry promotion."
   }
 }
