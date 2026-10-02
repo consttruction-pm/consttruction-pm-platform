@@ -20,13 +20,9 @@ import {
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
+import { FetchApiTransport, FetchProjectLifecycleClient } from "./client.js";
+import { WorkspaceReadClient } from "./workspace-read-api.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-
-const DEFAULT_CONTEXT = {
-  tenant_id: "demo-tenant",
-  project_id: "demo-project",
-  revision: 0,
-};
 
 function renderApp(container: HTMLElement, state: WorkspaceState): void {
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
@@ -111,16 +107,34 @@ function renderApp(container: HTMLElement, state: WorkspaceState): void {
   container.prepend(status);
 }
 
-function boot(): void {
+async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
 
   try {
-    renderApp(container, createWorkspaceState(DEFAULT_CONTEXT));
+    const baseUrl = window.location.origin;
+    const lifecycle = new FetchProjectLifecycleClient(baseUrl);
+    const projects = await lifecycle.listProjects();
+    if (!projects.ok) throw new Error(projects.error.code);
+    if (projects.data.projects.length === 0) throw new Error("NO_PROJECTS_AVAILABLE");
+
+    const requestedProjectId = new URLSearchParams(window.location.search).get("project_id");
+    const projectId = requestedProjectId
+      ?? (projects.data.projects.length === 1 ? projects.data.projects[0]?.project_id : null);
+    if (!projectId) throw new Error("PROJECT_SELECTION_REQUIRED");
+
+    const opened = await lifecycle.openProject(projectId);
+    if (!opened.ok) throw new Error(opened.error.code);
+
+    const workspaceRead = new WorkspaceReadClient(new FetchApiTransport(baseUrl));
+    const workspace = await workspaceRead.load(opened.data.context);
+    if (!workspace.ok) throw new Error(workspace.error.code);
+
+    renderApp(container, workspace.data);
   } catch (error) {
     container.innerHTML = '<main class="cp-shell-error"><h1>Construction PM</h1><p>Unable to initialize the Web workspace.</p></main>';
     console.error(error);
   }
 }
 
-boot();
+void boot();
