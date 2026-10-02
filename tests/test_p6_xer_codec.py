@@ -75,15 +75,6 @@ def test_encode_rejects_unrepresentable_extensions_instead_of_dropping_them() ->
         )
 
 
-    @staticmethod
-    def _validate_extensions(rows: Sequence[P6InterchangeResult]) -> None:
-        for row in rows:
-            unsupported = sorted(key for key in row.extensions if key != "p6.xer.table")
-            if unsupported:
-                raise P6XerCodecError(
-                    "UNREPRESENTABLE_XER_EXTENSIONS:" + ",".join(unsupported)
-                )
-
 def test_encode_requires_table_metadata() -> None:
     from construction_pm.p6_interchange_mapping import P6InterchangeResult
 
