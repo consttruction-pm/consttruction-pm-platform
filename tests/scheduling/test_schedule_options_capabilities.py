@@ -29,6 +29,7 @@ def resolver():
         ("priority_list", (PriorityListItem("PRIORITY", PrioritySortOrder.ASCENDING),)),
         ("min_float_to_preserve", 1),
         ("preserve_scheduled_early_and_late_dates", True),
+        ("multiple_float_paths_ending_activity_short_name", "FIN-MILESTONE"),
     ],
 )
 def test_schedule_rejects_unimplemented_p6_option_instead_of_silent_fallback(resolver, field, value):
