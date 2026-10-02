@@ -76,3 +76,12 @@ def test_remaining_duration_registry_is_derived():
     remaining = get_field("activity.remaining_duration")
     assert remaining.writable is False
     assert remaining.computed is True
+
+
+def test_status_code_is_registered_as_canonical_activity_field() -> None:
+    field = get_field("activity.status_code")
+    assert field.subject_area == "Activity"
+    assert field.p6_field == "StatusCode"
+    assert field.data_type is P6FieldType.ENUM
+    assert field.writable is True
+    assert field.computed is False
