@@ -388,8 +388,10 @@ def _relationship_total_float(
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
     lag_resolver: WorkingTimeResolver | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> int:
     lag_resolver = lag_resolver or resolver
+    activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
     delay = 0
     while delay < 10000:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
