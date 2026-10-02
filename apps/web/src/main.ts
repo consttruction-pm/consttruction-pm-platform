@@ -16,17 +16,18 @@ import {
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 
-function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence = createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context)): void {
+function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
+  const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
   const workspace = container.querySelector<HTMLElement>("#workspace");
   if (!workspace) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
 
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
-      renderApp(container, { ...state, activeMenu: menu }, p6Persistence);
+      renderApp(container, { ...state, activeMenu: menu }, persistence);
     },
     onWbsSelect: (wbsId) => {
-      renderApp(container, selectWbs(state, wbsId), p6Persistence);
+      renderApp(container, selectWbs(state, wbsId), persistence);
     },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), p6Persistence);
@@ -35,7 +36,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence 
       try {
         const next = addP6Field(state, fieldId);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await p6Persistence.save(next.p6Layout);
+        const saved = await persistence.save(next.p6Layout);
         renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), p6Persistence);
       } catch (error) {
         console.error("P6 layout save failed", error);
