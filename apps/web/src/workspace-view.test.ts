@@ -100,3 +100,41 @@ test("renderer honors visible workspace panel flags", () => {
   assert.match(container.innerHTML, /class="cp-panel cp-details" hidden/);
   assert.match(container.innerHTML, /class="cp-panel cp-grid"/);
 });
+
+
+test("Persian workspace localizes accessibility and chooser labels", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "fa",
+    ),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      fields: [
+        {
+          field_id: "activity.activity_id",
+          display_name: "شناسه فعالیت",
+          data_type: "text",
+          writable: false,
+          computed: false,
+        },
+      ],
+    },
+    p6Layout: {
+      scope: "activity",
+      revision: 1,
+      columns: [
+        { field_id: "activity.activity_id", visible: true, order: 0, width: 120, label: null },
+      ],
+    },
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /aria-label="منوی اصلی"/);
+  assert.match(container.innerHTML, /aria-label="انتخاب‌گر فیلد P6"/);
+  assert.match(container.innerHTML, /<strong>فیلدها<\/strong>/);
+  assert.match(container.innerHTML, /title="حذف"/);
+  assert.doesNotMatch(container.innerHTML, /aria-label="Main Menu"/);
+  assert.doesNotMatch(container.innerHTML, /P6 Field Chooser/);
+});
