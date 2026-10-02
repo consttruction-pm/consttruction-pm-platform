@@ -253,7 +253,7 @@ function renderFieldOperations(
           <span>${escapeHtml(issue.category)}</span>
           <span>${escapeHtml(issue.severity)} · ${escapeHtml(issue.status)}</span>
           <span>${escapeHtml(issue.locationKey ?? "—")}</span>
-          <span>${issue.activityIds.length} activity link(s) · ${issue.evidenceCount} evidence</span>
+          <span>${issue.activityIds.length} ${escapeHtml(t.activityLinkUnit)} · ${issue.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
         </div>`).join("")
     : '<div class="cp-empty">—</div>';
 
@@ -349,7 +349,7 @@ function renderFieldAssurance(
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.priority)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(item.locationKey ?? "—")}</span>
-              <span>Due: ${escapeHtml(item.dueDate ?? "—")}</span>
+              <span>${escapeHtml(t.due)}: ${escapeHtml(item.dueDate ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
@@ -380,7 +380,7 @@ function renderProcurement(
             ${record.supplierId ? `<div>${escapeHtml(t.supplier)}: ${escapeHtml(record.supplierId)}</div>` : ""}
             ${record.referenceId ? `<div>${escapeHtml(t.reference)}: ${escapeHtml(record.referenceId)}</div>` : ""}
             ${record.amount !== null ? `<div>${escapeHtml(t.amount)}: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
-            <div>${record.itemCount} ${escapeHtml(t.itemUnit)} · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
+            <div>${record.itemCount} ${escapeHtml(t.itemUnit)} · ${record.activityIds.length} ${escapeHtml(t.activityLinkUnit)} · ${record.evidenceCount} ${escapeHtml(t.evidenceUnit)}</div>
             ${record.approvalRef ? `<div>${escapeHtml(t.approval)}: ${escapeHtml(record.approvalRef)}</div>` : ""}
             ${record.date ? `<div>${escapeHtml(t.date)}: ${escapeHtml(record.date)}</div>` : ""}
           </article>`).join("")}
@@ -409,7 +409,7 @@ function renderChangeClaimControl(
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
+          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -429,7 +429,7 @@ function renderChangeClaimControl(
               <span>${escapeHtml(item.noticeType)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
               <span>${escapeHtml(t.costLabel)}: ${renderRefs(item.costRefs)}</span>
-              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
@@ -440,7 +440,7 @@ function renderChangeClaimControl(
               <span>${escapeHtml(item.changeType)} · ${escapeHtml(item.status)}</span>
               <span>${escapeHtml(t.noticeLabel)}: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
               <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
-              <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
@@ -462,9 +462,9 @@ function renderChangeClaimControl(
               <strong>${escapeHtml(item.recordType)} · ${escapeHtml(item.recordId)}</strong>
               <span>${escapeHtml(item.impactedDomain)} / ${escapeHtml(item.impactedEntityType)} / ${escapeHtml(item.impactedEntityId)}</span>
               <span>${escapeHtml(item.impactType)}</span>
-              <span>Schedule: ${escapeHtml(item.scheduleReference ?? "—")}</span>
-              <span>Cost: ${escapeHtml(item.costReference ?? "—")}</span>
-              <span>Approval: ${item.requiresApplicationApproval ? "required" : "no"}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${escapeHtml(item.scheduleReference ?? "—")}</span>
+              <span>${escapeHtml(t.costLabel)}: ${escapeHtml(item.costReference ?? "—")}</span>
+              <span>${escapeHtml(t.approval)}: ${item.requiresApplicationApproval ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
       </div>
