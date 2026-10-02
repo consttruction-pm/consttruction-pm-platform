@@ -29,6 +29,7 @@ test("maps writable nullable standard fields to an editable typed descriptor", (
     nullable: true,
     computed: false,
     writable: true,
+    unit: null,
     allowedValues: null,
   });
 });
@@ -57,11 +58,12 @@ test("UDF enum fields use only authoritative allowed values", () => {
     data_type: "enum" as const,
     writable: true,
     nullable: false,
-    unit: null,
+    unit: "hours",
     allowed_values: ["Planned", "In Progress", "Complete"] as const,
   };
   const descriptor = getP6UdfEditorDescriptor(source);
   assert.equal(descriptor.control, "select");
+  assert.equal(descriptor.unit, "hours");
   assert.deepEqual(descriptor.allowedValues, ["Planned", "In Progress", "Complete"]);
   (descriptor.allowedValues as string[]).push("Injected");
   assert.deepEqual(source.allowed_values, ["Planned", "In Progress", "Complete"]);
