@@ -77,3 +77,12 @@ def test_remaining_duration_registry_is_derived():
     assert remaining.writable is False
     assert remaining.computed is True
 
+
+
+def test_suspend_date_registry_is_time_aware_and_seeded():
+    suspend = get_field("activity.suspend_date")
+    assert suspend.p6_field == "SuspendDate"
+    assert suspend.data_type is P6FieldType.DATETIME
+    assert suspend.writable is True
+    assert suspend.computed is False
+    assert suspend.disposition == "seeded_not_certified"
