@@ -1,0 +1,101 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 schedule performance and variance typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies documented read-side API type and published semantic description only. Writable/default/nullability/import-export certification remains open; no Registry identity is changed by this tranche.",
+  "fields": [
+    {
+      "p6_field": "SchedulePercentComplete",
+      "data_type": "double",
+      "unit": "percent",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "875-877",
+      "description": "Activity schedule percent complete based on where the current data date falls relative to project baseline start and finish; earlier than baseline start gives 0 and later than baseline finish gives 100."
+    },
+    {
+      "p6_field": "SchedulePerformanceIndex",
+      "data_type": "double",
+      "unit": "ratio",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "878-880",
+      "description": "Schedule Performance Index = earned value / planned value."
+    },
+    {
+      "p6_field": "SchedulePerformanceIndexLaborUnits",
+      "data_type": "double",
+      "unit": "ratio",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "882-884",
+      "description": "Schedule Performance Index for labor units = earned value labor units / planned value labor units."
+    },
+    {
+      "p6_field": "ScheduleVariance",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "885-887",
+      "description": "Schedule variance = earned value - planned value. Negative values indicate less work performed than scheduled."
+    },
+    {
+      "p6_field": "ScheduleVarianceIndex",
+      "data_type": "double",
+      "unit": "ratio",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "889-891",
+      "description": "Schedule Variance Index = schedule variance / planned value."
+    },
+    {
+      "p6_field": "ScheduleVarianceIndexLaborUnits",
+      "data_type": "double",
+      "unit": "ratio",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "893-894",
+      "description": "Schedule Variance Index for labor units = schedule variance labor units / planned value labor units."
+    },
+    {
+      "p6_field": "ScheduleVarianceLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "896-898",
+      "description": "Schedule variance labor units = earned value labor units - planned value labor units."
+    },
+    {
+      "p6_field": "StartDate1Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "912-913",
+      "description": "Duration between current-project start date and primary baseline start date; calculated as start date - primary baseline start date."
+    },
+    {
+      "p6_field": "StartDate2Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "915-917",
+      "description": "Duration between current-project start date and secondary baseline start date; calculated as start date - secondary baseline start date."
+    },
+    {
+      "p6_field": "StartDate3Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "919-920",
+      "description": "Duration between current-project start date and tertiary baseline start date; calculated as start date - tertiary baseline start date."
+    }
+  ]
+}
