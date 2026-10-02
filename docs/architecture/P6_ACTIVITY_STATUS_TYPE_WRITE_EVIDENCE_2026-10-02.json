@@ -1,0 +1,49 @@
+{
+  "schema_version": "p6-activity-status-type-write-evidence.v1",
+  "checked_on": "2026-10-02",
+  "tranche": "P6_ACTIVITY_NEXT_TRANCHE4_2026-10-02",
+  "oracle_reference": "P6 EPPM REST API Release 26",
+  "sources": {
+    "update": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
+  },
+  "endpoint_contract": {
+    "update_method": "PUT /activity",
+    "update_request_schema": "List<Activity>",
+    "create_method": "POST /activity",
+    "create_request_schema": "List<Activity>"
+  },
+  "fields": [
+    {
+      "p6_field": "Status",
+      "oracle_wire_type": "string",
+      "repository_enum": "ActivityStatus",
+      "repository_path": "src/construction_pm/scheduling/activity.py",
+      "oracle_values": ["Not Started", "In Progress", "Completed"],
+      "repository_values": ["Not Started", "In Progress", "Completed"],
+      "semantic_value_set_match": true,
+      "endpoint_schema_exposure": true,
+      "field_level_mutability_certified": false,
+      "repository_persistence_mapping_certified": false
+    },
+    {
+      "p6_field": "Type",
+      "oracle_wire_type": "string",
+      "repository_enum": "ActivityType",
+      "repository_path": "src/construction_pm/scheduling/activity.py",
+      "oracle_values": ["Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"],
+      "repository_values": ["Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"],
+      "semantic_value_set_match": true,
+      "endpoint_schema_exposure": true,
+      "field_level_mutability_certified": false,
+      "repository_persistence_mapping_certified": false
+    }
+  ],
+  "decision": {
+    "promote_registry_identity": false,
+    "change_activity_master": false,
+    "add_parallel_serializer": false,
+    "reason": "Oracle exposes Status and Type in the Activity create/update schema and the repository already has exact value-set enums, but persistence and interchange mappings are not yet jointly evidenced."
+  },
+  "next_gate": "Locate or establish the authoritative persisted P6 mapping definition for the exact interchange format before changing ActivityMaster or adding an interchange mapping."
+}
