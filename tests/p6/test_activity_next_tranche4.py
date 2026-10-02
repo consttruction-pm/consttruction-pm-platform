@@ -21,4 +21,4 @@ def test_next_tranche4_is_exact_remaining_inventory_only():
     assert data["baseline"]["remaining_inventory_only_before_tranche"]==29
     assert data["baseline"]["expected_remaining_after_tranche"]==0
     assert all(x["registry_change"]=="none" for x in data["fields"])
-    assert all(x["reconciliation_status"]=="pending" for x in data["fields"])
+    assert all(x["reconciliation_status"]=="pending" for x in data["fields"])\n    assert all(x["oracle_type"] and not x["oracle_type"].startswith("pending_") for x in data["fields"])\n    assert all(x["evidence_lines"] for x in data["fields"])\n    assert data["status"]=="oracle_schema_evidence_extracted_semantic_certification_pending"
