@@ -1,0 +1,160 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-registry-alias-reconciliation/v1",
+  "title": "P6 Activity Release 26 registry-only name reconciliation evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "activity_inventory_count": 275,
+  "registry_count": 134,
+  "exact_inventory_matches": 125,
+  "legacy_registry_only_count": 9,
+  "status": "candidate_aliases_and_unresolved",
+  "rule": "This artifact records evidence-backed reconciliation candidates only. It does not mutate canonical P6 field identity and does not certify equivalence where ambiguity or type/interchange evidence remains incomplete.",
+  "sources": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+  },
+  "entries": [
+    {
+      "registry_name": "ActivityId",
+      "official_p6_candidates": [
+        "Id"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "Id"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string",
+      "semantic_evidence": "Activity.Id is the short ID that uniquely identifies the activity within the project.",
+      "evidence": "Oracle Activity GET lines 523-525; Export ActivityFieldType includes Id at lines 1084-1090.",
+      "blocking_reason": "Legacy registry name is not an Oracle ActivityFieldType name; canonical aliasing remains unconfirmed."
+    },
+    {
+      "registry_name": "ActivityName",
+      "official_p6_candidates": [
+        "Name"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "Name"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string",
+      "semantic_evidence": "Activity.Name is the activity name and does not have to be unique.",
+      "evidence": "Oracle Activity GET lines 643-645; Export ActivityFieldType includes Name at lines 1119-1123.",
+      "blocking_reason": "Legacy registry name is not an Oracle ActivityFieldType name; preserve candidate-only status."
+    },
+    {
+      "registry_name": "ActivityOwner",
+      "official_p6_candidates": [
+        "ActivityOwnerUserId",
+        "OwnerIDArray",
+        "OwnerNamesArray"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "ActivityOwnerUserId",
+        "OwnerIDArray",
+        "OwnerNamesArray"
+      ],
+      "mapping_status": "unresolved",
+      "api_type": "integer(int32) for ActivityOwnerUserId; arrays for OwnerIDArray/OwnerNamesArray",
+      "semantic_evidence": "Oracle exposes the activity owner as ActivityOwnerUserId and also exposes owner ID/name arrays; the generic legacy seed does not identify which representation is canonical.",
+      "evidence": "Oracle Activity GET lines 1058-1065; Export ActivityFieldType includes ActivityOwnerUserId at lines 961-964 and OwnerIDArray/OwnerNamesArray at lines 1133-1136.",
+      "blocking_reason": "Multiple official owner representations prevent choosing a canonical alias without interchange/domain semantics."
+    },
+    {
+      "registry_name": "ActivityStatus",
+      "official_p6_candidates": [
+        "Status"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "Status"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string",
+      "semantic_evidence": "Activity.Status is the current activity status with values Not Started, In Progress, and Completed.",
+      "evidence": "Oracle Activity GET lines 926-928; Export ActivityFieldType includes Status at lines 1203-1205.",
+      "blocking_reason": "Legacy registry name is not the official ActivityFieldType name."
+    },
+    {
+      "registry_name": "ActivityType",
+      "official_p6_candidates": [
+        "Type"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "Type"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string",
+      "semantic_evidence": "Activity.Type is the documented activity type with six values including Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary.",
+      "evidence": "Oracle Activity GET lines 1000-1001 and 3381-3389; Export ActivityFieldType includes Type at lines 1224-1227.",
+      "blocking_reason": "Legacy registry name is not the official ActivityFieldType name."
+    },
+    {
+      "registry_name": "Calendar",
+      "official_p6_candidates": [
+        "CalendarName",
+        "CalendarObjectId"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "CalendarName",
+        "CalendarObjectId"
+      ],
+      "mapping_status": "unresolved",
+      "api_type": "string or integer(int32)",
+      "semantic_evidence": "Oracle exposes both the calendar name and the unique object ID of the calendar assigned to the activity.",
+      "evidence": "Oracle Activity GET lines 346-350; lines 1751-1765; Export ActivityFieldType includes CalendarName/CalendarObjectId at lines 1040-1041.",
+      "blocking_reason": "Generic legacy Calendar seed does not identify whether it denotes the name, object ID, or a composite domain reference."
+    },
+    {
+      "registry_name": "RemainingStartDate",
+      "official_p6_candidates": [
+        "RemainingEarlyStartDate"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "RemainingEarlyStartDate"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string(date-time)",
+      "semantic_evidence": "Oracle documents RemainingEarlyStartDate as the date the remaining work is scheduled to begin; it is scheduler-derived but can be updated manually by the project manager.",
+      "evidence": "Oracle Activity GET lines 2906-2916; Create/Activity endpoint also documents the scheduler/manual-update behavior.",
+      "blocking_reason": "Legacy name is not an ActivityFieldType name; exact interchange alias remains to be certified."
+    },
+    {
+      "registry_name": "RemainingFinishDate",
+      "official_p6_candidates": [
+        "RemainingEarlyFinishDate",
+        "RemainingLateFinishDate"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "RemainingEarlyFinishDate",
+        "RemainingLateFinishDate"
+      ],
+      "mapping_status": "unresolved",
+      "api_type": "string(date-time)",
+      "semantic_evidence": "Oracle exposes separate remaining early and remaining late finish dates; the generic legacy seed does not select between them.",
+      "evidence": "Oracle Activity GET lines 2906-2914 and 2960-2967; Export ActivityFieldType includes RemainingEarlyFinishDate and RemainingLateFinishDate at lines 1171-1179.",
+      "blocking_reason": "No direct Oracle ActivityFieldType named RemainingFinishDate exists in the Release 26 inventory."
+    },
+    {
+      "registry_name": "UpdateUser",
+      "official_p6_candidates": [
+        "LastUpdateUser"
+      ],
+      "legacy_name_in_activity_export": false,
+      "candidate_export_names": [
+        "LastUpdateUser"
+      ],
+      "mapping_status": "candidate_alias",
+      "api_type": "string",
+      "semantic_evidence": "Oracle Activity.LastUpdateUser is the name of the user who last updated the activity.",
+      "evidence": "Oracle Activity GET lines 592-594; Export ActivityFieldType includes LastUpdateUser at lines 1107-1108.",
+      "blocking_reason": "Legacy registry name is not the official ActivityFieldType name; preserve candidate-only status."
+    }
+  ]
+}
