@@ -85,11 +85,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const fieldId = button.dataset.p6FieldMove;
     const direction = button.dataset.p6FieldDirection;
     if (!fieldId || (direction !== "up" && direction !== "down")) return;
-    const ordered = state.p6Layout?.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order).map((column) => column.field_id) ?? [];
+    const visible = state.p6Layout?.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order) ?? [];
+    const ordered = state.p6Layout?.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id) ?? [];
     const index = ordered.indexOf(fieldId);
-    const nextIndex = direction === "up" ? index - 1 : index + 1;
-    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
-    [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
+    const visibleIndex = visible.findIndex((column) => column.field_id === fieldId);
+    const nextVisibleIndex = direction === "up" ? visibleIndex - 1 : visibleIndex + 1;
+    if (visibleIndex < 0 || nextVisibleIndex < 0 || nextVisibleIndex >= visible.length || index < 0) return;
+    const adjacentFieldId = visible[nextVisibleIndex].field_id;
+    const adjacentIndex = ordered.indexOf(adjacentFieldId);
+    if (adjacentIndex < 0) return;
+    [ordered[index], ordered[adjacentIndex]] = [ordered[adjacentIndex], ordered[index]];
     options.onP6FieldReorder?.(ordered);
   }));
 
