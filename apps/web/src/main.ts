@@ -25,7 +25,41 @@ import { WorkspaceReadClient } from "./workspace-read-api.js";
 import { createP6ReadOnlyLayoutPersistence } from "./p6-api.js";
 import { createP6LayoutPersistenceController } from "./p6-layout-persistence-controller.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-import { selectProjectId } from "./project-bootstrap.js";
+import { getProjectSelectionOptions, selectProjectId } from "./project-bootstrap.js";
+
+function renderProjectSelection(
+  container: HTMLElement,
+  projects: readonly { project_id: string; name: string }[],
+  onSelect: (projectId: string) => void,
+): void {
+  container.replaceChildren();
+
+  const main = document.createElement("main");
+  main.className = "cp-project-selection";
+  const heading = document.createElement("h1");
+  heading.textContent = "Select project";
+  const label = document.createElement("label");
+  label.textContent = "Project";
+  const select = document.createElement("select");
+  select.name = "project_id";
+  select.setAttribute("aria-label", "Project");
+
+  for (const option of getProjectSelectionOptions(projects)) {
+    const element = document.createElement("option");
+    element.value = option.project_id;
+    element.textContent = option.label;
+    select.append(element);
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Open project";
+  button.addEventListener("click", () => onSelect(select.value));
+
+  label.append(select);
+  main.append(heading, label, button);
+  container.append(main);
+}
 
 function renderApp(container: HTMLElement, state: WorkspaceState): void {
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
@@ -142,6 +176,35 @@ async function boot(): Promise<void> {
 
     renderApp(container, hydratedWorkspace);
   } catch (error) {
+    if (error instanceof Error && error.message === "PROJECT_SELECTION_REQUIRED") {
+      renderProjectSelection(container, projects.data.projects, async (selectedProjectId) => {
+        try {
+          const opened = await lifecycle.openProject(selectedProjectId);
+          if (!opened.ok) throw new Error(opened.error.code);
+
+          const workspaceRead = new WorkspaceReadClient(new FetchApiTransport(baseUrl));
+          const workspace = await workspaceRead.load(opened.data.context);
+          if (!workspace.ok) throw new Error(workspace.error.code);
+
+          const layoutPersistence = createP6ReadOnlyLayoutPersistence(
+            new FetchApiTransport(baseUrl),
+            opened.data.context,
+          );
+          const layoutController = createP6LayoutPersistenceController(
+            layoutPersistence,
+            "project",
+            "activity",
+          );
+          const hydratedWorkspace = await layoutController.load(workspace.data);
+          renderApp(container, hydratedWorkspace);
+        } catch (selectionError) {
+          container.innerHTML = '<main class="cp-shell-error"><h1>Construction PM</h1><p>Unable to initialize the selected Web workspace.</p></main>';
+          console.error(selectionError);
+        }
+      });
+      return;
+    }
+
     container.innerHTML = '<main class="cp-shell-error"><h1>Construction PM</h1><p>Unable to initialize the Web workspace.</p></main>';
     console.error(error);
   }
