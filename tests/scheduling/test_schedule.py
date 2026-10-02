@@ -846,3 +846,38 @@ def test_mixed_activity_calendars_drive_ff_dates_and_float_through_shared_core()
         result.early_activities["B"],
         default,
     )
+
+@pytest.mark.parametrize("relationship_type", list(RelationshipType))
+def test_mixed_activity_calendars_preserve_all_relationship_types(
+    relationship_type,
+):
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar())
+    successor_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    activities = [Activity("A", 2), Activity("B", 2)]
+    relationship = Relationship("A", "B", relationship_type)
+
+    result = schedule(
+        activities,
+        [relationship],
+        date(2026, 9, 21),
+        predecessor_resolver,
+        project_finish=date(2026, 10, 2),
+        activity_resolvers={"A": predecessor_resolver, "B": successor_resolver},
+    )
+
+    early = result.early_activities
+    assert early is not None
+    assert early["A"].finish == predecessor_resolver.add_working_duration(
+        early["A"].start, activities[0].duration
+    )
+    assert early["B"].finish == successor_resolver.add_working_duration(
+        early["B"].start, activities[1].duration
+    )
+    assert _relationship_holds(
+        relationship,
+        early["A"],
+        early["B"],
+        predecessor_resolver,
+    )
