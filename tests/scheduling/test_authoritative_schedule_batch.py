@@ -68,6 +68,26 @@ def calendar_registry() -> CalendarResolverRegistry:
     )
 
 
+def test_authoritative_batch_applies_activity_calendar_registry_to_schedule():
+    base = snapshot("P1", date(2026, 10, 10))
+    activity = Activity(id="P1-A", duration=2)
+    weekend = CalendarReference("WEEKEND", "1")
+    configured = replace(
+        base,
+        activities=(activity,),
+        activity_calendar_assignments=(ActivityCalendarAssignment("P1-A", weekend),),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [configured],
+        resolvers={"P1": resolver()},
+        calendar_registry=calendar_registry(),
+    )
+
+    scheduled = result.project("P1").result.early_activities["P1-A"]
+    assert scheduled.finish == date(2026, 10, 3)
+
+
 def test_duplicate_snapshot_id_is_rejected_before_graph_construction():
     first = snapshot("P1", date(2026, 10, 10))
     duplicate = AuthoritativeScheduleInput(
