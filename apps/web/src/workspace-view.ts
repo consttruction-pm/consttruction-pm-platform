@@ -4,11 +4,11 @@ import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNaviga
 
 const labels = {
   en: {
-    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings",
+    project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "P6 Field Chooser", fields: "Fields", add: "Add", remove: "Remove", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: t.humanApprovalRequired, noApprovalFlag: t.noApprovalFlag, sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links"
     wbs: "Project / WBS", activities: "Activity Grid", gantt: "Gantt Chart", details: "Details", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noSchedule: "No scheduled activities", revision: "Revision", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", findings: "Findings", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
   },
   fa: {
-    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات",
+    project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات", mainMenu: "منوی اصلی", currentSurface: "سطح فعلی محیط کار", submenu: "زیرمنو", formulaColumn: "ستون فرمول", fieldChooser: "انتخاب‌گر فیلد P6", fields: "فیلدها", add: "افزودن", remove: "حذف", findings: "یافته‌ها", proposedActions: "اقدامات پیشنهادی", traceability: "ردیابی", sources: "منابع", approvalRequired: "نیازمند تأیید", humanApprovalRequired: "نیازمند تأیید انسانی", noApprovalFlag: "بدون پرچم تأیید", sourceUnit: "منبع", activityLinkUnit: "پیوند فعالیت", evidenceUnit: "مستند", inspections: "بازرسی‌ها", qualityNcr: "کیفیت / NCR", safety: "ایمنی", punchCloseout: "پانچ / بستن موارد", due: "سررسید", supplier: "تأمین‌کننده", reference: "مرجع", amount: "مبلغ", itemUnit: "مورد", linkedReferenceUnit: "مرجع پیوندشده", stored: "ذخیره‌شده", noStorage: "بدون ذخیره‌سازی", approval: "تأیید", date: "تاریخ", notices: "اعلان‌ها", changeCases: "موارد تغییر", claims: "ادعاها", impactLinks: "پیوندهای اثر", scheduleLabel: "زمان‌بندی", costLabel: "هزینه", noticeLabel: "اعلان", changeLabel: "تغییر", entitlement: "استحقاق", decision: "تصمیم", impactLinkLabel: "پیوندهای اثر
     wbs: "پروژه / WBS", activities: "جدول فعالیت‌ها", gantt: "گانت", details: "جزئیات", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", findings: "یافته‌ها", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
   },
 } as const;
@@ -35,7 +35,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
       </header>
-      <nav class="cp-menu" aria-label="Main Menu">
+      <nav class="cp-menu" aria-label="${escapeAttribute(t.mainMenu)}">
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
       </nav>
       ${renderNavigationSurface(state)}
@@ -57,7 +57,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="formula column">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="${escapeAttribute(labels[state.locale].formulaColumn)}">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
@@ -91,9 +91,9 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
-  return `<section class="cp-panel cp-navigation-surface" aria-label="Current workspace surface">
+  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(labels[state.locale].currentSurface)}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
-    <nav aria-label="${escapeAttribute(label)} submenu">
+    <nav aria-label="${escapeAttribute(label + " " + labels[state.locale].submenu)}">
       ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu[state.locale])}</span>`).join("")}
     </nav>
   </section>`;
@@ -124,8 +124,8 @@ function renderSmartGuide(
             `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
-              <span>${action.requiresApproval ? "Human approval required" : "No approval flag"}</span>
-              <span>${action.sourceCount} source(s)</span>
+              <span>${action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag}</span>
+              <span>${action.sourceCount} ${escapeHtml(t.sourceUnit)}</span>
             </article>`,
         )
         .join("")
@@ -142,18 +142,18 @@ function renderSmartGuide(
       </div>
       <div class="cp-field-grid">
         <div>
-          <h3>Findings</h3>
+          <h3>${escapeHtml(t.findings)}</h3>
           <div class="cp-field-list">${findings}</div>
         </div>
         <div>
-          <h3>Proposed Actions</h3>
+          <h3>${escapeHtml(t.proposedActions)}</h3>
           <div class="cp-field-list">${actions}</div>
         </div>
         <div>
-          <h3>Traceability</h3>
+          <h3>${escapeHtml(t.traceability)}</h3>
           <div class="cp-control-metrics">
-            <div class="cp-control-metric"><span>Sources</span><strong>${guide.sourceCount}</strong></div>
-            <div class="cp-control-metric"><span>Approval Required</span><strong>${guide.approvalRequiredCount}</strong></div>
+            <div class="cp-control-metric"><span>${escapeHtml(t.sources)}</span><strong>${guide.sourceCount}</strong></div>
+            <div class="cp-control-metric"><span>${escapeHtml(t.approvalRequired)}</span><strong>${guide.approvalRequiredCount}</strong></div>
           </div>
         </div>
       </div>
@@ -309,27 +309,27 @@ function renderFieldAssurance(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-field-assurance-grid">
         <div>
-          <h3>Inspections</h3>
+          <h3>${escapeHtml(labels[state.locale].inspections)}</h3>
           ${inspections.length ? inspections.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.inspectionTypeKey)}</strong>
               <span>${escapeHtml(item.subjectId)}</span>
               <span>${escapeHtml(item.result)} · ${escapeHtml(item.status)}</span>
-              <span>${item.checklist.length} checklist item(s)</span>
+              <span>${item.checklist.length} ${escapeHtml(labels[state.locale].itemUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Quality / NCR</h3>
+          <h3>${escapeHtml(labels[state.locale].qualityNcr)}</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
-              <span>${item.evidenceCount} evidence · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)} · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Safety</h3>
+          <h3>${escapeHtml(labels[state.locale].safety)}</h3>
           ${safetyObservations.length ? safetyObservations.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
@@ -339,7 +339,7 @@ function renderFieldAssurance(
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Punch / Closeout</h3>
+          <h3>${escapeHtml(labels[state.locale].punchCloseout)}</h3>
           ${punchItems.length ? punchItems.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
@@ -372,12 +372,12 @@ function renderProcurement(
               <span>${escapeHtml(record.type)}</span>
               <span>${escapeHtml(record.status)}</span>
             </div>
-            ${record.supplierId ? `<div>Supplier: ${escapeHtml(record.supplierId)}</div>` : ""}
-            ${record.referenceId ? `<div>Ref: ${escapeHtml(record.referenceId)}</div>` : ""}
-            ${record.amount !== null ? `<div>Amount: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
-            <div>${record.itemCount} item(s) · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
-            ${record.approvalRef ? `<div>Approval: ${escapeHtml(record.approvalRef)}</div>` : ""}
-            ${record.date ? `<div>Date: ${escapeHtml(record.date)}</div>` : ""}
+            ${record.supplierId ? `<div>${escapeHtml(labels[state.locale].supplier)}: ${escapeHtml(record.supplierId)}</div>` : ""}
+            ${record.referenceId ? `<div>${escapeHtml(labels[state.locale].reference)}: ${escapeHtml(record.referenceId)}</div>` : ""}
+            ${record.amount !== null ? `<div>${escapeHtml(labels[state.locale].amount)}: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
+            <div>${record.itemCount} ${escapeHtml(labels[state.locale].itemUnit)} · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
+            ${record.approvalRef ? `<div>${escapeHtml(labels[state.locale].approval)}: ${escapeHtml(record.approvalRef)}</div>` : ""}
+            ${record.date ? `<div>${escapeHtml(labels[state.locale].date)}: ${escapeHtml(record.date)}</div>` : ""}
           </article>`).join("")}
       </div>
     </section>
@@ -397,13 +397,13 @@ function renderChangeClaimControl(
   const documentSection = documents.length === 0
     ? ""
     : `<section class="control-room-section" data-section="documents">
-      <h2>Documents</h2>
+      <h2>${escapeHtml(labels[state.locale].documents)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? "stored" : "no storage"}</small>
+          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? labels[state.locale].stored : labels[state.locale].noStorage}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -416,41 +416,41 @@ function renderChangeClaimControl(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-change-claim-grid">
         <div>
-          <h3>Notices</h3>
+          <h3>${escapeHtml(labels[state.locale].notices)}</h3>
           ${notices.length ? notices.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.noticeType)} · ${escapeHtml(item.status)}</span>
-              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
-              <span>Cost: ${renderRefs(item.costRefs)}</span>
-              <span>${item.evidenceCount} evidence · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(labels[state.locale].scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(labels[state.locale].costLabel)}: ${renderRefs(item.costRefs)}</span>
+              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Change Cases</h3>
+          <h3>${escapeHtml(labels[state.locale].changeCases)}</h3>
           ${changes.length ? changes.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.changeType)} · ${escapeHtml(item.status)}</span>
-              <span>Notice: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
-              <span>Schedule: ${renderRefs(item.scheduleRefs)}</span>
-              <span>Impact links: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(labels[state.locale].noticeLabel)}: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
+              <span>${escapeHtml(labels[state.locale].scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(labels[state.locale].impactLinkLabel)}: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Claims</h3>
+          <h3>${escapeHtml(labels[state.locale].claims)}</h3>
           ${claims.length ? claims.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.claimType)} · ${escapeHtml(item.status)}</span>
-              <span>Change: ${escapeHtml(item.changeId ?? "—")}</span>
-              <span>Entitlement: ${escapeHtml(item.entitlementReference ?? "—")}</span>
-              <span>Decision: ${escapeHtml(item.decisionReference ?? "—")}</span>
-              <span>${item.evidenceCount} evidence</span>
+              <span>${escapeHtml(labels[state.locale].changeLabel)}: ${escapeHtml(item.changeId ?? "—")}</span>
+              <span>${escapeHtml(labels[state.locale].entitlement)}: ${escapeHtml(item.entitlementReference ?? "—")}</span>
+              <span>${escapeHtml(labels[state.locale].decision)}: ${escapeHtml(item.decisionReference ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>Impact Links</h3>
+          <h3>${escapeHtml(labels[state.locale].impactLinks)}</h3>
           ${impacts.length ? impacts.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.recordType)} · ${escapeHtml(item.recordId)}</strong>
@@ -472,17 +472,17 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
-  return `<section class="cp-p6-field-chooser" aria-label="P6 Field Chooser">
+  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(labels[state.locale].fieldChooser)}">
     <div class="cp-p6-field-chooser-heading">
-      <strong>Fields</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+      <strong>${escapeHtml(labels[state.locale].fields)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
       ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
-        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="Remove">${escapeHtml(column.label ?? field.display_name)}</button>`;
+        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(labels[state.locale].remove)}">${escapeHtml(column.label ?? field.display_name)}</button>`;
       }).join("")}
-      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="Add">${escapeHtml(field.display_name)}</button>`).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(labels[state.locale].add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
   </section>`;
 }
