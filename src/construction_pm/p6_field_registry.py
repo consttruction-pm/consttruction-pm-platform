@@ -298,6 +298,7 @@ P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
         writable=writable,
         computed=computed,
         unit=unit,
+        read_only=(p6_field == "StatusCode"),
     )
     for field_id, subject_area, p6_field, display_name, data_type, writable, computed, unit in _ROWS
 )
