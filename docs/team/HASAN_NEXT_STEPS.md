@@ -752,3 +752,19 @@ Status: **implemented, runtime-verified and merged**
 - `docs/architecture/P6_ACTIVITY_STATUS_TYPE_WRITE_EVIDENCE_2026-10-02.json` explicitly records that Status and Type persistence mapping is not certified and requires an authoritative persisted P6 mapping definition before changing ActivityMaster or adding an interchange mapping.
 - `src/construction_pm/p6_interchange_mapping.py` is deliberately registry-driven; it cannot establish a Status/Type/StatusCode mapping by itself. Repository code search found no certified Activity Status/Type/StatusCode mapping definition on current main.
 - Disposition: no Hasan implementation is authorized at this gate. The actual dependency is a certified persisted/interchange mapping definition for the exact P6 Activity fields. Once supplied by the semantic authority, the smallest resulting persistence/API seam can be implemented with focused PostgreSQL regression coverage.
+
+
+### 2026-10-02 — PR #806 completion and P6-2 closure
+
+- Current main advanced to `dd0660150fa1c8f8fddf47545539e3451ef2c6cd` by merge of PR #806.
+- PR #806 fixed a concrete Import/Export no-silent-drop defect: mapper-preserved extensions that XER/MPX cannot represent are now rejected explicitly instead of being silently discarded.
+- Focused regressions were added for both XER and MPX; the merge was accepted only after the required checks were green.
+- Issue #709 is now closed as completed. Its audit/implementation boundary is therefore satisfied and must not be reopened for duplicate work.
+- No new Hasan-owned implementation PR is open. Current open PRs #805/#807 are Web ownership and are outside this lane.
+
+### Current continuation point
+
+- Continue from exact main `dd0660150fa1c8f8fddf47545539e3451ef2c6cd`.
+- The next Hasan action is a fresh audit of the still-open P6 parity track (#393), limited to Backend/Database/Application/API/Import-Export and database-backed verification.
+- Implement only a newly reproducible Hasan-owned defect or an authoritative contract-backed seam. Do not infer missing Activity/WBS/WorkPackage semantics from names or presentation code, and do not duplicate Shared Core calculations.
+- If no concrete defect is found, record the evidence and dependency rather than creating speculative code.
