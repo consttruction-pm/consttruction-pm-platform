@@ -22,9 +22,6 @@ from .p6_user_defined_fields_repository import (
 
 
 P6_FIELD_REGISTRY_API_VERSION = "p6-field-registry-api.v1"
-P6_FIELD_REGISTRY_REFERENCE_PRODUCT = "Oracle P6 Version 26 / 26.4"
-P6_FIELD_REGISTRY_REFERENCE_VERSION = "26.4"
-P6_FIELD_REGISTRY_STATUS = "seeded_not_certified"
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
