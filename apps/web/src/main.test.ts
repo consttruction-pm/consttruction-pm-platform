@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectProjectId } from "./main.js";
+import { selectProjectId } from "./project-bootstrap.js";
 
 test("project bootstrap selects the requested project only when it is available", () => {
   const projects = [{ project_id: "p1" }, { project_id: "p2" }];
