@@ -165,8 +165,8 @@ def forward_pass(
     data_date: date | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
     use_expected_finish_dates: bool = False,
-    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
     out_of_sequence_schedule_type: OutOfSequenceScheduleType = OutOfSequenceScheduleType.RETAINED_LOGIC,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Deterministic earliest-start pass with P6 date options."""
     if calculation_context is not None:
