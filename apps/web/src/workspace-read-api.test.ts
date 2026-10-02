@@ -105,6 +105,7 @@ class StubTransport implements ApiTransport {
     this.context = contextValue;
     if (path.includes("/p6/fields/")) {
       this.registryPath = path;
+      if (this.registryResult) return this.registryResult as ApiResult<T>;
       return {
         ok: true,
         data: {
