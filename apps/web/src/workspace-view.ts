@@ -42,13 +42,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       </nav>
       ${renderNavigationSurface(state)}
       <main class="cp-main">
-        ${renderSmartGuide(state.smartGuide, t.smartGuide)}
+        ${renderSmartGuide(state.smartGuide, t.smartGuide, t)}
         ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
-        ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial)}
-        ${renderProcurement(state.procurementRecords, t.procurement)}
+        ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
+        ${renderProcurement(state.procurementRecords, t.procurement, t)}
         <aside class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
@@ -59,7 +59,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table>
-                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="${escapeAttribute(labels[state.locale].formulaColumn)}">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
+                <thead><tr>${state.columns.map((column) => `<th data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? '<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>' : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr><td colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
@@ -93,9 +93,9 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
-  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(labels[state.locale].currentSurface)}">
+  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
-    <nav aria-label="${escapeAttribute(label + " " + labels[state.locale].submenu)}">
+    <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu[state.locale])}</span>`).join("")}
     </nav>
   </section>`;
@@ -104,6 +104,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
 function renderSmartGuide(
   guide: WorkspaceState["smartGuide"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!guide) return "";
 
@@ -303,6 +304,7 @@ function renderFieldAssurance(
   safetyObservations: WorkspaceState["safetyObservations"],
   punchItems: WorkspaceState["punchItems"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!inspections.length && !qualityRecords.length && !safetyObservations.length && !punchItems.length) return "";
 
@@ -311,27 +313,27 @@ function renderFieldAssurance(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-field-assurance-grid">
         <div>
-          <h3>${escapeHtml(labels[state.locale].inspections)}</h3>
+          <h3>${escapeHtml(t.inspections)}</h3>
           ${inspections.length ? inspections.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.inspectionTypeKey)}</strong>
               <span>${escapeHtml(item.subjectId)}</span>
               <span>${escapeHtml(item.result)} · ${escapeHtml(item.status)}</span>
-              <span>${item.checklist.length} ${escapeHtml(labels[state.locale].itemUnit)}</span>
+              <span>${item.checklist.length} ${escapeHtml(t.itemUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].qualityNcr)}</h3>
+          <h3>${escapeHtml(t.qualityNcr)}</h3>
           ${qualityRecords.length ? qualityRecords.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.categoryKey)}</span>
               <span>${escapeHtml(item.severity)} · ${escapeHtml(item.status)}</span>
-              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)} · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(item.correctiveActionKey ?? "—")}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].safety)}</h3>
+          <h3>${escapeHtml(t.safety)}</h3>
           ${safetyObservations.length ? safetyObservations.map((item) => `
             <article class="cp-field-card is-${escapeAttribute(item.severity)}">
               <strong>${escapeHtml(item.titleKey)}</strong>
@@ -341,7 +343,7 @@ function renderFieldAssurance(
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].punchCloseout)}</h3>
+          <h3>${escapeHtml(t.punchCloseout)}</h3>
           ${punchItems.length ? punchItems.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
@@ -358,6 +360,7 @@ function renderFieldAssurance(
 function renderProcurement(
   records: WorkspaceState["procurementRecords"],
   label: string,
+  t: WorkspaceLabels,
 ): string {
   if (!records.length) return "";
 
@@ -374,12 +377,12 @@ function renderProcurement(
               <span>${escapeHtml(record.type)}</span>
               <span>${escapeHtml(record.status)}</span>
             </div>
-            ${record.supplierId ? `<div>${escapeHtml(labels[state.locale].supplier)}: ${escapeHtml(record.supplierId)}</div>` : ""}
-            ${record.referenceId ? `<div>${escapeHtml(labels[state.locale].reference)}: ${escapeHtml(record.referenceId)}</div>` : ""}
-            ${record.amount !== null ? `<div>${escapeHtml(labels[state.locale].amount)}: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
-            <div>${record.itemCount} ${escapeHtml(labels[state.locale].itemUnit)} · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
-            ${record.approvalRef ? `<div>${escapeHtml(labels[state.locale].approval)}: ${escapeHtml(record.approvalRef)}</div>` : ""}
-            ${record.date ? `<div>${escapeHtml(labels[state.locale].date)}: ${escapeHtml(record.date)}</div>` : ""}
+            ${record.supplierId ? `<div>${escapeHtml(t.supplier)}: ${escapeHtml(record.supplierId)}</div>` : ""}
+            ${record.referenceId ? `<div>${escapeHtml(t.reference)}: ${escapeHtml(record.referenceId)}</div>` : ""}
+            ${record.amount !== null ? `<div>${escapeHtml(t.amount)}: ${escapeHtml(record.amount)} ${escapeHtml(record.currency ?? "")}</div>` : ""}
+            <div>${record.itemCount} ${escapeHtml(t.itemUnit)} · ${record.activityIds.length} activity link(s) · ${record.evidenceCount} evidence</div>
+            ${record.approvalRef ? `<div>${escapeHtml(t.approval)}: ${escapeHtml(record.approvalRef)}</div>` : ""}
+            ${record.date ? `<div>${escapeHtml(t.date)}: ${escapeHtml(record.date)}</div>` : ""}
           </article>`).join("")}
       </div>
     </section>
@@ -393,19 +396,20 @@ function renderChangeClaimControl(
   impacts: WorkspaceState["changeClaimImpacts"],
   label: string,
   documents: WorkspaceState["documents"] = [],
+  t: WorkspaceLabels,
 ): string {
   if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
 
   const documentSection = documents.length === 0
     ? ""
     : `<section class="control-room-section" data-section="documents">
-      <h2>${escapeHtml(labels[state.locale].documents)}</h2>
+      <h2>${escapeHtml(t.documents)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? labels[state.locale].stored : labels[state.locale].noStorage}</small>
+          <small>${document.linkedEntityRefs.length} linked reference(s) · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -418,41 +422,41 @@ function renderChangeClaimControl(
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-change-claim-grid">
         <div>
-          <h3>${escapeHtml(labels[state.locale].notices)}</h3>
+          <h3>${escapeHtml(t.notices)}</h3>
           ${notices.length ? notices.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.noticeType)} · ${escapeHtml(item.status)}</span>
-              <span>${escapeHtml(labels[state.locale].scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
-              <span>${escapeHtml(labels[state.locale].costLabel)}: ${renderRefs(item.costRefs)}</span>
-              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(t.costLabel)}: ${renderRefs(item.costRefs)}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].changeCases)}</h3>
+          <h3>${escapeHtml(t.changeCases)}</h3>
           ${changes.length ? changes.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.changeType)} · ${escapeHtml(item.status)}</span>
-              <span>${escapeHtml(labels[state.locale].noticeLabel)}: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
-              <span>${escapeHtml(labels[state.locale].scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
-              <span>${escapeHtml(labels[state.locale].impactLinkLabel)}: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
+              <span>${escapeHtml(t.noticeLabel)}: ${escapeHtml(item.originatingNoticeId ?? "—")}</span>
+              <span>${escapeHtml(t.scheduleLabel)}: ${renderRefs(item.scheduleRefs)}</span>
+              <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · Approval: ${item.approvalRequired ? "required" : "no"}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].claims)}</h3>
+          <h3>${escapeHtml(t.claims)}</h3>
           ${claims.length ? claims.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.titleKey)}</strong>
               <span>${escapeHtml(item.claimType)} · ${escapeHtml(item.status)}</span>
-              <span>${escapeHtml(labels[state.locale].changeLabel)}: ${escapeHtml(item.changeId ?? "—")}</span>
-              <span>${escapeHtml(labels[state.locale].entitlement)}: ${escapeHtml(item.entitlementReference ?? "—")}</span>
-              <span>${escapeHtml(labels[state.locale].decision)}: ${escapeHtml(item.decisionReference ?? "—")}</span>
-              <span>${item.evidenceCount} ${escapeHtml(labels[state.locale].evidenceUnit)}</span>
+              <span>${escapeHtml(t.changeLabel)}: ${escapeHtml(item.changeId ?? "—")}</span>
+              <span>${escapeHtml(t.entitlement)}: ${escapeHtml(item.entitlementReference ?? "—")}</span>
+              <span>${escapeHtml(t.decision)}: ${escapeHtml(item.decisionReference ?? "—")}</span>
+              <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
         <div>
-          <h3>${escapeHtml(labels[state.locale].impactLinks)}</h3>
+          <h3>${escapeHtml(t.impactLinks)}</h3>
           ${impacts.length ? impacts.map((item) => `
             <article class="cp-field-card">
               <strong>${escapeHtml(item.recordType)} · ${escapeHtml(item.recordId)}</strong>
@@ -474,17 +478,17 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   if (!registry || !layout) return "";
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
-  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(labels[state.locale].fieldChooser)}">
+  return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(t.fieldChooser)}">
     <div class="cp-p6-field-chooser-heading">
-      <strong>${escapeHtml(labels[state.locale].fields)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
+      <strong>${escapeHtml(t.fields)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
     </div>
     <div class="cp-p6-field-list">
       ${layout.columns.filter((column) => column.visible).sort((a,b) => a.order-b.order).map((column) => {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
-        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(labels[state.locale].remove)}">${escapeHtml(column.label ?? field.display_name)}</button>`;
+        return `<button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.remove)}">${escapeHtml(column.label ?? field.display_name)}</button>`;
       }).join("")}
-      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(labels[state.locale].add)}">${escapeHtml(field.display_name)}</button>`).join("")}
+      ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
   </section>`;
 }
