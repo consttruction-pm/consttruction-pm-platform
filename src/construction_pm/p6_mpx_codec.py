@@ -98,7 +98,7 @@ class P6MpxCodec:
         scope.validate()
         if not rows:
             raise P6MpxCodecError("EMPTY_MPX_DOCUMENT")
-        first = rows[0].extensions
+        self._validate_extensions(rows)\n        first = rows[0].extensions
         separator = first.get("p6.mpx.separator", ",")
         creation = first.get("p6.mpx.file_creation")
         if not isinstance(separator, str) or len(separator) != 1:
