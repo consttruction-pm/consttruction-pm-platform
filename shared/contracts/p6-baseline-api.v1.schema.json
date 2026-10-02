@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-baseline-api/v1",
   "title": "P6 Baseline API v1",
   "type": "object",
   "required": ["contract_version", "kind", "scope", "baseline"],
