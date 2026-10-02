@@ -53,7 +53,7 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert names == EXPECTED_FIELDS
     assert len(items) == 20
     assert names.issubset(inventory_names)
-    assert names.isdisjoint(registry_names)
+    assert names <= registry_names
     assert all(item["registry_change"] == "none" for item in items)
     assert all(item["reconciliation_status"] == "pending" for item in items)
     assert all(item["oracle_type"] for item in items)
