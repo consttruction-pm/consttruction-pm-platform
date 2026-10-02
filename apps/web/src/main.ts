@@ -53,7 +53,17 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
         console.error("P6 layout save failed", error);
       }
     },
-    onP6FieldWidthChange: async (fieldId, width) => {\n      try {\n        const next = updateP6FieldPresentation(state, fieldId, { width });\n        if (!next.p6Layout || !next.p6FieldRegistry) return;\n        const saved = await persistence.save(next.p6Layout);\n        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);\n      } catch (error) {\n        console.error("P6 layout save failed", error);\n      }\n    },\n    onP6FieldRemove: async (fieldId) => {
+    onP6FieldWidthChange: async (fieldId, width) => {
+      try {
+        const next = updateP6FieldPresentation(state, fieldId, { width });
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
+    onP6FieldRemove: async (fieldId) => {
       try {
         const next = removeP6Field(state, fieldId);
         if (!next.p6Layout || !next.p6FieldRegistry) return;
