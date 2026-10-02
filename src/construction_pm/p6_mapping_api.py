@@ -5,7 +5,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
-from .p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingRegistryApplicationService, P6MappingStatus, PersistedP6Mapping
+from .p6_mapping_registry import P6MappingFormat, P6MappingRegistryApplicationService, PersistedP6Mapping
 
 P6_MAPPING_API_VERSION = "p6-mapping-api.v1"
 
