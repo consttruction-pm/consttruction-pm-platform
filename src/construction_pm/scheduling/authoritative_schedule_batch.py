@@ -106,7 +106,6 @@ def execute_authoritative_schedule_batch(
         or snapshot.schedule_options.priority_list
         or snapshot.schedule_options.min_float_to_preserve
         or snapshot.schedule_options.over_allocation_percentage
-        or snapshot.schedule_options.preserve_scheduled_early_and_late_dates is False
         for snapshot in snapshot_list
     )
     if has_leveling_options and len(snapshot_list) > 1 and leveling_input is None:
