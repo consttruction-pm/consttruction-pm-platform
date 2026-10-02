@@ -43,7 +43,7 @@ function deps(overrides: Partial<SessionApi> = {}): {
 
   const sessionApi: SessionApi = {
     getSession: async () => ok(session),
-    listProjects: async () => ok({ projects }),
+    listProjects: async () => ok({ projects: [projects[0]] }),
     openProject: async (projectId) => {
       opened.push(projectId);
       return ok({
