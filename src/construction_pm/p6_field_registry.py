@@ -113,6 +113,7 @@ _ROWS = (
     ("activity.primary_constraint_type","Activity","PrimaryConstraintType","Primary Constraint Type","enum",True,False,None),
     ("activity.primary_constraint_date","Activity","PrimaryConstraintDate","Primary Constraint Date","date",True,False,None),
     ("activity.expected_finish","Activity","ExpectedFinishDate","Expected Finish","date",True,False,None),
+    ("activity.suspend_date","Activity","SuspendDate","Suspend Date","datetime",True,False,None),
     ("activity.owner","Activity","ActivityOwner","Activity Owner","string",True,False,None),
     ("activity.primary_resource","Activity","PrimaryResourceName","Primary Resource","string",True,False,None),
     ("activity.project_id","Activity","ProjectId","Project ID","string",False,True,None),
