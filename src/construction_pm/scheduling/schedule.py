@@ -104,6 +104,7 @@ def backward_pass(
     resolver: WorkingTimeResolver,
     constraints: Iterable[ActivityConstraint] | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> Mapping[str, ScheduledActivity]:
     """Calculate latest dates using successor late dates."""
     activity_list = list(activities)
@@ -121,7 +122,9 @@ def backward_pass(
 
     for activity_id, activity_constraints in constraint_map.items():
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, resolver
+            activity_constraints,
+            activity_map[activity_id].duration,
+            (activity_resolvers or {}).get(activity_id, resolver),
         )
 
     for rel in relationship_list:
@@ -140,15 +143,16 @@ def backward_pass(
 
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
+        activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         successors = outgoing[activity_id]
 
         if not successors:
-            late_finish = finish
-            late_start = resolver.subtract_working_duration(late_finish, activity.duration)
+            late_finish = activity_resolver.normalize_finish(finish)
+            late_start = activity_resolver.subtract_working_duration(late_finish, activity.duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, resolver,
+                    rel, result[rel.successor_id], activity.duration, activity_resolver,
                     (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
@@ -158,27 +162,27 @@ def backward_pass(
                     ),
                 )
             )
-            latest_by_project_finish = resolver.subtract_working_duration(
-                finish, activity.duration
+            latest_by_project_finish = activity_resolver.subtract_working_duration(
+                activity_resolver.normalize_finish(finish), activity.duration
             )
             late_start = min(late_start, latest_by_project_finish)
-            late_finish = resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             late_start = apply_latest_constraint(
-                constraint, late_start, activity.duration, resolver
+                constraint, late_start, activity.duration, activity_resolver
             )
-            late_finish = resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
 
-        if late_finish > finish:
+        if late_finish > activity_resolver.normalize_finish(finish):
             raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
-            validate_late_constraint_window(constraint, late_start, late_finish, resolver)
+            validate_late_constraint_window(constraint, late_start, late_finish, activity_resolver)
 
         result[activity_id] = ScheduledActivity(
             activity_id=activity_id,
