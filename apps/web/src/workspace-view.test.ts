@@ -110,21 +110,38 @@ test("Persian workspace localizes accessibility and chooser labels", () => {
     ),
     p6FieldRegistry: {
       registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "V1",
+      status: "verified",
       fields: [
         {
           field_id: "activity.activity_id",
+          subject_area: "activity",
+          p6_field: "Activity ID",
           display_name: "شناسه فعالیت",
-          data_type: "text",
+          data_type: "string",
           writable: false,
           computed: false,
+          disposition: "verified",
         },
       ],
     },
     p6Layout: {
-      scope: "activity",
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity",
       revision: 1,
       columns: [
-        { field_id: "activity.activity_id", visible: true, order: 0, width: 120, label: null },
+        {
+          field_id: "activity.activity_id",
+          visible: true,
+          order: 0,
+          width: 120,
+          label: undefined,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        },
       ],
     },
   };
