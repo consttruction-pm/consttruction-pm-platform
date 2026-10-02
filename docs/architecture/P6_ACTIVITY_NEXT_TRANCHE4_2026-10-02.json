@@ -16,7 +16,7 @@
     "tranche_field_count": 29,
     "expected_remaining_after_tranche": 0
   },
-  "status": "oracle_schema_and_semantic_classification_extracted_mutability_mapping_pending",
+  "status": "oracle_get_and_update_schema_reconciled_field_level_write_behavior_pending",
   "certification_policy": "Do not promote a field to canonical implementation or registry identity from name similarity or published type alone. Type, mutability, defaults/nullability, import/export and exact internal mapping require evidence. Scheduler-derived values remain Shared Scheduling Core authority.",
   "fields": [
     {
@@ -432,5 +432,62 @@
     "Oracle Activity GET is a read endpoint; it does not by itself certify whether a field is writable through Activity create/update/import paths. Mutability and import mapping therefore remain pending until authoritative write/import evidence is located.",
     "No Activity Registry identity was promoted from name similarity.",
     "Next step: inspect authoritative project write/import contracts and existing internal mapping code; only then certify writable/read-only, null/default, canonical mapping, import/export and regression behavior."
-  ]
+  ],
+  "oracle_write_evidence": {
+    "source": "P6 EPPM REST API Release 26 - Update Activities",
+    "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "finding": "Oracle exposes a dedicated PUT /activity endpoint with a List<Activity> request schema. The endpoint documentation includes the remaining fields in the Activity entity schema, but schema presence alone is not treated as proof that every field is writable.",
+    "certified_from_endpoint": [
+      "SecondaryConstraintDate",
+      "SecondaryConstraintType",
+      "StatusCode",
+      "SuspendDate",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "ToCompletePerformanceIndex",
+      "TotalCost1Variance",
+      "TotalCost2Variance",
+      "TotalCost3Variance",
+      "TotalCostVariance",
+      "TotalPastPeriodExpenseCost",
+      "TotalPastPeriodLaborCost",
+      "TotalPastPeriodLaborUnits",
+      "TotalPastPeriodMaterialCost",
+      "TotalPastPeriodNonLaborCost",
+      "TotalPastPeriodNonLaborUnits",
+      "Type",
+      "WBSObjectId",
+      "WorkPackageId",
+      "WorkPackageName"
+    ],
+    "explicitly_computed_or_derived_on_update_schema": [
+      "ToCompletePerformanceIndex",
+      "TotalCost1Variance",
+      "TotalCost2Variance",
+      "TotalCost3Variance",
+      "TotalCostVariance"
+    ],
+    "still_requires_field_level_write_behavior": [
+      "ScopePercentComplete",
+      "Status",
+      "TaskStatusCompletion",
+      "TaskStatusDates",
+      "TaskStatusIndicator",
+      "TotalPastPeriodExpenseCost",
+      "TotalPastPeriodLaborCost",
+      "TotalPastPeriodLaborUnits",
+      "TotalPastPeriodMaterialCost",
+      "TotalPastPeriodNonLaborCost",
+      "TotalPastPeriodNonLaborUnits",
+      "UnitsPercentComplete",
+      "UnreadCommentCount",
+      "WBSCode",
+      "WBSName",
+      "WBSNamePath",
+      "WorkPackageId",
+      "WorkPackageName"
+    ],
+    "policy": "Do not mark a field writable solely because it appears in PUT schema; require field-specific Oracle wording or internal mapping evidence."
+  }
 }
