@@ -1,0 +1,110 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 tertiary baseline typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies only the documented read-side API type, unit, and semantic description. Writable/default/nullability/import-export and full stored-vs-computed certification remain open; no Registry identity is changed by this tranche.",
+  "fields": [
+    {
+      "p6_field": "Baseline3Duration",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "271-273",
+      "description": "Duration for the activity in the tertiary baseline; duration is total working time from activity current start to current finish, with working time computed using the activity calendar."
+    },
+    {
+      "p6_field": "Baseline3FinishDate",
+      "data_type": "string",
+      "unit": "date-time",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "274-276",
+      "description": "Current finish date of the activity in the user's tertiary baseline; planned finish while not started, remaining finish while in progress, and actual finish once completed."
+    },
+    {
+      "p6_field": "Baseline3PlannedDuration",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "278-279",
+      "description": "Planned duration for the activity in the tertiary baseline; total working time from current start to current finish, using the activity calendar. Named Baseline 3 Budgeted Duration in Primavera Engineering & Construction and Maintenance & Turnaround solutions."
+    },
+    {
+      "p6_field": "Baseline3PlannedExpenseCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "281-282",
+      "description": "Planned costs for all project expenses associated with the activity; named Baseline 3 Budgeted Expense Cost in Primavera Engineering & Construction and Maintenance & Turnaround solutions."
+    },
+    {
+      "p6_field": "Baseline3PlannedLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "284-286",
+      "description": "Oracle Release 26 response text describes this tertiary-baseline field as planned costs for all project expenses associated with the activity and names it Baseline Budgeted Expense Cost in Primavera Engineering & Construction and Maintenance & Turnaround solutions; the wording is preserved as published pending semantic reconciliation."
+    },
+    {
+      "p6_field": "Baseline3PlannedLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "287-289",
+      "description": "Planned units for all labor resources assigned to the activity; named Baseline 3 Budgeted Labor Units in Primavera Engineering & Construction and Maintenance & Turnaround solutions."
+    },
+    {
+      "p6_field": "Baseline3PlannedMaterialCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "291-293",
+      "description": "Planned Material Cost for the activity in the user's tertiary baseline."
+    },
+    {
+      "p6_field": "Baseline3PlannedNonLaborCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "295-296",
+      "description": "Planned costs for all nonlabor resources assigned to the activity; if no resources are assigned, computed from planned nonlabor units and project default price/time."
+    },
+    {
+      "p6_field": "Baseline3PlannedNonLaborUnits",
+      "data_type": "double",
+      "unit": "units",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "298-299",
+      "description": "Planned units for all nonlabor resources assigned to the activity; named Baseline 3 Budgeted Non Labor Units in Primavera Engineering & Construction and Maintenance & Turnaround solutions."
+    },
+    {
+      "p6_field": "Baseline3PlannedTotalCost",
+      "data_type": "double",
+      "unit": "currency",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "301-302",
+      "description": "Planned total cost for the activity in the tertiary baseline including labor, nonlabor, and project expenses; planned total cost = planned labor cost + planned nonlabor cost + planned expense cost. Named Baseline 3 Budgeted Total Cost in Primavera Engineering & Construction and Maintenance & Turnaround solutions."
+    },
+    {
+      "p6_field": "Baseline3StartDate",
+      "data_type": "string",
+      "unit": "date-time",
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "304-305",
+      "description": "Current start date of the activity in the user's tertiary baseline; planned start until the activity is started, then actual start."
+    }
+  ]
+}
