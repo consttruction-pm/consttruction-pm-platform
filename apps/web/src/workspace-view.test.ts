@@ -74,3 +74,29 @@ test("menu selection wiring forwards the selected workspace surface", () => {
   listeners.get("reports")?.();
   assert.deepEqual(selected, ["reports"]);
 });
+
+
+test("renderer honors visible workspace panel flags", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    visiblePanels: {
+      project_wbs: false,
+      activity_grid: true,
+      gantt: false,
+      details: false,
+    },
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /class="cp-panel cp-wbs" hidden/);
+  assert.match(container.innerHTML, /class="cp-panel cp-gantt" hidden/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details" hidden/);
+  assert.match(container.innerHTML, /class="cp-panel cp-grid"/);
+});
