@@ -9,15 +9,6 @@
   "entries": [
     {
       "subject_area": "Activity",
-      "p6_field": "AccountingVariance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "ActualExpenseCost",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -208,15 +199,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "AtCompletionCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "AtCompletionDuration",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -477,24 +459,6 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "CostPercentComplete",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "CostPerformanceIndex",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "CostVariance",
       "status": "pending_source_mapping",
       "data_type": null,
@@ -522,34 +486,7 @@
     },
     {
       "subject_area": "Activity",
-      "p6_field": "Duration2Variance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Duration3Variance",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
       "p6_field": "DurationType",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "EarnedValueCost",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -577,15 +514,6 @@
     {
       "subject_area": "Activity",
       "p6_field": "EstimateToCompleteCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "ExpenseCostVariance",
       "status": "pending_source_mapping",
       "data_type": null,
       "writable": null,
@@ -1115,5 +1043,5 @@
       "reference_verified": false
     }
   ],
-  "entry_count": 123
+  "entry_count": 115
 }
