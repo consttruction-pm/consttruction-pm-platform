@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "subject_area": "Activity",
+  "p6_reference": "P6 EPPM REST API Release 26 — Export Projects / ActivityFieldType",
+  "source_inventory": "docs/architecture/P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+  "audit_basis": {
+    "inventory_field_count": 275,
+    "registry_activity_field_count": 134,
+    "inventory_only_count": 150,
+    "existing_activity_evidence_files_scanned": 14,
+    "inventory_only_fields_with_direct_evidence_artifact": 61,
+    "inventory_only_fields_without_direct_evidence_artifact": 89
+  },
+  "status": "evidence_worklist_pending_authoritative_reconciliation",
+  "guardrails": [
+    "This artifact does not mutate the canonical P6 field registry.",
+    "This artifact does not expand the canonical Activity dataclass.",
+    "No field receives a writable/computed/nullability/default/filter/order/disposition certification from this worklist alone.",
+    "Scheduler-derived, baseline-derived, resource-derived, and cost/EVM-derived semantics must be sourced from authoritative Oracle evidence and Shared Core seams before implementation mapping."
+  ],
+  "fields": [
+    {
+      "p6_field": "AtCompletionExpenseCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "AtCompletionMaterialCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedDuration",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedExpenseCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedLaborCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedLaborUnits",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedMaterialCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedNonLaborUnits",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "BaselinePlannedTotalCost",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CBSCode",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CBSId",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CBSObjectId",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CalendarName",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CalendarObjectId",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "CreateDate",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "DataDate",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "DurationType",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "EstimatedWeight",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "IsNewFeedback",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    },
+    {
+      "p6_field": "IsStarred",
+      "inventory_verified": true,
+      "current_registry_status": "inventory_only",
+      "direct_activity_evidence_artifact": "none_found_in_current_main_activity_evidence_scan",
+      "reconciliation_status": "pending",
+      "registry_change": "none"
+    }
+  ],
+  "next_step": "For each field, collect Oracle typed semantic evidence, calculation/update wording, interchange behavior, then create focused regression fixtures before any registry disposition."
+}
