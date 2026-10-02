@@ -179,3 +179,37 @@ test("P6 layout persistence controller rejects a save response for another scope
     /P6_LAYOUT_SCOPE_MISMATCH/,
   );
 });
+
+test("P6 layout persistence controller rejects a loaded layout for another scope", async () => {
+  const persistence: P6LayoutPersistence = {
+    async load() {
+      return { ...layout, scope: "user" };
+    },
+    async save(value) {
+      return value;
+    },
+  };
+  const controller = createP6LayoutPersistenceController(persistence, "project", "activity");
+
+  await assert.rejects(
+    () => controller.load(stateWithLayout(null)),
+    /P6_LAYOUT_SCOPE_MISMATCH/,
+  );
+});
+
+test("P6 layout persistence controller rejects a save response for another view", async () => {
+  const persistence: P6LayoutPersistence = {
+    async load() {
+      return null;
+    },
+    async save(value) {
+      return { ...value, view_id: "wbs" };
+    },
+  };
+  const controller = createP6LayoutPersistenceController(persistence, "project", "activity");
+
+  await assert.rejects(
+    () => controller.save(stateWithLayout(layout)),
+    /P6_LAYOUT_VIEW_MISMATCH/,
+  );
+});
