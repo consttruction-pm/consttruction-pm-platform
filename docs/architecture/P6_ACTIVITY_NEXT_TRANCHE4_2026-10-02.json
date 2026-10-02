@@ -571,5 +571,23 @@
     },
     "certification_decision": "These descriptions strengthen calculation/derived evidence but do not establish field-level writable/read-only behavior or repository import mapping. No registry identity or production implementation is promoted from this review.",
     "next_bounded_section": "Continue field-level certification for Status, Type, SecondaryConstraintDate, SecondaryConstraintType, and SuspendDate by reconciling Oracle write behavior with authoritative repository mapping."
+  },
+  "bounded_certification_review_2026_10_02": {
+    "oracle_put_findings": {
+      "Status": "Release 26 PUT documents the current activity status values Not Started, In Progress, and Completed.",
+      "Type": "Release 26 PUT documents the six activity types and their scheduling semantics.",
+      "SecondaryConstraintDate": "Release 26 PUT documents this as the date used for cstr_type2 when a secondary constraint exists; the constraint type determines start versus finish semantics.",
+      "SecondaryConstraintType": "Release 26 PUT documents the allowed secondary constraint choices when more than one constraint is assigned.",
+      "SuspendDate": "Release 26 PUT documents this as the start date from which progress is delayed for task/resource-dependent activity and describes the suspend/resume calendar behavior."
+    },
+    "repository_mapping_findings": {
+      "Status": "Authoritative Activity model already defines ActivityStatus with the three matching P6 values.",
+      "Type": "Authoritative Activity model already defines ActivityType with the six matching P6 values.",
+      "SecondaryConstraintDate": "No verified secondary-constraint field was found in the current Activity model during this bounded review.",
+      "SecondaryConstraintType": "No verified secondary-constraint field or canonical enum was found in the current Activity model during this bounded review.",
+      "SuspendDate": "No verified SuspendDate field or suspend/resume persistence mapping was found in the current Activity model during this bounded review."
+    },
+    "certification_decision": "Status and Type have strong semantic alignment with the existing Activity model, but field-level writable/read-only behavior and import/export mapping are still not certified. SecondaryConstraintDate, SecondaryConstraintType, and SuspendDate remain pending because repository-side authoritative mappings were not verified. No new registry identities were added.",
+    "next_bounded_section": "Continue with field-level evidence for WBSCode, WBSName, WBSNamePath, WBSObjectId, WorkPackageId, and WorkPackageName, while separately checking whether an authoritative WBS/WorkPackage mapper exists before any registry promotion."
   }
 }
