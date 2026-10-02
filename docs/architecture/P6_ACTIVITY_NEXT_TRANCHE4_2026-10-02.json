@@ -10,7 +10,7 @@
     "activity_create": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-post.html"
   },
   "baseline": {
-    "base_main_sha": "b5dd8448bfdb9efc8d6d8f5c80602a91b795d599",
+    "base_main_sha": "2da2533c0b70cd3f5d82df08af09a3a92d3a45f5",
     "inventory_field_count": 275,
     "registry_activity_field_count": 135,
     "exact_inventory_matches": 126,
@@ -422,7 +422,8 @@
     "All 28 fields remain pending for field-level writable/read-only, defaults/nullability, canonical mapping, import/export and regression certification.",
     "No Activity Registry identity was promoted from name similarity.",
     "Next step: resolve each field against Oracle field-level write/import behavior and the repository's authoritative mapping paths, then certify only evidence-backed semantics.",
-    "Baseline refreshed onto current main at b5dd8448bfdb9efc8d6d8f5c80602a91b795d599 after merged PR #760. Raw inventory-vs-registry inventory-only count remains 150; the governed remaining reconciliation tranche remains the exact 28-field subset."
+    "Baseline refreshed onto current main at b5dd8448bfdb9efc8d6d8f5c80602a91b795d599 after merged PR #760. Raw inventory-vs-registry inventory-only count remains 150; the governed remaining reconciliation tranche remains the exact 28-field subset.",
+    "Rebased reconciliation onto current main at 2da2533c0b70cd3f5d82df08af09a3a92d3a45f5. Closed/unmerged implementation PRs are not counted as current-main capability."
   ],
   "repository_mapping_review": {
     "checked_on": "2026-10-02",
@@ -442,9 +443,10 @@
       "WBSCode",
       "WBSName"
     ],
-    "remaining_gap": "No repository-side Activity serializer/import/export mapper was found for the remaining Tranche 4 fields. P6FieldRegistryAPI exposes registry metadata but does not itself serialize or persist Activity field values.",
-    "constraint_gap": "The scheduling core has primary constraint concepts, but no verified SecondaryConstraint model or SuspendDate/TaskStatus/WorkPackage persistence model was found. These fields therefore remain uncertified.",
-    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Continue reconciliation only where an authoritative repository mapping and regression path can be demonstrated."
+    "remaining_gap": "No repository-side Activity serializer/import/export mapper is currently certified for the remaining tranche fields. P6FieldRegistryAPI exposes metadata but does not itself serialize or persist Activity field values.",
+    "constraint_gap": "SecondaryConstraint boundary was implemented in #779 but that PR was closed without merge; SuspendDate semantics were validated in #774 but that PR was closed without merge; TaskStatus and WorkPackage persistence remain uncertified and require authoritative repository mapping evidence.",
+    "decision": "Do not add duplicate Registry rows or invent canonical mappings. Treat closed/unmerged PRs #779/#774/#775 as evidence only; continue field-level reconciliation only where an authoritative repository mapping and regression path can be demonstrated.",
+    "active_candidates": []
   },
   "oracle_write_evidence": {
     "source": "P6 EPPM REST API Release 26 - Update Activities",
