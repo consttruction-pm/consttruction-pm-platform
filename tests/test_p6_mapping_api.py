@@ -94,7 +94,7 @@ def test_mapping_api_rejects_cross_scope_and_read_without_permission() -> None:
         )
     a.create(record(), auth_context=auth())
     with pytest.raises(AuthorizationError):
-        a.get(scope(), "activity.code", auth_context=auth("viewer"))
+        a.get(scope(), "activity.code", auth_context=auth("observer"))
 
 
 def test_mapping_api_write_requires_project_write() -> None:
