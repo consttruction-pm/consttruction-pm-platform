@@ -1,0 +1,74 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-typed-semantic/v1",
+  "title": "P6 Activity Release 26 current start/finish and baseline variance typed semantic evidence tranche",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "source_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+  "subject_area": "Activity",
+  "status": "typed_read_evidence_only",
+  "certification_rule": "This artifact certifies documented read-side API type and published semantic description only. Writable/default/nullability/import-export certification remains open; no Registry identity is changed by this tranche.",
+  "fields": [
+    {
+      "p6_field": "FinishDate",
+      "data_type": "date-time",
+      "unit": null,
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "486-488",
+      "description": "The current finish date of the activity. Set to the planned finish date while the activity is not started, the remaining finish date while the activity is in progress, and the actual finish date once the activity is completed."
+    },
+    {
+      "p6_field": "FinishDate1Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "490-492",
+      "description": "Duration between the current-project finish date and the primary baseline finish date, calculated as finish date minus primary baseline finish date."
+    },
+    {
+      "p6_field": "FinishDate2Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "493-495",
+      "description": "Duration between the current-project finish date and the secondary baseline finish date, calculated as finish date minus secondary baseline finish date."
+    },
+    {
+      "p6_field": "FinishDate3Variance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "497-499",
+      "description": "Duration between the current-project finish date and the tertiary baseline finish date, calculated as finish date minus tertiary baseline finish date."
+    },
+    {
+      "p6_field": "FinishDateVariance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "501-502",
+      "description": "Duration between the current-project finish date and the project baseline finish date, calculated as finish date minus project baseline finish date."
+    },
+    {
+      "p6_field": "StartDate",
+      "data_type": "date-time",
+      "unit": null,
+      "computed": null,
+      "writable": null,
+      "evidence_lines": "908-910",
+      "description": "The start date of the activity. Set to the remaining start date until the activity is started, then set to the actual start date."
+    },
+    {
+      "p6_field": "StartDateVariance",
+      "data_type": "double",
+      "unit": "working-time",
+      "computed": true,
+      "writable": null,
+      "evidence_lines": "922-924",
+      "description": "Duration between the current-project start date and the project baseline start date, calculated as start date minus project baseline start date."
+    }
+  ]
+}
