@@ -362,15 +362,17 @@ def _relationship_free_float(
     predecessor_activity: Activity,
     resolver: WorkingTimeResolver,
     lag_resolver: WorkingTimeResolver | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> int:
     lag_resolver = lag_resolver or resolver
+    activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
     delay = 0
     while delay < 10000:
-        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
         if not _relationship_holds(relationship, candidate, successor, resolver, lag_resolver):
@@ -390,11 +392,11 @@ def _relationship_total_float(
     lag_resolver = lag_resolver or resolver
     delay = 0
     while delay < 10000:
-        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
         if not _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver):
@@ -411,6 +413,7 @@ def _choose_default_float_path_endpoint(
     resolver: WorkingTimeResolver,
     use_total_float: bool,
     relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> str | None:
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
@@ -432,6 +435,7 @@ def _choose_default_float_path_endpoint(
                     activity_map[relationship.predecessor_id],
                     resolver,
                     (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
+                    activity_resolvers,
                 )
                 for relationship in incoming_rels
             )
@@ -447,6 +451,7 @@ def _choose_default_float_path_endpoint(
                         activity_map[relationship.predecessor_id],
                         resolver,
                         (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
+                        activity_resolvers,
                     )
                     for relationship in incoming_rels
                 ),
@@ -514,6 +519,7 @@ def _multiple_float_paths(
                 scoped, scoped_relationships, early_schedule, late_schedule, resolver,
                 options.multiple_float_paths_use_total_float,
                 relationship_lag_resolvers,
+                activity_resolvers,
             ) or min(remaining)
 
         if endpoint not in remaining:
@@ -561,10 +567,11 @@ def _multiple_float_paths(
                         relationship, predecessor, successor, resolver,
                         (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id)),
                     ) else 1
+                predecessor_resolver = (activity_resolvers or {}).get(predecessor_id, resolver)
                 activity_float = _working_delay_between(
                     early_schedule[predecessor_id].start,
                     late_schedule[predecessor_id].start,
-                    resolver,
+                    predecessor_resolver,
                 )
                 scored.append((
                     (
