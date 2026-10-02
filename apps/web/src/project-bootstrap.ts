@@ -12,6 +12,12 @@ export function getProjectSelectionOptions(
   }));
 }
 
+export function buildProjectSelectionUrl(currentUrl: string, projectId: string): string {
+  const url = new URL(currentUrl);
+  url.searchParams.set("project_id", projectId);
+  return url.toString();
+}
+
 export function selectProjectId(
   projects: readonly { project_id: string }[],
   requestedProjectId: string | null,
