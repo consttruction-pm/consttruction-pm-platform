@@ -282,16 +282,22 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                 else OutOfSequenceScheduleType.RETAINED_LOGIC.value
             ),
             start_to_start_lag_calculation_type=StartToStartLagCalculationType(
-                str(value.get(
+                _required_string(
+                    value,
                     "start_to_start_lag_calculation_type",
-                    StartToStartLagCalculationType.EARLY_START.value,
-                ))
+                    "INVALID_SCHEDULE_OPTION:start_to_start_lag_calculation_type",
+                )
+                if "start_to_start_lag_calculation_type" in value
+                else StartToStartLagCalculationType.EARLY_START.value
             ),
             relationship_lag_calendar=RelationshipLagCalendar(
-                str(value.get(
+                _required_string(
+                    value,
                     "relationship_lag_calendar",
-                    RelationshipLagCalendar.PROJECT_DEFAULT.value,
-                ))
+                    "INVALID_SCHEDULE_OPTION:relationship_lag_calendar",
+                )
+                if "relationship_lag_calendar" in value
+                else RelationshipLagCalendar.PROJECT_DEFAULT.value
             ),
             use_expected_finish_dates=_bool("use_expected_finish_dates"),
             recalculate_resource_costs=_bool("recalculate_resource_costs"),
