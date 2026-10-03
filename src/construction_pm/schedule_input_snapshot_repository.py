@@ -29,11 +29,11 @@ class ScheduleInputSnapshot:
 
     def validate(self) -> None:
         self.scope.validate()
-        if not self.snapshot_id.strip():
+        if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_ID")
-        if not self.snapshot_hash or len(self.snapshot_hash) != 64:
+        if not isinstance(self.snapshot_hash, str) or len(self.snapshot_hash) != 64:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_HASH")
-        if not self.calculation_identity or len(self.calculation_identity) != 64:
+        if not isinstance(self.calculation_identity, str) or len(self.calculation_identity) != 64:
             raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY")
         if not isinstance(self.canonical_payload, str) or not self.canonical_payload:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD")
