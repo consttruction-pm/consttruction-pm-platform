@@ -38,6 +38,8 @@ class ActivityCalendarAssignment:
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ValueError("activity_id must be a non-empty string")
+        if not isinstance(self.calendar, CalendarReference):
+            raise TypeError("calendar must be a CalendarReference")
 
 
 @dataclass(frozen=True)
