@@ -67,7 +67,7 @@ def test_mandatory_finish_is_exact_on_both_early_and_late_paths_when_feasible():
     activities = [TimeActivity("A", TimeQuantity.working_hours(2), ctx)]
     constraints = [TimeActivityConstraint("A", TimeConstraintType.MANDATORY_FINISH, datetime(2026, 9, 22, 10, tzinfo=timezone.utc))]
     result = time_schedule(
-        activities, [], datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 10, tzinfo=timezone.utc), registry(), constraints
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 10, tzinfo=timezone.utc), registry(), constraints
     )
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
     assert result.late_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
