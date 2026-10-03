@@ -372,6 +372,16 @@ _ROWS = (
     ("activity.cost_variance_labor_units","Activity","CostVarianceLaborUnits","Cost Variance Labor Units","double",False,True,"units"),
     ("activity.estimate_at_completion_labor_units","Activity","EstimateAtCompletionLaborUnits","Estimate At Completion Labor Units","double",False,True,"units"),
     ("activity.estimate_to_complete","Activity","EstimateToComplete","Estimate To Complete","double",False,True,"currency"),
+    ("activity.estimate_to_complete_labor_units","Activity","EstimateToCompleteLaborUnits","Estimate To Complete Labor Units","unit",False,True,"units"),
+    ("activity.estimated_weight","Activity","EstimatedWeight","Estimated Weight","double",True,False,None),
+    ("activity.is_new_feedback","Activity","IsNewFeedback","Is New Feedback","boolean",True,False,None),
+    ("activity.is_starred","Activity","IsStarred","Is Starred","boolean",True,False,None),
+    ("activity.is_template","Activity","IsTemplate","Is Template","boolean",False,False,None),
+    ("activity.is_work_package","Activity","IsWorkPackage","Is Work Package","boolean",False,False,None),
+    ("activity.nonlabor_cost1_variance","Activity","NonLaborCost1Variance","Nonlabor Cost 1 Variance","cost",False,True,"currency"),
+    ("activity.nonlabor_cost2_variance","Activity","NonLaborCost2Variance","Nonlabor Cost 2 Variance","cost",False,True,"currency"),
+    ("activity.nonlabor_cost3_variance","Activity","NonLaborCost3Variance","Nonlabor Cost 3 Variance","cost",False,True,"currency"),
+    ("activity.owner_names_array","Activity","OwnerNamesArray","Owner Names Array","string-array",True,False,None),
 )
 
 
