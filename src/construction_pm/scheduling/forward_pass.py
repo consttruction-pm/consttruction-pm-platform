@@ -61,6 +61,7 @@ def _successor_start(
     predecessor_activity: Activity | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
+    progress_baseline_start: date | None = None,
     lag_resolver: WorkingTimeResolver | None = None,
     predecessor_resolver: WorkingTimeResolver | None = None,
     successor_resolver: WorkingTimeResolver | None = None,
@@ -70,7 +71,9 @@ def _successor_start(
         if (
             predecessor_activity is not None
             and predecessor_activity.actual_start is not None
-            and predecessor_activity.actual_start > predecessor.start
+            and predecessor_activity.actual_start > (
+                progress_baseline_start if progress_baseline_start is not None else predecessor.start
+            )
         ):
             if data_date is None:
                 raise ValueError(
@@ -239,6 +242,7 @@ def forward_pass(
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
+                    project_start if not incoming[rel.predecessor_id] else result[rel.predecessor_id].start,
                     (relationship_lag_resolvers or {}).get(
                         (rel.predecessor_id, rel.successor_id)
                     ),
