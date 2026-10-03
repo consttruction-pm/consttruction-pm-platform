@@ -34,6 +34,19 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
     },
+    onGanttActivitySelect: (activityId) => {
+      renderApp(container, selectActivity(state, activityId), persistence);
+    },
+    onP6FieldVisibilityChange: async (fieldId, visible) => {
+      try {
+        const next = updateP6FieldPresentation(state, fieldId, { visible });
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
     onP6FieldAdd: async (fieldId) => {
       try {
         const next = addP6Field(state, fieldId);
