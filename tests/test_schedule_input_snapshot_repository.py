@@ -235,6 +235,9 @@ def postgres_connection(postgres_dsn):
     psycopg = pytest.importorskip("psycopg")
     connection = psycopg.connect(postgres_dsn)
     try:
+        repo = PostgresScheduleInputSnapshotRepository(connection)
+        repo.initialize()
+        connection.commit()
         connection.execute("TRUNCATE TABLE schedule_input_snapshot")
         connection.commit()
         yield connection
