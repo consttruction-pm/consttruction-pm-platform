@@ -158,8 +158,10 @@ def _datetime(value: Any) -> datetime:
 
 
 def _duration_unit(value: Any) -> DurationUnit:
+    if not isinstance(value, str):
+        raise SnapshotMaterializationError("INVALID_DURATION_UNIT")
     try:
-        return DurationUnit(str(value))
+        return DurationUnit(value)
     except ValueError as exc:
         raise SnapshotMaterializationError("INVALID_DURATION_UNIT") from exc
 
