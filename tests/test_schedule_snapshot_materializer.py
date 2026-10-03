@@ -333,3 +333,11 @@ def test_materializer_preserves_activity_state_fields():
     assert activity.status is ActivityStatus.COMPLETED
     assert activity.activity_type is ActivityType.TASK_DEPENDENT
     assert activity.status_code is ActivityStatusCode.ACTIVE
+
+def test_materializer_preserves_recalculate_resource_costs():
+    options = ScheduleOptions(recalculate_resource_costs=True)
+    source = _build_date_based_input(schedule_options=options)
+    context = _build_calculation_context(source)
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 1, 8, tzinfo=timezone.utc))
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.schedule_options.recalculate_resource_costs is True
