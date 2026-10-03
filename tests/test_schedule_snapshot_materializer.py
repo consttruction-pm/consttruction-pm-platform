@@ -335,3 +335,24 @@ def test_materializer_preserves_activity_state_fields():
     assert activity.status is ActivityStatus.COMPLETED
     assert activity.activity_type is ActivityType.TASK_DEPENDENT
     assert activity.status_code is ActivityStatusCode.ACTIVE
+
+
+def test_materializer_rejects_non_finite_schedule_option_numbers():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["critical_activity_float_threshold"] = float("nan")
+    payload["schedule_options"]["over_allocation_percentage"] = float("inf")
+    tampered_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:critical_activity_float_threshold",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
