@@ -1,0 +1,194 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-release26-tranche-22/v1",
+  "title": "P6 Activity Release 26 typed field tranche 22 evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "status": "typed_seed_not_certified",
+  "registry_source": "src/construction_pm/p6_field_registry.py",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+  },
+  "fields": [
+    {
+      "p6_field": "DurationType",
+      "oracle_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Activity duration type; documented values include Fixed Units/Time, Fixed Duration and Units/Time, Fixed Units, and Fixed Duration and Units.",
+      "evidence_lines": "Read Activities lines 421-423; Update Activities lines 387-389"
+    },
+    {
+      "p6_field": "PlannedMaterialCost",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Sum of all material resource costs.",
+      "evidence_lines": "Read/Update Activities planned material cost section"
+    },
+    {
+      "p6_field": "PlannedNonLaborCost",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Planned costs for nonlabor resources; Oracle documents a default-price calculation when no resources are assigned.",
+      "evidence_lines": "Update Activities lines 699-703"
+    },
+    {
+      "p6_field": "PlannedNonLaborUnits",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "units",
+      "oracle_semantics": "Planned units for nonlabor resources.",
+      "evidence_lines": "Update Activities lines 702-703"
+    },
+    {
+      "p6_field": "PlannedValueCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "oracle_semantics": "BAC multiplied by schedule percent complete.",
+      "evidence_lines": "Update Activities lines 715-716"
+    },
+    {
+      "p6_field": "PlannedValueLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "oracle_semantics": "Baseline labor units multiplied by schedule percent complete.",
+      "evidence_lines": "Update Activities lines 718-719"
+    },
+    {
+      "p6_field": "RemainingEarlyStartDate",
+      "oracle_type": "date-time",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Scheduler-derived remaining work start date that Oracle states can be manually updated by the project manager.",
+      "evidence_lines": "Read Activities lines 820-822; Update Activities lines 786-788"
+    },
+    {
+      "p6_field": "RemainingLaborCost",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Remaining costs for labor resources; Oracle documents a default-price calculation when no resources are assigned.",
+      "evidence_lines": "Update Activities lines 797-801"
+    },
+    {
+      "p6_field": "RemainingLaborUnits",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "units",
+      "oracle_semantics": "Remaining units for labor resources.",
+      "evidence_lines": "Update Activities lines 800-801"
+    },
+    {
+      "p6_field": "RemainingMaterialCost",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Sum of remaining material resource costs.",
+      "evidence_lines": "Update Activities lines 810-812"
+    },
+    {
+      "p6_field": "RemainingNonLaborCost",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Remaining costs for nonlabor resources.",
+      "evidence_lines": "Update Activities lines 814-816"
+    },
+    {
+      "p6_field": "RemainingNonLaborUnits",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "units",
+      "oracle_semantics": "Remaining units for nonlabor resources.",
+      "evidence_lines": "Update Activities lines 818 onward"
+    },
+    {
+      "p6_field": "ResumeDate",
+      "oracle_type": "date-time",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Date when a suspended task or resource-dependent activity should resume.",
+      "evidence_lines": "Read/Update Activities ResumeDate section"
+    },
+    {
+      "p6_field": "SchedulePerformanceIndex",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "oracle_semantics": "Earned value divided by planned value.",
+      "evidence_lines": "Read Activities lines 878-880; Update Activities lines 844-846"
+    },
+    {
+      "p6_field": "ScopePercentComplete",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "oracle_semantics": "Release 26 Activity numeric field; internal semantic certification remains pending because the published read schema does not provide a formula description.",
+      "evidence_lines": "Read Activities lines 900-901; schema lines 3121-3127"
+    },
+    {
+      "p6_field": "StartDateVariance",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "working-time",
+      "oracle_semantics": "Current project start date minus project baseline start date.",
+      "evidence_lines": "Read Activities lines 922-924"
+    },
+    {
+      "p6_field": "Status",
+      "oracle_type": "string",
+      "writable": false,
+      "computed": true,
+      "unit": null,
+      "oracle_semantics": "Current activity status: Not Started, In Progress, or Completed.",
+      "evidence_lines": "Read Activities lines 926-928"
+    },
+    {
+      "p6_field": "SuspendDate",
+      "oracle_type": "date-time",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Start date from which progress is suspended for a task/resource-dependent activity.",
+      "evidence_lines": "Read Activities lines 933-934; Update Activities lines 899-900"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Total stored period labor cost for the activity.",
+      "evidence_lines": "Read Activities lines 3318-3320; Update Activities lines 940-942"
+    },
+    {
+      "p6_field": "TotalPastPeriodLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": false,
+      "unit": "units",
+      "oracle_semantics": "Total stored period labor units for the activity.",
+      "evidence_lines": "Read Activities lines 3327-3329"
+    }
+  ],
+  "certification_gap": "Internal canonical mapping, persistence/import-export, null/default behavior, and regression evidence remain separate certification gates."
+}
