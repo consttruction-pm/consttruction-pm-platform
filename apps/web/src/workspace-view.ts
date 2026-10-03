@@ -109,7 +109,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     options.onP6FieldReorder?.(ordered);
   }));
 
-  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {\n    const select = () => { const id = row.dataset.ganttActivityId; if (id) options.onGanttActivitySelect?.(id); };\n    row.addEventListener("click", select);\n    row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });\n  });\n\n  container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
+    const select = () => { const id = row.dataset.ganttActivityId; if (id) options.onGanttActivitySelect?.(id); };
+    row.addEventListener("click", select);
+    row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
+  });
+
+  container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
     const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
