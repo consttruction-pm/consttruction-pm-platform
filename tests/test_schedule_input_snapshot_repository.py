@@ -340,3 +340,57 @@ def test_postgres_snapshot_list_rejects_corrupt_timestamp():
     repo = PostgresScheduleInputSnapshotRepository(FakeConnection())
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_TIMESTAMP"):
         repo.list(BackendScope("T-1", "P-1", 7))
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "error_code", "method"),
+    [
+        ("project_revision", "not-an-int", "INVALID_PROJECT_REVISION", "get"),
+        ("record_revision", "not-an-int", "INVALID_RECORD_REVISION", "list"),
+    ],
+)
+def test_sqlite_rejects_corrupt_persisted_integer_fields(column, value, error_code, method):
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(snapshot)
+    connection.execute(
+        f"UPDATE schedule_input_snapshot SET {column}=? WHERE snapshot_id=?",
+        (value, snapshot.snapshot_id),
+    )
+    connection.commit()
+
+    operation = (
+        repo.get(BackendScope("T-1", "P-1", 7), "S-1")
+        if method == "get"
+        else repo.list(BackendScope("T-1", "P-1", 7))
+    )
+    with pytest.raises(ScheduleSnapshotPersistenceError, match=error_code):
+        operation
+
+
+def test_postgres_list_rejects_corrupt_record_revision():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+
+    class FakeResult:
+        def fetchall(self):
+            return [(
+                snapshot.snapshot_id,
+                snapshot.snapshot_hash,
+                snapshot.canonical_payload,
+                snapshot.calculation_identity,
+                snapshot.created_at.isoformat(),
+                "not-an-int",
+            )]
+
+    class FakeConnection:
+        def execute(self, *_args):
+            return FakeResult()
+
+    repo = PostgresScheduleInputSnapshotRepository(FakeConnection())
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_RECORD_REVISION"):
+        repo.list(BackendScope("T-1", "P-1", 7))
