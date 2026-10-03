@@ -77,7 +77,7 @@ def test_postgres_core_repository_rollback(connection,repo_cls,factory,error_cls
     repo=repo_cls(connection); repo.initialize(); s=scope(); item=factory(s)
     with pytest.raises(RuntimeError):
         with connection.transaction(): repo.upsert(item); raise RuntimeError("force rollback")
-    key=getattr(item,"period_id",getattr(item,"baseline_id",item.formula_id))
+    key=item_key(item)
     got=repo.get(s,key,item.version) if hasattr(item,"version") else repo.get(s,key)
     assert got is None
 
