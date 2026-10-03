@@ -57,6 +57,12 @@ class ScheduleInputSnapshot:
             raise ScheduleSnapshotPersistenceError("INVALID_RECORD_REVISION")
 
 
+def _parse_persisted_integer(value: object, error_code: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ScheduleSnapshotPersistenceError(error_code)
+    return value
+
+
 class ScheduleInputSnapshotRepository(Protocol):
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot: ...
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None: ...
@@ -120,11 +126,11 @@ class SQLiteScheduleInputSnapshotRepository:
                 existing[0] == snapshot.snapshot_hash
                 and existing[1] == snapshot.canonical_payload
                 and existing[2] == snapshot.calculation_identity
-                and int(existing[5]) == snapshot.scope.project_revision
+                and _parse_persisted_integer(existing[5], "INVALID_PROJECT_REVISION") == snapshot.scope.project_revision
             ):
                 result = ScheduleInputSnapshot(
                     snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
-                    _parse_created_at(existing[3]), int(existing[4])
+                    _parse_created_at(existing[3]), _parse_persisted_integer(existing[4], "INVALID_RECORD_REVISION")
                 )
                 result.validate()
                 return result
@@ -154,10 +160,10 @@ class SQLiteScheduleInputSnapshotRepository:
         ).fetchone()
         if row is None:
             return None
-        if int(row[6]) != scope.project_revision:
+        if _parse_persisted_integer(row[6], "INVALID_PROJECT_REVISION") != scope.project_revision:
             raise ScheduleSnapshotPersistenceError("REVISION_CONFLICT")
         result = ScheduleInputSnapshot(
-            scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]), int(row[5])
+            scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]), _parse_persisted_integer(row[5], "INVALID_RECORD_REVISION")
         )
         result.validate()
         return result
