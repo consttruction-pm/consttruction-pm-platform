@@ -50,7 +50,7 @@ def test_schedule_snapshot_live_round_trip_replay_conflict_and_isolation() -> No
         conflicting = ScheduleInputSnapshot(
             scope=snapshot.scope,
             snapshot_id=snapshot.snapshot_id,
-            snapshot_hash="b" * 64,
+            snapshot_hash=hashlib.sha256('{"different":true}'.encode("utf-8")).hexdigest(),
             canonical_payload='{"different":true}',
             calculation_identity="c" * 64,
             created_at=snapshot.created_at,
