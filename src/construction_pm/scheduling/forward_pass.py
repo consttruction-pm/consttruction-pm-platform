@@ -223,7 +223,7 @@ def forward_pass(
         )
         if not incoming[activity_id]:
             start = activity_resolver.normalize_start(project_start)
-            if progressed and activity.actual_start is not None:
+            if progressed and activity.actual_start is not None and data_date is None:
                 start = max(
                     start,
                     activity_resolver.normalize_start(activity.actual_start),
