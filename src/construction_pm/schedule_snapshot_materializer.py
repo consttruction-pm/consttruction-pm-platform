@@ -23,6 +23,7 @@ from .scheduling.calendar_context import (
     SchedulingCalendarContext,
 )
 from .scheduling.constraints import ActivityConstraint, ConstraintType
+from .scheduling.calendar_system import CalendarSystem
 from .scheduling.relationships import Relationship, RelationshipType
 from .scheduling.schedule import (
     CriticalActivityPathType,
@@ -97,10 +98,15 @@ def _required(payload: dict[str, Any], key: str) -> Any:
 def _calendar(value: Any) -> CalendarReference:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_CALENDAR_REFERENCE")
+    try:
+        system = CalendarSystem(str(value.get("system", CalendarSystem.GREGORIAN.value)))
+    except ValueError as exc:
+        raise SnapshotMaterializationError("INVALID_CALENDAR_SYSTEM") from exc
     return CalendarReference(
         str(_required(value, "calendar_id")),
         str(_required(value, "calendar_version")),
         str(value.get("kind", "working-day")),
+        system,
     )
 
 
