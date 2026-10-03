@@ -119,8 +119,13 @@ export function addField(
   field: P6Field,
   overrides: Partial<Omit<ColumnPresentation, "field_id" | "order">> = {},
 ): LayoutDefinition {
-  if (layout.columns.some((column) => column.field_id === field.field_id)) {
-    throw new Error("FIELD_ALREADY_IN_LAYOUT");
+  const existing = layout.columns.find((column) => column.field_id === field.field_id);
+  if (existing) {
+    if (existing.visible) throw new Error("FIELD_ALREADY_IN_LAYOUT");
+    return updateFieldPresentation(layout, field.field_id, {
+      visible: true,
+      ...overrides,
+    });
   }
   return normalizeLayout({
     ...layout,
