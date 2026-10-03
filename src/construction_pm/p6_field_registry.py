@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -49,7 +49,6 @@ class P6FieldDefinition:
     orderable: bool | None = None
     nullable: bool | None = None
     disposition: str = "seeded_not_certified"
-    alias_of: str | None = None
 
     def __post_init__(self) -> None:
         if not all((self.field_id, self.subject_area, self.p6_field, self.display_name)):
@@ -62,13 +61,8 @@ class P6FieldDefinition:
             "equivalent_superset",
             "outside_scope",
             "pending",
-            "product_alias",
         }:
             raise ValueError(f"invalid field disposition: {self.disposition}")
-        if self.disposition == "product_alias" and not self.alias_of:
-            raise ValueError("product_alias fields require alias_of")
-        if self.disposition != "product_alias" and self.alias_of is not None:
-            raise ValueError("only product_alias fields may define alias_of")
 
 
 # Core seed catalog. This is intentionally versioned and incomplete until
@@ -390,7 +384,7 @@ P6_ACTIVITY_ALIAS_RESOLUTIONS: dict[str, str] = {
 }
 
 
-_BASE_P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
+P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
     P6FieldDefinition(
         field_id=field_id,
         subject_area=subject_area,
@@ -404,16 +398,9 @@ _BASE_P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
     for field_id, subject_area, p6_field, display_name, data_type, writable, computed, unit in _ROWS
 )
 
-P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
-    replace(
-        field,
-        disposition="product_alias",
-        alias_of=P6_ACTIVITY_ALIAS_RESOLUTIONS[field.field_id],
-    )
-    if field.field_id in P6_ACTIVITY_ALIAS_RESOLUTIONS
-    else field
-    for field in _BASE_P6_FIELD_CATALOG
-)
+
+def canonical_activity_field_id(field_id: str) -> str:
+    return P6_ACTIVITY_ALIAS_RESOLUTIONS.get(field_id, field_id)
 
 
 def field_catalog() -> tuple[P6FieldDefinition, ...]:
@@ -450,20 +437,17 @@ def validate_catalog() -> None:
         raise ValueError(f"missing subject areas: {sorted(missing)}")
 
     by_id = {field.field_id: field for field in P6_FIELD_CATALOG}
-    aliases = {field.field_id for field in P6_FIELD_CATALOG if field.disposition == "product_alias"}
-    if aliases != set(P6_ACTIVITY_ALIAS_RESOLUTIONS):
-        raise ValueError("product alias catalog and resolution map are out of sync")
-    for alias_id in aliases:
-        alias = by_id[alias_id]
-        target_id = alias.alias_of
-        assert target_id is not None
+    for alias_id, target_id in P6_ACTIVITY_ALIAS_RESOLUTIONS.items():
+        alias = by_id.get(alias_id)
         target = by_id.get(target_id)
+        if alias is None:
+            raise ValueError(f"activity alias source does not exist: {alias_id}")
         if target is None:
-            raise ValueError(f"product alias target does not exist: {alias_id} -> {target_id}")
-        if target.subject_area != alias.subject_area:
-            raise ValueError(f"product alias crosses subject areas: {alias_id} -> {target_id}")
-        if target.disposition == "product_alias":
-            raise ValueError(f"product alias cannot target another alias: {alias_id} -> {target_id}")
+            raise ValueError(f"activity alias target does not exist: {alias_id} -> {target_id}")
+        if alias.subject_area != "Activity" or target.subject_area != "Activity":
+            raise ValueError(f"activity alias must remain within Activity: {alias_id} -> {target_id}")
+        if target_id in P6_ACTIVITY_ALIAS_RESOLUTIONS:
+            raise ValueError(f"activity alias cannot target another alias: {alias_id} -> {target_id}")
 
 
 validate_catalog()
