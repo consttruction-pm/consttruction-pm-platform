@@ -10,7 +10,7 @@ from construction_pm.p6_formula_engine import FormulaDefinition, FormulaType
 
 @pytest.fixture(scope="module")
 def postgres_dsn():
-    dsn=os.getenv("P6_TEST_POSTGRES_DSN")
+    dsn=os.getenv("P6_TEST_POSTGRES_DSN") or os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
     if not dsn: pytest.skip("P6_TEST_POSTGRES_DSN is not configured")
     return dsn
 
@@ -33,11 +33,18 @@ def baseline(s,name="Primary"):
 def formula(s,expr="1 + 1"):
     return PersistedP6FormulaDefinition(s,"1.0.0","p6:test",FormulaDefinition("formula-1","1.0",expr,FormulaType.NUMBER),"hours",("field-1",),{"source":"test"})
 
+def item_key(item):
+    if hasattr(item, "period_id"):
+        return item.period_id
+    if hasattr(item, "baseline_id"):
+        return item.baseline_id
+    return item.formula_id
+
 def run(repo_cls, factory, error_cls, immutable, connection):
     repo=repo_cls(connection); repo.initialize(); s=scope(); item=factory(s)
     with connection.transaction():
         assert repo.upsert(item)==item; assert repo.upsert(item)==item
-    key=getattr(item,"period_id",getattr(item,"baseline_id",item.formula_id))
+    key=item_key(item)
     got=repo.get(s,key,item.version) if hasattr(item,"version") else repo.get(s,key)
     assert got==item
     listed=repo.list_versions(s,key) if hasattr(repo,"list_versions") else repo.list(s)
