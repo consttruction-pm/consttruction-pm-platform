@@ -412,23 +412,41 @@ def _materialize_payload(
             )
 
     if mode is AuthoritativeScheduleMode.DATE_BASED:
-        constraints = tuple(
-            ActivityConstraint(
-                _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
-                ConstraintType(str(_required(item, "type"))),
-                _date(_required(item, "date")),
+        constraint_items = _required(payload, "constraints")
+        constraints_list: list[ActivityConstraint] = []
+        for item in constraint_items:
+            if not isinstance(item, dict):
+                raise SnapshotMaterializationError("INVALID_CONSTRAINT")
+            try:
+                constraint_type = ConstraintType(str(_required(item, "type")))
+            except ValueError as exc:
+                raise SnapshotMaterializationError("INVALID_CONSTRAINT") from exc
+            constraints_list.append(
+                ActivityConstraint(
+                    _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
+                    constraint_type,
+                    _date(_required(item, "date")),
+                )
             )
-            for item in _required(payload, "constraints")
-        )
+        constraints = tuple(constraints_list)
     else:
-        constraints = tuple(
-            TimeActivityConstraint(
-                _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
-                TimeConstraintType(str(_required(item, "type"))),
-                _datetime(_required(item, "target")),
+        constraint_items = _required(payload, "constraints")
+        constraints_list: list[TimeActivityConstraint] = []
+        for item in constraint_items:
+            if not isinstance(item, dict):
+                raise SnapshotMaterializationError("INVALID_CONSTRAINT")
+            try:
+                constraint_type = TimeConstraintType(str(_required(item, "type")))
+            except ValueError as exc:
+                raise SnapshotMaterializationError("INVALID_CONSTRAINT") from exc
+            constraints_list.append(
+                TimeActivityConstraint(
+                    _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
+                    constraint_type,
+                    _datetime(_required(item, "target")),
+                )
             )
-            for item in _required(payload, "constraints")
-        )
+        constraints = tuple(constraints_list)
 
     relationships_tuple = tuple(relationships)
     activities_tuple = tuple(activities)
