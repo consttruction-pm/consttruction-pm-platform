@@ -372,7 +372,6 @@ _ROWS = (
     ("activity.cost_variance_labor_units","Activity","CostVarianceLaborUnits","Cost Variance Labor Units","double",False,True,"units"),
     ("activity.estimate_at_completion_labor_units","Activity","EstimateAtCompletionLaborUnits","Estimate At Completion Labor Units","double",False,True,"units"),
     ("activity.estimate_to_complete","Activity","EstimateToComplete","Estimate To Complete","double",False,True,"currency"),
-),
 )
 
 
