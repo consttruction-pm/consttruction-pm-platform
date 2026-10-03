@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -89,9 +89,9 @@ class Activity:
             raise TypeError("duration must be an integer working-day value")
         if self.duration < 0:
             raise ValueError("duration must be non-negative")
-        if self.actual_start is not None and not isinstance(self.actual_start, date):
+        if self.actual_start is not None and (not isinstance(self.actual_start, date) or isinstance(self.actual_start, datetime)):
             raise TypeError("actual_start must be a date or None")
-        if self.actual_finish is not None and not isinstance(self.actual_finish, date):
+        if self.actual_finish is not None and (not isinstance(self.actual_finish, date) or isinstance(self.actual_finish, datetime)):
             raise TypeError("actual_finish must be a date or None")
         if self.actual_start is None and self.actual_finish is not None:
             raise ValueError("actual_finish requires actual_start")
@@ -104,7 +104,7 @@ class Activity:
                 raise ValueError("remaining_duration must be non-negative")
             if self.actual_finish is not None and self.remaining_duration != 0:
                 raise ValueError("completed activities must have zero remaining_duration")
-        if self.remaining_start is not None and not isinstance(self.remaining_start, date):
+        if self.remaining_start is not None and (not isinstance(self.remaining_start, date) or isinstance(self.remaining_start, datetime)):
             raise TypeError("remaining_start must be a date or None")
         if self.actual_finish is not None and self.remaining_start is not None:
             raise ValueError("completed activities cannot have a remaining_start")
@@ -121,7 +121,7 @@ class Activity:
             raise TypeError("activity_type must be an ActivityType")
         if not isinstance(self.status_code, ActivityStatusCode):
             raise TypeError("status_code must be an ActivityStatusCode")
-        if self.expected_finish is not None and not isinstance(self.expected_finish, date):
+        if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):
             raise TypeError("expected_finish must be a date or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
             raise ValueError("expected_finish must not precede actual_start")
