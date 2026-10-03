@@ -183,6 +183,65 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
     assert result.schedule_input.project_leveling_priority == 4
 
 
+
+def test_materializer_rejects_conflicting_time_activity_calendar_sources():
+    cal = CalendarReference("CAL-T", "1")
+    other_cal = CalendarReference("CAL-OTHER", "1")
+    from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
+    from construction_pm.scheduling.time_duration import TimeQuantity
+    from construction_pm.scheduling.time_forward_pass import TimeActivity
+
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-TIME-CONFLICT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=4,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=cal,
+        activities=(
+            TimeActivity("A", TimeQuantity.working_hours(4),
+                         SchedulingCalendarContext(project=cal, activity=cal)),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", cal),
+        ),
+        project_start=datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=4, calendar_id="CAL-T", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-TIME-CONFLICT", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["calendar_context"]["activity"] = {
+        "calendar_id": other_cal.calendar_id,
+        "calendar_version": other_cal.calendar_version,
+        "kind": other_cal.kind,
+        "system": other_cal.system.value,
+    }
+    tampered_payload = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="CONFLICTING_ACTIVITY_CALENDAR_ASSIGNMENT",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
 def test_materializes_time_aware_quantity_payloads():
     from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
     from construction_pm.scheduling.time_duration import TimeQuantity

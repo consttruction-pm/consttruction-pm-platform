@@ -342,7 +342,12 @@ def _materialize_payload(
                 raise SnapshotMaterializationError("INVALID_ACTIVITY_CALENDAR_CONTEXT")
             activity_ref = assignment_refs.get(activity_id, project_calendar)
             if isinstance(stored_context, dict) and stored_context.get("activity") is not None:
-                activity_ref = _calendar(stored_context["activity"])
+                stored_activity_ref = _calendar(stored_context["activity"])
+                if activity_id in assignment_refs and stored_activity_ref != activity_ref:
+                    raise SnapshotMaterializationError(
+                        "CONFLICTING_ACTIVITY_CALENDAR_ASSIGNMENT"
+                    )
+                activity_ref = stored_activity_ref
             context = SchedulingCalendarContext(
                 project=project_calendar,
                 activity=activity_ref,
