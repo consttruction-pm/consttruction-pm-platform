@@ -5,12 +5,13 @@ from construction_pm.portfolio_query import InMemoryPortfolioQueryAdapter, Portf
 from construction_pm.resources.calendar import ResourceCalendar
 from construction_pm.resources.curves import build_resource_curve
 from construction_pm.resources.models import ResourcePeriodValue
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry, SchedulingCalendarContext
 
 
 def test_stage_33_2_calendar_context_selects_versioned_authoritative_resolver() -> None:
     ref = CalendarReference("project-calendar", "v7")
-    resolver = object()
+    resolver = WorkingTimeResolver(WorkingCalendar())
     registry = CalendarResolverRegistry(day_resolvers={"project-calendar@v7": resolver})
     context = SchedulingCalendarContext(project=ref)
 
