@@ -95,6 +95,12 @@ def _required(payload: dict[str, Any], key: str) -> Any:
     return payload[key]
 
 
+def _required_string(payload: dict[str, Any], key: str, error_code: str | None = None) -> str:
+    value = _required(payload, key)
+    if not isinstance(value, str) or not value.strip():
+        raise SnapshotMaterializationError(error_code or f"INVALID_SNAPSHOT_FIELD:{key}")
+    return value
+
 def _calendar(value: Any) -> CalendarReference:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_CALENDAR_REFERENCE")
@@ -103,8 +109,8 @@ def _calendar(value: Any) -> CalendarReference:
     except ValueError as exc:
         raise SnapshotMaterializationError("INVALID_CALENDAR_SYSTEM") from exc
     return CalendarReference(
-        str(_required(value, "calendar_id")),
-        str(_required(value, "calendar_version")),
+        _required_string(value, "calendar_id", "INVALID_CALENDAR_REFERENCE"),
+        _required_string(value, "calendar_version", "INVALID_CALENDAR_REFERENCE"),
         str(value.get("kind", "working-day")),
         system,
     )
@@ -280,14 +286,14 @@ def _materialize_payload(
     for item in assignments_payload:
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_ACTIVITY_CALENDAR_ASSIGNMENT")
-        activity_id = str(_required(item, "activity_id"))
+        activity_id = _required_string(item, "activity_id", "INVALID_ACTIVITY_CALENDAR_ASSIGNMENT")
         assignment_refs[activity_id] = _calendar(_required(item, "calendar"))
 
     activities: list[Activity | TimeActivity] = []
     for item in _required(payload, "activities"):
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_ACTIVITY")
-        activity_id = str(_required(item, "id"))
+        activity_id = _required_string(item, "id", "INVALID_ACTIVITY")
         duration_payload = item.get("duration", 0)
         if isinstance(duration_payload, dict):
             duration_value = _decimal(_required(duration_payload, "value"))
@@ -363,8 +369,8 @@ def _materialize_payload(
         else:
             unit = _duration_unit(item.get("lag_unit", "working-day"))
             lag_value = _decimal(lag_payload)
-        predecessor_id = str(_required(item, "predecessor_id"))
-        successor_id = str(_required(item, "successor_id"))
+        predecessor_id = _required_string(item, "predecessor_id", "INVALID_RELATIONSHIP")
+        successor_id = _required_string(item, "successor_id", "INVALID_RELATIONSHIP")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
             if unit is not DurationUnit.WORKING_DAY or lag_value != lag_value.to_integral_value():
                 raise SnapshotMaterializationError("DATE_BASED_LAG_MUST_BE_WORKING_DAYS")
@@ -384,7 +390,7 @@ def _materialize_payload(
     if mode is AuthoritativeScheduleMode.DATE_BASED:
         constraints = tuple(
             ActivityConstraint(
-                str(_required(item, "activity_id")),
+                _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
                 ConstraintType(str(_required(item, "type"))),
                 _date(_required(item, "date")),
             )
@@ -393,7 +399,7 @@ def _materialize_payload(
     else:
         constraints = tuple(
             TimeActivityConstraint(
-                str(_required(item, "activity_id")),
+                _required_string(item, "activity_id", "INVALID_CONSTRAINT"),
                 TimeConstraintType(str(_required(item, "type"))),
                 _datetime(_required(item, "target")),
             )
