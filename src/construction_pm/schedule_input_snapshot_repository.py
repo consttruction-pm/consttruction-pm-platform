@@ -62,6 +62,22 @@ def _parse_persisted_integer(value: object, error_code: str) -> int:
         raise ScheduleSnapshotPersistenceError(error_code)
     return value
 
+def _parse_created_at(value: object) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP") from exc
+    else:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    return parsed
+
+
+
 
 class ScheduleInputSnapshotRepository(Protocol):
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot: ...
