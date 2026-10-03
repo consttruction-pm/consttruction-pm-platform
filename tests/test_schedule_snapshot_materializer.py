@@ -128,7 +128,10 @@ def test_materializer_rejects_tampered_hash():
 
 def test_materializer_rejects_unsupported_date_duration_unit():
     snapshot = make_snapshot()
-    payload = snapshot.canonical_payload.replace('"duration":2', '"duration":"2"')
+    payload = json.loads(snapshot.canonical_payload)
+    activity = payload["activities"][0]
+    activity["duration_unit"] = "calendar-day"
+    payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     tampered = snapshot.__class__(
         snapshot.scope,
         snapshot.snapshot_id,
@@ -137,7 +140,7 @@ def test_materializer_rejects_unsupported_date_duration_unit():
         snapshot.calculation_identity,
         snapshot.created_at,
     )
-    with pytest.raises(SnapshotMaterializationError):
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DURATION_UNIT"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
