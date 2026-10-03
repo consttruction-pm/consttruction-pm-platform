@@ -79,6 +79,8 @@ class WorkingTimeCalendar:
         return self.time_period_factors.hours_per_year
 
     def intervals_for(self, value: date) -> Tuple[Tuple[time, time], ...]:
+        if not isinstance(value, date) or isinstance(value, datetime):
+            raise TypeError("calendar interval lookup requires a date")
         if value in self.holidays or value.weekday() not in self.working_weekdays:
             return ()
         return self.daily_intervals.get(value.weekday(), ())
