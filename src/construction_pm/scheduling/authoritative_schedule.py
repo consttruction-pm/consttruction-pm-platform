@@ -93,6 +93,8 @@ class AuthoritativeScheduleInput:
             raise TypeError("activity_calendar_assignments must contain ActivityCalendarAssignment items")
         if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
             raise TypeError("constraints must contain ActivityConstraint items")
+        if not isinstance(self.project_calendar, CalendarReference):
+            raise TypeError("project_calendar must be a CalendarReference")
         if not isinstance(self.schedule_options, ScheduleOptions):
             raise TypeError("schedule_options must be a ScheduleOptions")
 
