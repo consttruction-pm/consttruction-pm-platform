@@ -22,10 +22,18 @@ class Continuous24HourResolver:
     """Exact continuous 24-hour calendar arithmetic for relationship lag."""
 
     def normalize_start(self, value: date | datetime) -> date:
-        return value.date() if isinstance(value, datetime) else value
+        if isinstance(value, datetime):
+            return value.date()
+        if not isinstance(value, date):
+            raise TypeError("calendar date must be date or datetime")
+        return value
 
     def normalize_finish(self, value: date | datetime) -> date:
-        return value.date() if isinstance(value, datetime) else value
+        if isinstance(value, datetime):
+            return value.date()
+        if not isinstance(value, date):
+            raise TypeError("calendar date must be date or datetime")
+        return value
 
     def next_working_day(self, value: date | datetime) -> date:
         return self.normalize_start(value) + timedelta(days=1)
