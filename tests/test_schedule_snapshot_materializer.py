@@ -356,3 +356,23 @@ def test_materializer_rejects_non_finite_schedule_option_numbers():
         match="INVALID_SCHEDULE_OPTION:critical_activity_float_threshold",
     ):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_non_finite_activity_percent_complete():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["percent_complete"] = float("nan")
+    tampered_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_PERCENT_COMPLETE",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
