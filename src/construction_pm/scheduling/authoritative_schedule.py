@@ -71,7 +71,9 @@ class AuthoritativeScheduleInput:
             raise ValueError("tenant_id is required")
         if not self.project_id.strip():
             raise ValueError("project_id is required")
-        if isinstance(self.project_revision, bool) or self.project_revision < 0:
+        if isinstance(self.project_revision, bool) or not isinstance(self.project_revision, int):
+            raise ValueError("project_revision must be an integer")
+        if self.project_revision < 0:
             raise ValueError("project_revision must be non-negative")
         if not self.activities:
             raise ValueError("activities are required")
