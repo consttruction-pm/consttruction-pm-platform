@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import FrozenSet, Iterable
 
@@ -37,7 +37,7 @@ class WorkingCalendar:
             raise ValueError("working_weekdays must contain integer values from 0 through 6")
         if not isinstance(self.system, CalendarSystem):
             raise ValueError("system must be a CalendarSystem")
-        if any(not isinstance(value, date) or isinstance(value, JalaliDate) for value in self.holidays):
+        if any(not isinstance(value, date) or isinstance(value, (datetime, JalaliDate)) for value in self.holidays):
             raise ValueError("holidays must contain canonical Gregorian dates")
         if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
             raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
@@ -67,11 +67,15 @@ class WorkingCalendar:
         holidays: Iterable[CalendarInputDate] = (),
     ) -> "WorkingCalendar":
         """Build a calendar from dates expressed in the selected system."""
-        canonical_holidays = frozenset(
-            value if isinstance(value, date) and not isinstance(value, JalaliDate)
-            else value.to_gregorian()
-            for value in holidays
-        )
+        canonical_holidays = set()
+        for value in holidays:
+            if isinstance(value, JalaliDate):
+                canonical_holidays.add(value.to_gregorian())
+            elif isinstance(value, date) and not isinstance(value, datetime):
+                canonical_holidays.add(value)
+            else:
+                raise TypeError("holidays must contain date or JalaliDate values")
+        canonical_holidays = frozenset(canonical_holidays)
         return cls(
             working_weekdays=working_weekdays,
             holidays=canonical_holidays,
@@ -83,7 +87,7 @@ class WorkingCalendar:
             if self.system is not CalendarSystem.JALALI:
                 raise ValueError("Jalali input requires a Jalali calendar")
             return value.to_gregorian()
-        if not isinstance(value, date):
+        if not isinstance(value, date) or isinstance(value, datetime):
             raise TypeError("calendar date must be date or JalaliDate")
         return value
 
