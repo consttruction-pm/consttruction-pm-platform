@@ -57,6 +57,21 @@ class ScheduleInputSnapshot:
             raise ScheduleSnapshotPersistenceError("INVALID_RECORD_REVISION")
 
 
+def _parse_created_at(value: object) -> datetime:
+    if isinstance(value, datetime):
+        result = value
+    elif isinstance(value, str):
+        try:
+            result = datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP") from exc
+    else:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    if result.tzinfo is None or result.utcoffset() is None:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    return result
+
+
 def _parse_persisted_integer(value: object, error_code: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ScheduleSnapshotPersistenceError(error_code)
