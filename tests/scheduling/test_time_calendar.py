@@ -111,3 +111,20 @@ def test_time_calendar_exposes_same_p6_time_period_metadata():
     assert calendar.hours_per_week == Decimal("45")
     assert calendar.hours_per_month == Decimal("180")
     assert calendar.hours_per_year == Decimal("2340")
+
+def test_calendar_aware_working_day_adapter_preserves_timezone():
+    from datetime import timezone
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import CalendarReference
+
+    resolver = CalendarAwareResolver(
+        CalendarReference("day", "1", kind="working-day"),
+        WorkingTimeResolver(WorkingCalendar()),
+    )
+    value = datetime(2026, 9, 21, 9, tzinfo=timezone.utc)
+    assert resolver.normalize_start(value).tzinfo is timezone.utc
+    assert resolver.normalize_finish(value).tzinfo is timezone.utc
+    duration = TimeQuantity.working_days(1)
+    assert resolver.add_duration(value, duration).tzinfo is timezone.utc
+    assert resolver.subtract_duration(value, duration).tzinfo is timezone.utc
+    assert resolver.add_lag(value, LagQuantity.working_days(1)).tzinfo is timezone.utc

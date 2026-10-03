@@ -36,13 +36,13 @@ class CalendarAwareResolver:
     def normalize_start(self, value: datetime) -> datetime:
         value = self._require_datetime(value, "value")
         if self.is_working_day_calendar:
-            return datetime.combine(self.resolver.normalize_start(value.date()), time.min)
+            return datetime.combine(self.resolver.normalize_start(value.date()), time.min, tzinfo=value.tzinfo)
         return self.resolver.normalize_start(value)
 
     def normalize_finish(self, value: datetime) -> datetime:
         value = self._require_datetime(value, "value")
         if self.is_working_day_calendar:
-            return datetime.combine(self.resolver.normalize_finish(value.date()), time.min)
+            return datetime.combine(self.resolver.normalize_finish(value.date()), time.min, tzinfo=value.tzinfo)
         return self.resolver.normalize_finish(value)
 
     @staticmethod
@@ -61,6 +61,7 @@ class CalendarAwareResolver:
             return datetime.combine(
                 self.resolver.add_working_duration(start.date(), self._whole_working_days(duration.value, field="duration")),
                 time.min,
+                tzinfo=start.tzinfo,
             )
         if duration.unit is not DurationUnit.WORKING_HOUR:
             raise ValueError("working-time calendar requires working-hour duration")
@@ -76,6 +77,7 @@ class CalendarAwareResolver:
             return datetime.combine(
                 self.resolver.subtract_working_duration(finish.date(), self._whole_working_days(duration.value, field="duration")),
                 time.min,
+                tzinfo=finish.tzinfo,
             )
         if duration.unit is not DurationUnit.WORKING_HOUR:
             raise ValueError("working-time calendar requires working-hour duration")
@@ -105,10 +107,12 @@ class CalendarAwareResolver:
                 return datetime.combine(
                     self.resolver.add_working_duration(anchor.date(), self._whole_working_days(lag.value, field="lag")),
                     time.min,
+                    tzinfo=anchor.tzinfo,
                 )
             return datetime.combine(
                 self.resolver.subtract_working_duration(anchor.date(), self._whole_working_days(-lag.value, field="lag")),
                 time.min,
+                tzinfo=anchor.tzinfo,
             )
         if lag.unit is not DurationUnit.WORKING_HOUR:
             raise ValueError("working-time lag calendar requires working-hour lag")
