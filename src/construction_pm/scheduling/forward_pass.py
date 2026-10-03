@@ -61,6 +61,7 @@ def _successor_start(
     predecessor_activity: Activity | None = None,
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = StartToStartLagCalculationType.EARLY_START,
     data_date: date | None = None,
+    progress_baseline_start: date | None = None,
     lag_resolver: WorkingTimeResolver | None = None,
     predecessor_resolver: WorkingTimeResolver | None = None,
     successor_resolver: WorkingTimeResolver | None = None,
@@ -70,7 +71,9 @@ def _successor_start(
         if (
             predecessor_activity is not None
             and predecessor_activity.actual_start is not None
-            and predecessor_activity.actual_start > predecessor.start
+            and predecessor_activity.actual_start > (
+                progress_baseline_start if progress_baseline_start is not None else predecessor.start
+            )
         ):
             if data_date is None:
                 raise ValueError(
@@ -223,6 +226,11 @@ def forward_pass(
         )
         if not incoming[activity_id]:
             start = activity_resolver.normalize_start(project_start)
+            if progressed and activity.actual_start is not None and data_date is None:
+                start = max(
+                    start,
+                    activity_resolver.normalize_start(activity.actual_start),
+                )
             oos_action = ProgressRelationAction.APPLY_LOGIC
         else:
             start_requirements = [
@@ -234,6 +242,7 @@ def forward_pass(
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
                     data_date,
+                    project_start if not incoming[rel.predecessor_id] else result[rel.predecessor_id].start,
                     (relationship_lag_resolvers or {}).get(
                         (rel.predecessor_id, rel.successor_id)
                     ),
@@ -250,25 +259,30 @@ def forward_pass(
             ]
             start = activity_resolver.normalize_start(max(start_requirements))
             oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None and activity.actual_start < start:
-                if data_date is None:
-                    raise ValueError("data_date is required for out-of-sequence progress")
-                oos_action = resolve_out_of_sequence_action(
-                    activity,
-                    relationship_required_start=start,
-                    data_date=data_date,
-                    mode=out_of_sequence_schedule_type,
-                )
-                if oos_action is ProgressRelationAction.IGNORE_LOGIC:
-                    if activity.actual_finish is not None:
-                        start = activity_resolver.normalize_start(activity.actual_start)
-                        scheduled_duration = 0
-                    else:
-                        start = activity_resolver.normalize_start(data_date)
-                elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
-                    if activity.actual_finish is not None:
-                        start = activity_resolver.normalize_start(activity.actual_start)
-                        scheduled_duration = 0
+            if progressed and activity.actual_start is not None:
+                if data_date is not None and data_date < activity.actual_start:
+                    raise ValueError("data_date must not precede actual_start for progressed activity")
+                if activity.actual_start >= start:
+                    start = activity_resolver.normalize_start(activity.actual_start)
+                else:
+                    if data_date is None:
+                        raise ValueError("data_date is required for out-of-sequence progress")
+                    oos_action = resolve_out_of_sequence_action(
+                        activity,
+                        relationship_required_start=start,
+                        data_date=data_date,
+                        mode=out_of_sequence_schedule_type,
+                    )
+                    if oos_action is ProgressRelationAction.IGNORE_LOGIC:
+                        if activity.actual_finish is not None:
+                            start = activity_resolver.normalize_start(activity.actual_start)
+                            scheduled_duration = 0
+                        else:
+                            start = activity_resolver.normalize_start(data_date)
+                    elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
+                        if activity.actual_finish is not None:
+                            start = activity_resolver.normalize_start(activity.actual_start)
+                            scheduled_duration = 0
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
