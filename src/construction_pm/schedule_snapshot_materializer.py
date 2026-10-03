@@ -129,14 +129,20 @@ def _decimal(value: Any) -> Decimal:
 def _date(value: Any) -> date:
     if not isinstance(value, str):
         raise SnapshotMaterializationError("INVALID_DATE")
-    result = date.fromisoformat(value)
+    try:
+        result = date.fromisoformat(value)
+    except ValueError as exc:
+        raise SnapshotMaterializationError("INVALID_DATE") from exc
     return result
 
 
 def _datetime(value: Any) -> datetime:
     if not isinstance(value, str):
         raise SnapshotMaterializationError("INVALID_DATETIME")
-    result = datetime.fromisoformat(value)
+    try:
+        result = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise SnapshotMaterializationError("INVALID_DATETIME") from exc
     if result.tzinfo is None or result.utcoffset() is None:
         raise SnapshotMaterializationError("DATETIME_MUST_BE_TIMEZONE_AWARE")
     return result
