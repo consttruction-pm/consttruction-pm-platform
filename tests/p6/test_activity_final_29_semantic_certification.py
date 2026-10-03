@@ -69,6 +69,9 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         "SuspendDate",
         "TotalPastPeriodLaborCost",
         "TotalPastPeriodLaborUnits",
+        "Type",
+        "UnitsPercentComplete",
+        "WorkPackageName",
     }
     assert set(names) & registry_names == reconciled_registry_names
     definitions = {
