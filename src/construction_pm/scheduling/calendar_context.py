@@ -185,10 +185,16 @@ class CalendarResolverRegistry:
         key = self._key(reference)
         if reference.kind == "working-day":
             resolver = self._day.get(key)
+            expected_type = WorkingTimeResolver
         else:
             resolver = self._time.get(key)
+            expected_type = TimeAwareWorkingTimeResolver
         if resolver is None:
             raise KeyError(f"calendar not registered: {key}")
+        if not isinstance(resolver, expected_type):
+            raise ValueError(
+                f"calendar resolver kind mismatch for {key}: reference={reference.kind}"
+            )
         calendar = getattr(resolver, "calendar", None)
         resolver_system = getattr(calendar, "system", None)
         if resolver_system is not None:
