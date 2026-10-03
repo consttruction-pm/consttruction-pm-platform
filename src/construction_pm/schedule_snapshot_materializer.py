@@ -227,8 +227,9 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                         item, "field_name", "INVALID_SCHEDULE_OPTION:priority_list"
                     ),
                     sort_order=PrioritySortOrder(
-                        str(item.get("sort_order", PrioritySortOrder.ASCENDING.value))
-                    ),
+                        item.get("sort_order", PrioritySortOrder.ASCENDING.value)
+                    ) if isinstance(item.get("sort_order", PrioritySortOrder.ASCENDING.value), str)
+                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")),
                 )
                 for item in priority_payload
                 if isinstance(item, dict)
