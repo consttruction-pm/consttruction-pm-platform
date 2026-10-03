@@ -117,13 +117,21 @@ class TimeAwareWorkingTimeResolver:
     def _combine(value_date: date, value_time: time, reference: datetime) -> datetime:
         return datetime.combine(value_date, value_time, tzinfo=reference.tzinfo)
 
+    @staticmethod
+    def _require_datetime(value: object, *, field: str) -> datetime:
+        if not isinstance(value, datetime):
+            raise TypeError(f"{field} must be a datetime")
+        return value
+
     def is_working_datetime(self, value: datetime) -> bool:
+        value = self._require_datetime(value, field="value")
         return any(
             start <= value.time() < end
             for start, end in self.calendar.intervals_for(value.date())
         )
 
     def normalize_start(self, value: datetime) -> datetime:
+        value = self._require_datetime(value, field="value")
         cursor = value
         while True:
             intervals = self.calendar.intervals_for(cursor.date())
@@ -135,6 +143,7 @@ class TimeAwareWorkingTimeResolver:
             cursor = self._combine(cursor.date() + timedelta(days=1), time.min, cursor)
 
     def normalize_finish(self, value: datetime) -> datetime:
+        value = self._require_datetime(value, field="value")
         cursor = value
         while True:
             intervals = self.calendar.intervals_for(cursor.date())
@@ -146,6 +155,7 @@ class TimeAwareWorkingTimeResolver:
             cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
+        start = self._require_datetime(start, field="start")
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_start(start)
         while True:
@@ -168,6 +178,7 @@ class TimeAwareWorkingTimeResolver:
             continue
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
+        finish = self._require_datetime(finish, field="finish")
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_finish(finish)
         while True:
@@ -190,6 +201,8 @@ class TimeAwareWorkingTimeResolver:
             continue
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
+        start = self._require_datetime(start, field="start")
+        finish = self._require_datetime(finish, field="finish")
         if finish < start:
             raise ValueError("finish must not precede start")
 
