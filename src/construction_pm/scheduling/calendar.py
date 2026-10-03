@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import FrozenSet, Iterable
 
 from .calendar_system import CalendarSystem, JalaliDate
+from .calendar_periods import CalendarTimePeriodFactors
 
 
 CalendarInputDate = date | JalaliDate
@@ -24,6 +25,7 @@ class WorkingCalendar:
     working_weekdays: FrozenSet[int] = frozenset({0, 1, 2, 3, 4})
     holidays: FrozenSet[date] = field(default_factory=frozenset)
     system: CalendarSystem = CalendarSystem.GREGORIAN
+    time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
 
     def __post_init__(self) -> None:
         invalid = [value for value in self.working_weekdays if value < 0 or value > 6]
@@ -33,6 +35,24 @@ class WorkingCalendar:
             raise ValueError("system must be a CalendarSystem")
         if any(not isinstance(value, date) or isinstance(value, JalaliDate) for value in self.holidays):
             raise ValueError("holidays must contain canonical Gregorian dates")
+        if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
+            raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
+
+    @property
+    def hours_per_day(self) -> Decimal:
+        return self.time_period_factors.hours_per_day
+
+    @property
+    def hours_per_week(self) -> Decimal:
+        return self.time_period_factors.hours_per_week
+
+    @property
+    def hours_per_month(self) -> Decimal:
+        return self.time_period_factors.hours_per_month
+
+    @property
+    def hours_per_year(self) -> Decimal:
+        return self.time_period_factors.hours_per_year
 
     @classmethod
     def from_calendar_dates(

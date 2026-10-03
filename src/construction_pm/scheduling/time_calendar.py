@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+
+from .calendar_periods import CalendarTimePeriodFactors
 from typing import FrozenSet, Mapping, Tuple
 
 
@@ -27,8 +29,11 @@ class WorkingTimeCalendar:
             4: ((time(8, 0), time(17, 0)),),
         }
     )
+    time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
+            raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
         for weekday, intervals in self.daily_intervals.items():
             if weekday < 0 or weekday > 6:
                 raise ValueError("weekday must be between 0 and 6")
@@ -39,6 +44,22 @@ class WorkingTimeCalendar:
                 if previous_end is not None and start < previous_end:
                     raise ValueError("working intervals must not overlap")
                 previous_end = end
+
+    @property
+    def hours_per_day(self) -> Decimal:
+        return self.time_period_factors.hours_per_day
+
+    @property
+    def hours_per_week(self) -> Decimal:
+        return self.time_period_factors.hours_per_week
+
+    @property
+    def hours_per_month(self) -> Decimal:
+        return self.time_period_factors.hours_per_month
+
+    @property
+    def hours_per_year(self) -> Decimal:
+        return self.time_period_factors.hours_per_year
 
     def intervals_for(self, value: date) -> Tuple[Tuple[time, time], ...]:
         if value in self.holidays or value.weekday() not in self.working_weekdays:

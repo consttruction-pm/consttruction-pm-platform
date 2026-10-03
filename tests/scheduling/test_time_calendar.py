@@ -94,3 +94,20 @@ def test_calculate_working_hours_matches_addition_across_split_intervals(resolve
     duration = Decimal("2.375")
     finish = resolver.add_working_hours(start, duration)
     assert resolver.calculate_working_hours(start, finish) == duration
+
+
+def test_time_calendar_exposes_same_p6_time_period_metadata():
+    from construction_pm.scheduling import CalendarTimePeriodFactors
+
+    calendar = WorkingTimeCalendar(
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=9,
+            hours_per_week=45,
+            hours_per_month=180,
+            hours_per_year=2340,
+        ),
+    )
+    assert calendar.hours_per_day == Decimal("9")
+    assert calendar.hours_per_week == Decimal("45")
+    assert calendar.hours_per_month == Decimal("180")
+    assert calendar.hours_per_year == Decimal("2340")
