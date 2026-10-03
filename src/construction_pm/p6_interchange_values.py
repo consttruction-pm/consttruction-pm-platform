@@ -118,9 +118,9 @@ class P6InterchangeTypedValue:
                     raise ValueError("boolean required")
                 value = raw
             elif kind == "integer":
-                if isinstance(raw, bool):
+                if isinstance(raw, bool) or not isinstance(raw, int):
                     raise ValueError("integer required")
-                value = int(raw)
+                value = raw
             elif kind in {"enum", "string"}:
                 value = str(raw)
             else:
