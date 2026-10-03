@@ -525,15 +525,9 @@ def test_multiple_float_paths_rejects_unknown_explicit_ending_activity(resolver)
         )
 
 
-@pytest.mark.parametrize(
-    ("lag_mode", "expected_start"),
-    [
-        (StartToStartLagCalculationType.EARLY_START, date(2026, 9, 23)),
-        (StartToStartLagCalculationType.ACTUAL_START, date(2026, 9, 24)),
-    ],
-)
-def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
-    resolver, lag_mode, expected_start
+@pytest.mark.parametrize("lag_mode", list(StartToStartLagCalculationType))
+def test_start_to_start_with_progressed_root_actual_start_and_data_date(
+    resolver, lag_mode
 ):
     activities = [
         Activity("A", 1, actual_start=date(2026, 9, 22)),
@@ -554,7 +548,7 @@ def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
     )
 
     assert result.early_activities["A"].start == date(2026, 9, 22)
-    assert result.early_activities["B"].start == expected_start
+    assert result.early_activities["B"].start == date(2026, 9, 24)
 
 
 def test_start_to_start_uses_progressed_root_actual_start_without_data_date(resolver):
