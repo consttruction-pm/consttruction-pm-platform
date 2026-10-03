@@ -19,6 +19,7 @@ from ..p6_field_registry import (
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
+from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
 
 class Clock(Protocol):
@@ -153,6 +154,42 @@ class ProjectLifecycleHttpRoutes:
                     "status": P6_FIELD_REGISTRY_STATUS,
                     "fields": [item["field"] for item in fields],
                 })
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/udfs/" in path:
+                if self._p6_field_registry_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, registry_version = path.split("/p6/udfs/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not registry_version or "/" in registry_version:
+                    return self._error(400, "P6_UDF_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_UDF_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    definition = P6UserDefinedFieldDefinition(
+                        scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                        registry_version=registry_version,
+                        udf_id=str(payload.get("udf_id", "")),
+                        subject_area=str(payload.get("subject_area", "")),
+                        display_name=str(payload.get("display_name", "")),
+                        data_type=P6FieldType(str(payload.get("data_type", ""))),
+                        writable=bool(payload.get("writable", False)),
+                        nullable=bool(payload.get("nullable", False)),
+                        unit=payload.get("unit"),
+                        allowed_values=tuple(payload.get("allowed_values", ())),
+                    )
+                except (TypeError, ValueError):
+                    return self._error(400, "P6_UDF_REQUEST_INVALID", "error.request.invalid")
+                result = self._p6_field_registry_api.save_udf(definition, auth_context=auth)
+                return self._json(200, result["udf"])
+
             if method == "GET" and path.startswith("/api/projects/") and "/p6/udfs/" in path:
                 if self._p6_field_registry_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

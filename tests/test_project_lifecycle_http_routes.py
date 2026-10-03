@@ -236,6 +236,66 @@ def test_p6_layout_route_returns_not_found_for_missing_layout():
     assert status == 404
     assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
 
+def test_p6_udf_write_route_persists_authenticated_definition():
+    r, _, _ = p6_routes()
+    payload = {
+        "udf_id": "activity.status",
+        "subject_area": "Activity",
+        "display_name": "Status",
+        "data_type": "enum",
+        "writable": True,
+        "nullable": False,
+        "unit": None,
+        "allowed_values": ["Planned", "In Progress", "Complete"],
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["udf_id"] == "activity.status"
+    assert saved["allowed_values"] == payload["allowed_values"]
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["udfs"] == [saved]
+
+
+def test_p6_udf_write_route_rejects_invalid_payload():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "udf_id": "activity.status",
+            "subject_area": "Activity",
+            "display_name": "Status",
+            "data_type": "not-a-real-type",
+        }).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_UDF_REQUEST_INVALID"
+
+
+def test_p6_udf_write_route_requires_session_cookie():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        body=b"{}",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
 def test_p6_udf_route_requires_session_cookie():
     r, _, _ = p6_routes()
     status, _, body = r.handle("GET", "/api/projects/p1/p6/udfs/p6-field-registry.v1")
