@@ -37,6 +37,9 @@ class ScheduleInputSnapshot:
             raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY")
         if not isinstance(self.canonical_payload, str) or not self.canonical_payload:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD")
+        expected_hash = hashlib.sha256(self.canonical_payload.encode("utf-8")).hexdigest()
+        if self.snapshot_hash != expected_hash:
+            raise ScheduleSnapshotPersistenceError("SNAPSHOT_HASH_MISMATCH")
         if not isinstance(self.created_at, datetime) or self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
         if isinstance(self.record_revision, bool) or not isinstance(self.record_revision, int) or not 0 <= self.record_revision <= MAX_SAFE_REVISION:
