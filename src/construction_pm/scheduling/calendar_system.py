@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -126,7 +126,7 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
 def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     """Convert a Gregorian date to Jalali using Borkowski JDN arithmetic."""
 
-    if not isinstance(value, date) or isinstance(value, __import__("datetime").datetime):
+    if not isinstance(value, date) or isinstance(value, datetime):
         raise CalendarDateError("Gregorian value must be a date")
     jdn = _gregorian_to_borkowski_jdn(value.year, value.month, value.day)
     gy = _borkowski_jdn_to_gregorian(jdn).year
