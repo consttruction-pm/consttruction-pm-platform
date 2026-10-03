@@ -36,8 +36,8 @@ class ActivityCalendarAssignment:
     calendar: CalendarReference
 
     def __post_init__(self) -> None:
-        if not self.activity_id:
-            raise ValueError("activity_id is required")
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ValueError("activity_id must be a non-empty string")
 
 
 @dataclass(frozen=True)
@@ -65,12 +65,14 @@ class AuthoritativeScheduleInput:
     project_leveling_priority: int = 10
 
     def __post_init__(self) -> None:
-        if not self.snapshot_id.strip():
-            raise ValueError("snapshot_id is required")
-        if not self.tenant_id.strip():
-            raise ValueError("tenant_id is required")
-        if not self.project_id.strip():
-            raise ValueError("project_id is required")
+        if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
+            raise ValueError("snapshot_id must be a non-empty string")
+        if not isinstance(self.tenant_id, str) or not self.tenant_id.strip():
+            raise ValueError("tenant_id must be a non-empty string")
+        if not isinstance(self.project_id, str) or not self.project_id.strip():
+            raise ValueError("project_id must be a non-empty string")
+        if not isinstance(self.mode, AuthoritativeScheduleMode):
+            raise TypeError("mode must be an AuthoritativeScheduleMode")
         if isinstance(self.project_revision, bool) or not isinstance(self.project_revision, int):
             raise ValueError("project_revision must be an integer")
         if self.project_revision < 0:
