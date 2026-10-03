@@ -293,6 +293,6 @@ test("details complementary landmark is named by its heading", () => {
   );
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-panel cp-details" aria-labelledby="cp-details-heading"/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details"[^>]*aria-labelledby="cp-details-heading"/);
   assert.match(container.innerHTML, /<h2 id="cp-details-heading">Details<\/h2>/);
 });
