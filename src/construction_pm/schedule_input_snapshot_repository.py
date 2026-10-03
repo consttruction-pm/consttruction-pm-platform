@@ -70,6 +70,8 @@ def build_snapshot(
 ) -> ScheduleInputSnapshot:
     if schedule_input.project_id != context.project_id or schedule_input.project_revision != context.project_version:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
+    if context.tenant_id is not None and schedule_input.tenant_id != context.tenant_id:
+        raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
     if schedule_input.snapshot_id != context.input_snapshot_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
     payload = schedule_input.canonical_json()
