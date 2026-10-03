@@ -277,6 +277,55 @@ def test_materializer_preserves_calendar_system():
     assert result.schedule_input.activity_calendar_assignments[0].calendar.system is CalendarSystem.JALALI
 
 
+
+def test_materializer_rejects_duplicate_activity_calendar_assignment():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activity_calendar_assignments"].append(
+        payload["activity_calendar_assignments"][0]
+    )
+    tampered_payload = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="DUPLICATE_ACTIVITY_CALENDAR_ASSIGNMENT",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_non_string_priority_field_name():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["priority_list"] = [
+        {"field_name": None, "sort_order": "ASCENDING"}
+    ]
+    tampered_payload = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:priority_list",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
     payload = snapshot.canonical_payload.replace('"system":"gregorian"', '"system":"invalid"')
