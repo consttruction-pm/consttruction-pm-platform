@@ -28,9 +28,13 @@ class WorkingCalendar:
     time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
 
     def __post_init__(self) -> None:
-        invalid = [value for value in self.working_weekdays if value < 0 or value > 6]
-        if invalid:
-            raise ValueError("working_weekdays must contain values from 0 through 6")
+        if not isinstance(self.working_weekdays, (frozenset, set)):
+            raise ValueError("working_weekdays must be a set of weekday numbers")
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > 6
+            for value in self.working_weekdays
+        ):
+            raise ValueError("working_weekdays must contain integer values from 0 through 6")
         if not isinstance(self.system, CalendarSystem):
             raise ValueError("system must be a CalendarSystem")
         if any(not isinstance(value, date) or isinstance(value, JalaliDate) for value in self.holidays):
@@ -142,8 +146,8 @@ class WorkingTimeResolver:
     def subtract_working_duration(self, finish: CalendarInputDate, duration: Decimal | int | float) -> date:
         """Return the start date corresponding to a working-day duration."""
         units = Decimal(str(duration))
-        if units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative whole working day")
+        if not units.is_finite() or units < 0 or units != units.to_integral_value():
+            raise ValueError("duration must be a non-negative finite whole working day")
         cursor = self.normalize_finish(finish)
         remaining = int(units)
         if remaining == 0:
