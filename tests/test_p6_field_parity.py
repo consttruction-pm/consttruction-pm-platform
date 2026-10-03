@@ -30,10 +30,10 @@ def test_activity_registry_drift_gate_matches_release_26_inventory_metrics():
         inventory["fields"],
     )
 
-    # StatusCode is now an exact canonical Activity registry field.
-    assert comparison.exact_match_count == 192
+    # Tranche 23 materializes 20 additional canonical Activity registry fields.
+    assert comparison.exact_match_count == 212
     assert comparison.registry_only_count == 9
-    assert comparison.inventory_only_count == 83
+    assert comparison.inventory_only_count == 63
     assert comparison.is_metadata_consistent
 
 
