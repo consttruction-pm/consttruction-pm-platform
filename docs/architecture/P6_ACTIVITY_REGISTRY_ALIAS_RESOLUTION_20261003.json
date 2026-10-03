@@ -1,0 +1,148 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-registry-alias-resolution/v1",
+  "title": "P6 Activity Release 26 non-exact registry alias resolution evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "activity_inventory_count": 275,
+  "registry_activity_count": 201,
+  "legacy_registry_only_count": 9,
+  "status": "identity_resolved_with_explicit_unresolved_cases",
+  "certification_boundary": "Identity mapping is resolved for unambiguous aliases and remains not certified for persistence/import-export deployment. Ambiguous cases are intentionally unresolved.",
+  "rules": [
+    "Registry-only names remain stable Shared-Core identities; resolution is represented as an interchange alias relationship.",
+    "Oracle REST wire types are not silently treated as identical to internal registry types; enum/date normalization remains an explicit boundary.",
+    "No alias is certified from name similarity alone.",
+    "Ambiguous aliases are not forced to one P6 field when Oracle exposes multiple semantically distinct candidates.",
+    "No Activity dataclass, scheduler, CPM, EVM, or client calculation changes are implied by this artifact."
+  ],
+  "sources": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html",
+    "primavera_cloud_schedule_mapping": "https://docs.oracle.com/cd/E80480_01/help/en/user/241550_1.htm"
+  },
+  "resolved_aliases": [
+    {
+      "registry_name": "ActivityId",
+      "canonical_p6_field": "Id",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "string",
+      "registry_type": "string",
+      "registry_writable": true,
+      "registry_computed": false,
+      "semantic_evidence": "Oracle Activity Id is the short activity identifier within the project.",
+      "internal_evidence": "The existing interchange mapper can represent Id as the external source field while preserving ActivityId as the canonical Shared-Core field; regression covers import/export name preservation.",
+      "certification": "seeded_not_certified"
+    },
+    {
+      "registry_name": "ActivityName",
+      "canonical_p6_field": "Name",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "string",
+      "registry_type": "string",
+      "registry_writable": true,
+      "registry_computed": false,
+      "semantic_evidence": "Oracle Activity Name is the activity name.",
+      "internal_evidence": "The existing interchange mapper can represent Name as the external source field while preserving ActivityName as the canonical Shared-Core field; regression covers import/export name preservation.",
+      "certification": "seeded_not_certified"
+    },
+    {
+      "registry_name": "ActivityStatus",
+      "canonical_p6_field": "Status",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "string",
+      "registry_type": "enum",
+      "registry_writable": true,
+      "registry_computed": false,
+      "semantic_evidence": "Oracle Activity Status is the current activity status; the REST representation is a string.",
+      "internal_evidence": "The alias relationship is name-only at the interchange boundary; internal enum representation remains unchanged and requires no client-side calculation.",
+      "certification": "seeded_not_certified"
+    },
+    {
+      "registry_name": "ActivityType",
+      "canonical_p6_field": "Type",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "string",
+      "registry_type": "enum",
+      "registry_writable": true,
+      "registry_computed": false,
+      "semantic_evidence": "Oracle Activity Type is the documented activity-type field with enumerated values; REST represents it as a string.",
+      "internal_evidence": "The alias relationship is name-only at the interchange boundary; internal enum representation remains unchanged.",
+      "certification": "seeded_not_certified"
+    },
+    {
+      "registry_name": "RemainingStartDate",
+      "canonical_p6_field": "RemainingEarlyStartDate",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "date-time string",
+      "registry_type": "date",
+      "registry_writable": true,
+      "registry_computed": false,
+      "semantic_evidence": "Oracle defines RemainingEarlyStartDate as the scheduled start of remaining work; the scheduler computes it and the project manager may update it manually. Oracle's P6-to-Primavera-Cloud schedule mapping also maps remainingStartDate to RemainingEarlyStartDate.",
+      "internal_evidence": "The authoritative scheduler-output evidence already keeps RemainingEarlyStartDate separate from the generic Activity.remaining_start model field; this alias does not add another scheduler calculation.",
+      "certification": "seeded_not_certified"
+    },
+    {
+      "registry_name": "UpdateUser",
+      "canonical_p6_field": "LastUpdateUser",
+      "resolution": "canonical_alias",
+      "oracle_wire_type": "string",
+      "registry_type": "string",
+      "registry_writable": false,
+      "registry_computed": true,
+      "semantic_evidence": "Oracle LastUpdateUser is the name of the user who last updated the activity and is exposed by the Activity REST contract and export inventory.",
+      "internal_evidence": "The existing Shared-Core registry already treats UpdateUser as non-writable; the alias regression preserves that identity without introducing a calculation path.",
+      "certification": "seeded_not_certified",
+      "note": "The current registry computed flag is intentionally preserved in this tranche; stored-vs-derived metadata is a separate reconciliation gate."
+    }
+  ],
+  "unresolved_aliases": [
+    {
+      "registry_name": "ActivityOwner",
+      "candidates": [
+        "ActivityOwnerUserId",
+        "OwnerIDArray",
+        "OwnerNamesArray"
+      ],
+      "resolution": "unresolved",
+      "reason": "Oracle exposes multiple owner representations. The current registry string seed does not establish whether it means the single owner user ID, owner IDs, owner names, or a product-specific display reference.",
+      "next_evidence": "Inspect actual internal Activity owner persistence/interchange semantics before choosing one canonical field."
+    },
+    {
+      "registry_name": "Calendar",
+      "candidates": [
+        "CalendarName",
+        "CalendarObjectId"
+      ],
+      "resolution": "unresolved",
+      "reason": "Oracle exposes both a calendar name and the unique calendar object ID. The current generic Calendar string seed does not prove which identity it represents.",
+      "next_evidence": "Inspect activity calendar persistence and existing interchange fixtures; preserve both official P6 fields rather than collapsing them."
+    },
+    {
+      "registry_name": "RemainingFinishDate",
+      "candidates": [
+        "RemainingEarlyFinishDate",
+        "RemainingLateFinishDate"
+      ],
+      "resolution": "unresolved",
+      "reason": "Oracle exposes distinct remaining early and remaining late finish dates. A single generic registry field cannot be certified to either one without internal scheduling/read-model semantics.",
+      "next_evidence": "Trace the existing authoritative scheduler output/read model and exact interchange representation before mapping."
+    }
+  ],
+  "summary": {
+    "resolved_canonical_alias_count": 6,
+    "unresolved_count": 3,
+    "resolved_names": [
+      "ActivityId",
+      "ActivityName",
+      "ActivityStatus",
+      "ActivityType",
+      "RemainingStartDate",
+      "UpdateUser"
+    ],
+    "unresolved_names": [
+      "ActivityOwner",
+      "Calendar",
+      "RemainingFinishDate"
+    ]
+  }
+}
