@@ -53,12 +53,8 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert names == EXPECTED_FIELDS
     assert len(items) == 20
     assert names.issubset(inventory_names)
-    # The historical worklist is now partially materialized by later registry tranches.
-    # DurationType is now materialized by a later reconciliation tranche.
-    assert names - registry_names == {
-        "CalendarName",
-        "CalendarObjectId",
-    }
+    # The historical worklist is now fully materialized by later registry tranches.
+    assert names - registry_names == set()
     assert all(item["registry_change"] == "none" for item in items)
     assert all(item["reconciliation_status"] == "pending" for item in items)
     assert all(item["oracle_type"] for item in items)
@@ -66,8 +62,8 @@ def test_next_tranche_is_current_inventory_only_and_typed():
     assert all("export ActivityFieldType" in item["interchange_evidence"] for item in items)
     assert data["baseline"]["base_main_sha"] == "b171949415cc0c974c6546f2f85b306553646814"
     assert data["baseline"]["inventory_field_count"] == 275
-    assert data["baseline"]["registry_activity_field_count"] == 134
-    assert data["baseline"]["inventory_only_count"] == 150
+    assert data["baseline"]["registry_activity_field_count"] == 212
+    assert data["baseline"]["inventory_only_count"] == 83
 
 
 def test_next_tranche_has_no_duplicate_preexisting_activity_evidence():
