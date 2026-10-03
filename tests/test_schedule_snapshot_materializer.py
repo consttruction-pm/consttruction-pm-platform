@@ -635,3 +635,18 @@ def test_materializer_rejects_boolean_schedule_option_numbers(field_name):
     )
     with pytest.raises(SnapshotMaterializationError, match=f"INVALID_SCHEDULE_OPTION:{field_name}"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_materializer_rejects_boolean_activity_percent_complete(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["percent_complete"] = value
+    tampered_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_PERCENT_COMPLETE"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())

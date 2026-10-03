@@ -181,6 +181,8 @@ def _integer_working_days(value: Any, field_name: str) -> int:
     return int(decimal_value)
 
 def _finite_percent_complete(value: Any) -> float:
+    if isinstance(value, bool):
+        raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
     try:
         result = float(value)
     except (TypeError, ValueError) as exc:
