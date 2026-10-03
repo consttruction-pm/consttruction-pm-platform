@@ -99,6 +99,16 @@ class ResourceLevelingOptions:
             raise ResourceLevelingError("INVALID_RESOURCE_ID")
 
 
+def _capacity_map(capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity]) -> dict[tuple[str, date], Decimal]:
+    capacity_by_key: dict[tuple[str, date], Decimal] = {}
+    for item in capacities:
+        key = (item.resource_id, item.period)
+        if key in capacity_by_key:
+            raise ResourceLevelingError("DUPLICATE_RESOURCE_CAPACITY")
+        capacity_by_key[key] = item.units
+    return capacity_by_key
+
+
 def detect_over_allocations(
     demands: tuple[ResourceDemand, ...] | list[ResourceDemand],
     capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
@@ -275,9 +285,9 @@ def propose_forward_leveling_within_float(
     )
     selected = {a.activity_id: 0 for a in activity_list}
     capacity_map = {
-        (c.resource_id, c.period): c.units
-        for c in capacities
-        if c.resource_id in selected_resources
+        key: units
+        for key, units in _capacity_map(capacities).items()
+        if key[0] in selected_resources
     }
 
     def effective_capacity(resource_id: str, period: date) -> Decimal:
@@ -542,8 +552,9 @@ def propose_backward_leveling(
         )
     )
     capacity_map = {
-        (c.resource_id, c.period): c.units
-        for c in capacities if c.resource_id in selected_resources
+        key: units
+        for key, units in _capacity_map(capacities).items()
+        if key[0] in selected_resources
     }
     shifts = {a.activity_id: 0 for a in activity_list}
 
