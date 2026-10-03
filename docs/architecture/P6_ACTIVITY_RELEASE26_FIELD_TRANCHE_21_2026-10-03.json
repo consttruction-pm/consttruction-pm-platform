@@ -1,0 +1,241 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-release26-tranche-21/v1",
+  "title": "P6 Activity Release 26 typed field tranche 21 evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "status": "typed_seed_not_certified",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html",
+    "export_projects": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-export-exportprojects-post.html"
+  },
+  "rule": "This tranche establishes typed Activity registry presence and evidence linkage only. It does not certify canonical persistence, mutability, defaults/nullability, filter/order behavior or import mapping. No Activity dataclass expansion or calculation engine change is allowed.",
+  "fields": [
+    {
+      "p6_field": "ActualLaborCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "conditional when no resources are assigned",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "117-118",
+      "canonical_mapping": "activity.actual_labor_cost"
+    },
+    {
+      "p6_field": "ActualLaborUnits",
+      "oracle_type": "double",
+      "unit": "units",
+      "published_computed_behavior": "activity labor resource actual units",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "120-122",
+      "canonical_mapping": "activity.actual_labor_units"
+    },
+    {
+      "p6_field": "AtCompletionLaborCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "computed as actual labor cost + remaining labor cost",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "168-170",
+      "canonical_mapping": "activity.at_completion_labor_cost"
+    },
+    {
+      "p6_field": "AtCompletionLaborUnits",
+      "oracle_type": "double",
+      "unit": "units",
+      "published_computed_behavior": "computed as actual labor units + remaining labor units",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "172-173",
+      "canonical_mapping": "activity.at_completion_labor_units"
+    },
+    {
+      "p6_field": "AtCompletionMaterialCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "published as a double Activity value; Oracle response text is retained without reinterpretation",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "Oracle Activity GET response schema",
+      "canonical_mapping": "activity.at_completion_material_cost"
+    },
+    {
+      "p6_field": "AtCompletionNonLaborCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "computed as actual nonlabor cost + remaining nonlabor cost",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "182-184",
+      "canonical_mapping": "activity.at_completion_non_labor_cost"
+    },
+    {
+      "p6_field": "AtCompletionNonLaborUnits",
+      "oracle_type": "double",
+      "unit": "units",
+      "published_computed_behavior": "computed as actual nonlabor units + remaining nonlabor units",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "186-187",
+      "canonical_mapping": "activity.at_completion_non_labor_units"
+    },
+    {
+      "p6_field": "BudgetAtCompletion",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "planned labor cost + planned nonlabor cost + planned expense cost",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "342-344",
+      "canonical_mapping": "activity.budget_at_completion"
+    },
+    {
+      "p6_field": "CBSCode",
+      "oracle_type": "string",
+      "unit": null,
+      "published_computed_behavior": "stored business attribute; unique Unifier CBS code name",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "Oracle Activity GET/PUT schema",
+      "canonical_mapping": "activity.cbs_code"
+    },
+    {
+      "p6_field": "CBSObjectId",
+      "oracle_type": "integer",
+      "unit": null,
+      "published_computed_behavior": "stored identifier for the CoUnifier CBS",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "Oracle Activity GET/PUT schema",
+      "canonical_mapping": "activity.cbs_object_id"
+    },
+    {
+      "p6_field": "CostVariance",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "earned value - actual cost of work performed",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "379-380",
+      "canonical_mapping": "activity.cost_variance"
+    },
+    {
+      "p6_field": "CreateDate",
+      "oracle_type": "datetime",
+      "unit": null,
+      "published_computed_behavior": "activity creation timestamp",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "Oracle Activity GET/PUT schema",
+      "canonical_mapping": "activity.create_date"
+    },
+    {
+      "p6_field": "DataDate",
+      "oracle_type": "datetime",
+      "unit": null,
+      "published_computed_behavior": "current project data date; modified when project actuals are applied",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "Oracle Activity GET/PUT schema",
+      "canonical_mapping": "activity.data_date"
+    },
+    {
+      "p6_field": "EarnedValueLaborUnits",
+      "oracle_type": "double",
+      "unit": "units",
+      "published_computed_behavior": "baseline labor units * performance percent complete",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "438-439",
+      "canonical_mapping": "activity.earned_value_labor_units"
+    },
+    {
+      "p6_field": "EstimateAtCompletionCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "actual total cost + estimate to complete",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "441-442",
+      "canonical_mapping": "activity.estimate_at_completion_cost"
+    },
+    {
+      "p6_field": "MaterialCostVariance",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "project baseline planned material cost - at completion material cost",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "628-630",
+      "canonical_mapping": "activity.material_cost_variance"
+    },
+    {
+      "p6_field": "PercentComplete",
+      "oracle_type": "double",
+      "unit": "percent",
+      "published_computed_behavior": "depends on PercentCompleteType (duration, units or physical); range 0-100",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "697-699 / 2602-2609",
+      "canonical_mapping": "activity.percent_complete"
+    },
+    {
+      "p6_field": "PerformancePercentComplete",
+      "oracle_type": "double",
+      "unit": "percent",
+      "published_computed_behavior": "performance percent complete used for earned value; depends on WBS earned-value technique",
+      "registry_writable": false,
+      "registry_computed": true,
+      "mutability_status": "not_certified",
+      "evidence_lines": "705-706 / 2619-2626",
+      "canonical_mapping": "activity.performance_percent_complete"
+    },
+    {
+      "p6_field": "PlannedLaborCost",
+      "oracle_type": "double",
+      "unit": "currency",
+      "published_computed_behavior": "planned labor resource costs; conditional fallback calculation when no resources are assigned",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "723-724",
+      "canonical_mapping": "activity.planned_labor_cost"
+    },
+    {
+      "p6_field": "PlannedLaborUnits",
+      "oracle_type": "double",
+      "unit": "units",
+      "published_computed_behavior": "planned units for labor resources assigned to the activity",
+      "registry_writable": false,
+      "registry_computed": false,
+      "mutability_status": "not_certified",
+      "evidence_lines": "726-727",
+      "canonical_mapping": "activity.planned_labor_units"
+    }
+  ],
+  "acceptance_notes": [
+    "All 20 candidate names are exact Release 26 Activity inventory identities.",
+    "No alias is treated as an exact identity.",
+    "Registry disposition remains seeded_not_certified.",
+    "Internal persistence/import-export/mutability certification remains a separate gate.",
+    "No Activity dataclass, Scheduler/CPM/EVM engine, or client-side formula logic is changed."
+  ]
+}
