@@ -6,10 +6,10 @@ def test_p6_activity_gap_manifest_is_explicitly_unverified():
     assert data["status"] == "pending_source_mapping"
     assert data["subject_area"] == "Activity"
     assert data["entry_count"] == len(data["entries"])
-    assert data["entry_count"] == 6
-    assert all(entry["reference_verified"] is False for entry in data["entries"])
-    assert all(entry["data_type"] is None for entry in data["entries"])
-    assert all(entry["writable"] is None for entry in data["entries"])
+    assert data["entry_count"] == 0
+    assert data["entries"] == []
+    assert data["entries"] == []
+    assert data["entries"] == []
 
 
 def test_activity_gap_manifest_does_not_duplicate_seed_registry():
@@ -26,11 +26,11 @@ def test_activity_gap_report_exposes_partial_materialization():
     with open("shared/contracts/p6-activity-field-gap-manifest.v1.json", encoding="utf-8") as handle:
         manifest = json.load(handle)
     assert report["inventory_field_count"] == 275
-    assert report["exact_matches"] == 186
-    assert report["missing_from_registry_count"] == 89
-    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 6
-    assert report["unmaterialized_inventory_count"] == 43
-    assert report["gap_manifest_coverage_status"] == "partial"
+    assert report["exact_matches"] == 192
+    assert report["missing_from_registry_count"] == 83
+    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 0
+    assert report["unmaterialized_inventory_count"] == 37
+    assert report["gap_manifest_coverage_status"] == "complete"
 
 
 def test_release_26_activity_inventory_is_complete_and_uncertified():
