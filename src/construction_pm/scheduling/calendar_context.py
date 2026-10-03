@@ -78,13 +78,23 @@ class Continuous24HourResolver:
             raise ValueError("hours is more precise than one microsecond")
         return int(microseconds)
 
+    @staticmethod
+    def _require_datetime(value: datetime, field_name: str) -> datetime:
+        if not isinstance(value, datetime):
+            raise TypeError(f"{field_name} must be a datetime")
+        return value
+
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
+        start = self._require_datetime(start, "start")
         return start + timedelta(microseconds=self._hours_microseconds(hours))
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
+        finish = self._require_datetime(finish, "finish")
         return finish - timedelta(microseconds=self._hours_microseconds(hours))
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
+        start = self._require_datetime(start, "start")
+        finish = self._require_datetime(finish, "finish")
         if finish < start:
             raise ValueError("finish must not precede start")
         microseconds = (
