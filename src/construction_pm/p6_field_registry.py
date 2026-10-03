@@ -346,6 +346,12 @@ _ROWS = (
     ("activity.suspend_date","Activity","SuspendDate","Suspend Date","datetime",True,False,None),
     ("activity.total_past_period_labor_cost","Activity","TotalPastPeriodLaborCost","Total Past Period Labor Cost","double",False,False,"currency"),
     ("activity.total_past_period_labor_units","Activity","TotalPastPeriodLaborUnits","Total Past Period Labor Units","double",False,False,"units"),
+    ("activity.total_past_period_material_cost","Activity","TotalPastPeriodMaterialCost","Total Past Period Material Cost","double",False,False,"currency"),
+    ("activity.total_past_period_non_labor_cost","Activity","TotalPastPeriodNonLaborCost","Total Past Period Non Labor Cost","double",False,False,"currency"),
+    ("activity.total_past_period_non_labor_units","Activity","TotalPastPeriodNonLaborUnits","Total Past Period Non Labor Units","double",False,False,"units"),
+    ("activity.type","Activity","Type","Type","string",True,False,None),
+    ("activity.units_percent_complete","Activity","UnitsPercentComplete","Units Percent Complete","double",False,True,"percent"),
+    ("activity.work_package_name","Activity","WorkPackageName","Work Package Name","string",True,False,None),
 )
 
 
