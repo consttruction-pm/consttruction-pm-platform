@@ -707,6 +707,8 @@ class UnsupportedScheduleOptionError(ValueError):
 
 def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
     unsupported: list[str] = []
+    if options.recalculate_resource_costs:
+        unsupported.append("recalculate_resource_costs")
     if options.ignore_other_project_relationships:
         unsupported.append("ignore_other_project_relationships")
     if options.include_external_res_ass:
