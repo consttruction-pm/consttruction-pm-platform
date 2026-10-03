@@ -125,12 +125,12 @@ export class ProjectBootstrap {
   }
 
   private async hydrateProject(
-    projectContext: ProjectContext,
+    projectContext: ProjectContext | import("./client").ProjectContext,
     generation: number,
   ): Promise<ProjectBootstrapState | null> {
     if (!this.isCurrent(generation)) return null;
 
-    const context = toWorkspaceContext(projectContext);
+    const context = toWorkspaceContext(projectContext as ProjectContext);
     this.dependencies.syncRuntime.openProject(
       context.tenant_id,
       context.project_id,
