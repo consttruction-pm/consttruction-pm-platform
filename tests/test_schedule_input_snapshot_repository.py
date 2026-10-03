@@ -111,6 +111,21 @@ def test_snapshot_rejects_mismatched_calculation_context_tenant():
         )
 
 
+def test_snapshot_timestamp_parser_accepts_iso8601_and_rejects_naive_or_malformed_values():
+    from construction_pm.schedule_input_snapshot_repository import _parse_created_at
+
+    assert _parse_created_at("2026-09-21T08:00:00+00:00") == datetime(
+        2026, 9, 21, 8, tzinfo=timezone.utc
+    )
+    assert _parse_created_at("2026-09-21T08:00:00Z") == datetime(
+        2026, 9, 21, 8, tzinfo=timezone.utc
+    )
+
+    for value in ("not-a-timestamp", "2026-09-21T08:00:00", "", None):
+        with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_TIMESTAMP"):
+            _parse_created_at(value)
+
+
 def test_snapshot_list_validates_persisted_rows():
     snapshot = build_snapshot(
         make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
