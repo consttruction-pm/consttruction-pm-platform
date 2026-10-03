@@ -249,6 +249,9 @@ def postgres_dsn():
 def postgres_connection(postgres_dsn):
     psycopg = pytest.importorskip("psycopg")
     connection = psycopg.connect(postgres_dsn)
+    repo = PostgresScheduleInputSnapshotRepository(connection)
+    repo.initialize()
+    connection.commit()
     try:
         PostgresScheduleInputSnapshotRepository(connection).initialize()
         connection.commit()

@@ -8,6 +8,7 @@ import pytest
 from construction_pm.schedule_input_snapshot_repository import (
     ScheduleSnapshotPersistenceError,
     SQLiteScheduleInputSnapshotRepository,
+    ScheduleSnapshotPersistenceError,
     build_snapshot,
 )
 from construction_pm.schedule_snapshot_materializer import (
@@ -27,6 +28,8 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity
 
 
 def test_materializer_rejects_invalid_date_and_datetime_values():
@@ -49,13 +52,14 @@ def test_materializer_rejects_invalid_date_and_datetime_values():
             CalendarResolverRegistry(),
         )
 
-    payload = json.loads(snapshot.canonical_payload)
+    time_snapshot = make_time_snapshot()
+    payload = json.loads(time_snapshot.canonical_payload)
     activity = payload["activities"][0]
     activity["actual_start"] = "not-a-datetime"
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    invalid_datetime = snapshot.__class__(
+    invalid_datetime = time_snapshot.__class__(
         **{
-            **snapshot.__dict__,
+            **time_snapshot.__dict__,
             "canonical_payload": canonical,
             "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         }
@@ -101,6 +105,32 @@ def make_snapshot():
         source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
     )
     return snapshot
+
+
+def make_time_snapshot():
+    cal = CalendarReference("CAL-T", "1", "working-time")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-TIME-INVALID-DATETIME",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=4,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=cal,
+        activities=(
+            TimeActivity("A", TimeQuantity.working_hours(2),
+                         __import__("construction_pm.scheduling.calendar_context", fromlist=["SchedulingCalendarContext"]).SchedulingCalendarContext(project=cal, activity=cal)),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=4, calendar_id="CAL-T", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00", input_snapshot_id="S-TIME-INVALID-DATETIME",
+        tenant_id="T-1",
+    )
+    return build_snapshot(source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
 
 
 def test_materializes_date_based_models():
