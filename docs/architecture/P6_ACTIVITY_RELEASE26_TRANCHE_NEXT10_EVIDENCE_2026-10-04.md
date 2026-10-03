@@ -17,7 +17,7 @@ Authority: Oracle P6 EPPM Release 26 REST Activity GET/PUT contracts plus Oracle
 | NonLaborCost1Variance | Cost / REST number(double) | Yes | COST, non-writable, computed | Primary baseline nonlabor cost − at-completion nonlabor cost. |
 | NonLaborCost2Variance | Cost / REST number(double) | Yes | COST, non-writable, computed | Secondary baseline nonlabor cost − at-completion nonlabor cost. |
 | NonLaborCost3Variance | Cost / REST number(double) | Yes | COST, non-writable, computed | Tertiary baseline nonlabor cost − at-completion nonlabor cost. |
-| OwnerNamesArray | String / REST string | No | STRING_ARRAY, writable, stored | Activity owner names represented as a comma-separated list by REST; the Integration API types the field as String. |
+| OwnerNamesArray | String / REST string | No | STRING, writable, stored | Activity owner names represented as a comma-separated list by REST; the Integration API types the field as String. |
 
 ## Source details
 
