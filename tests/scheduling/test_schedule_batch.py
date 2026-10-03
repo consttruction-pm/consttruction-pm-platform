@@ -20,13 +20,13 @@ def snapshot(project_id: str, finish: date, priority: int = 10) -> Authoritative
         project_revision=1,
         project_leveling_priority=priority,
         mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=CalendarReference("CAL", 1),
+        project_calendar=CalendarReference("CAL", "1"),
         activities=(
             Activity(id=f"{project_id}-A", duration=1),
         ),
         relationships=(),
         activity_calendar_assignments=(
-            ActivityCalendarAssignment(f"{project_id}-A", CalendarReference("CAL", 1)),
+            ActivityCalendarAssignment(f"{project_id}-A", CalendarReference("CAL", "1")),
         ),
         project_finish=finish,
         project_start=date(2026, 10, 1),

@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from decimal import Decimal
 
 import pytest
@@ -46,12 +46,12 @@ def context():
 def test_time_backward_pass_terminal_activity_respects_project_finish():
     ctx = context()
     activities = [TimeActivity("A", TimeQuantity.working_hours(4), ctx)]
-    early = time_forward_pass(activities, [], datetime(2026, 9, 22, 8), registry())
+    early = time_forward_pass(activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry())
     late = time_backward_pass(
-        activities, [], early, datetime(2026, 9, 22, 17), registry()
+        activities, [], early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry()
     )
-    assert late["A"].finish == datetime(2026, 9, 22, 17)
-    assert late["A"].start == datetime(2026, 9, 22, 13)
+    assert late["A"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
 
 
 def test_time_backward_pass_fs_inverse_matches_forward_boundary():
@@ -61,14 +61,14 @@ def test_time_backward_pass_fs_inverse_matches_forward_boundary():
         TimeActivity("B", TimeQuantity.working_hours(2), ctx),
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.FS)]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry())
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry())
     late = time_backward_pass(
-        activities, relationships, early, datetime(2026, 9, 22, 17), registry()
+        activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry()
     )
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
-    assert late["B"].start == datetime(2026, 9, 22, 15)
-    assert late["A"].finish == datetime(2026, 9, 22, 15)
-    assert late["A"].start == datetime(2026, 9, 22, 10)
+    assert late["B"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
+    assert late["B"].start == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
 
 
 def test_time_backward_pass_supports_negative_lag():
@@ -80,13 +80,13 @@ def test_time_backward_pass_supports_negative_lag():
     relationships = [
         TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(-1))
     ]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry())
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry())
     late = time_backward_pass(
-        activities, relationships, early, datetime(2026, 9, 22, 17), registry()
+        activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry()
     )
-    assert late["B"].start == datetime(2026, 9, 22, 15)
-    assert late["A"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].start == datetime(2026, 9, 22, 11)
+    assert late["B"].start == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
 
 
 def test_time_schedule_propagates_start_to_start_lag_calculation_option():
@@ -96,22 +96,22 @@ def test_time_schedule_propagates_start_to_start_lag_calculation_option():
             "A",
             TimeQuantity.working_hours(2),
             ctx,
-            actual_start=datetime(2026, 9, 22, 10),
+            actual_start=datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
         ),
         TimeActivity("B", TimeQuantity.working_hours(1), ctx),
     ]
     result = time_schedule(
         activities,
         [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(12))],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 24, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 24, 17, tzinfo=timezone.utc),
         registry(),
         options=TimeScheduleOptions(
             start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START,
-            data_date=datetime(2026, 9, 23, 10),
+            data_date=datetime(2026, 9, 23, 10, tzinfo=timezone.utc),
         ),
     )
-    assert result.early_activities["B"].start == datetime(2026, 9, 23, 15)
+    assert result.early_activities["B"].start == datetime(2026, 9, 23, 15, tzinfo=timezone.utc)
 
 
 def test_time_schedule_produces_zero_float_for_terminal_path():
@@ -122,7 +122,7 @@ def test_time_schedule_produces_zero_float_for_terminal_path():
     ]
     relationships = [TimeRelationship("A", "B")]
     result = time_schedule(
-        activities, relationships, datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 15), registry()
+        activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 15, tzinfo=timezone.utc), registry()
     )
     assert result.floats["B"].total_float_hours == Decimal("0")
     assert result.floats["A"].total_float_hours == Decimal("0")
@@ -136,7 +136,7 @@ def test_time_schedule_retains_positive_float_for_noncritical_activity():
         TimeActivity("B", TimeQuantity.working_hours(2), ctx),
     ]
     result = time_schedule(
-        activities, [], datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 17), registry()
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry()
     )
     assert result.floats["A"].total_float_hours == Decimal("6")
     assert not result.floats["A"].critical
@@ -159,13 +159,13 @@ def test_time_schedule_uses_project_calendar_for_explicit_finish():
     result = time_schedule(
         [TimeActivity("A", TimeQuantity.working_hours(2), ctx)],
         [],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 12, 30),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc),
         registry,
     )
-    assert result.project_finish == datetime(2026, 9, 22, 12)
-    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 11)
-    assert result.late_activities["A"].start == datetime(2026, 9, 22, 9)
+    assert result.project_finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
+    assert result.late_activities["A"].start == datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
 
 
 def test_time_schedule_rejects_mixed_project_calendar_references():
@@ -190,8 +190,8 @@ def test_time_schedule_rejects_mixed_project_calendar_references():
         time_schedule(
             activities,
             [],
-            datetime(2026, 9, 22, 8),
-            datetime(2026, 9, 22, 17),
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
             registry,
         )
 
@@ -218,7 +218,7 @@ def test_time_backward_pass_rejects_mixed_project_calendar_references():
         time_forward_pass(
             activities,
             [],
-            datetime(2026, 9, 22, 8),
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
             registry,
         )
 
@@ -245,9 +245,9 @@ def test_time_backward_pass_does_not_use_last_activity_calendar_as_project_calen
         TimeActivity("A", TimeQuantity.working_hours(2), ctx_a),
         TimeActivity("B", TimeQuantity.working_hours(2), ctx_b),
     ]
-    early = time_forward_pass(activities, [TimeRelationship("A", "B")], datetime(2026, 9, 22, 8), registry)
-    late = time_backward_pass(activities, [TimeRelationship("A", "B")], early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 17)
+    early = time_forward_pass(activities, [TimeRelationship("A", "B")], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
+    late = time_backward_pass(activities, [TimeRelationship("A", "B")], early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
 
 
 def _cross_calendar_registry():
@@ -288,16 +288,16 @@ def test_cross_calendar_fs_positive_lag_uses_successor_lag_calendar():
         )),
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(1))]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
-    assert early["A"].finish == datetime(2026, 9, 22, 12)
-    assert early["B"].start == datetime(2026, 9, 22, 13)
-    assert early["B"].finish == datetime(2026, 9, 22, 15)
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
+    assert early["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert early["B"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
+    assert early["B"].finish == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
 
-    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].start == datetime(2026, 9, 22, 14)
-    assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].finish == datetime(2026, 9, 22, 12)
-    assert late["A"].start == datetime(2026, 9, 22, 8)
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
+    assert late["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
+    assert late["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
 
 
 def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
@@ -317,14 +317,14 @@ def test_cross_calendar_ff_positive_lag_preserves_activity_and_lag_calendars():
         )),
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.FF, LagQuantity.working_hours(1))]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
-    assert early["A"].finish == datetime(2026, 9, 22, 12)
-    assert early["B"].start == datetime(2026, 9, 22, 10)
-    assert early["B"].finish == datetime(2026, 9, 22, 13)
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
+    assert early["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert early["B"].start == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    assert early["B"].finish == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
 
-    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].finish == datetime(2026, 9, 22, 15)
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
 
 
 def test_cross_calendar_ff_float_reconciliation_matches_activity_calendar_window():
@@ -346,8 +346,8 @@ def test_cross_calendar_ff_float_reconciliation_matches_activity_calendar_window
     result = time_schedule(
         activities,
         [TimeRelationship("A", "B", RelationshipType.FF, LagQuantity.working_hours(1))],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
         registry,
     )
 
@@ -389,14 +389,14 @@ def test_cross_calendar_ss_negative_lag_and_float_remain_deterministic():
     result = time_schedule(
         activities,
         relationships,
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
         registry,
     )
-    assert result.early_activities["A"].start == datetime(2026, 9, 22, 8)
-    assert result.early_activities["B"].start == datetime(2026, 9, 22, 7)
-    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9)
-    assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16)
+    assert result.early_activities["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 7, tzinfo=timezone.utc)
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
+    assert result.late_activities["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
     assert result.floats["A"].total_float_hours == Decimal("6.0")
     assert not result.floats["A"].critical
 
@@ -418,17 +418,17 @@ def test_cross_calendar_sf_zero_lag_uses_successor_finish_event():
         )),
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.SF)]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
-    assert early["A"].start == datetime(2026, 9, 22, 8)
-    assert early["A"].finish == datetime(2026, 9, 22, 12)
-    assert early["B"].start == datetime(2026, 9, 22, 7)
-    assert early["B"].finish == datetime(2026, 9, 22, 9)
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
+    assert early["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    assert early["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert early["B"].start == datetime(2026, 9, 22, 7, tzinfo=timezone.utc)
+    assert early["B"].finish == datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
 
-    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["B"].start == datetime(2026, 9, 22, 14)
-    assert late["A"].start == datetime(2026, 9, 22, 13)
-    assert late["A"].finish == datetime(2026, 9, 22, 17)
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert late["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
 
 
 def test_cross_calendar_activity_constraint_uses_activity_calendar():
@@ -447,13 +447,13 @@ def test_cross_calendar_activity_constraint_uses_activity_calendar():
     constraint = TimeActivityConstraint(
         "A",
         TimeConstraintType.START_NO_EARLIER_THAN,
-        datetime(2026, 9, 22, 10, 30),
+        datetime(2026, 9, 22, 10, 30, tzinfo=timezone.utc),
     )
     early = time_forward_pass(
-        [activity], [], datetime(2026, 9, 22, 8), registry, [constraint]
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry, [constraint]
     )
-    assert early["A"].start == datetime(2026, 9, 22, 10, 30)
-    assert early["A"].finish == datetime(2026, 9, 22, 13, 30)
+    assert early["A"].start == datetime(2026, 9, 22, 10, 30, tzinfo=timezone.utc)
+    assert early["A"].finish == datetime(2026, 9, 22, 13, 30, tzinfo=timezone.utc)
 
 
 def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
@@ -473,13 +473,13 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
         )),
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.SF, LagQuantity.working_hours(-1))]
-    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8), registry)
-    assert early["B"].start == datetime(2026, 9, 21, 14)
-    assert early["B"].finish == datetime(2026, 9, 21, 16)
-    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17), registry)
-    assert late["B"].finish == datetime(2026, 9, 22, 16)
-    assert late["A"].start == datetime(2026, 9, 22, 13)
-    assert late["A"].finish == datetime(2026, 9, 22, 17)
+    early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
+    assert early["B"].start == datetime(2026, 9, 21, 14, tzinfo=timezone.utc)
+    assert early["B"].finish == datetime(2026, 9, 21, 16, tzinfo=timezone.utc)
+    late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
+    assert late["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert late["A"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
+    assert late["A"].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
 
 
 def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrelated():
@@ -501,8 +501,8 @@ def test_cross_calendar_all_relationships_preserve_noncritical_float_when_unrela
     result = time_schedule(
         activities,
         [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(1))],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
         registry,
     )
     assert result.floats["B"].total_float_hours == Decimal("3.0")
@@ -529,21 +529,21 @@ def test_cross_calendar_finish_constraint_interacts_with_fs_lag_and_float():
     constraint = TimeActivityConstraint(
         "B",
         TimeConstraintType.FINISH_NO_EARLIER_THAN,
-        datetime(2026, 9, 22, 16),
+        datetime(2026, 9, 22, 16, tzinfo=timezone.utc),
     )
 
     result = time_schedule(
         activities,
         relationships,
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 22, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
         registry,
         [constraint],
     )
 
-    assert result.early_activities["B"].start == datetime(2026, 9, 22, 14)
-    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 16)
-    assert result.late_activities["B"].start == datetime(2026, 9, 22, 14)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
+    assert result.early_activities["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
+    assert result.late_activities["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
     assert result.floats["B"].total_float_hours == Decimal("0.0")
     assert result.floats["A"].total_float_hours == Decimal("0")
     assert result.floats["A"].critical
@@ -569,15 +569,15 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
     constraint = TimeActivityConstraint(
         "B",
         TimeConstraintType.MANDATORY_FINISH,
-        datetime(2026, 9, 22, 14),
+        datetime(2026, 9, 22, 14, tzinfo=timezone.utc),
     )
 
     with pytest.raises(ValueError, match="mandatory finish conflicts"):
         time_schedule(
             activities,
             relationships,
-            datetime(2026, 9, 22, 8),
-            datetime(2026, 9, 22, 17),
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
             registry,
             [constraint],
         )
@@ -586,10 +586,10 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
 @pytest.mark.parametrize(
     ("option", "expected_start"),
     [
-        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 14)),
-        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 15)),
-        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 14)),
-        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 14)),
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 15, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
     ],
 )
 def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
@@ -631,13 +631,13 @@ def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
     result = time_schedule(
         activities,
         relationships,
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 23, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 23, 17, tzinfo=timezone.utc),
         registry,
         options=TimeScheduleOptions(relationship_lag_calendar=option),
     )
 
-    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 11)
+    assert result.early_activities["A"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
     assert result.early_activities["B"].start == expected_start
 
 
@@ -669,11 +669,11 @@ def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
             TimeActivity("B", TimeQuantity.working_hours(1), ctx_b),
         ],
         [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))],
-        datetime(2026, 9, 22, 8),
-        datetime(2026, 9, 23, 17),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 23, 17, tzinfo=timezone.utc),
         registry,
     )
-    assert result.early_activities["B"].start == datetime(2026, 9, 22, 15)
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
 
 
 # P6 RelationshipLagCalendar regression coverage.
@@ -687,5 +687,5 @@ def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_cale
         CalendarReference("predecessor", "1", "working-time"),
         RelationshipLagCalendar.TWENTY_FOUR_HOUR,
     )
-    start = datetime(2026, 9, 22, 23)
-    assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3)
+    start = datetime(2026, 9, 22, 23, tzinfo=timezone.utc)
+    assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3, tzinfo=timezone.utc)
