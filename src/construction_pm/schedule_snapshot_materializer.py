@@ -461,6 +461,8 @@ def _materialize_payload(
         if mode is AuthoritativeScheduleMode.DATE_BASED:
             if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_LAG_MUST_BE_WORKING_DAYS")
+            if lag_value != lag_value.to_integral_value():
+                raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG")
             relationships.append(
                 Relationship(predecessor_id, successor_id, rel_type, int(lag_value))
             )
