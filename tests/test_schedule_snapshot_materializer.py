@@ -21,6 +21,7 @@ from construction_pm.scheduling.authoritative_schedule import (
 )
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
@@ -245,3 +246,45 @@ def test_materializes_numeric_critical_float_threshold_and_short_name():
     result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry()).schedule_input.schedule_options
     assert result.critical_activity_float_threshold == 1.5
     assert result.multiple_float_paths_ending_activity_short_name == "FIN-MILESTONE"
+
+def test_materializer_preserves_calendar_system():
+    cal = CalendarReference("CAL-J", "1", system=CalendarSystem.JALALI)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-JALALI",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("A", cal),),
+        project_start=date(2026, 3, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=1, calendar_id="CAL-J", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-03-21T08:00:00+00:00",
+        input_snapshot_id="S-JALALI", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 3, 21, 8, tzinfo=timezone.utc)
+    )
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.project_calendar.system is CalendarSystem.JALALI
+    assert result.schedule_input.activity_calendar_assignments[0].calendar.system is CalendarSystem.JALALI
+
+
+def test_materializer_rejects_invalid_calendar_system():
+    snapshot = make_snapshot()
+    payload = snapshot.canonical_payload.replace('"system":"gregorian"', '"system":"invalid"')
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_CALENDAR_SYSTEM"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
