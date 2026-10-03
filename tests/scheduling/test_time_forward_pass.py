@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
 import pytest
@@ -53,10 +53,10 @@ def test_time_forward_pass_schedules_working_hour_duration_across_break():
         TimeActivity("A", TimeQuantity.working_hours(5), ctx),
     ]
     result = time_forward_pass(
-        activities, [], datetime(2026, 9, 22, 10), registry()
+        activities, [], datetime(2026, 9, 22, 10, tzinfo=timezone.utc), registry()
     )
-    assert result["A"].start == datetime(2026, 9, 22, 10)
-    assert result["A"].finish == datetime(2026, 9, 22, 16)
+    assert result["A"].start == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    assert result["A"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_fs_zero_uses_exact_finish_boundary():
@@ -68,11 +68,11 @@ def test_time_forward_pass_fs_zero_uses_exact_finish_boundary():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.FS)],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["A"].finish == datetime(2026, 9, 22, 12)
-    assert result["B"].start == datetime(2026, 9, 22, 13)
+    assert result["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert result["B"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_ss_positive_lag_uses_working_hours():
@@ -84,10 +84,10 @@ def test_time_forward_pass_ss_positive_lag_uses_working_hours():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(2))],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["B"].start == datetime(2026, 9, 22, 10)
+    assert result["B"].start == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_ff_positive_lag_preserves_finish_relation():
@@ -99,11 +99,11 @@ def test_time_forward_pass_ff_positive_lag_preserves_finish_relation():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.FF, LagQuantity.working_hours(1))],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["B"].finish == datetime(2026, 9, 22, 11)
-    assert result["B"].start == datetime(2026, 9, 22, 9)
+    assert result["B"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
+    assert result["B"].start == datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_skips_holiday_for_positive_lag():
@@ -115,10 +115,10 @@ def test_time_forward_pass_skips_holiday_for_positive_lag():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(2))],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["B"].start == datetime(2026, 9, 24, 10)
+    assert result["B"].start == datetime(2026, 9, 24, 10, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_rejects_implicit_working_day_conversion():
@@ -127,7 +127,7 @@ def test_time_forward_pass_rejects_implicit_working_day_conversion():
         TimeActivity("A", TimeQuantity.working_days(1), ctx),
     ]
     with pytest.raises(ValueError, match="working-time calendar requires working-hour duration"):
-        time_forward_pass(activities, [], datetime(2026, 9, 22, 8), registry())
+        time_forward_pass(activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry())
 
 
 def test_time_forward_pass_supports_negative_hour_lag():
@@ -139,11 +139,11 @@ def test_time_forward_pass_supports_negative_hour_lag():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", lag=LagQuantity.working_hours(-1))],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["A"].finish == datetime(2026, 9, 22, 12)
-    assert result["B"].start == datetime(2026, 9, 22, 11)
+    assert result["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+    assert result["B"].start == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
 
 def test_time_forward_pass_sf_zero_uses_predecessor_start():
     ctx = context()
@@ -154,11 +154,11 @@ def test_time_forward_pass_sf_zero_uses_predecessor_start():
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.SF)],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
     )
-    assert result["A"].start == datetime(2026, 9, 22, 8)
-    assert result["B"].finish == datetime(2026, 9, 21, 17)
+    assert result["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    assert result["B"].finish == datetime(2026, 9, 21, 17, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
@@ -184,12 +184,12 @@ def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
     result = time_forward_pass(
         [TimeActivity("A", TimeQuantity.working_hours(1), context)],
         [],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry,
     )
 
-    assert result["A"].start == datetime(2026, 9, 23, 8)
-    assert result["A"].finish == datetime(2026, 9, 23, 9)
+    assert result["A"].start == datetime(2026, 9, 23, 8, tzinfo=timezone.utc)
+    assert result["A"].finish == datetime(2026, 9, 23, 9, tzinfo=timezone.utc)
 
 
 def test_time_forward_pass_rejects_mixed_project_calendar_references_before_scheduling():
@@ -213,7 +213,7 @@ def test_time_forward_pass_rejects_mixed_project_calendar_references_before_sche
 
     with pytest.raises(ValueError, match="must share one project calendar"):
         time_forward_pass(
-            activities, [], datetime(2026, 9, 22, 8), registry
+            activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry
         )
 
 
@@ -231,15 +231,15 @@ def test_time_forward_pass_requires_registered_project_calendar():
 
     with pytest.raises(KeyError, match="calendar not registered: project@1"):
         time_forward_pass(
-            [activity], [], datetime(2026, 9, 22, 8), registry
+            [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry
         )
 
 
 @pytest.mark.parametrize(
     ("lag_mode", "expected_start"),
     [
-        (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 13)),
-        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 15)),
+        (StartToStartLagCalculationType.EARLY_START, datetime(2026, 9, 22, 13, tzinfo=timezone.utc)),
+        (StartToStartLagCalculationType.ACTUAL_START, datetime(2026, 9, 24, 15, tzinfo=timezone.utc)),
     ],
 )
 def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
@@ -251,19 +251,19 @@ def test_time_forward_pass_start_to_start_out_of_sequence_uses_selected_anchor(
             "A",
             TimeQuantity.working_hours(2),
             ctx,
-            actual_start=datetime(2026, 9, 22, 10),
+            actual_start=datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
         ),
         TimeActivity("B", TimeQuantity.working_hours(1), ctx),
     ]
     result = time_forward_pass(
         activities,
         [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(12))],
-        datetime(2026, 9, 22, 8),
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
         registry(),
         start_to_start_lag_calculation_type=lag_mode,
-        data_date=datetime(2026, 9, 24, 10),
+        data_date=datetime(2026, 9, 24, 10, tzinfo=timezone.utc),
     )
-    assert result["A"].start == datetime(2026, 9, 22, 8)
+    assert result["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
     assert result["B"].start == expected_start
 
 
@@ -274,7 +274,7 @@ def test_time_forward_pass_start_to_start_out_of_sequence_requires_data_date():
             "A",
             TimeQuantity.working_hours(2),
             ctx,
-            actual_start=datetime(2026, 9, 22, 10),
+            actual_start=datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
         ),
         TimeActivity("B", TimeQuantity.working_hours(1), ctx),
     ]
@@ -282,6 +282,6 @@ def test_time_forward_pass_start_to_start_out_of_sequence_requires_data_date():
         time_forward_pass(
             activities,
             [TimeRelationship("A", "B", RelationshipType.SS, LagQuantity.working_hours(4))],
-            datetime(2026, 9, 22, 8),
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
             registry(),
         )
