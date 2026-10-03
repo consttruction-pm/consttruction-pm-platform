@@ -156,6 +156,8 @@ def _duration_unit(value: Any) -> DurationUnit:
 
 
 def _finite_float(value: Any, field_name: str) -> float:
+    if isinstance(value, bool):
+        raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}")
     try:
         result = float(value)
     except (TypeError, ValueError) as exc:
