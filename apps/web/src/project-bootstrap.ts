@@ -10,6 +10,7 @@ export type ProjectBootstrapState =
   | { status: "loading" }
   | { status: "selecting"; projects: readonly ProjectSummary[] }
   | { status: "opening"; projectId: string }
+  | { status: "creating"; projectId: string }
   | { status: "ready"; context: ProjectContext; workspace: WorkspaceState }
   | { status: "error"; error: ClientError };
 
@@ -83,6 +84,14 @@ export class ProjectBootstrap {
     return this.openProject(this.projects[0].project_id, generation);
   }
 
+  async createProject(projectId: string, name: string): Promise<ProjectBootstrapState | null> {
+    const generation = ++this.generation;
+    const result = await this.dependencies.sessionApi.createProject(projectId, name);
+    if (!this.isCurrent(generation)) return null;
+    if (!result.ok) return { status: "error", error: result.error };
+    return this.hydrateProject(result.data.context, generation);
+  }
+
   async selectProject(projectId: string): Promise<ProjectBootstrapState | null> {
     const generation = ++this.generation;
     if (!this.projects.some((project) => project.project_id === projectId)) {
@@ -112,7 +121,16 @@ export class ProjectBootstrap {
     if (!this.isCurrent(generation)) return null;
     if (!result.ok) return { status: "error", error: result.error };
 
-    const context = toWorkspaceContext(result.data.context);
+    return this.hydrateProject(result.data.context, generation);
+  }
+
+  private async hydrateProject(
+    projectContext: ProjectContext,
+    generation: number,
+  ): Promise<ProjectBootstrapState | null> {
+    if (!this.isCurrent(generation)) return null;
+
+    const context = toWorkspaceContext(projectContext);
     this.dependencies.syncRuntime.openProject(
       context.tenant_id,
       context.project_id,
