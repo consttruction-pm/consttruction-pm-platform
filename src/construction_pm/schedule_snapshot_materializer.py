@@ -215,6 +215,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                 ))
             ),
             use_expected_finish_dates=_bool("use_expected_finish_dates"),
+            recalculate_resource_costs=_bool("recalculate_resource_costs"),
             calculate_float_based_on_finish_date=_bool("calculate_float_based_on_finish_date"),
             ignore_other_project_relationships=_bool("ignore_other_project_relationships"),
             include_external_res_ass=_bool("include_external_res_ass"),
