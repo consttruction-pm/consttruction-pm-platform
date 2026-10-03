@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+import math
 from enum import Enum
 
 from .calendar_context import RelationshipLagCalendar
@@ -117,6 +118,8 @@ class ScheduleOptions:
             )
         if isinstance(self.critical_activity_float_threshold, bool) or not isinstance(self.critical_activity_float_threshold, (int, float)):
             raise ValueError("critical_activity_float_threshold must be numeric")
+        if not math.isfinite(float(self.critical_activity_float_threshold)):
+            raise ValueError("critical_activity_float_threshold must be finite")
         if float(self.critical_activity_float_threshold) < 0:
             raise ValueError("critical_activity_float_threshold must be non-negative")
 
@@ -182,6 +185,8 @@ class ScheduleOptions:
             self.over_allocation_percentage, (int, float)
         ):
             raise ValueError("over_allocation_percentage must be numeric")
+        if not math.isfinite(float(self.over_allocation_percentage)):
+            raise ValueError("over_allocation_percentage must be finite")
         if not 0 <= float(self.over_allocation_percentage) <= 100:
             raise ValueError("over_allocation_percentage must be between 0 and 100")
 
@@ -203,7 +208,7 @@ class ScheduleOptions:
             if not all(isinstance(item, PriorityListItem) for item in self.priority_list):
                 raise ValueError("priority_list must contain only PriorityListItem values")
 
-        if self.data_date is not None and not isinstance(self.data_date, date):
+        if self.data_date is not None and (not isinstance(self.data_date, date) or isinstance(self.data_date, datetime)):
             raise TypeError("data_date must be a date or None")
 
 
