@@ -130,6 +130,8 @@ class SQLiteScheduleInputSnapshotRepository:
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
         scope.validate()
+        if not isinstance(snapshot_id, str) or not snapshot_id.strip():
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_ID")
         row = self.connection.execute(
             "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,created_at,record_revision,project_revision "
             "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND snapshot_id=?",
