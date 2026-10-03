@@ -121,6 +121,7 @@ class ScheduleOptions:
             raise ValueError("critical_activity_float_threshold must be non-negative")
 
         for name in (
+            "make_open_ended_activities_critical",
             "multiple_float_paths_enabled",
             "multiple_float_paths_use_total_float",
             "use_expected_finish_dates",
