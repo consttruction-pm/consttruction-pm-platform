@@ -32,7 +32,7 @@ function localError(code: string, messageKey: string, actions: string[] = []): C
 function loaderError(error: unknown): ClientError {
   const code = error instanceof Error ? error.message : "P6_PRESENTATION_LOAD_FAILED";
   if (code === "NETWORK_ERROR") {
-    return localError(code, "error.network", ["retry"]);
+    return { ...localError(code, "error.network", ["retry"]), retryable: true };
   }
   return localError(code, "error.p6.presentation.invalid", ["refresh"]);
 }
