@@ -226,3 +226,43 @@ test("P6 chooser exposes hidden authoritative fields", () => {
   assert.match(container.innerHTML, /data-p6-field-visible="true"/);
   assert.match(container.innerHTML, /title="Show"/);
 });
+
+
+test("Gantt activity selection forwards to the shared Activity selection callback", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1",
+      wbsId: "W-1",
+      code: "01",
+      name: "Foundation",
+      gantt: {
+        start: "2026-09-01T00:00:00Z",
+        finish: "2026-09-03T00:00:00Z",
+        progressPercent: 25,
+        critical: false,
+      },
+    }],
+  };
+  const selected: string[] = [];
+  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  const ganttRow = {
+    dataset: { ganttActivityId: "A-1" },
+    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-gantt-activity-id]" ? [ganttRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onGanttActivitySelect: (activityId) => selected.push(activityId),
+  });
+  listeners.get("click")?.();
+  assert.deepEqual(selected, ["A-1"]);
+  assert.match(container.innerHTML, /data-gantt-activity-id="A-1"/);
+  assert.match(container.innerHTML, /tabindex="0"/);
+});
