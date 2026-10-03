@@ -212,6 +212,25 @@ test("a stale bootstrap result cannot replace a newer selection", async () => {
 });
 
 
+test("P6 presentation network failure returns retryable bootstrap error", async () => {
+  const setup = deps();
+  setup.dependencies.p6PresentationLoader = async () => {
+    throw new Error("NETWORK_ERROR");
+  };
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "error");
+  if (state?.status !== "error") return;
+  assert.deepEqual(state.error, {
+    code: "NETWORK_ERROR",
+    retryable: true,
+    message_key: "error.network",
+    available_actions: ["retry"],
+  });
+});
+
 test("P6 presentation loader runs after authoritative workspace hydration", async () => {
   const setup = deps();
   setup.dependencies.p6PresentationLoader = async (state) => ({
