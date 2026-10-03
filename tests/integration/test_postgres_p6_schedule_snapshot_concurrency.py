@@ -1,3 +1,4 @@
+import hashlib
 import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +24,7 @@ def make_snapshot(suffix: str) -> ScheduleInputSnapshot:
     return ScheduleInputSnapshot(
         scope=scope,
         snapshot_id=f"snap-{suffix}",
-        snapshot_hash="a" * 64,
+        snapshot_hash=hashlib.sha256(b'{"snapshot":"concurrent"}').hexdigest(),
         canonical_payload='{"snapshot":"concurrent"}',
         calculation_identity="b" * 64,
         created_at=datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc),
