@@ -87,3 +87,21 @@ def test_snapshot_rejects_same_id_with_different_payload():
 def test_snapshot_requires_matching_calculation_context():
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_CONTEXT_ID_MISMATCH"):
         build_snapshot(make_input("S-1"), make_context("S-2"), datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
+
+
+def test_snapshot_list_validates_persisted_rows():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(snapshot)
+
+    connection.execute(
+        "UPDATE schedule_input_snapshot SET created_at=? WHERE snapshot_id=?",
+        ("not-a-timestamp", snapshot.snapshot_id),
+    )
+    connection.commit()
+
+    with pytest.raises(ValueError):
+        repo.list(BackendScope("T-1", "P-1", 7))
