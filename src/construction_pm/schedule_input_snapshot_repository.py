@@ -34,7 +34,12 @@ class ScheduleInputSnapshot:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_ID")
         if not isinstance(self.snapshot_hash, str) or len(self.snapshot_hash) != 64:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_HASH")
-        if (\n            not isinstance(self.calculation_identity, str)\n            or len(self.calculation_identity) != 64\n            or any(character not in "0123456789abcdef" for character in self.calculation_identity)\n        ):\n            raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY")
+        if (
+            not isinstance(self.calculation_identity, str)
+            or len(self.calculation_identity) != 64
+            or any(character not in "0123456789abcdef" for character in self.calculation_identity)
+        ):
+            raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY")
         if not isinstance(self.canonical_payload, str) or not self.canonical_payload:
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD")
         try:
