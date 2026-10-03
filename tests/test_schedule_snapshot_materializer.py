@@ -28,6 +28,44 @@ from construction_pm.scheduling.constraints import ActivityConstraint, Constrain
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
+def test_materializer_rejects_invalid_date_and_datetime_values():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+
+    payload["project_start"] = "not-a-date"
+    invalid_date = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            "snapshot_hash": hashlib.sha256(
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        }
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATE"):
+        materialize_schedule_snapshot(
+            invalid_date,
+            CalendarResolverRegistry(),
+        )
+
+    payload = json.loads(snapshot.canonical_payload)
+    activity = payload["activities"][0]
+    activity["actual_start"] = "not-a-datetime"
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    invalid_datetime = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATETIME"):
+        materialize_schedule_snapshot(
+            invalid_datetime,
+            CalendarResolverRegistry(),
+        )
+
+
 def make_snapshot():
     cal = CalendarReference("CAL-1", "1")
     source = AuthoritativeScheduleInput(
