@@ -103,7 +103,7 @@ def test_snapshot_list_validates_persisted_rows():
     )
     connection.commit()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_TIMESTAMP"):
         repo.list(BackendScope("T-1", "P-1", 7))
 
 
@@ -162,7 +162,7 @@ def test_snapshot_save_rejects_corrupt_existing_idempotent_row():
     )
     connection.commit()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_TIMESTAMP"):
         repo.save(snapshot)
 
 
