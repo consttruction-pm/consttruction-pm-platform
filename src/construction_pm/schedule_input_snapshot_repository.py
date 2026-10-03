@@ -18,6 +18,13 @@ class ScheduleSnapshotPersistenceError(ValueError):
     """Raised for invalid or conflicting immutable snapshots."""
 
 
+def _parse_created_at(value: str) -> datetime:
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError) as exc:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP") from exc
+
+
 @dataclass(frozen=True)
 class ScheduleInputSnapshot:
     scope: BackendScope

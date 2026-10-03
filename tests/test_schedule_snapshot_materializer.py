@@ -59,7 +59,7 @@ def test_materializer_rejects_invalid_date_and_datetime_values():
             "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         }
     )
-    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATETIME"):
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATE"):
         materialize_schedule_snapshot(
             invalid_datetime,
             CalendarResolverRegistry(),
