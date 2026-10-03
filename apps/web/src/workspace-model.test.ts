@@ -471,3 +471,28 @@ test("P6 layout mutations remain authoritative for reorder and presentation", ()
   assert.equal(state.p6Layout?.columns.find((column) => column.field_id === "code")?.width, 180);
   assert.equal(state.columns.length, 0);
 });
+
+test("P6 chooser can restore a hidden authoritative field", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "code", subject_area: "activity", p6_field: "ActivityId", display_name: "Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [{ field_id: "code", visible: false, order: 0, width: 120, alignment: "start" as const, pinned: false, frozen: false }],
+  };
+  let state = setP6Presentation(createWorkspaceState(context), registry, layout);
+  assert.equal(state.columns.length, 0);
+  state = addP6Field(state, "code");
+  assert.equal(state.columns.length, 1);
+  assert.equal(state.columns[0]?.id, "code");
+  assert.equal(state.p6Layout?.columns[0]?.visible, true);
+});
