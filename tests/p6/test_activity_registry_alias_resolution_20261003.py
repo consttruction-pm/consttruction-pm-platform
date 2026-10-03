@@ -1,7 +1,12 @@
 import json
 from pathlib import Path
 
+from construction_pm.activity_master_repository import ActivityMaster
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput
+from construction_pm.scheduling.calendar_context import CalendarReference
+from construction_pm.scheduling.p6_activity_scheduler_outputs import P6ActivitySchedulerOutputs
 from construction_pm.p6_field_registry import P6FieldType, get_field
 from construction_pm.p6_interchange_mapping import (
     P6InterchangeMapper,
@@ -143,3 +148,29 @@ def test_resolved_aliases_have_lossless_interchange_name_mapping_contract():
     )
     assert exported.values == source_values
     assert not exported.extensions
+
+def test_unresolved_aliases_match_current_implementation_boundaries():
+    artifact = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+
+    assert "owner" not in Activity.__dataclass_fields__
+    assert "owner" not in ActivityMaster.__dataclass_fields__
+
+    assert "activity_calendar_assignments" in AuthoritativeScheduleInput.__dataclass_fields__
+    assert set(CalendarReference.__dataclass_fields__) == {
+        "calendar_id",
+        "calendar_version",
+        "kind",
+        "system",
+    }
+
+    scheduler_fields = set(P6ActivitySchedulerOutputs.__dataclass_fields__)
+    assert {
+        "remaining_early_finish_date",
+        "remaining_late_finish_date",
+    } <= scheduler_fields
+
+    evidence = artifact["implementation_evidence"]
+    assert evidence["ActivityOwner"]["conclusion"] == "unresolved"
+    assert evidence["Calendar"]["conclusion"] == "unresolved"
+    assert evidence["RemainingFinishDate"]["conclusion"] == "unresolved"
+    assert artifact["summary"]["implementation_boundary_verified"] is True
