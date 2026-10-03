@@ -108,7 +108,7 @@ def test_release26_activity_tranche_next10_has_exact_typed_metadata():
         "NonLaborCost1Variance": (P6FieldType.COST, False, True, "currency"),
         "NonLaborCost2Variance": (P6FieldType.COST, False, True, "currency"),
         "NonLaborCost3Variance": (P6FieldType.COST, False, True, "currency"),
-        "OwnerNamesArray": (P6FieldType.STRING_ARRAY, True, False, None),
+        "OwnerNamesArray": (P6FieldType.STRING, True, False, None),
     }
     for p6_name, (data_type, writable, computed, unit) in expected.items():
         matches = [field for field in field_catalog() if field.subject_area == "Activity" and field.p6_field == p6_name]
