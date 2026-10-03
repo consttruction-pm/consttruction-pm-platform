@@ -6,6 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
+import json
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
@@ -36,6 +37,12 @@ class ScheduleInputSnapshot:
         if not isinstance(self.calculation_identity, str) or len(self.calculation_identity) != 64:
             raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY")
         if not isinstance(self.canonical_payload, str) or not self.canonical_payload:
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD")
+        try:
+            payload = json.loads(self.canonical_payload)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD") from exc
+        if not isinstance(payload, dict):
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_PAYLOAD")
         expected_hash = hashlib.sha256(self.canonical_payload.encode("utf-8")).hexdigest()
         if self.snapshot_hash != expected_hash:
