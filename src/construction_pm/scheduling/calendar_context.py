@@ -46,7 +46,7 @@ class Continuous24HourResolver:
     def subtract_working_duration(self, finish: date | datetime, duration: Decimal | int | float) -> date:
         units = Decimal(str(duration))
         if not units.is_finite() or units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative whole working day")
+            raise ValueError("duration must be a non-negative finite whole working day")
         cursor = self.normalize_finish(finish)
         remaining = int(units)
         if remaining == 0:
@@ -60,22 +60,31 @@ class Continuous24HourResolver:
             raise ValueError("finish must not precede start")
         return (finish_date - start_date).days + 1
 
-    def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
-        units = Decimal(str(hours))
+    @staticmethod
+    def _hours_microseconds(value: Decimal | int | float) -> int:
+        units = Decimal(str(value))
         if not units.is_finite() or units < 0:
             raise ValueError("hours must be a non-negative finite quantity")
-        return start + timedelta(microseconds=int(units * Decimal("3600000000")))
+        microseconds = units * Decimal("3600000000")
+        if microseconds != microseconds.to_integral_value():
+            raise ValueError("hours is more precise than one microsecond")
+        return int(microseconds)
+
+    def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
+        return start + timedelta(microseconds=self._hours_microseconds(hours))
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
-        units = Decimal(str(hours))
-        if not units.is_finite() or units < 0:
-            raise ValueError("hours must be a non-negative finite quantity")
-        return finish - timedelta(microseconds=int(units * Decimal("3600000000")))
+        return finish - timedelta(microseconds=self._hours_microseconds(hours))
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         if finish < start:
             raise ValueError("finish must not precede start")
-        return Decimal(str((finish - start).total_seconds())) / Decimal("3600")
+        microseconds = (
+            (finish - start).days * 86_400_000_000
+            + (finish - start).seconds * 1_000_000
+            + (finish - start).microseconds
+        )
+        return Decimal(microseconds) / Decimal("3600000000")
 
 
 @dataclass(frozen=True)
