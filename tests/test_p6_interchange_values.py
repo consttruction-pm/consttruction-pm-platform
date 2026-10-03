@@ -69,3 +69,14 @@ def test_unknown_type_is_rejected() -> None:
 def test_from_payload_rejects_non_integer_numeric_values_without_truncation() -> None:
     with pytest.raises(P6InterchangeValueError, match="INVALID_INTEGER_VALUE"):
         P6InterchangeTypedValue.from_payload({"data_type": "integer", "value": 3.9})
+
+
+@pytest.mark.parametrize("kind", ("enum", "string"))
+def test_from_payload_rejects_non_string_values_without_coercion(kind: str) -> None:
+    with pytest.raises(
+        P6InterchangeValueError,
+        match=f"INVALID_{kind.upper()}_VALUE",
+    ):
+        P6InterchangeTypedValue.from_payload(
+            {"data_type": kind, "value": 123}
+        )
