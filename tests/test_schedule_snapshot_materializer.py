@@ -762,3 +762,18 @@ def test_materializer_rejects_non_integer_date_relationship_lag(value):
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_RELATIONSHIP_LAG"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize("value", [2.0, True, "2"])
+def test_materializer_rejects_non_integer_remaining_duration(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["remaining_duration"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_REMAINING_DURATION"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
