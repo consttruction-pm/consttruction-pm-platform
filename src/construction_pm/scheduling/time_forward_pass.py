@@ -27,8 +27,8 @@ class TimeActivity:
     actual_start: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not self.id:
-            raise ValueError("activity id is required")
+        if not isinstance(self.id, str) or not self.id.strip():
+            raise ValueError("activity id must be a non-empty string")
         if self.actual_start is not None and not isinstance(self.actual_start, datetime):
             raise TypeError("actual_start must be a datetime or None")
 
@@ -41,10 +41,14 @@ class TimeRelationship:
     lag: LagQuantity = LagQuantity.working_hours(0)
 
     def __post_init__(self) -> None:
-        if not self.predecessor_id or not self.successor_id:
-            raise ValueError("relationship endpoints are required")
+        if not isinstance(self.predecessor_id, str) or not self.predecessor_id.strip():
+            raise ValueError("predecessor_id must be a non-empty string")
+        if not isinstance(self.successor_id, str) or not self.successor_id.strip():
+            raise ValueError("successor_id must be a non-empty string")
         if self.predecessor_id == self.successor_id:
             raise ValueError("self relationships are not allowed")
+        if not isinstance(self.type, RelationshipType):
+            raise TypeError("type must be a RelationshipType")
 
 
 @dataclass(frozen=True)
