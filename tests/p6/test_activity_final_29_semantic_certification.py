@@ -62,7 +62,25 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         "WorkPackageName",
     }
     assert set(names) == expected
-    assert set(names) & registry_names == {"StatusCode"}
+    reconciled_registry_names = {
+        "ScopePercentComplete",
+        "Status",
+        "StatusCode",
+        "SuspendDate",
+        "TotalPastPeriodLaborCost",
+        "TotalPastPeriodLaborUnits",
+    }
+    assert set(names) & registry_names == reconciled_registry_names
+    definitions = {
+        field.p6_field: field
+        for field in field_catalog()
+        if field.subject_area == "Activity"
+    }
+    assert definitions["StatusCode"].disposition == "implemented"
+    assert all(
+        definitions[name].disposition == "seeded_not_certified"
+        for name in reconciled_registry_names - {"StatusCode"}
+    )
     assert set(names) == {
         *data["baseline"]["remaining_reconciliation_fields"],
     }
