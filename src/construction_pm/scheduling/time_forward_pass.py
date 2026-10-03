@@ -29,8 +29,15 @@ class TimeActivity:
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("activity id must be a non-empty string")
-        if self.actual_start is not None and not isinstance(self.actual_start, datetime):
-            raise TypeError("actual_start must be a datetime or None")
+        if not isinstance(self.duration, TimeQuantity):
+            raise TypeError("duration must be a TimeQuantity")
+        if self.calendar_context is not None and not isinstance(self.calendar_context, SchedulingCalendarContext):
+            raise TypeError("calendar_context must be a SchedulingCalendarContext or None")
+        if self.actual_start is not None:
+            if not isinstance(self.actual_start, datetime):
+                raise TypeError("actual_start must be a datetime or None")
+            if self.actual_start.tzinfo is None or self.actual_start.utcoffset() is None:
+                raise ValueError("actual_start must be timezone-aware")
 
 
 @dataclass(frozen=True)
