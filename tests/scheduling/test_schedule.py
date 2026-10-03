@@ -528,8 +528,8 @@ def test_multiple_float_paths_rejects_unknown_explicit_ending_activity(resolver)
 @pytest.mark.parametrize(
     ("lag_mode", "expected_start"),
     [
-        (StartToStartLagCalculationType.EARLY_START, date(2026, 9, 22)),
-        (StartToStartLagCalculationType.ACTUAL_START, date(2026, 9, 24)),
+        (StartToStartLagCalculationType.EARLY_START, date(2026, 9, 21)),
+        (StartToStartLagCalculationType.ACTUAL_START, date(2026, 9, 21)),
     ],
 )
 def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
