@@ -63,6 +63,19 @@ def _parse_persisted_integer(value: object, error_code: str) -> int:
     return value
 
 
+def _parse_created_at(value: object) -> datetime:
+    """Parse a persisted ISO-8601 timestamp and require timezone awareness."""
+    if not isinstance(value, str) or not value.strip():
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_TIMESTAMP")
+    return parsed
+
+
 class ScheduleInputSnapshotRepository(Protocol):
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot: ...
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None: ...
