@@ -76,10 +76,9 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         for field in field_catalog()
         if field.subject_area == "Activity"
     }
-    assert definitions["StatusCode"].disposition == "implemented"
     assert all(
         definitions[name].disposition == "seeded_not_certified"
-        for name in reconciled_registry_names - {"StatusCode"}
+        for name in reconciled_registry_names
     )
     assert set(names) == {
         *data["baseline"]["remaining_reconciliation_fields"],
