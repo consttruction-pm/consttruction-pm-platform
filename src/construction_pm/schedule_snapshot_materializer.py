@@ -318,7 +318,14 @@ def _materialize_payload(
             raise SnapshotMaterializationError("INVALID_ACTIVITY")
         activity_id = _required_string(item, "id", "INVALID_ACTIVITY")
         duration_payload = item.get("duration", 0)
-        if isinstance(duration_payload, dict):
+        if mode is AuthoritativeScheduleMode.DATE_BASED:
+            if isinstance(duration_payload, bool) or not isinstance(duration_payload, int):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_DURATION")
+            unit = _duration_unit(item.get("duration_unit", "working-day"))
+            if unit is not DurationUnit.WORKING_DAY:
+                raise SnapshotMaterializationError("DATE_BASED_DURATION_MUST_BE_WORKING_DAYS")
+            duration_value = Decimal(duration_payload)
+        elif isinstance(duration_payload, dict):
             duration_value = _decimal(_required(duration_payload, "value"))
             unit = _duration_unit(_required(duration_payload, "unit"))
         else:
@@ -326,8 +333,6 @@ def _materialize_payload(
             duration_value = _decimal(duration_payload)
         actual = item.get("actual_start")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
-            if isinstance(duration_payload, bool) or not isinstance(duration_payload, int):
-                raise SnapshotMaterializationError("INVALID_ACTIVITY_DURATION")
             if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_DURATION_MUST_BE_WORKING_DAYS")
             try:
@@ -398,7 +403,14 @@ def _materialize_payload(
         except ValueError as exc:
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP") from exc
         lag_payload = item.get("lag", 0)
-        if isinstance(lag_payload, dict):
+        if mode is AuthoritativeScheduleMode.DATE_BASED:
+            if isinstance(lag_payload, bool) or not isinstance(lag_payload, int):
+                raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG")
+            unit = _duration_unit(item.get("lag_unit", "working-day"))
+            if unit is not DurationUnit.WORKING_DAY:
+                raise SnapshotMaterializationError("DATE_BASED_LAG_MUST_BE_WORKING_DAYS")
+            lag_value = Decimal(lag_payload)
+        elif isinstance(lag_payload, dict):
             lag_value = _decimal(_required(lag_payload, "value"))
             unit = _duration_unit(_required(lag_payload, "unit"))
         else:
@@ -407,8 +419,6 @@ def _materialize_payload(
         predecessor_id = _required_string(item, "predecessor_id", "INVALID_RELATIONSHIP")
         successor_id = _required_string(item, "successor_id", "INVALID_RELATIONSHIP")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
-            if isinstance(lag_payload, bool) or not isinstance(lag_payload, int):
-                raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG")
             if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_LAG_MUST_BE_WORKING_DAYS")
             relationships.append(
