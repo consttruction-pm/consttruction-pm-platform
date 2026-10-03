@@ -96,3 +96,26 @@ def test_recalculate_resource_costs_is_registered_as_schedule_option() -> None:
     assert field.data_type is P6FieldType.BOOLEAN
     assert field.writable is True
     assert field.computed is False
+
+def test_release26_activity_tranche_next10_has_exact_typed_metadata():
+    expected = {
+        "EstimateToCompleteLaborUnits": (P6FieldType.UNIT, False, True, "units"),
+        "EstimatedWeight": (P6FieldType.DOUBLE, True, False, None),
+        "IsNewFeedback": (P6FieldType.BOOLEAN, True, False, None),
+        "IsStarred": (P6FieldType.BOOLEAN, True, False, None),
+        "IsTemplate": (P6FieldType.BOOLEAN, False, False, None),
+        "IsWorkPackage": (P6FieldType.BOOLEAN, False, False, None),
+        "NonLaborCost1Variance": (P6FieldType.COST, False, True, "currency"),
+        "NonLaborCost2Variance": (P6FieldType.COST, False, True, "currency"),
+        "NonLaborCost3Variance": (P6FieldType.COST, False, True, "currency"),
+        "OwnerNamesArray": (P6FieldType.STRING_ARRAY, True, False, None),
+    }
+    for p6_name, (data_type, writable, computed, unit) in expected.items():
+        matches = [field for field in field_catalog() if field.subject_area == "Activity" and field.p6_field == p6_name]
+        assert len(matches) == 1
+        field = matches[0]
+        assert field.data_type is data_type
+        assert field.writable is writable
+        assert field.computed is computed
+        assert field.unit == unit
+        assert field.source == "Oracle P6 Version 26 / 26.4"
