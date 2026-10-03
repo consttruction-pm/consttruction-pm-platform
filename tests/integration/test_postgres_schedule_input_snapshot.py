@@ -47,11 +47,12 @@ def test_schedule_snapshot_live_round_trip_replay_conflict_and_isolation() -> No
 
         assert repository.save(snapshot) == snapshot
 
+        conflicting_payload = '{"different":true}'
         conflicting = ScheduleInputSnapshot(
             scope=snapshot.scope,
             snapshot_id=snapshot.snapshot_id,
-            snapshot_hash="b" * 64,
-            canonical_payload='{"different":true}',
+            snapshot_hash=hashlib.sha256(conflicting_payload.encode("utf-8")).hexdigest(),
+            canonical_payload=conflicting_payload,
             calculation_identity="c" * 64,
             created_at=snapshot.created_at,
         )
