@@ -55,6 +55,17 @@ describe("P6 field/layout foundation", () => {
     assert.deepEqual(removed.columns.map((x) => x.field_id), ["activity_name"]);
   });
 
+  it("restores an existing hidden field instead of duplicating it", () => {
+    const hidden = updateFieldPresentation(layout(), "activity_name", { visible: false, width: 240 });
+    const restored = addField(hidden, name, { width: 260 });
+
+    assert.equal(restored.columns.length, 1);
+    assert.equal(restored.columns[0]?.field_id, "activity_name");
+    assert.equal(restored.columns[0]?.visible, true);
+    assert.equal(restored.columns[0]?.width, 260);
+    assert.equal(restored.revision, hidden.revision + 1);
+  });
+
   it("updates presentation without changing field identity", () => {
     const updated = updateFieldPresentation(layout(), "activity_name", {
       label: "نام فعالیت",
