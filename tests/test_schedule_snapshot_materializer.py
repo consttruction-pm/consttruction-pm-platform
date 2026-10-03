@@ -133,7 +133,7 @@ def test_materializer_rejects_unsupported_date_duration_unit():
     tampered = snapshot.__class__(
         snapshot.scope,
         snapshot.snapshot_id,
-        snapshot.snapshot_hash,
+        hashlib.sha256(payload.encode("utf-8")).hexdigest(),
         payload,
         snapshot.calculation_identity,
         snapshot.created_at,
