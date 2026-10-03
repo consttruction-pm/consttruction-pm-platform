@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Iterable
 
@@ -24,9 +24,12 @@ class ActivityConstraint:
     date: date
 
     def __post_init__(self) -> None:
-        if not self.activity_id:
-            raise ValueError("activity_id is required")
-
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ValueError("activity_id must be a non-empty string")
+        if not isinstance(self.type, ConstraintType):
+            raise TypeError("type must be a ConstraintType")
+        if not isinstance(self.date, date) or isinstance(self.date, datetime):
+            raise TypeError("date must be a date")
 
 
 class SecondaryConstraintError(ValueError):
