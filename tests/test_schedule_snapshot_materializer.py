@@ -729,3 +729,36 @@ def test_materializer_rejects_non_integer_project_revision():
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_PROJECT_REVISION"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize(("path", "value", "error"), [
+    ("activities", 2.0, "INVALID_ACTIVITY_DURATION"),
+    ("activities", True, "INVALID_ACTIVITY_DURATION"),
+])
+def test_materializer_rejects_non_integer_date_activity_duration(path, value, error):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["duration"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match=error):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize("value", [2.0, True])
+def test_materializer_rejects_non_integer_date_relationship_lag(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["relationships"][0]["lag"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_RELATIONSHIP_LAG"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
