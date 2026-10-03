@@ -1,5 +1,7 @@
 from construction_pm.p6_field_registry import (
     P6FieldType,
+    P6_ACTIVITY_ALIAS_RESOLUTIONS,
+    canonical_activity_field_id,
     field_catalog,
     fields_by_subject,
     get_field,
@@ -96,6 +98,30 @@ def test_recalculate_resource_costs_is_registered_as_schedule_option() -> None:
     assert field.data_type is P6FieldType.BOOLEAN
     assert field.writable is True
     assert field.computed is False
+
+
+def test_activity_aliases_resolve_without_changing_persisted_field_schema():
+    for alias_id, canonical_id in P6_ACTIVITY_ALIAS_RESOLUTIONS.items():
+        alias = get_field(alias_id)
+        canonical = get_field(canonical_id)
+
+        assert alias.subject_area == "Activity"
+        assert canonical.subject_area == "Activity"
+        assert alias.disposition == "seeded_not_certified"
+        assert canonical.disposition == "seeded_not_certified"
+        assert canonical_activity_field_id(alias_id) == canonical_id
+        assert canonical_activity_field_id(canonical_id) == canonical_id
+
+    assert get_field("activity.activity_id").p6_field == "ActivityId"
+    assert get_field("activity.id").p6_field == "Id"
+    assert get_field("activity.activity_name").p6_field == "ActivityName"
+    assert get_field("activity.name").p6_field == "Name"
+    assert get_field("activity.activity_status").p6_field == "ActivityStatus"
+    assert get_field("activity.status").p6_field == "Status"
+    assert get_field("activity.activity_type").p6_field == "ActivityType"
+    assert get_field("activity.type").p6_field == "Type"
+    assert get_field("activity.updated_by").p6_field == "UpdateUser"
+    assert get_field("activity.last_update_user").p6_field == "LastUpdateUser"
 
 def test_release26_activity_tranche_next10_has_exact_typed_metadata():
     expected = {
