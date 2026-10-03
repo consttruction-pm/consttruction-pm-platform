@@ -40,3 +40,13 @@ tr.is-selected { outline:2px solid currentColor; outline-offset:-2px; }
   .cp-wbs, .cp-details { order:2; }
   .cp-center { order:1; }
 }
+
+.cp-project-selection { max-width: 720px; margin: 4rem auto; padding: 1.5rem; background:#fff; border:1px solid #dce1e8; border-radius:.65rem; display:grid; gap:1rem; }
+.cp-project-selection > button { border:1px solid #cfd6e0; background:#fff; padding:.65rem .8rem; border-radius:.45rem; cursor:pointer; text-align:start; }
+.cp-project-create { border-top:1px solid #e6e9ee; padding-top:1rem; display:grid; gap:.75rem; }
+.cp-project-create h2 { margin:0; font-size:1rem; }
+.cp-project-create-form { display:flex; gap:.75rem; align-items:end; flex-wrap:wrap; }
+.cp-project-create-form label { display:grid; gap:.35rem; flex:1; min-width:220px; }
+.cp-project-create-form input { border:1px solid #cfd6e0; border-radius:.45rem; padding:.6rem .7rem; font:inherit; }
+.cp-project-create-form button { border:1px solid #172033; background:#172033; color:#fff; padding:.6rem .8rem; border-radius:.45rem; cursor:pointer; }
+.cp-project-create-form button:disabled { cursor:wait; opacity:.65; }
