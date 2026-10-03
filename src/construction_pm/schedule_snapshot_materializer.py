@@ -323,7 +323,9 @@ def _materialize_payload(
     snapshot: ScheduleInputSnapshot,
     registry: CalendarResolverRegistry,
 ) -> AuthoritativeScheduleInput:
-    mode = AuthoritativeScheduleMode(str(_required(payload, "mode")))
+    mode = AuthoritativeScheduleMode(
+        _required_string(payload, "mode", "INVALID_SNAPSHOT_FIELD:mode")
+    )
     project_calendar = _calendar(_required(payload, "project_calendar"))
     assignments_payload = _required(payload, "activity_calendar_assignments")
     assignment_refs: dict[str, CalendarReference] = {}
@@ -359,11 +361,25 @@ def _materialize_payload(
             if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_DURATION_MUST_BE_WORKING_DAYS")
             try:
-                status = ActivityStatus(str(item.get("status", ActivityStatus.NOT_STARTED.value)))
-                activity_type = ActivityType(str(item.get("activity_type", ActivityType.TASK_DEPENDENT.value)))
-                status_code = ActivityStatusCode(str(item.get("status_code", ActivityStatusCode.PLANNED.value)))
+                status = ActivityStatus(
+                    item.get("status", ActivityStatus.NOT_STARTED.value)
+                    if isinstance(item.get("status", ActivityStatus.NOT_STARTED.value), str)
+                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_ACTIVITY_ENUM"))
+                )
+                activity_type = ActivityType(
+                    item.get("activity_type", ActivityType.TASK_DEPENDENT.value)
+                    if isinstance(item.get("activity_type", ActivityType.TASK_DEPENDENT.value), str)
+                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_ACTIVITY_ENUM"))
+                )
+                status_code = ActivityStatusCode(
+                    item.get("status_code", ActivityStatusCode.PLANNED.value)
+                    if isinstance(item.get("status_code", ActivityStatusCode.PLANNED.value), str)
+                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_ACTIVITY_ENUM"))
+                )
                 percent_complete_type = PercentCompleteType(
-                    str(item.get("percent_complete_type", PercentCompleteType.DURATION.value))
+                    item.get("percent_complete_type", PercentCompleteType.DURATION.value)
+                    if isinstance(item.get("percent_complete_type", PercentCompleteType.DURATION.value), str)
+                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_ACTIVITY_ENUM"))
                 )
             except ValueError as exc:
                 raise SnapshotMaterializationError("INVALID_ACTIVITY_ENUM") from exc
@@ -420,9 +436,10 @@ def _materialize_payload(
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP")
         try:
-            rel_type = RelationshipType(
-                str(item.get("type", RelationshipType.FS.value))
-            )
+            raw_type = item.get("type", RelationshipType.FS.value)
+            if not isinstance(raw_type, str):
+                raise SnapshotMaterializationError("INVALID_RELATIONSHIP")
+            rel_type = RelationshipType(raw_type)
         except ValueError as exc:
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP") from exc
         lag_payload = item.get("lag", 0)
@@ -464,7 +481,10 @@ def _materialize_payload(
             if not isinstance(item, dict):
                 raise SnapshotMaterializationError("INVALID_CONSTRAINT")
             try:
-                constraint_type = ConstraintType(str(_required(item, "type")))
+                raw_type = _required(item, "type")
+                if not isinstance(raw_type, str):
+                    raise SnapshotMaterializationError("INVALID_CONSTRAINT")
+                constraint_type = ConstraintType(raw_type)
             except ValueError as exc:
                 raise SnapshotMaterializationError("INVALID_CONSTRAINT") from exc
             constraints_list.append(
@@ -482,7 +502,10 @@ def _materialize_payload(
             if not isinstance(item, dict):
                 raise SnapshotMaterializationError("INVALID_CONSTRAINT")
             try:
-                constraint_type = TimeConstraintType(str(_required(item, "type")))
+                raw_type = _required(item, "type")
+                if not isinstance(raw_type, str):
+                    raise SnapshotMaterializationError("INVALID_CONSTRAINT")
+                constraint_type = TimeConstraintType(raw_type)
             except ValueError as exc:
                 raise SnapshotMaterializationError("INVALID_CONSTRAINT") from exc
             constraints_list.append(
