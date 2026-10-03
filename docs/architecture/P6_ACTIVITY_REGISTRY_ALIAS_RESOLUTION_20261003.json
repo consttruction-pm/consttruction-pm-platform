@@ -143,6 +143,28 @@
       "ActivityOwner",
       "Calendar",
       "RemainingFinishDate"
-    ]
+    ],
+    "implementation_boundary_verified": true
+  },
+  "implementation_evidence": {
+    "ActivityOwner": {
+      "activity_model": "not represented by construction_pm.scheduling.activity.Activity",
+      "activity_master_persistence": "not represented by ActivityMaster or SQLite/PostgreSQL ActivityMasterRepository",
+      "conclusion": "unresolved",
+      "reason": "The current canonical Activity model and master persistence boundary expose no owner field. Registry candidates ActivityOwnerUserId and OwnerIDArray therefore cannot be selected from internal implementation evidence."
+    },
+    "Calendar": {
+      "activity_schedule_input": "represented by ActivityCalendarAssignment.calendar",
+      "internal_reference": "CalendarReference(calendar_id, calendar_version, kind, system)",
+      "resolution_boundary": "CalendarResolverRegistry resolves the versioned reference; ActivityCalendarContext applies it per activity.",
+      "conclusion": "unresolved",
+      "reason": "The internal contract is a versioned CalendarReference, but it does not establish whether the legacy P6 registry name Calendar corresponds to Oracle CalendarName or CalendarObjectId."
+    },
+    "RemainingFinishDate": {
+      "scheduler_read_model": "P6ActivitySchedulerOutputs exposes separate remaining_early_finish_date and remaining_late_finish_date",
+      "source": "authoritative ScheduleResult early/late activity outputs",
+      "conclusion": "unresolved",
+      "reason": "The implementation intentionally preserves early and late remaining finishes as distinct scheduler outputs, so a generic RemainingFinishDate cannot be assigned to one without an explicit semantic rule."
+    }
   }
 }
