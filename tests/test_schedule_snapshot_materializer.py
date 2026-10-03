@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from construction_pm.schedule_input_snapshot_repository import (
+from construction_pm.schedule_input_snapshot_repository import ScheduleSnapshotPersistenceError, (
     SQLiteScheduleInputSnapshotRepository,
     build_snapshot,
 )
@@ -59,7 +59,7 @@ def test_materializer_rejects_invalid_date_and_datetime_values():
             "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         }
     )
-    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATETIME"):
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATE"):
         materialize_schedule_snapshot(
             invalid_datetime,
             CalendarResolverRegistry(),
@@ -122,7 +122,7 @@ def test_materializer_rejects_tampered_hash():
         snapshot.calculation_identity,
         snapshot.created_at,
     )
-    with pytest.raises(SnapshotMaterializationError, match="SNAPSHOT_HASH_MISMATCH"):
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_HASH_MISMATCH"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
