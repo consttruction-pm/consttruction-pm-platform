@@ -380,7 +380,12 @@ def _materialize_payload(
     for item in _required(payload, "relationships"):
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP")
-        rel_type = RelationshipType(str(item.get("type", RelationshipType.FS.value)))
+        try:
+            rel_type = RelationshipType(
+                str(item.get("type", RelationshipType.FS.value))
+            )
+        except ValueError as exc:
+            raise SnapshotMaterializationError("INVALID_RELATIONSHIP") from exc
         lag_payload = item.get("lag", 0)
         if isinstance(lag_payload, dict):
             lag_value = _decimal(_required(lag_payload, "value"))
