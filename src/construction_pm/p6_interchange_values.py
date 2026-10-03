@@ -122,7 +122,9 @@ class P6InterchangeTypedValue:
                     raise ValueError("integer required")
                 value = raw
             elif kind in {"enum", "string"}:
-                value = str(raw)
+                if not isinstance(raw, str):
+                    raise ValueError("string required")
+                value = raw
             else:
                 raise P6InterchangeValueError(f"UNSUPPORTED_DATA_TYPE:{kind}")
         except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
