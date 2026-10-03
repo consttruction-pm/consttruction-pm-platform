@@ -77,8 +77,24 @@ class AuthoritativeScheduleInput:
             raise ValueError("project_revision must be an integer")
         if self.project_revision < 0:
             raise ValueError("project_revision must be non-negative")
-        if not self.activities:
-            raise ValueError("activities are required")
+        if not isinstance(self.activities, tuple) or not self.activities:
+            raise TypeError("activities must be a non-empty tuple")
+        if not isinstance(self.relationships, tuple):
+            raise TypeError("relationships must be a tuple")
+        if not isinstance(self.activity_calendar_assignments, tuple):
+            raise TypeError("activity_calendar_assignments must be a tuple")
+        if not isinstance(self.constraints, tuple):
+            raise TypeError("constraints must be a tuple")
+        if not all(isinstance(item, (Activity, TimeActivity)) for item in self.activities):
+            raise TypeError("activities must contain scheduling activities")
+        if not all(isinstance(item, (Relationship, TimeRelationship)) for item in self.relationships):
+            raise TypeError("relationships must contain scheduling relationships")
+        if not all(isinstance(item, ActivityCalendarAssignment) for item in self.activity_calendar_assignments):
+            raise TypeError("activity_calendar_assignments must contain ActivityCalendarAssignment items")
+        if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
+            raise TypeError("constraints must contain ActivityConstraint items")
+        if not isinstance(self.schedule_options, ScheduleOptions):
+            raise TypeError("schedule_options must be a ScheduleOptions")
 
         activity_ids = [activity.id for activity in self.activities]
         if len(activity_ids) != len(set(activity_ids)):
