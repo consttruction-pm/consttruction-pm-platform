@@ -18,11 +18,11 @@ The mapping is:
 
 Oracle P6 EPPM REST API Release 26 documents:
 
-- `Id` as the short Activity ID that uniquely identifies the Activity within the project. urlOracle Read Activities — Idhttps://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
-- `Name` as the Activity name. urlOracle Read Activities — Namehttps://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
-- `Status` as the current Activity status with the values Not Started, In Progress, and Completed. urlOracle Read Activities — Statushttps://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
-- `Type` as the Activity type with the six documented P6 values. urlOracle Read Activities — Typehttps://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
-- `LastUpdateUser` as the name of the user that last updated the Activity. urlOracle Read Activities — LastUpdateUserhttps://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
+- `Id` as the short Activity ID that uniquely identifies the Activity within the project. https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
+- `Name` as the Activity name. https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
+- `Status` as the current Activity status with the values Not Started, In Progress, and Completed. https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
+- `Type` as the Activity type with the six documented P6 values. https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
+- `LastUpdateUser` as the name of the user that last updated the Activity. https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html
 
 The current-main registry already contains exact canonical rows for `Id`, `Name`, `Status`, `Type`, and `LastUpdateUser`. The change therefore records the older names as explicit product aliases instead of creating duplicate P6 identities.
 
