@@ -6,62 +6,7 @@
   "subject_area": "Activity",
   "status": "pending_source_mapping",
   "source_url": "https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html",
-  "entries": [
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalPastPeriodMaterialCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalPastPeriodNonLaborCost",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "TotalPastPeriodNonLaborUnits",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "Type",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "UnitsPercentComplete",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    },
-    {
-      "subject_area": "Activity",
-      "p6_field": "WorkPackageName",
-      "status": "pending_source_mapping",
-      "data_type": null,
-      "writable": null,
-      "computed": null,
-      "reference_verified": false
-    }
-  ],
-  "entry_count": 6,
+  "entries": [],
+  "entry_count": 0,
   "coverage_note": "Manifest entries are restricted to names present in the 275-field Release 26 Activity inventory. Registry-only legacy names are excluded from this gap manifest."
 }

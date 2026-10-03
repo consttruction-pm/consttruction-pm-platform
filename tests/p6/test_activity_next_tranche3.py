@@ -138,7 +138,7 @@ def test_next_tranche3_remaining_inventory_count_is_28():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    assert len(inventory_names - covered) == 23
+    assert len(inventory_names - covered) == 17
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():

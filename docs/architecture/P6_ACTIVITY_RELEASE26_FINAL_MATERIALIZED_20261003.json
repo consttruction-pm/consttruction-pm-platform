@@ -1,0 +1,62 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-release26-final-materialized/v1",
+  "title": "P6 Activity Release 26 final materialized field tranche evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "status": "typed_seed_not_certified",
+  "registry_source": "src/construction_pm/p6_field_registry.py",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+  },
+  "fields": [
+    {
+      "p6_field": "TotalPastPeriodMaterialCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Total stored period material cost for the activity."
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": false,
+      "unit": "currency",
+      "oracle_semantics": "Total stored period nonlabor cost for the activity."
+    },
+    {
+      "p6_field": "TotalPastPeriodNonLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": false,
+      "unit": "units",
+      "oracle_semantics": "Total stored period nonlabor units for the activity."
+    },
+    {
+      "p6_field": "Type",
+      "oracle_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Activity type; documented values include Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, and WBS Summary."
+    },
+    {
+      "p6_field": "UnitsPercentComplete",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "oracle_semantics": "Computed as actual units divided by at-completion units times 100; constrained to 0 through 100."
+    },
+    {
+      "p6_field": "WorkPackageName",
+      "oracle_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "oracle_semantics": "Name of the work package."
+    }
+  ],
+  "certification_gap": "Internal canonical mapping, persistence/import-export, null/default behavior, and regression evidence remain separate certification gates."
+}
