@@ -237,8 +237,11 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             if len(priority_list) != len(priority_payload):
                 raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
 
+        raw_mode = value.get("mode", ScheduleMode.EARLIEST.value)
+        if not isinstance(raw_mode, str):
+            raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:mode")
         return ScheduleOptions(
-            mode=ScheduleMode(str(value.get("mode", ScheduleMode.EARLIEST.value))),
+            mode=ScheduleMode(raw_mode),
             compute_total_float_type=TotalFloatCalculationType(
                 str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
             ),
