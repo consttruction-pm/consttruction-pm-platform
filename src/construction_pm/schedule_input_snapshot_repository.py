@@ -122,7 +122,7 @@ class SQLiteScheduleInputSnapshotRepository:
             ):
                 result = ScheduleInputSnapshot(
                     snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
-                    datetime.fromisoformat(existing[3]), int(existing[4])
+                    _parse_created_at(existing[3]), int(existing[4])
                 )
                 result.validate()
                 return result
@@ -155,7 +155,7 @@ class SQLiteScheduleInputSnapshotRepository:
         if int(row[6]) != scope.project_revision:
             raise ScheduleSnapshotPersistenceError("REVISION_CONFLICT")
         result = ScheduleInputSnapshot(
-            scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
+            scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]), int(row[5])
         )
         result.validate()
         return result
@@ -248,7 +248,7 @@ class PostgresScheduleInputSnapshotRepository:
                 existing[0],
                 existing[1],
                 existing[2],
-                datetime.fromisoformat(existing[3]),
+                _parse_created_at(existing[3]),
                 int(existing[4]),
             )
             result.validate()
