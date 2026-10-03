@@ -1,4 +1,5 @@
 import pytest
+from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 
 from construction_pm.scheduling import CalendarSystem
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
@@ -170,3 +171,20 @@ def test_resolved_activity_calendar_provider_preserves_activity_identity():
     assert provider.resolver_for("A") is project_resolver
     assert provider.resolver_for("B") is activity_resolver
     assert provider.reference_for("B") == activity_ref
+
+
+
+def test_registry_rejects_resolver_kind_mismatch_for_day_reference():
+    ref = CalendarReference("project-main", "7", kind="working-day")
+    resolver = TimeAwareWorkingTimeResolver(WorkingTimeCalendar())
+    registry = CalendarResolverRegistry(day_resolvers={"project-main@7": resolver})
+    with pytest.raises(ValueError, match="calendar resolver kind mismatch"):
+        registry.resolve(ref)
+
+
+def test_registry_rejects_resolver_kind_mismatch_for_time_reference():
+    ref = CalendarReference("project-main", "7", kind="working-time")
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(time_resolvers={"project-main@7": resolver})
+    with pytest.raises(ValueError, match="calendar resolver kind mismatch"):
+        registry.resolve(ref)
