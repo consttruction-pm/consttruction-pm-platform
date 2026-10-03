@@ -67,10 +67,12 @@ class ActivitySecondaryConstraint:
     date: date
 
     def __post_init__(self) -> None:
-        if not self.activity_id:
-            raise ValueError("activity_id is required")
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ValueError("activity_id must be a non-empty string")
         if not isinstance(self.type, SecondaryConstraintType):
             raise TypeError("type must be a SecondaryConstraintType")
+        if not isinstance(self.date, date) or isinstance(self.date, datetime):
+            raise TypeError("date must be a date")
 
     def to_activity_constraint(self) -> ActivityConstraint:
         try:
