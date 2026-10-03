@@ -381,7 +381,7 @@ _ROWS = (
     ("activity.nonlabor_cost1_variance","Activity","NonLaborCost1Variance","Nonlabor Cost 1 Variance","cost",False,True,"currency"),
     ("activity.nonlabor_cost2_variance","Activity","NonLaborCost2Variance","Nonlabor Cost 2 Variance","cost",False,True,"currency"),
     ("activity.nonlabor_cost3_variance","Activity","NonLaborCost3Variance","Nonlabor Cost 3 Variance","cost",False,True,"currency"),
-    ("activity.owner_names_array","Activity","OwnerNamesArray","Owner Names Array","string-array",True,False,None),
+    ("activity.owner_names_array","Activity","OwnerNamesArray","Owner Names Array","string",True,False,None),
 )
 
 
