@@ -73,13 +73,14 @@ def test_activity_calendar_context_rejects_unresolved_calendar():
 
 
 def test_activity_calendar_context_rejects_mixed_time_aware_batch():
+    timeaware_calendar = CalendarReference("PROJECT-TIME", "1", "working-time")
     timeaware = AuthoritativeScheduleInput(
         snapshot_id="s-P2",
         tenant_id="tenant",
         project_id="P2",
         project_revision=1,
         mode=AuthoritativeScheduleMode.TIME_AWARE,
-        project_calendar=CAL_PROJECT,
+        project_calendar=timeaware_calendar,
         activities=(TimeActivity("T", TimeQuantity.working_hours(8)),),
         relationships=(),
         activity_calendar_assignments=(),
