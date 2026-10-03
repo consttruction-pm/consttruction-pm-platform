@@ -6,7 +6,7 @@ def test_p6_activity_gap_manifest_is_explicitly_unverified():
     assert data["status"] == "pending_source_mapping"
     assert data["subject_area"] == "Activity"
     assert data["entry_count"] == len(data["entries"])
-    assert data["entry_count"] == 46
+    assert data["entry_count"] == 26
     assert all(entry["reference_verified"] is False for entry in data["entries"])
     assert all(entry["data_type"] is None for entry in data["entries"])
     assert all(entry["writable"] is None for entry in data["entries"])
@@ -26,9 +26,9 @@ def test_activity_gap_report_exposes_partial_materialization():
     with open("shared/contracts/p6-activity-field-gap-manifest.v1.json", encoding="utf-8") as handle:
         manifest = json.load(handle)
     assert report["inventory_field_count"] == 275
-    assert report["exact_matches"] == 146
-    assert report["missing_from_registry_count"] == 129
-    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 46
+    assert report["exact_matches"] == 166
+    assert report["missing_from_registry_count"] == 109
+    assert report["gap_manifest_entry_count"] == manifest["entry_count"] == 26
     assert report["unmaterialized_inventory_count"] == 83
     assert report["gap_manifest_coverage_status"] == "partial"
 
