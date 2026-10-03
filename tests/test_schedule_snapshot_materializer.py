@@ -254,8 +254,8 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
 
 
 def test_materializer_rejects_conflicting_time_activity_calendar_sources():
-    cal = CalendarReference("CAL-T", "1")
-    other_cal = CalendarReference("CAL-OTHER", "1")
+    cal = CalendarReference("CAL-T", "1", "working-time")
+    other_cal = CalendarReference("CAL-OTHER", "1", "working-time")
     from construction_pm.scheduling.calendar_context import SchedulingCalendarContext
     from construction_pm.scheduling.time_duration import TimeQuantity
     from construction_pm.scheduling.time_forward_pass import TimeActivity
