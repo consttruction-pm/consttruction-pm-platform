@@ -679,3 +679,20 @@ def test_materializer_rejects_string_activity_percent_complete():
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_PERCENT_COMPLETE"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_invalid_relationship_type():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["relationships"][0]["type"] = "INVALID"
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_RELATIONSHIP"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
