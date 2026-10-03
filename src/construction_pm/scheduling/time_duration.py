@@ -24,7 +24,14 @@ class TimeQuantity:
     unit: DurationUnit
 
     def __post_init__(self) -> None:
-        value = Decimal(str(self.value))
+        if not isinstance(self.unit, DurationUnit):
+            raise TypeError("unit must be a DurationUnit")
+        try:
+            value = Decimal(str(self.value))
+        except Exception as exc:
+            raise TypeError("value must be a decimal-compatible quantity") from exc
+        if not value.is_finite():
+            raise ValueError("quantity must be finite")
         if value < 0:
             raise ValueError("quantity must be non-negative")
         object.__setattr__(self, "value", value)
@@ -51,7 +58,15 @@ class LagQuantity:
     unit: DurationUnit
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "value", Decimal(str(self.value)))
+        if not isinstance(self.unit, DurationUnit):
+            raise TypeError("unit must be a DurationUnit")
+        try:
+            value = Decimal(str(self.value))
+        except Exception as exc:
+            raise TypeError("value must be a decimal-compatible lag") from exc
+        if not value.is_finite():
+            raise ValueError("lag must be finite")
+        object.__setattr__(self, "value", value)
 
     @classmethod
     def working_days(cls, value: Decimal | int | float) -> "LagQuantity":
