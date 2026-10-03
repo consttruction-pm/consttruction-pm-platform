@@ -4,7 +4,10 @@ import sqlite3
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+
+psycopg = pytest.importorskip("psycopg")
 from construction_pm.schedule_input_snapshot_repository import (
+    PostgresScheduleInputSnapshotRepository,
     ScheduleSnapshotPersistenceError,
     SQLiteScheduleInputSnapshotRepository,
     build_snapshot,
@@ -217,6 +220,90 @@ def test_snapshot_rejects_non_hex_calculation_identity():
     )
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_CALCULATION_IDENTITY"):
         candidate.validate()
+
+
+@pytest.fixture(scope="module")
+def postgres_dsn():
+    dsn = __import__("os").getenv("P6_TEST_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("P6_TEST_POSTGRES_DSN is not configured")
+    return dsn
+
+
+@pytest.fixture()
+def postgres_connection(postgres_dsn):
+    connection = psycopg.connect(postgres_dsn)
+    try:
+        yield connection
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+def test_postgres_snapshot_save_get_list_and_idempotency(postgres_connection):
+    repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
+    repo.initialize()
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+
+    with postgres_connection.transaction():
+        assert repo.save(snapshot) == snapshot
+        assert repo.save(snapshot) == snapshot
+
+    scope = BackendScope("T-1", "P-1", 7)
+    assert repo.get(scope, "S-1") == snapshot
+    assert repo.list(scope) == (snapshot,)
+
+
+def test_postgres_snapshot_rejects_same_id_with_different_payload(postgres_connection):
+    repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
+    repo.initialize()
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    with postgres_connection.transaction():
+        repo.save(snapshot)
+
+    changed_input = AuthoritativeScheduleInput(
+        **{**make_input().__dict__, "project_finish": date(2026, 10, 1)}
+    )
+    changed = build_snapshot(
+        changed_input, make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError, match="SNAPSHOT_IMMUTABLE_CONFLICT"
+    ):
+        with postgres_connection.transaction():
+            repo.save(changed)
+
+
+def test_postgres_snapshot_rejects_revision_conflict(postgres_connection):
+    repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
+    repo.initialize()
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    with postgres_connection.transaction():
+        repo.save(snapshot)
+
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="REVISION_CONFLICT"):
+        repo.get(BackendScope("T-1", "P-1", 8), "S-1")
+
+
+def test_postgres_snapshot_rolls_back_uncommitted_save(postgres_connection):
+    repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
+    repo.initialize()
+    snapshot = build_snapshot(
+        make_input("rollback"), make_context("rollback"),
+        datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    with pytest.raises(RuntimeError, match="force rollback"):
+        with postgres_connection.transaction():
+            repo.save(snapshot)
+            raise RuntimeError("force rollback")
+
+    assert repo.get(snapshot.scope, snapshot.snapshot_id) is None
 
 
 def test_postgres_snapshot_list_rejects_corrupt_timestamp():
