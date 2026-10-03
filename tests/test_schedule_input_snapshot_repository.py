@@ -362,13 +362,11 @@ def test_sqlite_rejects_corrupt_persisted_integer_fields(column, value, error_co
     )
     connection.commit()
 
-    operation = (
-        repo.get(BackendScope("T-1", "P-1", 7), "S-1")
-        if method == "get"
-        else repo.list(BackendScope("T-1", "P-1", 7))
-    )
     with pytest.raises(ScheduleSnapshotPersistenceError, match=error_code):
-        operation
+        if method == "get":
+            repo.get(BackendScope("T-1", "P-1", 7), "S-1")
+        else:
+            repo.list(BackendScope("T-1", "P-1", 7))
 
 
 def test_postgres_list_rejects_corrupt_record_revision():
