@@ -65,23 +65,35 @@ export class FetchApiTransport implements ApiTransport {
     path: string,
     init: RequestInit,
   ): Promise<ApiResult<T>> {
-    const response = await fetch(new URL(path, this.baseUrl), init);
-    const payload = await response.json().catch(() => null);
+    try {
+      const response = await fetch(new URL(path, this.baseUrl), init);
+      const payload = await response.json().catch(() => null);
 
-    if (response.ok) {
-      return { ok: true, data: payload as T };
+      if (response.ok) {
+        return { ok: true, data: payload as T };
+      }
+
+      return {
+        ok: false,
+        error: {
+          code: String(payload?.code ?? "API_ERROR"),
+          retryable: Boolean(payload?.retryable ?? false),
+          message_key: String(payload?.message_key ?? "error.api"),
+          available_actions: Array.isArray(payload?.available_actions)
+            ? payload.available_actions.map(String)
+            : [],
+        },
+      };
+    } catch {
+      return {
+        ok: false,
+        error: {
+          code: "NETWORK_ERROR",
+          retryable: true,
+          message_key: "error.network",
+          available_actions: ["retry"],
+        },
+      };
     }
-
-    return {
-      ok: false,
-      error: {
-        code: String(payload?.code ?? "API_ERROR"),
-        retryable: Boolean(payload?.retryable ?? false),
-        message_key: String(payload?.message_key ?? "error.api"),
-        available_actions: Array.isArray(payload?.available_actions)
-          ? payload.available_actions.map(String)
-          : [],
-      },
-    };
   }
 }
