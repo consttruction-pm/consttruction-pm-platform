@@ -151,7 +151,6 @@ test("project creation hydrates the authoritative created context without a seco
     tenant_id: "t-created",
     project_id: "new-project",
     revision: 0,
-    user_id: "u1",
   });
 });
 
