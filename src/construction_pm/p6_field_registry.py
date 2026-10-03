@@ -375,6 +375,15 @@ _ROWS = (
 )
 
 
+P6_ACTIVITY_ALIAS_RESOLUTIONS: dict[str, str] = {
+    "activity.activity_id": "activity.id",
+    "activity.activity_name": "activity.name",
+    "activity.activity_status": "activity.status",
+    "activity.activity_type": "activity.type",
+    "activity.updated_by": "activity.last_update_user",
+}
+
+
 P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
     P6FieldDefinition(
         field_id=field_id,
@@ -388,6 +397,10 @@ P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
     )
     for field_id, subject_area, p6_field, display_name, data_type, writable, computed, unit in _ROWS
 )
+
+
+def canonical_activity_field_id(field_id: str) -> str:
+    return P6_ACTIVITY_ALIAS_RESOLUTIONS.get(field_id, field_id)
 
 
 def field_catalog() -> tuple[P6FieldDefinition, ...]:
@@ -422,6 +435,19 @@ def validate_catalog() -> None:
     missing = required.difference(actual)
     if missing:
         raise ValueError(f"missing subject areas: {sorted(missing)}")
+
+    by_id = {field.field_id: field for field in P6_FIELD_CATALOG}
+    for alias_id, target_id in P6_ACTIVITY_ALIAS_RESOLUTIONS.items():
+        alias = by_id.get(alias_id)
+        target = by_id.get(target_id)
+        if alias is None:
+            raise ValueError(f"activity alias source does not exist: {alias_id}")
+        if target is None:
+            raise ValueError(f"activity alias target does not exist: {alias_id} -> {target_id}")
+        if alias.subject_area != "Activity" or target.subject_area != "Activity":
+            raise ValueError(f"activity alias must remain within Activity: {alias_id} -> {target_id}")
+        if target_id in P6_ACTIVITY_ALIAS_RESOLUTIONS:
+            raise ValueError(f"activity alias cannot target another alias: {alias_id} -> {target_id}")
 
 
 validate_catalog()
