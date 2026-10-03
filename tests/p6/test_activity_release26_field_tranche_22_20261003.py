@@ -1,7 +1,7 @@
 from construction_pm.p6_field_registry import P6FieldType, field_catalog
 
 EXPECTED = {
-    "DurationType": (P6FieldType.STRING, True, False),
+    "DurationType": (P6FieldType.ENUM, True, False),
     "PlannedMaterialCost": (P6FieldType.DOUBLE, True, False),
     "PlannedNonLaborCost": (P6FieldType.DOUBLE, True, False),
     "PlannedNonLaborUnits": (P6FieldType.DOUBLE, True, False),
