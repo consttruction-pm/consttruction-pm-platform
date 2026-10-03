@@ -29,6 +29,14 @@ function localError(code: string, messageKey: string, actions: string[] = []): C
   };
 }
 
+function loaderError(error: unknown): ClientError {
+  const code = error instanceof Error ? error.message : "P6_PRESENTATION_LOAD_FAILED";
+  if (code === "NETWORK_ERROR") {
+    return localError(code, "error.network", ["retry"]);
+  }
+  return localError(code, "error.p6.presentation.invalid", ["refresh"]);
+}
+
 export class ProjectBootstrap {
   private generation = 0;
   private projects: readonly ProjectSummary[] = [];
@@ -106,9 +114,15 @@ export class ProjectBootstrap {
     if (!this.isCurrent(generation)) return null;
     if (!workspace.ok) return { status: "error", error: workspace.error };
 
-    const hydratedWorkspace = this.dependencies.p6PresentationLoader
-      ? await this.dependencies.p6PresentationLoader(workspace.data, context)
-      : workspace.data;
+    let hydratedWorkspace = workspace.data;
+    if (this.dependencies.p6PresentationLoader) {
+      try {
+        hydratedWorkspace = await this.dependencies.p6PresentationLoader(workspace.data, context);
+      } catch (error) {
+        if (!this.isCurrent(generation)) return null;
+        return { status: "error", error: loaderError(error) };
+      }
+    }
 
     if (!this.isCurrent(generation)) return null;
     return { status: "ready", context, workspace: hydratedWorkspace };
