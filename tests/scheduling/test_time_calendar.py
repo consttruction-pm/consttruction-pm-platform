@@ -117,7 +117,8 @@ def test_calendar_aware_working_day_adapter_preserves_timezone():
     from datetime import timezone
 
     from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-    from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
     from construction_pm.scheduling.time_unit_resolver import CalendarAwareResolver
 
     resolver = CalendarAwareResolver(
