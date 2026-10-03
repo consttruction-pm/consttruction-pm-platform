@@ -130,7 +130,7 @@ export class ProjectBootstrap {
   ): Promise<ProjectBootstrapState | null> {
     if (!this.isCurrent(generation)) return null;
 
-    const context = toWorkspaceContext(projectContext);
+    const context = {\n      tenant_id: projectContext.tenant_id,\n      project_id: projectContext.project_id,\n      revision: projectContext.revision,\n    };
     this.dependencies.syncRuntime.openProject(
       context.tenant_id,
       context.project_id,
