@@ -153,6 +153,18 @@ def _finite_float(value: Any, field_name: str) -> float:
     return result
 
 
+def _finite_percent_complete(value: Any) -> float:
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE") from exc
+    if not result == result or result in (float("inf"), float("-inf")):
+        raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
+    if not 0 <= result <= 100:
+        raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
+    return result
+
+
 def _schedule_options(value: Any) -> ScheduleOptions:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS")
@@ -291,7 +303,7 @@ def _materialize_payload(
                     _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
                     int(item["remaining_duration"]) if item.get("remaining_duration") is not None else None,
                     _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
-                    float(item["percent_complete"]) if item.get("percent_complete") is not None else None,
+                    _finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
                     percent_complete_type,
                     _date(item["expected_finish"]) if item.get("expected_finish") is not None else None,
                     status,
