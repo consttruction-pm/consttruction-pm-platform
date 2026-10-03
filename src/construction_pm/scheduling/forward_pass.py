@@ -223,12 +223,14 @@ def forward_pass(
         )
         if not incoming[activity_id]:
             start = activity_resolver.normalize_start(project_start)
-            if progressed and activity.actual_start is not None and data_date is None:
+            oos_action = ProgressRelationAction.APPLY_LOGIC
+            if progressed and activity.actual_start is not None:
+                if data_date is not None and data_date < activity.actual_start:
+                    raise ValueError("data_date must not precede actual_start for progressed activity")
                 start = max(
                     start,
                     activity_resolver.normalize_start(activity.actual_start),
                 )
-            oos_action = ProgressRelationAction.APPLY_LOGIC
         else:
             start_requirements = [
                 _successor_start(
