@@ -197,3 +197,30 @@ def test_snapshot_rejects_non_hex_calculation_identity():
     )
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_CALCULATION_IDENTITY"):
         candidate.validate()
+
+
+def test_postgres_snapshot_list_rejects_corrupt_timestamp():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+
+    class FakeResult:
+        def fetchall(self):
+            return [(
+                snapshot.snapshot_id,
+                snapshot.snapshot_hash,
+                snapshot.canonical_payload,
+                snapshot.calculation_identity,
+                "not-a-timestamp",
+                snapshot.record_revision,
+            )]
+
+    class FakeConnection:
+        def execute(self, *_args):
+            return FakeResult()
+
+    from construction_pm.schedule_input_snapshot_repository import PostgresScheduleInputSnapshotRepository
+
+    repo = PostgresScheduleInputSnapshotRepository(FakeConnection())
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_TIMESTAMP"):
+        repo.list(BackendScope("T-1", "P-1", 7))
