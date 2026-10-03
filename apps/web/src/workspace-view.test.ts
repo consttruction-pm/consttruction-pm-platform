@@ -284,3 +284,15 @@ test("interactive Gantt board is exposed as a region instead of an image", () =>
   assert.match(container.innerHTML, /class="cp-gantt-board" role="region" aria-label="Gantt Chart"/);
   assert.doesNotMatch(container.innerHTML, /class="cp-gantt-board" role="img"/);
 });
+
+
+test("details complementary landmark is named by its heading", () => {
+  const state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-panel cp-details"[^>]*aria-labelledby="cp-details-heading"/);
+  assert.match(container.innerHTML, /<h2 id="cp-details-heading">Details<\/h2>/);
+});
