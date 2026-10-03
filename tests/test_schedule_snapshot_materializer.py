@@ -129,6 +129,7 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
                 fromlist=["RelationshipLagCalendar"],
             ).RelationshipLagCalendar.PREDECESSOR,
             use_expected_finish_dates=True,
+            recalculate_resource_costs=True,
             calculate_float_based_on_finish_date=True,
             ignore_other_project_relationships=True,
             include_external_res_ass=True,
@@ -167,6 +168,7 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
     assert options.include_external_res_ass is True
     assert options.ignore_other_project_relationships is True
     assert options.use_expected_finish_dates is True
+    assert options.recalculate_resource_costs is True
     assert options.calculate_float_based_on_finish_date is True
     assert options.level_all_resources is True
     assert options.level_within_float is True
