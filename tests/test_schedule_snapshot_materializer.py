@@ -713,3 +713,19 @@ def test_materializer_rejects_invalid_constraint_type():
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_CONSTRAINT"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_non_integer_project_revision():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["project_revision"] = 3.0
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_PROJECT_REVISION"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
