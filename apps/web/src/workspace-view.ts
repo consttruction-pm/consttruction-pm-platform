@@ -24,6 +24,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldWidthChange?: (fieldId: string, width: number) => void;
+  onP6FieldVisibilityChange?: (fieldId: string, visible: boolean) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -81,6 +82,11 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   container.querySelectorAll<HTMLElement>("[data-p6-field-remove]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldRemove;
     if (fieldId) options.onP6FieldRemove?.(fieldId);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-visibility]").forEach((button) => button.addEventListener("click", () => {
+    const fieldId = button.dataset.p6FieldVisibility;
+    const visible = button.dataset.p6FieldVisibilityState === "true";
+    if (fieldId) options.onP6FieldVisibilityChange?.(fieldId, visible);
   }));
   container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldWidth;
@@ -507,6 +513,7 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   const inLayout = new Set(layout.columns.map((column) => column.field_id));
   const available = registry.fields.filter((field) => !inLayout.has(field.field_id));
   const visibleColumns = layout.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order);
+  const hiddenColumns = layout.columns.filter((column) => !column.visible).sort((a, b) => a.order - b.order);
   return `<section class="cp-p6-field-chooser" aria-label="${escapeAttribute(t.fieldChooser)}">
     <div class="cp-p6-field-chooser-heading">
       <strong>${escapeHtml(t.fields)}</strong><span>${escapeHtml(registry.registry_version)} · ${layout.scope} · R${layout.revision}</span>
@@ -516,6 +523,11 @@ function renderP6FieldChooser(state: WorkspaceState): string {
         const field = registry.fields.find((item) => item.field_id === column.field_id);
         if (!field) return "";
         return `<span class="cp-p6-field-item"><button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.remove)}">${escapeHtml(column.label ?? field.display_name)}</button><button type="button" data-p6-field-move="${escapeAttribute(field.field_id)}" data-p6-field-direction="up" title="${escapeAttribute(t.moveUp)}" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-p6-field-move="${escapeAttribute(field.field_id)}" data-p6-field-direction="down" title="${escapeAttribute(t.moveDown)}" ${index === visibleColumns.length - 1 ? "disabled" : ""}>↓</button><button type="button" data-p6-field-width="${escapeAttribute(field.field_id)}" data-p6-field-width-delta="decrease" title="${escapeAttribute(t.narrower)}">−</button><button type="button" data-p6-field-width="${escapeAttribute(field.field_id)}" data-p6-field-width-delta="increase" title="${escapeAttribute(t.wider)}">+</button></span>`;
+      }).join("")}
+      ${hiddenColumns.map((column) => {
+        const field = registry.fields.find((item) => item.field_id === column.field_id);
+        if (!field) return "";
+        return `<button type="button" data-p6-field-visibility="${escapeAttribute(field.field_id)}" data-p6-field-visibility-state="true" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`;
       }).join("")}
       ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
