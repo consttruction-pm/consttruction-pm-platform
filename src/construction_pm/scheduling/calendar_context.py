@@ -35,8 +35,8 @@ class Continuous24HourResolver:
 
     def add_working_duration(self, start: date | datetime, duration: Decimal | int | float) -> date:
         units = Decimal(str(duration))
-        if units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative whole working day")
+        if not units.is_finite() or units < 0 or units != units.to_integral_value():
+            raise ValueError("duration must be a non-negative finite whole working day")
         cursor = self.normalize_start(start)
         remaining = int(units)
         if remaining == 0:
@@ -62,8 +62,8 @@ class Continuous24HourResolver:
 
     def add_working_hours(self, start: datetime, hours: Decimal | int | float) -> datetime:
         units = Decimal(str(hours))
-        if units < 0:
-            raise ValueError("hours must be non-negative")
+        if not units.is_finite() or units < 0:
+            raise ValueError("hours must be a non-negative finite quantity")
         return start + timedelta(microseconds=int(units * Decimal("3600000000")))
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
