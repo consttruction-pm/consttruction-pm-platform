@@ -164,3 +164,25 @@ def test_snapshot_save_rejects_corrupt_existing_idempotent_row():
 
     with pytest.raises(ValueError):
         repo.save(snapshot)
+
+
+def test_snapshot_rejects_invalid_canonical_payload_json():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    candidate = snapshot.__class__(
+        **{**snapshot.__dict__, "canonical_payload": "{not-json"}
+    )
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_PAYLOAD"):
+        candidate.validate()
+
+
+def test_snapshot_rejects_non_object_canonical_payload_json():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    candidate = snapshot.__class__(
+        **{**snapshot.__dict__, "canonical_payload": "[]"}
+    )
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_PAYLOAD"):
+        candidate.validate()
