@@ -26,8 +26,14 @@ class TimeActivityConstraint:
     target: datetime
 
     def __post_init__(self) -> None:
-        if not self.activity_id:
-            raise ValueError("activity_id is required")
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
+            raise ValueError("activity_id must be a non-empty string")
+        if not isinstance(self.type, TimeConstraintType):
+            raise TypeError("type must be a TimeConstraintType")
+        if not isinstance(self.target, datetime):
+            raise TypeError("target must be a datetime")
+        if self.target.tzinfo is None or self.target.utcoffset() is None:
+            raise ValueError("target must include a timezone")
 
 
 class TimeConstraintViolation(ValueError):
