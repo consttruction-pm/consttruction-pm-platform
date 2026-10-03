@@ -881,3 +881,14 @@ def test_mixed_activity_calendars_preserve_all_relationship_types(
         early["B"],
         predecessor_resolver,
     )
+
+
+def test_schedule_rejects_unsupported_resource_cost_recalculation(resolver):
+    with pytest.raises(ValueError, match="recalculate_resource_costs"):
+        schedule(
+            [Activity("A", 1)],
+            [],
+            date(2026, 9, 21),
+            resolver,
+            options=ScheduleOptions(recalculate_resource_costs=True),
+        )
