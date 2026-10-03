@@ -239,3 +239,22 @@ test("P6 presentation loader runs after authoritative workspace hydration", asyn
   assert.equal(state?.status === "ready" ? state.workspace.p6FieldRegistry?.registry_version : "", "p6-field-registry.v1");
   assert.equal(state?.status === "ready" ? state.workspace.p6Layout?.view_id : "", "activity");
 });
+
+
+test("P6 presentation loader network failure returns retryable bootstrap error", async () => {
+  const setup = deps();
+  setup.dependencies.p6PresentationLoader = async () => {
+    throw new Error("NETWORK_ERROR");
+  };
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "error");
+  assert.deepEqual(state?.status === "error" ? state.error : null, {
+    code: "NETWORK_ERROR",
+    retryable: true,
+    message_key: "error.network",
+    available_actions: ["retry"],
+  });
+});
