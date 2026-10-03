@@ -243,7 +243,13 @@ def _schedule_options(value: Any) -> ScheduleOptions:
         return ScheduleOptions(
             mode=ScheduleMode(raw_mode),
             compute_total_float_type=TotalFloatCalculationType(
-                str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
+                _required_string(
+                    value,
+                    "compute_total_float_type",
+                    "INVALID_SCHEDULE_OPTION:compute_total_float_type",
+                )
+                if "compute_total_float_type" in value
+                else TotalFloatCalculationType.START_FLOAT.value
             ),
             critical_activity_float_threshold=_finite_float(value.get("critical_activity_float_threshold", 0), "critical_activity_float_threshold"),
             critical_activity_path_type=CriticalActivityPathType(
