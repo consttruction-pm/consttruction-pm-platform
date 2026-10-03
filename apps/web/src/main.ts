@@ -54,6 +54,16 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
         console.error("P6 layout save failed", error);
       }
     },
+    onP6FieldVisibilityChange: async (fieldId, visible) => {
+      try {
+        const next = updateP6FieldPresentation(state, fieldId, { visible });
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
     onP6FieldWidthChange: async (fieldId, width) => {
       try {
         const next = updateP6FieldPresentation(state, fieldId, { width });
