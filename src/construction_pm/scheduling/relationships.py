@@ -21,11 +21,15 @@ class Relationship:
     lag: int = 0
 
     def __post_init__(self) -> None:
-        if not self.predecessor_id or not self.successor_id:
-            raise ValueError("relationship endpoints are required")
+        if not isinstance(self.predecessor_id, str) or not self.predecessor_id.strip():
+            raise ValueError("predecessor_id must be a non-empty string")
+        if not isinstance(self.successor_id, str) or not self.successor_id.strip():
+            raise ValueError("successor_id must be a non-empty string")
         if self.predecessor_id == self.successor_id:
             raise ValueError("self relationships are not allowed")
-        if not isinstance(self.lag, int):
+        if not isinstance(self.type, RelationshipType):
+            raise TypeError("type must be a RelationshipType")
+        if isinstance(self.lag, bool) or not isinstance(self.lag, int):
             raise TypeError("lag must be an integer working-day value")
 
 
