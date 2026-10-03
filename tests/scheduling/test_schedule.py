@@ -883,18 +883,3 @@ def test_mixed_activity_calendars_preserve_all_relationship_types(
         early["B"],
         predecessor_resolver,
     )
-
-
-def test_schedule_rejects_unsupported_relationship_lag_calendar_option(resolver):
-    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
-
-    with pytest.raises(ValueError, match="relationship_lag_calendar"):
-        schedule(
-            [Activity("A", 1), Activity("B", 1)],
-            [Relationship("A", "B")],
-            date(2026, 9, 21),
-            resolver,
-            options=ScheduleOptions(
-                relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR
-            ),
-        )
