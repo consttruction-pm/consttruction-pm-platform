@@ -170,19 +170,6 @@ def _finite_float(value: Any, field_name: str) -> float:
     return result
 
 
-def _integer_working_days(value: Any, field_name: str) -> int:
-    if isinstance(value, bool):
-        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
-    if isinstance(value, int):
-        return value
-    try:
-        decimal_value = _decimal(value)
-    except SnapshotMaterializationError as exc:
-        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}") from exc
-    if decimal_value != decimal_value.to_integral_value():
-        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
-    return int(decimal_value)
-
 def _strict_integer(value: Any, error_code: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise SnapshotMaterializationError(error_code)
