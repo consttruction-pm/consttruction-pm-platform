@@ -130,3 +130,19 @@ def test_snapshot_get_rejects_invalid_snapshot_id(snapshot_id):
     repo = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_ID"):
         repo.get(BackendScope("T-1", "P-1", 7), snapshot_id)
+
+
+def test_snapshot_validate_rejects_non_string_snapshot_fields():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    for field_name, value, error_code in (
+        ("snapshot_id", 123, "INVALID_SNAPSHOT_ID"),
+        ("snapshot_hash", 123, "INVALID_SNAPSHOT_HASH"),
+        ("calculation_identity", 123, "INVALID_CALCULATION_IDENTITY"),
+    ):
+        candidate = snapshot.__class__(
+            **{**snapshot.__dict__, field_name: value}
+        )
+        with pytest.raises(ScheduleSnapshotPersistenceError, match=error_code):
+            candidate.validate()
