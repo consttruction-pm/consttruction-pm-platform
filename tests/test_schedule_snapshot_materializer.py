@@ -19,7 +19,7 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
-from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -288,3 +288,48 @@ def test_materializer_rejects_invalid_calendar_system():
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_CALENDAR_SYSTEM"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+def test_materializer_preserves_activity_state_fields():
+    cal = CalendarReference("CAL-A", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-ACTIVITY-STATE",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=2,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(
+            Activity(
+                "A", 10,
+                actual_start=date(2026, 9, 1),
+                actual_finish=date(2026, 9, 5),
+                remaining_duration=0,
+                percent_complete=100,
+                percent_complete_type=PercentCompleteType.DURATION,
+                expected_finish=date(2026, 9, 5),
+                status=ActivityStatus.COMPLETED,
+                activity_type=ActivityType.TASK_DEPENDENT,
+                status_code=ActivityStatusCode.ACTIVE,
+            ),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=2, calendar_id="CAL-A", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-01T08:00:00+00:00",
+        input_snapshot_id="S-ACTIVITY-STATE", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 1, 8, tzinfo=timezone.utc))
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    activity = result.schedule_input.activities[0]
+    assert activity.actual_finish == date(2026, 9, 5)
+    assert activity.remaining_duration == 0
+    assert activity.percent_complete == 100
+    assert activity.percent_complete_type is PercentCompleteType.DURATION
+    assert activity.expected_finish == date(2026, 9, 5)
+    assert activity.status is ActivityStatus.COMPLETED
+    assert activity.activity_type is ActivityType.TASK_DEPENDENT
+    assert activity.status_code is ActivityStatusCode.ACTIVE
