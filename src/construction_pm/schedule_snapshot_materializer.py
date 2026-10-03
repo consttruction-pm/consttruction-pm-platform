@@ -320,7 +320,9 @@ def _materialize_payload(
             duration_value = _decimal(duration_payload)
         actual = item.get("actual_start")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
-            if unit is not DurationUnit.WORKING_DAY or duration_value != duration_value.to_integral_value():
+            if isinstance(duration_payload, bool) or not isinstance(duration_payload, int):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_DURATION")
+            if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_DURATION_MUST_BE_WORKING_DAYS")
             try:
                 status = ActivityStatus(str(item.get("status", ActivityStatus.NOT_STARTED.value)))
@@ -399,7 +401,9 @@ def _materialize_payload(
         predecessor_id = _required_string(item, "predecessor_id", "INVALID_RELATIONSHIP")
         successor_id = _required_string(item, "successor_id", "INVALID_RELATIONSHIP")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
-            if unit is not DurationUnit.WORKING_DAY or lag_value != lag_value.to_integral_value():
+            if isinstance(lag_payload, bool) or not isinstance(lag_payload, int):
+                raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG")
+            if unit is not DurationUnit.WORKING_DAY:
                 raise SnapshotMaterializationError("DATE_BASED_LAG_MUST_BE_WORKING_DAYS")
             relationships.append(
                 Relationship(predecessor_id, successor_id, rel_type, int(lag_value))
