@@ -143,6 +143,16 @@ def _duration_unit(value: Any) -> DurationUnit:
         raise SnapshotMaterializationError("INVALID_DURATION_UNIT") from exc
 
 
+def _finite_float(value: Any, field_name: str) -> float:
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}") from exc
+    if not result == result or result in (float("inf"), float("-inf")):
+        raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}")
+    return result
+
+
 def _schedule_options(value: Any) -> ScheduleOptions:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS")
@@ -184,7 +194,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             compute_total_float_type=TotalFloatCalculationType(
                 str(value.get("compute_total_float_type", TotalFloatCalculationType.START_FLOAT.value))
             ),
-            critical_activity_float_threshold=float(value.get("critical_activity_float_threshold", 0)),
+            critical_activity_float_threshold=_finite_float(value.get("critical_activity_float_threshold", 0), "critical_activity_float_threshold"),
             critical_activity_path_type=CriticalActivityPathType(
                 str(value.get("critical_activity_path_type", CriticalActivityPathType.CRITICAL_FLOAT.value))
             ),
@@ -221,7 +231,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             include_external_res_ass=_bool("include_external_res_ass"),
             level_all_resources=_bool("level_all_resources"),
             level_within_float=_bool("level_within_float"),
-            over_allocation_percentage=float(value.get("over_allocation_percentage", 0.0)),
+            over_allocation_percentage=_finite_float(value.get("over_allocation_percentage", 0.0), "over_allocation_percentage"),
             resource_list=value.get("resource_list"),
             priority_list=priority_list,
             external_project_priority_limit=_int("external_project_priority_limit", 0),
