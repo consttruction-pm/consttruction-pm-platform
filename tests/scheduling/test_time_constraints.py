@@ -33,8 +33,8 @@ def test_start_no_earlier_than_moves_early_date_but_does_not_shift_late_date():
     ctx = context()
     activities = [TimeActivity("A", TimeQuantity.working_hours(2), ctx)]
     result = time_schedule(
-        activities, [], datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 17), registry(),
-        [TimeActivityConstraint("A", TimeConstraintType.START_NO_EARLIER_THAN, datetime(2026, 9, 22, 13))]
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry(),
+        [TimeActivityConstraint("A", TimeConstraintType.START_NO_EARLIER_THAN, datetime(2026, 9, 22, 13, tzinfo=timezone.utc))]
     )
     assert result.early_activities["A"].start == datetime(2026, 9, 22, 13)
     assert result.late_activities["A"].start == datetime(2026, 9, 22, 15)
@@ -44,8 +44,8 @@ def test_finish_no_later_than_reduces_latest_date():
     ctx = context()
     activities = [TimeActivity("A", TimeQuantity.working_hours(2), ctx)]
     result = time_schedule(
-        activities, [], datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 17), registry(),
-        [TimeActivityConstraint("A", TimeConstraintType.FINISH_NO_LATER_THAN, datetime(2026, 9, 22, 15))]
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry(),
+        [TimeActivityConstraint("A", TimeConstraintType.FINISH_NO_LATER_THAN, datetime(2026, 9, 22, 15, tzinfo=timezone.utc))]
     )
     assert result.late_activities["A"].finish == datetime(2026, 9, 22, 15)
 
@@ -59,13 +59,13 @@ def test_mandatory_start_must_not_conflict_with_predecessor_logic():
     relationships = [TimeRelationship("A", "B", RelationshipType.FS)]
     constraints = [TimeActivityConstraint("B", TimeConstraintType.MANDATORY_START, datetime(2026, 9, 22, 8))]
     with pytest.raises(TimeConstraintViolation):
-        time_schedule(activities, relationships, datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 17), registry(), constraints)
+        time_schedule(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry(), constraints)
 
 
 def test_mandatory_finish_is_exact_on_both_early_and_late_paths_when_feasible():
     ctx = context()
     activities = [TimeActivity("A", TimeQuantity.working_hours(2), ctx)]
-    constraints = [TimeActivityConstraint("A", TimeConstraintType.MANDATORY_FINISH, datetime(2026, 9, 22, 10))]
+    constraints = [TimeActivityConstraint("A", TimeConstraintType.MANDATORY_FINISH, datetime(2026, 9, 22, 10, tzinfo=timezone.utc))]
     result = time_schedule(
         activities, [], datetime(2026, 9, 22, 8), datetime(2026, 9, 22, 10), registry(), constraints
     )
