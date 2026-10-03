@@ -153,6 +153,19 @@ def _finite_float(value: Any, field_name: str) -> float:
     return result
 
 
+def _integer_working_days(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
+    if isinstance(value, int):
+        return value
+    try:
+        decimal_value = _decimal(value)
+    except SnapshotMaterializationError as exc:
+        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}") from exc
+    if decimal_value != decimal_value.to_integral_value():
+        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
+    return int(decimal_value)
+
 def _finite_percent_complete(value: Any) -> float:
     try:
         result = float(value)
@@ -301,7 +314,7 @@ def _materialize_payload(
                     int(duration_value),
                     _date(actual) if actual is not None else None,
                     _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
-                    int(item["remaining_duration"]) if item.get("remaining_duration") is not None else None,
+                    _integer_working_days(item["remaining_duration"], "remaining_duration") if item.get("remaining_duration") is not None else None,
                     _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
                     _finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
                     percent_complete_type,
@@ -396,6 +409,9 @@ def _materialize_payload(
 
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
+    raw_project_leveling_priority = payload.get("project_leveling_priority", 10)
+    if (isinstance(raw_project_leveling_priority, bool) or not isinstance(raw_project_leveling_priority, int) or not 1 <= raw_project_leveling_priority <= 100):
+        raise SnapshotMaterializationError("INVALID_PROJECT_LEVELING_PRIORITY")
     return AuthoritativeScheduleInput(
         snapshot_id=snapshot.snapshot_id,
         tenant_id=snapshot.scope.tenant_id,
@@ -420,5 +436,5 @@ def _materialize_payload(
             if project_finish_value is not None
             else None
         ),
-        project_leveling_priority=payload.get("project_leveling_priority", 10),
+        project_leveling_priority=raw_project_leveling_priority,
     )
