@@ -107,14 +107,20 @@ def _required_string(payload: dict[str, Any], key: str, error_code: str | None =
 def _calendar(value: Any) -> CalendarReference:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_CALENDAR_REFERENCE")
+    raw_system = value.get("system", CalendarSystem.GREGORIAN.value)
+    if not isinstance(raw_system, str):
+        raise SnapshotMaterializationError("INVALID_CALENDAR_SYSTEM")
     try:
-        system = CalendarSystem(str(value.get("system", CalendarSystem.GREGORIAN.value)))
+        system = CalendarSystem(raw_system)
     except ValueError as exc:
         raise SnapshotMaterializationError("INVALID_CALENDAR_SYSTEM") from exc
+    raw_kind = value.get("kind", "working-day")
+    if not isinstance(raw_kind, str):
+        raise SnapshotMaterializationError("INVALID_CALENDAR_REFERENCE")
     return CalendarReference(
         _required_string(value, "calendar_id", "INVALID_CALENDAR_REFERENCE"),
         _required_string(value, "calendar_version", "INVALID_CALENDAR_REFERENCE"),
-        str(value.get("kind", "working-day")),
+        raw_kind,
         system,
     )
 
