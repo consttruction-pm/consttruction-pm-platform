@@ -129,8 +129,8 @@ class WorkingTimeResolver:
     def add_working_duration(self, start: CalendarInputDate, duration: Decimal | int | float) -> date:
         """Return the finish date for a working-day duration."""
         units = Decimal(str(duration))
-        if units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative whole working day")
+        if not units.is_finite() or units < 0 or units != units.to_integral_value():
+            raise ValueError("duration must be a non-negative finite whole working day")
         cursor = self.normalize_start(start)
         remaining = int(units)
         if remaining == 0:
