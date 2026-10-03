@@ -279,7 +279,7 @@ class PostgresScheduleInputSnapshotRepository:
         if int(row[6]) != scope.project_revision:
             raise ScheduleSnapshotPersistenceError("REVISION_CONFLICT")
         result = ScheduleInputSnapshot(
-            scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
+            scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]), int(row[5])
         )
         result.validate()
         return result
@@ -295,7 +295,7 @@ class PostgresScheduleInputSnapshotRepository:
         ).fetchall()
         results = tuple(
             ScheduleInputSnapshot(
-                scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
+                scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]), int(row[5])
             )
             for row in rows
         )
