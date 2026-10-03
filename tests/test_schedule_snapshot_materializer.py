@@ -59,7 +59,7 @@ def test_materializer_rejects_invalid_date_and_datetime_values():
             "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         }
     )
-    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATETIME"):
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_DATE"):
         materialize_schedule_snapshot(
             invalid_datetime,
             CalendarResolverRegistry(),
@@ -132,7 +132,7 @@ def test_materializer_rejects_unsupported_date_duration_unit():
     tampered = snapshot.__class__(
         snapshot.scope,
         snapshot.snapshot_id,
-        snapshot.snapshot_hash,
+        hashlib.sha256(payload.encode("utf-8")).hexdigest(),
         payload,
         snapshot.calculation_identity,
         snapshot.created_at,
