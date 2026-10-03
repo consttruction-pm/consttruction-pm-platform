@@ -209,7 +209,9 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                 raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
             priority_list = tuple(
                 PriorityListItem(
-                    field_name=str(_required(item, "field_name")),
+                    field_name=_required_string(
+                        item, "field_name", "INVALID_SCHEDULE_OPTION:priority_list"
+                    ),
                     sort_order=PrioritySortOrder(
                         str(item.get("sort_order", PrioritySortOrder.ASCENDING.value))
                     ),
@@ -287,6 +289,8 @@ def _materialize_payload(
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_ACTIVITY_CALENDAR_ASSIGNMENT")
         activity_id = _required_string(item, "activity_id", "INVALID_ACTIVITY_CALENDAR_ASSIGNMENT")
+        if activity_id in assignment_refs:
+            raise SnapshotMaterializationError("DUPLICATE_ACTIVITY_CALENDAR_ASSIGNMENT")
         assignment_refs[activity_id] = _calendar(_required(item, "calendar"))
 
     activities: list[Activity | TimeActivity] = []
