@@ -63,3 +63,9 @@ def test_invalid_decimal_fails_closed() -> None:
 def test_unknown_type_is_rejected() -> None:
     with pytest.raises(P6InterchangeValueError, match="UNSUPPORTED_DATA_TYPE:binary"):
         P6InterchangeTypedValue("binary", b"raw").to_payload()
+
+
+
+def test_from_payload_rejects_non_integer_numeric_values_without_truncation() -> None:
+    with pytest.raises(P6InterchangeValueError, match="INVALID_INTEGER_VALUE"):
+        P6InterchangeTypedValue.from_payload({"data_type": "integer", "value": 3.9})
