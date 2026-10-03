@@ -620,3 +620,18 @@ def test_materializer_rejects_non_string_relationship_endpoint():
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_RELATIONSHIP"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize("field_name", ["critical_activity_float_threshold", "over_allocation_percentage"])
+def test_materializer_rejects_boolean_schedule_option_numbers(field_name):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"][field_name] = True
+    tampered_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match=f"INVALID_SCHEDULE_OPTION:{field_name}"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
