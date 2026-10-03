@@ -20,6 +20,7 @@ export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onActivitySelect?: (activityId: string) => void;
+  onGanttActivitySelect?: (activityId: string) => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
@@ -66,7 +67,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical)}</section>
+          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
         </section>
         <aside class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""}><h2>${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
@@ -98,6 +99,19 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     const nextWidth = Math.max(40, column.width + (delta === "increase" ? 20 : -20));
     options.onP6FieldWidthChange?.(fieldId, nextWidth);
   }));
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
+    const select = () => {
+      const id = row.dataset.ganttActivityId;
+      if (id) options.onGanttActivitySelect?.(id);
+    };
+    row.addEventListener("click", select);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        select();
+      }
+    });
+  });
   container.querySelectorAll<HTMLElement>("[data-p6-field-move]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldMove;
     const direction = button.dataset.p6FieldDirection;
@@ -555,11 +569,11 @@ function renderCellValue(columnId: string, value: WorkspaceCellValue): string {
   return escapeHtml(String(value));
 }
 
-function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string): string {
+function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string, selectedActivityId: string | null): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
   const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is NonNullable<typeof bar> => Boolean(bar));
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
-  return `<div class="cp-gantt-board" role="img" aria-label="${escapeAttribute(ariaLabel)}">${bars.map((bar) => `<div class="cp-gantt-row" data-gantt-activity-id="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + criticalLabel : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("")}</div>`;
+  return `<div class="cp-gantt-board" role="img" aria-label="${escapeAttribute(ariaLabel)}">${bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-selected="${bar.activityId === selectedActivityId ? "true" : "false"}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + criticalLabel : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("")}</div>`;
 }
 
 function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState): string {
