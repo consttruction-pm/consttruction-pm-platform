@@ -5,7 +5,6 @@ import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 
-psycopg = pytest.importorskip("psycopg")
 from construction_pm.schedule_input_snapshot_repository import (
     PostgresScheduleInputSnapshotRepository,
     ScheduleSnapshotPersistenceError,
@@ -224,7 +223,8 @@ def test_snapshot_rejects_non_hex_calculation_identity():
 
 @pytest.fixture(scope="module")
 def postgres_dsn():
-    dsn = __import__("os").getenv("P6_TEST_POSTGRES_DSN")
+    import os
+    dsn = os.getenv("P6_TEST_POSTGRES_DSN")
     if not dsn:
         pytest.skip("P6_TEST_POSTGRES_DSN is not configured")
     return dsn
@@ -232,17 +232,23 @@ def postgres_dsn():
 
 @pytest.fixture()
 def postgres_connection(postgres_dsn):
+    psycopg = pytest.importorskip("psycopg")
     connection = psycopg.connect(postgres_dsn)
     try:
+        connection.execute("TRUNCATE TABLE schedule_input_snapshot")
+        connection.commit()
         yield connection
     finally:
         connection.rollback()
+        connection.execute("TRUNCATE TABLE schedule_input_snapshot")
+        connection.commit()
         connection.close()
 
 
 def test_postgres_snapshot_save_get_list_and_idempotency(postgres_connection):
     repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
     repo.initialize()
+    postgres_connection.commit()
     snapshot = build_snapshot(
         make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
     )
@@ -259,6 +265,7 @@ def test_postgres_snapshot_save_get_list_and_idempotency(postgres_connection):
 def test_postgres_snapshot_rejects_same_id_with_different_payload(postgres_connection):
     repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
     repo.initialize()
+    postgres_connection.commit()
     snapshot = build_snapshot(
         make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
     )
@@ -281,6 +288,7 @@ def test_postgres_snapshot_rejects_same_id_with_different_payload(postgres_conne
 def test_postgres_snapshot_rejects_revision_conflict(postgres_connection):
     repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
     repo.initialize()
+    postgres_connection.commit()
     snapshot = build_snapshot(
         make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
     )
@@ -294,6 +302,7 @@ def test_postgres_snapshot_rejects_revision_conflict(postgres_connection):
 def test_postgres_snapshot_rolls_back_uncommitted_save(postgres_connection):
     repo = PostgresScheduleInputSnapshotRepository(postgres_connection)
     repo.initialize()
+    postgres_connection.commit()
     snapshot = build_snapshot(
         make_input("rollback"), make_context("rollback"),
         datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
