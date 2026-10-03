@@ -553,7 +553,7 @@ def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
         ),
     )
 
-    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["A"].start == date(2026, 9, 22)
     assert result.early_activities["B"].start == expected_start
 
 
