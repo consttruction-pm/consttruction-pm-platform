@@ -44,6 +44,13 @@ class WorkingTimeCalendar:
             raise ValueError("daily_intervals must be a mapping")
         if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
             raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
+        object.__setattr__(self, "working_weekdays", frozenset(self.working_weekdays))
+        object.__setattr__(self, "holidays", frozenset(self.holidays))
+        object.__setattr__(
+            self,
+            "daily_intervals",
+            {weekday: tuple(intervals) for weekday, intervals in self.daily_intervals.items()},
+        )
         for weekday, intervals in self.daily_intervals.items():
             if isinstance(weekday, bool) or not isinstance(weekday, int) or weekday < 0 or weekday > 6:
                 raise ValueError("weekday must be an integer between 0 and 6")
