@@ -120,16 +120,62 @@ function renderBootstrapState(
 
   container.innerHTML = "";
 
-  if (state.status === "loading" || state.status === "opening") {
+  if (state.status === "loading" || state.status === "opening" || state.status === "creating") {
     const message = state.status === "opening"
       ? "Opening project…"
-      : "Loading workspace…";
+      : state.status === "creating"
+        ? "Creating project…"
+        : "Loading workspace…";
     const loading = document.createElement("main");
     loading.className = "cp-shell-loading";
     loading.textContent = message;
     container.append(loading);
     return;
   }
+
+  const appendCreateProjectForm = (main: HTMLElement): void => {
+    const section = document.createElement("section");
+    section.className = "cp-project-create";
+
+    const heading = document.createElement("h2");
+    heading.textContent = "Create project";
+    section.append(heading);
+
+    const form = document.createElement("form");
+    form.className = "cp-project-create-form";
+
+    const label = document.createElement("label");
+    label.textContent = "Project name";
+    const input = document.createElement("input");
+    input.name = "projectName";
+    input.type = "text";
+    input.required = true;
+    input.autocomplete = "organization";
+    input.placeholder = "e.g. Riverside Tower";
+    label.append(input);
+    form.append(label);
+
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.textContent = "Create and open";
+    form.append(submit);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = input.value.trim();
+      if (!name) {
+        input.focus();
+        return;
+      }
+      submit.disabled = true;
+      renderBootstrapState(container, { status: "creating", projectId: "pending" }, bootstrap);
+      const next = await bootstrap.createProject(crypto.randomUUID(), name);
+      if (next) renderBootstrapState(container, next, bootstrap);
+    });
+
+    section.append(form);
+    main.append(section);
+  };
 
   if (state.status === "selecting") {
     const main = document.createElement("main");
@@ -152,12 +198,27 @@ function renderBootstrapState(
       main.append(button);
     }
 
+    appendCreateProjectForm(main);
     container.append(main);
     return;
   }
 
   const error = document.createElement("main");
   error.className = "cp-shell-error";
+
+  if (state.error.code === "NO_PROJECTS_AVAILABLE") {
+    const main = document.createElement("main");
+    main.className = "cp-project-selection";
+    const heading = document.createElement("h1");
+    heading.textContent = "Create your first project";
+    main.append(heading);
+    const message = document.createElement("p");
+    message.textContent = "No projects are available for this workspace yet.";
+    main.append(message);
+    appendCreateProjectForm(main);
+    container.append(main);
+    return;
+  }
 
   const heading = document.createElement("h1");
   heading.textContent = "Construction PM";
