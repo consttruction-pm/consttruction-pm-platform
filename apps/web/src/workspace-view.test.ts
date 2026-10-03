@@ -216,3 +216,96 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
   assert.match(container.innerHTML, /title="Wider"/);
   assert.match(container.innerHTML, /title="Narrower"/);
 });
+
+test("Gantt activity selection forwards to the shared Activity selection callback", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1", wbsId: "W-1", code: "01", name: "Foundation",
+      gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 25, critical: false },
+    }],
+  };
+  const selected: string[] = [];
+  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  const ganttRow = {
+    dataset: { ganttActivityId: "A-1" },
+    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-gantt-activity-id]" ? [ganttRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onGanttActivitySelect: (activityId) => selected.push(activityId),
+  });
+  listeners.get("click")?.();
+  assert.deepEqual(selected, ["A-1"]);
+  assert.match(container.innerHTML, /data-gantt-activity-id="A-1"/);
+  assert.match(container.innerHTML, /tabindex="0"/);
+});
+
+test("P6 chooser exposes hidden layout fields for visibility restore", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26",
+      status: "active",
+      fields: [{
+        field_id: "activity.duration",
+        subject_area: "activity",
+        p6_field: "OriginalDuration",
+        display_name: "Duration",
+        data_type: "duration",
+        writable: false,
+        computed: true,
+        disposition: "supported",
+      }],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 2,
+      columns: [{
+        field_id: "activity.duration",
+        visible: false,
+        order: 0,
+        width: 120,
+        alignment: "end",
+        pinned: false,
+        frozen: false,
+      }],
+    } as const,
+  };
+  const visibility: Array<{ fieldId: string; visible: boolean }> = [];
+  const listeners = new Map<string, () => void>();
+  const button = {
+    dataset: {
+      p6FieldVisibility: "activity.duration",
+      p6FieldVisibilityState: "true",
+    },
+    addEventListener: (_event: string, listener: () => void) => listeners.set("visibility", listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-p6-field-visibility]" ? [button as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldVisibilityChange: (fieldId, visible) => visibility.push({ fieldId, visible }),
+  });
+  listeners.get("visibility")?.();
+
+  assert.deepEqual(visibility, [{ fieldId: "activity.duration", visible: true }]);
+  assert.match(container.innerHTML, /data-p6-field-visibility="activity\.duration"/);
+  assert.match(container.innerHTML, /Duration/);
+});
