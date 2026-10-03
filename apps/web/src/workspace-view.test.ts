@@ -216,3 +216,65 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
   assert.match(container.innerHTML, /title="Wider"/);
   assert.match(container.innerHTML, /title="Narrower"/);
 });
+
+
+test("P6 chooser exposes hidden fields for restoration and forwards visibility changes", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26",
+      status: "active",
+      fields: [{
+        field_id: "activity.hidden",
+        subject_area: "activity",
+        p6_field: "Hidden Field",
+        display_name: "Hidden Field",
+        data_type: "string",
+        writable: true,
+        computed: false,
+        disposition: "supported",
+      }],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 2,
+      columns: [{
+        field_id: "activity.hidden",
+        visible: false,
+        order: 0,
+        width: 120,
+        alignment: "start",
+        pinned: false,
+        frozen: false,
+      }],
+    } as const,
+  };
+  const changes: Array<{ fieldId: string; visible: boolean }> = [];
+  const listeners = new Map<string, () => void>();
+  const showButton = {
+    dataset: { p6FieldVisibility: "activity.hidden", p6FieldVisible: "true" },
+    addEventListener: (_event: string, listener: () => void) => listeners.set("visibility", listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-p6-field-visibility]" ? [showButton as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldVisibilityChange: (fieldId, visible) => changes.push({ fieldId, visible }),
+  });
+  listeners.get("visibility")?.();
+
+  assert.deepEqual(changes, [{ fieldId: "activity.hidden", visible: true }]);
+  assert.match(container.innerHTML, /data-p6-field-visible="true"/);
+  assert.match(container.innerHTML, /title="Show"/);
+  assert.doesNotMatch(container.innerHTML, /data-p6-field-add="activity.hidden"/);
+});
