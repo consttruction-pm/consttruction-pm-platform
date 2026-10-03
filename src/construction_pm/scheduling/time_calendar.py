@@ -32,13 +32,30 @@ class WorkingTimeCalendar:
     time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.working_weekdays, (frozenset, set)):
+            raise ValueError("working_weekdays must be a set of weekday numbers")
+        if any(isinstance(weekday, bool) or not isinstance(weekday, int) or weekday < 0 or weekday > 6 for weekday in self.working_weekdays):
+            raise ValueError("weekday must be an integer between 0 and 6")
+        if not isinstance(self.holidays, (frozenset, set)):
+            raise ValueError("holidays must be a set of dates")
+        if any(not isinstance(value, date) or isinstance(value, datetime) for value in self.holidays):
+            raise ValueError("holidays must contain dates")
+        if not isinstance(self.daily_intervals, Mapping):
+            raise ValueError("daily_intervals must be a mapping")
         if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
             raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
         for weekday, intervals in self.daily_intervals.items():
-            if weekday < 0 or weekday > 6:
-                raise ValueError("weekday must be between 0 and 6")
+            if isinstance(weekday, bool) or not isinstance(weekday, int) or weekday < 0 or weekday > 6:
+                raise ValueError("weekday must be an integer between 0 and 6")
+            if not isinstance(intervals, (tuple, list)):
+                raise ValueError("daily intervals must be a sequence")
             previous_end: time | None = None
-            for start, end in intervals:
+            for interval in intervals:
+                if not isinstance(interval, (tuple, list)) or len(interval) != 2:
+                    raise ValueError("working interval must contain start and end times")
+                start, end = interval
+                if not isinstance(start, time) or not isinstance(end, time):
+                    raise ValueError("working interval boundaries must be times")
                 if start >= end:
                     raise ValueError("working interval start must precede end")
                 if previous_end is not None and start < previous_end:
