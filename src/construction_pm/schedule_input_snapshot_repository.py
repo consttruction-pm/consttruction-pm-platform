@@ -150,11 +150,14 @@ class SQLiteScheduleInputSnapshotRepository:
             "ORDER BY snapshot_id",
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
-        return tuple(
+        results = tuple(
             ScheduleInputSnapshot(
                 scope, row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), int(row[5])
             ) for row in rows
         )
+        for snapshot in results:
+            snapshot.validate()
+        return results
 
 
 class PostgresScheduleInputSnapshotRepository:
