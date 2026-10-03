@@ -553,24 +553,24 @@ def test_start_to_start_out_of_sequence_lag_mode_uses_the_selected_anchor(
         ),
     )
 
-    assert result.early_activities["A"].start == date(2026, 9, 21)
+    assert result.early_activities["A"].start == date(2026, 9, 22)
     assert result.early_activities["B"].start == expected_start
 
 
-def test_start_to_start_out_of_sequence_requires_data_date(resolver):
-    with pytest.raises(ValueError, match="data_date is required"):
-        schedule(
-            [
-                Activity("A", 1, actual_start=date(2026, 9, 22)),
-                Activity("B", 1),
-            ],
-            [Relationship("A", "B", RelationshipType.SS, lag=2)],
-            date(2026, 9, 21),
-            resolver,
-            options=ScheduleOptions(
-                start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START
-            ),
-        )
+def test_start_to_start_out_of_sequence_requires_data_date_only_when_confirmed_oos(resolver):
+    result = schedule(
+        [
+            Activity("A", 1, actual_start=date(2026, 9, 22)),
+            Activity("B", 1),
+        ],
+        [Relationship("A", "B", RelationshipType.SS, lag=2)],
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            start_to_start_lag_calculation_type=StartToStartLagCalculationType.ACTUAL_START
+        ),
+    )
+    assert result.early_activities["A"].start == date(2026, 9, 22)
 
 
 @pytest.mark.parametrize(
