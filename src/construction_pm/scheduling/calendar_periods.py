@@ -44,6 +44,8 @@ class CalendarTimePeriodFactors:
         object.__setattr__(self, "hours_per_year", _as_positive_decimal(self.hours_per_year, "hours_per_year"))
 
     def value_for(self, period: str) -> Decimal:
+        if not isinstance(period, str):
+            raise ValueError("calendar time period must be a string")
         values = {
             "day": self.hours_per_day,
             "week": self.hours_per_week,
