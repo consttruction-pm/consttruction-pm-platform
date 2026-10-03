@@ -133,6 +133,14 @@ class SchedulingCalendarContext:
     activity: CalendarReference | None = None
     relationship_lag: CalendarReference | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.project, CalendarReference):
+            raise TypeError("project must be a CalendarReference")
+        if self.activity is not None and not isinstance(self.activity, CalendarReference):
+            raise TypeError("activity must be a CalendarReference or None")
+        if self.relationship_lag is not None and not isinstance(self.relationship_lag, CalendarReference):
+            raise TypeError("relationship_lag must be a CalendarReference or None")
+
     def effective_activity(self) -> CalendarReference:
         return self.activity or self.project
 
