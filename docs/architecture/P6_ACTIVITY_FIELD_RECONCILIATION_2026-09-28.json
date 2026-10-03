@@ -48,10 +48,10 @@
     },
     {
       "registry_name": "RemainingFinishDate",
-      "p6_field": "RemainingFinishDate",
-      "mapping_kind": "inventory_name_requires_source_reconciliation",
+      "p6_field": "RemainingEarlyFinishDate / RemainingLateFinishDate",
+      "mapping_kind": "unresolved",
       "evidence_lines": "837-842",
-      "reason": "Official Activity read page documents remaining finish semantics; export inventory mismatch must be reconciled separately."
+      "reason": "Release 26 exposes separate RemainingEarlyFinishDate and RemainingLateFinishDate; a single registry RemainingFinishDate cannot be certified to either without exact interchange reconciliation."
     },
     {
       "registry_name": "RemainingStartDate",
@@ -81,15 +81,9 @@
     "ActivityStatus",
     "ActivityType",
     "Calendar",
-    "RemainingDuration",
+    "RemainingStartDate",
+    "RemainingFinishDate",
     "ActivityOwner",
-    "ProjectId",
-    "ProjectName",
-    "WBSPath",
-    "BaselineStartDate",
-    "BaselineFinishDate",
-    "BaselineDuration",
-    "CreateUser",
     "UpdateUser"
   ],
   "next_step": "Attach exact Release 26 interchange/type evidence to each candidate, then decide exact alias vs product-specific alias vs unresolved."

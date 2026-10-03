@@ -8,8 +8,6 @@ def test_p6_activity_gap_manifest_is_explicitly_unverified():
     assert data["entry_count"] == len(data["entries"])
     assert data["entry_count"] == 0
     assert data["entries"] == []
-    assert data["entries"] == []
-    assert data["entries"] == []
 
 
 def test_activity_gap_manifest_does_not_duplicate_seed_registry():
@@ -52,7 +50,15 @@ def test_activity_reconciliation_candidates_remain_uncertified():
     assert data["status"] == "candidate_reconciliation_not_certified"
     assert len(data["candidates"]) == 9
     assert "Id and ObjectId remain distinct until interchange evidence proves equivalence." in data["rules"]
-    assert "ActivityOwner" in data["unresolved_registry_fields"]
+    assert {
+        candidate["registry_name"] for candidate in data["candidates"]
+    } == set(data["unresolved_registry_fields"])
+    remaining_finish = next(
+        candidate for candidate in data["candidates"]
+        if candidate["registry_name"] == "RemainingFinishDate"
+    )
+    assert remaining_finish["p6_field"] == "RemainingEarlyFinishDate / RemainingLateFinishDate"
+    assert remaining_finish["mapping_kind"] == "unresolved"
 
 
 def test_activity_semantic_reconciliation_keeps_uncertified_properties_null():
