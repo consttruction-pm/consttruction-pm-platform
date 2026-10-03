@@ -344,6 +344,18 @@ def test_schedule_actual_dates_uses_actual_dates_for_completed_oos_activity(rela
     assert result.early_activities["S"].duration == 0
 
 
+def test_schedule_respects_in_sequence_actual_start_for_root_activity():
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    result = schedule(
+        [Activity("A", 1, actual_start=date(2026, 9, 24), remaining_duration=1)],
+        [],
+        date(2026, 9, 21),
+        resolver,
+    )
+    assert result.early_activities is not None
+    assert result.early_activities["A"].start == date(2026, 9, 24)
+
+
 def test_schedule_requires_data_date_only_when_progress_is_confirmed_out_of_sequence():
     resolver = WorkingTimeResolver(WorkingCalendar())
     result = schedule(
