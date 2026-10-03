@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
-from .scheduling.activity import Activity
+from .scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -263,8 +263,30 @@ def _materialize_payload(
         if mode is AuthoritativeScheduleMode.DATE_BASED:
             if unit is not DurationUnit.WORKING_DAY or duration_value != duration_value.to_integral_value():
                 raise SnapshotMaterializationError("DATE_BASED_DURATION_MUST_BE_WORKING_DAYS")
+            try:
+                status = ActivityStatus(str(item.get("status", ActivityStatus.NOT_STARTED.value)))
+                activity_type = ActivityType(str(item.get("activity_type", ActivityType.TASK_DEPENDENT.value)))
+                status_code = ActivityStatusCode(str(item.get("status_code", ActivityStatusCode.PLANNED.value)))
+                percent_complete_type = PercentCompleteType(
+                    str(item.get("percent_complete_type", PercentCompleteType.DURATION.value))
+                )
+            except ValueError as exc:
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_ENUM") from exc
             activities.append(
-                Activity(activity_id, int(duration_value), _date(actual) if actual is not None else None)
+                Activity(
+                    activity_id,
+                    int(duration_value),
+                    _date(actual) if actual is not None else None,
+                    _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
+                    int(item["remaining_duration"]) if item.get("remaining_duration") is not None else None,
+                    _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
+                    float(item["percent_complete"]) if item.get("percent_complete") is not None else None,
+                    percent_complete_type,
+                    _date(item["expected_finish"]) if item.get("expected_finish") is not None else None,
+                    status,
+                    activity_type,
+                    status_code,
+                )
             )
         else:
             if unit is not DurationUnit.WORKING_HOUR:
