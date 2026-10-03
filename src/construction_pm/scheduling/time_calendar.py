@@ -162,12 +162,8 @@ class TimeAwareWorkingTimeResolver:
                 remaining_microseconds -= capacity_microseconds
                 cursor = end
 
-            # Consume all remaining intervals on this day before advancing.
-            # This is essential for calendars with breaks such as 08:00–12:00
-            # and 13:00–17:00.
             cursor = self._combine(cursor.date() + timedelta(days=1), time.min, cursor)
             continue
-
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
@@ -188,11 +184,8 @@ class TimeAwareWorkingTimeResolver:
                 remaining_microseconds -= capacity_microseconds
                 cursor = begin
 
-            # Consume earlier intervals on the same day before moving to the
-            # previous day; this preserves breaks such as 08:00–12:00/13:00–17:00.
             cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
             continue
-
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         if finish < start:
@@ -208,7 +201,6 @@ class TimeAwareWorkingTimeResolver:
                 left = max(start, begin)
                 right = min(finish, end)
                 if right > left:
-                    seconds = Decimal(str((right - left).total_seconds()))
-                    total += seconds / Decimal(3600)
+                    total += Decimal(_timedelta_microseconds(right - left)) / Decimal("3600000000")
             cursor_date += timedelta(days=1)
         return total
