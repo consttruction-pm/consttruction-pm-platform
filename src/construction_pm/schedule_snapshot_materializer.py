@@ -156,7 +156,7 @@ def _duration_unit(value: Any) -> DurationUnit:
 
 
 def _finite_float(value: Any, field_name: str) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}")
     try:
         result = float(value)
@@ -181,7 +181,7 @@ def _integer_working_days(value: Any, field_name: str) -> int:
     return int(decimal_value)
 
 def _finite_percent_complete(value: Any) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
     try:
         result = float(value)
