@@ -361,6 +361,14 @@ export function updateP6FieldPresentation(
   return setP6Presentation(state, state.p6FieldRegistry, updateFieldPresentation(state.p6Layout, fieldId, patch));
 }
 
+export function setP6FieldVisibility(
+  state: WorkspaceState,
+  fieldId: string,
+  visible: boolean,
+): WorkspaceState {
+  return updateP6FieldPresentation(state, fieldId, { visible });
+}
+
 function toWorkspaceColumnDataType(dataType: string): WorkspaceColumnDataType {
   switch (dataType) {
     case "integer": return "integer";
