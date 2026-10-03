@@ -88,9 +88,11 @@ class CalendarReference:
     system: CalendarSystem = CalendarSystem.GREGORIAN
 
     def __post_init__(self) -> None:
-        if not self.calendar_id or not self.calendar_version:
-            raise ValueError("calendar_id and calendar_version are required")
-        if self.kind not in {"working-day", "working-time"}:
+        if not isinstance(self.calendar_id, str) or not self.calendar_id.strip():
+            raise ValueError("calendar_id must be a non-empty string")
+        if not isinstance(self.calendar_version, str) or not self.calendar_version.strip():
+            raise ValueError("calendar_version must be a non-empty string")
+        if not isinstance(self.kind, str) or self.kind not in {"working-day", "working-time"}:
             raise ValueError("unsupported calendar kind")
         if not isinstance(self.system, CalendarSystem):
             raise ValueError("system must be a CalendarSystem")
