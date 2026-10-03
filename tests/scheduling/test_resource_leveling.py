@@ -237,3 +237,29 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     assert result[0].total_float == 0
     assert shift.remaining_float == -1
     assert result[1].activity_id == "A2"
+
+
+def test_forward_leveling_rejects_duplicate_capacity():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activity = LevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    capacity = ResourceCapacity("R1", date(2026, 10, 1), Decimal("8"))
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_RESOURCE_CAPACITY"):
+        propose_forward_leveling_within_float((activity,), (capacity, capacity), resolver=resolver)
+
+
+def test_backward_leveling_rejects_duplicate_capacity():
+    from construction_pm.scheduling.resource_leveling import BackwardLevelingActivity, propose_backward_leveling
+
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activity = BackwardLevelingActivity(
+        "A1",
+        date(2026, 10, 1), date(2026, 10, 1),
+        date(2026, 10, 2), date(2026, 10, 2),
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    capacity = ResourceCapacity("R1", date(2026, 10, 1), Decimal("8"))
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_RESOURCE_CAPACITY"):
+        propose_backward_leveling((activity,), (capacity, capacity), resolver=resolver)
