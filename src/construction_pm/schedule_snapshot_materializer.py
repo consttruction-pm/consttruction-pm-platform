@@ -183,6 +183,12 @@ def _integer_working_days(value: Any, field_name: str) -> int:
         raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
     return int(decimal_value)
 
+def _strict_integer(value: Any, error_code: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SnapshotMaterializationError(error_code)
+    return value
+
+
 def _finite_percent_complete(value: Any) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
@@ -339,7 +345,7 @@ def _materialize_payload(
                     int(duration_value),
                     _date(actual) if actual is not None else None,
                     _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
-                    _integer_working_days(item["remaining_duration"], "remaining_duration") if item.get("remaining_duration") is not None else None,
+                    _strict_integer(item["remaining_duration"], "INVALID_ACTIVITY_REMAINING_DURATION") if item.get("remaining_duration") is not None else None,
                     _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
                     _finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
                     percent_complete_type,
