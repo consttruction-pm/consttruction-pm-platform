@@ -1,0 +1,235 @@
+{
+  "$schema": "constructionpm://evidence/p6-activity-release26-tranche-21/v1",
+  "title": "P6 Activity Release 26 typed field tranche 21 evidence",
+  "reference_version": "Oracle Primavera P6 EPPM REST API Release 26",
+  "status": "typed_seed_not_certified",
+  "registry_source": "src/construction_pm/p6_field_registry.py",
+  "rule": "Fields are added to the typed registry only; Oracle schema evidence does not by itself certify internal canonical mapping, persistence, interchange, or mutability beyond the documented operation surface.",
+  "source_urls": {
+    "activity_get": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+    "activity_put": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-put.html"
+  },
+  "fields": [
+    {
+      "p6_field": "ActualLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "actual labor-resource cost; may be derived from actual labor units and default pricing",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "ActualLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "actual labor units for labor resources assigned to the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "AtCompletionLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "at-completion labor cost",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "AtCompletionLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "at-completion labor units",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "AtCompletionMaterialCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "at-completion material cost",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "AtCompletionNonLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "at-completion nonlabor cost",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "AtCompletionNonLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "at-completion nonlabor units",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "BudgetAtCompletion",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "planned total cost through activity completion",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "CBSCode",
+      "oracle_type": "string",
+      "writable": true,
+      "computed": false,
+      "unit": null,
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "unique Unifier CBS Code name assigned to the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "CBSObjectId",
+      "oracle_type": "integer",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "identifier of the CoUnifier CBS",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "CostVariance",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "cost variance for the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "CreateDate",
+      "oracle_type": "date-time",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "date the activity was created",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "DataDate",
+      "oracle_type": "date-time",
+      "writable": false,
+      "computed": false,
+      "unit": null,
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "current project data date represented on the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "EarnedValueLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "portion of project baseline labor units earned as of the data date",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "EstimateAtCompletionCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "estimated cost at completion, actual cost plus estimate to complete",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "MaterialCostVariance",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "variance between baseline material cost and at-completion material cost",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "PercentComplete",
+      "oracle_type": "double",
+      "writable": true,
+      "computed": false,
+      "unit": "percent",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "activity percent complete according to the configured percent-complete type",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "PerformancePercentComplete",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "percent",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "performance percent complete used for earned value",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "PlannedLaborCost",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "currency",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "planned cost for labor resources assigned to the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    },
+    {
+      "p6_field": "PlannedLaborUnits",
+      "oracle_type": "double",
+      "writable": false,
+      "computed": true,
+      "unit": "units",
+      "registry_change": "typed_seed",
+      "reconciliation_status": "pending_internal_certification",
+      "oracle_semantics": "planned labor units for labor resources assigned to the activity",
+      "internal_certification_note": "Mutability/computed classification is a typed registry seed and remains uncertified until canonical mapping, persistence/import-export, null/default, and regression evidence are complete."
+    }
+  ],
+  "acceptance": "All 20 fields are present exactly once in the Release 26 inventory, removed from the pending gap manifest, and covered by focused typed regression tests. No Activity dataclass or second calculation engine is introduced."
+}
