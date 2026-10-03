@@ -57,6 +57,45 @@ def test_snapshot_rejects_cross_scope_activity_references():
         )
 
 
+def test_date_based_contract_rejects_working_time_calendars():
+    calendar = CalendarReference("CAL-1", "1", "working-time")
+    with pytest.raises(ValueError, match="working-day project calendar"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S", tenant_id="T", project_id="P", project_revision=0,
+            mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=calendar,
+            activities=(Activity("A", 1),), relationships=(),
+            activity_calendar_assignments=(), project_start=date(2026, 9, 21),
+        )
+
+
+def test_date_based_contract_rejects_working_time_activity_assignment():
+    project = CalendarReference("CAL-1", "1")
+    time_calendar = CalendarReference("CAL-2", "1", "working-time")
+    with pytest.raises(ValueError, match="working-day activity calendars"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S", tenant_id="T", project_id="P", project_revision=0,
+            mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=project,
+            activities=(Activity("A", 1),), relationships=(),
+            activity_calendar_assignments=(ActivityCalendarAssignment("A", time_calendar),),
+            project_start=date(2026, 9, 21),
+        )
+
+
+def test_time_aware_contract_rejects_working_day_project_calendar():
+    from construction_pm.scheduling.time_duration import TimeQuantity
+    from construction_pm.scheduling.time_forward_pass import TimeActivity
+    calendar = CalendarReference("CAL-1", "1")
+    activity = TimeActivity("A", TimeQuantity.working_hours(2))
+    with pytest.raises(ValueError, match="working-time project calendar"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S", tenant_id="T", project_id="P", project_revision=0,
+            mode=AuthoritativeScheduleMode.TIME_AWARE, project_calendar=calendar,
+            activities=(activity,), relationships=(),
+            activity_calendar_assignments=(),
+            project_start=datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+        )
+
+
 def test_date_based_contract_requires_date_start():
     calendar = CalendarReference("CAL-1", "1")
     with pytest.raises(ValueError, match="project_start date"):

@@ -97,6 +97,20 @@ class AuthoritativeScheduleInput:
             raise TypeError("constraints must contain ActivityConstraint items")
         if not isinstance(self.project_calendar, CalendarReference):
             raise TypeError("project_calendar must be a CalendarReference")
+        expected_calendar_kind = (
+            "working-day" if self.mode is AuthoritativeScheduleMode.DATE_BASED else "working-time"
+        )
+        if self.project_calendar.kind != expected_calendar_kind:
+            raise ValueError(
+                f"{self.mode.value} snapshot requires {expected_calendar_kind} project calendar"
+            )
+        if any(
+            assignment.calendar.kind != expected_calendar_kind
+            for assignment in self.activity_calendar_assignments
+        ):
+            raise ValueError(
+                f"{self.mode.value} snapshot requires {expected_calendar_kind} activity calendars"
+            )
         if not isinstance(self.schedule_options, ScheduleOptions):
             raise TypeError("schedule_options must be a ScheduleOptions")
 
