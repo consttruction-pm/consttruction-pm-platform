@@ -10,7 +10,7 @@ def _duration():
     return TimeQuantity(Decimal("1"), DurationUnit.WORKING_HOUR)
 
 
-@pytest.mark.parametrize("value", [1, True, None, "A"])
+@pytest.mark.parametrize("value", [1, True, None, ""])
 def test_time_activity_requires_string_id(value):
     with pytest.raises(ValueError):
         TimeActivity(value, _duration())
