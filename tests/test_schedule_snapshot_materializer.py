@@ -777,3 +777,21 @@ def test_materializer_rejects_non_integer_remaining_duration(value):
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_REMAINING_DURATION"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+
+def test_authoritative_schedule_rejects_non_integer_project_revision():
+    cal = CalendarReference("CAL-REV", "1")
+    with pytest.raises(ValueError, match="project_revision must be an integer"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-REV-TYPE",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=3.0,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=cal,
+            activities=(Activity("A", 1),),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 10, 1),
+        )
