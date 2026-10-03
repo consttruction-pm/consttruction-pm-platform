@@ -27,12 +27,20 @@ class CalendarAwareResolver:
     def is_working_day_calendar(self) -> bool:
         return self.kind == "working-day"
 
+    @staticmethod
+    def _require_datetime(value: datetime, field_name: str) -> datetime:
+        if not isinstance(value, datetime):
+            raise TypeError(f"{field_name} must be a datetime")
+        return value
+
     def normalize_start(self, value: datetime) -> datetime:
+        value = self._require_datetime(value, "value")
         if self.is_working_day_calendar:
             return datetime.combine(self.resolver.normalize_start(value.date()), time.min)
         return self.resolver.normalize_start(value)
 
     def normalize_finish(self, value: datetime) -> datetime:
+        value = self._require_datetime(value, "value")
         if self.is_working_day_calendar:
             return datetime.combine(self.resolver.normalize_finish(value.date()), time.min)
         return self.resolver.normalize_finish(value)
@@ -44,6 +52,9 @@ class CalendarAwareResolver:
         return int(value)
 
     def add_duration(self, start: datetime, duration: TimeQuantity) -> datetime:
+        start = self._require_datetime(start, "start")
+        if not isinstance(duration, TimeQuantity):
+            raise TypeError("duration must be a TimeQuantity")
         if self.is_working_day_calendar:
             if duration.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day calendar requires working-day duration")
@@ -56,6 +67,9 @@ class CalendarAwareResolver:
         return self.resolver.add_working_hours(start, duration.value)
 
     def subtract_duration(self, finish: datetime, duration: TimeQuantity) -> datetime:
+        finish = self._require_datetime(finish, "finish")
+        if not isinstance(duration, TimeQuantity):
+            raise TypeError("duration must be a TimeQuantity")
         if self.is_working_day_calendar:
             if duration.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day calendar requires working-day duration")
@@ -81,6 +95,9 @@ class CalendarAwareResolver:
         return self.resolver.calculate_working_hours(start, finish)
 
     def add_lag(self, anchor: datetime, lag: LagQuantity) -> datetime:
+        anchor = self._require_datetime(anchor, "anchor")
+        if not isinstance(lag, LagQuantity):
+            raise TypeError("lag must be a LagQuantity")
         if self.is_working_day_calendar:
             if lag.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day lag calendar requires working-day lag")
@@ -100,6 +117,9 @@ class CalendarAwareResolver:
         return self.resolver.subtract_working_hours(anchor, -lag.value)
 
     def subtract_lag(self, event: datetime, lag: LagQuantity) -> datetime:
+        event = self._require_datetime(event, "event")
+        if not isinstance(lag, LagQuantity):
+            raise TypeError("lag must be a LagQuantity")
         if self.is_working_day_calendar:
             if lag.unit is not DurationUnit.WORKING_DAY:
                 raise ValueError("working-day lag calendar requires working-day lag")
