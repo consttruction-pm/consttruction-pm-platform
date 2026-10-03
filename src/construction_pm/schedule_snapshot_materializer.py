@@ -273,7 +273,13 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             multiple_float_paths_use_total_float=_bool("multiple_float_paths_use_total_float", True),
             min_float_to_preserve=_int("min_float_to_preserve", 0),
             out_of_sequence_schedule_type=OutOfSequenceScheduleType(
-                str(value.get("out_of_sequence_schedule_type", OutOfSequenceScheduleType.RETAINED_LOGIC.value))
+                _required_string(
+                    value,
+                    "out_of_sequence_schedule_type",
+                    "INVALID_SCHEDULE_OPTION:out_of_sequence_schedule_type",
+                )
+                if "out_of_sequence_schedule_type" in value
+                else OutOfSequenceScheduleType.RETAINED_LOGIC.value
             ),
             start_to_start_lag_calculation_type=StartToStartLagCalculationType(
                 str(value.get(
