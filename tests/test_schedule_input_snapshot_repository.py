@@ -105,3 +105,21 @@ def test_snapshot_list_validates_persisted_rows():
 
     with pytest.raises(ValueError):
         repo.list(BackendScope("T-1", "P-1", 7))
+
+
+def test_snapshot_rejects_payload_hash_mismatch():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(snapshot)
+
+    connection.execute(
+        "UPDATE schedule_input_snapshot SET canonical_payload=? WHERE snapshot_id=?",
+        (snapshot.canonical_payload + " ", snapshot.snapshot_id),
+    )
+    connection.commit()
+
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_HASH_MISMATCH"):
+        repo.get(BackendScope("T-1", "P-1", 7), "S-1")
