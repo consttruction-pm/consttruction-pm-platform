@@ -15,6 +15,7 @@ from .constraints import (
 )
 from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
 from .relationships import Relationship, RelationshipType
+from .calendar_context import RelationshipLagCalendar
 from .schedule_options import (
     CriticalActivityPathType,
     ScheduleMode,
@@ -707,6 +708,8 @@ class UnsupportedScheduleOptionError(ValueError):
 
 def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
     unsupported: list[str] = []
+    if options.relationship_lag_calendar is not RelationshipLagCalendar.PROJECT_DEFAULT:
+        unsupported.append("relationship_lag_calendar")
     if options.ignore_other_project_relationships:
         unsupported.append("ignore_other_project_relationships")
     if options.include_external_res_ass:
