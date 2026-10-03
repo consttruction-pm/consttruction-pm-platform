@@ -152,6 +152,8 @@ def jalali_to_jdn(year: int, month: int, day: int) -> int:
     """Return the Borkowski Julian Day number for a valid Jalali date."""
     if any(isinstance(value, bool) or not isinstance(value, int) for value in (year, month, day)):
         raise CalendarDateError("Jalali date components must be integers")
+    if year < 1:
+        raise CalendarDateError("Jalali year must be positive")
     gy, march, _, _ = _jalali_cal(year)
     if not 1 <= month <= 12 or not 1 <= day <= _jalaali_month_length(year, month):
         raise CalendarDateError("invalid Jalali date")
