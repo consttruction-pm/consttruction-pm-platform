@@ -7,6 +7,7 @@ from construction_pm.scheduling.calendar_context import (
     CalendarResolverRegistry,
     SchedulingCalendarContext,
 )
+from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 
 
 def test_activity_and_lag_calendar_default_to_project_calendar():
@@ -37,11 +38,34 @@ def test_registry_resolves_versioned_day_calendar():
     assert registry.resolve(ref) is resolver
 
 
+def test_registry_resolves_versioned_time_calendar():
+    ref = CalendarReference("project-main", "7", kind="working-time")
+    resolver = TimeAwareWorkingTimeResolver(WorkingTimeCalendar())
+    registry = CalendarResolverRegistry(time_resolvers={"project-main@7": resolver})
+    assert registry.resolve(ref) is resolver
+
+
 def test_registry_rejects_calendar_system_mismatch():
     ref = CalendarReference("project-main", "7", system=CalendarSystem.JALALI)
     resolver = WorkingTimeResolver(WorkingCalendar())
     registry = CalendarResolverRegistry(day_resolvers={"project-main@7": resolver})
     with pytest.raises(ValueError, match="calendar system mismatch"):
+        registry.resolve(ref)
+
+
+def test_registry_rejects_resolver_kind_mismatch_for_day_reference():
+    ref = CalendarReference("project-main", "7", kind="working-day")
+    resolver = TimeAwareWorkingTimeResolver(WorkingTimeCalendar())
+    registry = CalendarResolverRegistry(day_resolvers={"project-main@7": resolver})
+    with pytest.raises(ValueError, match="calendar resolver kind mismatch"):
+        registry.resolve(ref)
+
+
+def test_registry_rejects_resolver_kind_mismatch_for_time_reference():
+    ref = CalendarReference("project-main", "7", kind="working-time")
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(time_resolvers={"project-main@7": resolver})
+    with pytest.raises(ValueError, match="calendar resolver kind mismatch"):
         registry.resolve(ref)
 
 
