@@ -9,7 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from .schedule_input_snapshot_repository import ScheduleInputSnapshot
+from .schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleSnapshotPersistenceError
 from .scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
@@ -86,7 +86,10 @@ def materialize_schedule_snapshot(
 
 
 def _validate_snapshot_integrity(snapshot: ScheduleInputSnapshot) -> None:
-    snapshot.validate()
+    try:
+        snapshot.validate()
+    except ScheduleSnapshotPersistenceError as exc:
+        raise SnapshotMaterializationError(str(exc)) from exc
     actual = hashlib.sha256(snapshot.canonical_payload.encode("utf-8")).hexdigest()
     if actual != snapshot.snapshot_hash:
         raise SnapshotMaterializationError("SNAPSHOT_HASH_MISMATCH")
