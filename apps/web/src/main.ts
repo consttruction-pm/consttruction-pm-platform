@@ -34,6 +34,9 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
     },
+    onGanttActivitySelect: (activityId) => {
+      renderApp(container, selectActivity(state, activityId), persistence);
+    },
     onP6FieldAdd: async (fieldId) => {
       try {
         const next = addP6Field(state, fieldId);
