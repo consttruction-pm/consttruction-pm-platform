@@ -146,3 +146,21 @@ def test_snapshot_validate_rejects_non_string_snapshot_fields():
         )
         with pytest.raises(ScheduleSnapshotPersistenceError, match=error_code):
             candidate.validate()
+
+
+def test_snapshot_save_rejects_corrupt_existing_idempotent_row():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(snapshot)
+
+    connection.execute(
+        "UPDATE schedule_input_snapshot SET created_at=? WHERE snapshot_id=?",
+        ("not-a-timestamp", snapshot.snapshot_id),
+    )
+    connection.commit()
+
+    with pytest.raises(ValueError):
+        repo.save(snapshot)

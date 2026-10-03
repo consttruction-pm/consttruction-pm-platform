@@ -109,10 +109,12 @@ class SQLiteScheduleInputSnapshotRepository:
                 and existing[2] == snapshot.calculation_identity
                 and int(existing[5]) == snapshot.scope.project_revision
             ):
-                return ScheduleInputSnapshot(
+                result = ScheduleInputSnapshot(
                     snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
                     datetime.fromisoformat(existing[3]), int(existing[4])
                 )
+                result.validate()
+                return result
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
 
         self.connection.execute(
@@ -229,7 +231,7 @@ class PostgresScheduleInputSnapshotRepository:
             and existing[2] == snapshot.calculation_identity
             and int(existing[5]) == snapshot.scope.project_revision
         ):
-            return ScheduleInputSnapshot(
+            result = ScheduleInputSnapshot(
                 snapshot.scope,
                 snapshot.snapshot_id,
                 existing[0],
@@ -238,6 +240,8 @@ class PostgresScheduleInputSnapshotRepository:
                 datetime.fromisoformat(existing[3]),
                 int(existing[4]),
             )
+            result.validate()
+            return result
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
