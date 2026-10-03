@@ -186,3 +186,14 @@ def test_snapshot_rejects_non_object_canonical_payload_json():
     )
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_PAYLOAD"):
         candidate.validate()
+
+
+def test_snapshot_rejects_non_hex_calculation_identity():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    candidate = snapshot.__class__(
+        **{**snapshot.__dict__, "calculation_identity": "g" * 64}
+    )
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_CALCULATION_IDENTITY"):
+        candidate.validate()
