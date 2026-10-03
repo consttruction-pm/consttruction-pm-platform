@@ -391,3 +391,27 @@ def test_longest_path_driving_uses_selected_lag_calendar():
         relationship_lag_resolvers=resolve_relationship_lag_resolvers(snapshot, registry),
     )
     assert result.floats["A"].critical is True
+
+def test_resolved_activity_calendars_maps_are_immutable():
+    from construction_pm.scheduling.calendar_resolution import resolve_authoritative_activity_calendars
+
+    snapshot = _snapshot(RelationshipLagCalendar.SUCCESSOR)
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    successor_resolver = WorkingTimeResolver(WorkingCalendar())
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": project_resolver,
+            "succ@1": successor_resolver,
+        }
+    )
+
+    resolved = resolve_authoritative_activity_calendars(snapshot, registry)
+
+    with pytest.raises(TypeError):
+        resolved.activities["A"] = successor_resolver
+    with pytest.raises(TypeError):
+        resolved.references["A"] = snapshot.project_calendar
+
+    assert resolved.for_activity("A") is project_resolver
+    assert resolved.reference_for("A") == snapshot.activity_calendar_assignments[0].calendar
