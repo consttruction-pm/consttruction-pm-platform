@@ -55,7 +55,7 @@ class TimeRelationship:
         if self.predecessor_id == self.successor_id:
             raise ValueError("self relationships are not allowed")
         if not isinstance(self.type, RelationshipType):
-            raise TypeError("type must be a RelationshipType")
+            raise TypeError("type must be a RelationshipType")\n        if not isinstance(self.lag, LagQuantity):\n            raise TypeError("lag must be a LagQuantity")
 
 
 @dataclass(frozen=True)
