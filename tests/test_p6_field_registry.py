@@ -1,6 +1,7 @@
 from construction_pm.p6_field_registry import (
     P6FieldType,
     P6_ACTIVITY_ALIAS_RESOLUTIONS,
+    canonical_activity_field_id,
     field_catalog,
     fields_by_subject,
     get_field,
@@ -99,15 +100,17 @@ def test_recalculate_resource_costs_is_registered_as_schedule_option() -> None:
     assert field.computed is False
 
 
-def test_activity_product_aliases_resolve_to_canonical_p6_fields():
+def test_activity_aliases_resolve_without_changing_persisted_field_schema():
     for alias_id, canonical_id in P6_ACTIVITY_ALIAS_RESOLUTIONS.items():
         alias = get_field(alias_id)
         canonical = get_field(canonical_id)
 
         assert alias.subject_area == "Activity"
-        assert alias.disposition == "product_alias"
-        assert alias.alias_of == canonical_id
-        assert canonical.disposition != "product_alias"
+        assert canonical.subject_area == "Activity"
+        assert alias.disposition == "seeded_not_certified"
+        assert canonical.disposition == "seeded_not_certified"
+        assert canonical_activity_field_id(alias_id) == canonical_id
+        assert canonical_activity_field_id(canonical_id) == canonical_id
 
     assert get_field("activity.activity_id").p6_field == "ActivityId"
     assert get_field("activity.id").p6_field == "Id"
