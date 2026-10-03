@@ -1,5 +1,5 @@
 import type { ApiResult, ClientError, ProjectContext } from "./client.js";
-import type { ProjectSummary, SessionApi } from "./session-api.js";
+import type { ProjectContext as SessionProjectContext, ProjectSummary, SessionApi } from "./session-api.js";
 import { toWorkspaceContext } from "./session-api.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
 import type { WorkspaceState } from "./workspace-model.js";
@@ -125,7 +125,7 @@ export class ProjectBootstrap {
   }
 
   private async hydrateProject(
-    projectContext: ProjectContext,
+    projectContext: SessionProjectContext,
     generation: number,
   ): Promise<ProjectBootstrapState | null> {
     if (!this.isCurrent(generation)) return null;
