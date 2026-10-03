@@ -253,7 +253,13 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             ),
             critical_activity_float_threshold=_finite_float(value.get("critical_activity_float_threshold", 0), "critical_activity_float_threshold"),
             critical_activity_path_type=CriticalActivityPathType(
-                str(value.get("critical_activity_path_type", CriticalActivityPathType.CRITICAL_FLOAT.value))
+                _required_string(
+                    value,
+                    "critical_activity_path_type",
+                    "INVALID_SCHEDULE_OPTION:critical_activity_path_type",
+                )
+                if "critical_activity_path_type" in value
+                else CriticalActivityPathType.CRITICAL_FLOAT.value
             ),
             make_open_ended_activities_critical=_bool("make_open_ended_activities_critical"),
             multiple_float_paths_enabled=_bool("multiple_float_paths_enabled"),
