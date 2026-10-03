@@ -313,11 +313,17 @@ def _materialize_payload(
         activity_id = _required_string(item, "id", "INVALID_ACTIVITY")
         duration_payload = item.get("duration", 0)
         if isinstance(duration_payload, dict):
-            duration_value = _decimal(_required(duration_payload, "value"))
+            try:
+                duration_value = _decimal(_required(duration_payload, "value"))
+            except SnapshotMaterializationError as exc:
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_DURATION") from exc
             unit = _duration_unit(_required(duration_payload, "unit"))
         else:
             unit = _duration_unit(item.get("duration_unit", "working-day"))
-            duration_value = _decimal(duration_payload)
+            try:
+                duration_value = _decimal(duration_payload)
+            except SnapshotMaterializationError as exc:
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_DURATION") from exc
         actual = item.get("actual_start")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
             if unit is not DurationUnit.WORKING_DAY or duration_value != duration_value.to_integral_value():
@@ -391,11 +397,17 @@ def _materialize_payload(
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP") from exc
         lag_payload = item.get("lag", 0)
         if isinstance(lag_payload, dict):
-            lag_value = _decimal(_required(lag_payload, "value"))
+            try:
+                lag_value = _decimal(_required(lag_payload, "value"))
+            except SnapshotMaterializationError as exc:
+                raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG") from exc
             unit = _duration_unit(_required(lag_payload, "unit"))
         else:
             unit = _duration_unit(item.get("lag_unit", "working-day"))
+            try:
             lag_value = _decimal(lag_payload)
+        except SnapshotMaterializationError as exc:
+            raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG") from exc
         predecessor_id = _required_string(item, "predecessor_id", "INVALID_RELATIONSHIP")
         successor_id = _required_string(item, "successor_id", "INVALID_RELATIONSHIP")
         if mode is AuthoritativeScheduleMode.DATE_BASED:
