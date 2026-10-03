@@ -123,3 +123,10 @@ def test_snapshot_rejects_payload_hash_mismatch():
 
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_HASH_MISMATCH"):
         repo.get(BackendScope("T-1", "P-1", 7), "S-1")
+
+
+@pytest.mark.parametrize("snapshot_id", [None, "", "   ", 123])
+def test_snapshot_get_rejects_invalid_snapshot_id(snapshot_id):
+    repo = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_SNAPSHOT_ID"):
+        repo.get(BackendScope("T-1", "P-1", 7), snapshot_id)
