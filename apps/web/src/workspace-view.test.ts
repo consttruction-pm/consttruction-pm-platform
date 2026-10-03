@@ -296,3 +296,22 @@ test("details complementary landmark is named by its heading", () => {
   assert.match(container.innerHTML, /class="cp-panel cp-details"[^>]*aria-labelledby="cp-details-heading"/);
   assert.match(container.innerHTML, /<h2 id="cp-details-heading">Details<\/h2>/);
 });
+
+
+test("interactive Gantt rows expose button selection semantics", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1", wbsId: "W-1", code: "01", name: "Foundation",
+      gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 25, critical: false },
+    }],
+    selectedActivityId: "A-1",
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1"/);
+  assert.doesNotMatch(container.innerHTML, /cp-gantt-row[^>]*aria-selected=/);
+});
