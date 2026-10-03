@@ -339,6 +339,13 @@ export function addP6Field(state: WorkspaceState, fieldId: string): WorkspaceSta
   if (!state.p6FieldRegistry || !state.p6Layout) throw new Error("P6_PRESENTATION_NOT_INITIALIZED");
   const field = state.p6FieldRegistry.fields.find((item) => item.field_id === fieldId);
   if (!field) throw new Error("P6_FIELD_NOT_FOUND");
+
+  const existing = state.p6Layout.columns.find((column) => column.field_id === fieldId);
+  if (existing) {
+    if (existing.visible) throw new Error("FIELD_ALREADY_IN_LAYOUT");
+    return setP6Presentation(state, state.p6FieldRegistry, updateFieldPresentation(state.p6Layout, fieldId, { visible: true }));
+  }
+
   return setP6Presentation(state, state.p6FieldRegistry, addField(state.p6Layout, field));
 }
 

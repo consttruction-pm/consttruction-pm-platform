@@ -64,6 +64,16 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
         console.error("P6 layout save failed", error);
       }
     },
+    onP6FieldVisibilityChange: async (fieldId, visible) => {
+      try {
+        const next = updateP6FieldPresentation(state, fieldId, { visible });
+        if (!next.p6Layout || !next.p6FieldRegistry) return;
+        const saved = await persistence.save(next.p6Layout);
+        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      } catch (error) {
+        console.error("P6 layout save failed", error);
+      }
+    },
     onP6FieldRemove: async (fieldId) => {
       try {
         const next = removeP6Field(state, fieldId);
@@ -164,6 +174,18 @@ function renderBootstrapState(
       if (next) renderBootstrapState(container, next, bootstrap);
     });
     error.append(retry);
+  }
+
+  if (state.error.available_actions.includes("refresh")) {
+    const refresh = document.createElement("button");
+    refresh.type = "button";
+    refresh.textContent = "Refresh";
+    refresh.addEventListener("click", async () => {
+      renderBootstrapState(container, { status: "loading" }, bootstrap);
+      const next = await bootstrap.start();
+      if (next) renderBootstrapState(container, next, bootstrap);
+    });
+    error.append(refresh);
   }
 
   container.append(error);

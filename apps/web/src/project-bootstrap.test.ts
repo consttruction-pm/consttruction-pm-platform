@@ -239,3 +239,24 @@ test("P6 presentation loader runs after authoritative workspace hydration", asyn
   assert.equal(state?.status === "ready" ? state.workspace.p6FieldRegistry?.registry_version : "", "p6-field-registry.v1");
   assert.equal(state?.status === "ready" ? state.workspace.p6Layout?.view_id : "", "activity");
 });
+
+
+test("P6 presentation loader failure becomes bootstrap error", async () => {
+  const setup = deps();
+  setup.dependencies.p6PresentationLoader = async () => { throw new Error("INVALID_P6_LAYOUT_SCHEMA"); };
+  const state = await new ProjectBootstrap(setup.dependencies).start();
+  assert.equal(state?.status, "error");
+  assert.equal(state?.status === "error" ? state.error.code : "", "P6_PRESENTATION_LOAD_FAILED");
+  assert.equal(state?.status === "error" ? state.error.retryable : true, false);
+  assert.deepEqual(state?.status === "error" ? state.error.available_actions : [], ["refresh"]);
+});
+
+test("P6 network loader failure remains retryable", async () => {
+  const setup = deps();
+  setup.dependencies.p6PresentationLoader = async () => { throw new Error("NETWORK_ERROR"); };
+  const state = await new ProjectBootstrap(setup.dependencies).start();
+  assert.equal(state?.status, "error");
+  assert.equal(state?.status === "error" ? state.error.code : "", "NETWORK_ERROR");
+  assert.equal(state?.status === "error" ? state.error.retryable : false, true);
+  assert.deepEqual(state?.status === "error" ? state.error.available_actions : [], ["retry"]);
+});
