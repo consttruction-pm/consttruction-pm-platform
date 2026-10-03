@@ -414,4 +414,4 @@ def test_resolved_activity_calendars_maps_are_immutable():
         resolved.references["A"] = snapshot.project_calendar
 
     assert resolved.for_activity("A") is project_resolver
-    assert resolved.reference_for("A") == snapshot.project_calendar
+    assert resolved.reference_for("A") == snapshot.activity_calendar_assignments[0].calendar
