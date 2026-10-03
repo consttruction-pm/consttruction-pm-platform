@@ -1,3 +1,4 @@
+import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
@@ -20,7 +21,6 @@ from construction_pm.schedule_input_snapshot_repository import (
 def make_snapshot(suffix: str, *, tenant_id: str = "live-tenant") -> ScheduleInputSnapshot:
     scope = BackendScope(tenant_id, f"snapshot-project-{suffix}", 7)
     payload = '{"project_id":"' + scope.project_id + '","snapshot_id":"snap-' + suffix + '"}'
-    import hashlib
     return ScheduleInputSnapshot(
         scope=scope,
         snapshot_id=f"snap-{suffix}",
