@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -87,6 +87,8 @@ class JalaliDate:
     day: int
 
     def __post_init__(self) -> None:
+        if any(isinstance(value, bool) or not isinstance(value, int) for value in (self.year, self.month, self.day)):
+            raise CalendarDateError("Jalali date components must be integers")
         if self.year < 1 or not 1 <= self.month <= 12:
             raise CalendarDateError("invalid Jalali date")
         if not 1 <= self.day <= _jalaali_month_length(self.year, self.month):
@@ -104,6 +106,8 @@ class JalaliDate:
 def jalali_to_gregorian(year: int, month: int, day: int) -> date:
     """Convert a Jalali date to Gregorian using the Borkowski cycle and JDN arithmetic."""
 
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (year, month, day)):
+        raise CalendarDateError("Jalali date components must be integers")
     if year < 1:
         raise CalendarDateError("Jalali year must be positive")
     if month < 1 or month > 12 or day < 1 or day > _jalaali_month_length(year, month):
@@ -122,6 +126,8 @@ def jalali_to_gregorian(year: int, month: int, day: int) -> date:
 def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
     """Convert a Gregorian date to Jalali using Borkowski JDN arithmetic."""
 
+    if not isinstance(value, date) or isinstance(value, datetime):
+        raise CalendarDateError("Gregorian value must be a date")
     jdn = _gregorian_to_borkowski_jdn(value.year, value.month, value.day)
     gy = _borkowski_jdn_to_gregorian(jdn).year
     year = gy - 621
@@ -144,6 +150,8 @@ def gregorian_to_jalali(value: date) -> tuple[int, int, int]:
 
 def jalali_to_jdn(year: int, month: int, day: int) -> int:
     """Return the Borkowski Julian Day number for a valid Jalali date."""
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (year, month, day)):
+        raise CalendarDateError("Jalali date components must be integers")
     gy, march, _, _ = _jalali_cal(year)
     if not 1 <= month <= 12 or not 1 <= day <= _jalaali_month_length(year, month):
         raise CalendarDateError("invalid Jalali date")
