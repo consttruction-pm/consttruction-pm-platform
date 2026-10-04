@@ -38,6 +38,8 @@ test("workspace model creates a bilingual Main Workspace state", () => {
   assert.equal(state.activeMenu, "schedule");
   assert.equal(state.visiblePanels.activity_grid, true);
   assert.equal(state.columns.find((column) => column.id === "duration")?.dataType, "duration");
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "نام فعالیت");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "پیشرفت");
 });
 
 test("WBS selection clears Activity selection", () => {
