@@ -123,6 +123,16 @@ def test_activity_aliases_resolve_without_changing_persisted_field_schema():
     assert get_field("activity.updated_by").p6_field == "UpdateUser"
     assert get_field("activity.last_update_user").p6_field == "LastUpdateUser"
 
+    assert get_field("activity.remaining_start").p6_field == "RemainingStartDate"
+    assert get_field("activity.remaining_early_start_date").p6_field == "RemainingEarlyStartDate"
+    assert canonical_activity_field_id("activity.remaining_start") == "activity.remaining_early_start_date"
+    assert canonical_activity_field_id("activity.remaining_early_start_date") == "activity.remaining_early_start_date"
+
+    assert get_field("activity.remaining_finish").p6_field == "RemainingFinishDate"
+    assert get_field("activity.remaining_early_finish_date").p6_field == "RemainingEarlyFinishDate"
+    assert canonical_activity_field_id("activity.remaining_finish") == "activity.remaining_early_finish_date"
+    assert canonical_activity_field_id("activity.remaining_early_finish_date") == "activity.remaining_early_finish_date"
+
 def test_release26_activity_tranche_next10_has_exact_typed_metadata():
     expected = {
         "EstimateToCompleteLaborUnits": (P6FieldType.UNIT, False, True, "units"),
