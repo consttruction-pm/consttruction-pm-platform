@@ -43,6 +43,32 @@ class DependencyGraphAPI:
 
     service: DependencyGraphApplicationService
 
+    def get(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        resource_id: str,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any] | None:
+        if not isinstance(tenant_id, str) or not tenant_id.strip() or not isinstance(project_id, str) or not project_id.strip() or not isinstance(resource_id, str) or not resource_id.strip():
+            raise ValueError("INVALID_DEPENDENCY_RESOURCE_SCOPE")
+        stored = self.service.get(tenant_id, project_id, resource_id, context=auth_context)
+        if stored is None:
+            return None
+        return {
+            "contract_version": "dependency-graph.v1", "operation": "get",
+            "resource_id": stored.link.resource_id, "tenant_id": stored.link.tenant_id,
+            "project_id": stored.link.project_id, "revision": stored.link.revision,
+            "graph_revision": stored.graph_revision,
+            "source_resource_id": stored.link.source_resource_id,
+            "target_resource_id": stored.link.target_resource_id,
+            "source_revision": stored.link.source_revision,
+            "target_revision": stored.link.target_revision,
+            "dependency_type": stored.link.dependency_type,
+            "metadata": dict(stored.link.metadata),
+        }
+
     def create(self, request: DependencyGraphCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
         stored = self.service.create(
