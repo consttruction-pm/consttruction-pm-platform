@@ -4,7 +4,7 @@ from construction_pm.p6_field_registry import P6FieldType, field_catalog
 EXPECTED = {
     "PerformancePercentCompleteByLaborUnits": (P6FieldType.PERCENTAGE, False, True, "percent"),
     "PlannedExpenseCost": (P6FieldType.COST, False, True, "currency"),
-    "PlannedTotalCost": (P6FieldType.COST, False, True, "units"),
+    "PlannedTotalCost": (P6FieldType.COST, False, True, "currency"),
     "PlannedTotalUnits": (P6FieldType.UNIT, False, True, "units"),
     "PostRespCriticalityIndex": (P6FieldType.PERCENTAGE, True, False, "percent"),
     "PostResponsePessimisticFinish": (P6FieldType.DATE, True, False, None),
