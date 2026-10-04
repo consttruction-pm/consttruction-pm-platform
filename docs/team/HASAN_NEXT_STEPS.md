@@ -808,3 +808,14 @@ Status: **implemented, runtime-verified and merged**
 - ScheduleOptions was rechecked against the authoritative Release 26 disposition artifact. The current Shared Core type and registry contain the documented fields, but the architecture document still marks the formal time-aware schedule-options contract as a remaining gate. Therefore no Hasan-owned Backend/API contract was invented from the Shared Core type alone.
 - Disposition: evidence boundary. No new reproducible Hasan-owned Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam was proven in this audit.
 - Next executable action: re-audit current main when new authoritative evidence appears. If a concrete seam appears, branch from that exact main, add the smallest focused regression and PostgreSQL verification where applicable, then record exact commit/CI/merge identifiers here.
+
+
+### 2026-10-04 — Fresh current-main Hasan evidence audit (HEAD 028491e5b661cd0e6d93c75da8383932a809fa0c)
+
+- Fresh exact-main audit performed after PR #1108 advanced main to 028491e5b661cd0e6d93c75da8383932a809fa0c.
+- Open-PR inspection: no open Hasan-owned Backend/Database/Application/API/Import-Export implementation PR.
+- Issue #393 was rechecked against current ownership and acceptance criteria. Existing P6 persistence/API/interchange slices remain represented on main; no newly reproducible Hasan-owned defect or authoritative backend contract seam was evidenced.
+- Issue #795 is already completed by merged PR #796; the authenticated UDF HTTP boundary is now a client-consumable backend contract and is not being duplicated.
+- Recent Hasan work #1104/#1106/#1110 is already merged: ScheduleOptions metadata persistence/API round-trip coverage, versioned formula-authority API boundary, and dependency-graph read API boundary with scope/permission enforcement.
+- Current evidence remains at the ownership boundary: Activity Status/Type/StatusCode and time-aware ScheduleOptions semantics require authoritative Shared-Core/P6 semantic evidence before any backend mapping/API is invented.
+- Disposition: **no speculative implementation**. Next Hasan implementation must start from the exact then-current main only when a concrete backend defect or authoritative contract-backed seam appears; add focused regression and PostgreSQL verification where persistence is involved, then record exact CI/merge identifiers.
