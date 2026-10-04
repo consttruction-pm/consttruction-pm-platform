@@ -214,7 +214,9 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
 
   assert.deepEqual(changes, [{ fieldId: "activity.activity_id", width: 140 }]);
   assert.match(container.innerHTML, /title="Wider"/);
+  assert.match(container.innerHTML, /aria-label="Wider"/);
   assert.match(container.innerHTML, /title="Narrower"/);
+  assert.match(container.innerHTML, /aria-label="Narrower"/);
 });
 
 
