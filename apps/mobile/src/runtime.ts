@@ -9,6 +9,13 @@ import { ApiSyncTransport, type VersionedSyncApi } from "../../client-sync/src/a
 import { LanguagePackClientRuntime } from "../../client-sync/src/language-pack-client-runtime.ts";
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 import { WorkspaceReadCacheAdapter, type WorkspaceReadResult } from "../../client-sync/src/workspace-read-cache-adapter.js";
+import {
+  MOBILE_SCHEDULING_CONTRACT_VERSION,
+  validateMobileSchedulingResult,
+  type MobileSchedulingRequest,
+  type MobileSchedulingResult,
+  type SharedSchedulingCoreAdapter,
+} from "./shared-scheduling-adapter.ts";
 
 export type MobileMode = "offline" | "online";
 export type MobileProjectState = { tenant_id: string; project_id: string; revision: number; mode: MobileMode };
@@ -30,6 +37,26 @@ export class MobileRuntime {
   pendingMutationCount(): number { return this.mutationQueue.size(); }
   acknowledgeMutation(mutationId: string): void { this.mutationQueue.acknowledge(mutationId); }
   async syncOnce(api: VersionedSyncApi): Promise<readonly SyncOutcome[]> { return new ClientSyncRunner(this.mutationQueue, new ApiSyncTransport(api)).runOnce(); }
+
+  async scheduleOffline(
+    core: SharedSchedulingCoreAdapter,
+    input: MobileSchedulingRequest,
+  ): Promise<MobileSchedulingResult> {
+    const current = this.current();
+    if (current.mode !== "offline") throw new Error("OFFLINE_SCHEDULING_REQUIRES_OFFLINE_MODE");
+    if (input.contract_version !== MOBILE_SCHEDULING_CONTRACT_VERSION) {
+      throw new Error("INVALID_SCHEDULING_CONTRACT_VERSION");
+    }
+    if (
+      input.tenant_id !== current.tenant_id ||
+      input.project_id !== current.project_id ||
+      input.project_revision !== current.revision
+    ) {
+      throw new Error("PROJECT_CONTEXT_MISMATCH");
+    }
+    return validateMobileSchedulingResult(await core.schedule(input));
+  }
+
   async readWorkspace(adapter: WorkspaceReadCacheAdapter): Promise<WorkspaceReadResult> {
     const current = this.current();
     return adapter.read(

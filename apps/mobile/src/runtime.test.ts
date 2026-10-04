@@ -133,3 +133,74 @@ test("Mobile reconciles stale offline workspace after returning online", async (
   assert.equal(fresh.cache.source_revision, 8);
   assert.equal(transport.calls, 1);
 });
+
+test("mobile offline scheduling delegates to the same Shared Core adapter", async () => {
+  const runtime = new MobileRuntime();
+  runtime.openProject("t1", "p1", 7, "offline");
+  const input = {
+    contract_version: "time-scheduling-portability.v1" as const,
+    project_schema_version: 2,
+    tenant_id: "t1",
+    project_id: "p1",
+    project_revision: 7,
+    calculation_schema_version: "calc.v1",
+    calendar_assignments: {},
+    scheduling_settings: { duration: "working-day", mode: "both" },
+    project_start: "2026-10-05",
+    project_finish: null,
+    data_date: "2026-10-05",
+    activities: [
+      { id: "A1", duration: { value: "1", unit: "WORKING_DAY" as const } },
+    ],
+    relationships: [],
+    constraints: [],
+  };
+  let receivedRevision = -1;
+  const result = await runtime.scheduleOffline({
+    async schedule(request) {
+      receivedRevision = request.project_revision;
+      return {
+        contract_version: "time-scheduling-portability.v1" as const,
+        calculation_fingerprint: "fp-1",
+        project_finish: "2026-10-05",
+        activities: [{
+          activity_id: "A1",
+          start: "2026-10-05",
+          finish: "2026-10-05",
+          duration: { value: "1", unit: "WORKING_DAY" as const },
+          total_float: { value: "0", unit: "WORKING_DAY" as const },
+          free_float: { value: "0", unit: "WORKING_DAY" as const },
+          critical: true,
+        }],
+      };
+    },
+  }, input);
+  assert.equal(receivedRevision, 7);
+  assert.equal(result.calculation_fingerprint, "fp-1");
+  assert.equal(result.activities[0]?.critical, true);
+});
+
+test("mobile offline scheduling rejects a different project context", async () => {
+  const runtime = new MobileRuntime();
+  runtime.openProject("t1", "p1", 7, "offline");
+  const input = {
+    contract_version: "time-scheduling-portability.v1" as const,
+    project_schema_version: 2,
+    tenant_id: "t1",
+    project_id: "p2",
+    project_revision: 7,
+    calculation_schema_version: "calc.v1",
+    calendar_assignments: {},
+    scheduling_settings: {},
+    project_start: null,
+    project_finish: null,
+    data_date: null,
+    activities: [],
+    relationships: [],
+    constraints: [],
+  };
+  await assert.rejects(
+    runtime.scheduleOffline({ async schedule() { throw new Error("SHOULD_NOT_RUN"); } }, input),
+    /PROJECT_CONTEXT_MISMATCH/,
+  );
+});
