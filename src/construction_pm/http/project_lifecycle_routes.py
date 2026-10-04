@@ -108,7 +108,16 @@ class ProjectLifecycleHttpRoutes:
                     payload = json.loads(body.decode("utf-8") or "{}")
                 except json.JSONDecodeError:
                     return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
-                if not isinstance(payload, dict) or not isinstance(payload.get("project_id"), str):
+                if not isinstance(payload, dict):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                required = ("project_id", "mutation_id", "tenant_id", "expected_revision", "operation", "idempotency_key")
+                if any(key not in payload for key in required):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                if not all(isinstance(payload.get(key), str) and payload.get(key) for key in ("project_id", "mutation_id", "tenant_id", "operation", "idempotency_key")):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload.get("expected_revision"), int) or isinstance(payload.get("expected_revision"), bool):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload.get("payload", {}), dict):
                     return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
                 try:
                     context = self._api.open_project(session_id, payload["project_id"], now=now).context
