@@ -19,6 +19,8 @@ from construction_pm.p6_user_defined_fields_repository import (
     SQLiteP6UserDefinedFieldRepository,
 )
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
+from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
+from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
 from construction_pm.p6_layout_definition_repository import LayoutColumn, PersistedP6Layout, SQLiteP6LayoutRepository
 
 
@@ -106,11 +108,13 @@ def p6_routes():
         default_project_policy(),
     )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
+    formula_api = P6FormulaAuthorityAPI(field_api.field_service, default_project_policy())
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_field_registry_api=field_api,
         p6_layout_definition_api=layout_api,
+        p6_formula_authority_api=formula_api,
     ), field_api, layout_api
 
 
@@ -139,6 +143,60 @@ def test_p6_routes_reject_cross_scope_project_context():
     status, _, body = r.handle("GET", "/api/projects/p2/p6/fields/p6-field-registry.v1", cookies={"cp_session": "s1"})
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_p6_formula_route_exposes_authoritative_versioned_validation():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expression": "[activity.percent_complete] + 1"}).encode("utf-8"),
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_FORMULA_AUTHORITY_API_VERSION
+    assert payload["validation"]["valid"] is True
+    assert payload["dependencies"]["field_ids"] == ["activity.percent_complete"]
+    assert payload["result_type"]["data_type"] == "double"
+
+
+def test_p6_formula_route_requires_session_and_rejects_invalid_request():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        body=b"{}",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expression": 123}).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_FORMULA_REQUEST_INVALID"
+
+
+def test_p6_formula_route_preserves_structured_shared_core_validation_error():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expression": "[missing.field] + 1"}).encode("utf-8"),
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_FORMULA_AUTHORITY_API_VERSION
+    assert payload["validation"]["valid"] is False
+    assert payload["validation"]["error_code"]
 
 
 def test_p6_layout_route_returns_persisted_layout():
