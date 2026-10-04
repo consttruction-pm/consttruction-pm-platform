@@ -130,13 +130,9 @@ def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
         for field in field_catalog()
         if field.subject_area == "Activity"
     }
-    # This is a historical tranche-count assertion; tranche D added these two
-    # fields after the artifact baseline was created.
-    historical_registry_names = registry_names - {
-        "SecondaryConstraintDate",
-        "SecondaryConstraintType",
-    }
-    covered = set(historical_registry_names)
+    # The current Release 26 reconciliation uses the live registry as the
+    # authoritative covered set; the artifact is historical evidence only.
+    covered = set(registry_names)
     for relative_path in DIRECT_EVIDENCE:
         covered.update(_field_names(_load(Path(relative_path))))
     covered.update(_field_names(_load(TRANCHE1)))
@@ -144,7 +140,8 @@ def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    # This historical certification artifact is evaluated against the current\n    # cumulative registry. Tranche 10D plus the two date aliases reduced the\n    # remaining inventory before this tranche; tranche 11E reduces it further.\n    assert len(inventory_names - covered) == 6
+    # The current Release 26 reconciliation now covers the complete 275-field Activity inventory.
+    assert len(inventory_names - covered) == 0
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():

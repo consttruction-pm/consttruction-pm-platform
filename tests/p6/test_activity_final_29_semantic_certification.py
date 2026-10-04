@@ -38,6 +38,14 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         "TotalCost1Variance",
         "TotalCost2Variance",
         "TotalCost3Variance",
+        "TotalCostVariance",
+        "TotalPastPeriodExpenseCost",
+        "UnreadCommentCount",
+        "WBSCode",
+        "WBSName",
+        "WBSNamePath",
+        "WBSObjectId",
+        "WorkPackageId",
     }
 
     assert len(names) == 29
