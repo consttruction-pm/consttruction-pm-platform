@@ -25,6 +25,7 @@ button { font: inherit; }
 table { width:100%; border-collapse:collapse; min-width:760px; }
 th, td { padding:.55rem; border-bottom:1px solid #e6e9ee; text-align:start; white-space:nowrap; }
 tr[tabindex] { cursor:pointer; }
+button:focus-visible, input:focus-visible, tr[tabindex]:focus-visible, [role="button"]:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
 tr.is-selected { outline:2px solid currentColor; outline-offset:-2px; }
 .cp-gantt-board { overflow:auto; }
 .cp-gantt-row { display:grid; grid-template-columns:120px minmax(320px,1fr); gap:.6rem; align-items:center; margin:.4rem 0; }
