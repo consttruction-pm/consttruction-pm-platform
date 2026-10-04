@@ -25,6 +25,8 @@ from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCal
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
+from construction_pm.p6_financial_period_repository import P6FinancialPeriodApplicationService, SQLiteP6FinancialPeriodRepository
 from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
 from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
 from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
@@ -235,6 +237,10 @@ def p6_routes(roles=frozenset({"project_admin"})):
         P6BaselineApplicationService(SQLiteP6BaselineRepository(connection), transaction_manager),
         default_project_policy(),
     )
+    financial_period_api = P6FinancialPeriodAPI(
+        P6FinancialPeriodApplicationService(SQLiteP6FinancialPeriodRepository(connection), transaction_manager),
+        default_project_policy(),
+    )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -243,6 +249,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_formula_authority_api=formula_api,
         p6_calendar_read_api=calendar_api,
         p6_baseline_api=baseline_api,
+        p6_financial_period_api=financial_period_api,
     ), field_api, layout_api
 
 
@@ -674,6 +681,70 @@ def test_p6_field_write_route_requires_session_cookie():
     )
     assert status == 401
     assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
+def test_p6_financial_period_http_routes_create_get_and_list_preserve_contract():
+    r, _, _ = p6_routes()
+    payload = {
+        "period_id": "2026-09",
+        "name": "September 2026",
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-30",
+        "status": "OPEN",
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode()
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["contract_version"] == P6_FINANCIAL_PERIOD_API_VERSION
+    assert saved["financial_period"]["period_id"] == "2026-09"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/financial-periods/2026-09", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(body) == saved
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    listed = json.loads(body)
+    assert listed["contract_version"] == P6_FINANCIAL_PERIOD_API_VERSION
+    assert [item["financial_period"]["period_id"] for item in listed["financial_periods"]] == ["2026-09"]
+
+
+def test_p6_financial_period_routes_reject_cross_scope_missing_permission_and_invalid_payload():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p2/p6/financial-periods", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    r, _, _ = p6_routes(roles=frozenset({"writer"}))
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "authorization denied for permission=project.read"
+
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}, body=b"{\"period_id\": 7}"
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_FINANCIAL_PERIOD_REQUEST_INVALID"
+
+
+def test_p6_financial_period_get_returns_not_found():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/financial-periods/missing", cookies={"cp_session": "s1"}
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_FINANCIAL_PERIOD_NOT_FOUND"
 
 
 def test_p6_baseline_http_routes_create_get_and_list_preserve_contract():
