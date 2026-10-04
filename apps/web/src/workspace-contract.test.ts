@@ -58,3 +58,22 @@ test("contract adapter rejects unknown contract versions", () => {
     /UNSUPPORTED_WORKSPACE_CONTRACT/,
   );
 });
+
+test("contract adapter rejects malformed collections with stable errors", () => {
+  const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
+  assert.throws(
+    () => workspaceActivitiesFromSnapshot({ ...snapshot, activities: null } as never),
+    /INVALID_WORKSPACE_COLLECTION/,
+  );
+  assert.throws(
+    () => workspaceActivitiesFromSnapshot({ ...snapshot, columns: null } as never),
+    /INVALID_WORKSPACE_COLLECTION/,
+  );
+  assert.throws(
+    () => workspaceActivitiesFromSnapshot({
+      ...snapshot,
+      activities: [{ id: "", wbs_id: "W-1", code: "01", name: "One", cells: {}, gantt: null }],
+    } as never),
+    /INVALID_WORKSPACE_ACTIVITY/,
+  );
+});
