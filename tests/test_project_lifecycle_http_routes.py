@@ -156,7 +156,7 @@ def test_authenticated_sync_rejects_spoofed_tenant_and_stale_revision():
 
     body["tenant_id"] = "t1"
     body["expected_revision"] = 1
-    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, headers={"Idempotency-Key": "idem-2"}, body=json.dumps(body).encode())
+    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, headers={"Idempotency-Key": "idem-1"}, body=json.dumps(body).encode())
     assert status == 200
     result = json.loads(raw)
     assert result["disposition"] == "conflict"
