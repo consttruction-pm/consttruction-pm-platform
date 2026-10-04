@@ -253,3 +253,30 @@ def test_release26_activity_tranche_next11e_has_exact_typed_metadata():
         assert field.computed is computed
         assert field.unit == unit
         assert field.source == "Oracle P6 Version 26 / 26.4"
+
+
+
+def test_release26_activity_tranche_next12_has_exact_typed_metadata():
+    expected = {
+        "TotalCostVariance": (P6FieldType.COST, False, True, "currency"),
+        "TotalPastPeriodEarnedValueCostBCWP": (P6FieldType.COST, True, False, "currency"),
+        "TotalPastPeriodEarnedValueLaborUnits": (P6FieldType.UNIT, True, False, "units"),
+        "TotalPastPeriodExpenseCost": (P6FieldType.COST, True, False, "currency"),
+        "TotalPastPeriodPlannedValueCost": (P6FieldType.COST, True, False, "currency"),
+        "TotalPastPeriodPlannedValueLaborUnits": (P6FieldType.UNIT, True, False, "units"),
+        "UnreadCommentCount": (P6FieldType.INTEGER, False, True, None),
+        "WBSCode": (P6FieldType.STRING, False, True, None),
+        "WBSName": (P6FieldType.STRING, False, True, None),
+        "WBSNamePath": (P6FieldType.STRING, False, True, None),
+        "WBSObjectId": (P6FieldType.OBJECT_ID, True, False, None),
+        "WorkPackageId": (P6FieldType.STRING, True, False, None),
+    }
+    for p6_name, (data_type, writable, computed, unit) in expected.items():
+        matches = [field for field in field_catalog() if field.subject_area == "Activity" and field.p6_field == p6_name]
+        assert len(matches) == 1
+        field = matches[0]
+        assert field.data_type is data_type
+        assert field.writable is writable
+        assert field.computed is computed
+        assert field.unit == unit
+        assert field.source == "Oracle P6 Version 26 / 26.4"
