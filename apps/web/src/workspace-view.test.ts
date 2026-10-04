@@ -409,3 +409,41 @@ test("Gantt activity selection responds to Enter and Space keyboard activation",
   assert.deepEqual(selected, ["A-1", "A-1"]);
   assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
 });
+
+test("Activity Grid selection responds to Enter and Space keyboard activation", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1",
+      wbsId: "W-1",
+      code: "01",
+      name: "Foundation",
+      cells: { activity_name: "Foundation" },
+    }],
+  };
+  const selected: string[] = [];
+  const listeners = new Map<string, (event?: Event) => void>();
+  const gridRow = {
+    dataset: { activityId: "A-1" },
+    addEventListener: (event: string, listener: (event?: Event) => void) => listeners.set(event, listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-activity-id]" ? [gridRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onActivitySelect: (activityId) => selected.push(activityId),
+  });
+
+  const preventDefaultCalls: string[] = [];
+  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
+  listeners.get("keydown")?.({ key: " ", preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
+
+  assert.deepEqual(selected, ["A-1", "A-1"]);
+  assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
+});
