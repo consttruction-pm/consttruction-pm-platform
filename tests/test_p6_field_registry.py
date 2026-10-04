@@ -147,7 +147,7 @@ def test_release26_activity_tranche_next10_has_exact_typed_metadata():
         assert field.source == "Oracle P6 Version 26 / 26.4"
 
 
-def test_release26_activity_tranche_next10_has_exact_typed_metadata():
+def test_release26_activity_tranche_next10b_has_exact_typed_metadata():
     expected = {
         "PerformancePercentCompleteByLaborUnits": (P6FieldType.PERCENTAGE, False, True, "percent"),
         "PlannedExpenseCost": (P6FieldType.COST, False, True, "currency"),
