@@ -806,8 +806,26 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
                 return FormulaValue.null()
             branch_index = 1 if condition.require_boolean() else 2
             return _evaluate(node.arguments[branch_index], values)
+        if name == "AND":
+            saw_null = False
+            for argument in node.arguments:
+                item = _evaluate(argument, values)
+                if item.type is FormulaType.BOOLEAN and not item.value:
+                    return FormulaValue.boolean(False)
+                if item.type is FormulaType.NULL:
+                    saw_null = True
+            return FormulaValue.null() if saw_null else FormulaValue.boolean(True)
+        if name == "OR":
+            saw_null = False
+            for argument in node.arguments:
+                item = _evaluate(argument, values)
+                if item.type is FormulaType.BOOLEAN and item.value:
+                    return FormulaValue.boolean(True)
+                if item.type is FormulaType.NULL:
+                    saw_null = True
+            return FormulaValue.null() if saw_null else FormulaValue.boolean(False)
+        args = [_evaluate(argument, values) for argument in node.arguments]
         if name == "SUM":
-            args = [_evaluate(argument, values) for argument in node.arguments]
             present = [item for item in args if item.type is not FormulaType.NULL]
             if not present:
                 return FormulaValue.null()
@@ -857,24 +875,6 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
             if item.type is FormulaType.NULL:
                 return FormulaValue.null()
             return FormulaValue.boolean(not item.require_boolean())
-        if name == "AND":
-            saw_null = False
-            for argument in node.arguments:
-                item = _evaluate(argument, values)
-                if item.type is FormulaType.BOOLEAN and not item.value:
-                    return FormulaValue.boolean(False)
-                if item.type is FormulaType.NULL:
-                    saw_null = True
-            return FormulaValue.null() if saw_null else FormulaValue.boolean(True)
-        if name == "OR":
-            saw_null = False
-            for argument in node.arguments:
-                item = _evaluate(argument, values)
-                if item.type is FormulaType.BOOLEAN and item.value:
-                    return FormulaValue.boolean(True)
-                if item.type is FormulaType.NULL:
-                    saw_null = True
-            return FormulaValue.null() if saw_null else FormulaValue.boolean(False)
         raise FormulaTypeError(f"UNSUPPORTED_FUNCTION:{name}")
 
     raise FormulaTypeError("UNKNOWN_AST_NODE")
