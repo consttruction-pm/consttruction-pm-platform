@@ -18,6 +18,7 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
+from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
@@ -49,11 +50,13 @@ class ProjectLifecycleHttpRoutes:
         *,
         p6_field_registry_api: P6FieldRegistryAPI | None = None,
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
+        p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
         self._p6_field_registry_api = p6_field_registry_api
         self._p6_layout_definition_api = p6_layout_definition_api
+        self._p6_formula_authority_api = p6_formula_authority_api
 
     def handle(
         self,
@@ -215,6 +218,35 @@ class ProjectLifecycleHttpRoutes:
                     "registry_version": registry_version,
                     "udfs": [item["udf"] for item in udfs],
                 })
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/formulas/" in path:
+                if self._p6_formula_authority_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, registry_version = path.split("/p6/formulas/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not registry_version or "/" in registry_version:
+                    return self._error(400, "P6_FORMULA_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict) or not isinstance(payload.get("expression"), str):
+                    return self._error(400, "P6_FORMULA_REQUEST_INVALID", "error.request.invalid")
+                context_field_id = payload.get("context_field_id")
+                if context_field_id is not None and not isinstance(context_field_id, str):
+                    return self._error(400, "P6_FORMULA_REQUEST_INVALID", "error.request.invalid")
+                result = self._p6_formula_authority_api.validate(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    registry_version,
+                    payload["expression"],
+                    auth_context=auth,
+                    context_field_id=context_field_id,
+                )
+                return self._json(200, result)
             if method == "POST" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
