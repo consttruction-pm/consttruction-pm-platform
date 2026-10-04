@@ -33,6 +33,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const t = labels[state.locale];
   const wbsIds = [...new Set(state.activities.map((activity) => activity.wbsId))];
   const scale = createGanttScale(state.activities);
+  const stickyOffsets = new Map<string, number>();
+  let stickyOffset = 0;
+  for (const column of state.columns) {
+    if (column.pinned || column.frozen) {
+      stickyOffsets.set(column.id, stickyOffset);
+      stickyOffset += column.width;
+    }
+  }
 
   container.innerHTML = `
     <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}">
@@ -63,8 +71,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false">
-                <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
-                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
+                <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
+                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
           </section>
@@ -570,9 +578,9 @@ function renderP6FieldChooser(state: WorkspaceState): string {
   </section>`;
 }
 
-function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState): string {
+function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
-  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td role="gridcell">${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
+  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td role="gridcell" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${renderCell(column.id, activity)}</td>`).join("")}</tr>`;
 }
 
 function renderCell(columnId: string, activity: WorkspaceActivityRow): string {
