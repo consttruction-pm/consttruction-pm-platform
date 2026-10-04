@@ -228,3 +228,28 @@ def test_release26_activity_tranche_next10d_has_exact_typed_metadata():
         assert field.computed is computed
         assert field.unit == unit
         assert field.source == "Oracle P6 Version 26 / 26.4"
+
+
+def test_release26_activity_tranche_next11e_has_exact_typed_metadata():
+    expected = {
+        "StartDate": (P6FieldType.DATETIME, True, False, None),
+        "StartDate1Variance": (P6FieldType.DURATION, False, True, "working-time"),
+        "StartDate2Variance": (P6FieldType.DURATION, False, True, "working-time"),
+        "StartDate3Variance": (P6FieldType.DURATION, False, True, "working-time"),
+        "TaskStatusCompletion": (P6FieldType.COMPLEX, True, False, None),
+        "TaskStatusDates": (P6FieldType.COMPLEX, True, False, None),
+        "TaskStatusIndicator": (P6FieldType.BOOLEAN, True, False, None),
+        "ToCompletePerformanceIndex": (P6FieldType.DOUBLE, False, True, None),
+        "TotalCost1Variance": (P6FieldType.COST, False, True, "currency"),
+        "TotalCost2Variance": (P6FieldType.COST, False, True, "currency"),
+        "TotalCost3Variance": (P6FieldType.COST, False, True, "currency"),
+    }
+    for p6_name, (data_type, writable, computed, unit) in expected.items():
+        matches = [field for field in field_catalog() if field.subject_area == "Activity" and field.p6_field == p6_name]
+        assert len(matches) == 1
+        field = matches[0]
+        assert field.data_type is data_type
+        assert field.writable is writable
+        assert field.computed is computed
+        assert field.unit == unit
+        assert field.source == "Oracle P6 Version 26 / 26.4"
