@@ -78,6 +78,54 @@ def test_if_and_logical_functions_are_supported() -> None:
     ) == FormulaValue.text("Approved")
 
 
+def test_if_is_lazy_for_unselected_branch_errors() -> None:
+    compiled = _compile("IF(TRUE, 7, [budget] / 0)")
+    assert evaluate_formula(
+        compiled,
+        {"budget": FormulaValue.number(10, "USD")},
+    ) == FormulaValue.number(7)
+
+
+def test_binary_and_or_short_circuit_decisive_left_operand() -> None:
+    and_formula = compile_formula(
+        FormulaDefinition("test.and_lazy", "1.0", "FALSE AND ([budget] / 0 > 1)", FormulaType.BOOLEAN),
+        SCHEMA,
+    )
+    or_formula = compile_formula(
+        FormulaDefinition("test.or_lazy", "1.0", "TRUE OR ([budget] / 0 > 1)", FormulaType.BOOLEAN),
+        SCHEMA,
+    )
+
+    values = {"budget": FormulaValue.number(10, "USD")}
+    assert evaluate_formula(and_formula, values) == FormulaValue.boolean(False)
+    assert evaluate_formula(or_formula, values) == FormulaValue.boolean(True)
+
+
+def test_function_and_or_short_circuit_decisive_operand() -> None:
+    and_formula = compile_formula(
+        FormulaDefinition(
+            "test.and_function_lazy",
+            "1.0",
+            "AND(FALSE, [budget] / 0 > 1)",
+            FormulaType.BOOLEAN,
+        ),
+        SCHEMA,
+    )
+    or_formula = compile_formula(
+        FormulaDefinition(
+            "test.or_function_lazy",
+            "1.0",
+            "OR(TRUE, [budget] / 0 > 1)",
+            FormulaType.BOOLEAN,
+        ),
+        SCHEMA,
+    )
+
+    values = {"budget": FormulaValue.number(10, "USD")}
+    assert evaluate_formula(and_formula, values) == FormulaValue.boolean(False)
+    assert evaluate_formula(or_formula, values) == FormulaValue.boolean(True)
+
+
 def test_null_propagates_in_arithmetic_and_comparisons() -> None:
     compiled = _compile("[budget] - [actual]")
 

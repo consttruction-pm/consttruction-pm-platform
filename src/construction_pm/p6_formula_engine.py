@@ -709,13 +709,13 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
         raise FormulaTypeError("UNSUPPORTED_UNARY_OPERATOR")
 
     if isinstance(node, BinaryNode):
-        left = _evaluate(node.left, values)
-        right = _evaluate(node.right, values)
         operator = node.operator
 
         if operator == "AND":
+            left = _evaluate(node.left, values)
             if left.type is FormulaType.BOOLEAN and not left.value:
                 return FormulaValue.boolean(False)
+            right = _evaluate(node.right, values)
             if right.type is FormulaType.BOOLEAN and not right.value:
                 return FormulaValue.boolean(False)
             if left.type is FormulaType.NULL or right.type is FormulaType.NULL:
@@ -723,13 +723,18 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
             return FormulaValue.boolean(True)
 
         if operator == "OR":
+            left = _evaluate(node.left, values)
             if left.type is FormulaType.BOOLEAN and left.value:
                 return FormulaValue.boolean(True)
+            right = _evaluate(node.right, values)
             if right.type is FormulaType.BOOLEAN and right.value:
                 return FormulaValue.boolean(True)
             if left.type is FormulaType.NULL or right.type is FormulaType.NULL:
                 return FormulaValue.null()
             return FormulaValue.boolean(False)
+
+        left = _evaluate(node.left, values)
+        right = _evaluate(node.right, values)
 
         if operator in {"+", "-", "*", "/", "^"}:
             if left.type is FormulaType.NULL or right.type is FormulaType.NULL:
@@ -794,13 +799,32 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
         raise FormulaTypeError("UNSUPPORTED_BINARY_OPERATOR")
 
     if isinstance(node, FunctionNode):
-        args = [_evaluate(argument, values) for argument in node.arguments]
         name = node.name
         if name == "IF":
-            condition = args[0]
+            condition = _evaluate(node.arguments[0], values)
             if condition.type is FormulaType.NULL:
                 return FormulaValue.null()
-            return args[1] if condition.require_boolean() else args[2]
+            branch_index = 1 if condition.require_boolean() else 2
+            return _evaluate(node.arguments[branch_index], values)
+        if name == "AND":
+            saw_null = False
+            for argument in node.arguments:
+                item = _evaluate(argument, values)
+                if item.type is FormulaType.BOOLEAN and not item.value:
+                    return FormulaValue.boolean(False)
+                if item.type is FormulaType.NULL:
+                    saw_null = True
+            return FormulaValue.null() if saw_null else FormulaValue.boolean(True)
+        if name == "OR":
+            saw_null = False
+            for argument in node.arguments:
+                item = _evaluate(argument, values)
+                if item.type is FormulaType.BOOLEAN and item.value:
+                    return FormulaValue.boolean(True)
+                if item.type is FormulaType.NULL:
+                    saw_null = True
+            return FormulaValue.null() if saw_null else FormulaValue.boolean(False)
+        args = [_evaluate(argument, values) for argument in node.arguments]
         if name == "SUM":
             present = [item for item in args if item.type is not FormulaType.NULL]
             if not present:
@@ -851,20 +875,6 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
             if item.type is FormulaType.NULL:
                 return FormulaValue.null()
             return FormulaValue.boolean(not item.require_boolean())
-        if name == "AND":
-            for item in args:
-                if item.type is FormulaType.BOOLEAN and not item.value:
-                    return FormulaValue.boolean(False)
-                if item.type is FormulaType.NULL:
-                    return FormulaValue.null()
-            return FormulaValue.boolean(True)
-        if name == "OR":
-            for item in args:
-                if item.type is FormulaType.BOOLEAN and item.value:
-                    return FormulaValue.boolean(True)
-                if item.type is FormulaType.NULL:
-                    return FormulaValue.null()
-            return FormulaValue.boolean(False)
         raise FormulaTypeError(f"UNSUPPORTED_FUNCTION:{name}")
 
     raise FormulaTypeError("UNKNOWN_AST_NODE")
