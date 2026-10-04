@@ -14,6 +14,20 @@ class DependencyGraphApplicationService:
     authorization_policy: AuthorizationPolicy
     transaction_manager: PostgresTransactionManager
 
+    def get(
+        self,
+        tenant_id: str,
+        project_id: str,
+        resource_id: str,
+        *,
+        context: AuthorizationContext,
+    ) -> StoredDependencyLink | None:
+        if context.tenant_id != tenant_id or context.project_id != project_id:
+            raise AuthorizationError("CROSS_PROJECT_DEPENDENCY")
+        if not self.authorization_policy.is_allowed(context, Permission.PROJECT_READ):
+            raise AuthorizationError("DEPENDENCY_READ_NOT_AUTHORIZED")
+        return self.store.get(tenant_id, project_id, resource_id)
+
     def create(
         self,
         link: DependencyLink,
