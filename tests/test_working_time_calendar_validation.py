@@ -38,3 +38,13 @@ def test_working_time_calendar_accepts_valid_intervals():
         daily_intervals={0: ((time(8), time(12)), (time(13), time(17)))},
     )
     assert calendar.intervals_for(date(2026, 1, 5))
+
+
+
+def test_working_time_calendar_daily_intervals_are_immutable():
+    calendar = WorkingTimeCalendar(daily_intervals={0: ((time(8), time(17)),)})
+
+    with pytest.raises(TypeError):
+        calendar.daily_intervals[0] = ((time(9), time(17)),)
+
+    assert calendar.intervals_for(date(2026, 1, 5)) == ((time(8), time(17)),)
