@@ -21,7 +21,7 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
-from ..p6_layout_definition_api import P6LayoutDefinitionAPI
+from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
@@ -337,7 +337,7 @@ class ProjectLifecycleHttpRoutes:
                     metadata,
                 )
                 result = self._p6_layout_definition_api.save(layout, auth_context=auth)
-                return self._json(200, result["layout"])
+                return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -363,7 +363,7 @@ class ProjectLifecycleHttpRoutes:
                 )
                 if result is None:
                     return self._error(404, "P6_LAYOUT_NOT_FOUND", "error.p6.layout.not_found")
-                return self._json(200, result["layout"])
+                return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
                 if not project_id:
