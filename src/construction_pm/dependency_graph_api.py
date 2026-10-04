@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 from .application.authorization import (
     AuthorizationContext,
     AuthorizationError,
+    AuthorizationPolicy,
     Permission,
+    default_project_policy,
 )
 from .dependency_graph_application import DependencyGraphApplicationService
 from .dependency_graph_persistence import DependencyLink
@@ -46,6 +48,7 @@ class DependencyGraphAPI:
     """Thin versioned transport adapter over the authoritative application boundary."""
 
     service: DependencyGraphApplicationService
+    authorization_policy: AuthorizationPolicy = field(default_factory=default_project_policy)
 
     def get(
         self,
@@ -66,7 +69,7 @@ class DependencyGraphAPI:
             raise ValueError("INVALID_DEPENDENCY_RESOURCE_SCOPE")
         if auth_context.tenant_id != tenant_id or auth_context.project_id != project_id:
             raise AuthorizationError("CROSS_PROJECT_DEPENDENCY")
-        if not self.service.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("DEPENDENCY_READ_NOT_AUTHORIZED")
 
         stored = self.service.get(tenant_id, project_id, resource_id, context=auth_context)
