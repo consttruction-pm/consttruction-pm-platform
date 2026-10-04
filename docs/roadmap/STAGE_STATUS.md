@@ -1108,3 +1108,14 @@ Status: 100% — merged and runtime-verified
 - PR #1116 squash-merged as 5c6ef9c3fd99d6cb3c5966b0ecba8d5836bf8552.
 - Current main after this checkpoint: 5c6ef9c3fd99d6cb3c5966b0ecba8d5836bf8552.
 - Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative project evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
+
+
+### 2026-10-05 — Hasan P6 Layout HTTP contract identity checkpoint (PR #1118)
+Status: 100% — merged and runtime-verified
+- Fresh current-main audit identified a concrete Hasan-owned HTTP contract gap: P6LayoutDefinitionAPI emitted `p6-layout-definition-api.v1`, but the HTTP GET/POST routes stripped `contract_version` by returning only the nested layout payload.
+- PR #1118 additively preserved the versioned contract identity on both layout HTTP responses and added focused regression assertions; existing layout fields and Shared Core semantics were unchanged.
+- Final implementation head: `d997702995906afb9c8f6e2051b39fb840968508`.
+- Client Typecheck **3608** and ConstructionPM CI **3905** both passed on the exact head.
+- PR #1118 squash-merged as `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
+- Current main after this checkpoint: `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
+- Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
