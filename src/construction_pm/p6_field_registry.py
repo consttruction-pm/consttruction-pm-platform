@@ -411,6 +411,8 @@ P6_ACTIVITY_ALIAS_RESOLUTIONS: dict[str, str] = {
     "activity.activity_status": "activity.status",
     "activity.activity_type": "activity.type",
     "activity.updated_by": "activity.last_update_user",
+    "activity.remaining_start": "activity.remaining_early_start_date",
+    "activity.remaining_finish": "activity.remaining_early_finish_date",
 }
 
 
