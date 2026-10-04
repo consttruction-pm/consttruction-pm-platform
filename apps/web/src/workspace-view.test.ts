@@ -276,10 +276,10 @@ test("Gantt activity selection forwards to the shared Activity selection callbac
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  const listeners = new Map<string, (event?: Event) => void>();
   const ganttRow = {
     dataset: { ganttActivityId: "A-1" },
-    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+    addEventListener: (event: string, listener: (event?: Event) => void) => listeners.set(event, listener),
   };
   const container: RenderContainer = {
     innerHTML: "",
@@ -364,4 +364,48 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
   assert.match(container.innerHTML, /<td role="gridcell">A-1<\/td>/);
+});
+
+
+test("Gantt activity selection responds to Enter and Space keyboard activation", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1",
+      wbsId: "W-1",
+      code: "01",
+      name: "Foundation",
+      gantt: {
+        start: "2026-09-01T00:00:00Z",
+        finish: "2026-09-03T00:00:00Z",
+        progressPercent: 25,
+        critical: false,
+      },
+    }],
+  };
+  const selected: string[] = [];
+  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  const ganttRow = {
+    dataset: { ganttActivityId: "A-1" },
+    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: ((selector: string) =>
+      selector === "[data-gantt-activity-id]" ? [ganttRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onGanttActivitySelect: (activityId) => selected.push(activityId),
+  });
+
+  const preventDefaultCalls: string[] = [];
+  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
+  listeners.get("keydown")?.({ key: " ", preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
+
+  assert.deepEqual(selected, ["A-1", "A-1"]);
+  assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
 });
