@@ -172,6 +172,15 @@ def test_if_branches_must_have_compatible_types() -> None:
         )
 
 
+def test_round_rejects_non_integer_digits() -> None:
+    compiled = _compile("ROUND([actual], 2.9)")
+    with pytest.raises(FormulaTypeError, match="ROUND_DIGITS_MUST_BE_INTEGER"):
+        evaluate_formula(
+            compiled,
+            {"actual": FormulaValue.number(Decimal("1.235"), "USD")},
+        )
+
+
 def test_round_uses_decimal_half_up_semantics() -> None:
     compiled = _compile("ROUND([actual], 2)")
 

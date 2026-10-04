@@ -868,7 +868,12 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
             item = args[0]
             if item.type is FormulaType.NULL:
                 return FormulaValue.null()
-            digits = int(args[1].require_number()) if len(args) == 2 and args[1].type is not FormulaType.NULL else 0
+            digits = 0
+            if len(args) == 2 and args[1].type is not FormulaType.NULL:
+                raw_digits = args[1].require_number()
+                if raw_digits != raw_digits.to_integral_value():
+                    raise FormulaTypeError("ROUND_DIGITS_MUST_BE_INTEGER")
+                digits = int(raw_digits)
             quantum = Decimal(1).scaleb(-digits)
             return FormulaValue.number(item.require_number().quantize(quantum, rounding=ROUND_HALF_UP), item.unit)
         if name == "COALESCE":
