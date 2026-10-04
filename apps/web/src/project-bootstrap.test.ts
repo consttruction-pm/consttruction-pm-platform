@@ -121,6 +121,50 @@ test("zero projects returns explicit error", async () => {
   assert.equal(state?.status === "error" ? state.error.code : "", "NO_PROJECTS_AVAILABLE");
 });
 
+test("project creation hydrates the authoritative created context without a second open call", async () => {
+  const setup = deps({
+    createProject: async (projectId, name) => {
+      assert.equal(projectId, "new-project");
+      assert.equal(name, "New Project");
+      return ok({
+        context: {
+          tenant_id: "t-created",
+          project_id: projectId,
+          revision: 0,
+          user_id: "u1",
+        },
+      });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.createProject("new-project", "New Project");
+
+  assert.equal(state?.status, "ready");
+  assert.deepEqual(setup.opened, []);
+  assert.deepEqual(setup.runtimeContexts, [{
+    tenant_id: "t-created",
+    project_id: "new-project",
+    revision: 0,
+  }]);
+  assert.deepEqual(state?.status === "ready" ? state.context : null, {
+    tenant_id: "t-created",
+    project_id: "new-project",
+    revision: 0,
+  });
+});
+
+test("project creation failure is surfaced without workspace hydration", async () => {
+  const setup = deps({ createProject: async () => error("PROJECT_CREATE_FAILED") });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.createProject("new-project", "New Project");
+
+  assert.equal(state?.status, "error");
+  assert.equal(state?.status === "error" ? state.error.code : "", "PROJECT_CREATE_FAILED");
+  assert.deepEqual(setup.runtimeContexts, []);
+});
+
 test("invalid project selection is rejected without opening", async () => {
   const setup = deps();
   const bootstrap = new ProjectBootstrap(setup.dependencies);
