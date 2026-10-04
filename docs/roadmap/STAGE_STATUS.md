@@ -1119,3 +1119,19 @@ Status: 100% — merged and runtime-verified
 - PR #1118 squash-merged as `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Current main after this checkpoint: `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
+
+
+### 2026-10-05 — P6 Financial Period HTTP Boundary (PR #1142)
+
+- Fresh current-main audit at `87d67972712aa65b4e18e72560244e993d2b3e86` identified a concrete Hasan-owned gap: the existing versioned `P6FinancialPeriodAPI` had no authenticated `ProjectLifecycleHttpRoutes` boundary.
+- PR #1142 exposed authenticated GET list/read and POST create routes under `/api/projects/{project_id}/p6/financial-periods`, binding tenant/project/revision from authenticated `ProjectContext` and preserving `p6-financial-period-api.v1`.
+- Focused regression coverage verifies create/read/list, cross-scope rejection, permission rejection, malformed payload rejection and not-found behavior.
+- Exact implementation head: `ce7bd2e70ed2822a412c298c44a5d6f9c58a142d`.
+- Client Typecheck **3642** and ConstructionPM CI **3939** both passed on the exact head.
+- PR #1142 squash-merged as `712d0ba6379e0ed30be53dae01888dba2b367120`.
+- No financial calculations/accounting semantics or Shared Core scheduling semantics were introduced.
+
+### Current continuation point
+- Current `main`: `712d0ba6379e0ed30be53dae01888dba2b367120`.
+- PR #1140 was stale against an older base and remains closed/superseded; do not revive it.
+- Next Hasan action: fresh current-main/open-PR audit and only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence.
