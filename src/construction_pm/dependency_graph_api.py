@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .application.authorization import AuthorizationContext
+from .application.authorization import (
+    AuthorizationContext,
+    AuthorizationError,
+    Permission,
+)
 from .dependency_graph_application import DependencyGraphApplicationService
 from .dependency_graph_persistence import DependencyLink
 
@@ -51,8 +55,20 @@ class DependencyGraphAPI:
         resource_id: str,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
-        if not isinstance(tenant_id, str) or not tenant_id.strip() or not isinstance(project_id, str) or not project_id.strip() or not isinstance(resource_id, str) or not resource_id.strip():
+        if (
+            not isinstance(tenant_id, str)
+            or not tenant_id.strip()
+            or not isinstance(project_id, str)
+            or not project_id.strip()
+            or not isinstance(resource_id, str)
+            or not resource_id.strip()
+        ):
             raise ValueError("INVALID_DEPENDENCY_RESOURCE_SCOPE")
+        if auth_context.tenant_id != tenant_id or auth_context.project_id != project_id:
+            raise AuthorizationError("CROSS_PROJECT_DEPENDENCY")
+        if not self.service.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise AuthorizationError("DEPENDENCY_READ_NOT_AUTHORIZED")
+
         stored = self.service.get(tenant_id, project_id, resource_id, context=auth_context)
         if stored is None:
             return None
@@ -97,3 +113,4 @@ class DependencyGraphAPI:
             "dependency_type": stored.link.dependency_type,
             "metadata": dict(stored.link.metadata),
         }
+    
