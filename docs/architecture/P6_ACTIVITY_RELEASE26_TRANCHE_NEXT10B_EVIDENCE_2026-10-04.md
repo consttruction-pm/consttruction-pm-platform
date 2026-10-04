@@ -12,12 +12,12 @@ Authority: Oracle P6 EPPM Release 26 REST Activity GET/PUT contracts plus Oracle
 | PlannedExpenseCost | Cost / REST number(double) | Yes | COST, non-writable, computed | Planned costs for project expenses associated with the activity. |
 | PlannedTotalCost | Cost / REST number(double) | Yes | COST, non-writable, computed | Planned Labor + Planned Nonlabor + Planned Material + Planned Expense Cost. |
 | PlannedTotalUnits | Unit / REST number(double) | Yes | UNIT, non-writable, computed | Planned Labor Units + Planned Nonlabor Units. |
-| PostRespCriticalityIndex | Percent / REST number(double) | No | PERCENTAGE, writable | Post Response Criticality Index. |
-| PostResponsePessimisticFinish | EndDate / REST date-time | No | DATE, writable | Post-response activity pessimistic finish. |
-| PostResponsePessimisticStart | BeginDate / REST date-time | No | DATE, writable | Post-response activity pessimistic start. |
-| PreRespCriticalityIndex | Percent / REST number(double) | No | PERCENTAGE, writable | Pre Response Criticality Index. |
-| PreResponsePessimisticFinish | EndDate / REST date-time | No | DATE, writable | Pre-response activity pessimistic finish. |
-| PreResponsePessimisticStart | BeginDate / REST date-time | No | DATE, writable | Pre-response activity pessimistic start. |
+| PostRespCriticalityIndex | Percent / REST number(double) | Yes | PERCENTAGE, non-writable, computed | Post Response Criticality Index. |
+| PostResponsePessimisticFinish | EndDate / REST date-time | Yes | DATE, non-writable, computed | Post-response activity pessimistic finish. |
+| PostResponsePessimisticStart | BeginDate / REST date-time | Yes | DATE, non-writable, computed | Post-response activity pessimistic start. |
+| PreRespCriticalityIndex | Percent / REST number(double) | Yes | PERCENTAGE, non-writable, computed | Pre Response Criticality Index. |
+| PreResponsePessimisticFinish | EndDate / REST date-time | Yes | DATE, non-writable, computed | Pre-response activity pessimistic finish. |
+| PreResponsePessimisticStart | BeginDate / REST date-time | Yes | DATE, non-writable, computed | Pre-response activity pessimistic start. |
 
 ## Semantic boundary
 
