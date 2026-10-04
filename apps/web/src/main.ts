@@ -17,6 +17,7 @@ import {
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
+import { getBootstrapLabels } from "./bootstrap-labels.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
@@ -122,7 +123,9 @@ function renderBootstrapState(
   container: HTMLElement,
   state: ProjectBootstrapState,
   bootstrap: ProjectBootstrap,
+  locale: WorkspaceLocale = getInitialLocale(),
 ): void {
+  const t = getBootstrapLabels(locale);
   if (state.status === "ready") {
     renderApp(container, state.workspace);
     return;
@@ -132,10 +135,10 @@ function renderBootstrapState(
 
   if (state.status === "loading" || state.status === "opening" || state.status === "creating") {
     const message = state.status === "opening"
-      ? "Opening project…"
+      ? t.opening
       : state.status === "creating"
-        ? "Creating project…"
-        : "Loading workspace…";
+        ? t.creating
+        : t.loading;
     const loading = document.createElement("main");
     loading.className = "cp-shell-loading";
     loading.textContent = message;
@@ -146,28 +149,29 @@ function renderBootstrapState(
   const appendCreateProjectForm = (main: HTMLElement): void => {
     const section = document.createElement("section");
     section.className = "cp-project-create";
+    section.dir = locale === "fa" ? "rtl" : "ltr";
 
     const heading = document.createElement("h2");
-    heading.textContent = "Create project";
+    heading.textContent = t.createProject;
     section.append(heading);
 
     const form = document.createElement("form");
     form.className = "cp-project-create-form";
 
     const label = document.createElement("label");
-    label.textContent = "Project name";
+    label.textContent = t.projectName;
     const input = document.createElement("input");
     input.name = "projectName";
     input.type = "text";
     input.required = true;
     input.autocomplete = "organization";
-    input.placeholder = "e.g. Riverside Tower";
+    input.placeholder = t.projectNamePlaceholder;
     label.append(input);
     form.append(label);
 
     const submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = "Create and open";
+    submit.textContent = t.createAndOpen;
     form.append(submit);
 
     form.addEventListener("submit", async (event) => {
@@ -178,7 +182,7 @@ function renderBootstrapState(
         return;
       }
       submit.disabled = true;
-      renderBootstrapState(container, { status: "creating", projectId: "pending" }, bootstrap);
+      renderBootstrapState(container, { status: "creating", projectId: "pending" }, bootstrap, locale);
       const next = await bootstrap.createProject(crypto.randomUUID(), name);
       if (next) renderBootstrapState(container, next, bootstrap);
     });
@@ -190,9 +194,10 @@ function renderBootstrapState(
   if (state.status === "selecting") {
     const main = document.createElement("main");
     main.className = "cp-project-selection";
+    main.dir = locale === "fa" ? "rtl" : "ltr";
 
     const heading = document.createElement("h1");
-    heading.textContent = "Select project";
+    heading.textContent = t.selectProject;
     main.append(heading);
 
     for (const project of state.projects) {
@@ -201,7 +206,7 @@ function renderBootstrapState(
       button.textContent = project.name;
       button.dataset.projectId = project.project_id;
       button.addEventListener("click", async () => {
-        renderBootstrapState(container, { status: "opening", projectId: project.project_id }, bootstrap);
+        renderBootstrapState(container, { status: "opening", projectId: project.project_id }, bootstrap, locale);
         const next = await bootstrap.selectProject(project.project_id);
         if (next) renderBootstrapState(container, next, bootstrap);
       });
@@ -215,15 +220,17 @@ function renderBootstrapState(
 
   const error = document.createElement("main");
   error.className = "cp-shell-error";
+  error.dir = locale === "fa" ? "rtl" : "ltr";
 
   if (state.error.code === "NO_PROJECTS_AVAILABLE") {
     const main = document.createElement("main");
     main.className = "cp-project-selection";
+    main.dir = locale === "fa" ? "rtl" : "ltr";
     const heading = document.createElement("h1");
-    heading.textContent = "Create your first project";
+    heading.textContent = t.createFirstProject;
     main.append(heading);
     const message = document.createElement("p");
-    message.textContent = "No projects are available for this workspace yet.";
+    message.textContent = t.noProjects;
     main.append(message);
     appendCreateProjectForm(main);
     container.append(main);
@@ -231,7 +238,7 @@ function renderBootstrapState(
   }
 
   const heading = document.createElement("h1");
-  heading.textContent = "Construction PM";
+  heading.textContent = t.constructionPm;
   error.append(heading);
 
   const message = document.createElement("p");
@@ -241,9 +248,9 @@ function renderBootstrapState(
   if (state.error.available_actions.includes("retry") || state.error.retryable) {
     const retry = document.createElement("button");
     retry.type = "button";
-    retry.textContent = "Retry";
+    retry.textContent = t.retry;
     retry.addEventListener("click", async () => {
-      renderBootstrapState(container, { status: "loading" }, bootstrap);
+      renderBootstrapState(container, { status: "loading" }, bootstrap, locale);
       const next = await bootstrap.start();
       if (next) renderBootstrapState(container, next, bootstrap);
     });
@@ -253,9 +260,9 @@ function renderBootstrapState(
   if (state.error.available_actions.includes("refresh")) {
     const refresh = document.createElement("button");
     refresh.type = "button";
-    refresh.textContent = "Refresh";
+    refresh.textContent = t.refresh;
     refresh.addEventListener("click", async () => {
-      renderBootstrapState(container, { status: "loading" }, bootstrap);
+      renderBootstrapState(container, { status: "loading" }, bootstrap, getInitialLocale());
       const next = await bootstrap.start();
       if (next) renderBootstrapState(container, next, bootstrap);
     });
@@ -263,6 +270,10 @@ function renderBootstrapState(
   }
 
   container.append(error);
+}
+
+function getInitialLocale(): WorkspaceLocale {
+  return navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en";
 }
 
 async function boot(): Promise<void> {
@@ -288,7 +299,8 @@ async function boot(): Promise<void> {
     const state = await bootstrap.start();
     if (state) renderBootstrapState(container, state, bootstrap);
   } catch (error) {
-    container.innerHTML = '<main class="cp-shell-error"><h1>Construction PM</h1><p>Unable to initialize the Web workspace.</p></main>';
+    const t = getBootstrapLabels(getInitialLocale());
+    container.innerHTML = `<main class="cp-shell-error" dir="${getInitialLocale() === "fa" ? "rtl" : "ltr"}"><h1>${t.constructionPm}</h1><p>${t.unableToInitialize}</p></main>`;
     console.error(error);
   }
 }
