@@ -130,6 +130,15 @@ def p6_routes():
     ), field_api, layout_api
 
 
+def test_p6_registry_http_routes_preserve_versioned_api_contract_envelope():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 1)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth)
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/fields/p6-field-registry.v1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(body)["contract_version"] == "p6-field-registry-api.v1"
+
 def test_p6_registry_route_requires_session_cookie():
     r, _, _ = p6_routes()
     status, _, body = r.handle("GET", "/api/projects/p1/p6/fields/p6-field-registry.v1")
@@ -363,6 +372,16 @@ def test_p6_layout_route_returns_not_found_for_missing_layout():
     assert status == 404
     assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
 
+def test_p6_udf_http_routes_preserve_versioned_api_contract_envelope():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/udfs/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"udf_id":"activity.status","subject_area":"Activity","display_name":"Status","data_type":"string"}).encode(),
+    )
+    assert status == 200
+    assert json.loads(body)["contract_version"] == "p6-field-registry-api.v1"
+
 def test_p6_udf_write_route_persists_authenticated_definition():
     r, _, _ = p6_routes()
     payload = {
@@ -392,7 +411,10 @@ def test_p6_udf_write_route_persists_authenticated_definition():
         cookies={"cp_session": "s1"},
     )
     assert status == 200
-    assert json.loads(body)["udfs"] == [saved]
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-field-registry-api.v1"
+    expected_udf = {key: value for key, value in saved.items() if key != "contract_version"}
+    assert payload["udfs"] == [expected_udf]
 
 
 def test_p6_udf_write_route_rejects_invalid_payload():
