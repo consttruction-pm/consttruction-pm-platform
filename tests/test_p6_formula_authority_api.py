@@ -65,6 +65,7 @@ def test_validate_returns_structured_invalid_result() -> None:
 def test_validate_rejects_self_reference() -> None:
     result = _api().validate(
         BackendScope("tenant-a", "project-a", 2),
+        "p6-field-registry.v1",
         "1 + [activity.percent_complete]",
         auth_context=_auth("viewer"),
         context_field_id="activity.percent_complete",
