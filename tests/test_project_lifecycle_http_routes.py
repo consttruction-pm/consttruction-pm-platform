@@ -21,6 +21,14 @@ from construction_pm.p6_user_defined_fields_repository import (
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
+from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
+from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
+from construction_pm.scheduling.calendar import WorkingCalendar
+from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
+from construction_pm.scheduling.calendar_system import CalendarSystem
+from datetime import date
+from decimal import Decimal
 from construction_pm.p6_layout_definition_repository import LayoutColumn, PersistedP6Layout, SQLiteP6LayoutRepository
 
 
@@ -109,12 +117,16 @@ def p6_routes():
     )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
     formula_api = P6FormulaAuthorityAPI(field_api.field_service, default_project_policy())
+    calendar_repository = SQLiteCalendarMasterRepository(connection)
+    snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
+    calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_field_registry_api=field_api,
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
+        p6_calendar_read_api=calendar_api,
     ), field_api, layout_api
 
 
@@ -141,6 +153,63 @@ def test_p6_registry_route_returns_authorized_activity_fields():
 def test_p6_routes_reject_cross_scope_project_context():
     r, _, _ = p6_routes()
     status, _, body = r.handle("GET", "/api/projects/p2/p6/fields/p6-field-registry.v1", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_p6_calendar_route_returns_authoritative_catalog():
+    r, _, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    CalendarMaster(scope, "CAL-1", "1", "working-day", "Project Calendar")
+    calendar = CalendarMaster(scope, "CAL-1", "1", "working-day", "Project Calendar")
+    r._p6_calendar_read_api.calendar_repository.save(calendar)
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/calendars", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_CALENDAR_READ_API_VERSION
+    assert payload["scope"]["project_id"] == "p1"
+    assert payload["calendars"][0]["calendar_id"] == "CAL-1"
+    assert payload["calendars"][0]["kind"] == "working-day"
+
+
+def test_p6_calendar_snapshot_route_returns_canonical_shared_core_snapshot():
+    r, _, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    calendar = CalendarMaster(scope, "CAL-1", "1", "working-day", "Project Calendar")
+    r._p6_calendar_read_api.calendar_repository.save(calendar)
+    working_calendar = WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({date(2026, 3, 21)}),
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"), hours_per_week=Decimal("40"),
+            hours_per_month=Decimal("176"), hours_per_year=Decimal("2080"),
+        ),
+    )
+    r._p6_calendar_read_api.snapshot_repository.save(calendar, working_calendar)
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/calendars/CAL-1/1/snapshot", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_CALENDAR_READ_API_VERSION
+    assert payload["calendar"]["calendar_version"] == "1"
+    assert payload["snapshot"]["time_period_factors"]["hours_per_day"] == "8"
+
+
+def test_p6_calendar_routes_require_session_and_reject_cross_scope():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/calendars")
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p2/p6/calendars", cookies={"cp_session": "s1"}
+    )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
 
