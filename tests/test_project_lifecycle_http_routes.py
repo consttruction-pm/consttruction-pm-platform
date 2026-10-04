@@ -411,7 +411,10 @@ def test_p6_udf_write_route_persists_authenticated_definition():
         cookies={"cp_session": "s1"},
     )
     assert status == 200
-    payload = json.loads(body)\n    assert payload["contract_version"] == "p6-field-registry-api.v1"\n    expected_udf = {key: value for key, value in saved.items() if key != "contract_version"}\n    assert payload["udfs"] == [expected_udf]
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-field-registry-api.v1"
+    expected_udf = {key: value for key, value in saved.items() if key != "contract_version"}
+    assert payload["udfs"] == [expected_udf]
 
 
 def test_p6_udf_write_route_rejects_invalid_payload():
