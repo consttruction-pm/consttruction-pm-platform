@@ -97,6 +97,10 @@ th, td {
   text-align:start;
   white-space:nowrap;
 }
+.cp-p6-column.is-pinned, .cp-p6-column.is-frozen { position:sticky; inset-inline-start:var(--cp-p6-sticky-offset, 0px); background:#fff; z-index:2; }
+.cp-p6-column.is-pinned { box-shadow:2px 0 0 #dce1e8; }
+.cp-p6-column.is-frozen { box-shadow:inset 0 -2px 0 currentColor; }
+thead .cp-p6-column.is-frozen { top:0; z-index:3; }
 th { color:var(--cp-navy); background:#F8FAFC; font-weight:700; }
 tbody tr:hover { background:#F7FAFD; }
 tr[tabindex] { cursor:pointer; }
