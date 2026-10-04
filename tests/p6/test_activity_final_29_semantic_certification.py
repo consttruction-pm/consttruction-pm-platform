@@ -29,6 +29,7 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
     # This certification artifact predates tranche D; keep its reconciliation
     # assertion anchored to the registry state that existed when it was authored.
     historical_registry_names = registry_names - {
+        # Added after this certification artifact's baseline.
         "SecondaryConstraintDate",
         "SecondaryConstraintType",
         "TaskStatusCompletion",
@@ -38,6 +39,19 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
         "TotalCost1Variance",
         "TotalCost2Variance",
         "TotalCost3Variance",
+        # Added by later Activity Release 26 exact-reconciliation tranches.
+        "TotalCostVariance",
+        "TotalPastPeriodExpenseCost",
+        "UnreadCommentCount",
+        "WBSCode",
+        "WBSName",
+        "WBSNamePath",
+        "WBSObjectId",
+        "WorkPackageId",
+        "TotalPastPeriodEarnedValueCostBCWP",
+        "TotalPastPeriodEarnedValueLaborUnits",
+        "TotalPastPeriodPlannedValueCost",
+        "TotalPastPeriodPlannedValueLaborUnits",
     }
 
     assert len(names) == 29
