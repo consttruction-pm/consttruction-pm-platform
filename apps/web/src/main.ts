@@ -19,6 +19,7 @@ import {
 import { renderMainWorkspace } from "./workspace-view.js";
 import { getBootstrapLabels } from "./bootstrap-labels.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
+import { renderLandingPage } from "./landing.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -281,6 +282,11 @@ function getInitialLocale(): WorkspaceLocale {
 async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
+
+  if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
+    renderLandingPage(container);
+    return;
+  }
 
   const sessionApi = new FetchSessionApi(window.location.origin);
   const syncRuntime = new WebSyncRuntime();
