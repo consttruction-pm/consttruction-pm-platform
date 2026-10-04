@@ -392,6 +392,16 @@ _ROWS = (
     ("activity.nonlabor_cost2_variance","Activity","NonLaborCost2Variance","Nonlabor Cost 2 Variance","cost",False,True,"currency"),
     ("activity.nonlabor_cost3_variance","Activity","NonLaborCost3Variance","Nonlabor Cost 3 Variance","cost",False,True,"currency"),
     ("activity.owner_names_array","Activity","OwnerNamesArray","Owner Names Array","string",True,False,None),
+    ("activity.primary_resource_id","Activity","PrimaryResourceId","Primary Resource ID","string",False,True,None),
+    ("activity.primary_resource_object_id","Activity","PrimaryResourceObjectId","Primary Resource Object ID","object-id",True,False,None),
+    ("activity.project_flag","Activity","ProjectFlag","Project Flag","string",False,True,None),
+    ("activity.project_object_id","Activity","ProjectObjectId","Project Object ID","object-id",True,False,None),
+    ("activity.project_project_flag","Activity","ProjectProjectFlag","Project Project Flag","string",False,True,None),
+    ("activity.remaining_early_finish_date","Activity","RemainingEarlyFinishDate","Remaining Early Finish Date","date",False,True,None),
+    ("activity.remaining_expense_cost","Activity","RemainingExpenseCost","Remaining Expense Cost","cost",False,True,"currency"),
+    ("activity.remaining_float","Activity","RemainingFloat","Remaining Float","duration",False,True,"working-time"),
+    ("activity.remaining_late_finish_date","Activity","RemainingLateFinishDate","Remaining Late Finish Date","date",False,True,None),
+    ("activity.remaining_late_start_date","Activity","RemainingLateStartDate","Remaining Late Start Date","date",False,True,None),
 )
 
 
