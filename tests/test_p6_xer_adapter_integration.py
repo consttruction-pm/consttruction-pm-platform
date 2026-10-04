@@ -14,7 +14,7 @@ def scope() -> BackendScope:
     return BackendScope(tenant_id="t1", project_id="p1", project_revision=4)
 
 
-def test_xer_codec_composes_with_activity_identity_mapping_boundary() -> None:
+def test_xer_codec_composes_with_activity_task_canonical_mapping_boundary() -> None:
     id_mapping = PersistedP6Mapping(
         scope=scope(),
         definition=P6MappingDefinition(
@@ -49,5 +49,17 @@ def test_xer_codec_composes_with_activity_identity_mapping_boundary() -> None:
         scope=scope(),
     )
 
-    assert imported[0].values == {"activity.id": "A-10", "activity.name": "Foundation"}
+    assert imported[0].values == {
+        "activity.id": "A-10",
+        "activity.name": "Foundation",
+        "activity.object_id": "12345",
+        "activity.type": "TT_Task",
+        "activity.status": "TK_Active",
+        "activity.planned_start": "2026-10-01",
+        "activity.planned_finish": "2026-10-10",
+        "activity.remaining_early_start_date": "2026-10-02",
+        "activity.remaining_early_finish_date": "2026-10-09",
+        "activity.last_update_date": "2026-10-04T03:00:00",
+        "activity.last_update_user": "planner",
+    }
     assert imported[0].extensions["p6.xer.table"] == "TASK"
