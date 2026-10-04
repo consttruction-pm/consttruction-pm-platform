@@ -151,9 +151,10 @@ test("Persian workspace localizes accessibility and chooser labels", () => {
   assert.match(container.innerHTML, /aria-label="منوی اصلی"/);
   assert.match(container.innerHTML, /aria-label="انتخاب‌گر فیلد P6"/);
   assert.match(container.innerHTML, /<strong>فیلدها<\/strong>/);
-  assert.match(container.innerHTML, /title="حذف"/);
+  assert.match(container.innerHTML, /aria-label="حذف: شناسه فعالیت"/);
   assert.doesNotMatch(container.innerHTML, /aria-label="Main Menu"/);
   assert.doesNotMatch(container.innerHTML, /P6 Field Chooser/);
+  assert.doesNotMatch(container.innerHTML, /aria-label="حذف"/);
 });
 
 
@@ -234,9 +235,9 @@ test("P6 chooser exposes hidden authoritative fields", () => {
   renderMainWorkspace(container as unknown as HTMLElement, state);
   assert.match(container.innerHTML, /data-p6-field-visibility="activity\.activity_id"/);
   assert.match(container.innerHTML, /data-p6-field-visible="true"/);
-  assert.match(container.innerHTML, /title="Show"/);
-  assert.match(container.innerHTML, /aria-label="Show"/);
-  assert.match(container.innerHTML, /aria-label="Remove"/);
+  assert.match(container.innerHTML, /aria-label="Show: Activity ID"/);
+  assert.match(container.innerHTML, /aria-label="Remove: Activity ID"/);
+  assert.doesNotMatch(container.innerHTML, /aria-label="Remove"/);
 });
 
 
