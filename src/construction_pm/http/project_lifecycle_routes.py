@@ -12,6 +12,8 @@ from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
+from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from ..p6_baseline_repository import P6Baseline
 from ..p6_field_registry import (
     P6FieldDefinition,
     P6FieldType,
@@ -56,6 +58,7 @@ class ProjectLifecycleHttpRoutes:
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
+        p6_baseline_api: P6BaselineAPI | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -63,6 +66,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_calendar_read_api = p6_calendar_read_api
+        self._p6_baseline_api = p6_baseline_api
 
     def handle(
         self,
@@ -136,6 +140,85 @@ class ProjectLifecycleHttpRoutes:
                 )
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/baselines"):
+                if self._p6_baseline_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/baselines")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_baseline_api.list(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    auth_context=auth,
+                )
+                return self._json(200, {
+                    "contract_version": P6_BASELINE_API_VERSION,
+                    "baselines": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/baselines/" in path:
+                if self._p6_baseline_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, baseline_id = path.split("/p6/baselines/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not baseline_id or "/" in baseline_id:
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_baseline_api.get(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    baseline_id,
+                    auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "P6_BASELINE_NOT_FOUND", "error.p6.baseline.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/baselines"):
+                if self._p6_baseline_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/baselines")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
+                baseline = P6Baseline(
+                    scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                    baseline_id=payload.get("baseline_id", ""),
+                    name=payload.get("name", ""),
+                    baseline_type=payload.get("baseline_type", ""),
+                    source_revision=payload.get("source_revision", -1),
+                    created_at=payload.get("created_at", ""),
+                    notes=payload.get("notes"),
+                )
+                try:
+                    result = self._p6_baseline_api.create(baseline, auth_context=auth)
+                except (TypeError, ValueError):
+                    return self._error(400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "POST" and path.startswith("/api/projects/") and "/p6/fields/" in path:
                 if self._p6_field_registry_api is None:
