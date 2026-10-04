@@ -19,7 +19,7 @@ from ..p6_field_registry import (
     P6_FIELD_REGISTRY_REFERENCE_VERSION,
     P6_FIELD_REGISTRY_STATUS,
 )
-from ..p6_field_registry_api import P6FieldRegistryAPI
+from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
@@ -178,7 +178,7 @@ class ProjectLifecycleHttpRoutes:
                     field,
                     auth_context=auth,
                 )
-                return self._json(200, result["field"])
+                return self._json(200, {"contract_version": P6_FIELD_REGISTRY_API_VERSION, "field": result["field"]})
 
             if method == "GET" and path.startswith("/api/projects/") and "/p6/fields/" in path:
                 if self._p6_field_registry_api is None:
@@ -242,7 +242,7 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_UDF_REQUEST_INVALID", "error.request.invalid")
                 result = self._p6_field_registry_api.save_udf(definition, auth_context=auth)
-                return self._json(200, result["udf"])
+                return self._json(200, {"contract_version": P6_FIELD_REGISTRY_API_VERSION, "udf": result["udf"]})
 
             if method == "GET" and path.startswith("/api/projects/") and "/p6/udfs/" in path:
                 if self._p6_field_registry_api is None:
