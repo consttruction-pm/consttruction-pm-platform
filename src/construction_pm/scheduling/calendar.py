@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import FrozenSet, Iterable
+from typing import FrozenSet, Iterable, Mapping
 
 from .calendar_system import CalendarSystem, JalaliDate
 from .calendar_periods import CalendarTimePeriodFactors
@@ -57,6 +57,65 @@ class WorkingCalendar:
     @property
     def hours_per_year(self) -> Decimal:
         return self.time_period_factors.hours_per_year
+
+    def canonical_snapshot(self) -> dict[str, object]:
+        """Return deterministic, JSON-safe calendar metadata for persistence/sync.
+
+        Dates are stored in canonical Gregorian form; Decimal factors are
+        serialized as strings so round-trips do not depend on JSON number
+        precision. This is representation metadata only and does not perform
+        scheduling calculations.
+        """
+        return {
+            "system": self.system.value,
+            "working_weekdays": sorted(self.working_weekdays),
+            "holidays": [value.isoformat() for value in sorted(self.holidays)],
+            "time_period_factors": {
+                "hours_per_day": str(self.hours_per_day),
+                "hours_per_week": str(self.hours_per_week),
+                "hours_per_month": str(self.hours_per_month),
+                "hours_per_year": str(self.hours_per_year),
+            },
+        }
+
+    @classmethod
+    def from_canonical_snapshot(cls, snapshot: Mapping[str, object]) -> "WorkingCalendar":
+        """Rebuild a calendar from its deterministic canonical snapshot."""
+        if not isinstance(snapshot, Mapping):
+            raise ValueError("calendar snapshot must be a mapping")
+        try:
+            system = CalendarSystem(str(snapshot["system"]))
+            weekdays_raw = snapshot["working_weekdays"]
+            holidays_raw = snapshot["holidays"]
+            factors_raw = snapshot["time_period_factors"]
+        except (KeyError, ValueError, TypeError) as exc:
+            raise ValueError("invalid calendar snapshot") from exc
+
+        if not isinstance(weekdays_raw, (list, tuple)):
+            raise ValueError("working_weekdays must be a list")
+        if not isinstance(holidays_raw, (list, tuple)):
+            raise ValueError("holidays must be a list")
+        if not isinstance(factors_raw, Mapping):
+            raise ValueError("time_period_factors must be a mapping")
+
+        try:
+            weekdays = frozenset(int(value) for value in weekdays_raw)
+            holidays = frozenset(date.fromisoformat(str(value)) for value in holidays_raw)
+            factors = CalendarTimePeriodFactors(
+                hours_per_day=str(factors_raw["hours_per_day"]),
+                hours_per_week=str(factors_raw["hours_per_week"]),
+                hours_per_month=str(factors_raw["hours_per_month"]),
+                hours_per_year=str(factors_raw["hours_per_year"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid calendar snapshot") from exc
+
+        return cls(
+            working_weekdays=weekdays,
+            holidays=holidays,
+            system=system,
+            time_period_factors=factors,
+        )
 
     @classmethod
     def from_calendar_dates(
