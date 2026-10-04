@@ -26,6 +26,8 @@ from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotR
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
+from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
+from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
@@ -74,6 +76,113 @@ def routes():
         clock=type("Clock", (), {"now": lambda self: now})(),
     )
 
+
+class SyncHandler:
+    def __init__(self):
+        self.calls = []
+
+    def handle(self, mutation):
+        self.calls.append(mutation)
+
+
+def sync_routes():
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    handler = SyncHandler()
+    endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", handler))
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        sync_endpoint_factory=lambda _tenant, _project: endpoint,
+    )
+    return routes, handler
+
+
+def test_authenticated_sync_mutation_uses_project_context_and_idempotency_header():
+    r, handler = sync_routes()
+    body = {
+        "contract_version": "sync-mutation.v1",
+        "mutation_id": "m1",
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "expected_revision": 2,
+        "operation": "update_activity",
+        "payload": {"activity_id": "A-1"},
+        "idempotency_key": "idem-1",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"},
+        headers={"Idempotency-Key": "idem-1"}, body=json.dumps(body).encode(),
+    )
+    assert status == 200
+    result = json.loads(raw)
+    assert result["contract_version"] == "sync-outcome.v1"
+    assert result["disposition"] == "acknowledged"
+    assert handler.calls[0].project_id == "p1"
+
+
+def test_authenticated_sync_rejects_missing_idempotency_header_and_cross_scope():
+    r, _ = sync_routes()
+    body = {
+        "contract_version": "sync-mutation.v1", "mutation_id": "m1",
+        "tenant_id": "t1", "project_id": "p1", "expected_revision": 2,
+        "operation": "update_activity", "payload": {}, "idempotency_key": "idem-1",
+    }
+    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, body=json.dumps(body).encode())
+    assert status == 400
+    assert json.loads(raw)["code"] == "SYNC_REQUEST_INVALID"
+
+    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, headers={"Idempotency-Key": "idem-1"}, body=json.dumps({**body, "project_id": "p2"}).encode())
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_authenticated_sync_rejects_spoofed_tenant_and_stale_revision():
+    r, _ = sync_routes()
+    body = {
+        "contract_version": "sync-mutation.v1", "mutation_id": "m1",
+        "tenant_id": "spoofed", "project_id": "p1", "expected_revision": 2,
+        "operation": "update_activity", "payload": {}, "idempotency_key": "idem-1",
+    }
+    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, headers={"Idempotency-Key": "idem-1"}, body=json.dumps(body).encode())
+    assert status == 200
+    assert json.loads(raw)["error_code"] == "INVALID_PROJECT_CONTEXT"
+
+    body["tenant_id"] = "t1"
+    body["expected_revision"] = 1
+    status, _, raw = r.handle("POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"}, headers={"Idempotency-Key": "idem-1"}, body=json.dumps(body).encode())
+    assert status == 200
+    result = json.loads(raw)
+    assert result["disposition"] == "conflict"
+    assert result["error_code"] == "STALE_REVISION"
+
+
+def test_authenticated_sync_revision_endpoint_returns_authoritative_context():
+    r, _ = sync_routes()
+    status, _, raw = r.handle("GET", "/api/v1/sync/revision/p1", cookies={"cp_session": "s1"})
+    assert status == 200
+    result = json.loads(raw)
+    assert result == {
+        "contract_version": "sync-project-revision.v1",
+        "tenant_id": "t1", "project_id": "p1", "revision": 2,
+    }
+
+    status, _, raw = r.handle("GET", "/api/v1/sync/revision/p2", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_authenticated_sync_routes_require_session():
+    r, _ = sync_routes()
+    status, _, raw = r.handle("GET", "/api/v1/sync/revision/p1")
+    assert status == 401
+    assert json.loads(raw)["code"] == "SESSION_REQUIRED"
 
 def test_requires_session_cookie():
     status, _, _ = routes().handle("GET", "/api/session")
