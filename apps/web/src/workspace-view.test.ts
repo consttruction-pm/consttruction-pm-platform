@@ -315,3 +315,28 @@ test("interactive Gantt rows expose button selection semantics", () => {
   assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1"/);
   assert.doesNotMatch(container.innerHTML, /cp-gantt-row[^>]*aria-selected=/);
 });
+
+
+test("Activity Grid exposes single-select grid row and cell semantics", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-1",
+      wbsId: "W-1",
+      code: "01",
+      name: "Foundation",
+    }],
+    selectedActivityId: "A-1",
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false">/);
+  assert.match(container.innerHTML, /<thead><tr role="row">/);
+  assert.match(container.innerHTML, /<th role="columnheader"/);
+  assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
+  assert.match(container.innerHTML, /<td role="gridcell">A-1<\\/td>/);
+});
