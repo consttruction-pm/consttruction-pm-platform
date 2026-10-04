@@ -112,3 +112,44 @@ def test_working_calendar_exposes_time_period_factors_without_changing_day_arith
     assert calendar.hours_per_day == Decimal("10")
     assert calendar.hours_per_week == Decimal("50")
     assert resolver.add_working_duration(date(2026, 10, 5), 2) == date(2026, 10, 6)
+
+
+def test_working_calendar_canonical_snapshot_is_deterministic_and_round_trips():
+    from construction_pm.scheduling import CalendarTimePeriodFactors
+
+    calendar = WorkingCalendar(
+        working_weekdays=frozenset({6, 0, 2, 4}),
+        holidays=frozenset({date(2026, 10, 2), date(2026, 9, 30)}),
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day="7.5",
+            hours_per_week="37.5",
+            hours_per_month="165",
+            hours_per_year="1980",
+        ),
+    )
+
+    snapshot = calendar.canonical_snapshot()
+    assert snapshot == {
+        "system": "jalali",
+        "working_weekdays": [0, 2, 4, 6],
+        "holidays": ["2026-09-30", "2026-10-02"],
+        "time_period_factors": {
+            "hours_per_day": "7.5",
+            "hours_per_week": "37.5",
+            "hours_per_month": "165",
+            "hours_per_year": "1980",
+        },
+    }
+
+    restored = WorkingCalendar.from_canonical_snapshot(snapshot)
+    assert restored.canonical_snapshot() == snapshot
+    assert restored.is_working_day(date(2026, 10, 5)) == calendar.is_working_day(date(2026, 10, 5))
+    assert restored.hours_per_day == Decimal("7.5")
+
+
+def test_working_calendar_canonical_snapshot_rejects_missing_period_factors():
+    snapshot = WorkingCalendar().canonical_snapshot()
+    del snapshot["time_period_factors"]["hours_per_year"]
+    with pytest.raises(ValueError, match="invalid calendar snapshot"):
+        WorkingCalendar.from_canonical_snapshot(snapshot)
