@@ -172,6 +172,15 @@ def test_if_branches_must_have_compatible_types() -> None:
         )
 
 
+def test_round_rejects_non_integer_digits() -> None:
+    compiled = _compile("ROUND([actual], 2.9)")
+    with pytest.raises(FormulaTypeError, match="ROUND_DIGITS_MUST_BE_INTEGER"):
+        evaluate_formula(
+            compiled,
+            {"actual": FormulaValue.number(Decimal("1.235"), "USD")},
+        )
+
+
 def test_round_uses_decimal_half_up_semantics() -> None:
     compiled = _compile("ROUND([actual], 2)")
 
@@ -195,6 +204,14 @@ def test_syntax_rejects_unterminated_field_and_bare_identifiers() -> None:
 
     with pytest.raises(FormulaSyntaxError, match="BARE_IDENTIFIER_NOT_ALLOWED"):
         parse_formula("budget + 1")
+
+
+def test_coalesce_short_circuits_unselected_error() -> None:
+    compiled = _compile("COALESCE([budget], [budget] / 0)")
+    assert evaluate_formula(
+        compiled,
+        {"budget": FormulaValue.number(5, "USD")},
+    ) == FormulaValue.number(5, "USD")
 
 
 def test_coalesce_and_aggregate_functions_handle_nulls() -> None:
