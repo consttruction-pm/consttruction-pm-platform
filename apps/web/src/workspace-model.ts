@@ -106,6 +106,15 @@ export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
   { id: "progress", label: "Progress", dataType: "decimal", editable: false, formula: null, width: 100 },
 ];
 
+const DEFAULT_WORKSPACE_COLUMN_LABELS: Record<WorkspaceLocale, Record<string, string>> = {
+  en: { activity_id: "Activity ID", activity_code: "Code", activity_name: "Activity Name", start: "Start", finish: "Finish", duration: "Duration", progress: "Progress" },
+  fa: { activity_id: "شناسه فعالیت", activity_code: "کد", activity_name: "نام فعالیت", start: "شروع", finish: "پایان", duration: "مدت", progress: "پیشرفت" },
+};
+
+export function getDefaultWorkspaceColumns(locale: WorkspaceLocale = "en"): readonly WorkspaceColumn[] {
+  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: DEFAULT_WORKSPACE_COLUMN_LABELS[locale][column.id] ?? column.label }));
+}
+
 export function createWorkspaceState(
   context: ProjectContext,
   locale: WorkspaceLocale = "en",
@@ -126,7 +135,7 @@ export function createWorkspaceState(
     },
     selectedWbsId: null,
     selectedActivityId: null,
-    columns: DEFAULT_WORKSPACE_COLUMNS,
+    columns: getDefaultWorkspaceColumns(locale),
     activities: [],
     controlSummary: null,
     smartGuide: null,
@@ -173,6 +182,7 @@ export function setLocale(state: WorkspaceState, locale: WorkspaceLocale): Works
     ...state,
     locale,
     direction: locale === "fa" ? "rtl" : "ltr",
+    columns: state.p6Layout ? state.columns : getDefaultWorkspaceColumns(locale),
   };
 }
 

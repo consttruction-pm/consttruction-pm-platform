@@ -38,6 +38,8 @@ test("workspace model creates a bilingual Main Workspace state", () => {
   assert.equal(state.activeMenu, "schedule");
   assert.equal(state.visiblePanels.activity_grid, true);
   assert.equal(state.columns.find((column) => column.id === "duration")?.dataType, "duration");
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "نام فعالیت");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "پیشرفت");
 });
 
 test("WBS selection clears Activity selection", () => {
@@ -67,6 +69,18 @@ test("locale and calendar switches preserve project context", () => {
   assert.equal(state.direction, "rtl");
   assert.equal(state.calendarMode, "jalali");
   assert.deepEqual(state.context, context);
+});
+
+test("locale switch relocalizes default grid columns", () => {
+  let state = createWorkspaceState(context, "en");
+  state = setLocale(state, "fa");
+
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "نام فعالیت");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "پیشرفت");
+
+  state = setLocale(state, "en");
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "Activity Name");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "Progress");
 });
 
 test("formula columns remain metadata and do not calculate client values", () => {
