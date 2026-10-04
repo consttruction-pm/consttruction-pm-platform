@@ -836,3 +836,13 @@ Status: **merged and runtime-verified**
 - PR #1114 is complete; do not repeat the calendar read boundary.
 - Current open PR #1097 is Web/Javad ownership, not a Hasan Backend/API implementation.
 - Next Hasan action remains a fresh current-main/open-PR audit for the first concrete Backend/Database/Application/API/Import-Export gap. Do not invent calendar semantics, revive stale branches, or duplicate client-owned work.
+
+
+### 2026-10-04 — CUBI commercial homepage / SEO boundary (PR #1115)
+- PR #1115 implemented the registered CUBI commercial presentation contract on current main: Product/Solutions/Features/Pricing/AI/Resources navigation, required homepage H1/tagline, dark-background CUBI SVG mark, and the required title/canonical/robots/Open Graph/Twitter/structured-data SEO metadata.
+- Exact implementation head: `09b476bb90bc73e9388fcab326f45113d31c254e`.
+- Client Typecheck **3589**, ConstructionPM Web CI **393**, and ConstructionPM CI **3886** all completed successfully on the exact head.
+- PR #1115 squash-merged as `58fd9f4a407a688f65c5c67852cf0df37152f8db`.
+- Scope was limited to the presentation/marketing layer; no CPM, scheduling, calendar, EVM, resource/cost or financial calculation semantics were changed.
+- Current main after this checkpoint: `58fd9f4a407a688f65c5c67852cf0df37152f8db`.
+- Next Hasan action remains evidence-driven: re-read current main and open PRs, then implement only a concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap; do not revive stale branches or duplicate client/Shared-Core ownership.
