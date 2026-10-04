@@ -14,8 +14,8 @@ Oracle P6 Integration API Field Summary is authoritative for native field type a
 
 | P6 field | Oracle native type | Oracle Read Only | Registry type | Writable | Computed | Unit |
 |---|---|---:|---|---:|---:|---|
-| BaselineStartDate | BeginDate | Yes | DATE | No | Yes | working-time |
-| BaselineFinishDate | EndDate | Yes | DATE | No | Yes | working-time |
+| BaselineStartDate | BeginDate | Yes | DATE | No | Yes | — |
+| BaselineFinishDate | EndDate | Yes | DATE | No | Yes | — |
 | BaselineDuration | Duration | Yes | DURATION | No | Yes | working-time |
 | PrimaryConstraintDate | java.util.Date | No | DATE | Yes | No | — |
 | ExpectedFinishDate | EndDate | No | DATE | Yes | No | — |
