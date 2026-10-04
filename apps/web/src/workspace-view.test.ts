@@ -236,7 +236,8 @@ test("P6 chooser exposes hidden authoritative fields", () => {
   assert.match(container.innerHTML, /data-p6-field-visibility="activity\.activity_id"/);
   assert.match(container.innerHTML, /data-p6-field-visible="true"/);
   assert.match(container.innerHTML, /aria-label="Show: Activity ID"/);
-  assert.match(container.innerHTML, /aria-label="Remove: Activity ID"/);\n  assert.doesNotMatch(container.innerHTML, /aria-label="Remove"/);
+  assert.match(container.innerHTML, /aria-label="Remove: Activity ID"/);
+  assert.doesNotMatch(container.innerHTML, /aria-label="Remove"/);
 });
 
 
