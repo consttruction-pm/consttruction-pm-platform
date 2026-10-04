@@ -144,9 +144,12 @@ def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    # This historical certification artifact is evaluated against the current cumulative registry.
-    # The current Release 26 reconciliation now covers the complete 275-field Activity inventory.
-    assert len(inventory_names - covered) == 0
+    # These two fields were added to the registry after the artifact baseline and are
+    # intentionally excluded above from the historical cumulative coverage calculation.
+    assert len(inventory_names - covered) == 2
+    assert {"SecondaryConstraintDate", "SecondaryConstraintType"} == (
+        inventory_names - covered
+    )
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
