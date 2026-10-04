@@ -153,12 +153,12 @@ def test_release26_activity_tranche_next10b_has_exact_typed_metadata():
         "PlannedExpenseCost": (P6FieldType.COST, False, True, "currency"),
         "PlannedTotalCost": (P6FieldType.COST, False, True, "currency"),
         "PlannedTotalUnits": (P6FieldType.UNIT, False, True, "units"),
-        "PostRespCriticalityIndex": (P6FieldType.PERCENTAGE, False, True, "percent"),
-        "PostResponsePessimisticFinish": (P6FieldType.DATE, False, True, None),
-        "PostResponsePessimisticStart": (P6FieldType.DATE, False, True, None),
-        "PreRespCriticalityIndex": (P6FieldType.PERCENTAGE, False, True, "percent"),
-        "PreResponsePessimisticFinish": (P6FieldType.DATE, False, True, None),
-        "PreResponsePessimisticStart": (P6FieldType.DATE, False, True, None),
+        "PostRespCriticalityIndex": (P6FieldType.PERCENTAGE, True, False, "percent"),
+        "PostResponsePessimisticFinish": (P6FieldType.DATE, True, False, None),
+        "PostResponsePessimisticStart": (P6FieldType.DATE, True, False, None),
+        "PreRespCriticalityIndex": (P6FieldType.PERCENTAGE, True, False, "percent"),
+        "PreResponsePessimisticFinish": (P6FieldType.DATE, True, False, None),
+        "PreResponsePessimisticStart": (P6FieldType.DATE, True, False, None),
     }
     for p6_name, (data_type, writable, computed, unit) in expected.items():
         matches = [field for field in field_catalog() if field.subject_area == "Activity" and field.p6_field == p6_name]
