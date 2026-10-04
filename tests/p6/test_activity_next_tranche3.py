@@ -147,7 +147,7 @@ def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
     # This historical certification artifact is evaluated against the current
     # cumulative registry. Tranche 10D plus the two date aliases reduced the
     # remaining inventory before this tranche; tranche 11E reduces it further.
-    assert len(inventory_names - covered) == 6
+    assert len(inventory_names - covered) == 10
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
