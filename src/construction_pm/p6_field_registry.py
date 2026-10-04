@@ -438,6 +438,20 @@ _ROWS = (
 )
 
 
+# These names exist in an older/internal Activity seed but are not exact
+# Release 26 Activity inventory identities. They must not be silently aliased
+# by name similarity because their Oracle representation is composite or a
+# separate business object.
+P6_ACTIVITY_LEGACY_FIELD_DISPOSITIONS: dict[str, str] = {
+    "activity.calendar": "outside_scope",
+    "activity.owner": "outside_scope",
+}
+
+
+def activity_legacy_field_disposition(field_id: str) -> str:
+    return P6_ACTIVITY_LEGACY_FIELD_DISPOSITIONS[field_id]
+
+
 P6_ACTIVITY_ALIAS_RESOLUTIONS: dict[str, str] = {
     "activity.activity_id": "activity.id",
     "activity.activity_name": "activity.name",
