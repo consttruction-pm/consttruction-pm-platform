@@ -78,8 +78,10 @@ class ProjectLifecycleHttpRoutes:
         *,
         cookies: Mapping[str, str] | None = None,
         body: bytes = b"",
+        headers: Mapping[str, str] | None = None,
     ) -> tuple[int, dict[str, str], bytes]:
         session_id = (cookies or {}).get(self.SESSION_COOKIE)
+        request_headers = headers or {}
         if not session_id:
             return self._error(401, "SESSION_REQUIRED", "error.session.required")
 
@@ -114,7 +116,7 @@ class ProjectLifecycleHttpRoutes:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                         return self._error(403, str(exc), "error.authorization.denied")
                     raise
-                idempotency_key = payload.get("idempotency_key")
+                idempotency_key = request_headers.get("Idempotency-Key")
                 if not isinstance(idempotency_key, str) or not idempotency_key.strip():
                     return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
                 try:
