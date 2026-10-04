@@ -133,7 +133,7 @@ def p6_routes():
 def test_p6_registry_http_routes_preserve_versioned_api_contract_envelope():
     r, field_api, _ = p6_routes()
     scope = BackendScope("t1", "p1", 1)
-    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project.read", "project.write"}))
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
     field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth)
     status, _, body = r.handle("GET", "/api/projects/p1/p6/fields/p6-field-registry.v1", cookies={"cp_session": "s1"})
     assert status == 200
