@@ -276,10 +276,10 @@ test("Gantt activity selection forwards to the shared Activity selection callbac
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  const listeners = new Map<string, (event?: Event) => void>();
   const ganttRow = {
     dataset: { ganttActivityId: "A-1" },
-    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+    addEventListener: (event: string, listener: (event?: Event) => void) => listeners.set(event, listener),
   };
   const container: RenderContainer = {
     innerHTML: "",
