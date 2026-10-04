@@ -250,7 +250,7 @@ test("P6 chooser rename control forwards the persisted presentation label", () =
   input.value = " Activity title ";
   listeners.get("rename")?.();
   assert.deepEqual(changes, [{ fieldId: "activity.activity_id", label: "Activity title" }]);
-  assert.match(container.innerHTML, /data-p6-field-rename="activity\\.activity_id"/);
+  assert.match(container.innerHTML, /data-p6-field-rename="activity\.activity_id"/);
   assert.match(container.innerHTML, /aria-label="Rename"/);
 });
 
