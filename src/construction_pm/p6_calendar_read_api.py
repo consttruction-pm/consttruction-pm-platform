@@ -5,7 +5,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
-from .calendar_master_repository import CalendarMasterRepository, CalendarPersistenceError
+from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
 from .calendar_snapshot_repository import CalendarSnapshotRepository
 
 P6_CALENDAR_READ_API_VERSION = "p6-calendar-read-api.v1"
@@ -80,7 +80,7 @@ def _scope(scope: BackendScope) -> dict[str, object]:
     }
 
 
-def _calendar_dto(calendar: object) -> dict[str, object]:
+def _calendar_dto(calendar: CalendarMaster) -> dict[str, object]:
     return {
         "calendar_id": calendar.calendar_id,
         "calendar_version": calendar.calendar_version,
