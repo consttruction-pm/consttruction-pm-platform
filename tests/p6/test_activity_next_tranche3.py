@@ -146,10 +146,8 @@ def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
     inventory_names = _field_names(_load(INVENTORY))
     # These two fields were added to the registry after the artifact baseline and are
     # intentionally excluded above from the historical cumulative coverage calculation.
-    assert len(inventory_names - covered) == 2
-    assert {"SecondaryConstraintDate", "SecondaryConstraintType"} == (
-        inventory_names - covered
-    )
+    remaining = inventory_names - covered
+    assert remaining == {"SecondaryConstraintDate", "SecondaryConstraintType"}
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
