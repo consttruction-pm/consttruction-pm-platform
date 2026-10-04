@@ -118,14 +118,32 @@ function validateSnapshotIdentity(snapshot: WorkspaceControlRoomSnapshot): void 
     throw new Error("INVALID_WORKSPACE_CONTEXT");
   }
 
+  if (!Array.isArray(snapshot.columns) || !Array.isArray(snapshot.activities)) {
+    throw new Error("INVALID_WORKSPACE_COLLECTION");
+  }
+
   const columnIds = new Set<string>();
   for (const column of snapshot.columns) {
-    if (!column.id || columnIds.has(column.id)) {
+    if (!column || typeof column !== "object" || !column.id || columnIds.has(column.id)) {
       throw new Error("DUPLICATE_WORKSPACE_COLUMN");
     }
     if (!Number.isFinite(column.width) || column.width <= 0) {
       throw new Error("INVALID_WORKSPACE_COLUMN");
     }
     columnIds.add(column.id);
+  }
+
+  const activityIds = new Set<string>();
+  for (const activity of snapshot.activities) {
+    if (!activity || typeof activity !== "object") {
+      throw new Error("INVALID_WORKSPACE_ACTIVITY");
+    }
+    if (!activity.id || !activity.wbs_id || !activity.name) {
+      throw new Error("INVALID_WORKSPACE_ACTIVITY");
+    }
+    if (activityIds.has(activity.id)) {
+      throw new Error("DUPLICATE_WORKSPACE_ACTIVITY");
+    }
+    activityIds.add(activity.id);
   }
 }
