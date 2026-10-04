@@ -57,7 +57,7 @@ export function renderLandingPage(container: HTMLElement): void {
           <div class="cubi-control-card"><div class="cubi-card-label">CONTROL SIGNALS</div><div class="cubi-signal"><span>Schedule</span><b>92</b><i></i></div><div class="cubi-signal"><span>Progress</span><b>78</b><i></i></div><div class="cubi-signal"><span>Cost</span><b>96</b><i></i></div><div class="cubi-signal"><span>Risk</span><b>14</b><i></i></div><div class="cubi-mini-note"><span>AI</span> 3 priority insights ready for review</div></div>
         </section>
 
-        <section class="cubi-ai" id="ai"><div class="cubi-ai-mark"><img src="/logo.svg" alt="" /></div><div><p class="cubi-kicker">INTELLIGENCE LAYER</p><h2>AI assistance that respects the project model.</h2><p>Use project context to surface anomalies, summarize control signals and focus attention on decisions that need a human owner.</p></div><a class="cubi-button" href="/app">Explore the platform</a></section>
+        <section class="cubi-ai" id="ai"><div class="cubi-ai-mark"><img src="/logo-dark.svg" alt="" /></div><div><p class="cubi-kicker">INTELLIGENCE LAYER</p><h2>AI assistance that respects the project model.</h2><p>Use project context to surface anomalies, summarize control signals and focus attention on decisions that need a human owner.</p></div><a class="cubi-button" href="/app">Explore the platform</a></section>
 
         <section class="cubi-section cubi-resources" id="resources"><div class="cubi-section-head"><p class="cubi-kicker">CONNECTED DELIVERY</p><h2>From baseline to field progress.</h2><p>Designed to keep core project information connected across the lifecycle.</p></div><div class="cubi-flow"><span>Plan</span><i>→</i><span>Schedule</span><i>→</i><span>Control</span><i>→</i><span>Measure</span><i>→</i><span>Improve</span></div></section>
 
@@ -66,6 +66,6 @@ export function renderLandingPage(container: HTMLElement): void {
         <section class="cubi-faq" id="faq"><div><p class="cubi-kicker">FAQ</p><h2>Built for professional project teams.</h2></div><div class="cubi-faq-list"><details><summary>What is CUBI Platform?</summary><p>CUBI is a construction and building intelligence platform focused on planning, project controls, cost, progress, resources, documents and AI-assisted workflows.</p></details><details><summary>Does CUBI replace Primavera/CPM logic?</summary><p>No. The homepage is a product entry point; the underlying CPM and calculation core remains protected.</p></details><details><summary>Can teams work in multiple languages?</summary><p>The web platform is designed for multilingual operation, including RTL/LTR behavior.</p></details></div></section>
       </main>
 
-      <footer class="cubi-footer"><div class="cubi-brand"><img src="/logo.svg" width="40" height="40" alt="" /><span><strong>CUBI</strong><small>Platform</small></span></div><p>Plan. Control. Build Smarter.</p><span>Construction & Building Intelligence</span></footer>
+      <footer class="cubi-footer"><div class="cubi-brand"><img src="/logo-dark.svg" width="40" height="40" alt="" /><span><strong>CUBI</strong><small>Platform</small></span></div><p>Plan. Control. Build Smarter.</p><span>Construction & Building Intelligence</span></footer>
     </div>`;
 }
