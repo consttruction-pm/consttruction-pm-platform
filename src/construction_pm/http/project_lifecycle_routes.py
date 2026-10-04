@@ -202,6 +202,7 @@ class ProjectLifecycleHttpRoutes:
                     auth_context=auth,
                 )
                 return self._json(200, {
+                    "contract_version": P6_FIELD_REGISTRY_API_VERSION,
                     "registry_version": registry_version,
                     "reference_product": P6_FIELD_REGISTRY_REFERENCE_PRODUCT,
                     "reference_version": P6_FIELD_REGISTRY_REFERENCE_VERSION,
@@ -266,6 +267,7 @@ class ProjectLifecycleHttpRoutes:
                     auth_context=auth,
                 )
                 return self._json(200, {
+                    "contract_version": P6_FIELD_REGISTRY_API_VERSION,
                     "registry_version": registry_version,
                     "udfs": [item["udf"] for item in udfs],
                 })
