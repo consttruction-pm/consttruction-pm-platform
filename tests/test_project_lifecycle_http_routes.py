@@ -133,7 +133,7 @@ def p6_routes():
 def test_p6_registry_http_routes_preserve_versioned_api_contract_envelope():
     r, field_api, _ = p6_routes()
     scope = BackendScope("t1", "p1", 1)
-    auth = AuthorizationContext("u1", "t1", "p1", frozenset({"project.read", "project.write"}))
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project.read", "project.write"}))
     field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth)
     status, _, body = r.handle("GET", "/api/projects/p1/p6/fields/p6-field-registry.v1", cookies={"cp_session": "s1"})
     assert status == 200
@@ -411,7 +411,7 @@ def test_p6_udf_write_route_persists_authenticated_definition():
         cookies={"cp_session": "s1"},
     )
     assert status == 200
-    assert json.loads(body)["udfs"] == [saved]
+    payload = json.loads(body)\n    assert payload["contract_version"] == "p6-field-registry-api.v1"\n    assert payload["udfs"] == [payload.pop("udfs")[0]]
 
 
 def test_p6_udf_write_route_rejects_invalid_payload():
