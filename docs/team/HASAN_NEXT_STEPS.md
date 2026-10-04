@@ -869,3 +869,13 @@ Status: 100% — merged and runtime-verified
 - PR #1118 squash-merged as `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Current main after this checkpoint: `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
+
+
+### 2026-10-05 — Current-main evidence reconciliation after PR #1125
+
+- Exact current `main`: `758b2b11a8c95f1538a4ca15010e1d5d96cfea93` (merged Web PR #1125).
+- Open PR #1127 is Jalal-owned Shared Formula Core work; it is outside Hasan's Backend/Database/Application/API/Import-Export lane and must not be absorbed or duplicated.
+- Fresh review of issue #393 and the recent Shared-Core/Web changes found no newly reproducible Hasan-owned backend defect or authoritative contract-backed seam beyond the already merged P6 boundaries (#1104, #1106, #1110, #1114, #1116, #1118).
+- Activity semantic certification (#1119) and formula runtime short-circuit work (#1124/#1127) remain Shared Core ownership; Web workspace hardening (#1125) remains client ownership.
+- Therefore no speculative Hasan implementation is authorized from this audit. The valid next implementation remains the first newly evidenced Backend/Database/Application/API/Import-Export contract or reproducible defect, branched from the exact current `main`.
+- Do not revive #1126 or any stale branch/PR, and do not infer backend HTTP routes from internal typed API version constants alone.
