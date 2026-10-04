@@ -30,10 +30,10 @@ def test_activity_registry_drift_gate_matches_release_26_inventory_metrics():
         inventory["fields"],
     )
 
-    # Release 26 tranche next11E adds 11 canonical Activity registry fields.
-    assert comparison.exact_match_count == 263
+    # Release 26 tranche next12 completes the 275-field canonical Activity inventory.
+    assert comparison.exact_match_count == 275
     assert comparison.registry_only_count == 9
-    assert comparison.inventory_only_count == 12
+    assert comparison.inventory_only_count == 0
     assert comparison.is_metadata_consistent
 
 
