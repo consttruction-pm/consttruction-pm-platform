@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from types import MappingProxyType
 
 from .calendar_periods import CalendarTimePeriodFactors
 from typing import FrozenSet, Mapping, Tuple
@@ -49,7 +50,7 @@ class WorkingTimeCalendar:
         object.__setattr__(
             self,
             "daily_intervals",
-            {weekday: tuple(intervals) for weekday, intervals in self.daily_intervals.items()},
+            MappingProxyType({weekday: tuple(intervals) for weekday, intervals in self.daily_intervals.items()}),
         )
         for weekday, intervals in self.daily_intervals.items():
             if isinstance(weekday, bool) or not isinstance(weekday, int) or weekday < 0 or weekday > 6:
