@@ -234,11 +234,11 @@ test("P6 chooser exposes hidden authoritative fields", () => {
   renderMainWorkspace(container as unknown as HTMLElement, state);
   assert.match(container.innerHTML, /data-p6-field-visibility="activity\.activity_id"/);
   assert.match(container.innerHTML, /data-p6-field-visible="true"/);
-  assert.match(container.innerHTML, /title="Show"/);
+  assert.match(container.innerHTML, /title="Show"/);\n  assert.match(container.innerHTML, /aria-label="Show"/);\n  assert.match(container.innerHTML, /aria-label="Remove"/);
 });
 
 
-test("Gantt activity selection forwards to the shared Activity selection callback", () => {
+test("P6 chooser rename control forwards the persisted presentation label", () => {\n  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), p6FieldRegistry: { registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "26", status: "active", fields: [{ field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" }] } as const, p6Layout: { schema_version: "p6-layout.v1", scope: "project", view_id: "activity-grid", revision: 1, columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }] } as const };\n  const changes: Array<{ fieldId: string; label: string }> = [];\n  const listeners = new Map<string, () => void>();\n  const input = { value: "Activity ID", dataset: { p6FieldRename: "activity.activity_id" }, addEventListener: (_event: string, listener: () => void) => listeners.set("rename", listener) };\n  const container: RenderContainer = { innerHTML: "", querySelectorAll: ((selector: string) => selector === "[data-p6-field-rename]" ? [input as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"] };\n  renderMainWorkspace(container as unknown as HTMLElement, state, { onP6FieldPresentationChange: (fieldId, patch) => { if (patch.label) changes.push({ fieldId, label: patch.label }); } });\n  input.value = " Activity title ";\n  listeners.get("rename")?.();\n  assert.deepEqual(changes, [{ fieldId: "activity.activity_id", label: "Activity title" }]);\n  assert.match(container.innerHTML, /data-p6-field-rename="activity\\.activity_id"/);\n  assert.match(container.innerHTML, /aria-label="Rename"/);\n});\n\n\ntest("Gantt activity selection forwards to the shared Activity selection callback", () => {
   const state = {
     ...createWorkspaceState(
       { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
