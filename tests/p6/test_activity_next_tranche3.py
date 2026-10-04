@@ -123,7 +123,7 @@ def test_next_tranche3_has_no_overlap_with_registry_or_prior_evidence():
     assert names <= inventory_names
 
 
-def test_next_tranche3_remaining_inventory_count_is_28():
+def test_next_tranche3_remaining_inventory_count_after_cumulative_tranches():
     data = _load(ARTIFACT)
     registry_names = {
         field.p6_field
@@ -144,7 +144,10 @@ def test_next_tranche3_remaining_inventory_count_is_28():
     covered.update(item["p6_field"] for item in data["fields"])
 
     inventory_names = _field_names(_load(INVENTORY))
-    assert len(inventory_names - covered) == 17
+    # This historical certification artifact is evaluated against the current
+    # cumulative registry. Tranche 10D plus the two date aliases reduced the
+    # remaining inventory before this tranche; tranche 11E reduces it further.
+    assert len(inventory_names - covered) == 6
 
 
 def test_next_tranche3_preserves_published_oracle_semantics():
