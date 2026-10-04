@@ -879,3 +879,12 @@ Status: 100% — merged and runtime-verified
 - Current P6 HTTP contract surfaces previously audited remain versioned on main: Field Registry/UDF, Formula, Calendar, and Layout. No new authoritative backend seam is evidenced by the current Shared-Core changes.
 - Disposition: **no speculative implementation**. The next Hasan implementation must begin from the then-current `main` only when a concrete Backend/Database/Application/API/Enterprise Integration defect or authoritative contract-backed seam is demonstrated.
 - Required verification rule remains: focused regression tests, PostgreSQL verification where persistence is involved, exact-head GitHub Actions evidence, then checkpoint documentation before merge.
+
+
+### 2026-10-05 — Hasan current-main reconciliation after Shared-Core PR #1119
+
+- Current main baseline is `59f6428c1038ff9ad3886b3010e83c11dcd36072` after merged Shared-Core/P6 semantic certification PR #1119.
+- Open-PR audit: #1124 is Shared Core / Jalal ownership (formula runtime short-circuit semantics); #1122 is Web ownership. Neither is a Hasan Backend/Database/Application/API/Import-Export implementation.
+- The #1119 and #1124 boundaries do not introduce a new Hasan-owned persistence or HTTP requirement.
+- Current P6 HTTP contract surfaces previously audited remain versioned on main: Field Registry/UDF, Formula, Calendar, and Layout. No new authoritative backend seam is evidenced by the current Shared-Core changes.
+- Disposition: **no speculative implementation**. Next Hasan implementation starts from the then-current `main` only when a concrete Backend/Database/Application/API/Enterprise Integration defect or authoritative contract-backed seam is demonstrated.
