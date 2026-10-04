@@ -1086,3 +1086,13 @@ Status: **implemented, merged and runtime-verified**
 - No calendar arithmetic or scheduling semantics were moved into Backend/API; Shared Core remains authoritative.
 - Current main after this checkpoint: `7e6fae2549e278af9e361752aee2280c6c927a7a`.
 - Current open PR #1097 is Web/Javad ownership and is not counted as Hasan backend work.
+
+
+### 2026-10-04 — CUBI commercial homepage / SEO (PR #1115)
+Status: **100% — merged and runtime-verified**
+- PR #1115 completed the registered CUBI commercial homepage presentation/SEO boundary: Product/Solutions/Features/Pricing/AI/Resources navigation, required H1/tagline, dark CUBI SVG variant, canonical/robots/Open Graph/Twitter metadata and SoftwareApplication/WebSite structured data.
+- Exact implementation head: `09b476bb90bc73e9388fcab326f45113d31c254e`.
+- Client Typecheck **3589**, ConstructionPM Web CI **393**, and ConstructionPM CI **3886** passed on the exact head.
+- PR #1115 squash-merged as `58fd9f4a407a688f65c5c67852cf0df37152f8db`.
+- No CPM/scheduling/calendar/EVM/resource-cost/financial calculation semantics changed.
+- Current main: `58fd9f4a407a688f65c5c67852cf0df37152f8db`.
