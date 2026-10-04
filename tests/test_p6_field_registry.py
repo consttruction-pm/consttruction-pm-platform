@@ -1,5 +1,6 @@
 from construction_pm.p6_field_registry import (
     P6FieldType,
+    activity_legacy_field_disposition,
     P6_ACTIVITY_ALIAS_RESOLUTIONS,
     canonical_activity_field_id,
     field_catalog,
@@ -132,6 +133,34 @@ def test_activity_aliases_resolve_without_changing_persisted_field_schema():
     assert get_field("activity.remaining_early_finish_date").p6_field == "RemainingEarlyFinishDate"
     assert canonical_activity_field_id("activity.remaining_finish") == "activity.remaining_early_finish_date"
     assert canonical_activity_field_id("activity.remaining_early_finish_date") == "activity.remaining_early_finish_date"
+
+def test_release26_nonexact_activity_seed_fields_have_explicit_non_alias_dispositions():
+    inventory = {
+        "ActivityId", "ActivityName", "ActivityStatus", "ActivityType",
+        "CalendarName", "CalendarObjectId", "RemainingStartDate",
+        "RemainingFinishDate", "ActivityOwnerUserId", "OwnerIDArray",
+        "OwnerNamesArray", "UpdateUser",
+    }
+    legacy = {
+        "activity.calendar": "outside_scope",
+        "activity.owner": "outside_scope",
+    }
+
+    for field_id, disposition in legacy.items():
+        field = get_field(field_id)
+        assert field.subject_area == "Activity"
+        assert field.p6_field not in inventory
+        assert activity_legacy_field_disposition(field_id) == disposition
+        assert canonical_activity_field_id(field_id) == field_id
+
+
+def test_release26_nonexact_activity_seed_fields_do_not_mask_canonical_owner_or_calendar_fields():
+    assert get_field("activity.calendar_name").p6_field == "CalendarName"
+    assert get_field("activity.calendar_object_id").p6_field == "CalendarObjectId"
+    assert get_field("activity.activity_owner_user_id").p6_field == "ActivityOwnerUserId"
+    assert get_field("activity.owner_id_array").p6_field == "OwnerIDArray"
+    assert get_field("activity.owner_names_array").p6_field == "OwnerNamesArray"
+
 
 def test_release26_activity_tranche_next10_has_exact_typed_metadata():
     expected = {
