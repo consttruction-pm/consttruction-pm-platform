@@ -819,3 +819,20 @@ Status: **implemented, runtime-verified and merged**
 - Recent Hasan work #1104/#1106/#1110 is already merged: ScheduleOptions metadata persistence/API round-trip coverage, versioned formula-authority API boundary, and dependency-graph read API boundary with scope/permission enforcement.
 - Current evidence remains at the ownership boundary: Activity Status/Type/StatusCode and time-aware ScheduleOptions semantics require authoritative Shared-Core/P6 semantic evidence before any backend mapping/API is invented.
 - Disposition: **no speculative implementation**. Next Hasan implementation must start from the exact then-current main only when a concrete backend defect or authoritative contract-backed seam appears; add focused regression and PostgreSQL verification where persistence is involved, then record exact CI/merge identifiers.
+
+
+### 2026-10-04 — Authenticated P6 Calendar Read Contract (PR #1114)
+
+Status: **merged and runtime-verified**
+- Concrete Hasan-owned gap identified after canonical Shared-Core calendar snapshot persistence: no typed/authenticated backend read boundary for the calendar catalog and canonical snapshot.
+- PR #1114 added versioned contract `p6-calendar-read-api.v1` plus authenticated project-scoped HTTP reads for calendar catalog and snapshot.
+- The boundary preserves tenant/project/revision and `PROJECT_READ` authorization and delegates calendar semantics/snapshots to the authoritative Shared Core/persistence boundary; no calendar arithmetic was introduced.
+- Exact implementation head: `d2d2a39a3d2dc4da28b122e69e0f3381020cae0c`.
+- Client Typecheck run **3584** and ConstructionPM CI run **3881** both passed on the exact head.
+- PR #1114 squash-merged to `main` as `7e6fae2549e278af9e361752aee2280c6c927a7a`.
+- Current `main` is `7e6fae2549e278af9e361752aee2280c6c927a7a`.
+
+### Current Backend Continuation Point
+- PR #1114 is complete; do not repeat the calendar read boundary.
+- Current open PR #1097 is Web/Javad ownership, not a Hasan Backend/API implementation.
+- Next Hasan action remains a fresh current-main/open-PR audit for the first concrete Backend/Database/Application/API/Import-Export gap. Do not invent calendar semantics, revive stale branches, or duplicate client-owned work.
