@@ -6,8 +6,8 @@ from construction_pm.p6_field_registry import P6FieldType, get_field
 
 
 CASES = (
-    ("BaselineStartDate", "activity.baseline_start", P6FieldType.DATE, False, True, "working-time"),
-    ("BaselineFinishDate", "activity.baseline_finish", P6FieldType.DATE, False, True, "working-time"),
+    ("BaselineStartDate", "activity.baseline_start", P6FieldType.DATE, False, True, None),
+    ("BaselineFinishDate", "activity.baseline_finish", P6FieldType.DATE, False, True, None),
     ("BaselineDuration", "activity.baseline_duration", P6FieldType.DURATION, False, True, "working-time"),
     ("PrimaryConstraintDate", "activity.primary_constraint_date", P6FieldType.DATE, True, False, None),
     ("ExpectedFinishDate", "activity.expected_finish", P6FieldType.DATE, True, False, None),
