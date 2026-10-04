@@ -240,14 +240,14 @@ class SQLiteActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[6]) != scope.project_revision:
+        if int(row[11]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         return _from_row(scope, row[:11])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,expected_finish FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
@@ -322,13 +322,13 @@ class PostgresActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[6]) != scope.project_revision:
+        if int(row[11]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         return _from_row(scope, row[:11])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,record_revision,expected_finish FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
