@@ -412,6 +412,17 @@ _ROWS = (
     ("activity.remaining_float","Activity","RemainingFloat","Remaining Float","duration",False,True,"working-time"),
     ("activity.remaining_late_finish_date","Activity","RemainingLateFinishDate","Remaining Late Finish Date","date",False,True,None),
     ("activity.remaining_late_start_date","Activity","RemainingLateStartDate","Remaining Late Start Date","date",False,True,None),
+    ("activity.start_date","Activity","StartDate","Start Date","datetime",False,True,None),
+    ("activity.start_date1_variance","Activity","StartDate1Variance","Start Date 1 Variance","duration",False,True,"working-time"),
+    ("activity.start_date2_variance","Activity","StartDate2Variance","Start Date 2 Variance","duration",False,True,"working-time"),
+    ("activity.start_date3_variance","Activity","StartDate3Variance","Start Date 3 Variance","duration",False,True,"working-time"),
+    ("activity.task_status_completion","Activity","TaskStatusCompletion","Task Status Completion","string",True,False,None),
+    ("activity.task_status_dates","Activity","TaskStatusDates","Task Status Dates","string",True,False,None),
+    ("activity.task_status_indicator","Activity","TaskStatusIndicator","Task Status Indicator","boolean",True,False,None),
+    ("activity.to_complete_performance_index","Activity","ToCompletePerformanceIndex","To Complete Performance Index","double",False,True,None),
+    ("activity.total_cost1_variance","Activity","TotalCost1Variance","Total Cost 1 Variance","cost",False,True,"currency"),
+    ("activity.total_cost2_variance","Activity","TotalCost2Variance","Total Cost 2 Variance","cost",False,True,"currency"),
+    ("activity.total_cost3_variance","Activity","TotalCost3Variance","Total Cost 3 Variance","cost",False,True,"currency"),
 )
 
 
