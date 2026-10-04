@@ -24,6 +24,7 @@ from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
+from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
 
 class Clock(Protocol):
