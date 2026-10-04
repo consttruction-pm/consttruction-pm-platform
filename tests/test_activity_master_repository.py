@@ -10,6 +10,7 @@ from construction_pm.activity_master_repository import (
     ActivityPersistenceError,
     SQLiteActivityMasterRepository,
 )
+from construction_pm.scheduling.activity import PercentCompleteType
 from construction_pm.scheduling.time_duration import DurationUnit
 
 
@@ -74,3 +75,70 @@ def test_activity_master_updates_expected_finish_with_revision():
     updated = repo.save(activity(expected_finish=date(2026, 9, 25)), expected_revision=1)
     assert updated.record_revision == 2
     assert updated.expected_finish == date(2026, 9, 25)
+
+
+def test_activity_master_preserves_all_progress_state():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    source = ActivityMaster(
+        scope(),
+        "A-PROGRESS",
+        Decimal("4"),
+        DurationUnit.WORKING_DAY,
+        date(2026, 9, 21),
+        0,
+        date(2026, 9, 30),
+        date(2026, 9, 24),
+        2,
+        date(2026, 9, 25),
+        37.5,
+        PercentCompleteType.PHYSICAL,
+    )
+
+    stored = repo.save(source)
+    restored = repo.get(scope(), "A-PROGRESS")
+
+    assert stored.actual_start == date(2026, 9, 21)
+    assert stored.actual_finish == date(2026, 9, 24)
+    assert stored.remaining_duration == 2
+    assert stored.remaining_start == date(2026, 9, 25)
+    assert stored.percent_complete == 37.5
+    assert stored.percent_complete_type is PercentCompleteType.PHYSICAL
+    assert restored == stored
+
+
+def test_activity_master_preserves_progress_state_on_update():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    initial = ActivityMaster(
+        scope(),
+        "A-UPDATE",
+        Decimal("4"),
+        DurationUnit.WORKING_DAY,
+        date(2026, 9, 21),
+        0,
+        None,
+        None,
+        4,
+        date(2026, 9, 21),
+        10.0,
+        PercentCompleteType.DURATION,
+    )
+    repo.save(initial)
+
+    updated = ActivityMaster(
+        scope(),
+        "A-UPDATE",
+        Decimal("5"),
+        DurationUnit.WORKING_DAY,
+        date(2026, 9, 21),
+        0,
+        None,
+        None,
+        3,
+        date(2026, 9, 22),
+        40.0,
+        PercentCompleteType.PHYSICAL,
+    )
+    saved = repo.save(updated, expected_revision=1)
+
+    assert saved.record_revision == 2
+    assert repo.get(scope(), "A-UPDATE") == saved
