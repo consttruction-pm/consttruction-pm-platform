@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setP6Presentation } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -363,7 +363,7 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
-  assert.match(container.innerHTML, /<td role="gridcell">A-1<\/td>/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*>A-1<\/td>/);
 });
 
 
@@ -446,4 +446,80 @@ test("Activity Grid selection responds to Enter and Space keyboard activation", 
 
   assert.deepEqual(selected, ["A-1", "A-1"]);
   assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
+});
+
+test("Activity Grid renders P6 alignment, pinned, and frozen presentation", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "code", subject_area: "activity", p6_field: "ActivityId", display_name: "Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [
+      { field_id: "code", visible: true, order: 0, width: 140, alignment: "center" as const, pinned: true, frozen: true },
+      { field_id: "duration", visible: true, order: 1, width: 110, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), registry, layout);
+  state = {
+    ...state,
+    activities: [{ id: "A-1", wbsId: "W-1", code: "01", name: "Foundation", cells: { duration: 4 } }],
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-column-alignment="center"/);
+  assert.match(container.innerHTML, /data-column-pinned="true"/);
+  assert.match(container.innerHTML, /data-column-frozen="true"/);
+  assert.match(container.innerHTML, /class="cp-p6-column is-pinned is-frozen"/);
+  assert.match(container.innerHTML, /style="text-align:center;width:140px;--cp-p6-sticky-offset:0px"/);
+});
+
+
+test("Activity Grid offsets multiple pinned/frozen columns without overlap", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      { field_id: "code", subject_area: "activity", p6_field: "ActivityId", display_name: "Code", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "name", subject_area: "activity", p6_field: "ActivityName", display_name: "Name", data_type: "string" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "duration", subject_area: "activity", p6_field: "OriginalDuration", display_name: "Duration", data_type: "duration" as const, writable: false, computed: true, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity-grid",
+    revision: 1,
+    columns: [
+      { field_id: "code", visible: true, order: 0, width: 140, alignment: "start" as const, pinned: true, frozen: false },
+      { field_id: "name", visible: true, order: 1, width: 200, alignment: "start" as const, pinned: true, frozen: false },
+      { field_id: "duration", visible: true, order: 2, width: 110, alignment: "end" as const, pinned: false, frozen: true },
+    ],
+  };
+  let state = setP6Presentation(createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), registry, layout);
+  state = { ...state, activities: [{ id: "A-1", wbsId: "W-1", code: "01", name: "Foundation", cells: { duration: 4 } }] };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /data-column-pinned="true"[^>]*style="[^"]*--cp-p6-sticky-offset:140px/);
+  assert.match(container.innerHTML, /data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-pinned="true"[^>]*style="[^"]*--cp-p6-sticky-offset:140px/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
 });
