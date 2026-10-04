@@ -423,6 +423,18 @@ _ROWS = (
     ("activity.total_cost1_variance","Activity","TotalCost1Variance","Total Cost 1 Variance","cost",False,True,"currency"),
     ("activity.total_cost2_variance","Activity","TotalCost2Variance","Total Cost 2 Variance","cost",False,True,"currency"),
     ("activity.total_cost3_variance","Activity","TotalCost3Variance","Total Cost 3 Variance","cost",False,True,"currency"),
+    ("activity.total_cost_variance","Activity","TotalCostVariance","Total Cost Variance","cost",False,True,"currency"),
+    ("activity.total_past_period_earned_value_cost_bcwp","Activity","TotalPastPeriodEarnedValueCostBCWP","Total Past Period Earned Value Cost BCWP","cost",True,False,"currency"),
+    ("activity.total_past_period_earned_value_labor_units","Activity","TotalPastPeriodEarnedValueLaborUnits","Total Past Period Earned Value Labor Units","unit",True,False,"unit"),
+    ("activity.total_past_period_expense_cost","Activity","TotalPastPeriodExpenseCost","Total Past Period Expense Cost","cost",True,False,"currency"),
+    ("activity.total_past_period_planned_value_cost","Activity","TotalPastPeriodPlannedValueCost","Total Past Period Planned Value Cost","cost",True,False,"currency"),
+    ("activity.total_past_period_planned_value_labor_units","Activity","TotalPastPeriodPlannedValueLaborUnits","Total Past Period Planned Value Labor Units","unit",True,False,"unit"),
+    ("activity.unread_comment_count","Activity","UnreadCommentCount","Unread Comment Count","int",False,True,None),
+    ("activity.wbs_code","Activity","WBSCode","WBS Code","string",False,True,None),
+    ("activity.wbs_name","Activity","WBSName","WBS Name","string",False,True,None),
+    ("activity.wbs_name_path","Activity","WBSNamePath","WBS Name Path","string",False,True,None),
+    ("activity.wbs_object_id","Activity","WBSObjectId","WBS Object Id","object_id",True,False,None),
+    ("activity.work_package_id","Activity","WorkPackageId","Work Package Id","string",True,False,None),
 )
 
 
