@@ -91,7 +91,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     if (fieldId) options.onP6FieldVisibilityChange?.(fieldId, visible);
   }));
 
-  container.querySelectorAll<HTMLInputElement>("[data-p6-field-rename]").forEach((input) => input.addEventListener("change", () => {\n    const fieldId = input.dataset.p6FieldRename;\n    const label = input.value.trim();\n    if (fieldId && label) options.onP6FieldPresentationChange?.(fieldId, { label });\n  }));\n  container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {
+  container.querySelectorAll<HTMLInputElement>("[data-p6-field-rename]").forEach((input) => input.addEventListener("change", () => {
+    const fieldId = input.dataset.p6FieldRename;
+    const label = input.value.trim();
+    if (fieldId && label) options.onP6FieldPresentationChange?.(fieldId, { label });
+  }));
+  container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {
     const fieldId = button.dataset.p6FieldWidth;
     const delta = button.dataset.p6FieldWidthDelta;
     if (!fieldId || (delta !== "increase" && delta !== "decrease")) return;
