@@ -846,3 +846,15 @@ Status: **merged and runtime-verified**
 - Scope was limited to the presentation/marketing layer; no CPM, scheduling, calendar, EVM, resource/cost or financial calculation semantics were changed.
 - Current main after this checkpoint: `58fd9f4a407a688f65c5c67852cf0df37152f8db`.
 - Next Hasan action remains evidence-driven: re-read current main and open PRs, then implement only a concrete Hasan-owned Backend/Database/Application/API/Enterprise Integration gap; do not revive stale branches or duplicate client/Shared-Core ownership.
+
+
+### 2026-10-04 — Hasan P6 HTTP contract identity checkpoint (PR #1116)
+Status: 100% — merged and runtime-verified
+- Identified a concrete Hasan-owned HTTP boundary gap: Field Registry and UDF HTTP responses did not preserve the versioned p6-field-registry-api.v1 contract identity at the HTTP envelope.
+- PR #1116 added additive top-level contract_version to Field Registry/UDF POST and GET responses without changing existing field/UDF payload shapes.
+- Focused regression coverage also verified authenticated project scope and the versioned UDF read envelope.
+- Final PR head: bba393daf9b415c52a004251b34a17b4677f2c9b.
+- Client Typecheck 3604 and ConstructionPM CI 3901 both passed on the final exact head.
+- PR #1116 squash-merged as 5c6ef9c3fd99d6cb3c5966b0ecba8d5836bf8552.
+- Current main after this checkpoint: 5c6ef9c3fd99d6cb3c5966b0ecba8d5836bf8552.
+- Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative project evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
