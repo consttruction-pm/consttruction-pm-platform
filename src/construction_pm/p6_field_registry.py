@@ -429,11 +429,11 @@ _ROWS = (
     ("activity.total_past_period_expense_cost","Activity","TotalPastPeriodExpenseCost","Total Past Period Expense Cost","cost",True,False,"currency"),
     ("activity.total_past_period_planned_value_cost","Activity","TotalPastPeriodPlannedValueCost","Total Past Period Planned Value Cost","cost",True,False,"currency"),
     ("activity.total_past_period_planned_value_labor_units","Activity","TotalPastPeriodPlannedValueLaborUnits","Total Past Period Planned Value Labor Units","unit",True,False,"unit"),
-    ("activity.unread_comment_count","Activity","UnreadCommentCount","Unread Comment Count","int",False,True,None),
+    ("activity.unread_comment_count","Activity","UnreadCommentCount","Unread Comment Count","integer",False,True,None),
     ("activity.wbs_code","Activity","WBSCode","WBS Code","string",False,True,None),
     ("activity.wbs_name","Activity","WBSName","WBS Name","string",False,True,None),
     ("activity.wbs_name_path","Activity","WBSNamePath","WBS Name Path","string",False,True,None),
-    ("activity.wbs_object_id","Activity","WBSObjectId","WBS Object Id","object_id",True,False,None),
+    ("activity.wbs_object_id","Activity","WBSObjectId","WBS Object Id","object-id",True,False,None),
     ("activity.work_package_id","Activity","WorkPackageId","Work Package Id","string",True,False,None),
 )
 
