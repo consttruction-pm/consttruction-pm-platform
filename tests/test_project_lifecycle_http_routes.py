@@ -287,6 +287,7 @@ def test_p6_layout_route_returns_persisted_layout():
     status, _, body = r.handle("GET", "/api/projects/p1/p6/layouts/project/activity", cookies={"cp_session": "s1"})
     assert status == 200
     payload = json.loads(body)
+    assert payload["contract_version"] == "p6-layout-definition-api.v1"
     assert payload["schema_version"] == "p6-layout.v1"
     assert payload["scope"] == "project"
     assert payload["view_id"] == "activity"
@@ -317,6 +318,7 @@ def test_p6_layout_write_route_persists_authenticated_layout():
     )
     assert status == 200
     saved = json.loads(body)
+    assert saved["contract_version"] == "p6-layout-definition-api.v1"
     assert saved["schema_version"] == "p6-layout.v1"
     assert saved["scope"] == "project"
     assert saved["view_id"] == "activity"
