@@ -74,16 +74,23 @@ export class WorkspaceReadClient {
       const locale = options.locale ?? "en";
       const calendarMode = options.calendarMode ?? "gregorian";
       let state = createWorkspaceState(context, locale, calendarMode);
+      const defaultColumns = state.columns;
       state = {
         ...state,
-        columns: result.data.workspace.columns.map((column) => ({
-          id: column.id,
-          label: column.label,
-          dataType: column.data_type,
-          editable: column.editable,
-          formula: column.formula,
-          width: column.width,
-        })),
+        columns: result.data.workspace.columns.map((column) => {
+          const presentation = defaultColumns.find((item) => item.id === column.id);
+          return {
+            id: column.id,
+            label: column.label,
+            dataType: column.data_type,
+            editable: column.editable,
+            formula: column.formula,
+            width: column.width,
+            alignment: presentation?.alignment ?? "start",
+            pinned: presentation?.pinned ?? false,
+            frozen: presentation?.frozen ?? false,
+          };
+        }),
       };
 
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
