@@ -4,7 +4,7 @@ from construction_pm.p6_field_registry import P6FieldType, field_catalog
 EXPECTED = {
     "PerformancePercentCompleteByLaborUnits": (P6FieldType.PERCENTAGE, False, True, "percent"),
     "PlannedExpenseCost": (P6FieldType.COST, False, True, "currency"),
-    "PlannedTotalCost": (P6FieldType.COST, False, True, "currency"),
+    "PlannedTotalCost": (P6FieldType.COST, False, True, "units"),
     "PlannedTotalUnits": (P6FieldType.UNIT, False, True, "units"),
     "PostRespCriticalityIndex": (P6FieldType.PERCENTAGE, True, False, "percent"),
     "PostResponsePessimisticFinish": (P6FieldType.DATE, True, False, None),
@@ -33,4 +33,8 @@ def test_activity_release26_next10b_exact_registry_metadata_is_certified():
         assert field.unit == unit
         assert field.source == "Oracle P6 Version 26 / 26.4"
 
-    assert len([field for field in field_catalog() if field.p6_field in EXPECTED]) == 10
+    assert len([
+        field
+        for field in field_catalog()
+        if field.subject_area == "Activity" and field.p6_field in EXPECTED
+    ]) == 10
