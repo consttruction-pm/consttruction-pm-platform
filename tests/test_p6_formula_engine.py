@@ -197,6 +197,14 @@ def test_syntax_rejects_unterminated_field_and_bare_identifiers() -> None:
         parse_formula("budget + 1")
 
 
+def test_coalesce_short_circuits_unselected_error() -> None:
+    compiled = _compile("COALESCE([budget], [budget] / 0)")
+    assert evaluate_formula(
+        compiled,
+        {"budget": FormulaValue.number(5, "USD")},
+    ) == FormulaValue.number(5, "USD")
+
+
 def test_coalesce_and_aggregate_functions_handle_nulls() -> None:
     coalesce = compile_formula(
         FormulaDefinition(

@@ -824,6 +824,12 @@ def _evaluate(node: ExpressionNode, values: Mapping[str, FormulaValue]) -> Formu
                 if item.type is FormulaType.NULL:
                     saw_null = True
             return FormulaValue.null() if saw_null else FormulaValue.boolean(False)
+        if name == "COALESCE":
+            for argument in node.arguments:
+                item = _evaluate(argument, values)
+                if item.type is not FormulaType.NULL:
+                    return item
+            return FormulaValue.null()
         args = [_evaluate(argument, values) for argument in node.arguments]
         if name == "SUM":
             present = [item for item in args if item.type is not FormulaType.NULL]
