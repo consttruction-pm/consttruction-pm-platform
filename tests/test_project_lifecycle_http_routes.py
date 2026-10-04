@@ -728,7 +728,7 @@ def test_p6_financial_period_routes_reject_cross_scope_missing_permission_and_in
         "GET", "/api/projects/p1/p6/financial-periods", cookies={"cp_session": "s1"}
     )
     assert status == 403
-    assert json.loads(body)["code"] == "AUTHORIZATION_DENIED"
+    assert json.loads(body)["code"] == "authorization denied for permission=project.read"
 
     r, _, _ = p6_routes()
     status, _, body = r.handle(
