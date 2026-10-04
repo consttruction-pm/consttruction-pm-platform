@@ -4,6 +4,7 @@ import {
   MOBILE_SCHEDULING_CONTRACT_VERSION,
   createSharedSchedulingCoreAdapter,
   type MobileSchedulingRequest,
+  type MobileSchedulingResult,
 } from "./shared-scheduling-adapter.ts";
 
 const request: MobileSchedulingRequest = {
@@ -43,12 +44,7 @@ const request: MobileSchedulingRequest = {
   constraints: [],
 };
 
-function deterministicResult(): Readonly<{
-  contract_version: typeof MOBILE_SCHEDULING_CONTRACT_VERSION;
-  calculation_fingerprint: string;
-  project_finish: string;
-  activities: readonly object[];
-}> {
+function deterministicResult(): MobileSchedulingResult {
   return {
     contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
     calculation_fingerprint: "core-fp-001",
