@@ -7,7 +7,7 @@ export function renderLandingPage(container: HTMLElement): void {
           <span><strong>CUBI</strong><small>Platform</small></span>
         </a>
         <nav class="cubi-nav" aria-label="Primary navigation">
-          <a href="#features">Capabilities</a><a href="#controls">Project Controls</a><a href="#ai">AI Assistant</a><a href="#resources">Resources & Cost</a>
+          <a href="#product">Product</a><a href="#solutions">Solutions</a><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#ai">AI</a><a href="#resources">Resources</a>
         </nav>
         <div class="cubi-header-actions"><a class="cubi-link" href="#faq">FAQ</a><a class="cubi-button cubi-button-small" href="/app">Open Platform</a></div>
       </header>
@@ -18,7 +18,7 @@ export function renderLandingPage(container: HTMLElement): void {
             <p class="cubi-eyebrow"><span></span> Construction & Building Intelligence</p>
             <h1>Construction Project Control, <em>Reimagined.</em></h1>
             <p class="cubi-lead">CUBI Platform brings construction planning, scheduling, project controls, cost, progress, documents and AI assistance into one professional platform.</p>
-            <div class="cubi-hero-actions"><a class="cubi-button" href="/app">Explore CUBI Platform <span>→</span></a><a class="cubi-text-link" href="#features">See capabilities</a></div>
+            <div class="cubi-hero-actions"><a class="cubi-button" href="/app">Explore CUBI Platform <span>→</span></a><a class="cubi-text-link" href="#features">See features</a></div>
             <p class="cubi-tagline">Plan. Control. Build Smarter.</p>
           </div>
           <div class="cubi-hero-visual" aria-label="CUBI project controls preview">
@@ -40,7 +40,7 @@ export function renderLandingPage(container: HTMLElement): void {
           <span>Built for the disciplines that control project outcomes</span><b>CPM / P6 Logic</b><b>Project Controls</b><b>Cost & EVM</b><b>Resources</b><b>Progress</b>
         </section>
 
-        <section class="cubi-section" id="features">
+        <section class="cubi-section" id="product">
           <div class="cubi-section-head"><p class="cubi-kicker">ONE CONTROL LAYER</p><h2>Everything teams need to keep projects moving.</h2><p>One coherent workspace for the planning, control and intelligence workflows behind complex construction delivery.</p></div>
           <div class="cubi-feature-grid">
             <article><span class="cubi-icon">⌁</span><h3>Planning & Scheduling</h3><p>CPM logic, WBS, activities, baselines and schedule analysis built for serious project planning.</p></article>
@@ -52,7 +52,7 @@ export function renderLandingPage(container: HTMLElement): void {
           </div>
         </section>
 
-        <section class="cubi-control-section" id="controls">
+        <section class="cubi-control-section" id="solutions">
           <div class="cubi-control-copy"><p class="cubi-kicker">PROJECT CONTROLS</p><h2>See the project as a system, not a collection of spreadsheets.</h2><p>Bring schedule logic, progress, cost and performance into a shared operating picture. CUBI is designed around the realities of construction control.</p><ul><li>Schedule and baseline visibility</li><li>Progress and performance signals</li><li>Cost, resources and EVM context</li><li>Documents, contracts, claims and issues</li></ul><a class="cubi-text-link" href="/app">Open the control workspace →</a></div>
           <div class="cubi-control-card"><div class="cubi-card-label">CONTROL SIGNALS</div><div class="cubi-signal"><span>Schedule</span><b>92</b><i></i></div><div class="cubi-signal"><span>Progress</span><b>78</b><i></i></div><div class="cubi-signal"><span>Cost</span><b>96</b><i></i></div><div class="cubi-signal"><span>Risk</span><b>14</b><i></i></div><div class="cubi-mini-note"><span>AI</span> 3 priority insights ready for review</div></div>
         </section>
@@ -61,7 +61,7 @@ export function renderLandingPage(container: HTMLElement): void {
 
         <section class="cubi-section cubi-resources" id="resources"><div class="cubi-section-head"><p class="cubi-kicker">CONNECTED DELIVERY</p><h2>From baseline to field progress.</h2><p>Designed to keep core project information connected across the lifecycle.</p></div><div class="cubi-flow"><span>Plan</span><i>→</i><span>Schedule</span><i>→</i><span>Control</span><i>→</i><span>Measure</span><i>→</i><span>Improve</span></div></section>
 
-        <section class="cubi-cta"><p class="cubi-kicker">CUBI PLATFORM</p><h2>Plan with clarity. Control with confidence.</h2><p>Built for teams that need a professional project control layer without compromising the engineering core.</p><a class="cubi-button" href="/app">Enter CUBI Platform <span>→</span></a></section>
+        <section class="cubi-cta" id="pricing"><p class="cubi-kicker">CUBI PLATFORM</p><h2>Plan with clarity. Control with confidence.</h2><p>Built for teams that need a professional project control layer without compromising the engineering core.</p><a class="cubi-button" href="/app">Enter CUBI Platform <span>→</span></a></section>
 
         <section class="cubi-faq" id="faq"><div><p class="cubi-kicker">FAQ</p><h2>Built for professional project teams.</h2></div><div class="cubi-faq-list"><details><summary>What is CUBI Platform?</summary><p>CUBI is a construction and building intelligence platform focused on planning, project controls, cost, progress, resources, documents and AI-assisted workflows.</p></details><details><summary>Does CUBI replace Primavera/CPM logic?</summary><p>No. The homepage is a product entry point; the underlying CPM and calculation core remains protected.</p></details><details><summary>Can teams work in multiple languages?</summary><p>The web platform is designed for multilingual operation, including RTL/LTR behavior.</p></details></div></section>
       </main>
