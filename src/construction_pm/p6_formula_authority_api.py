@@ -6,7 +6,7 @@ from typing import Any
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
 from .p6_field_registry_repository import P6FieldRegistryApplicationService
-from .p6_formula_engine import FormulaDefinition, FormulaError, FormulaSchemaValue, FormulaType, compile_formula
+from .p6_formula_engine import FormulaDefinition, FormulaError, FormulaSchemaValue, FormulaType, analyze_dependencies, compile_formula, parse_formula
 from .p6_formula_field_adapter import P6FormulaFieldAdapter
 
 
@@ -82,6 +82,11 @@ def _compile_for_validation(
     schema: dict[str, FormulaSchemaValue],
     context_field_id: str | None,
 ):
+    # Detect self-reference from the Shared Core dependency graph before
+    # result-type matching so the contract reports the authoritative error.
+    if context_field_id and context_field_id in analyze_dependencies(parse_formula(expression)):
+        raise FormulaError("FORMULA_SELF_REFERENCE")
+
     # Compile against each supported result type; Shared Core remains the
     # sole parser/type/dependency authority and determines the unique match.
     last_error: FormulaError | None = None
