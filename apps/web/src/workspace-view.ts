@@ -61,8 +61,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
-              <table role="grid" aria-label="Activity Grid" aria-multiselectable="false">
-                <thead><tr>${state.columns.map((column) => `<th role="columnheader" data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
+              <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false">
+                <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-type="${column.dataType}" style="width:${column.width}px">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
                 <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
               </table>
             </div>
