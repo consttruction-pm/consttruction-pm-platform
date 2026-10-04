@@ -1,4 +1,16 @@
-import assert from "node:assert/strict";
+imp
+
+test("locale switch relocalizes default grid columns", () => {
+  let state = createWorkspaceState(context, "en");
+  state = setLocale(state, "fa");
+
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "نام فعالیت");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "پیشرفت");
+
+  state = setLocale(state, "en");
+  assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "Activity Name");
+  assert.equal(state.columns.find((column) => column.id === "progress")?.label, "Progress");
+});ort assert from "node:assert/strict";
 import test from "node:test";
 
 import {
