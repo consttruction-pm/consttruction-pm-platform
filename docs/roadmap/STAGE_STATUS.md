@@ -1119,3 +1119,20 @@ Status: 100% — merged and runtime-verified
 - PR #1118 squash-merged as `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Current main after this checkpoint: `5a621b70a14b3e3a7405df1312f09f58091ddcab`.
 - Next Hasan action: fresh current-main/open-PR audit; implement only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
+
+### 2026-10-05 — Hasan P6 Baseline authenticated HTTP contract (PR #1131)
+Status: **100% — merged and runtime-verified**
+- Concrete Hasan-owned gap #1130: the existing versioned P6 Baseline API/persistence boundary had no authenticated HTTP transport boundary.
+- PR #1131 added GET list/get and POST create routes deriving tenant/project/revision from authenticated ProjectContext and delegating authorization/persistence to the existing P6BaselineAPI.
+- Focused HTTP regression coverage covers create/get/list, cross-scope, missing permission, not-found and malformed payloads.
+- Exact implementation head: 1fedc791ceaa2b90a4cc1d612ba26df3b8901f8c.
+- Client Typecheck run 3624 and ConstructionPM CI run 3921 both passed on the exact head.
+- PR #1131 squash-merged to main as 2b41b17f8dfa86a071ee556206668348804fef71.
+- No Shared Core, CPM, calendar, Progress/EVM, Resource/Cost or financial calculation semantics changed.
+
+### Current Hasan continuation — Mobile V1 / Issue #1134
+- Issue #1134 is the current explicit Hasan-owned Mobile V1 backend/API workstream: offline-capable project operations, authenticated versioned contracts, ProjectContext, revision/optimistic locking, idempotency, conflict/replay, queued synchronization and portable calendar/settings/schema context.
+- Current-main audit confirms the authenticated session/ProjectContext and revision context exist, but no independent Mobile V1 synchronization transport contract is currently established in the inspected HTTP boundary.
+- Do not invent scheduling/calendar calculations in Backend/API. The next implementation must identify the first concrete sync/idempotency application boundary supported by existing authoritative contracts, add focused regression coverage, and require exact-head CI before completion.
+- PR #1132 was identified as a duplicate/redundant re-publication of the already-merged #1131 baseline HTTP change and was closed without merge; it is not part of the baseline.
+- Current main after #1131: 2b41b17f8dfa86a071ee556206668348804fef71.
