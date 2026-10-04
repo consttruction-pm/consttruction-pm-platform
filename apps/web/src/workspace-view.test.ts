@@ -217,6 +217,14 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
   assert.match(container.innerHTML, /aria-label="Wider"/);
   assert.match(container.innerHTML, /title="Narrower"/);
   assert.match(container.innerHTML, /aria-label="Narrower"/);
+  assert.ok(container.innerHTML.includes('data-p6-field-alignment="activity.activity_id"'));
+  assert.match(container.innerHTML, /aria-label="Align left"/);
+  assert.match(container.innerHTML, /aria-label="Align center"/);
+  assert.match(container.innerHTML, /aria-label="Align right"/);
+  assert.ok(container.innerHTML.includes('data-p6-field-pin="activity.activity_id"'));
+  assert.match(container.innerHTML, /aria-label="Pin"/);
+  assert.ok(container.innerHTML.includes('data-p6-field-freeze="activity.activity_id"'));
+  assert.match(container.innerHTML, /aria-label="Freeze"/);
 });
 
 
