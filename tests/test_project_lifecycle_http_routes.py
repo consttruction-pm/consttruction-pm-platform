@@ -26,6 +26,7 @@ from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotR
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
+from construction_pm.dependency_graph_api import DependencyGraphAPI
 from construction_pm.p6_financial_period_repository import P6FinancialPeriodApplicationService, SQLiteP6FinancialPeriodRepository
 from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
 from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
@@ -807,3 +808,92 @@ def test_p6_baseline_create_rejects_malformed_payload():
     )
     assert status == 400
     assert json.loads(body)["code"] == "P6_BASELINE_REQUEST_INVALID"
+
+
+class _DependencyGraphReadAPI:
+    def __init__(self, result):
+        self.result = result
+
+    def get(self, *, tenant_id, project_id, resource_id, auth_context):
+        assert tenant_id == "t1"
+        assert project_id == "p1"
+        assert auth_context.project_id == "p1"
+        return self.result
+
+
+def dependency_routes(*, roles=frozenset({"project_admin"}), result=None):
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", roles, now + timedelta(hours=1))
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    return ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        dependency_graph_api=_DependencyGraphReadAPI(result),
+    )
+
+
+def test_dependency_graph_http_read_preserves_versioned_contract_and_project_context():
+    r = dependency_routes(result={
+        "contract_version": "dependency-graph.v1",
+        "operation": "get",
+        "resource_id": "schedule:link-1",
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "revision": 2,
+        "graph_revision": 3,
+        "source_resource_id": "schedule:task-a",
+        "target_resource_id": "schedule:task-b",
+        "source_revision": 1,
+        "target_revision": 2,
+        "dependency_type": "depends_on",
+        "metadata": {"origin": "p6"},
+    })
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/dependencies/schedule:link-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == "dependency-graph.v1"
+    assert payload["resource_id"] == "schedule:link-1"
+    assert payload["project_id"] == "p1"
+    assert payload["graph_revision"] == 3
+
+
+def test_dependency_graph_http_read_requires_session_and_project_scope():
+    r = dependency_routes(result={})
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/dependencies/schedule:link-1"
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p2/dependencies/schedule:link-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def test_dependency_graph_http_read_returns_not_found():
+    r = dependency_routes(result=None)
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/dependencies/schedule:missing",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "DEPENDENCY_NOT_FOUND"
+
+
+def test_dependency_graph_http_read_rejects_malformed_resource_path():
+    r = dependency_routes(result={})
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/dependencies/",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "DEPENDENCY_REQUEST_INVALID"
