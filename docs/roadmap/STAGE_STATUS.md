@@ -1076,3 +1076,13 @@ Status: **implemented, merged and runtime-verified**
 - Recent Hasan work #1104/#1106/#1110 is already merged: ScheduleOptions metadata persistence/API round-trip coverage, versioned formula-authority API boundary, and dependency-graph read API boundary with scope/permission enforcement.
 - Current evidence remains at the ownership boundary: Activity Status/Type/StatusCode and time-aware ScheduleOptions semantics require authoritative Shared-Core/P6 semantic evidence before any backend mapping/API is invented.
 - Disposition: **no speculative implementation**. Next Hasan implementation must start from the exact then-current main only when a concrete backend defect or authoritative contract-backed seam appears; add focused regression and PostgreSQL verification where persistence is involved, then record exact CI/merge identifiers.
+
+
+### 2026-10-04 — Hasan P6 Calendar Read Contract checkpoint (PR #1114)
+- PR #1114 added the missing typed/authenticated backend read boundary for canonical P6 calendar catalog and snapshot data after the calendar persistence boundary was merged.
+- Exact implementation head: `d2d2a39a3d2dc4da28b122e69e0f3381020cae0c`.
+- Client Typecheck **3584** and ConstructionPM CI **3881** passed on the exact head.
+- PR #1114 squash-merged as `7e6fae2549e278af9e361752aee2280c6c927a7a`.
+- No calendar arithmetic or scheduling semantics were moved into Backend/API; Shared Core remains authoritative.
+- Current main after this checkpoint: `7e6fae2549e278af9e361752aee2280c6c927a7a`.
+- Current open PR #1097 is Web/Javad ownership and is not counted as Hasan backend work.
