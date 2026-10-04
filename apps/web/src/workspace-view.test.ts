@@ -403,8 +403,8 @@ test("Gantt activity selection responds to Enter and Space keyboard activation",
   });
 
   const preventDefaultCalls: string[] = [];
-  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => preventDefaultCalls.push("Enter") } as KeyboardEvent);
-  listeners.get("keydown")?.({ key: " ", preventDefault: () => preventDefaultCalls.push("Space") } as KeyboardEvent);
+  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
+  listeners.get("keydown")?.({ key: " ", preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
 
   assert.deepEqual(selected, ["A-1", "A-1"]);
   assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
