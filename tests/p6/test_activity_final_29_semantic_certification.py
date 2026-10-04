@@ -31,6 +31,13 @@ def test_final_29_matrix_is_exactly_the_governed_reconciliation_set():
     historical_registry_names = registry_names - {
         "SecondaryConstraintDate",
         "SecondaryConstraintType",
+        "TaskStatusCompletion",
+        "TaskStatusDates",
+        "TaskStatusIndicator",
+        "ToCompletePerformanceIndex",
+        "TotalCost1Variance",
+        "TotalCost2Variance",
+        "TotalCost3Variance",
     }
 
     assert len(names) == 29
