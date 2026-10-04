@@ -3,6 +3,7 @@ from __future__ import annotations
 """Materialize authoritative calendar references into Shared Core resolvers."""
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Mapping
 
 from .authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleInput
@@ -61,8 +62,8 @@ def resolve_authoritative_activity_calendars(
 
     return ResolvedActivityCalendars(
         project=project_resolver,
-        activities=resolved,
-        references=references,
+        activities=MappingProxyType(resolved),
+        references=MappingProxyType(references),
     )
 
 
