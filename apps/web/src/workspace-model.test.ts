@@ -92,9 +92,15 @@ test("formula columns remain metadata and do not calculate client values", () =>
     editable: false,
     formula: "[EV] - [PV]",
     width: 120,
+    alignment: "end",
+    pinned: false,
+    frozen: false,
   });
 
   assert.equal(next.columns.at(-1)?.formula, "[EV] - [PV]");
+  assert.equal(next.columns.at(-1)?.alignment, "end");
+  assert.equal(next.columns.at(-1)?.pinned, false);
+  assert.equal(next.columns.at(-1)?.frozen, false);
   assert.equal(next.columns.at(-1)?.dataType, "decimal");
 });
 
@@ -454,6 +460,9 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
   state = removeP6Field(state, "duration");
   assert.deepEqual(state.columns.map((column) => column.id), ["activity_code"]);
   assert.equal(state.p6FieldRegistry?.registry_version, "p6-field-registry.v1");
+  assert.equal(state.columns[0]?.alignment, "start");
+  assert.equal(state.columns[0]?.pinned, false);
+  assert.equal(state.columns[0]?.frozen, false);
 });
 
 test("P6 layout mutations remain authoritative for reorder and presentation", () => {
