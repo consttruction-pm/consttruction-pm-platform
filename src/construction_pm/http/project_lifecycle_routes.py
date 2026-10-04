@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Mapping, Protocol
+from typing import Callable, Mapping, Protocol
 
 from ..application.authorization import AuthorizationError
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
@@ -14,6 +14,7 @@ from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
+from ..client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from ..p6_field_registry import (
     P6FieldDefinition,
     P6FieldType,
@@ -59,6 +60,7 @@ class ProjectLifecycleHttpRoutes:
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -67,6 +69,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_baseline_api = p6_baseline_api
+        self._sync_endpoint_factory = sync_endpoint_factory
 
     def handle(
         self,
@@ -96,6 +99,58 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if method == "POST" and path == "/api/v1/sync/mutations":
+                if self._sync_endpoint_factory is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or not isinstance(payload.get("project_id"), str):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, payload["project_id"], now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                idempotency_key = payload.get("idempotency_key")
+                if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._sync_endpoint_factory(context.tenant_id, context.project_id).post(
+                        payload,
+                        {
+                            "Idempotency-Key": idempotency_key,
+                            "X-Tenant-Id": context.tenant_id,
+                            "X-Project-Id": context.project_id,
+                            "X-Project-Revision": str(context.revision),
+                        },
+                    )
+                except (KeyError, TypeError, ValueError):
+                    return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/v1/sync/revision/"):
+                if self._sync_endpoint_factory is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/v1/sync/revision/"):].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "SYNC_REVISION_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                endpoint = VersionedSyncRevisionEndpoint(
+                    context.tenant_id,
+                    context.project_id,
+                    lambda _tenant, _project: context.revision,
+                )
+                return self._json(200, endpoint.get({
+                    "X-Tenant-Id": context.tenant_id,
+                    "X-Project-Id": context.project_id,
+                }))
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/calendars"):
                 if self._p6_calendar_read_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
