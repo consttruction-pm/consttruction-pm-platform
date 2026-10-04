@@ -18,8 +18,10 @@ import {
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 import { getBootstrapLabels } from "./bootstrap-labels.js";
+import { getWorkspaceShellLabels } from "./shell-labels.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
+  const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
   container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
   const workspace = container.querySelector<HTMLElement>("#workspace");
@@ -106,7 +108,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   const languageButton = document.createElement("button");
   languageButton.type = "button";
   languageButton.textContent = state.locale === "fa" ? "English" : "فارسی";
-  languageButton.setAttribute("aria-label", state.locale === "fa" ? "Switch to English" : "تغییر به فارسی");
+  languageButton.setAttribute("aria-label", state.locale === "fa" ? shellLabels.switchToEnglish : shellLabels.switchToPersian);
   languageButton.addEventListener("click", () => {
     const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
     renderApp(container, setLocale(state, next), persistence);
@@ -114,7 +116,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
 
   const status = document.createElement("div");
   status.className = "cp-app-status";
-  status.append("Web shell · Authenticated workspace");
+  status.append(shellLabels.status);
   status.append(languageButton);
   container.prepend(status);
 }
