@@ -24,6 +24,8 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
+from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
+from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
@@ -60,6 +62,7 @@ class ProjectLifecycleHttpRoutes:
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
     ) -> None:
         self._api = api
@@ -69,6 +72,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_baseline_api = p6_baseline_api
+        self._p6_financial_period_api = p6_financial_period_api
         self._sync_endpoint_factory = sync_endpoint_factory
 
     def handle(
@@ -206,6 +210,84 @@ class ProjectLifecycleHttpRoutes:
                 )
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/financial-periods"):
+                if self._p6_financial_period_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/financial-periods")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_financial_period_api.list(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    auth_context=auth,
+                )
+                return self._json(200, {
+                    "contract_version": P6_FINANCIAL_PERIOD_API_VERSION,
+                    "financial_periods": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/financial-periods/" in path:
+                if self._p6_financial_period_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, period_id = path.split("/p6/financial-periods/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not period_id or "/" in period_id:
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_financial_period_api.get(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    period_id,
+                    auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "P6_FINANCIAL_PERIOD_NOT_FOUND", "error.p6.financial_period.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/financial-periods"):
+                if self._p6_financial_period_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/financial-periods")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                period = P6FinancialPeriod(
+                    scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                    period_id=payload.get("period_id", ""),
+                    name=payload.get("name", ""),
+                    start_date=payload.get("start_date", ""),
+                    end_date=payload.get("end_date", ""),
+                    status=payload.get("status", "OPEN"),
+                )
+                try:
+                    result = self._p6_financial_period_api.create(period, auth_context=auth)
+                except (TypeError, ValueError):
+                    return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/baselines"):
                 if self._p6_baseline_api is None:
