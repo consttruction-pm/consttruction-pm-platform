@@ -24,6 +24,8 @@ from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VE
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
+from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
@@ -101,10 +103,10 @@ def test_browser_cannot_supply_identity_headers_as_authority():
     assert status == 401
 
 
-def p6_routes():
+def p6_routes(roles=frozenset({"project_admin"})):
     import sqlite3
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
-    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    session = AuthenticatedSession("s1", "u1", "t1", roles, now + timedelta(hours=1))
     service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
         Sessions(session), Projects(), default_project_policy()
     )
@@ -120,6 +122,10 @@ def p6_routes():
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
+    baseline_api = P6BaselineAPI(
+        P6BaselineApplicationService(SQLiteP6BaselineRepository(connection), transaction_manager),
+        default_project_policy(),
+    )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -127,6 +133,7 @@ def p6_routes():
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
         p6_calendar_read_api=calendar_api,
+        p6_baseline_api=baseline_api,
     ), field_api, layout_api
 
 
@@ -558,3 +565,65 @@ def test_p6_field_write_route_requires_session_cookie():
     )
     assert status == 401
     assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
+def test_p6_baseline_http_routes_create_get_and_list_preserve_contract():
+    r, _, _ = p6_routes()
+    payload = {
+        "baseline_id": "BL-1",
+        "name": "Primary Baseline",
+        "baseline_type": "PRIMARY",
+        "source_revision": 2,
+        "created_at": "2026-10-05T00:00:00+00:00",
+        "notes": "Release baseline",
+    }
+    status, _, body = r.handle("POST", "/api/projects/p1/p6/baselines", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["contract_version"] == P6_BASELINE_API_VERSION
+    assert saved["baseline"]["source_revision"] == 2
+    assert saved["baseline"]["baseline_type"] == "PRIMARY"
+
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/baselines/BL-1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(body) == saved
+
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/baselines", cookies={"cp_session": "s1"})
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_BASELINE_API_VERSION
+    assert [item["baseline"]["baseline_id"] for item in payload["baselines"]] == ["BL-1"]
+
+
+def test_p6_baseline_routes_reject_cross_scope_and_missing_permission():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle("GET", "/api/projects/p2/p6/baselines", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    r, _, _ = p6_routes(roles=frozenset())
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/baselines", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert "authorization" in json.loads(body)["code"].lower()
+
+
+def test_p6_baseline_get_returns_not_found():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/baselines/missing", cookies={"cp_session": "s1"})
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_BASELINE_NOT_FOUND"
+
+
+def test_p6_baseline_create_rejects_malformed_payload():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/baselines", cookies={"cp_session": "s1"}, body=json.dumps({
+            "baseline_id": "BL-1",
+            "name": "Bad",
+            "baseline_type": "NOT_VALID",
+            "source_revision": 2,
+            "created_at": "2026-10-05T00:00:00+00:00",
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_BASELINE_REQUEST_INVALID"
