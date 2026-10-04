@@ -332,6 +332,8 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
   assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false">/);
+  assert.match(container.innerHTML, /<thead><tr role="row">/);
+  assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
   assert.match(container.innerHTML, /<td role="gridcell">A-1<\/td>/);
 });
