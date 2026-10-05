@@ -71,7 +71,7 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "activity.planned_start": date(2026, 1, 10),
         "activity.planned_finish": date(2026, 1, 20),
         "activity.remaining_early_start_date": datetime(2026, 1, 12, tzinfo=timezone.utc),
-        "activity.remaining_early_finish_date": datetime(2026, 1, 18, tzinfo=timezone.utc),
+        "activity.remaining_early_finish_date": date(2026, 1, 18),
         "activity.last_update_date": datetime(2026, 1, 5, tzinfo=timezone.utc),
         "activity.last_update_user": "planner",
     }
