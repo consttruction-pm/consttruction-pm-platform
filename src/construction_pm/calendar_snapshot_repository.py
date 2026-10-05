@@ -10,6 +10,9 @@ from typing import Protocol
 from .backend_p0.models import BackendScope
 from .calendar_master_repository import CalendarMaster, CalendarPersistenceError
 from .scheduling.calendar import WorkingCalendar
+from .scheduling.time_calendar import WorkingTimeCalendar
+
+CalendarDefinition = WorkingCalendar | WorkingTimeCalendar
 
 
 @dataclass(frozen=True)
@@ -26,17 +29,27 @@ class CalendarSnapshotRecord:
         if not isinstance(self.snapshot, dict):
             raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
         try:
-            WorkingCalendar.from_canonical_snapshot(self.snapshot)
+            kind = self.snapshot.get("kind", "working-day")
+            if kind == "working-day":
+                WorkingCalendar.from_canonical_snapshot(self.snapshot)
+            elif kind == "working-time":
+                WorkingTimeCalendar.from_canonical_snapshot(self.snapshot)
+            else:
+                raise ValueError("unsupported calendar snapshot kind")
         except (TypeError, ValueError) as exc:
             raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
 
 
 class CalendarSnapshotRepository(Protocol):
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord: ...
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord: ...
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None: ...
 
 
 def _record(calendar: CalendarMaster, snapshot: dict[str, object]) -> CalendarSnapshotRecord:
+    expected_kind = calendar.kind
+    actual_kind = str(snapshot.get("kind", "working-day"))
+    if actual_kind != expected_kind:
+        raise CalendarPersistenceError("CALENDAR_KIND_MISMATCH")
     record = CalendarSnapshotRecord(
         calendar.scope,
         calendar.calendar_id,
@@ -76,9 +89,9 @@ class SQLiteCalendarSnapshotRepository:
         )
         self.connection.commit()
 
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
         calendar.validate()
-        record = _record(calendar, working_calendar.canonical_snapshot())
+        record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
@@ -141,9 +154,9 @@ class PostgresCalendarSnapshotRepository:
             "REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version))"
         )
 
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
         calendar.validate()
-        record = _record(calendar, working_calendar.canonical_snapshot())
+        record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
