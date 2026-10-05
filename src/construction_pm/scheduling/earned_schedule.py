@@ -60,17 +60,16 @@ class EarnedScheduleResult:
     cumulative_ev: Decimal
     canonical_period_count: int
 
-    def reconcile(self, schedule_progress: Decimal, *, tolerance: Decimal = Decimal("0.000000001")) -> SchedulePerformanceReconciliation:
-        progress = Decimal(str(schedule_progress))
+    def reconcile(self, authoritative_schedule_time: Decimal, *, tolerance: Decimal = Decimal("0.000000001")) -> SchedulePerformanceReconciliation:
+        """Reconcile ES directly against an authoritative network-schedule time."""
+
+        schedule_time = Decimal(str(authoritative_schedule_time))
         tol = Decimal(str(tolerance))
-        if not progress.is_finite() or progress < 0 or progress > 1:
-            raise ValueError("schedule_progress must be finite and between 0 and 1")
+        if not schedule_time.is_finite() or schedule_time < 0:
+            raise ValueError("authoritative_schedule_time must be finite and non-negative")
         if not tol.is_finite() or tol < 0:
             raise ValueError("tolerance must be finite and non-negative")
-        if self.canonical_period_count <= 0:
-            raise EarnedScheduleError("NO_SCHEDULE_PERIODS")
-        earned_progress = self.earned_schedule / Decimal(self.canonical_period_count)
-        variance = earned_progress - progress
+        variance = self.earned_schedule - schedule_time
         if abs(variance) <= tol:
             status = "ALIGNED"
         elif variance > 0:
@@ -78,8 +77,8 @@ class EarnedScheduleResult:
         else:
             status = "EARNED_SCHEDULE_BEHIND"
         return SchedulePerformanceReconciliation(
-            earned_schedule_progress=earned_progress,
-            schedule_progress=progress,
+            earned_schedule_progress=self.earned_schedule,
+            schedule_progress=schedule_time,
             progress_variance=variance,
             status=status,
         )
