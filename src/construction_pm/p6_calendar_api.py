@@ -71,6 +71,28 @@ class P6CalendarAPI:
         )
         return self._calendar_dto(self.calendar_repository.save(calendar, request.expected_revision))
 
+    def update(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        request.validate()
+        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        if request.expected_revision is None or request.expected_revision < 1:
+            raise P6CalendarAPIError("EXPECTED_REVISION_REQUIRED_FOR_UPDATE")
+        existing = self.calendar_repository.get(scope, request.calendar_id, request.calendar_version)
+        if existing is None:
+            raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+        calendar = CalendarMaster(
+            scope=scope,
+            calendar_id=request.calendar_id,
+            calendar_version=request.calendar_version,
+            kind=request.kind,
+            name=request.name,
+            base_calendar_id=request.base_calendar_id,
+            base_calendar_version=request.base_calendar_version,
+            calendar_type=request.calendar_type,
+        )
+        return self._calendar_dto(
+            self.calendar_repository.save(calendar, request.expected_revision)
+        )
+
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int, auth_context: AuthorizationContext) -> bool:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
         deleter = getattr(self.calendar_repository, "delete", None)
