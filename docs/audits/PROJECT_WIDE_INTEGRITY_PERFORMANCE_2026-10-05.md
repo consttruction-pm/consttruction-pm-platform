@@ -568,3 +568,21 @@ The remaining parity gap is type/surface coverage:
 **Cross-platform Formula/Field consumption parity:** medium-high risk, high confidence; tracked by existing issue #1226.
 
 Required direction: keep the existing Shared Formula Core as the only formula engine; complete safe P6 type mappings where semantics can be certified, otherwise explicitly mark them unsupported; create one shared client transport contract consumed by Web/Desktop/Mobile rather than per-platform formula implementations.
+
+
+## AF. Interchange typed values versus real canonical mappings — current main
+
+Current-main tests confirm two different layers:
+
+- `P6InterchangeTypedValue` has strong standalone JSON round-trip coverage for Date, timezone-aware DateTime, Decimal, Duration with explicit unit, Boolean, Enum, Integer and String, including fail-closed tests for invalid/coerced values.
+- Real codec integration tests for XER and Primavera XML prove parsing + mapping composition, but the mapper currently copies mapped raw Python values directly into canonical fields. `P6MappingDefinition` stores `source_type` and `canonical_type` metadata, but `P6InterchangeMapper` does not enforce conversion against the canonical P6 Field Registry.
+- Consequently a date field in a real XER/XML row is not yet proven to arrive at the canonical layer as a typed `date`; a duration/cost/enum has the same certification gap. The typed-value class alone does not establish this end-to-end property.
+- Existing issue #1227 is the correct tracking item and already states the required outcome: connect mappings to the canonical Registry, enforce typed conversion at the shared boundary, and add representative round-trip evidence.
+
+### Verdict
+
+**Standalone typed interchange contract:** strong foundation.
+
+**End-to-end typed canonical import/export:** incomplete; **High parity risk, high confidence** for P6 field certification, but not evidence of current data corruption because unsupported mappings are preserved/rejected rather than silently discarded.
+
+Required direction remains exactly #1227; no new conversion engine should be created per codec or per client.
