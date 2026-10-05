@@ -427,7 +427,9 @@ Fresh current-main tree inspection searched the complete repository for the EVM/
 - `src/construction_pm/scheduling/earned_schedule.py` — real Shared Core Earned Schedule / SPI(t) / SV(t) calculation and reconciliation.
 - `src/construction_pm/resources/evm_bridge.py` — Resource-to-EVM adapter deriving ETC/EAC/VAC/CV/SV from supplied PV/EV/AC/resource-remaining-cost inputs.
 - P6 Activity typed semantic evidence artifacts for cost/EVM, actual cost/units, earned value/remaining and schedule performance/variance.
-- No distinct current-main canonical EVM calculation module/API was identified for the full PV/EV/AC/BAC/ETC/EAC/CV/SV/SPI/SPI(t) lifecycle beyond the resource bridge and Earned Schedule implementation.
+- `src/construction_pm/p6_activity_read_model.py` + `p6_activity_read_model_api.py` provide a read-only Activity Cost/Actual/Baseline aggregation boundary. Its implementation explicitly sets `evm.status = "unavailable"` until an authoritative computed Shared-Core EVM-result contract exists.
+- No distinct current-main canonical EVM calculation module/API was identified for the full PV/EV/AC/BAC/ETC/EAC/CV/SV/SPI/SPI(t) lifecycle. The resource bridge is only an adapter and the Activity read model is only a stored-value/read boundary.
+- The current HTTP route tree does not wire `P6ActivityReadModelAPI`, so even the read-model boundary is not demonstrated as a public Web route on current main.
 
 The existing resource bridge is correctly designed as an adapter and its simple arithmetic is not a substitute for a complete project/WBS/activity EVM authority. Therefore the current repository evidence is insufficient to certify the previously intended full Progress/EVM/Schedule Performance engine as complete on current main.
 
