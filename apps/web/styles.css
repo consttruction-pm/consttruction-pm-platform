@@ -1208,3 +1208,58 @@ th {
 @media (max-width:760px) { .cubi-hero { padding-block:2.8rem 3.2rem; } .cubi-section,.cubi-control-section,.cubi-faq { padding-block:3rem; } .cubi-feature-grid article { min-height:150px; } }
 [dir="rtl"] .cubi-header { direction:rtl; }
 [dir="rtl"] .cubi-header-actions { margin-inline-start:0; margin-inline-end:auto; }
+
+
+/* CUBI homepage final visual/performance corrections — 2026-10-05 */
+.cubi-header {
+  background: var(--cp-surface);
+  backdrop-filter: none;
+}
+.cubi-hero {
+  background: var(--cp-navy-dark);
+  color: #fff;
+}
+.cubi-hero h1 { color: #fff; }
+.cubi-hero h1 em { color: var(--cp-copper); }
+.cubi-lead { color: #D7E2EE; }
+.cubi-tagline { color: var(--cubi-brushed-titanium); }
+.cubi-eyebrow { color: #8FC7FF; }
+.cubi-eyebrow span { background: var(--cp-copper); }
+.cubi-button {
+  background: var(--cp-copper);
+  border-color: var(--cp-copper);
+  color: var(--cp-navy-dark);
+}
+.cubi-button:hover {
+  background: var(--cp-blue);
+  border-color: var(--cp-blue);
+  color: #fff;
+}
+.cubi-text-link { color: #fff; }
+.cubi-text-link:hover { color: var(--cp-copper); }
+.cubi-grid-glow {
+  opacity: .24;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.cubi-orbit {
+  background: var(--cp-navy);
+  border-color: rgba(184,189,197,.55);
+}
+.cubi-dash-top b { color: var(--cp-muted); }
+.cubi-signal .cubi-mini-note span { color: var(--cp-blue); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cubi-header,
+  .cubi-button,
+  .cubi-feature-grid article {
+    transition: none !important;
+  }
+  .cubi-button:hover,
+  .cubi-feature-grid article:hover {
+    transform: none !important;
+  }
+  .cubi-dashboard {
+    transform: none !important;
+  }
+}
