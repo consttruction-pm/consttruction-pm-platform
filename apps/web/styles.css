@@ -214,7 +214,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 
 /* CUBI marketing homepage */
 .cubi-site { color:var(--cp-text); background:#f8fafc; min-height:100vh; overflow:hidden; }
-.cubi-header { height:76px; display:flex; align-items:center; gap:2rem; padding:0 clamp(1rem,4vw,4.5rem); background:rgba(255,255,255,.94); border-bottom:1px solid var(--cp-border); position:sticky; top:0; z-index:20; backdrop-filter:blur(14px); }
+.cubi-header { height:76px; display:flex; align-items:center; gap:2rem; padding:0 clamp(1rem,4vw,4.5rem); background:#fff; border-bottom:1px solid var(--cp-border); position:sticky; top:0; z-index:20; }
 .cubi-brand { display:flex; align-items:center; gap:.65rem; color:var(--cp-navy); text-decoration:none; min-width:max-content; }
 .cubi-brand img { display:block; padding:3px; border-radius:.55rem; background:var(--cubi-brushed-metal); box-shadow:0 2px 10px rgba(8,26,47,.12); }
 .cubi-brand span { display:grid; line-height:1; gap:.22rem; }
@@ -240,8 +240,8 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-text-link:hover { color:var(--cp-blue); }
 .cubi-tagline { color:var(--cubi-brushed-titanium); font-size:.8rem; letter-spacing:.16em; text-transform:uppercase; margin-top:2rem; }
 .cubi-hero-visual { min-height:470px; position:relative; display:grid; place-items:center; }
-.cubi-grid-glow { position:absolute; inset:10% 0; background-image:linear-gradient(rgba(25,118,210,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(25,118,210,.12) 1px,transparent 1px); background-size:34px 34px; mask-image:radial-gradient(circle,#000 30%,transparent 72%); }
-.cubi-dashboard { position:relative; width:min(560px,100%); border:1px solid #cbd8e5; border-radius:1rem; background:rgba(255,255,255,.95); box-shadow:0 28px 80px rgba(15,39,71,.16); overflow:hidden; transform:perspective(1200px) rotateY(-7deg) rotateX(3deg); }
+.cubi-grid-glow { position:absolute; inset:10% 0; background-image:linear-gradient(rgba(25,118,210,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(25,118,210,.10) 1px,transparent 1px); background-size:34px 34px; opacity:.72; }
+.cubi-dashboard { position:relative; width:min(560px,100%); border:1px solid #cbd8e5; border-radius:1rem; background:rgba(255,255,255,.95); box-shadow:0 28px 80px rgba(15,39,71,.16); overflow:hidden; transform:translateZ(0) rotateY(-4deg); }
 .cubi-dash-top { display:flex; align-items:center; gap:.55rem; padding:.9rem 1rem; border-bottom:1px solid #e4eaf0; font-size:.62rem; letter-spacing:.12em; color:#687789; }
 .cubi-dot { width:8px; height:8px; border-radius:50%; background:#2e8b57; box-shadow:0 0 0 4px rgba(46,139,87,.12); }
 .cubi-dash-top b { margin-left:auto; color:#2e8b57; font-size:.68rem; }
