@@ -442,3 +442,26 @@ Resource EVM bridge: implemented adapter, not the central EVM engine.
 Full P6-compatible EVM authority and end-to-end API/client/interchange path: not demonstrated on current main; treat as a parity gap until a canonical implementation/evidence chain is found or restored.
 
 No new EVM engine should be invented merely to satisfy this audit. The correct next action is to reconcile the intended EVM baseline against the actual current-main history/commits and, where necessary, restore or complete one canonical Shared Core implementation with regression evidence.
+
+
+## Z. Resource cost/rate and time-phasing integrity — current main
+
+Fresh code-level inspection adds the following concrete findings to the resource/cost audit:
+
+- `resources/calculator.py::calculate_cost()` has a `hours_per_day` parameter but does not use it. `PER_UNIT`, `PER_HOUR`, and `PER_DAY` currently all execute `units * rate`. Therefore the declared rate basis is not yet semantically differentiated.
+- `ResourceRate.is_effective_on()` allows overlapping validity windows, and `Resource.rate_on()` resolves an overlap by selecting the highest version. There is no explicit rate-interval conflict validation in `validate_resource()`.
+- `validate_resource()` checks only negative rates; finite-value validation for Decimal rate inputs is not established at this boundary.
+- `resources/loading.py::spread_units()` distributes planned units uniformly across every calendar date in the interval. It does not consult either the authoritative P6 CalendarMaster resolver or `WorkingTimeResolver`, so weekends/holidays can receive resource units and cost.
+- `resources/capacity.py` and `resources/leveling.py` also directly consume the simplified `resources.calendar.ResourceCalendar`; the Shared Core scheduler uses the richer `WorkingCalendar`/`WorkingTimeResolver`. This reinforces the previously documented duplicate-calendar authority risk.
+- Resource rates are genuinely persisted in `resources/persistence.py`, including basis, currency, effective dates and version, so this is not a missing-data problem. The remaining risk is semantic correctness and convergence with the canonical P6 resource/rate/calendar contract.
+- Current tests cover basic effective-rate selection and total-preserving spread, but do not establish PER_DAY vs PER_HOUR semantics, rate-window conflict policy, working-calendar-aware spread, or cross-boundary equivalence with the P6 Resource/Assignment model.
+
+### Severity
+
+**High architectural/correctness risk, high confidence** for calendar-aware time-phased cost/resource calculations.
+
+**Medium correctness/parity risk, high confidence** for rate-basis and effective-date semantics.
+
+### Required disposition
+
+Preserve `resources/calculator.py` as reusable domain logic where its semantics are valid, but bring rate basis, effective-date rules, and time-phased allocation under the canonical Shared Core/P6 Resource + Calendar contract. Do not create another cost calculator or another calendar implementation. Regression tests must prove the canonical result is identical across Web/Desktop/Mobile and import/export paths.
