@@ -8,6 +8,7 @@ records. It deliberately does not calculate schedule dates or duration.
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import time
 from decimal import Decimal
 from typing import Protocol
 
@@ -50,10 +51,24 @@ class CalendarWorkHourRule:
         if self.is_working_day is not None and not isinstance(self.is_working_day, bool):
             raise CalendarPersistenceError("INVALID_WORKING_DAY")
         if self.total_work_hours is not None:
-            if self.total_work_hours < 0:
+            try:
+                total_hours = Decimal(str(self.total_work_hours))
+            except (ArithmeticError, ValueError):
+                raise CalendarPersistenceError("INVALID_TOTAL_WORK_HOURS") from None
+            if not total_hours.is_finite() or total_hours < 0:
                 raise CalendarPersistenceError("INVALID_TOTAL_WORK_HOURS")
-        if any(len(pair) != 2 or pair[0] >= pair[1] for pair in self.intervals):
-            raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+        for pair in self.intervals:
+            if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+            if not all(isinstance(item, str) for item in pair):
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+            try:
+                start_time = time.fromisoformat(pair[0])
+                end_time = time.fromisoformat(pair[1])
+            except ValueError:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL") from None
+            if start_time >= end_time:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
         if self.kind == "total_work_hours" and self.weekday is not None:
             raise CalendarPersistenceError("TOTAL_WORK_HOURS_IS_CALENDAR_LEVEL")
         if self.kind == "total_work_hours" and not self.total_work_hours and self.total_work_hours != Decimal("0"):
