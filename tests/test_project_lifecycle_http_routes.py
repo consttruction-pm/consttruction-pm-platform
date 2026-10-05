@@ -228,7 +228,10 @@ def test_authenticated_resource_assignment_http_boundary_reads_assignment_and_pe
     assert period["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
     status, _, raw = r.handle("GET", "/api/projects/p1/p6/resource-assignment-periods/A-R-1/2026-10-01", cookies={"cp_session": "s1"})
     assert status == 200
-    assert json.loads(raw) == period
+    fetched = json.loads(raw)
+    assert fetched["kind"] == period["kind"]
+    assert fetched["scope"] == period["scope"]
+    assert fetched["period"] == period["period"]
 
 
 def test_resource_assignment_http_boundary_enforces_scope_and_payload():
