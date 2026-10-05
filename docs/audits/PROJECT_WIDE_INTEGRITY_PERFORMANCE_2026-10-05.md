@@ -188,4 +188,6 @@ The repository now has canonical `p6_field_registry.py`, `p6_field_registry_api.
 
 For `5f1cd188839a1255aaf754b8676dfb4d0711ac47`, the connected GitHub status interface currently returns no combined status entries and no workflow runs for that SHA. Therefore exact-head runtime verification remains **unverified**; no green-CI claim is made.
 
-**Corrected current audit HEAD:** `5f1cd188839a1255aaf754b8676dfb4d0711ac47`.
+**Audited implementation baseline:** `5f1cd188839a1255aaf754b8676dfb4d0711ac47`.
+
+**Current `main` after this audit documentation commit:** this documentation commit is now the latest integration head.
