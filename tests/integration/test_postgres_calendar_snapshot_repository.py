@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 
 import pytest
@@ -17,6 +17,7 @@ from construction_pm.client_sync.postgres_transaction import PostgresTransaction
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
+from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
 
 
 def scope(revision: int = 7) -> BackendScope:
@@ -65,3 +66,38 @@ def test_postgres_calendar_snapshot_is_immutable_per_calendar_version():
                 snapshots.save(calendar, changed)
 
         assert snapshots.get(calendar) == first
+
+
+def test_postgres_working_time_calendar_snapshot_round_trip_preserves_intervals_and_system():
+    s = scope()
+    calendar = CalendarMaster(s, "CAL-TIME", "1", "working-time", "Time Calendar")
+    definition = WorkingTimeCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({date(2026, 3, 21)}),
+        daily_intervals={
+            0: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0))),
+            1: ((time(8, 0), time(17, 0)),),
+        },
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"),
+            hours_per_week=Decimal("40"),
+            hours_per_month=Decimal("176"),
+            hours_per_year=Decimal("2080"),
+        ),
+    )
+
+    with psycopg.connect(DSN) as connection:
+        masters = PostgresCalendarMasterRepository(connection)
+        snapshots = PostgresCalendarSnapshotRepository(connection)
+        masters.initialize()
+        snapshots.initialize()
+        connection.commit()
+
+        with PostgresTransactionManager(connection).transaction():
+            masters.save(calendar)
+            stored = snapshots.save(calendar, definition)
+
+        loaded = snapshots.get(calendar)
+        assert loaded == stored
+        assert WorkingTimeCalendar.from_canonical_snapshot(loaded.snapshot) == definition
