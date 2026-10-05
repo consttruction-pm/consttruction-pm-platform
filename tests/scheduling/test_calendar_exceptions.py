@@ -134,11 +134,11 @@ def test_invalid_total_hours_are_rejected():
 
 
 def test_datetime_is_rejected_at_date_exception_boundaries():
-    with pytest.raises(TypeError, match="Gregorian date"):
+    with pytest.raises(TypeError, match="date must be date or JalaliDate"):
         CalendarException(datetime(2026, 3, 21, 12, 0), CalendarExceptionType.NONWORK)
 
     resolver = CalendarExceptionResolver(standard_is_working=True)
-    with pytest.raises(TypeError, match="target_date must be a date"):
+    with pytest.raises(TypeError, match="target_date must be date or JalaliDate"):
         resolver.resolve(datetime(2026, 3, 21, 12, 0))
 
 
