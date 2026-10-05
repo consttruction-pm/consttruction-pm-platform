@@ -663,3 +663,26 @@ Required direction: converge active production paths on the canonical `BackendSc
 ### Dependency revision note
 
 `DependencyLink.revision` and persisted `graph_revision` are intentionally distinct in the current implementation, but their semantic distinction is not self-evident from the public contract. Treat this as a low-confidence documentation/API clarity issue, not as a proven correctness defect, until the intended revision model is explicitly documented or certified.
+
+
+## AK. Web workspace rerender / interaction performance — current main
+
+Current-main inspection of `apps/web/src/main.ts` and `apps/web/src/workspace-view.ts` confirms the earlier shell-level optimization but reveals a remaining interaction-level cost:
+
+- `main.ts::renderApp()` now preserves the application shell, which avoids rebuilding the outer DOM on every workspace change. This is good and should be retained.
+- `workspace-view.ts::renderMainWorkspace()` still assigns a complete `container.innerHTML` for the entire workspace on every menu/WBS/activity/Gantt selection and after each P6 layout edit. This rebuilds the activity table, Gantt, control panels, procurement, field views and navigation surface even when only selection state changed.
+- After the full DOM replacement, the renderer executes multiple `querySelectorAll(...).forEach(addEventListener)` passes over the newly-created subtree. This is repeated listener allocation and teardown work on every rerender.
+- `createGanttScale()` scans every activity and parses each displayed start/finish date on each rerender; Gantt row geometry is then regenerated for every scheduled activity. This is deterministic and presentation-only, but unnecessarily repeated for selection-only interactions.
+- Because the current declared beta scale is modest, this is not evidence of a current production failure. It is a **Medium performance risk, high confidence** as activity counts and richer control panels grow.
+
+### Required optimization boundary
+
+Keep all Shared Core/P6 calculations untouched. Optimize only presentation/state rendering:
+
+1. retain the shell and static panels between interactions;
+2. use event delegation on stable workspace containers rather than attaching many per-node listeners after every render;
+3. cache Gantt scale/geometry when activity schedule data is unchanged;
+4. update only affected selection/highlight/detail regions for selection changes;
+5. preserve direct imports in `main.ts`; the barrel exports are not in the boot path and were not shown to cause bundle bloat.
+
+Do not move CPM, Calendar, Formula or EVM calculations into the browser as part of this optimization.
