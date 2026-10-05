@@ -42,3 +42,25 @@ def test_repository_transaction_participates_in_existing_application_transaction
 
     row = connection.execute("SELECT code FROM resources WHERE id='R-1'").fetchone()
     assert row == ("LAB-2",)
+
+
+def test_nested_resource_transactions_use_independent_savepoints():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteResourceRepository(connection)
+    manager = SQLiteTransactionManager(connection)
+
+    with manager.transaction():
+        repository.connection.execute(
+            "INSERT INTO resources "
+            "(id, code, name, resource_type, unit, active, revision) "
+            "VALUES ('R-1', 'LAB', 'Labor', 'labor', 'hour', 1, 1)"
+        )
+        with repository.transaction():
+            repository.connection.execute("UPDATE resources SET code='LAB-2' WHERE id='R-1'")
+            with repository.transaction():
+                repository.connection.execute("UPDATE resources SET code='LAB-3' WHERE id='R-1'")
+        row = connection.execute("SELECT code FROM resources WHERE id='R-1'").fetchone()
+        assert row == ('LAB-3',)
+
+    row = connection.execute("SELECT code FROM resources WHERE id='R-1'").fetchone()
+    assert row == ('LAB-3',)
