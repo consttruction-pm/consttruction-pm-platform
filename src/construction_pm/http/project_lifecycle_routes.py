@@ -29,6 +29,8 @@ from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_
 from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
+from ..p6_resource_spread_repository import P6ResourceSpreadBucket
 from ..p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
@@ -69,6 +71,7 @@ class ProjectLifecycleHttpRoutes:
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
+        p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
     ) -> None:
@@ -82,6 +85,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
+        self._p6_resource_spread_api = p6_resource_spread_api
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
 
@@ -459,6 +463,92 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_financial_period_api.create(period, auth_context=auth)
                 except (TypeError, ValueError):
                     return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-spreads"):
+                if self._p6_resource_spread_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-spreads")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_resource_spread_api.list(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    auth_context=auth,
+                )
+                return self._json(200, {
+                    "contract_version": P6_RESOURCE_SPREAD_API_VERSION,
+                    "buckets": result,
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/resource-spreads/" in path:
+                if self._p6_resource_spread_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/resource-spreads/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = suffix.rstrip("/").split("/")
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                spread_id, period_id = parts
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_resource_spread_api.get(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    spread_id,
+                    period_id,
+                    auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "P6_RESOURCE_SPREAD_NOT_FOUND", "error.p6.resource_spread.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-spreads"):
+                if self._p6_resource_spread_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-spreads")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    bucket = P6ResourceSpreadBucket(
+                        scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                        spread_id=payload.get("spread_id", ""),
+                        resource_id=payload.get("resource_id", ""),
+                        period_id=payload.get("period_id", ""),
+                        period_start=payload.get("period_start", ""),
+                        period_end=payload.get("period_end", ""),
+                        spread_type=payload.get("spread_type", ""),
+                        metric=payload.get("metric", ""),
+                        value=__import__("decimal", fromlist=["Decimal"]).Decimal(str(payload.get("value", ""))),
+                        unit=payload.get("unit"),
+                        currency=payload.get("currency"),
+                    )
+                    result = self._p6_resource_spread_api.save(bucket, auth_context=auth)
+                except (TypeError, ValueError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/baselines"):
                 if self._p6_baseline_api is None:
