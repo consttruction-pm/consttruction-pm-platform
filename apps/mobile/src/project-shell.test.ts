@@ -21,6 +21,12 @@ const fixture: MobileLocalProject = {
     { id: "A1", wbs_id: "W2", name: "Foundation", order: 1 },
     { id: "A2", wbs_id: "W2", name: "Frame", order: 2 },
   ],
+  relationships: [
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "WORKING_DAY" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "WORKING_DAY" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "WORKING_DAY" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "WORKING_HOUR" } },
+  ],
 };
 
 const schedulingRequest: MobileSchedulingRequest = {
@@ -115,6 +121,30 @@ test("navigates from WBS to an activity only when activity belongs to selected W
   assert.equal(state.screen, "activity");
   assert.equal(state.selected_wbs_id, "W2");
   assert.equal(state.selected_activity_id, "A2");
+});
+
+test("lists FS SS FF SF relationships with lag and lead for an activity", async () => {
+  const shell = new MobileProjectShell(
+    new MobileRuntime(),
+    new InMemoryMobileLocalProjectStore([fixture]),
+  );
+  await shell.openLocalProject("t1", "p1");
+
+  assert.deepEqual(shell.listRelationships("A1"), [
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "WORKING_DAY" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "WORKING_DAY" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "WORKING_DAY" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "WORKING_HOUR" } },
+  ]);
+});
+
+test("rejects relationship lookup for an unknown activity", async () => {
+  const shell = new MobileProjectShell(
+    new MobileRuntime(),
+    new InMemoryMobileLocalProjectStore([fixture]),
+  );
+  await shell.openLocalProject("t1", "p1");
+  assert.throws(() => shell.listRelationships("missing"), /ACTIVITY_NOT_FOUND/);
 });
 
 test("rejects invalid local project and cross-WBS activity navigation", async () => {
