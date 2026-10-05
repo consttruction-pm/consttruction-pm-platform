@@ -9,7 +9,9 @@ const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
 test("Issue 1239 compact homepage contract", () => {
-  assert.match(landing, /Construction Project Control, <em>Reimagined\.<\/em>/);
+  assert.match(landing, /title:\s+"Construction Project Control,"/);
+  assert.match(landing, /titleAccent:\s+"Reimagined\."/);
+  assert.match(landing, /fa:\s+\{/);
   assert.match(landing, /Planning & Scheduling/);
   assert.match(landing, /Project Controls/);
   assert.match(landing, /AI Assistant/);
