@@ -7,7 +7,7 @@ import pytest
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
-from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
+from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_api import (
     P6_CALENDAR_API_VERSION,
@@ -47,10 +47,10 @@ def _definition() -> WorkingCalendar:
     )
 
 
-def _request(calendar_id: str, version: str = "1", calendar_type: str = "project") -> P6CalendarCreateRequest:
+def _request(calendar_id: str, version: str = "1", calendar_type: str = "project", expected_revision: int | None = 0) -> P6CalendarCreateRequest:
     return P6CalendarCreateRequest(
         P6_CALENDAR_API_VERSION, calendar_id, version, calendar_type,
-        "working-day", "Calendar", 0,
+        "working-day", "Calendar", expected_revision,
     )
 
 
@@ -73,6 +73,21 @@ def test_invalid_calendar_type_is_rejected():
     api, _ = _api()
     with pytest.raises(ValueError, match="INVALID_CALENDAR_TYPE"):
         api.create(_scope(), _request("CAL-X", calendar_type="other"), auth_context=_auth())
+
+
+def test_update_has_explicit_crud_boundary_and_revision_check():
+    api, _ = _api()
+    created = api.create(_scope(), _request("CAL-U"), auth_context=_auth())
+    request = P6CalendarCreateRequest(
+        P6_CALENDAR_API_VERSION, "CAL-U", "1", "resource",
+        "working-time", "Updated", created["record_revision"],
+    )
+    updated = api.update(_scope(), request, auth_context=_auth())
+    assert updated["record_revision"] == 2
+    assert updated["calendar_type"] == "resource"
+    assert updated["kind"] == "working-time"
+    with pytest.raises(ValueError, match="REVISION_CONFLICT"):
+        api.update(_scope(), request, auth_context=_auth())
 
 
 def test_copy_replays_snapshot_and_keeps_type():
