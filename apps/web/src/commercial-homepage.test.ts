@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 const root = process.cwd();
 const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
+const workspace = readFileSync(join(root, "src/workspace-view.ts"), "utf8");
 
 test("commercial homepage exposes the registered navigation and H1", () => {
   for (const id of ["product", "solutions", "features", "pricing", "ai", "resources"]) {
@@ -31,7 +32,7 @@ test("customer-facing surfaces remain provenance-neutral", () => {
     assert.doesNotMatch(landing, pattern);
     assert.doesNotMatch(index, pattern);
   }
-  assert.doesNotMatch(nextWorkspaceCustomerText(workspace), /P6 Field Chooser|انتخاب‌گر فیلد P6/);
+  assert.doesNotMatch(workspace, /P6 Field Chooser|انتخاب‌گر فیلد P6/);
 });
 
 function nextWorkspaceCustomerText(source: string): string {
