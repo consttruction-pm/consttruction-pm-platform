@@ -6,6 +6,8 @@ from typing import Any, Mapping, Sequence
 
 from .backend_p0.models import BackendScope
 from .p6_mapping_registry import P6MappingFormat, P6MappingStatus, PersistedP6Mapping
+from .p6_field_registry import get_field
+from .p6_interchange_typed_conversion import P6InterchangeTypedConversionError, typed_value_for_field
 
 
 class P6InterchangeCompatibilityError(ValueError):
@@ -39,6 +41,34 @@ class P6InterchangeResult:
     warnings: tuple[str, ...] = ()
 
 
+_CANONICAL_TYPE_ALIASES = {
+    "TEXT": "string",
+    "STRING": "string",
+    "DATE": "date",
+    "DATETIME": "datetime",
+    "DURATION": "duration",
+    "DECIMAL": "decimal",
+    "PERCENTAGE": "percentage",
+    "BOOLEAN": "boolean",
+    "ENUM": "enum",
+    "INTEGER": "integer",
+    "DOUBLE": "double",
+    "COST": "cost",
+    "UNIT": "unit",
+    "OBJECT_ID": "object-id",
+    "OBJECT-ID": "object-id",
+    "OBJECT_ID_ARRAY": "object-id-array",
+    "STRING_ARRAY": "string-array",
+    "COMPLEX": "complex",
+    "SPREAD": "spread",
+}
+
+
+def _canonical_type_name(value: str) -> str:
+    normalized = value.strip()
+    return _CANONICAL_TYPE_ALIASES.get(normalized.upper(), normalized.lower())
+
+
 class P6InterchangeMapper:
     """Provider-neutral row mapper driven only by persisted P6 mappings."""
 
@@ -54,6 +84,19 @@ class P6InterchangeMapper:
             if item.scope != first_scope:
                 raise P6InterchangeCompatibilityError("MAPPING_SCOPE_MISMATCH")
             definition = item.definition
+            if definition.canonical_type is not None:
+                try:
+                    field = get_field(definition.canonical_field)
+                except KeyError as exc:
+                    raise P6InterchangeCompatibilityError(
+                        f"UNKNOWN_CANONICAL_FIELD:{definition.canonical_field}"
+                    ) from exc
+                declared_type = _canonical_type_name(definition.canonical_type)
+                if declared_type != field.data_type.value:
+                    raise P6InterchangeCompatibilityError(
+                        f"CANONICAL_TYPE_MISMATCH:{definition.canonical_field}:"
+                        f"{definition.canonical_type}:{field.data_type.value}"
+                    )
             source_key = (definition.format, definition.source_field)
             canonical_key = (definition.format, definition.canonical_field)
             if source_key in seen_sources:
@@ -85,7 +128,15 @@ class P6InterchangeMapper:
             mapped_sources.add(source)
             value = row.values[source]
             if definition.status is P6MappingStatus.SUPPORTED:
-                canonical[definition.canonical_field] = value
+                try:
+                    field = get_field(definition.canonical_field)
+                except KeyError:
+                    canonical[definition.canonical_field] = value
+                else:
+                    try:
+                        canonical[definition.canonical_field] = typed_value_for_field(field, value).value
+                    except P6InterchangeTypedConversionError as exc:
+                        raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
                 self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
                 warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{source}")
@@ -101,10 +152,7 @@ class P6InterchangeMapper:
 
         return P6InterchangeResult(canonical, extensions, tuple(sorted(set(warnings))))
 
-    def export_row(
-        self,
-        row: P6InterchangeRow,
-    ) -> P6InterchangeResult:
+    def export_row(self, row: P6InterchangeRow) -> P6InterchangeResult:
         self._validate_scope(row.scope)
         self._validate_format(row.format)
         source_values: dict[str, Any] = {}
@@ -122,7 +170,15 @@ class P6InterchangeMapper:
             mapped_canonical.add(canonical)
             value = row.values[canonical]
             if definition.status is P6MappingStatus.SUPPORTED:
-                source_values[definition.source_field] = value
+                try:
+                    field = get_field(canonical)
+                except KeyError:
+                    source_values[definition.source_field] = value
+                else:
+                    try:
+                        source_values[definition.source_field] = typed_value_for_field(field, value).value
+                    except P6InterchangeTypedConversionError as exc:
+                        raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
                 self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
                 warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{canonical}")
@@ -133,7 +189,9 @@ class P6InterchangeMapper:
 
         for canonical, value in row.values.items():
             if canonical not in mapped_canonical:
-                self._preserve_extension(extensions, self._extension_key(f"canonical:{canonical}"), value)
+                self._preserve_extension(
+                    extensions, self._extension_key(f"canonical:{canonical}"), value
+                )
                 warnings.append(f"PRESERVED_UNKNOWN_CANONICAL_FIELD:{canonical}")
 
         return P6InterchangeResult(source_values, extensions, tuple(sorted(set(warnings))))
