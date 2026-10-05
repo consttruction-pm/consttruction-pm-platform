@@ -164,9 +164,13 @@ def calculate_earned_schedule(
     earned_schedule_date: date | None = None
     earned_schedule_time: Decimal | None = None
 
+    if ev == _CANONICAL_ZERO:
+        earned_schedule_date = start
+        earned_schedule_time = _CANONICAL_ZERO
+
     for period in ordered:
         current_pv = period.cumulative_planned_value
-        if ev <= current_pv:
+        if earned_schedule_time is None and ev <= current_pv:
             delta = current_pv - previous_pv
             if delta == 0:
                 # A flat cumulative-PV segment adds no earned progress.
