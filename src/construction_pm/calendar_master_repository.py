@@ -137,6 +137,8 @@ class SQLiteCalendarMasterRepository:
             return stored
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
+        if str(row[0]) != calendar.kind:
+            raise CalendarPersistenceError("CALENDAR_VERSION_KIND_IMMUTABLE")
         stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, int(row[2]) + 1)
         cursor = self.connection.execute(
             "UPDATE calendar_master SET project_revision=?,kind=?,name=?,record_revision=? "
@@ -408,6 +410,8 @@ class PostgresCalendarMasterRepository:
             return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1)
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
+        if str(row[0]) != calendar.kind:
+            raise CalendarPersistenceError("CALENDAR_VERSION_KIND_IMMUTABLE")
         revision = int(row[2]) + 1
         self.connection.execute(
             "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s "
