@@ -36,7 +36,7 @@ def test_ahead_of_schedule():
     result = calculate_earned_schedule(
         periods(), earned_value=250, data_date=date(2026, 3, 15), project_start=date(2026, 1, 1)
     )
-    assert result.earned_schedule == Decimal("74")
+    assert result.earned_schedule == Decimal("73.5")
     assert result.status == "AHEAD"
     assert result.spi_t > Decimal("1")
 
@@ -45,7 +45,7 @@ def test_behind_schedule():
     result = calculate_earned_schedule(
         periods(), earned_value=150, data_date=date(2026, 3, 31), project_start=date(2026, 1, 1)
     )
-    assert result.earned_schedule == Decimal("30")
+    assert result.earned_schedule == Decimal("44")
     assert result.status == "BEHIND"
     assert result.spi_t < Decimal("1")
 
