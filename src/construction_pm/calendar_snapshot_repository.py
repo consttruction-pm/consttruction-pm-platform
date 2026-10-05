@@ -93,6 +93,7 @@ class SQLiteCalendarSnapshotRepository:
         calendar.validate()
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
+        persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
@@ -108,7 +109,7 @@ class SQLiteCalendarSnapshotRepository:
                 raise CalendarPersistenceError("REVISION_CONFLICT")
             if str(existing[1]) != canonical_snapshot:
                 raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
-            return record
+            return persisted_record
 
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
