@@ -465,3 +465,26 @@ Fresh code-level inspection adds the following concrete findings to the resource
 ### Required disposition
 
 Preserve `resources/calculator.py` as reusable domain logic where its semantics are valid, but bring rate basis, effective-date rules, and time-phased allocation under the canonical Shared Core/P6 Resource + Calendar contract. Do not create another cost calculator or another calendar implementation. Regression tests must prove the canonical result is identical across Web/Desktop/Mobile and import/export paths.
+
+
+## AA. Cost Account / Expense / Financial Period integration — current main
+
+Fresh current-main inspection of the persistence, API, HTTP wiring and Field Registry shows a second-level cost-integrity gap:
+
+- `P6CostAccount` has SQLite/Postgres persistence and an application service, but no dedicated P6 Cost Account API or HTTP route was found. The registry has **zero** independent Cost Account rows.
+- `P6Expense` has SQLite/Postgres persistence and an application service, but no dedicated `p6_expense_api.py` or HTTP route was found. The Activity Read Model can read expenses, but it is a read adapter rather than an Expense transport boundary.
+- The Expense model stores `activity_id`, `wbs_id`, `expense_date`, currency and planned/actual/remaining cost, while the Field Registry independently registers only five Expense fields (`name`, `category`, planned/actual/remaining cost). This leaves important Expense identity/context semantics without canonical registry traceability.
+- `P6FinancialPeriod` has a typed API and is wired into `project_lifecycle_routes.py`. However the Field Registry currently contains only three Financial Period fields (`name`, actual cost, actual units), while the API/domain contract contains `period_id`, `name`, `start_date`, `end_date`, and `status`. Start/end date ordering validation is also not established at the repository model boundary.
+- `P6ActivityPeriodActual` has persistence and a typed API, but the HTTP route tree inspected does not wire that API. It carries `period_id`, so actuals have an explicit period link; Expense currently does not, which makes Financial Period attribution of expenses incomplete at the domain contract level.
+
+### Cost/EVM impact
+
+These components currently exist mostly as isolated typed persistence/read boundaries. They are not yet proven as one canonical chain:
+
+`Cost Account / Expense / Financial Period → Activity Cost Inputs → Shared-Core EVM → P6 Field Registry → HTTP API → Web/Desktop/Mobile → Import/Export`.
+
+This is **Medium-to-High architectural/parity risk, high confidence**. It does not imply existing stored values are numerically wrong; it means the end-to-end authoritative calculation and transport chain is incomplete/provisionally disconnected.
+
+### Required disposition
+
+Keep these persistence implementations; do not replace them with duplicate stores. Complete canonical Field Registry identities and API/HTTP wiring, add explicit Financial Period/Expense relationship semantics, and connect them to one Shared-Core EVM result contract. Preserve the separation between stored inputs and computed results.
