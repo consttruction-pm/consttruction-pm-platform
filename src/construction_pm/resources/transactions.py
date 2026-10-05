@@ -21,6 +21,7 @@ class SQLiteTransactionManager:
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        self._savepoint_counter = 0
 
     def transaction(self) -> AbstractContextManager[None]:
         return _SQLiteTransaction(self.connection)
@@ -42,7 +43,8 @@ class _SQLiteTransaction(AbstractContextManager[None]):
 
     def __enter__(self) -> None:
         if self.connection.in_transaction:
-            self._savepoint = "construction_pm_nested"
+            self.manager._savepoint_counter += 1
+            self._savepoint = f"construction_pm_sp_{self.manager._savepoint_counter}"
             self.connection.execute(f"SAVEPOINT {self._savepoint}")
         else:
             self.connection.execute("BEGIN")
