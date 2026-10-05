@@ -10,6 +10,9 @@ from ..application.authorization import AuthorizationError
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.api import BackendP0API
+from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
+from ..control_intelligence.contracts import ControlScope
+from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
@@ -85,6 +88,7 @@ class ProjectLifecycleHttpRoutes:
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
         backend_p0_api: BackendP0API | None = None,
+        schedule_query_api: ScheduleQueryAPI | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -103,6 +107,7 @@ class ProjectLifecycleHttpRoutes:
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
         self._backend_p0_api = backend_p0_api
+        self._schedule_query_api = schedule_query_api
 
     def handle(
         self,
@@ -173,6 +178,60 @@ class ProjectLifecycleHttpRoutes:
                     category = backend_error.get("category")
                     status = {"authorization": 403, "not_found": 404, "conflict": 409, "validation": 400}.get(category, 500)
                     return self._json(status, result)
+                return self._json(200, result)
+            if method == "POST" and path == "/api/v1/schedule/query":
+                if self._schedule_query_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                if payload.get("contract_version") != SCHEDULE_QUERY_VERSION:
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                required = ("query_id", "scope", "requested_by", "query_text", "kind", "language")
+                if any(key not in payload for key in required):
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                raw_scope = payload.get("scope")
+                if not isinstance(raw_scope, dict):
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                if raw_scope.get("tenant_id") != context.tenant_id or raw_scope.get("project_id") != context.project_id or raw_scope.get("project_revision") != context.revision:
+                    return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
+                if payload.get("requested_by") != session.user_id:
+                    return self._error(403, "REQUESTED_BY_MISMATCH", "error.authorization.denied")
+                if not isinstance(payload.get("query_id"), str) or not payload["query_id"].strip():
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload.get("query_text"), str) or not payload["query_text"].strip():
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload.get("language"), str) or not payload["language"].strip():
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    kind = ScheduleQueryKind(payload["kind"])
+                    constraints = payload.get("constraints", {})
+                    if not isinstance(constraints, dict):
+                        return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                    request = ScheduleQueryRequest(
+                        query_id=payload["query_id"],
+                        scope=ControlScope(context.tenant_id, context.project_id, context.revision),
+                        requested_by=session.user_id,
+                        query_text=payload["query_text"],
+                        kind=kind,
+                        language=payload["language"],
+                        constraints=constraints,
+                    )
+                except (TypeError, ValueError):
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                result = self._schedule_query_api.execute(request, auth_context=auth)
+                if not isinstance(result, dict):
+                    return self._error(502, "INVALID_SCHEDULE_QUERY_RESPONSE", "error.schedule_query.invalid_payload")
+                backend_error = result.get("error")
+                if isinstance(backend_error, dict):
+                    category = backend_error.get("category")
+                    status = {"authorization": 403, "not_found": 404, "conflict": 409, "validation": 400}.get(category, 500)
+                    return self._json(status, result)
+                if result.get("contract_version") != "schedule-query-result.v1":
+                    return self._error(502, "INVALID_SCHEDULE_QUERY_RESPONSE", "error.schedule_query.invalid_payload")
                 return self._json(200, result)
             if method == "POST" and path == "/api/v1/sync/mutations":
                 if self._sync_endpoint_factory is None:
