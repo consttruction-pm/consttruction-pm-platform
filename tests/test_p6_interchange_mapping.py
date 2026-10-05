@@ -73,7 +73,7 @@ def test_import_maps_supported_and_preserves_unsupported_and_unknown_fields() ->
         )
     )
 
-    assert result.values == {"activity.code": "A-10"}
+    assert result.values == {"activity.activity_name": "A-10"}
     assert result.extensions["p6.interchange.t1.p1.legacy_code"] == "L-7"
     assert result.extensions["p6.interchange.t1.p1.vendor_extension"] == {"raw": 1}
     assert "PRESERVED_UNSUPPORTED_FIELD:legacy_code" in result.warnings
@@ -101,7 +101,7 @@ def test_export_rejects_extension_key_collision() -> None:
     row = P6InterchangeRow(
         scope=scope(),
         format=P6MappingFormat.XER_PROJECT,
-        values={"activity.code": "A-10", "activity.custom": 42},
+        values={"activity.activity_name": "A-10", "activity.custom": 42},
         extensions={key: "already-present"},
     )
 
@@ -117,7 +117,7 @@ def test_export_maps_supported_and_preserves_unknown_canonical_fields() -> None:
         P6InterchangeRow(
             scope=scope(),
             format=P6MappingFormat.XER_PROJECT,
-            values={"activity.code": "A-10", "activity.custom": 42},
+            values={"activity.activity_name": "A-10", "activity.custom": 42},
         )
     )
 
@@ -154,10 +154,9 @@ def test_mapping_for_other_format_is_not_applied() -> None:
         )
     )
 
-    assert result.values == {"activity.code": "A-10"}
+    assert result.values == {"activity.activity_name": "A-10"}
     assert result.extensions["p6.interchange.t1.p1.xlsx_task_code"] == "X-10"
     assert "PRESERVED_UNKNOWN_FIELD:xlsx_task_code" in result.warnings
-
 
 
 def test_reject_status_fails_closed_in_both_directions() -> None:
@@ -221,7 +220,7 @@ def test_ambiguous_source_or_canonical_mapping_is_rejected() -> None:
     )
     with pytest.raises(
         P6InterchangeCompatibilityError,
-        match="AMBIGUOUS_CANONICAL_FIELD:XER_PROJECT:activity.code",
+        match="AMBIGUOUS_CANONICAL_FIELD:XER_PROJECT:activity.activity_name",
     ):
         P6InterchangeMapper((mapping(
             "activity.code",
@@ -274,6 +273,7 @@ def test_row_scope_mismatch_is_rejected() -> None:
         match="ROW_SCOPE_MISMATCH",
     ):
         mapper().import_row(row)
+
 
 def test_import_converts_canonical_date_and_decimal_types() -> None:
     typed_mapper = P6InterchangeMapper((
