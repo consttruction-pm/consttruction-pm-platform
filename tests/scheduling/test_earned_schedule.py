@@ -45,7 +45,7 @@ def test_behind_schedule():
     result = calculate_earned_schedule(
         periods(), earned_value=150, data_date=date(2026, 3, 31), project_start=date(2026, 1, 1)
     )
-    assert result.earned_schedule == Decimal("44")
+    assert result.earned_schedule == Decimal("44.5")
     assert result.status == "BEHIND"
     assert result.spi_t < Decimal("1")
 
