@@ -8,18 +8,23 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("Issue 1239 compact homepage contract", () => {
-  assert.match(landing, /title:\s+"Construction Project Control,"/);
-  assert.match(landing, /titleAccent:\s+"Reimagined\."/);
-  assert.match(landing, /fa:\s+\{/);
-  assert.match(landing, /Planning & Scheduling/);
+test("canonical CUBI reference homepage contract remains presentation-only", () => {
+  assert.match(landing, /cubi-logo-lockup\.svg/);
+  assert.match(landing, /cubi-logo-lockup-dark\.svg/);
+  assert.match(landing, /Construction &/);
+  assert.match(landing, /Building Intelligence/);
   assert.match(landing, /Project Controls/);
   assert.match(landing, /AI Assistant/);
-  assert.match(landing, /cubi-lang-switch/);
+  assert.match(landing, /Resources & Cost/);
+  assert.match(landing, /Documents & Contracts/);
+  assert.match(landing, /Collaboration/);
+  assert.match(landing, /Cloud & Scalability/);
   assert.match(landing, /translations/);
-  assert.match(landing, /\/logo\.svg/);
-  assert.match(landing, /\/logo-dark\.svg/);
-  assert.match(styles, /Issue 1239 — compact, user-centered bilingual commercial homepage/);
+  assert.match(styles, /\.cubi-reference-hero/);
+  assert.match(styles, /\.cubi-reference-dashboard/);
+  assert.match(styles, /\.cubi-reference-feature-grid/);
+  assert.match(styles, /\.cubi-reference-tech/);
+  assert.match(styles, /\.cubi-reference-cta/);
 });
 
 test("registered SEO contract remains intact", () => {
@@ -31,7 +36,7 @@ test("registered SEO contract remains intact", () => {
   assert.match(index, /"@type": \["SoftwareApplication", "WebSite"\]/);
 });
 
-test("commercial surface stays independent of external product provenance", () => {
+test("commercial surface stays provenance-neutral", () => {
   for (const pattern of [/Oracle/i, /Primavera/i, /P6/i]) {
     assert.doesNotMatch(landing, pattern);
     assert.doesNotMatch(index, pattern);
