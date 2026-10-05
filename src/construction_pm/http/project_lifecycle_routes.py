@@ -14,6 +14,7 @@ from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
+from ..dependency_graph_api import DependencyGraphAPI
 from ..client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from ..p6_field_registry import (
     P6FieldDefinition,
@@ -63,6 +64,7 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
+        dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
     ) -> None:
         self._api = api
@@ -73,6 +75,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_baseline_api = p6_baseline_api
         self._p6_financial_period_api = p6_financial_period_api
+        self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
 
     def handle(
@@ -210,6 +213,30 @@ class ProjectLifecycleHttpRoutes:
                 )
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and "/dependencies/" in path:
+                if self._dependency_graph_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/dependencies/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "DEPENDENCY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._dependency_graph_api.get(
+                    tenant_id=context.tenant_id,
+                    project_id=context.project_id,
+                    resource_id=resource_id,
+                    auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "DEPENDENCY_NOT_FOUND", "error.dependency.not_found")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/financial-periods"):
                 if self._p6_financial_period_api is None:
