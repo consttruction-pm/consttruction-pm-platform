@@ -1,3 +1,5 @@
+from datetime import date, datetime, timezone
+
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_interchange_adapter import P6InterchangeAdapter
 from construction_pm.p6_interchange_mapping import P6InterchangeMapper
@@ -66,11 +68,11 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "activity.object_id": "1001",
         "activity.type": "Task Dependent",
         "activity.status": "TK_NotStart",
-        "activity.planned_start": "2026-01-10",
-        "activity.planned_finish": "2026-01-20",
-        "activity.remaining_early_start_date": "2026-01-12",
-        "activity.remaining_early_finish_date": "2026-01-18",
-        "activity.last_update_date": "2026-01-05",
+        "activity.planned_start": date(2026, 1, 10),
+        "activity.planned_finish": date(2026, 1, 20),
+        "activity.remaining_early_start_date": datetime(2026, 1, 12, tzinfo=timezone.utc),
+        "activity.remaining_early_finish_date": date(2026, 1, 18),
+        "activity.last_update_date": datetime(2026, 1, 5, tzinfo=timezone.utc),
         "activity.last_update_user": "planner",
     }
     assert imported[0].extensions["p6.xer.table"] == "TASK"
