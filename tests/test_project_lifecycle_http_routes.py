@@ -26,6 +26,8 @@ from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotR
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
+from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
+from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
 from construction_pm.dependency_graph_api import DependencyGraphAPI
 from construction_pm.p6_financial_period_repository import P6FinancialPeriodApplicationService, SQLiteP6FinancialPeriodRepository
 from construction_pm.p6_baseline_repository import P6BaselineApplicationService, SQLiteP6BaselineRepository
@@ -242,6 +244,10 @@ def p6_routes(roles=frozenset({"project_admin"})):
         P6FinancialPeriodApplicationService(SQLiteP6FinancialPeriodRepository(connection), transaction_manager),
         default_project_policy(),
     )
+    mapping_api = P6MappingAPI(
+        P6MappingRegistryApplicationService(SQLiteP6MappingRegistryRepository(connection), transaction_manager),
+        default_project_policy(),
+    )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -251,7 +257,78 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_calendar_read_api=calendar_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
+        p6_mapping_api=mapping_api,
     ), field_api, layout_api
+
+
+def test_p6_mapping_http_routes_create_get_and_list_preserve_contract():
+    r, _, _ = p6_routes()
+    payload = {
+        "mapping_id": "MAP-1",
+        "registry_version": "p6-field-registry.v1",
+        "format": "XER_PROJECT",
+        "subject_area": "Activity",
+        "source_field": "task_code",
+        "canonical_field": "activity.activity_id",
+        "status": "SUPPORTED",
+        "source_type": "TEXT",
+        "canonical_type": "TEXT",
+        "unit": None,
+        "notes": "Project activity code mapping",
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/mappings", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode()
+    )
+    assert status == 200
+    saved = json.loads(body)
+    assert saved["contract_version"] == P6_MAPPING_API_VERSION
+    assert saved["mapping"]["mapping_id"] == "MAP-1"
+    assert saved["mapping"]["format"] == "XER_PROJECT"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/mappings/MAP-1", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(body) == saved
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/mappings", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_MAPPING_API_VERSION
+    assert [item["mapping"]["mapping_id"] for item in payload["mappings"]] == ["MAP-1"]
+
+
+def test_p6_mapping_http_routes_require_scope_and_permission():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p2/p6/mappings", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    r, _, _ = p6_routes(roles=frozenset())
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/mappings", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert "authorization" in json.loads(body)["code"].lower()
+
+
+def test_p6_mapping_http_get_returns_not_found_and_rejects_malformed_payload():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/mappings/missing", cookies={"cp_session": "s1"}
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_MAPPING_NOT_FOUND"
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/mappings", cookies={"cp_session": "s1"}, body=b'{"format":"NOT_A_FORMAT"}'
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_MAPPING_REQUEST_INVALID"
 
 
 def test_p6_registry_http_routes_preserve_versioned_api_contract_envelope():
