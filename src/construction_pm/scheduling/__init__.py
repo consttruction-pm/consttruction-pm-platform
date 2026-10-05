@@ -15,6 +15,13 @@ from .activity_calendar_provider import ActivityCalendarProvider, ResolvedActivi
 from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from .time_duration import DurationUnit, LagQuantity, TimeQuantity
+from .earned_schedule import (
+    EarnedScheduleError,
+    EarnedSchedulePeriod,
+    EarnedScheduleResult,
+    SchedulePerformanceReconciliation,
+    calculate_earned_schedule,
+)
 from .time_constraints import TimeActivityConstraint, TimeConstraintType, TimeConstraintViolation
 from .time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from .time_schedule import TimeFloatActivity, TimeScheduleResult, calculate_time_floats, time_backward_pass, time_schedule
