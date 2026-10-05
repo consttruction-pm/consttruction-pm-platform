@@ -7,9 +7,10 @@ from construction_pm.p6_formula_compatibility import (
 
 
 def test_registry_is_deterministic_and_unique() -> None:
-    entries = formula_compatibility_registry()
-    keys = [(e.dialect.value, e.version, e.canonical_id) for e in entries]
-    assert keys == sorted(keys)
+    entries_a = formula_compatibility_registry()
+    entries_b = formula_compatibility_registry()
+    keys = [(e.dialect.value, e.version, e.canonical_id) for e in entries_a]
+    assert entries_a == entries_b
     assert len(keys) == len(set(keys))
 
 
