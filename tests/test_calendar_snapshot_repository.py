@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 
 import pytest
@@ -8,6 +8,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.calendar_master_repository import CalendarMaster, CalendarPersistenceError, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.scheduling.calendar import WorkingCalendar
+from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
 
@@ -85,3 +86,70 @@ def test_snapshot_repository_requires_authoritative_calendar_reference():
     repo = SQLiteCalendarSnapshotRepository(conn)
 
     assert repo.get(CalendarMaster(scope(), "CAL-2", "1")) is None
+
+
+def test_snapshot_save_is_idempotent_for_same_version_and_rejects_changed_content():
+    s = BackendScope("T-1", "P-1", 7)
+    calendar = CalendarMaster(s, "CAL-1", "1", "working-day", "Project Calendar")
+    conn = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(conn).save(calendar)
+    repo = SQLiteCalendarSnapshotRepository(conn)
+
+    original = WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({date(2026, 3, 21)}),
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"), hours_per_week=Decimal("40"),
+            hours_per_month=Decimal("176"), hours_per_year=Decimal("2080"),
+        ),
+    )
+    changed = WorkingCalendar(
+        working_weekdays=original.working_weekdays,
+        holidays=frozenset({date(2026, 3, 22)}),
+        system=original.system,
+        time_period_factors=original.time_period_factors,
+    )
+    first = repo.save(calendar, original)
+    assert repo.save(calendar, original) == first
+    with pytest.raises(CalendarPersistenceError, match="SNAPSHOT_IMMUTABLE_CONFLICT"):
+        repo.save(calendar, changed)
+    assert repo.get(calendar) == first
+
+
+def test_working_time_snapshot_round_trip_preserves_canonical_representation():
+    import sqlite3
+    from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
+    from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+
+    s = BackendScope("T-1", "P-1", 7)
+    calendar = CalendarMaster(s, "CAL-TIME", "1", "working-time", "Time Calendar")
+    conn = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(conn).save(calendar)
+    repo = SQLiteCalendarSnapshotRepository(conn)
+    definition = WorkingTimeCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({date(2026, 3, 21)}),
+        daily_intervals={
+            0: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0))),
+            1: ((time(8, 0), time(17, 0)),),
+        },
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"), hours_per_week=Decimal("40"),
+            hours_per_month=Decimal("176"), hours_per_year=Decimal("2080"),
+        ),
+    )
+    stored = repo.save(calendar, definition)
+    assert stored.snapshot == definition.canonical_snapshot()
+    assert repo.get(calendar) == stored
+
+
+def test_snapshot_repository_rejects_snapshot_kind_mismatch():
+    conn = sqlite3.connect(":memory:")
+    calendar = CalendarMaster(scope(), "CAL-TIME", "1", "working-time", "Time Calendar")
+    SQLiteCalendarMasterRepository(conn).save(calendar)
+    repo = SQLiteCalendarSnapshotRepository(conn)
+
+    with pytest.raises(CalendarPersistenceError, match="INVALID_CALENDAR_SNAPSHOT"):
+        repo.save(calendar, working_calendar())
