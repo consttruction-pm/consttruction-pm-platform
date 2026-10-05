@@ -117,7 +117,14 @@ class SQLiteCalendarMasterRepository:
         )
         for column in ("base_calendar_id", "base_calendar_version", "calendar_type"):
             try:
-                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT NOT NULL DEFAULT 'project'")
+                if column in {"base_calendar_id", "base_calendar_version"}:
+                    self.connection.execute(
+                        f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT DEFAULT NULL"
+                    )
+                else:
+                    self.connection.execute(
+                        "ALTER TABLE calendar_master ADD COLUMN calendar_type TEXT NOT NULL DEFAULT 'project'"
+                    )
             except sqlite3.OperationalError as exc:
                 if "duplicate column name" not in str(exc).lower():
                     raise
