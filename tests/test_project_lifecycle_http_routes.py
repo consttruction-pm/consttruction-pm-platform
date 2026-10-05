@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 import json
 
 from construction_pm.application.authorization import default_project_policy, AuthorizationContext
@@ -8,6 +9,7 @@ from construction_pm.application.project_lifecycle import (
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
+from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.p6_field_registry import get_field, P6FieldType
@@ -1507,3 +1509,54 @@ def test_p6_interchange_http_requires_scope_and_permission():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+class _WsgiRoutesStub:
+    def __init__(self):
+        self.calls = []
+
+    def handle(self, method, path, *, cookies=None, body=b"", headers=None):
+        self.calls.append((method, path, body))
+        return 200, {"Content-Type": "application/json; charset=utf-8"}, b"{}"
+
+
+def _wsgi_environ(path, body):
+    return {
+        "REQUEST_METHOD": "POST",
+        "PATH_INFO": path,
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+
+
+def test_wsgi_allows_configured_p6_import_payload_above_default_limit():
+    routes = _WsgiRoutesStub()
+    app = ProjectLifecycleWsgiApp(routes, default_body_limit=10, p6_import_body_limit=20)
+    body = b"x" * 15
+    statuses = []
+    app(_wsgi_environ("/api/projects/p1/p6/interchange/XER_PROJECT/import", body), lambda status, headers: statuses.append(status))
+    assert statuses == ["200 OK"]
+    assert routes.calls[0][2] == body
+
+
+def test_wsgi_rejects_oversized_p6_import_before_route_layer():
+    routes = _WsgiRoutesStub()
+    app = ProjectLifecycleWsgiApp(routes, default_body_limit=10, p6_import_body_limit=20)
+    body = b"x" * 21
+    statuses = []
+    captured = []
+    result = app(_wsgi_environ("/api/projects/p1/p6/interchange/XER_PROJECT/import", body), lambda status, headers: (statuses.append(status), captured.extend(headers)))
+    assert statuses == ["413 Payload Too Large"]
+    assert routes.calls == []
+    assert b"REQUEST_BODY_TOO_LARGE" in result[0]
+
+
+def test_wsgi_keeps_default_limit_for_non_import_endpoints():
+    routes = _WsgiRoutesStub()
+    app = ProjectLifecycleWsgiApp(routes, default_body_limit=10, p6_import_body_limit=20)
+    body = b"x" * 11
+    statuses = []
+    result = app(_wsgi_environ("/api/v1/schedule/query", body), lambda status, headers: statuses.append(status))
+    assert statuses == ["413 Payload Too Large"]
+    assert routes.calls == []
+    assert b"REQUEST_BODY_TOO_LARGE" in result[0]
