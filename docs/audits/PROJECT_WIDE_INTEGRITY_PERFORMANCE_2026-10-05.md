@@ -191,3 +191,13 @@ For `5f1cd188839a1255aaf754b8676dfb4d0711ac47`, the connected GitHub status inte
 **Audited implementation baseline:** `5f1cd188839a1255aaf754b8676dfb4d0711ac47`.
 
 **Current `main` after this audit documentation commit:** this documentation commit is now the latest integration head.
+
+## L. P6 Field / Column / Formula cross-platform recheck
+
+The Shared Core contains the canonical field registry, layout definition API/repository, formula authority, typed formula engine and dependency graph. The Web adapter consumes these contracts and does not implement a local parser or scheduler.
+
+A new cross-platform gap is recorded in Issue #1226: Desktop and Mobile currently expose project/sync/scheduling boundaries but do not yet expose equivalent P6 Field Registry + Column/Layout + Formula Authority consumption contracts. This means scheduling architecture is correctly shared, but full three-platform P6 presentation/formula parity is not yet demonstrated.
+
+The empty `apps/web/src/p6-formula-api.ts` file is also recorded as a cleanup/documentation seam: it should not become a second transport or formula implementation. Any future implementation must consolidate on the existing versioned API/authority boundary.
+
+No calculation engine was duplicated. P6 registry certification remains blocked while the canonical registry status is `seeded_not_certified`.
