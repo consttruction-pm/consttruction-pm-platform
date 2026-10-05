@@ -525,3 +525,19 @@ Current-main subject-area inspection shows a useful contrast:
 **UDF typed values:** Medium parity/integration risk, high confidence because persistence exists without a dedicated transport path. This is not a calculation defect, but it can block full field/edit/export parity.
 
 Required direction: add a typed UDF-value application/API/HTTP boundary over the existing persistence, reuse the Field Registry definition for validation, and expose the same contract to Web/Desktop/Mobile/import-export. Do not implement client-side UDF type engines.
+
+
+## AD. Three-platform Shared Core consumption parity — current main
+
+Current-main tree inspection shows unequal platform adapter surfaces:
+
+- Mobile contains an explicit `shared-scheduling-adapter.ts` with a versioned scheduling request/result contract and an interface that deliberately contains no scheduling formulas. This is aligned with the single-authority Shared Core rule.
+- Desktop currently has no corresponding P6/scheduling adapter source in `apps/desktop/src`; its runtime only handles project/sync/language/workspace concerns. Therefore a Desktop-specific schedule invocation boundary is not yet demonstrated.
+- Web currently has concrete P6 Field Registry, Layout, Field Editor and Formula Grid Binding adapters, which is positive for presentation parity, but no dedicated Web scheduling adapter source was found in the current app tree. The authoritative scheduling invocation therefore remains outside these inspected client adapters.
+- Mobile and Desktop both instantiate the same in-memory `OfflineMutationQueue`, preserving contract reuse but retaining the previously identified restart-durability gap.
+
+### Verdict
+
+**Medium cross-platform parity risk, high confidence.** The architecture intent is correct (clients should consume contracts, not calculate), but the current repository does not yet demonstrate equal scheduling-consumption boundaries across Web/Desktop/Mobile.
+
+Required direction: define one shared scheduling invocation contract and have Web/Desktop/Mobile consume it through thin adapters. Do not implement a separate scheduler in Desktop or Web. Preserve the Mobile contract only as a migration-compatible adapter if it already maps exactly to the canonical contract.
