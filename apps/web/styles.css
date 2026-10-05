@@ -968,6 +968,8 @@ th {
   body {
     background: #fff !important;
     color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   body {
@@ -977,6 +979,7 @@ th {
 
   .cp-app-status,
   .cp-menu,
+  .cp-navigation-surface,
   .cp-p6-field-chooser,
   .cubi-header,
   .cubi-footer,
@@ -1008,22 +1011,29 @@ th {
 
   .cp-main { display: block; }
 
-  .cp-panel,
-  .cp-navigation-surface,
-  .cp-site-log,
-  .cp-field-card,
-  .cp-control-finding {
-    box-shadow: none !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
   .cp-panel {
     margin: 0 0 4mm;
     padding: 4mm;
     border: 1px solid #aaa;
     border-radius: 3px;
     background: #fff;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .cp-site-log,
+  .cp-field-card,
+  .cp-control-finding,
+  .control-room-card,
+  .cp-gantt-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cp-panel h2,
+  .cp-panel h3 {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .cp-center { display: block; }
