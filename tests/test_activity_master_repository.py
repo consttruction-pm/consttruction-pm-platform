@@ -142,3 +142,28 @@ def test_activity_master_preserves_progress_state_on_update():
 
     assert saved.record_revision == 2
     assert repo.get(scope(), "A-UPDATE") == saved
+
+
+def test_activity_master_rejects_zero_row_update_after_prior_connection_changes():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    repo.save(activity())
+    connection.execute(
+        """CREATE TRIGGER remove_activity_before_update
+           BEFORE UPDATE ON activity_master
+           BEGIN
+               DELETE FROM activity_master
+               WHERE tenant_id = NEW.tenant_id
+                 AND project_id = NEW.project_id
+                 AND activity_id = NEW.activity_id;
+           END"""
+    )
+    connection.commit()
+
+    with pytest.raises(ActivityPersistenceError, match="REVISION_CONFLICT"):
+        repo.save(activity(duration="5"), expected_revision=1)
+
+    assert connection.execute(
+        "SELECT COUNT(*) FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+        ("T-1", "P-1", "A-1"),
+    ).fetchone()[0] == 0
