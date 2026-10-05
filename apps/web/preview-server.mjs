@@ -66,34 +66,42 @@ function resolveRequestFile(requestPath) {
   return normalized;
 }
 
-export { resolveRequestFile };\n\nexport function createPreviewServer() {\n  return http.createServer((req, res) => {
-  try {
-    const file = resolveRequestFile(req.url || "/");
-    if (!file) {
-      res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Forbidden");
-      return;
+export { resolveRequestFile };
+
+export function createPreviewServer() {
+  return http.createServer((req, res) => {
+    try {
+      const file = resolveRequestFile(req.url || "/");
+      if (!file) {
+        res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Forbidden");
+        return;
+      }
+
+      if (!existsSync(file) || !statSync(file).isFile()) {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Not Found");
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": contentType(file),
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      });
+
+      createReadStream(file).pipe(res);
+    } catch {
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Preview server error");
     }
+  });
+}
 
-    if (!existsSync(file) || !statSync(file).isFile()) {
-      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Not Found");
-      return;
-    }
-
-    res.writeHead(200, {
-      "Content-Type": contentType(file),
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-    });
-
-    createReadStream(file).pipe(res);
-  } catch {
-    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Preview server error");
-  }
-});
-
-server.listen(port, host, () => {
-  console.log(`CUBI Web Preview listening on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
-});
+const isDirectExecution = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (isDirectExecution) {
+  const server = createPreviewServer();
+  server.listen(port, host, () => {
+    console.log(`CUBI Web Preview listening on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
+  });
+}
