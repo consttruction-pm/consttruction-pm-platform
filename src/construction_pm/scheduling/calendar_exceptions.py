@@ -84,6 +84,7 @@ class CalendarException:
         payload: dict[str, object] = {
             "date": self.date.isoformat(),
             "kind": self.kind.value,
+            "calendar_system": self.calendar_system.value,
         }
         if self.kind is CalendarExceptionType.TOTAL_WORK_HOURS:
             payload["total_work_hours"] = str(self.total_work_hours)
