@@ -28,6 +28,8 @@ from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
+from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService, SQLiteP6ResourceSpreadRepository
 from construction_pm.p6_mapping_registry import P6MappingFormat
 from construction_pm.p6_xer_codec import P6XerCodec
 from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
@@ -191,6 +193,91 @@ def test_authenticated_sync_routes_require_session():
     status, _, raw = r.handle("GET", "/api/v1/sync/revision/p1")
     assert status == 401
     assert json.loads(raw)["code"] == "SESSION_REQUIRED"
+
+def resource_spread_routes():
+    import sqlite3
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    connection = sqlite3.connect(":memory:")
+    spread_service = P6ResourceSpreadApplicationService(
+        SQLiteP6ResourceSpreadRepository(connection),
+        SQLiteTransactionManager(connection),
+    )
+    spread_api = P6ResourceSpreadAPI(spread_service, default_project_policy())
+    return ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_resource_spread_api=spread_api,
+    )
+
+
+def test_authenticated_resource_spread_http_boundary_round_trips_typed_bucket():
+    r = resource_spread_routes()
+    body = {
+        "spread_id": "spread-1", "resource_id": "R-1", "period_id": "2026-10",
+        "period_start": "2026-10-01", "period_end": "2026-10-31",
+        "spread_type": "FORECAST", "metric": "COST", "value": "1234.5678",
+        "currency": "USD",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-spreads",
+        cookies={"cp_session": "s1"}, body=json.dumps(body).encode(),
+    )
+    assert status == 200
+    created = json.loads(raw)
+    assert created["contract_version"] == P6_RESOURCE_SPREAD_API_VERSION
+    assert created["spread"]["value"] == "1234.5678"
+    assert created["spread"]["currency"] == "USD"
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-spreads/spread-1/2026-10",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(raw) == created
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-spreads", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    listed = json.loads(raw)
+    assert listed["contract_version"] == P6_RESOURCE_SPREAD_API_VERSION
+    assert listed["buckets"] == [created]
+
+
+def test_resource_spread_http_boundary_enforces_project_scope_and_payload_contract():
+    r = resource_spread_routes()
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p2/p6/resource-spreads", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-spreads",
+        cookies={"cp_session": "s1"}, body=b"{not-json",
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_SPREAD_REQUEST_INVALID"
+
+    invalid = {
+        "spread_id": "spread-1", "resource_id": "R-1", "period_id": "2026-10",
+        "period_start": "2026-10-01", "period_end": "2026-10-31",
+        "spread_type": "FORECAST", "metric": "UNITS", "value": "10",
+        "currency": "USD",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-spreads",
+        cookies={"cp_session": "s1"}, body=json.dumps(invalid).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_SPREAD_REQUEST_INVALID"
 
 def test_requires_session_cookie():
     status, _, _ = routes().handle("GET", "/api/session")
