@@ -53,6 +53,70 @@ export interface MobileLocalProjectStore {
   save(project: MobileLocalProject): Promise<void>;
 }
 
+export interface MobileLocalProjectPersistence {
+  read(key: string): Promise<string | null>;
+  write(key: string, value: string): Promise<void>;
+}
+
+function isSchedulingDuration(value: unknown): value is SchedulingDuration {
+  if (!value || typeof value !== "object") return false;
+  const duration = value as Partial<SchedulingDuration>;
+  return typeof duration.value === "string" && duration.value.trim().length > 0 &&
+    (duration.unit === "WORKING_DAY" || duration.unit === "WORKING_HOUR");
+}
+
+/** Persistence-backed store; the host supplies durable local storage. */
+export class PersistentMobileLocalProjectStore implements MobileLocalProjectStore {
+  constructor(private readonly persistence: MobileLocalProjectPersistence) {}
+
+  async load(tenantId: string, projectId: string): Promise<MobileLocalProject | null> {
+    const raw = await this.persistence.read(this.key(tenantId, projectId));
+    if (raw === null) return null;
+    let value: unknown;
+    try { value = JSON.parse(raw); } catch { throw new Error("INVALID_LOCAL_PROJECT"); }
+    if (!value || typeof value !== "object") throw new Error("INVALID_LOCAL_PROJECT");
+    const project = value as Partial<MobileLocalProject>;
+    if (typeof project.tenant_id !== "string" || typeof project.project_id !== "string" ||
+        typeof project.revision !== "number" || !Number.isInteger(project.revision) || project.revision < 0 ||
+        typeof project.name !== "string" || !Array.isArray(project.wbs) ||
+        !Array.isArray(project.activities) || !Array.isArray(project.relationships) ||
+        project.wbs.some((item) => !item || typeof item !== "object" ||
+          typeof (item as MobileWbsNode).id !== "string" ||
+          typeof (item as MobileWbsNode).code !== "string" ||
+          typeof (item as MobileWbsNode).name !== "string" ||
+          ((item as MobileWbsNode).parent_id !== null && typeof (item as MobileWbsNode).parent_id !== "string") ||
+          typeof (item as MobileWbsNode).order !== "number" || !Number.isInteger((item as MobileWbsNode).order) ||
+          (item as MobileWbsNode).order < 0) ||
+        project.activities.some((item) => !item || typeof item !== "object" ||
+          typeof (item as MobileActivity).id !== "string" ||
+          typeof (item as MobileActivity).wbs_id !== "string" ||
+          typeof (item as MobileActivity).name !== "string" ||
+          typeof (item as MobileActivity).order !== "number" || !Number.isInteger((item as MobileActivity).order) ||
+          (item as MobileActivity).order < 0) ||
+        project.relationships.some((item) => !item || typeof item !== "object" ||
+          typeof (item as MobileActivityRelationship).predecessor_id !== "string" ||
+          typeof (item as MobileActivityRelationship).successor_id !== "string" ||
+          !["FS", "SS", "FF", "SF"].includes((item as MobileActivityRelationship).type) ||
+          !isSchedulingDuration((item as MobileActivityRelationship).lag))) {
+      throw new Error("INVALID_LOCAL_PROJECT");
+    }
+    if (project.tenant_id !== tenantId || project.project_id !== projectId) {
+      throw new Error("INVALID_LOCAL_PROJECT_CONTEXT");
+    }
+    return Object.freeze({
+      tenant_id: project.tenant_id, project_id: project.project_id, revision: project.revision,
+      name: project.name, wbs: project.wbs, activities: project.activities, relationships: project.relationships,
+    });
+  }
+
+  async save(project: MobileLocalProject): Promise<void> {
+    await this.persistence.write(this.key(project.tenant_id, project.project_id), JSON.stringify(project));
+  }
+
+  private key(tenantId: string, projectId: string): string {
+    return "mobile-project:" + tenantId + ":" + projectId;
+  }
+}
 export class InMemoryMobileLocalProjectStore implements MobileLocalProjectStore {
   private readonly projects = new Map<string, MobileLocalProject>();
 
