@@ -1622,3 +1622,71 @@ th {
   .cubi-reference-cta { transition:none; }
   .cubi-reference-cta:hover { transform:none; }
 }
+
+
+/* Canonical Hasan handoff refinement: horizontal logo + reference hero composition. */
+.cubi-reference-brand-image {
+  min-width: 0;
+  width: min(206px, 22vw);
+}
+.cubi-reference-brand-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+.cubi-reference-hero-card {
+  width: min(100%, 520px);
+  min-height: 310px;
+  padding: 40px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  background: #103f6e;
+  box-shadow: 0 20px 50px rgba(0,0,0,.12);
+  align-self: center;
+}
+.cubi-reference-hero-card .cubi-reference-hero-copy {
+  max-width: 440px;
+}
+.cubi-reference-hero-card .cubi-reference-eyebrow {
+  margin-bottom: 18px;
+}
+.cubi-reference-hero-card .cubi-reference-hero h1 {
+  max-width: 440px;
+}
+
+.cubi-reference-hero {
+  grid-template-columns: minmax(0, 520px) minmax(0, 680px);
+  justify-content: space-between;
+  gap: 50px;
+}
+.cubi-reference-dashboard-wrap {
+  width: min(100%, 680px);
+  justify-self: end;
+}
+
+@media (max-width: 1100px) {
+  .cubi-reference-hero {
+    grid-template-columns: 1fr;
+  }
+  .cubi-reference-hero-card,
+  .cubi-reference-dashboard-wrap {
+    width: min(100%, 680px);
+    justify-self: start;
+  }
+}
+@media (max-width: 760px) {
+  .cubi-reference-brand-image {
+    width: min(178px, 58vw);
+  }
+  .cubi-reference-brand-image img {
+    max-height: 62px;
+  }
+  .cubi-reference-hero-card {
+    min-height: 0;
+    padding: 28px 22px;
+    border-radius: 16px;
+  }
+}
