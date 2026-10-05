@@ -196,9 +196,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <p>${t.capabilitiesLead}</p>
           </div>
           <div class="cubi-feature-grid">
-            ${t.features.map(([icon, title, body]) => `
-              <article><span class="cubi-icon">${icon}</span><h3>${title}</h3><p>${body}</p></article>
-            `).join("")}
+            ${t.features.map(([icon, title, body]) => "<article><span class=\"cubi-icon\">" + icon + "</span><h3>" + title + "</h3><p>" + body + "</p></article>").join("")}
           </div>
         </section>
 
@@ -207,7 +205,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <p class="cubi-kicker">${t.controlsKicker}</p>
             <h2>${t.controlsTitle}</h2>
             <p>${t.controlsLead}</p>
-            <ul>${t.controlItems.map(item => `<li>${item}</li>`).join("")}</ul>
+            <ul>${t.controlItems.map(item => "<li>" + item + "</li>").join("")}</ul>
             <a class="cubi-text-link" href="/app">${t.primaryCta} →</a>
           </div>
           <div class="cubi-control-card">
