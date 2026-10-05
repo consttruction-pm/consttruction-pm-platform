@@ -343,6 +343,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
   --cubi-ui-control-height: 36px;
   --cubi-ui-touch-height: 40px;
   --cubi-ui-header-height: 56px;
+  --cubi-ui-menu-height: 44px;
   --cubi-ui-gap: 12px;
   --cubi-ui-radius: 8px;
   --cubi-ui-page-max: 1920px;
