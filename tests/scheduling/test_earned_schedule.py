@@ -81,6 +81,19 @@ def test_zero_pv_period_does_not_divide_by_zero():
     assert result.earned_schedule == Decimal("44")
 
 
+def test_flat_pv_plateau_keeps_first_attainment_date():
+    values = (
+        EarnedSchedulePeriod(date(2026, 1, 31), 100),
+        EarnedSchedulePeriod(date(2026, 2, 28), 100),
+        EarnedSchedulePeriod(date(2026, 3, 31), 200),
+    )
+    result = calculate_earned_schedule(
+        values, earned_value=100, data_date=date(2026, 3, 15), project_start=date(2026, 1, 1)
+    )
+    assert result.earned_schedule == Decimal("30")
+    assert result.earned_schedule_date == date(2026, 1, 31)
+
+
 def test_insufficient_pv_is_explicit():
     with pytest.raises(EarnedScheduleError, match="INSUFFICIENT_PV_COVERAGE"):
         calculate_earned_schedule(
