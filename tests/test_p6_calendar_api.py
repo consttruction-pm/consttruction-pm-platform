@@ -168,3 +168,24 @@ def test_detailed_and_total_work_hours_are_first_class_contracts():
     assert api.save_work_hours(total, auth_context=_auth())["total_work_hours"] == "40"
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "detailed_work_hours", auth_context=_auth())) == 1
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "total_work_hours", auth_context=_auth())) == 1
+
+
+def test_sqlite_work_hours_list_preserves_weekday_identity():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-WD"), auth_context=_auth())
+    sunday = CalendarWorkHourRule(_scope(), "CAL-WD", "1", "standard_work_week", 6, False, Decimal("0"), ())
+    monday = CalendarWorkHourRule(_scope(), "CAL-WD", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    api.save_work_hours(sunday, auth_context=_auth())
+    api.save_work_hours(monday, auth_context=_auth())
+    listed = api.list_work_hours(_scope(), "CAL-WD", "1", "standard_work_week", auth_context=_auth())
+    assert [item["weekday"] for item in listed] == [0, 6]
+    assert [item["is_working_day"] for item in listed] == [True, False]
+
+
+def test_calendar_delete_removes_persisted_work_hours():
+    api, _ = _api()
+    created = api.create(_scope(), _request("CAL-DEL"), auth_context=_auth())
+    rule = CalendarWorkHourRule(_scope(), "CAL-DEL", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    api.save_work_hours(rule, auth_context=_auth())
+    assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=created["record_revision"], auth_context=_auth())
+    assert api.calendar_repository.get(_scope(), "CAL-DEL", "1") is None
