@@ -27,6 +27,9 @@ from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
+from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from construction_pm.p6_mapping_registry import P6MappingFormat
+from construction_pm.p6_xer_codec import P6XerCodec
 from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
 from construction_pm.dependency_graph_api import DependencyGraphAPI
 from construction_pm.p6_financial_period_repository import P6FinancialPeriodApplicationService, SQLiteP6FinancialPeriodRepository
@@ -244,9 +247,12 @@ def p6_routes(roles=frozenset({"project_admin"})):
         P6FinancialPeriodApplicationService(SQLiteP6FinancialPeriodRepository(connection), transaction_manager),
         default_project_policy(),
     )
-    mapping_api = P6MappingAPI(
-        P6MappingRegistryApplicationService(SQLiteP6MappingRegistryRepository(connection), transaction_manager),
+    mapping_service = P6MappingRegistryApplicationService(SQLiteP6MappingRegistryRepository(connection), transaction_manager)
+    mapping_api = P6MappingAPI(mapping_service, default_project_policy())
+    interchange_api = P6InterchangeAPI(
+        mapping_service,
         default_project_policy(),
+        {P6MappingFormat.XER_PROJECT: P6XerCodec()},
     )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
@@ -258,6 +264,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
         p6_mapping_api=mapping_api,
+        p6_interchange_api=interchange_api,
     ), field_api, layout_api
 
 
@@ -974,3 +981,64 @@ def test_dependency_graph_http_read_rejects_malformed_resource_path():
     )
     assert status == 400
     assert json.loads(body)["code"] == "DEPENDENCY_REQUEST_INVALID"
+
+
+def test_p6_interchange_http_import_export_preserves_versioned_contract_and_scope():
+    r, _, _ = p6_routes()
+    mapping_payload = {
+        "mapping_id": "MAP-INTERCHANGE-1",
+        "registry_version": "p6-field-registry.v1",
+        "format": "XER_PROJECT",
+        "subject_area": "Activity",
+        "source_field": "task_code",
+        "canonical_field": "activity.activity_id",
+        "status": "SUPPORTED",
+        "source_type": "TEXT",
+        "canonical_type": "TEXT",
+        "unit": None,
+        "notes": "HTTP interchange test",
+    }
+    status, _, _ = r.handle(
+        "POST", "/api/projects/p1/p6/mappings", cookies={"cp_session": "s1"}, body=json.dumps(mapping_payload).encode()
+    )
+    assert status == 200
+
+    xer = b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n"
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
+        cookies={"cp_session": "s1"}, body=xer,
+    )
+    assert status == 200
+    imported = json.loads(body)
+    assert imported["contract_version"] == P6_INTERCHANGE_API_VERSION
+    assert imported["format"] == "XER_PROJECT"
+    assert imported["rows"][0]["values"]["activity.activity_id"] == "A-100"
+
+    export_body = json.dumps({"values": [{"activity.activity_id": "A-100"}], "extensions": [{"p6.xer.table": "TASK"}]}).encode()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/export",
+        cookies={"cp_session": "s1"}, body=export_body,
+    )
+    assert status == 200
+    exported = json.loads(body)
+    assert exported["contract_version"] == P6_INTERCHANGE_API_VERSION
+    assert exported["document"]["encoding"] == "utf-8"
+    assert "%R\tA-100" in exported["document"]["data"]
+
+
+def test_p6_interchange_http_requires_scope_and_permission():
+    r, _, _ = p6_routes(roles=frozenset({"viewer"}))
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
+        cookies={"cp_session": "s1"}, body=b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n",
+    )
+    assert status == 403
+    assert "permission=project.write" in json.loads(body)["code"]
+
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p2/p6/interchange/XER_PROJECT/import",
+        cookies={"cp_session": "s1"}, body=b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n",
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
