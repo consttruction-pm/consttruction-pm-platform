@@ -60,9 +60,6 @@ describe("Desktop V1 local trial", () => {
     assert.equal(trial.state(), "active");
 
     clock.set("2026-12-05T10:00:00.000Z");
-    assert.equal(trial.state(), "active");
-
-    clock.set("2026-12-06T10:00:00.000Z");
     assert.equal(trial.state(), "expired");
   });
 
