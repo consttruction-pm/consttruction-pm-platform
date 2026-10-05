@@ -624,3 +624,21 @@ Current-main inspection distinguishes implemented foundations from product-level
 **Payment / Cash Flow / Commitments:** not demonstrated on current main; **High product-completeness risk, high confidence** relative to the declared release scope.
 
 Required direction: complete the Change/Claim transport path using the existing domain; then implement one canonical Commercial/Financial Controls layer for commitments, invoices/payments, cash flow and ERP interfaces. These modules must consume Shared Core cost/EVM/calendar results and must not create a parallel cost or schedule authority.
+
+
+## AI. AI / Control Intelligence authority boundary — current main
+
+Current-main inspection confirms a strong architectural boundary for AI-driven controls:
+
+- `ai_action_boundary.py` models AI actions as proposals with explicit tool permission, human approval and audit recording. Approved actions require a human actor when the proposal requires approval.
+- `control_intelligence/scenario.py` explicitly forbids a scenario from mutating authoritative project state (`authoritative_mutation_allowed=True` raises). This keeps AI scenario analysis separate from Shared Core calculation/state mutation.
+- `control_intelligence/query.py` requires source references for answers, and source revisions must match the current project scope. This is appropriate for traceable AI assistance.
+- `control_intelligence/risk_engine.py` consumes already-computed control indicators and explicitly states that it does not calculate CPM/P6 scheduling semantics. It uses a versioned deterministic risk score and revision-safe evidence.
+
+### Verdict
+
+**AI authority boundary:** structurally strong; no evidence found that the inspected AI/control modules replace CPM, Calendar, Formula or EVM calculation authority.
+
+**Remaining product gap:** the inspected tree contains governance/analysis primitives rather than a demonstrated complete production AI assistant pipeline covering retrieval, grounded answers, action proposals, approvals, execution, audit and offline behavior across all three platforms. This is a completeness/integration question, not evidence of a second calculation engine.
+
+Required direction: keep AI downstream of Shared Core authoritative results; expand AI through adapters/tools with source citations, revision checks and human approval for mutations. Never let an LLM recompute or overwrite authoritative P6 results.
