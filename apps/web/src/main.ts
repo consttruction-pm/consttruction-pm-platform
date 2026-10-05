@@ -24,10 +24,30 @@ import { renderLandingPage } from "./landing.js";
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
-  container.innerHTML = '<div class="cp-app-shell"><div id="workspace"></div></div>';
-  const workspace = container.querySelector<HTMLElement>("#workspace");
-  if (!workspace) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
 
+  let appShell = container.querySelector<HTMLElement>(".cp-app-shell");
+  let status = container.querySelector<HTMLElement>(".cp-app-status");
+  let workspace = container.querySelector<HTMLElement>("#workspace");
+
+  if (!appShell || !status || !workspace) {
+    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div id="workspace"></div></div>';
+    appShell = container.querySelector<HTMLElement>(".cp-app-shell");
+    status = container.querySelector<HTMLElement>(".cp-app-status");
+    workspace = container.querySelector<HTMLElement>("#workspace");
+  }
+
+  if (!appShell || !status || !workspace) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
+
+  const languageButton = document.createElement("button");
+  languageButton.type = "button";
+  languageButton.textContent = state.locale === "fa" ? "English" : "فارسی";
+  languageButton.setAttribute("aria-label", state.locale === "fa" ? shellLabels.switchToEnglish : shellLabels.switchToPersian);
+  languageButton.onclick = () => {
+    const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
+    renderApp(container, setLocale(state, next), persistence);
+  };
+
+  status.replaceChildren(document.createTextNode(shellLabels.status), languageButton);
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       renderApp(container, { ...state, activeMenu: menu }, persistence);
@@ -102,26 +122,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       }
     },
   });
-
-  const shell = container.querySelector<HTMLElement>(".cp-workspace");
-  if (!shell) return;
-
-  const languageButton = document.createElement("button");
-  languageButton.type = "button";
-  languageButton.textContent = state.locale === "fa" ? "English" : "فارسی";
-  languageButton.setAttribute("aria-label", state.locale === "fa" ? shellLabels.switchToEnglish : shellLabels.switchToPersian);
-  languageButton.addEventListener("click", () => {
-    const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
-    renderApp(container, setLocale(state, next), persistence);
-  });
-
-  const status = document.createElement("div");
-  status.className = "cp-app-status";
-  status.append(shellLabels.status);
-  status.append(languageButton);
-  container.prepend(status);
 }
-
 function renderBootstrapState(
   container: HTMLElement,
   state: ProjectBootstrapState,
