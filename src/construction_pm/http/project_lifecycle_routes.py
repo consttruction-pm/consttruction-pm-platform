@@ -31,6 +31,8 @@ from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
+from ..p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
+from ..p6_code_repository import P6CodeDefinition, P6CodeValue
 from ..p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
 from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
@@ -72,6 +74,7 @@ class ProjectLifecycleHttpRoutes:
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
+        p6_code_api: P6CodeAPI | None = None,
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
     ) -> None:
@@ -86,6 +89,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_spread_api = p6_resource_spread_api
+        self._p6_code_api = p6_code_api
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
 
@@ -856,6 +860,61 @@ class ProjectLifecycleHttpRoutes:
                 if result is None:
                     return self._error(404, "P6_LAYOUT_NOT_FOUND", "error.p6.layout.not_found")
                 return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/codes"):
+                if self._p6_code_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/codes")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_code_api.list(BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth)
+                return self._json(200, {"contract_version": P6_CODE_API_VERSION, "codes": list(result)})
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/codes/" in path:
+                if self._p6_code_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, code_id = path.split("/p6/codes/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not code_id or "/" in code_id:
+                    return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_code_api.get(BackendScope(context.tenant_id, context.project_id, context.revision), code_id, auth_context=auth)
+                if result is None: return self._error(404, "P6_CODE_NOT_FOUND", "error.p6.code.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/codes"):
+                if self._p6_code_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/codes")].rstrip("/")
+                if not project_id: return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict): raise ValueError
+                    raw_values = payload.get("values", [])
+                    if not isinstance(raw_values, list): raise ValueError
+                    values = tuple(P6CodeValue(value_id=item.get("value_id", ""), value=item.get("value", ""), description=item.get("description")) for item in raw_values if isinstance(item, dict))
+                    if len(values) != len(raw_values): raise ValueError
+                    definition = P6CodeDefinition(BackendScope(context.tenant_id, context.project_id, context.revision), payload.get("code_id", ""), payload.get("name", ""), payload.get("subject_area", ""), payload.get("scope_kind", ""), payload.get("scope_key", ""), values)
+                    result = self._p6_code_api.create(definition, auth_context=auth)
+                except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
                 if not project_id:
