@@ -165,9 +165,13 @@ def calculate_earned_schedule(
         if earned_schedule is None and ev <= current_pv:
             delta = current_pv - previous_pv
             if delta == 0:
-                # A flat cumulative-PV segment adds no earned progress.
-                # Keep searching for the first positive PV segment so EV=0
-                # (or a flat PV plateau) cannot be mapped to its period end.
+                # A flat segment cannot create new earned progress. If EV
+                # already equals the plateau value, its first attainment is
+                # the left edge of that plateau; preserve that earlier point.
+                if ev == previous_pv:
+                    earned_schedule_date = previous_date
+                    earned_schedule = Decimal((previous_date - start).days)
+                    break
                 previous_pv = current_pv
                 previous_date = period.end_date
                 continue
