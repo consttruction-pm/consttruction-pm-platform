@@ -122,9 +122,15 @@ def _canonical_json(value: dict[str, object]) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _decode_intervals(value: object) -> list[object]:
+    if isinstance(value, (dict, list)):
+        return value.get("intervals", []) if isinstance(value, dict) else value
+    parsed = json.loads(str(value))
+    return parsed.get("intervals", []) if isinstance(parsed, dict) else parsed
+
+
 def _row_to_exception(scope: BackendScope, row: tuple[object, ...]) -> CalendarException:
-    raw_intervals = json.loads(str(row[5]))
-    interval_rows = raw_intervals.get("intervals", []) if isinstance(raw_intervals, dict) else raw_intervals
+    interval_rows = _decode_intervals(row[5])
     intervals = tuple((time.fromisoformat(str(item[0])), time.fromisoformat(str(item[1]))) for item in interval_rows)
     hours = None if row[4] is None else Decimal(str(row[4]))
     return CalendarException(
@@ -141,8 +147,7 @@ def _exception_snapshot(
     intervals_json: object,
     system: str,
 ) -> dict[str, object]:
-    raw_intervals = json.loads(str(intervals_json))
-    intervals = raw_intervals.get("intervals", []) if isinstance(raw_intervals, dict) else raw_intervals
+    intervals = _decode_intervals(intervals_json)
     return {
         "calendar_id": exception.calendar_id,
         "calendar_version": exception.calendar_version,
@@ -284,8 +289,7 @@ class PostgresCalendarExceptionRepository:
         )
         if _canonical_json(existing_snapshot) != canonical:
             raise CalendarPersistenceError("EXCEPTION_IMMUTABLE_CONFLICT")
-        raw_intervals = existing[2]
-        interval_rows = raw_intervals.get("intervals", []) if isinstance(raw_intervals, dict) else json.loads(raw_intervals) if isinstance(raw_intervals, str) else raw_intervals
+        interval_rows = _decode_intervals(existing[2])
         return CalendarException(
             exception.scope, exception.calendar_id, exception.calendar_version,
             exception.exception_date, str(existing[0]),
