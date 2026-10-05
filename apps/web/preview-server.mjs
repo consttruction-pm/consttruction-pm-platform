@@ -49,14 +49,16 @@ const server = http.createServer((req, res) => {
     const distWebEntry = join(distRoot, "web", "src");
     const distClientSyncEntry = join(distRoot, "client-sync", "src");
     const distPrefix = distRoot.endsWith(sep) ? distRoot : `${distRoot}${sep}`;
-    const clientSyncRoot = join(root, "..", "client-sync");
-    const clientSyncPrefix = clientSyncRoot.endsWith(sep) ? clientSyncRoot : `${clientSyncRoot}${sep}`;
+    const clientSyncUrlPrefix = join(root, "client-sync", "src") + sep;
+    const relativeToDist = requested.slice(distRoot.length + 1);
     const file = requested === join(distRoot, "main.js")
       ? join(distWebEntry, "main.js")
       : requested.startsWith(distPrefix)
-        ? requested
-        : requested.startsWith(clientSyncPrefix)
-          ? join(distClientSyncEntry, requested.slice(clientSyncPrefix.length))
+        ? (relativeToDist.includes(sep)
+          ? requested
+          : join(distWebEntry, relativeToDist))
+        : requested.startsWith(clientSyncUrlPrefix)
+          ? join(distClientSyncEntry, requested.slice(clientSyncUrlPrefix.length))
           : requested;
 
     if (!existsSync(file) || !statSync(file).isFile()) {
