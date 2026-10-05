@@ -122,3 +122,35 @@ Dense scheduling, Gantt, cost, EVM and control surfaces must remain calmer and l
 **Engineering quality:** Partial — the reviewed separation is sound and the identified Web shell rerender inefficiency has been fixed, but fresh exact-head CI/runtime evidence is currently unavailable through the connected GitHub status/run interface.
 
 **Important:** This audit is a whole-project integrity baseline. Jalal 3 remains a progress/workload baseline, not the scope of the audit.
+
+## H. Exact-main integration hygiene — checked 2026-10-05
+
+Fresh repository inspection confirms the current `main` head is:
+- `3dfa3e725ceda476055a84737b348244eaacc01e`
+
+The connected GitHub status/run interface currently reports:
+- no combined status entries for this exact head;
+- no workflow runs attached to this exact head.
+
+Therefore exact-head CI remains **unverified**, and no release-green claim is made.
+
+Open UI PR hygiene was also checked:
+- PR #1223 was based on an older performance-audit head and was superseded; it has been closed rather than allowed to merge stale UI work.
+- PR #1224 is a newer rebuild than #1223 but is still behind the current `main`; it has been explicitly marked for exact-current-main rebuild/rebase before merge.
+
+This preserves the repository rule that open PRs are not part of the integration baseline until reconciled with current `main`.
+
+## I. Calendar parity remains the next substantive P6 gap
+
+The current calendar work is materially better than the earlier audit baseline: inheritance and first-class exceptions are persisted and regression-tested. The remaining P6 gap is still the API/product contract layer tracked by Issue #1209:
+- Global / Resource / Project calendar type semantics;
+- calendar CRUD;
+- Copy Calendar;
+- Replace with Global / Project / Resource;
+- standard work week and standard detailed work-hours operations;
+- detailed work hours / total work hours operations;
+- HolidayOrExceptions API operations;
+- SQLite/PostgreSQL API-level verification and deterministic concurrency behavior.
+
+This is intentionally kept separate from CPM arithmetic. No second calendar calculation engine should be introduced to solve it.
+
