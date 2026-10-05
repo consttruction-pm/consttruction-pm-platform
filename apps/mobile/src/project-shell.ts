@@ -217,7 +217,7 @@ export class MobileProjectShell {
     const project = this.requireProjectData();
     const current = project.wbs.find((item) => item.id === wbsId);
     if (!current) throw new Error("WBS_NOT_FOUND");
-    const nextParent = patch.parent_id ?? current.parent_id;
+    const nextParent = "parent_id" in patch ? patch.parent_id ?? null : current.parent_id;
     if (nextParent !== null && !project.wbs.some((item) => item.id === nextParent)) {
       throw new Error("WBS_PARENT_NOT_FOUND");
     }
