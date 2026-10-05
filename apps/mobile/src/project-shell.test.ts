@@ -179,6 +179,13 @@ test("rejects invalid WBS/Activity edits at the shell boundary", async () => {
   await assert.rejects(shell.updateActivity("missing", { name: "x" }), /ACTIVITY_NOT_FOUND/);
 });
 
+test("rejects indirect WBS parent cycles", async () => {
+  const shell = new MobileProjectShell(new MobileRuntime(), new InMemoryMobileLocalProjectStore([fixture]));
+  await shell.openLocalProject("t1", "p1");
+  await shell.updateWbsNode("W1", { parent_id: null });
+  await assert.rejects(shell.updateWbsNode("W1", { parent_id: "W2" }), /WBS_PARENT_CYCLE/);
+});
+
 test("rejects invalid local project and cross-WBS activity navigation", async () => {
   const shell = new MobileProjectShell(
     new MobileRuntime(),
