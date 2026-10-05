@@ -911,3 +911,19 @@ Status: 100% — merged and runtime-verified
 - Issue #393 was re-audited against the current tree. P6 field/UDF, formula-definition, mapping/interchange, baseline, financial-period, resource assignment/spread, code, expense, report/profile, activity-period-actual, layout, calendar and dependency-graph backend/API slices are represented on current main.
 - Activity Status/Type/StatusCode, WBS/WorkPackage semantics, and time-aware ScheduleOptions remain evidence/Shared-Core dependencies where no authoritative backend mapping contract is present; no backend implementation is authorized from names or presentation code alone.
 - Disposition: **evidence boundary — no speculative Hasan implementation**. The next implementation must begin only after a newly reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam is proven on exact current main.
+
+
+### 2026-10-05 — P6 Mapping authenticated HTTP boundary (PR #1160)
+Status: **100% — merged and runtime-verified**
+- Fresh current-main audit at `bdece51136577e4d27ae7f56710335d3d3a13fba` identified the concrete Hasan-owned gap: the existing versioned `P6MappingAPI` had scope/permission enforcement and mapping persistence support, but `ProjectLifecycleHttpRoutes` had no authenticated HTTP boundary for P6 mappings.
+- PR #1160 added authenticated GET list/detail and POST create routes under `/api/projects/{project_id}/p6/mappings`, binding tenant/project/revision from authenticated `ProjectContext` and preserving `P6_MAPPING_API_VERSION`.
+- Focused regression coverage verifies create/get/list contract preservation, project scope/permission enforcement, not-found behavior and malformed path/payload rejection.
+- Exact implementation head: `563a746b7edce9b4f0f72bd2d721aa5f6995fb9a`.
+- ConstructionPM CI run **3963** completed successfully on the exact head; Client Typecheck checks were also successful.
+- PR #1160 squash-merged as **73ed24e903c13866b3578cb30ec042c06a33fc1b**.
+- Current `main` after merge: `73ed24e903c13866b3578cb30ec042c06a33fc1b`.
+- Mapping semantics remain in the existing P6MappingAPI/registry; no Shared-Core calculation or scheduling semantics were introduced.
+
+### Current continuation point
+- Current `main`: **73ed24e903c13866b3578cb30ec042c06a33fc1b**.
+- Next Hasan action: complete this checkpoint documentation on a fresh branch from the verified current `main`, then perform a fresh current-main/open-PR audit. Do not revive stale branches or infer new P6 semantics from presentation fields.
