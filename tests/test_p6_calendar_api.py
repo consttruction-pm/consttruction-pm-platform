@@ -159,6 +159,26 @@ def test_standard_work_week_contract_is_typed_and_replay_safe():
         api.save_work_hours(changed, auth_context=_auth())
 
 
+@pytest.mark.parametrize(
+    "rule",
+    [
+        CalendarWorkHourRule(_scope(), "CAL-X", "1", "detailed_work_hours", 0, True, Decimal("8"), (("99:00", "100:00"),)),
+        CalendarWorkHourRule(_scope(), "CAL-X", "1", "detailed_work_hours", 0, True, Decimal("8"), (("17:00", "08:00"),)),
+    ],
+)
+def test_work_hour_intervals_reject_invalid_time_payloads(rule):
+    with pytest.raises(ValueError, match="INVALID_WORK_HOUR_INTERVAL"):
+        rule.validate()
+
+
+def test_work_hour_total_accepts_numeric_string_and_rejects_non_finite():
+    numeric = CalendarWorkHourRule(_scope(), "CAL-X", "1", "total_work_hours", None, None, "40", ())
+    numeric.validate()
+    invalid = CalendarWorkHourRule(_scope(), "CAL-X", "1", "total_work_hours", None, None, Decimal("NaN"), ())
+    with pytest.raises(ValueError, match="INVALID_TOTAL_WORK_HOURS"):
+        invalid.validate()
+
+
 def test_detailed_and_total_work_hours_are_first_class_contracts():
     api, _ = _api()
     api.create(_scope(), _request("CAL-H"), auth_context=_auth())
