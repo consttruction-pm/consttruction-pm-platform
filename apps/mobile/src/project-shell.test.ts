@@ -140,7 +140,9 @@ test("rejects relationship lookup for an unknown activity", async () => {
   );
   await shell.openLocalProject("t1", "p1");
   assert.throws(() => shell.listRelationships("missing"), /ACTIVITY_NOT_FOUND/);
-});\n\ntest("rejects invalid local project and cross-WBS activity navigation", async () => {
+});
+
+test("rejects invalid local project and cross-WBS activity navigation", async () => {
   const shell = new MobileProjectShell(
     new MobileRuntime(),
     new InMemoryMobileLocalProjectStore([fixture]),
