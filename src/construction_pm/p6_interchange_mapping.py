@@ -41,6 +41,34 @@ class P6InterchangeResult:
     warnings: tuple[str, ...] = ()
 
 
+_CANONICAL_TYPE_ALIASES = {
+    "TEXT": "string",
+    "STRING": "string",
+    "DATE": "date",
+    "DATETIME": "datetime",
+    "DURATION": "duration",
+    "DECIMAL": "decimal",
+    "PERCENTAGE": "percentage",
+    "BOOLEAN": "boolean",
+    "ENUM": "enum",
+    "INTEGER": "integer",
+    "DOUBLE": "double",
+    "COST": "cost",
+    "UNIT": "unit",
+    "OBJECT_ID": "object-id",
+    "OBJECT-ID": "object-id",
+    "OBJECT_ID_ARRAY": "object-id-array",
+    "STRING_ARRAY": "string-array",
+    "COMPLEX": "complex",
+    "SPREAD": "spread",
+}
+
+
+def _canonical_type_name(value: str) -> str:
+    normalized = value.strip()
+    return _CANONICAL_TYPE_ALIASES.get(normalized.upper(), normalized.lower())
+
+
 class P6InterchangeMapper:
     """Provider-neutral row mapper driven only by persisted P6 mappings."""
 
@@ -56,9 +84,6 @@ class P6InterchangeMapper:
             if item.scope != first_scope:
                 raise P6InterchangeCompatibilityError("MAPPING_SCOPE_MISMATCH")
             definition = item.definition
-            # Existing untyped mappings are retained for compatibility. Once a
-            # mapping declares canonical_type, the canonical field must resolve
-            # through the authoritative P6 Field Registry and its type must match.
             if definition.canonical_type is not None:
                 try:
                     field = get_field(definition.canonical_field)
@@ -66,7 +91,8 @@ class P6InterchangeMapper:
                     raise P6InterchangeCompatibilityError(
                         f"UNKNOWN_CANONICAL_FIELD:{definition.canonical_field}"
                     ) from exc
-                if definition.canonical_type != field.data_type.value:
+                declared_type = _canonical_type_name(definition.canonical_type)
+                if declared_type != field.data_type.value:
                     raise P6InterchangeCompatibilityError(
                         f"CANONICAL_TYPE_MISMATCH:{definition.canonical_field}:"
                         f"{definition.canonical_type}:{field.data_type.value}"
@@ -105,8 +131,6 @@ class P6InterchangeMapper:
                 try:
                     field = get_field(definition.canonical_field)
                 except KeyError:
-                    # Legacy untyped mappings may use internal canonical names
-                    # that predate the authoritative registry.
                     canonical[definition.canonical_field] = value
                 else:
                     try:
