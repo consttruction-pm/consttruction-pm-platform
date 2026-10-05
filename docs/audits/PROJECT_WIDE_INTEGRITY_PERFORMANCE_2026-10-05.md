@@ -706,3 +706,20 @@ A concrete transaction-safety defect was verified in `src/construction_pm/resour
 A regression test now exercises two nested resource transactions on one connection and verifies the final committed state. This change is infrastructure-only and does not alter P6/CPM/Calendar/Formula/EVM calculations.
 
 **Finding status: Corrected in main.** Executable verification remains unconfirmed because current main has no GitHub workflow runs or commit statuses.
+
+
+## AN. P6 Calendar multi-repository transaction atomicity — high-risk gap
+
+Current-main inspection confirms a stronger transaction-boundary issue than the earlier legacy savepoint finding.
+
+`P6CalendarAPI` orchestrates multi-step operations such as `copy()` and `replace()`. In the SQLite implementation, several Calendar repositories perform their own `connection.commit()` during mutation: `calendar_master_repository.py`, `calendar_exception_repository.py`, `calendar_snapshot_repository.py`, `calendar_work_hours_repository.py`, and the SQLite activity/relationship-lag calendar assignment repositories. The API itself does not expose one application-owned transaction spanning these writes.
+
+This creates a concrete partial-commit risk. For example, a calendar copy can commit the target `CalendarMaster`, then commit the snapshot, then fail while copying an exception; the database may retain a partially copied calendar instead of rolling back the complete operation. `replace()` can similarly persist the target master before a later snapshot write fails.
+
+This is **High severity, high confidence** for correctness of Calendar administration and recovery. It does not directly alter CPM arithmetic, but it can leave the authoritative calendar definition inconsistent, which can subsequently change scheduling results.
+
+### Required direction
+
+Make transaction ownership application-level for SQLite exactly as documented by the repository architecture: repository mutation methods must participate in the caller's transaction and must not commit/rollback independently. `P6CalendarAPI.copy/replace/delete` should execute their complete multi-repository mutation inside one transaction manager boundary. Initialization/schema setup may retain a separate initialization commit where necessary.
+
+Add failure-injection tests that fail at each step of `copy()`/`replace()` and verify complete rollback, plus successful multi-step atomicity tests. Do not alter Shared Scheduling Core calculations as part of this repair.
