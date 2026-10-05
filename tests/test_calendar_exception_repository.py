@@ -99,6 +99,7 @@ def test_exception_scope_and_revision_are_enforced():
 
 def test_exception_requires_existing_calendar_master():
     conn = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(conn)
     repo = SQLiteCalendarExceptionRepository(conn)
     with pytest.raises(CalendarPersistenceError, match="CALENDAR_NOT_FOUND"):
         repo.save(CalendarException(scope(), "CAL-1", "1", date(2026, 3, 21), EXCEPTION_NONWORK))
