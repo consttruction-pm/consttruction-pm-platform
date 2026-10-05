@@ -14,6 +14,7 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    SchedulingCalendarContext,
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
