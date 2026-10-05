@@ -397,3 +397,24 @@ This means the resource-leveling capacity path is not yet cleanly connected to t
 **Required direction:** route resource-capacity resolution through the authoritative Shared/P6 Calendar resolver and versioned Resource Calendar semantics. Retire the legacy `resources.calendar.ResourceCalendar` seam after consumers are migrated and regression evidence exists. Do not extend the legacy class or add another resource-calendar engine.
 
 Existing issues #1209 and #1207 already cover the broader P6 calendar parity/inheritance work; this finding should be addressed within those boundaries rather than as a new parallel calendar subsystem.
+
+
+## X. Resource / Rate / Cost authority recheck — current main
+
+Fresh source inspection of `src/construction_pm/resources/` versus the P6 resource APIs found an important boundary mismatch:
+
+- The `resources/models.py` + `resources/calculator.py` path contains the richer Resource, ResourceRate, ResourceAssignment and cost-control calculation model. `resources/control.py`, `performance.py` and related curves consume it, and these functions are publicly exported through `resources/__init__.py`.
+- Separately, the P6 persistence/API path uses `P6ResourceAssignment` in `p6_resource_assignment_repository.py`, with `p6_resource_read_api.py` and `p6_resource_write_api.py`. The current P6 write API is focused on time-phased assignment-period values; it does not expose a complete create/update API for the underlying P6 Resource + Rate definition.
+- Therefore the repository currently has **two resource data boundaries**: a legacy/richer domain resource model that performs cost calculations, and a P6 persistence model that stores assignment snapshots. They are not yet demonstrated as one canonical Resource/Rate contract.
+- `ResourceEVMBridge` correctly derives ETC/EAC/VAC/CV/SV as an adapter and does not replace the central EVM engine. This is architecturally acceptable, but the bridge currently consumes values from the legacy resource-control model rather than a proven canonical P6 Resource/Assignment + financial-period data flow.
+- The current P6 Field Registry has 7 Resource-related fields mixed into the combined `Resource/Assignment` subject and no independent Role or Cost Account subject. This prevents complete field-level traceability for resource rates, rate effective dates, calendars and role hierarchy.
+
+### Authority verdict
+
+**Cost calculator itself:** a real deterministic domain calculation, not proven dead code; it must not be duplicated by a second P6 cost engine.
+
+**P6 Resource/Rate parity:** partial. The canonical integration from Resource definition/rates → assignment → calendar → cost → EVM → API → clients → interchange is not yet demonstrated.
+
+**Required direction:** converge the richer resource/rate semantics and P6 persistence/API on one canonical Shared Core contract. Reuse existing calculations where appropriate; do not create a separate P6 calculator. Then expose the same canonical contract through Web/Desktop/Mobile and interchange.
+
+Existing P6 backlog #389 / ownership track #393 already covers this family of work, so no duplicate issue is required.
