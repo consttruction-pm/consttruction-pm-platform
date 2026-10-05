@@ -106,6 +106,28 @@ Print-specific behavior:
 
 No print rule may alter Shared Core calculations or project data; print is presentation-only.
 
+## Native platform geometry contract
+
+The current Desktop and Mobile packages are framework-neutral foundations, so native window/screen constraints are documented here rather than embedded in Shared Core code.
+
+Windows Desktop target:
+- Minimum usable application window: 1280 × 720 CSS pixels.
+- Preferred working window: 1440 × 900 or larger.
+- The main scheduling workspace should remain fully usable at the 1280 × 720 minimum without hiding core WBS, Activity Grid or Gantt data.
+- Very wide monitors may use up to the available viewport; the Web reference shell caps normal content at 1920px to preserve readable density.
+- Windows system scaling/DPI must be treated as a viewport scaling concern; UI dimensions remain logical pixels and text must not be hard-coded to physical pixels.
+
+Mobile target:
+- Reference compact viewport: 360 × 800 CSS pixels.
+- Comfortable reference viewport: 390–430 × 844–932 CSS pixels.
+- Minimum interactive target: 40px; primary field actions should prefer 44px where practical.
+- Do not render a desktop three-column shell on mobile. Use a single-column field-first flow with bottom/stacked navigation and bounded horizontally-scrollable data views where needed.
+- Gantt, wide tables and analytical charts should scroll inside their own surfaces instead of forcing the entire page to overflow horizontally.
+
+Browser zoom/accessibility:
+- The layout must remain usable at 100%, 125% and 150% browser/OS scaling without clipping primary controls.
+- Text must not be reduced to preserve column count; field visibility and horizontal scrolling are preferred.
+
 ## Cross-client handoff
 
 Desktop and Mobile currently expose executable runtime/contract foundations rather than a finished native visual shell. Their UI implementations must adopt these same geometry and typography rules when the native shells are introduced, while preserving their product-specific interaction density.
