@@ -1,4 +1,5 @@
-import { describe, expect, it } from "node:test";
+import { describe, it } from "node:test";
+import { strict as assert } from "node:assert";
 import {
   DesktopV1LocalTrial,
   InMemoryDesktopV1TrialStore,
@@ -25,12 +26,14 @@ const config = {
 
 describe("Desktop V1 local trial", () => {
   it("allows installation through the one-year cutoff", () => {
-    expect(
+    assert.equal(
       installationStatus(config, new Date("2027-10-05T00:00:00.000Z")),
-    ).toBe("allowed");
-    expect(
+      "allowed",
+    );
+    assert.equal(
       installationStatus(config, new Date("2027-10-05T00:00:01.000Z")),
-    ).toBe("expired");
+      "expired",
+    );
   });
 
   it("initializes once and keeps the original first-install date", () => {
@@ -38,14 +41,10 @@ describe("Desktop V1 local trial", () => {
     const store = new InMemoryDesktopV1TrialStore();
     const trial = new DesktopV1LocalTrial(config, store, clock);
 
-    expect(trial.ensureInitialized().first_installation_at).toBe(
-      "2026-10-05T10:00:00.000Z",
-    );
+    assert.equal(trial.ensureInitialized().first_installation_at, "2026-10-05T10:00:00.000Z");
 
     clock.set("2026-10-20T10:00:00.000Z");
-    expect(trial.ensureInitialized().first_installation_at).toBe(
-      "2026-10-05T10:00:00.000Z",
-    );
+    assert.equal(trial.ensureInitialized().first_installation_at, "2026-10-05T10:00:00.000Z");
   });
 
   it("keeps all V1 features active for 60 calendar days", () => {
@@ -58,13 +57,13 @@ describe("Desktop V1 local trial", () => {
 
     trial.ensureInitialized();
     clock.set("2026-12-04T10:00:00.000Z");
-    expect(trial.state()).toBe("active");
+    assert.equal(trial.state(), "active");
 
     clock.set("2026-12-05T10:00:00.000Z");
-    expect(trial.state()).toBe("active");
+    assert.equal(trial.state(), "active");
 
     clock.set("2026-12-06T10:00:00.000Z");
-    expect(trial.state()).toBe("expired");
+    assert.equal(trial.state(), "expired");
   });
 
   it("does not enable online activation", () => {
@@ -74,7 +73,7 @@ describe("Desktop V1 local trial", () => {
       new InMemoryDesktopV1TrialStore(),
       clock,
     );
-    expect(trial.isOnlineActivationEnabled()).toBe(false);
+    assert.equal(trial.isOnlineActivationEnabled(), false);
   });
 
   it("rejects normal installation after the one-year cutoff", () => {
@@ -84,8 +83,6 @@ describe("Desktop V1 local trial", () => {
       new InMemoryDesktopV1TrialStore(),
       clock,
     );
-    expect(() => trial.ensureInitialized()).toThrow(
-      "DESKTOP_V1_INSTALLATION_EXPIRED",
-    );
+    assert.throws(() => trial.ensureInitialized(), /DESKTOP_V1_INSTALLATION_EXPIRED/);
   });
 });
