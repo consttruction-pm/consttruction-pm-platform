@@ -772,3 +772,12 @@ This preserves deterministic semantics but can become expensive on large constru
 ### Required optimization boundary
 
 Replace the linear probe with a semantically equivalent bounded-search strategy (for example, monotonic bracket + binary search) only after independent regression fixtures prove identical Free Float/Total Float results across FS/SS/FF/SF, positive/negative lag, multiple calendars, exceptions, and open-ended activities. Preserve the existing 10,000 guard semantics or explicitly version any changed behavior. Do not approximate or move the calculation into client code.
+
+
+## AS. Web P6 field-type projection loses semantic subtypes
+
+`apps/web/src/p6-field-layout-foundation.ts` correctly models the full P6 type family, including `percentage`, `cost`, `unit`, `datetime`, `enum`, `object-id`, arrays, `complex` and `spread`. However, `apps/web/src/workspace-model.ts::toWorkspaceColumnDataType()` collapses these into a much smaller view-model type set: `percentage`, `cost` and `unit` all become `decimal`; `date` and `datetime` both become `date`; and object-id/array/complex/spread fall through to `text`.
+
+This is not a calculation-engine duplication and it may be acceptable for a minimal display layer, but it is insufficient for full P6 column/type parity because formatting, filtering, sorting, editing, unit/currency display and semantic validation can depend on the original type. The Registry metadata is therefore richer than the Workspace column contract actually preserves.
+
+**Medium risk, high confidence** for P6 UI parity. Required direction: preserve authoritative P6 `data_type`, unit and allowed-value metadata through the shared presentation model, with specialized rendering/editing behavior layered on top. Do not infer or recalculate business values in the client.
