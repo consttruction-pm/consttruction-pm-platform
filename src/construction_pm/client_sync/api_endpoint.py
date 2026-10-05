@@ -37,7 +37,18 @@ class VersionedSyncEndpoint:
                 if str(exc)=="IDEMPOTENCY_KEY_REUSE":
                     return {"contract_version":"sync-outcome.v1","mutation_id":mutation.mutation_id,"disposition":"rejected","error_code":"IDEMPOTENCY_KEY_REUSE"}
                 raise
-        else: outcome=self.gateway.submit_mutation(mutation)
+        else:
+            try:
+                outcome = self.gateway.submit_mutation(mutation)
+            except ValueError as exc:
+                if str(exc) == "IDEMPOTENCY_KEY_REUSE":
+                    return {
+                        "contract_version": "sync-outcome.v1",
+                        "mutation_id": mutation.mutation_id,
+                        "disposition": "rejected",
+                        "error_code": "IDEMPOTENCY_KEY_REUSE",
+                    }
+                raise
         return {"contract_version":"sync-outcome.v1","mutation_id":outcome.mutation_id,"disposition":outcome.disposition.value,"error_code":outcome.error_code,"retry_after_seconds":outcome.retry_after_seconds}
 
 
