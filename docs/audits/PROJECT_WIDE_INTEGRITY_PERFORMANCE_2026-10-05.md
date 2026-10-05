@@ -154,3 +154,18 @@ The current calendar work is materially better than the earlier audit baseline: 
 
 This is intentionally kept separate from CPM arithmetic. No second calendar calculation engine should be introduced to solve it.
 
+## J. Calendar implementation evidence — rechecked on current main
+
+The current repository contains a coherent persistence foundation:
+- `p6_calendar_read_api.py` exposes only catalog and versioned snapshot reads;
+- `CalendarMaster` supports versioned identity, inheritance references, assignments and optimistic revisions;
+- first-class calendar exceptions support nonwork, total-work-hours, detailed work-hours and reset-to-standard;
+- deterministic snapshots are persisted for both SQLite and PostgreSQL;
+- dedicated unit/integration tests exist for these boundaries.
+
+The evidence also confirms that the missing surface is intentionally API/product functionality, not missing Shared-Core persistence primitives. Issue #1209 remains the authoritative follow-up for P6 Global/Resource/Project type semantics, CRUD, Copy/Replace, standard/detailed work-hour operations, HolidayOrExceptions and API-level regression coverage.
+
+A prior calendar-version snapshot immutability change was incorporated into the current line of development; comparison against its earlier PR shows the current main contains the calendar master/snapshot/exception changes while continuing to diverge with subsequent UI and audit work. No stale PR is being treated as the integration baseline.
+
+**Current audit HEAD after this audit documentation update:** `67e4c3b2135e01f3ae34c564b03e3a01839e10f6`.
+
