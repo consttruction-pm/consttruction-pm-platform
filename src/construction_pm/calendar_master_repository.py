@@ -110,12 +110,12 @@ class SQLiteCalendarMasterRepository:
                 PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version)
             )"""
         )
-        self.connection.execute("ALTER TABLE calendar_master ADD COLUMN base_calendar_id TEXT")
-        try:
-            self.connection.execute("ALTER TABLE calendar_master ADD COLUMN base_calendar_version TEXT")
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" not in str(exc).lower():
-                raise
+        for column in ("base_calendar_id", "base_calendar_version"):
+            try:
+                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT")
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS activity_calendar_assignment (
                 tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
