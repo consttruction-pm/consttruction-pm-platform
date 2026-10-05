@@ -81,6 +81,7 @@ class Activity:
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
+    name: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -89,6 +90,8 @@ class Activity:
             raise TypeError("duration must be an integer working-day value")
         if self.duration < 0:
             raise ValueError("duration must be non-negative")
+        if not isinstance(self.name, str):
+            raise TypeError("name must be a string")
         if self.actual_start is not None and (not isinstance(self.actual_start, date) or isinstance(self.actual_start, datetime)):
             raise TypeError("actual_start must be a date or None")
         if self.actual_finish is not None and (not isinstance(self.actual_finish, date) or isinstance(self.actual_finish, datetime)):
