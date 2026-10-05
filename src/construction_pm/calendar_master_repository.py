@@ -150,7 +150,7 @@ class SQLiteCalendarMasterRepository:
                 raise CalendarPersistenceError("REVISION_CONFLICT")
             stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
             self.connection.execute(
-                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
                  stored.calendar_id, stored.calendar_version, stored.kind, stored.name, 1,
                  stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type),
@@ -159,7 +159,7 @@ class SQLiteCalendarMasterRepository:
             return stored
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, int(row[2]) + 1, calendar.base_calendar_id, calendar.base_calendar_version)
+        stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, int(row[2]) + 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
         cursor = self.connection.execute(
             "UPDATE calendar_master SET project_revision=?,kind=?,name=?,record_revision=?,base_calendar_id=?,base_calendar_version=?,calendar_type=? "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?",
@@ -433,7 +433,7 @@ class PostgresCalendarMasterRepository:
                  calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1,
                  calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type),
             )
-            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
+            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
         revision = int(row[2]) + 1
