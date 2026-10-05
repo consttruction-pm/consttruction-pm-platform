@@ -507,3 +507,21 @@ Fresh current-main inspection of relationship persistence versus the Shared Core
 **Medium parity risk, high confidence** for Roles because the independent P6 subject area is not represented as a canonical domain/API/registry surface.
 
 Required direction: make one canonical Relationship/Lag contract shared by persistence, scheduling, API and interchange, preserving signed lag and explicit duration-unit semantics. Add independent Registry subject definitions and a Role domain boundary before declaring these P6 areas complete. Do not modify CPM arithmetic merely to hide the transport gap.
+
+
+## AC. Document / RFI / Submittal versus UDF transport integrity — current main
+
+Current-main subject-area inspection shows a useful contrast:
+
+- Document/RFI/Submittal functionality has a real application boundary, Postgres persistence, versioning, idempotency, approval transitions and a `DocumentAPI`. This is a substantially complete transport pattern and should remain an example of the intended application/API separation.
+- P6 UDF definitions have persistence and an application service, and typed UDF values have a revision-scoped persistence implementation with strict type validation and encode/decode checks.
+- However no dedicated UDF Value API file was found in the current tree, and no independent HTTP route for UDF values was identified. The Web side has an authenticated metadata fetch boundary, but that does not establish full CRUD/transport parity for typed UDF values.
+- UDF definitions themselves are scoped to `p6-field-registry.v1`, which is correct for registry coupling, but the value contract still depends on lookup of the definition before persistence. This should remain a single authority rather than be reimplemented by clients.
+
+### Verdict
+
+**Document/RFI/Submittal:** architecture pattern is sound at the inspected boundary; separate P6 field certification is still required where applicable.
+
+**UDF typed values:** Medium parity/integration risk, high confidence because persistence exists without a dedicated transport path. This is not a calculation defect, but it can block full field/edit/export parity.
+
+Required direction: add a typed UDF-value application/API/HTTP boundary over the existing persistence, reuse the Field Registry definition for validation, and expose the same contract to Web/Desktop/Mobile/import-export. Do not implement client-side UDF type engines.
