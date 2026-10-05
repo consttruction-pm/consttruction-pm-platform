@@ -541,3 +541,30 @@ Current-main tree inspection shows unequal platform adapter surfaces:
 **Medium cross-platform parity risk, high confidence.** The architecture intent is correct (clients should consume contracts, not calculate), but the current repository does not yet demonstrate equal scheduling-consumption boundaries across Web/Desktop/Mobile.
 
 Required direction: define one shared scheduling invocation contract and have Web/Desktop/Mobile consume it through thin adapters. Do not implement a separate scheduler in Desktop or Web. Preserve the Mobile contract only as a migration-compatible adapter if it already maps exactly to the canonical contract.
+
+
+## AE. Formula Core / Registry / client parity — current main
+
+Fresh inspection of the current `main` formula stack confirms that the calculation architecture itself is healthy:
+
+- `p6_formula_engine.py` implements tokenize → parse/AST → type inference → dependency discovery → deterministic evaluation using typed values and `Decimal`; no dynamic `eval` path was found.
+- `p6_formula_authority_api.py` correctly builds its schema from the authoritative P6 Field Registry and delegates parsing/type/dependency semantics to the Shared Formula Core.
+- `p6_formula_recalculation.py` only orchestrates dependency-safe recalculation; it does not redefine formula semantics.
+- `p6_formula_definition_api.py` provides a versioned persistence/transport boundary for formula definitions and audit history.
+- Web `p6-formula-editor.ts` and `p6-formula-grid-binding.ts` consume an injected `P6FormulaAuthority`; they do not calculate formulas locally. This is correct. The empty `apps/web/src/p6-formula-api.ts` is therefore not a second engine and should remain empty unless a thin transport adapter is actually required.
+
+The remaining parity gap is type/surface coverage:
+
+- `P6FormulaFieldAdapter` intentionally maps only the P6 field types that have a safe Formula Core representation. P6 types such as object-id-array, string-array, complex and spread currently reject from the formula schema instead of being silently coerced. This is the correct safety behavior, but it means full P6 formula-type coverage is not certified.
+- `apps/web` has mature Formula/Field presentation adapters, while Desktop has no equivalent P6 Formula/Field adapter surface in the current tree and Mobile has no equivalent Formula surface. This supports the already-verified #1226 cross-platform parity gap.
+- The Formula authority HTTP route is wired in the backend (`POST /api/projects/.../p6/formulas/...`), but an equivalent common client transport contract for all three platform clients is not yet demonstrated.
+
+### Verdict
+
+**Formula calculation authority:** structurally sound and single-source, high confidence.
+
+**P6 formula type parity:** partial, medium risk.
+
+**Cross-platform Formula/Field consumption parity:** medium-high risk, high confidence; tracked by existing issue #1226.
+
+Required direction: keep the existing Shared Formula Core as the only formula engine; complete safe P6 type mappings where semantics can be certified, otherwise explicitly mark them unsupported; create one shared client transport contract consumed by Web/Desktop/Mobile rather than per-platform formula implementations.
