@@ -605,3 +605,22 @@ Current-main inspection confirms that Baseline persistence is intentionally cons
 **Full baseline value snapshot + comparison + variance semantics:** incomplete / not certified; **High parity risk, high confidence** for P6 baseline completeness.
 
 Required direction: preserve the existing immutable metadata boundary and add one canonical baseline snapshot/comparison contract in Shared Core. Baseline-derived fields exposed through Registry/API/clients/import-export must all consume that same contract; never calculate baseline variance separately in UI or persistence.
+
+
+## AH. Change/Claim and payment/cash-flow completeness — current main
+
+Current-main inspection distinguishes implemented foundations from product-level gaps:
+
+- `change_claims.py` and `change_claim_api.py` provide a versioned Change/Variation/Notice/Claim domain and API with scope, actor, optimistic revision, idempotency and evidence references.
+- The `control_intelligence.change_claim` layer adds explicit schedule/cost impact links and evidence requirements, which is structurally aligned with the construction-controls objective.
+- However no direct Change/Claim HTTP route was found in `project_lifecycle_routes.py`; therefore the API is not yet proven as a complete Web transport path.
+- The current source tree contains no dedicated Payment, Invoice/AR-AP, Commitment, or Cash Flow domain/API module. This matches the project backlog: issue #77 explicitly identifies commitments/payments/AP/AR and an ERP/accounting integration layer as P0 gaps.
+- This should not be misclassified as a scheduler defect. It is a product-completeness gap that becomes important for the promised integrated construction Project Controls / Commercial Controls scope.
+
+### Verdict
+
+**Change/Claim domain:** meaningful foundation exists; HTTP/end-to-end integration remains incomplete.
+
+**Payment / Cash Flow / Commitments:** not demonstrated on current main; **High product-completeness risk, high confidence** relative to the declared release scope.
+
+Required direction: complete the Change/Claim transport path using the existing domain; then implement one canonical Commercial/Financial Controls layer for commitments, invoices/payments, cash flow and ERP interfaces. These modules must consume Shared Core cost/EVM/calendar results and must not create a parallel cost or schedule authority.
