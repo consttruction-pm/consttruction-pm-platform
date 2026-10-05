@@ -1,4 +1,9 @@
 import type { MobileRuntime, MobileProjectState } from "./runtime.ts";
+import type {
+  MobileSchedulingRequest,
+  MobileSchedulingResult,
+  SharedSchedulingCoreAdapter,
+} from "./shared-scheduling-adapter.ts";
 
 export type MobileShellScreen = "projects" | "wbs" | "activity";
 
@@ -31,6 +36,7 @@ export type MobileShellState = Readonly<{
   project: MobileProjectState | null;
   selected_wbs_id: string | null;
   selected_activity_id: string | null;
+  schedule_result: MobileSchedulingResult | null;
 }>;
 
 export interface MobileLocalProjectStore {
@@ -68,6 +74,7 @@ export class MobileProjectShell {
     project: null,
     selected_wbs_id: null,
     selected_activity_id: null,
+    schedule_result: null,
   });
 
   constructor(
@@ -104,6 +111,7 @@ export class MobileProjectShell {
       project: runtimeState,
       selected_wbs_id: null,
       selected_activity_id: null,
+      schedule_result: null,
     });
     return this.state;
   }
@@ -114,6 +122,7 @@ export class MobileProjectShell {
       project: this.state.project,
       selected_wbs_id: null,
       selected_activity_id: null,
+      schedule_result: this.state.schedule_result,
     });
     return this.state;
   }
@@ -145,6 +154,19 @@ export class MobileProjectShell {
       selected_activity_id: activity.id,
     });
     return this.state;
+  }
+
+  async schedule(
+    core: SharedSchedulingCoreAdapter,
+    input: MobileSchedulingRequest,
+  ): Promise<MobileSchedulingResult> {
+    this.requireProject();
+    const result = await this.runtime.scheduleOffline(core, input);
+    this.state = Object.freeze({
+      ...this.state,
+      schedule_result: result,
+    });
+    return result;
   }
 
   listWbs(): readonly MobileWbsNode[] {
