@@ -205,6 +205,9 @@ export class MobileProjectShell {
     });
     await this.store.save(updated);
     this.localProject = updated;
+    this.queueLocalMutation("wbs.create", project.revision, {
+      wbs: { ...input, order },
+    });
     const runtimeState = this.runtime.advanceRevision(nextRevision);
     this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
     return this.state;
@@ -239,6 +242,10 @@ export class MobileProjectShell {
     });
     await this.store.save(updated);
     this.localProject = updated;
+    this.queueLocalMutation("wbs.update", project.revision, {
+      wbs_id: wbsId,
+      patch: { code, name, parent_id: nextParent },
+    });
     const runtimeState = this.runtime.advanceRevision(nextRevision);
     this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
     return this.state;
@@ -261,6 +268,9 @@ export class MobileProjectShell {
     });
     await this.store.save(updated);
     this.localProject = updated;
+    this.queueLocalMutation("activity.create", project.revision, {
+      activity: { ...input, order },
+    });
     const runtimeState = this.runtime.advanceRevision(nextRevision);
     this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
     return this.state;
@@ -292,6 +302,10 @@ export class MobileProjectShell {
     });
     await this.store.save(updated);
     this.localProject = updated;
+    this.queueLocalMutation("activity.update", project.revision, {
+      activity_id: activityId,
+      patch: { wbs_id: wbsId, name },
+    });
     const runtimeState = this.runtime.advanceRevision(nextRevision);
     this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
     return this.state;
@@ -313,6 +327,21 @@ export class MobileProjectShell {
     return project.activities
       .filter((item) => item.wbs_id === wbsId)
       .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  }
+
+  private queueLocalMutation(operation: string, expectedRevision: number, payload: Record<string, unknown>): void {
+    const current = this.runtime.current();
+    const mutationId = `${operation}:${current.tenant_id}:${current.project_id}:${expectedRevision}`;
+    this.runtime.queueMutation({
+      contract_version: "sync-mutation.v1",
+      mutation_id: mutationId,
+      tenant_id: current.tenant_id,
+      project_id: current.project_id,
+      expected_revision: expectedRevision,
+      operation,
+      payload,
+      idempotency_key: mutationId,
+    });
   }
 
   private requireProject(): MobileProjectState {
