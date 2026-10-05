@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
 import pytest
@@ -26,6 +26,10 @@ from construction_pm.scheduling.resource_leveling import (
 )
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+from construction_pm.scheduling.time_duration import TimeQuantity
+from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship
+from construction_pm.scheduling.relationships import RelationshipType
 
 
 def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
@@ -160,3 +164,45 @@ def test_evaluator_rejects_unregistered_authoritative_calendar():
     snapshot, context = make_snapshot_and_context()
     with pytest.raises(ScheduleEvaluationError, match="SCHEDULE_EVALUATION_FAILED"):
         evaluate_schedule_snapshot(snapshot, context, CalendarResolverRegistry())
+
+
+def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
+    calendar = CalendarReference('CAL-T', '1', 'working-time')
+    working_calendar = WorkingTimeCalendar(
+        daily_intervals={i: ((time(8), time(12)), (time(13), time(17))) for i in range(5)}
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={'CAL-T@1': TimeAwareWorkingTimeResolver(working_calendar)}
+    )
+    context_ref = SchedulingCalendarContext(
+        project=calendar, activity=calendar, relationship_lag=calendar
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id='S-T',
+        tenant_id='T-1',
+        project_id='P-1',
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=calendar,
+        activities=(
+            TimeActivity('A', TimeQuantity.working_hours(4), context_ref),
+            TimeActivity('B', TimeQuantity.working_hours(2), context_ref),
+        ),
+        relationships=(TimeRelationship('A', 'B', RelationshipType.FS),),
+        activity_calendar_assignments=(),
+        project_start=datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        project_finish=datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+    )
+    calc_context = CalculationContext(
+        project_id='P-1', project_version=7, calendar_id='CAL-T', calendar_version='1',
+        rules_version='rules-1', engine_version='engine-1', timezone='UTC',
+        calculation_timestamp='2026-09-30T00:00:00+00:00', input_snapshot_id='S-T', tenant_id='T-1',
+    )
+    snapshot = build_snapshot(source, calc_context, datetime(2026, 9, 30, tzinfo=timezone.utc))
+
+    result = evaluate_schedule_snapshot(snapshot, calc_context, registry)
+
+    assert result.time_result is not None
+    assert result.time_activities == result.time_result.early_activities
+    assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
+    assert result.time_result.floats['B'].total_float_hours == Decimal('2')
