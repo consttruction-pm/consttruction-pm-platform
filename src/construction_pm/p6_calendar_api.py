@@ -140,6 +140,9 @@ class P6CalendarAPI:
         snapshot = self.snapshot_repository.get(source)
         if snapshot is None:
             raise CalendarPersistenceError("SOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
+        target_snapshot = self.snapshot_repository.get(target)
+        if target_snapshot is not None and target_snapshot.snapshot != snapshot.snapshot:
+            raise CalendarPersistenceError("TARGET_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT")
         replacement = CalendarMaster(
             scope=scope, calendar_id=target.calendar_id, calendar_version=target.calendar_version,
             kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
