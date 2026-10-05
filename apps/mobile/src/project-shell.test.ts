@@ -107,6 +107,31 @@ test("opens a local project into the WBS shell without network or scheduling cal
   assert.equal(shell.listWbs().length, 2);
 });
 
+test("creates and edits WBS and Activity locally with revision continuity", async () => {
+  const runtime = new MobileRuntime();
+  const store = new InMemoryMobileLocalProjectStore([fixture]);
+  const shell = new MobileProjectShell(runtime, store);
+  await shell.openLocalProject("t1", "p1");
+
+  const afterWbs = await shell.addWbsNode({ id: "W3", code: "1.2", name: "Finishes", parent_id: "W1" });
+  assert.equal(afterWbs.project?.revision, 13);
+  assert.deepEqual(shell.listWbs().map((item) => item.id), ["W1", "W2", "W3"]);
+
+  const afterWbsEdit = await shell.updateWbsNode("W3", { name: "Finishes & Closeout" });
+  assert.equal(afterWbsEdit.project?.revision, 14);
+
+  const afterActivity = await shell.addActivity({ id: "A3", wbs_id: "W3", name: "Closeout" });
+  assert.equal(afterActivity.project?.revision, 15);
+  assert.deepEqual(shell.listActivities("W3").map((item) => item.name), ["Closeout"]);
+
+  const afterActivityEdit = await shell.updateActivity("A3", { name: "Final Closeout", wbs_id: "W2" });
+  assert.equal(afterActivityEdit.project?.revision, 16);
+  assert.deepEqual(shell.listActivities("W2").map((item) => item.name), ["Foundation", "Frame", "Final Closeout"]);
+  assert.equal(shell.listActivities("W2")[2]?.order, 3);
+  assert.equal(runtime.current().revision, 16);
+  assert.equal(afterActivityEdit.schedule_result, null);
+});
+
 test("navigates from WBS to an activity only when activity belongs to selected WBS", async () => {
   const shell = new MobileProjectShell(
     new MobileRuntime(),
@@ -145,6 +170,24 @@ test("rejects relationship lookup for an unknown activity", async () => {
   );
   await shell.openLocalProject("t1", "p1");
   assert.throws(() => shell.listRelationships("missing"), /ACTIVITY_NOT_FOUND/);
+});
+
+test("rejects invalid WBS/Activity edits at the shell boundary", async () => {
+  const shell = new MobileProjectShell(new MobileRuntime(), new InMemoryMobileLocalProjectStore([fixture]));
+  await shell.openLocalProject("t1", "p1");
+  await assert.rejects(shell.addWbsNode({ id: "W3", code: "1.2", name: "x", parent_id: "missing" }), /WBS_PARENT_NOT_FOUND/);
+  await assert.rejects(shell.addActivity({ id: "A3", wbs_id: "missing", name: "x" }), /WBS_NOT_FOUND/);
+  await assert.rejects(shell.updateActivity("missing", { name: "x" }), /ACTIVITY_NOT_FOUND/);
+});
+
+test("allows explicit WBS parent clearing and rejects indirect parent cycles", async () => {
+  const shell = new MobileProjectShell(new MobileRuntime(), new InMemoryMobileLocalProjectStore([fixture]));
+  await shell.openLocalProject("t1", "p1");
+  await assert.rejects(shell.updateWbsNode("W1", { parent_id: "W2" }), /WBS_PARENT_CYCLE/);
+  await shell.updateWbsNode("W2", { parent_id: null });
+  assert.equal(shell.listWbs().find((item) => item.id === "W2")?.parent_id, null);
+  await shell.updateWbsNode("W1", { parent_id: "W2" });
+  await assert.rejects(shell.updateWbsNode("W2", { parent_id: "W1" }), /WBS_PARENT_CYCLE/);
 });
 
 test("rejects invalid local project and cross-WBS activity navigation", async () => {

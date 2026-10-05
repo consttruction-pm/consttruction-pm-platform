@@ -50,6 +50,7 @@ export type MobileShellState = Readonly<{
 
 export interface MobileLocalProjectStore {
   load(tenantId: string, projectId: string): Promise<MobileLocalProject | null>;
+  save(project: MobileLocalProject): Promise<void>;
 }
 
 export class InMemoryMobileLocalProjectStore implements MobileLocalProjectStore {
@@ -63,6 +64,10 @@ export class InMemoryMobileLocalProjectStore implements MobileLocalProjectStore 
 
   async load(tenantId: string, projectId: string): Promise<MobileLocalProject | null> {
     return this.projects.get(this.key(tenantId, projectId)) ?? null;
+  }
+
+  async save(project: MobileLocalProject): Promise<void> {
+    this.projects.set(this.key(project.tenant_id, project.project_id), project);
   }
 
   private key(tenantId: string, projectId: string): string {
@@ -181,6 +186,115 @@ export class MobileProjectShell {
   listWbs(): readonly MobileWbsNode[] {
     const project = this.requireProjectData();
     return [...project.wbs].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  }
+
+  async addWbsNode(input: Omit<MobileWbsNode, "order"> & { order?: number }): Promise<MobileShellState> {
+    const project = this.requireProjectData();
+    if (!input.id.trim() || !input.code.trim() || !input.name.trim()) throw new Error("INVALID_WBS");
+    if (project.wbs.some((item) => item.id === input.id)) throw new Error("WBS_ALREADY_EXISTS");
+    if (input.parent_id !== null && !project.wbs.some((item) => item.id === input.parent_id)) {
+      throw new Error("WBS_PARENT_NOT_FOUND");
+    }
+    const order = input.order ?? (project.wbs.reduce((max, item) => Math.max(max, item.order), 0) + 1);
+    if (!Number.isInteger(order) || order < 0) throw new Error("INVALID_WBS_ORDER");
+    const nextRevision = project.revision + 1;
+    const updated = Object.freeze({
+      ...project,
+      revision: nextRevision,
+      wbs: Object.freeze([...project.wbs, Object.freeze({ ...input, order })]),
+    });
+    await this.store.save(updated);
+    this.localProject = updated;
+    const runtimeState = this.runtime.advanceRevision(nextRevision);
+    this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
+    return this.state;
+  }
+
+  async updateWbsNode(
+    wbsId: string,
+    patch: Partial<Pick<MobileWbsNode, "code" | "name" | "parent_id">>,
+  ): Promise<MobileShellState> {
+    const project = this.requireProjectData();
+    const current = project.wbs.find((item) => item.id === wbsId);
+    if (!current) throw new Error("WBS_NOT_FOUND");
+    const nextParent = "parent_id" in patch ? patch.parent_id ?? null : current.parent_id;
+    if (nextParent !== null && !project.wbs.some((item) => item.id === nextParent)) {
+      throw new Error("WBS_PARENT_NOT_FOUND");
+    }
+    const seen = new Set<string>();
+    let ancestor = nextParent;
+    while (ancestor !== null) {
+      if (ancestor === wbsId || seen.has(ancestor)) throw new Error("WBS_PARENT_CYCLE");
+      seen.add(ancestor);
+      ancestor = project.wbs.find((item) => item.id === ancestor)?.parent_id ?? null;
+    }
+    const code = patch.code ?? current.code;
+    const name = patch.name ?? current.name;
+    if (!code.trim() || !name.trim()) throw new Error("INVALID_WBS");
+    const nextRevision = project.revision + 1;
+    const updated = Object.freeze({
+      ...project,
+      revision: nextRevision,
+      wbs: Object.freeze(project.wbs.map((item) => item.id === wbsId ? Object.freeze({ ...item, code, name, parent_id: nextParent }) : item)),
+    });
+    await this.store.save(updated);
+    this.localProject = updated;
+    const runtimeState = this.runtime.advanceRevision(nextRevision);
+    this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
+    return this.state;
+  }
+
+  async addActivity(
+    input: Omit<MobileActivity, "order"> & { order?: number },
+  ): Promise<MobileShellState> {
+    const project = this.requireProjectData();
+    if (!input.id.trim() || !input.name.trim()) throw new Error("INVALID_ACTIVITY");
+    if (project.activities.some((item) => item.id === input.id)) throw new Error("ACTIVITY_ALREADY_EXISTS");
+    if (!project.wbs.some((item) => item.id === input.wbs_id)) throw new Error("WBS_NOT_FOUND");
+    const order = input.order ?? (project.activities.filter((item) => item.wbs_id === input.wbs_id).reduce((max, item) => Math.max(max, item.order), 0) + 1);
+    if (!Number.isInteger(order) || order < 0) throw new Error("INVALID_ACTIVITY_ORDER");
+    const nextRevision = project.revision + 1;
+    const updated = Object.freeze({
+      ...project,
+      revision: nextRevision,
+      activities: Object.freeze([...project.activities, Object.freeze({ ...input, order })]),
+    });
+    await this.store.save(updated);
+    this.localProject = updated;
+    const runtimeState = this.runtime.advanceRevision(nextRevision);
+    this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
+    return this.state;
+  }
+
+  async updateActivity(
+    activityId: string,
+    patch: Partial<Pick<MobileActivity, "wbs_id" | "name">>,
+  ): Promise<MobileShellState> {
+    const project = this.requireProjectData();
+    const current = project.activities.find((item) => item.id === activityId);
+    if (!current) throw new Error("ACTIVITY_NOT_FOUND");
+    const wbsId = patch.wbs_id ?? current.wbs_id;
+    const name = patch.name ?? current.name;
+    if (!name.trim()) throw new Error("INVALID_ACTIVITY");
+    if (!project.wbs.some((item) => item.id === wbsId)) throw new Error("WBS_NOT_FOUND");
+    const nextOrder = wbsId === current.wbs_id
+      ? current.order
+      : project.activities
+          .filter((item) => item.wbs_id === wbsId && item.id !== activityId)
+          .reduce((max, item) => Math.max(max, item.order), 0) + 1;
+    const nextRevision = project.revision + 1;
+    const updated = Object.freeze({
+      ...project,
+      revision: nextRevision,
+      activities: Object.freeze(project.activities.map((item) => item.id === activityId
+        ? Object.freeze({ ...item, wbs_id: wbsId, name, order: nextOrder })
+        : item)),
+    });
+    await this.store.save(updated);
+    this.localProject = updated;
+    const runtimeState = this.runtime.advanceRevision(nextRevision);
+    this.state = Object.freeze({ ...this.state, project: runtimeState, schedule_result: null });
+    return this.state;
   }
 
   listRelationships(activityId: string): readonly MobileActivityRelationship[] {
