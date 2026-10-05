@@ -927,3 +927,13 @@ Status: **100% — merged and runtime-verified**
 ### Current continuation point
 - Current `main`: **73ed24e903c13866b3578cb30ec042c06a33fc1b**.
 - Next Hasan action: complete this checkpoint documentation on a fresh branch from the verified current `main`, then perform a fresh current-main/open-PR audit. Do not revive stale branches or infer new P6 semantics from presentation fields.
+
+
+### 2026-10-05 — Checkpoint PR #1161 (current-main documentation)
+Status: **100% — merged**
+- PR #1161 reconciled Hasan documentation after PR #1160.
+- Exact checkpoint head: `efe98149d56eec128bf9a5422303c3b98d40a0b6`.
+- All 7 exact-head checks passed: Python 3.11/3.12/3.13 and mobile/desktop/web/client-sync typechecks.
+- PR #1161 squash-merged as `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
+- Verified current `main`: `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
+- Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Do not revive stale branches or invent Shared-Core/P6 semantics.
