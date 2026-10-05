@@ -71,6 +71,15 @@ def _parse_snapshot(raw: str) -> dict[str, object]:
     value = json.loads(raw)
     if not isinstance(value, dict):
         raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
+    if value.get("kind") == "working-time":
+        intervals = value.get("daily_intervals")
+        if isinstance(intervals, dict):
+            try:
+                value["daily_intervals"] = {
+                    int(key): entries for key, entries in intervals.items()
+                }
+            except (TypeError, ValueError) as exc:
+                raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
     return value
 
 
