@@ -42,25 +42,12 @@ class P6InterchangeResult:
 
 
 _CANONICAL_TYPE_ALIASES = {
-    "TEXT": "string",
-    "STRING": "string",
-    "DATE": "date",
-    "DATETIME": "datetime",
-    "DURATION": "duration",
-    "DECIMAL": "decimal",
-    "PERCENTAGE": "percentage",
-    "BOOLEAN": "boolean",
-    "ENUM": "enum",
-    "INTEGER": "integer",
-    "DOUBLE": "double",
-    "COST": "cost",
-    "UNIT": "unit",
-    "OBJECT_ID": "object-id",
-    "OBJECT-ID": "object-id",
-    "OBJECT_ID_ARRAY": "object-id-array",
-    "STRING_ARRAY": "string-array",
-    "COMPLEX": "complex",
-    "SPREAD": "spread",
+    "TEXT": "string", "STRING": "string", "DATE": "date", "DATETIME": "datetime",
+    "DURATION": "duration", "DECIMAL": "decimal", "PERCENTAGE": "percentage",
+    "BOOLEAN": "boolean", "ENUM": "enum", "INTEGER": "integer", "DOUBLE": "double",
+    "COST": "cost", "UNIT": "unit", "OBJECT_ID": "object-id", "OBJECT-ID": "object-id",
+    "OBJECT_ID_ARRAY": "object-id-array", "STRING_ARRAY": "string-array",
+    "COMPLEX": "complex", "SPREAD": "spread",
 }
 
 
@@ -111,113 +98,64 @@ class P6InterchangeMapper:
             seen_canonical.add(canonical_key)
 
     def import_row(self, row: P6InterchangeRow) -> P6InterchangeResult:
-        self._validate_scope(row.scope)
-        self._validate_format(row.format)
-        canonical: dict[str, Any] = {}
-        extensions = dict(row.extensions)
-        warnings: list[str] = []
-        mapped_sources: set[str] = set()
-
+        self._validate_scope(row.scope); self._validate_format(row.format)
+        canonical: dict[str, Any] = {}; extensions = dict(row.extensions); warnings: list[str] = []; mapped_sources: set[str] = set()
         for item in self._mappings:
             definition = item.definition
-            if definition.format is not row.format:
-                continue
+            if definition.format is not row.format: continue
             source = definition.source_field
-            if source not in row.values:
-                continue
-            mapped_sources.add(source)
-            value = row.values[source]
+            if source not in row.values: continue
+            mapped_sources.add(source); value = row.values[source]
             if definition.status is P6MappingStatus.SUPPORTED:
-                try:
-                    field = get_field(definition.canonical_field)
-                except KeyError:
-                    canonical[definition.canonical_field] = value
+                try: field = get_field(definition.canonical_field)
+                except KeyError: canonical[definition.canonical_field] = value
                 else:
-                    try:
-                        canonical[definition.canonical_field] = typed_value_for_field(field, value).value
-                    except P6InterchangeTypedConversionError as exc:
-                        raise P6InterchangeCompatibilityError(str(exc)) from exc
+                    try: canonical[definition.canonical_field] = typed_value_for_field(field, value).value
+                    except P6InterchangeTypedConversionError as exc: raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
-                self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
-                warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{source}")
-            else:
-                raise P6InterchangeCompatibilityError(
-                    f"UNSUPPORTED_FIELD_REJECTED:{source}"
-                )
-
+                self._preserve_extension(extensions, self._extension_key(definition.source_field), value); warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{source}")
+            else: raise P6InterchangeCompatibilityError(f"UNSUPPORTED_FIELD_REJECTED:{source}")
         for source, value in row.values.items():
             if source not in mapped_sources:
-                self._preserve_extension(extensions, self._extension_key(source), value)
-                warnings.append(f"PRESERVED_UNKNOWN_FIELD:{source}")
-
+                self._preserve_extension(extensions, self._extension_key(source), value); warnings.append(f"PRESERVED_UNKNOWN_FIELD:{source}")
         return P6InterchangeResult(canonical, extensions, tuple(sorted(set(warnings))))
 
     def export_row(self, row: P6InterchangeRow) -> P6InterchangeResult:
-        self._validate_scope(row.scope)
-        self._validate_format(row.format)
-        source_values: dict[str, Any] = {}
-        extensions = dict(row.extensions)
-        warnings: list[str] = []
-        mapped_canonical: set[str] = set()
-
+        self._validate_scope(row.scope); self._validate_format(row.format)
+        source_values: dict[str, Any] = {}; extensions = dict(row.extensions); warnings: list[str] = []; mapped_canonical: set[str] = set()
         for item in self._mappings:
             definition = item.definition
-            if definition.format is not row.format:
-                continue
+            if definition.format is not row.format: continue
             canonical = definition.canonical_field
-            if canonical not in row.values:
-                continue
-            mapped_canonical.add(canonical)
-            value = row.values[canonical]
+            if canonical not in row.values: continue
+            mapped_canonical.add(canonical); value = row.values[canonical]
             if definition.status is P6MappingStatus.SUPPORTED:
-                try:
-                    field = get_field(canonical)
-                except KeyError:
-                    source_values[definition.source_field] = value
+                try: field = get_field(canonical)
+                except KeyError: source_values[definition.source_field] = value
                 else:
-                    try:
-                        source_values[definition.source_field] = typed_value_for_field(field, value).value
-                    except P6InterchangeTypedConversionError as exc:
-                        raise P6InterchangeCompatibilityError(str(exc)) from exc
+                    try: source_values[definition.source_field] = typed_value_for_field(field, value).value
+                    except P6InterchangeTypedConversionError as exc: raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
-                self._preserve_extension(extensions, self._extension_key(definition.source_field), value)
-                warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{canonical}")
-            else:
-                raise P6InterchangeCompatibilityError(
-                    f"UNSUPPORTED_FIELD_REJECTED:{canonical}"
-                )
-
+                self._preserve_extension(extensions, self._extension_key(definition.source_field), value); warnings.append(f"PRESERVED_UNSUPPORTED_FIELD:{canonical}")
+            else: raise P6InterchangeCompatibilityError(f"UNSUPPORTED_FIELD_REJECTED:{canonical}")
         for canonical, value in row.values.items():
             if canonical not in mapped_canonical:
-                self._preserve_extension(
-                    extensions, self._extension_key(f"canonical:{canonical}"), value
-                )
-                warnings.append(f"PRESERVED_UNKNOWN_CANONICAL_FIELD:{canonical}")
-
+                self._preserve_extension(extensions, self._extension_key(f"canonical:{canonical}"), value); warnings.append(f"PRESERVED_UNKNOWN_CANONICAL_FIELD:{canonical}")
         return P6InterchangeResult(source_values, extensions, tuple(sorted(set(warnings))))
 
     @staticmethod
     def _preserve_extension(extensions: dict[str, Any], key: str, value: Any) -> None:
-        if key in extensions:
-            raise P6InterchangeCompatibilityError(f"EXTENSION_KEY_COLLISION:{key}")
+        if key in extensions: raise P6InterchangeCompatibilityError(f"EXTENSION_KEY_COLLISION:{key}")
         extensions[key] = value
 
     def _validate_scope(self, scope: BackendScope) -> None:
-        if scope != self._scope:
-            raise P6InterchangeCompatibilityError("ROW_SCOPE_MISMATCH")
+        if scope != self._scope: raise P6InterchangeCompatibilityError("ROW_SCOPE_MISMATCH")
 
     def _validate_format(self, format: P6MappingFormat) -> None:
-        if not isinstance(format, P6MappingFormat):
-            raise TypeError("format must be P6MappingFormat")
+        if not isinstance(format, P6MappingFormat): raise TypeError("format must be P6MappingFormat")
 
     def _extension_key(self, field: str) -> str:
         return f"p6.interchange.{self._scope.tenant_id}.{self._scope.project_id}.{field}"
 
 
-__all__ = [
-    "P6InterchangeCompatibilityError",
-    "P6InterchangeDirection",
-    "P6InterchangeMapper",
-    "P6InterchangeResult",
-    "P6InterchangeRow",
-]
+__all__ = ["P6InterchangeCompatibilityError", "P6InterchangeDirection", "P6InterchangeMapper", "P6InterchangeResult", "P6InterchangeRow"]
