@@ -1175,3 +1175,11 @@ Status: **runtime-verified and merged**
 - Fresh current-main audit is required before the next implementation.
 - Only a concrete Backend/Database/Application/API/Import-Export gap backed by authoritative project evidence may be implemented.
 - Stale branches/PRs and presentation-only gaps must not be revived or converted into backend semantics.
+
+
+### 2026-10-05 — Hasan checkpoint PR #1161
+- Checkpoint head: `efe98149d56eec128bf9a5422303c3b98d40a0b6`.
+- Exact-head CI: Python 3.11, 3.12, 3.13 and all four client typechecks passed.
+- Squash merge: `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
+- Current `main` verified at `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
+- Continuation rule: audit current main and assigned Hasan issues before implementation; only contract-backed Backend/Database/Application/API/Import-Export work is eligible.
