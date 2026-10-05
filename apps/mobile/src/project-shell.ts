@@ -277,11 +277,18 @@ export class MobileProjectShell {
     const name = patch.name ?? current.name;
     if (!name.trim()) throw new Error("INVALID_ACTIVITY");
     if (!project.wbs.some((item) => item.id === wbsId)) throw new Error("WBS_NOT_FOUND");
+    const nextOrder = wbsId === current.wbs_id
+      ? current.order
+      : project.activities
+          .filter((item) => item.wbs_id === wbsId && item.id !== activityId)
+          .reduce((max, item) => Math.max(max, item.order), 0) + 1;
     const nextRevision = project.revision + 1;
     const updated = Object.freeze({
       ...project,
       revision: nextRevision,
-      activities: Object.freeze(project.activities.map((item) => item.id === activityId ? Object.freeze({ ...item, wbs_id: wbsId, name }) : item)),
+      activities: Object.freeze(project.activities.map((item) => item.id === activityId
+        ? Object.freeze({ ...item, wbs_id: wbsId, name, order: nextOrder })
+        : item)),
     });
     await this.store.save(updated);
     this.localProject = updated;
