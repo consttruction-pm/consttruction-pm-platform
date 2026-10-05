@@ -16,7 +16,8 @@ from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
 from .scheduling.schedule import ScheduleResult, schedule
-from .scheduling.time_forward_pass import TimeScheduledActivity, time_forward_pass
+from .scheduling.time_forward_pass import TimeScheduledActivity
+from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
 
 
 class ScheduleEvaluationError(ValueError):
@@ -36,6 +37,7 @@ class ScheduleEvaluationResult:
     mode: str
     date_result: ScheduleResult | None = None
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
+    time_result: TimeScheduleResult | None = None
 
     @property
     def project_finish(self) -> date | datetime:
@@ -138,27 +140,31 @@ def _evaluate_materialized(
         activities = source.activities
         relationships = source.relationships
         constraints = source.constraints
-        time_result = time_forward_pass(
+        timed_result = time_schedule(
             activities=activities,
             relationships=relationships,
             project_start=source.project_start,
+            project_finish=source.project_finish,
             registry=materialized.calendar_registry,
             constraints=constraints,
-            start_to_start_lag_calculation_type=source.schedule_options.start_to_start_lag_calculation_type,
-            data_date=(
-                datetime.combine(
-                    source.schedule_options.data_date,
-                    datetime.min.time(),
-                    tzinfo=source.project_start.tzinfo,
-                )
-                if source.schedule_options.data_date is not None
-                else None
+            options=TimeScheduleOptions(
+                relationship_lag_calendar=source.schedule_options.relationship_lag_calendar,
+                start_to_start_lag_calculation_type=source.schedule_options.start_to_start_lag_calculation_type,
+                data_date=(
+                    datetime.combine(
+                        source.schedule_options.data_date,
+                        datetime.min.time(),
+                        tzinfo=source.project_start.tzinfo,
+                    )
+                    if source.schedule_options.data_date is not None
+                    else None
+                ),
             ),
         )
         run_identity = _run_identity(
             snapshot.snapshot_hash,
             calculation_context.calculation_identity,
-            _canonical_result(time_result),
+            _canonical_result(timed_result),
         )
         return ScheduleEvaluationResult(
             snapshot_id=snapshot.snapshot_id,
@@ -168,7 +174,8 @@ def _evaluate_materialized(
             project_id=source.project_id,
             project_revision=source.project_revision,
             mode=source.mode.value,
-            time_activities=time_result,
+            time_activities=timed_result.early_activities,
+            time_result=timed_result,
         )
     except ScheduleEvaluationError:
         raise
