@@ -50,3 +50,37 @@ def test_postgres_working_time_calendar_snapshot_round_trip():
             masters.save(calendar)
             stored = snapshots.save(calendar, definition)
         assert snapshots.get(calendar) == stored
+
+
+def test_postgres_snapshot_same_version_rejects_changed_content():
+    from construction_pm.scheduling.calendar import WorkingCalendar
+
+    s = scope()
+    calendar = CalendarMaster(s, "CAL-DAY", "1", "working-day", "Day Calendar")
+    original = WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({date(2026, 3, 21)}),
+        system=CalendarSystem.JALALI,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"), hours_per_week=Decimal("40"),
+            hours_per_month=Decimal("176"), hours_per_year=Decimal("2080"),
+        ),
+    )
+    changed = WorkingCalendar(
+        working_weekdays=original.working_weekdays,
+        holidays=frozenset({date(2026, 3, 22)}),
+        system=original.system,
+        time_period_factors=original.time_period_factors,
+    )
+    with psycopg.connect(DSN) as connection:
+        masters = PostgresCalendarMasterRepository(connection)
+        snapshots = PostgresCalendarSnapshotRepository(connection)
+        masters.initialize()
+        snapshots.initialize()
+        connection.commit()
+        with PostgresTransactionManager(connection).transaction():
+            masters.save(calendar)
+            first = snapshots.save(calendar, original)
+        with pytest.raises(Exception, match="SNAPSHOT_IMMUTABLE_CONFLICT"):
+            snapshots.save(calendar, changed)
+        assert snapshots.get(calendar) == first
