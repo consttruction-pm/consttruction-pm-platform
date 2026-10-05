@@ -69,6 +69,26 @@ def test_sqlite_snapshot_json_is_deterministic_and_preserves_decimal_factors():
     )
 
 
+def test_snapshot_save_is_idempotent_for_same_version_and_rejects_changed_content():
+    conn = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(conn).save(master())
+    repo = SQLiteCalendarSnapshotRepository(conn)
+
+    original = repo.save(master(), working_calendar())
+    assert repo.save(master(), working_calendar()) == original
+
+    changed = WorkingCalendar(
+        working_weekdays=working_calendar().working_weekdays,
+        holidays=frozenset({date(2026, 3, 22)}),
+        system=working_calendar().system,
+        time_period_factors=working_calendar().time_period_factors,
+    )
+    with pytest.raises(CalendarPersistenceError, match="SNAPSHOT_IMMUTABLE_CONFLICT"):
+        repo.save(master(), changed)
+
+    assert repo.get(master()) == original
+
+
 def test_snapshot_read_rejects_stale_project_revision():
     conn = sqlite3.connect(":memory:")
     SQLiteCalendarMasterRepository(conn).save(master())
