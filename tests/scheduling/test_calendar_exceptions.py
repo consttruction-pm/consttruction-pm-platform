@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
 
 import pytest
@@ -129,3 +129,12 @@ def test_invalid_total_hours_are_rejected():
             CalendarExceptionType.TOTAL_WORK_HOURS,
             total_work_hours=Decimal("-1"),
         )
+
+
+def test_datetime_is_rejected_at_date_exception_boundaries():
+    with pytest.raises(TypeError, match="Gregorian date"):
+        CalendarException(datetime(2026, 3, 21, 12, 0), CalendarExceptionType.NONWORK)
+
+    resolver = CalendarExceptionResolver(standard_is_working=True)
+    with pytest.raises(TypeError, match="target_date must be a date"):
+        resolver.resolve(datetime(2026, 3, 21, 12, 0))
