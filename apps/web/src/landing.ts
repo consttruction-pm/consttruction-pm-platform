@@ -37,7 +37,7 @@ export function renderLandingPage(container: HTMLElement): void {
         </section>
 
         <section class="cubi-proof" aria-label="Platform scope">
-          <span>Built for the disciplines that control project outcomes</span><b>CPM / P6 Logic</b><b>Project Controls</b><b>Cost & EVM</b><b>Resources</b><b>Progress</b>
+          <span>Built for the disciplines that control project outcomes</span><b>Advanced CPM Logic</b><b>Project Controls</b><b>Cost & EVM</b><b>Resources</b><b>Progress</b>
         </section>
 
         <section class="cubi-section" id="product">
@@ -63,7 +63,7 @@ export function renderLandingPage(container: HTMLElement): void {
 
         <section class="cubi-cta" id="pricing"><p class="cubi-kicker">CUBI PLATFORM</p><h2>Plan with clarity. Control with confidence.</h2><p>Built for teams that need a professional project control layer without compromising the engineering core.</p><a class="cubi-button" href="/app">Enter CUBI Platform <span>→</span></a></section>
 
-        <section class="cubi-faq" id="faq"><div><p class="cubi-kicker">FAQ</p><h2>Built for professional project teams.</h2></div><div class="cubi-faq-list"><details><summary>What is CUBI Platform?</summary><p>CUBI is a construction and building intelligence platform focused on planning, project controls, cost, progress, resources, documents and AI-assisted workflows.</p></details><details><summary>Does CUBI replace Primavera/CPM logic?</summary><p>No. The homepage is a product entry point; the underlying CPM and calculation core remains protected.</p></details><details><summary>Can teams work in multiple languages?</summary><p>The web platform is designed for multilingual operation, including RTL/LTR behavior.</p></details></div></section>
+        <section class="cubi-faq" id="faq"><div><p class="cubi-kicker">FAQ</p><h2>Built for professional project teams.</h2></div><div class="cubi-faq-list"><details><summary>What is CUBI Platform?</summary><p>CUBI is a construction and building intelligence platform focused on planning, project controls, cost, progress, resources, documents and AI-assisted workflows.</p></details><details><summary>How does CUBI handle professional CPM scheduling?</summary><p>CUBI keeps authoritative scheduling and calculation behavior in its protected project-control core.</p></details><details><summary>Can teams work in multiple languages?</summary><p>The web platform is designed for multilingual operation, including RTL/LTR behavior.</p></details></div></section>
       </main>
 
       <footer class="cubi-footer"><div class="cubi-brand"><img src="/logo-dark.svg" width="40" height="40" alt="" /><span><strong>CUBI</strong><small>Platform</small></span></div><p>Plan. Control. Build Smarter.</p><span>Construction & Building Intelligence</span></footer>
