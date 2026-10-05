@@ -18,14 +18,18 @@ test("CUBI visual system exposes the registered brand anchors", () => {
   }
 });
 
-test("CUBI homepage keeps the registered dark-hero/copper-CTA direction", () => {
-  assert.match(css, /\.cubi-hero[^{]*\{[^}]*var\(--cp-navy-dark\)[^}]*var\(--cp-navy\)/s);
-  assert.match(css, /\.cubi-button[^{]*\{[^}]*var\(--cp-copper\)/s);
+test("CUBI homepage is aligned to the supplied Issue #1101 website reference", () => {
+  assert.match(css, /\.cubi-reference-header\s*\{[\s\S]*background:\s*#fff/);
+  assert.match(css, /\.cubi-reference-hero\s*\{[\s\S]*background:#0b3158/);
+  assert.match(css, /\.cubi-reference-dashboard\s*\{[\s\S]*background:#f6f9fc/);
+  assert.match(css, /\.cubi-reference-feature-grid\s*\{[\s\S]*grid-template-columns:repeat\(5/);
+  assert.match(css, /\.cubi-reference-tech\s*\{[\s\S]*background:#eef6ff/);
+  assert.match(css, /\.cubi-reference-pricing\s*\{[\s\S]*background:#092b50/);
 });
 
-test("CUBI logos contain only registered brand colors", () => {
-  const allowed = new Set(["1976D2", "F28C28", "0F2747", "E8EBEF"]);
+test("CUBI logos use the approved reference palette", () => {
+  const allowed = new Set(["1689FF", "0752BD", "0D3D91", "19C7D4", "0B4FAE", "1187FF"]);
   const colors = [...(primaryLogo + darkLogo).matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0].slice(1).toUpperCase());
   assert.ok(colors.length > 0);
-  for (const color of colors) assert.ok(allowed.has(color), `unexpected brand color #${color}`);
+  for (const color of colors) assert.ok(allowed.has(color), `unexpected logo color #${color}`);
 });
