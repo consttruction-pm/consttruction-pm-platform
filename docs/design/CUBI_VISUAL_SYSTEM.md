@@ -19,6 +19,10 @@ CUBI uses a restrained engineering-oriented visual language. Color must support 
 | Brushed Titanium | #B8BDC5 | Metallic brand accent and restrained chrome |
 | Titanium Light | #E8EBEF | Light metallic support surface and subtle separators |
 | Titanium Dark | #707883 | Metallic detail/texture contrast |
+| Titanium Mid | #E1E5E9 | Mid-tone metallic blend support |
+| Neutral Border | #D9E0E7 | Standard UI border |
+| Neutral Divider | #E6E9EE | Table/divider lines |
+| Neutral Subtle | #F7FAFD | Low-contrast hover/support surface |
 
 ### Semantic status colors
 
@@ -94,7 +98,7 @@ Web source of truth:
 - apps/web/public/logo.svg
 - apps/web/public/logo-dark.svg
 
-The CSS variables beginning with --cubi- are the canonical palette tokens. Client applications should consume equivalent semantic tokens rather than inventing client-local brand colors.
+The CSS variables beginning with --cubi- are the canonical palette and neutral tokens. Client applications should consume equivalent semantic tokens rather than inventing client-local brand colors.
 
 ## Audit result — 2026-10-05
 
