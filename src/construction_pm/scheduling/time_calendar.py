@@ -6,6 +6,7 @@ from decimal import Decimal
 from types import MappingProxyType
 
 from .calendar_periods import CalendarTimePeriodFactors
+from .calendar_system import CalendarSystem
 from typing import FrozenSet, Mapping, Tuple
 
 
@@ -31,6 +32,7 @@ class WorkingTimeCalendar:
         }
     )
     time_period_factors: CalendarTimePeriodFactors = field(default_factory=CalendarTimePeriodFactors)
+    system: CalendarSystem = CalendarSystem.GREGORIAN
 
     def __post_init__(self) -> None:
         if not isinstance(self.working_weekdays, (frozenset, set)):
@@ -45,6 +47,8 @@ class WorkingTimeCalendar:
             raise ValueError("daily_intervals must be a mapping")
         if not isinstance(self.time_period_factors, CalendarTimePeriodFactors):
             raise ValueError("time_period_factors must be CalendarTimePeriodFactors")
+        if not isinstance(self.system, CalendarSystem):
+            raise ValueError("system must be a CalendarSystem")
         object.__setattr__(self, "working_weekdays", frozenset(self.working_weekdays))
         object.__setattr__(self, "holidays", frozenset(self.holidays))
         object.__setattr__(
@@ -69,6 +73,67 @@ class WorkingTimeCalendar:
                 if previous_end is not None and start < previous_end:
                     raise ValueError("working intervals must not overlap")
                 previous_end = end
+
+    def canonical_snapshot(self) -> dict[str, object]:
+        """Return a deterministic, JSON-safe working-time calendar snapshot."""
+        return {
+            "kind": "working-time",
+            "system": self.system.value,
+            "working_weekdays": sorted(self.working_weekdays),
+            "holidays": [value.isoformat() for value in sorted(self.holidays)],
+            "daily_intervals": {
+                str(weekday): [
+                    [start.isoformat(), end.isoformat()]
+                    for start, end in intervals
+                ]
+                for weekday, intervals in sorted(self.daily_intervals.items())
+            },
+            "time_period_factors": {
+                "hours_per_day": str(self.hours_per_day),
+                "hours_per_week": str(self.hours_per_week),
+                "hours_per_month": str(self.hours_per_month),
+                "hours_per_year": str(self.hours_per_year),
+            },
+        }
+
+    @classmethod
+    def from_canonical_snapshot(cls, snapshot: Mapping[str, object]) -> "WorkingTimeCalendar":
+        if not isinstance(snapshot, Mapping) or snapshot.get("kind") != "working-time":
+            raise ValueError("invalid working-time calendar snapshot")
+        try:
+            system = CalendarSystem(str(snapshot["system"]))
+            weekdays_raw = snapshot["working_weekdays"]
+            holidays_raw = snapshot["holidays"]
+            intervals_raw = snapshot["daily_intervals"]
+            factors_raw = snapshot["time_period_factors"]
+            if not isinstance(weekdays_raw, (list, tuple)) or not isinstance(holidays_raw, (list, tuple)):
+                raise ValueError
+            if not isinstance(intervals_raw, Mapping) or not isinstance(factors_raw, Mapping):
+                raise ValueError
+            working_weekdays = frozenset(int(value) for value in weekdays_raw)
+            holidays = frozenset(date.fromisoformat(str(value)) for value in holidays_raw)
+            daily_intervals = {
+                int(weekday): tuple(
+                    (time.fromisoformat(str(start)), time.fromisoformat(str(end)))
+                    for start, end in intervals
+                )
+                for weekday, intervals in intervals_raw.items()
+            }
+            factors = CalendarTimePeriodFactors(
+                hours_per_day=str(factors_raw["hours_per_day"]),
+                hours_per_week=str(factors_raw["hours_per_week"]),
+                hours_per_month=str(factors_raw["hours_per_month"]),
+                hours_per_year=str(factors_raw["hours_per_year"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid working-time calendar snapshot") from exc
+        return cls(
+            working_weekdays=working_weekdays,
+            holidays=holidays,
+            daily_intervals=daily_intervals,
+            time_period_factors=factors,
+            system=system,
+        )
 
     @property
     def hours_per_day(self) -> Decimal:
