@@ -218,9 +218,15 @@ export class MobileProjectShell {
     const current = project.wbs.find((item) => item.id === wbsId);
     if (!current) throw new Error("WBS_NOT_FOUND");
     const nextParent = patch.parent_id ?? current.parent_id;
-    if (nextParent === wbsId) throw new Error("WBS_PARENT_CYCLE");
     if (nextParent !== null && !project.wbs.some((item) => item.id === nextParent)) {
       throw new Error("WBS_PARENT_NOT_FOUND");
+    }
+    const seen = new Set<string>();
+    let ancestor = nextParent;
+    while (ancestor !== null) {
+      if (ancestor === wbsId || seen.has(ancestor)) throw new Error("WBS_PARENT_CYCLE");
+      seen.add(ancestor);
+      ancestor = project.wbs.find((item) => item.id === ancestor)?.parent_id ?? null;
     }
     const code = patch.code ?? current.code;
     const name = patch.name ?? current.name;
