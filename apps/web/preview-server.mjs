@@ -1,7 +1,7 @@
 import http from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { isAbsolute, join, normalize, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const host = process.env.HOST || "0.0.0.0";
@@ -66,7 +66,7 @@ function resolveRequestFile(requestPath) {
   return normalized;
 }
 
-const server = http.createServer((req, res) => {
+export { resolveRequestFile };\n\nexport function createPreviewServer() {\n  return http.createServer((req, res) => {
   try {
     const file = resolveRequestFile(req.url || "/");
     if (!file) {
