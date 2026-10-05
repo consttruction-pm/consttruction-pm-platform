@@ -45,9 +45,13 @@ const server = http.createServer((req, res) => {
     // tsconfig.build.json intentionally keeps Web and client-sync sources under
     // one output tree. index.html uses the stable /dist/main.js browser path;
     // map that entry point to the emitted Web entry without adding a bundler.
+    const distWebEntry = join(root, "dist", "web", "src");
+    const relativeToDist = requested.slice(join(root, "dist").length + 1);
     const file = requested === join(root, "dist", "main.js")
-      ? join(root, "dist", "web", "src", "main.js")
-      : requested;
+      ? join(distWebEntry, "main.js")
+      : requested.startsWith(join(root, "dist") + sep) && !relativeToDist.includes(sep)
+        ? join(distWebEntry, relativeToDist)
+        : requested;
 
     if (!existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
