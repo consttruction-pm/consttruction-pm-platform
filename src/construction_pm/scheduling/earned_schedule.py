@@ -129,7 +129,7 @@ def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Dec
 
 
 def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Decimal:
-    return Decimal((left - date(left.year, left.month, left.day)).days) if False else Decimal((right - left).days) * fraction
+    return Decimal((right - left).days) * fraction
 
 
 def _interpolate_date(left: date, right: date, fraction: Decimal) -> date:
