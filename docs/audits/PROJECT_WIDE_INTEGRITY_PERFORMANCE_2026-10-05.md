@@ -366,3 +366,16 @@ Fresh inspection of the shared client-sync layer and all three platform runtimes
 **Medium severity, high confidence:** this does not invalidate the Shared Scheduling Core or server-side idempotency design, but it prevents claiming full offline-first mutation durability for Web/Desktop/Mobile from the inspected runtime wiring.
 
 **Required architectural direction:** use one durable client-sync persistence adapter behind the existing shared queue interface, and keep P6 mutation typing/validation at the Shared Core/application boundary. Do not create separate P6 sync engines per platform.
+
+
+## V. Sync envelope contract fragmentation recheck — current main
+
+Direct inspection found three overlapping mutation envelope schemas in the current repository:
+
+- `offline-mutation.v1` in `docs/contracts/offline_mutation_v1.schema.json` / `offline_mutation_queue_v1.schema.json`, using nested `context` + `mutation` and nullable expected revision.
+- `client-sync.v1` in `docs/contracts/client_sync_mutation_v1.schema.json`, also using nested `context` + `mutation`.
+- `sync-mutation.v1` in `shared/contracts/sync-mutation.schema.json` and the active TypeScript `apps/client-sync/src/mutation-queue.ts`, using flat tenant/project identity, explicit `mutation_id` and `payload`.
+
+The current Web/Desktop/Mobile runtime code uses the latter `sync-mutation.v1` contract. The older nested contracts and Python `OfflineMutation` model remain in the repository, creating a potential source of ambiguity for future implementers and import/sync adapters.
+
+This is currently classified as **low-to-medium architectural hygiene risk, high confidence**, not as a demonstrated runtime defect. The correct remediation is a documented canonical contract + explicit legacy compatibility/migration policy, followed by removal or isolation of obsolete envelopes only after consumer evidence is established. Do not maintain multiple semantically equivalent sync engines or silently translate between envelopes without versioned contracts and lossless mapping tests.
