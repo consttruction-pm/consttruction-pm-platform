@@ -9,6 +9,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository, CalendarWorkHourRule
 from construction_pm.p6_calendar_api import (
     P6_CALENDAR_API_VERSION,
     P6CalendarAPI,
@@ -32,7 +33,8 @@ def _api():
     master = SQLiteCalendarMasterRepository(conn)
     snapshot = SQLiteCalendarSnapshotRepository(conn)
     exceptions = SQLiteCalendarExceptionRepository(conn)
-    return P6CalendarAPI(master, snapshot, exceptions, default_project_policy()), conn
+    work_hours = SQLiteCalendarWorkHourRepository(conn)
+    return P6CalendarAPI(master, snapshot, exceptions, default_project_policy(), work_hours), conn
 
 
 def _definition() -> WorkingCalendar:
@@ -140,3 +142,50 @@ def test_viewer_can_read_but_cannot_mutate():
     api, _ = _api()
     with pytest.raises(AuthorizationError, match="authorization denied"):
         api.create(_scope(), _request("CAL-V"), auth_context=_auth("viewer"))
+
+
+def test_standard_work_week_contract_is_typed_and_replay_safe():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-W"), auth_context=_auth())
+    rule = CalendarWorkHourRule(_scope(), "CAL-W", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    stored = api.save_work_hours(rule, auth_context=_auth())
+    assert stored["kind"] == "standard_work_week"
+    assert stored["weekday"] == 0
+    assert stored["total_work_hours"] == "8"
+    assert api.list_work_hours(_scope(), "CAL-W", "1", "standard_work_week", auth_context=_auth()) == (stored,)
+    assert api.save_work_hours(rule, auth_context=_auth()) == stored
+    changed = CalendarWorkHourRule(_scope(), "CAL-W", "1", "standard_work_week", 0, True, Decimal("9"), ())
+    with pytest.raises(ValueError, match="WORK_HOUR_IMMUTABLE_CONFLICT"):
+        api.save_work_hours(changed, auth_context=_auth())
+
+
+def test_detailed_and_total_work_hours_are_first_class_contracts():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-H"), auth_context=_auth())
+    detailed = CalendarWorkHourRule(_scope(), "CAL-H", "1", "detailed_work_hours", 1, True, Decimal("8"), (("08:00", "12:00"), ("13:00", "17:00")))
+    total = CalendarWorkHourRule(_scope(), "CAL-H", "1", "total_work_hours", None, None, Decimal("40"), ())
+    assert api.save_work_hours(detailed, auth_context=_auth())["intervals"] == [["08:00", "12:00"], ["13:00", "17:00"]]
+    assert api.save_work_hours(total, auth_context=_auth())["total_work_hours"] == "40"
+    assert len(api.list_work_hours(_scope(), "CAL-H", "1", "detailed_work_hours", auth_context=_auth())) == 1
+    assert len(api.list_work_hours(_scope(), "CAL-H", "1", "total_work_hours", auth_context=_auth())) == 1
+
+
+def test_sqlite_work_hours_list_preserves_weekday_identity():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-WD"), auth_context=_auth())
+    sunday = CalendarWorkHourRule(_scope(), "CAL-WD", "1", "standard_work_week", 6, False, Decimal("0"), ())
+    monday = CalendarWorkHourRule(_scope(), "CAL-WD", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    api.save_work_hours(sunday, auth_context=_auth())
+    api.save_work_hours(monday, auth_context=_auth())
+    listed = api.list_work_hours(_scope(), "CAL-WD", "1", "standard_work_week", auth_context=_auth())
+    assert [item["weekday"] for item in listed] == [0, 6]
+    assert [item["is_working_day"] for item in listed] == [True, False]
+
+
+def test_calendar_delete_removes_persisted_work_hours():
+    api, _ = _api()
+    created = api.create(_scope(), _request("CAL-DEL"), auth_context=_auth())
+    rule = CalendarWorkHourRule(_scope(), "CAL-DEL", "1", "standard_work_week", 0, True, Decimal("8"), ())
+    api.save_work_hours(rule, auth_context=_auth())
+    assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=created["record_revision"], auth_context=_auth())
+    assert api.calendar_repository.get(_scope(), "CAL-DEL", "1") is None

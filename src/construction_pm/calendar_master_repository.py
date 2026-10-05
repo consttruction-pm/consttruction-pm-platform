@@ -190,6 +190,7 @@ class SQLiteCalendarMasterRepository:
         self.connection.execute("DELETE FROM calendar_master_snapshot WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM activity_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
         self.connection.commit()
         return True
@@ -480,7 +481,7 @@ class PostgresCalendarMasterRepository:
             return False
         if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        for table in ("calendar_exception", "calendar_master_snapshot", "activity_calendar_assignment", "relationship_lag_calendar_assignment"):
+        for table in ("calendar_exception", "calendar_master_snapshot", "activity_calendar_assignment", "relationship_lag_calendar_assignment", "calendar_work_hour_rule"):
             self.connection.execute(f"DELETE FROM {table} WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
         return True

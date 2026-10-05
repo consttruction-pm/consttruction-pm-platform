@@ -8,6 +8,7 @@ from .backend_p0.models import BackendScope
 from .calendar_exception_repository import CalendarException, CalendarExceptionRepository
 from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
 from .calendar_snapshot_repository import CalendarSnapshotRepository
+from .calendar_work_hours_repository import CalendarWorkHourRepository, CalendarWorkHourRule
 
 P6_CALENDAR_API_VERSION = "p6-calendar.v1"
 P6_CALENDAR_TYPES = frozenset({"global", "resource", "project"})
@@ -46,6 +47,7 @@ class P6CalendarAPI:
     snapshot_repository: CalendarSnapshotRepository
     exception_repository: CalendarExceptionRepository
     authorization_policy: AuthorizationPolicy
+    work_hours_repository: CalendarWorkHourRepository | None = None
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
@@ -156,6 +158,21 @@ class P6CalendarAPI:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
         return tuple(item.canonical_snapshot() for item in self.exception_repository.list(scope, calendar_id, calendar_version))
 
+
+    def _work_hours(self) -> CalendarWorkHourRepository:
+        if self.work_hours_repository is None:
+            raise P6CalendarAPIError("WORK_HOURS_CONTRACT_NOT_CONFIGURED")
+        return self.work_hours_repository
+
+    def save_work_hours(self, rule: CalendarWorkHourRule, *, auth_context: AuthorizationContext) -> dict[str, object]:
+        self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        stored = self._work_hours().save(rule)
+        return stored.canonical_snapshot()
+
+    def list_work_hours(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str, *, auth_context: AuthorizationContext) -> tuple[dict[str, object], ...]:
+        self._authorize(scope, auth_context, Permission.PROJECT_READ)
+        return tuple(item.canonical_snapshot() for item in self._work_hours().list(scope, calendar_id, calendar_version, kind))
+
     def _catalog(self, scope: BackendScope) -> dict[str, Any]:
         return {
             "contract_version": P6_CALENDAR_API_VERSION,
@@ -194,4 +211,4 @@ def _definition_from_snapshot(snapshot: dict[str, object], kind: str) -> Any:
     return WorkingCalendar.from_canonical_snapshot(snapshot)
 
 
-__all__ = ["P6_CALENDAR_API_VERSION", "P6_CALENDAR_TYPES", "P6CalendarAPI", "P6CalendarAPIError", "P6CalendarCreateRequest"]
+__all__ = ["P6_CALENDAR_API_VERSION", "P6_CALENDAR_TYPES", "P6CalendarAPI", "P6CalendarAPIError", "P6CalendarCreateRequest", "CalendarWorkHourRule"]
