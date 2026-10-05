@@ -379,3 +379,21 @@ Direct inspection found three overlapping mutation envelope schemas in the curre
 The current Web/Desktop/Mobile runtime code uses the latter `sync-mutation.v1` contract. The older nested contracts and Python `OfflineMutation` model remain in the repository, creating a potential source of ambiguity for future implementers and import/sync adapters.
 
 This is currently classified as **low-to-medium architectural hygiene risk, high confidence**, not as a demonstrated runtime defect. The correct remediation is a documented canonical contract + explicit legacy compatibility/migration policy, followed by removal or isolation of obsolete envelopes only after consumer evidence is established. Do not maintain multiple semantically equivalent sync engines or silently translate between envelopes without versioned contracts and lossless mapping tests.
+
+
+## W. Resource/Cost legacy-module authority recheck — current main
+
+A direct source inspection uncovered a concrete duplicate-calendar authority risk:
+
+- `src/construction_pm/resources/calendar.py` defines a simplified `ResourceCalendar` (weekday set + fixed daily capacity).
+- `src/construction_pm/scheduling/calendar.py` defines the Shared Core `WorkingCalendar` / `WorkingTimeResolver` authority with holidays, Jalali/Gregorian system identity, period factors and working-time semantics.
+- Despite the earlier audit instruction not to promote the legacy seam, `src/construction_pm/p6_resource_capacity_contract.py` currently imports **`resources.calendar.ResourceCalendar` directly** and uses its `capacity_on()` method to build P6 resource-capacity slices.
+- `src/construction_pm/resources/leveling.py` also imports the same legacy ResourceCalendar and `resources/__init__.py` exports its leveling functions publicly.
+
+This means the resource-leveling capacity path is not yet cleanly connected to the authoritative versioned P6 CalendarMaster / Shared Scheduling calendar model. It also means a simplified weekday/fixed-capacity calendar can influence a P6 resource-capacity boundary independently of the richer Shared Calendar semantics.
+
+**Severity: High architectural risk, high confidence.** This is not proof that current CPM activity scheduling is numerically wrong, but it violates the intended single-authority calendar boundary and can produce semantic divergence for resource capacity when holidays, time-of-day intervals, calendar inheritance, versions or Jalali/Gregorian behavior matter.
+
+**Required direction:** route resource-capacity resolution through the authoritative Shared/P6 Calendar resolver and versioned Resource Calendar semantics. Retire the legacy `resources.calendar.ResourceCalendar` seam after consumers are migrated and regression evidence exists. Do not extend the legacy class or add another resource-calendar engine.
+
+Existing issues #1209 and #1207 already cover the broader P6 calendar parity/inheritance work; this finding should be addressed within those boundaries rather than as a new parallel calendar subsystem.
