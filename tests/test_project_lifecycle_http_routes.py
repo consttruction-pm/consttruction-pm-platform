@@ -226,6 +226,141 @@ def test_workspace_control_room_read_http_route_rejects_malformed_backend_respon
     assert json.loads(body)["code"] == "INVALID_WORKSPACE_READ_RESPONSE"
 
 
+class ScheduleQueryAPIStub:
+    def __init__(self, result):
+        self.result = result
+        self.calls = []
+
+    def execute(self, request, *, auth_context):
+        self.calls.append((request, auth_context))
+        return self.result
+
+
+def schedule_query_routes(result):
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    schedule_api = ScheduleQueryAPIStub(result)
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        schedule_query_api=schedule_api,
+    )
+    return routes, schedule_api
+
+
+def schedule_query_payload(*, project_id="p1", tenant_id="t1", revision=2, requested_by="u1"):
+    return {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-1",
+        "scope": {
+            "tenant_id": tenant_id,
+            "project_id": project_id,
+            "project_revision": revision,
+        },
+        "requested_by": requested_by,
+        "query_text": "show schedule",
+        "kind": "fact",
+        "language": "en",
+        "constraints": {},
+    }
+
+
+def test_schedule_query_http_route_preserves_versioned_result_and_authenticated_scope():
+    result = {
+        "contract_version": "schedule-query-result.v1",
+        "query_id": "Q-1",
+        "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+        "answer_key": "schedule.query.result",
+        "data": {"count": 2},
+        "source_refs": [{"source_id": "S-1", "source_type": "schedule", "locator": "/schedule/A-1", "revision": 2}],
+        "proposed_actions": [],
+    }
+    r, api = schedule_query_routes(result)
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(schedule_query_payload()).encode(),
+    )
+    assert status == 200
+    payload = json.loads(raw)
+    assert payload["contract_version"] == "schedule-query-result.v1"
+    request, auth_context = api.calls[0]
+    assert request.scope.tenant_id == "t1"
+    assert request.scope.project_id == "p1"
+    assert request.scope.project_revision == 2
+    assert request.requested_by == "u1"
+    assert auth_context.project_id == "p1"
+
+
+def test_schedule_query_http_route_rejects_cross_scope_and_requested_by_spoofing():
+    r, api = schedule_query_routes({})
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(schedule_query_payload(project_id="p2")).encode(),
+    )
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    assert api.calls == []
+
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(schedule_query_payload(requested_by="other-user")).encode(),
+    )
+    assert status == 403
+    assert json.loads(raw)["code"] == "REQUESTED_BY_MISMATCH"
+    assert api.calls == []
+
+
+def test_schedule_query_http_route_rejects_invalid_request_and_provider_errors():
+    r, api = schedule_query_routes({})
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=b"{not-json",
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "SCHEDULE_QUERY_REQUEST_INVALID"
+    assert api.calls == []
+
+    r, api = schedule_query_routes({
+        "error": {
+            "category": "conflict",
+            "code": "SCHEDULE_QUERY_RESULT_SCOPE_MISMATCH",
+            "message": "Schedule query result scope does not match the request",
+            "retryable": False,
+        }
+    })
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(schedule_query_payload()).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["error"]["code"] == "SCHEDULE_QUERY_RESULT_SCOPE_MISMATCH"
+    assert len(api.calls) == 1
+
+
+def test_schedule_query_http_route_rejects_invalid_result_contract():
+    r, _ = schedule_query_routes({"contract_version": "schedule-query-result.v99"})
+    status, _, raw = r.handle(
+        "POST", "/api/v1/schedule/query",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(schedule_query_payload()).encode(),
+    )
+    assert status == 502
+    assert json.loads(raw)["code"] == "INVALID_SCHEDULE_QUERY_RESPONSE"
+
+
 class SyncHandler:
     def __init__(self):
         self.calls = []
