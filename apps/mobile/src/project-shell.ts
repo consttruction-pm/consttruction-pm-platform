@@ -53,6 +53,42 @@ export interface MobileLocalProjectStore {
   save(project: MobileLocalProject): Promise<void>;
 }
 
+export interface MobileLocalProjectPersistence {
+  read(key: string): Promise<string | null>;
+  write(key: string, value: string): Promise<void>;
+}
+
+/** Persistence-backed store; the host supplies durable local storage. */
+export class PersistentMobileLocalProjectStore implements MobileLocalProjectStore {
+  constructor(private readonly persistence: MobileLocalProjectPersistence) {}
+
+  async load(tenantId: string, projectId: string): Promise<MobileLocalProject | null> {
+    const raw = await this.persistence.read(this.key(tenantId, projectId));
+    if (raw === null) return null;
+    let value: unknown;
+    try { value = JSON.parse(raw); } catch { throw new Error("INVALID_LOCAL_PROJECT"); }
+    if (!value || typeof value !== "object") throw new Error("INVALID_LOCAL_PROJECT");
+    const project = value as Partial<MobileLocalProject>;
+    if (typeof project.tenant_id !== "string" || typeof project.project_id !== "string" ||
+        typeof project.revision !== "number" || !Number.isInteger(project.revision) || project.revision < 0 ||
+        typeof project.name !== "string" || !Array.isArray(project.wbs) ||
+        !Array.isArray(project.activities) || !Array.isArray(project.relationships)) {
+      throw new Error("INVALID_LOCAL_PROJECT");
+    }
+    return Object.freeze({
+      tenant_id: project.tenant_id, project_id: project.project_id, revision: project.revision,
+      name: project.name, wbs: project.wbs, activities: project.activities, relationships: project.relationships,
+    });
+  }
+
+  async save(project: MobileLocalProject): Promise<void> {
+    await this.persistence.write(this.key(project.tenant_id, project.project_id), JSON.stringify(project));
+  }
+
+  private key(tenantId: string, projectId: string): string {
+    return "mobile-project:" + tenantId + ":" + projectId;
+  }
+}
 export class InMemoryMobileLocalProjectStore implements MobileLocalProjectStore {
   private readonly projects = new Map<string, MobileLocalProject>();
 
