@@ -79,6 +79,9 @@ class P6CalendarAPI:
         existing = self.calendar_repository.get(scope, request.calendar_id, request.calendar_version)
         if existing is None:
             raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+        existing_snapshot = self.snapshot_repository.get(existing)
+        if existing_snapshot is not None and existing_snapshot.kind != request.kind:
+            raise P6CalendarAPIError("CALENDAR_SNAPSHOT_KIND_CONFLICT")
         calendar = CalendarMaster(
             scope=scope,
             calendar_id=request.calendar_id,
