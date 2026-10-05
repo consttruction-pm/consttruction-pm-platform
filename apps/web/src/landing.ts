@@ -179,8 +179,8 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <div class="cubi-dashboard">
               <div class="cubi-dash-top"><span class="cubi-dot"></span><span>CUBI CONTROL CENTER · ${t.demo}</span><b>${t.demo}</b></div>
               <div class="cubi-dash-body">
-                <div class="cubi-metric"><small>${t.schedule}</small><strong>92%</strong><span>+4.8%</span></div>
-                <div class="cubi-metric"><small>${t.cost}</small><strong>0.96</strong><span>On track</span></div>
+                <div class="cubi-metric"><small>${t.schedule}</small><strong>92%</strong><span>${t.demo}</span></div>
+                <div class="cubi-metric"><small>${t.cost}</small><strong>0.96</strong><span>${t.demo}</span></div>
                 <div class="cubi-chart"><div class="cubi-bars"><i style="height:38%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:72%"></i><i style="height:64%"></i><i style="height:88%"></i><i style="height:78%"></i></div><div class="cubi-line"><span></span></div></div>
               </div>
               <div class="cubi-timeline"><span>${t.wbs}</span><span>${t.activities}</span><span>${t.baseline}</span><span>${t.progress}</span><b>${t.aiInsight}</b></div>
