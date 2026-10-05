@@ -274,3 +274,18 @@ No second scheduling, calendar, formula or EVM calculation engine should be intr
 ### Current-main authority note
 
 The repository branch endpoint currently identifies `78f6d157fcd1585f92b14577209094596ed03964` as the authoritative `main` head. Earlier sections of this document intentionally preserve historical audit checkpoints and their SHAs; they are not substitutes for this current-head value.
+
+
+## Q. Canonical P6 Registry traceability — baseline/resource/cost/financial-period recheck
+
+Direct inspection of the current Field Registry seed exposes two concrete cross-contract mismatches that prevent claiming canonical P6 parity:
+
+1. **Financial Period contract mismatch:** `p6_financial_period_api.py` and `shared/contracts/p6-financial-period-api.v1.schema.json` expose `period_id`, `name`, `start_date`, `end_date`, and `status`. The canonical Field Registry currently contains only three Financial Period fields: `FinancialPeriodName`, `ActualThisPeriodCost`, and `ActualThisPeriodUnits`; it has no canonical registry fields for `start_date`, `end_date`, or `status`. This breaks the intended Registry → API trace for the contract itself.
+
+2. **Cost Account registry gap:** `p6_cost_account_repository.py` and its persistence contract define a P6 Cost Account subject, but the canonical Field Registry contains **zero** Cost Account rows. Therefore Cost Account persistence exists, but its fields cannot yet participate in the authoritative Field → Registry → Layout/Formula → API → Interchange trace.
+
+3. **Baseline representation remains split:** the Registry contains three generic Baseline selector fields (`PrimaryBaseline`, `SecondaryBaseline`, `TertiaryBaseline`) plus Activity baseline fields, while the baseline persistence boundary stores only baseline metadata/provenance. There is no demonstrated canonical activity-baseline value repository joining the persisted baseline identity to the per-activity baseline values described by the typed evidence artifacts.
+
+4. **Resource/Assignment is grouped, not fully modeled as independent subject areas:** the Registry has 14 rows under `Resource/Assignment`, covering resource identity and a subset of assignment values. It does not establish a complete independent P6 field disposition for all Resource, Assignment, Role, rate, calendar and time-phased semantics represented elsewhere in contracts/repositories.
+
+These are confirmed schema/registry facts, not inferred absences from code search. They should be resolved by extending the single canonical Registry and its mapping/contract validation, not by adding client-local catalogs.
