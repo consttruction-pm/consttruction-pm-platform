@@ -19,6 +19,7 @@ test("Issue 1239 compact homepage contract", () => {
   assert.match(landing, /translations/);
   assert.match(landing, /\/logo\.svg/);
   assert.match(landing, /\/logo-dark\.svg/);
+  assert.match(landing, /<div class="cubi-orbit"><img src="\/logo-dark\.svg"/);
   assert.match(landing, /demo: "Demo"/);
   assert.match(landing, /demo: "نمونه"/);
   assert.match(styles, /Issue 1239 — compact, user-centered bilingual commercial homepage/);
