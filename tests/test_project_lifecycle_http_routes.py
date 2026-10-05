@@ -1023,14 +1023,14 @@ def test_p6_interchange_http_import_export_preserves_versioned_contract_and_scop
     exported = json.loads(body)
     assert exported["contract_version"] == P6_INTERCHANGE_API_VERSION
     assert exported["document"]["encoding"] == "utf-8"
-    assert "%R\\tA-100" in exported["document"]["data"]
+    assert "%R\tA-100" in exported["document"]["data"]
 
 
 def test_p6_interchange_http_requires_scope_and_permission():
     r, _, _ = p6_routes(roles=frozenset({"viewer"}))
     status, _, body = r.handle(
         "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
-        cookies={"cp_session": "s1"}, body=b"%T\\tTASK\\n%F\\ttask_code\\n%R\\tA-100\\n%E\\n",
+        cookies={"cp_session": "s1"}, body=b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n",
     )
     assert status == 403
     assert "permission=project.write" in json.loads(body)["code"]
@@ -1038,7 +1038,7 @@ def test_p6_interchange_http_requires_scope_and_permission():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
         "POST", "/api/projects/p2/p6/interchange/XER_PROJECT/import",
-        cookies={"cp_session": "s1"}, body=b"%T\\tTASK\\n%F\\ttask_code\\n%R\\tA-100\\n%E\\n",
+        cookies={"cp_session": "s1"}, body=b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n",
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
