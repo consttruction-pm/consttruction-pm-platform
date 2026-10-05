@@ -1160,3 +1160,13 @@ Status: **100% — merged and runtime-verified**
 - Fresh #393 audit confirms the current backend-owned P6 surfaces are already represented on main: Field Registry/UDF, formula definitions, mapping/interchange, baseline, financial periods, resources/resource-spreads, codes, expenses, report profiles, activity period actuals, layout, calendar read, and dependency graph HTTP/API boundaries.
 - Remaining Activity Status/Type/StatusCode, WBS/WorkPackage and time-aware ScheduleOptions items remain blocked on authoritative Shared-Core/P6 semantic evidence; no backend semantics are inferred from presentation or field names.
 - Disposition: **evidence boundary; no speculative implementation**. Next Hasan implementation requires a newly reproducible backend defect or authoritative contract-backed seam on exact current main.
+
+
+### 2026-10-05 — Current-main reconciliation after PR #1156 opened
+
+- Exact current `main`: `a78ee48fd62c3286585e7e32afbfd1f8db4d784f`.
+- Open PR #1156 is Jalal/Shared-Core Activity semantic certification (NEXT5L) and is not Hasan-owned Backend/Database/Application/API/Import-Export work.
+- PR #1156 was opened against older `main` `e18c003ffcb48f8ece5fd2e8b05d862a49cf4164`; it must be rebased/reconciled before it can be treated as current-main evidence. It is not a valid Hasan implementation baseline.
+- Fresh open-PR inspection found no open Hasan-owned implementation PR.
+- Current Hasan disposition remains evidence-driven: do not infer backend semantics from Activity presentation/certification fields, and do not duplicate Shared-Core calculation or semantic ownership.
+- Next Hasan implementation requires a newly reproducible Backend/Database/Application/API/Import-Export defect or an authoritative contract-backed seam on exact current `main`.
