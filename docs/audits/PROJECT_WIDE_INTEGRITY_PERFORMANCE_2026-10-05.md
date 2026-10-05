@@ -308,3 +308,27 @@ A direct repository-tree and source inspection of the remaining P6 subject areas
 The repository has substantial real P6 persistence/API foundations, but the architecture is currently uneven by subject area: Activities are heavily represented in the canonical Registry, while Relationships, Roles, UDF values, Cost Accounts, and P6 working-data/document-control subject areas are not yet represented with a uniform canonical Field → API → Persistence → Client → Interchange contract.
 
 This reinforces Issue #389 as the umbrella P6 parity backlog and Issue #1227 for the interchange/type-validation integration. No new local client engine should be introduced to compensate for these gaps.
+
+
+## S. P6 Field Registry quantitative coverage check — current main
+
+A direct parse of the current canonical seed confirms **366 Registry rows** across these subject areas:
+
+- Activity: 284
+- ScheduleOptions: 33
+- Project: 8
+- WBS: 7
+- Activity Step: 7
+- Expense: 5
+- Baseline: 3
+- Financial Period: 3
+- Resource/Assignment: 14
+- Codes: 2
+
+The current reference artifact `P6_ACTIVITY_FIELD_INVENTORY_2026-09-28.json` contains 275 Activity fields, and a direct name comparison confirms **275/275 are represented in the current Registry**. The Registry has additional Activity fields beyond that inventory, which is not itself a defect.
+
+The material completeness problem is therefore not “the Activity catalog is absent.” It is that the Registry does not yet expose the required P6 subject areas as a uniform canonical model. The parity baseline explicitly calls for Relationships, Activity Resource Assignments, Resources, Roles, Cost Accounts, Work Products & Documents, Issues/Risks/Notices and User Defined Fields, while the current Registry lacks independent subject areas for those surfaces. Resource and Assignment are currently combined as `Resource/Assignment`, and Projects/EPS is represented as `Project`; these combinations must be deliberately dispositioned rather than assumed equivalent.
+
+Most importantly, the global Registry status remains `seeded_not_certified`. The presence of 366 rows or complete Activity-name coverage must not be interpreted as P6 parity certification. Each applicable field still requires an evidence-backed disposition for identity, type, unit, writable/read-only, computed/stored, defaults/nullability, API/client context and import/export behavior.
+
+**Quantitative audit verdict:** Activity-name coverage = strong evidence; subject-area parity = partial; certification = not complete.
