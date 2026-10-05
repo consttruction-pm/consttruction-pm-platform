@@ -21,16 +21,21 @@ class CalendarSnapshotRecord:
     scope: BackendScope
     calendar_id: str
     calendar_version: str
+    kind: str
     snapshot: dict[str, object]
 
     def validate(self) -> None:
         self.scope.validate()
         if not self.calendar_id.strip() or not self.calendar_version.strip():
             raise CalendarPersistenceError("INVALID_CALENDAR_REFERENCE")
+        if self.kind not in {"working-day", "working-time"}:
+            raise CalendarPersistenceError("INVALID_CALENDAR_KIND")
         if not isinstance(self.snapshot, dict):
             raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
         try:
             kind = self.snapshot.get("kind", "working-day")
+            if kind != self.kind:
+                raise ValueError("calendar snapshot kind does not match master")
             if kind == "working-day":
                 WorkingCalendar.from_canonical_snapshot(self.snapshot)
             elif kind == "working-time":
@@ -51,6 +56,7 @@ def _record(calendar: CalendarMaster, snapshot: dict[str, object]) -> CalendarSn
         calendar.scope,
         calendar.calendar_id,
         calendar.calendar_version,
+        calendar.kind,
         snapshot,
     )
     record.validate()
