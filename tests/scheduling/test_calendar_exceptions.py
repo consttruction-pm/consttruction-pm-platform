@@ -96,6 +96,7 @@ def test_canonical_snapshot_is_deterministic():
     assert exception.canonical_snapshot() == {
         "date": "2026-03-21",
         "kind": "TOTAL_WORK_HOURS",
+        "calendar_system": "gregorian",
         "total_work_hours": "4.0",
     }
 
