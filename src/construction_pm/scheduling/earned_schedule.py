@@ -128,9 +128,12 @@ def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Dec
     return Decimal((right - left).days) * fraction
 
 
+def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Decimal:
+    return Decimal((left - date(left.year, left.month, left.day)).days) if False else Decimal((right - left).days) * fraction
+
+
 def _interpolate_date(left: date, right: date, fraction: Decimal) -> date:
-    days = Decimal((right - left).days)
-    offset = int((days * fraction).to_integral_value())
+    offset = int(_interpolate_elapsed_days(left, right, fraction).to_integral_value())
     return left.fromordinal(left.toordinal() + offset)
 
 
@@ -159,6 +162,7 @@ def calculate_earned_schedule(
     previous_date = start
     earned_schedule: Decimal | None = None
     earned_schedule_date: date | None = None
+    earned_schedule_time: Decimal | None = None
 
     for period in ordered:
         current_pv = period.cumulative_planned_value
@@ -176,6 +180,9 @@ def calculate_earned_schedule(
                 if fraction < 0 or fraction > 1:
                     raise EarnedScheduleError("INVALID_PV_AXIS")
                 earned_schedule_date = _interpolate_date(previous_date, period.end_date, fraction)
+                earned_schedule_time = Decimal((previous_date - start).days) + (
+                    Decimal((period.end_date - previous_date).days) * fraction
+                )
                 earned_schedule = (
                     Decimal((previous_date - start).days)
                     + _interpolate_elapsed_days(previous_date, period.end_date, fraction)
