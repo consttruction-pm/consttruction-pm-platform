@@ -2,6 +2,7 @@ import type { MobileRuntime, MobileProjectState } from "./runtime.ts";
 import type {
   MobileSchedulingRequest,
   MobileSchedulingResult,
+  SchedulingDuration,
   SharedSchedulingCoreAdapter,
 } from "./shared-scheduling-adapter.ts";
 
@@ -174,7 +175,7 @@ export class MobileProjectShell {
     return [...project.wbs].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
   }
 
-  listActivities(wbsId: string): readonly MobileActivity[] {
+  listRelationships(activityId: string): readonly MobileActivityRelationship[] {\n    const project = this.requireProjectData();\n    const activity = project.activities.find((item) => item.id === activityId);\n    if (!activity) throw new Error("ACTIVITY_NOT_FOUND");\n    return project.relationships\n      .filter((relationship) => relationship.predecessor_id === activityId || relationship.successor_id === activityId);\n  }\n\n  listActivities(wbsId: string): readonly MobileActivity[] {
     const project = this.requireProjectData();
     if (!project.wbs.some((item) => item.id === wbsId)) throw new Error("WBS_NOT_FOUND");
     return project.activities
