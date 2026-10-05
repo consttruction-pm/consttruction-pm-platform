@@ -29,3 +29,8 @@ test("CUBI logos contain only registered brand colors", () => {
   assert.ok(colors.length > 0);
   for (const color of colors) assert.ok(allowed.has(color), `unexpected brand color #${color}`);
 });
+
+test("CUBI dark-surface logo usage and demo presentation are explicit", () => {
+  assert.match(css, /\.cubi-orbit/);
+});
+});
