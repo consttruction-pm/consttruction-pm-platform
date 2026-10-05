@@ -14,6 +14,9 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Iterable, Mapping, Tuple
 
+from .calendar import CalendarInputDate
+from .calendar_system import CalendarSystem, JalaliDate
+
 
 class CalendarExceptionType(str, Enum):
     NONWORK = "NONWORK"
@@ -29,14 +32,24 @@ Interval = Tuple[time, time]
 class CalendarException:
     """One immutable date-specific calendar override."""
 
-    date: date
+    date: CalendarInputDate
     kind: CalendarExceptionType
+    calendar_system: CalendarSystem = CalendarSystem.GREGORIAN
     total_work_hours: Decimal | None = None
     intervals: Tuple[Interval, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.date, date) or isinstance(self.date, datetime):
-            raise TypeError("date must be a Gregorian date")
+        if not isinstance(self.calendar_system, CalendarSystem):
+            raise TypeError("calendar_system must be CalendarSystem")
+        if isinstance(self.date, JalaliDate):
+            if self.calendar_system is not CalendarSystem.JALALI:
+                raise ValueError("Jalali input requires a Jalali calendar system")
+            object.__setattr__(self, "date", self.date.to_gregorian())
+        elif isinstance(self.date, date) and not isinstance(self.date, datetime):
+            if self.calendar_system is not CalendarSystem.GREGORIAN:
+                raise ValueError("Gregorian date input requires a Gregorian calendar system")
+        else:
+            raise TypeError("date must be date or JalaliDate")
         if not isinstance(self.kind, CalendarExceptionType):
             raise TypeError("kind must be CalendarExceptionType")
         if self.kind is CalendarExceptionType.TOTAL_WORK_HOURS:
@@ -137,7 +150,7 @@ class CalendarExceptionResolver:
 
     @staticmethod
     def _apply(
-        target_date: date,
+        target_date: CalendarInputDate,
         exception: CalendarException,
         *,
         source: str,
@@ -193,21 +206,25 @@ class CalendarExceptionResolver:
         local_exceptions: Iterable[CalendarException] = (),
         inherited_exceptions: Iterable[CalendarException] = (),
     ) -> EffectiveCalendarDateRule:
-        if not isinstance(target_date, date) or isinstance(target_date, datetime):
-            raise TypeError("target_date must be a date")
+        if isinstance(target_date, JalaliDate):
+            target = target_date.to_gregorian()
+        elif isinstance(target_date, date) and not isinstance(target_date, datetime):
+            target = target_date
+        else:
+            raise TypeError("target_date must be date or JalaliDate")
         local = self._by_date(local_exceptions)
         inherited = self._by_date(inherited_exceptions)
 
-        selected = local.get(target_date)
+        selected = local.get(target)
         if selected is not None:
-            return self._apply(target_date, selected, source="local", standard=self.standard)
+            return self._apply(target, selected, source="local", standard=self.standard)
 
-        selected = inherited.get(target_date)
+        selected = inherited.get(target)
         if selected is not None:
-            return self._apply(target_date, selected, source="inherited", standard=self.standard)
+            return self._apply(target, selected, source="inherited", standard=self.standard)
 
         return EffectiveCalendarDateRule(
-            target_date,
+            target,
             "standard",
             None,
             self.standard.is_working,
