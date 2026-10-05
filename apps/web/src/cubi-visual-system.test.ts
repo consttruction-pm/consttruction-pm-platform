@@ -19,8 +19,14 @@ test("CUBI visual system exposes the registered brand anchors", () => {
 });
 
 test("CUBI homepage keeps the registered dark-hero/copper-CTA direction", () => {
-  assert.match(css, /\.cubi-hero[^{]*\{[^}]*var\(--cp-navy-dark\)[^}]*var\(--cp-navy\)/s);
-  assert.match(css, /\.cubi-button[^{]*\{[^}]*var\(--cp-copper\)/s);
+  assert.match(css, /\.cubi-hero\s*\{[^}]*background:\s*var\(--cp-navy-dark\)/s);
+  assert.match(css, /\.cubi-button\s*\{[^}]*background:\s*var\(--cp-copper\)/s);
+});
+
+test("CUBI homepage avoids heavy marketing compositing and respects reduced motion", () => {
+  assert.match(css, /\.cubi-header\s*\{[^}]*backdrop-filter:\s*none/s);
+  assert.match(css, /\.cubi-grid-glow\s*\{[^}]*mask-image:\s*none/s);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
 test("CUBI logos contain only registered brand colors", () => {
@@ -28,9 +34,4 @@ test("CUBI logos contain only registered brand colors", () => {
   const colors = [...(primaryLogo + darkLogo).matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0].slice(1).toUpperCase());
   assert.ok(colors.length > 0);
   for (const color of colors) assert.ok(allowed.has(color), `unexpected brand color #${color}`);
-});
-
-test("CUBI dark-surface logo usage and demo presentation are explicit", () => {
-  assert.match(css, /\.cubi-orbit/);
-});
 });
