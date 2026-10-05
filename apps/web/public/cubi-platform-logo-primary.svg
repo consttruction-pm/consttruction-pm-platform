@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 190" role="img" aria-labelledby="title desc">
+<title>CUBI Platform</title>
+<desc>Construction and project intelligence logo with geometric cube, schedule bars and connected intelligence nodes.</desc>
+<defs>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1264D6"/><stop offset="1" stop-color="#19B7D8"/></linearGradient>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12B9B1"/><stop offset="1" stop-color="#62D6A7"/></linearGradient>
+</defs>
+<g transform="translate(18 18)">
+  <path fill="none" stroke="url(#blue)" stroke-width="18" stroke-linejoin="round" d="M62 8 118 40 62 72 6 40z"/>
+  <path fill="none" stroke="#0B3A7A" stroke-width="18" stroke-linejoin="round" d="M6 40v64l56 32 56-32V72"/>
+  <path fill="url(#teal)" d="M62 72 118 40v64l-56 32z"/>
+  <path fill="#fff" d="M48 76h18v42H48z"/>
+  <path fill="#fff" d="M74 84h18v34H74z"/>
+  <path fill="#fff" d="M100 92h18v26h-18z"/>
+  <circle cx="62" cy="72" r="7" fill="#fff"/>
+  <circle cx="88" cy="84" r="6" fill="#12B9B1"/>
+  <circle cx="114" cy="92" r="5" fill="#19B7D8"/>
+  <path d="M62 72h26v12h26v8" fill="none" stroke="#fff" stroke-width="3"/>
+</g>
+<text x="165" y="103" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="72" font-weight="800" letter-spacing="2" fill="#0B2342">CUBI</text>
+<text x="166" y="142" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="31" font-weight="400" letter-spacing="5" fill="#31506F">Platform</text>
+<text x="168" y="174" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="600" letter-spacing="1.7" fill="#47708F">CONSTRUCTION &amp; BUILDING INTELLIGENCE</text>
+</svg>
