@@ -167,5 +167,25 @@ The evidence also confirms that the missing surface is intentionally API/product
 
 A prior calendar-version snapshot immutability change was incorporated into the current line of development; comparison against its earlier PR shows the current main contains the calendar master/snapshot/exception changes while continuing to diverge with subsequent UI and audit work. No stale PR is being treated as the integration baseline.
 
-**Current audit HEAD after this audit documentation update:** `67e4c3b2135e01f3ae34c564b03e3a01839e10f6`.
+## K. Calendar resolver / P6 parity recheck — current main `5f1cd188839a1255aaf754b8676dfb4d0711ac47`
 
+Fresh source inspection confirms the Shared Core calendar boundary is structurally sound but not yet full P6 Calendar parity:
+
+- `calendar_resolution.py` resolves version-pinned project and activity calendars before scheduling and rejects missing/mismatched resolver registrations.
+- `CalendarReference` preserves calendar id/version, working-day vs working-time kind, and Gregorian/Jalali system identity.
+- Relationship lag resolution is centralized in Shared Core and supports predecessor, successor, project-default and 24-hour choices.
+- `AuthoritativeScheduleInput` carries immutable project-calendar and activity-calendar assignments and includes them in the canonical snapshot hash, supporting deterministic replay.
+- **Remaining gap:** the authoritative schedule contract currently models activity-calendar assignments, but not a first-class resource-calendar assignment/resolution path. Global → Project → Resource inheritance/override precedence is therefore not yet fully materialized into the CPM calendar provider.
+- The legacy `resources/calendar.py::ResourceCalendar` remains intentionally outside the authoritative resolver and must not be expanded into a second calendar engine.
+
+This finding reinforces Issue #1209 and Issue #1207: implement explicit Global/Project/Resource semantics and effective-rule precedence in the Shared Core/API boundary, with RESET_TO_STANDARD distinct from absence of a local record. Web/Desktop/Mobile must continue consuming the resulting shared resolver rather than reproducing precedence locally.
+
+### Field Registry / Formula authority recheck
+
+The repository now has canonical `p6_field_registry.py`, `p6_field_registry_api.py`, `p6_formula_engine.py`, and `p6_formula_authority_api.py` boundaries. The formula engine implements the required tokenizer/parser/AST/dependency/type-analysis direction, while the API delegates validation to that Shared Core authority. However, `P6_FIELD_REGISTRY_STATUS` is still explicitly `seeded_not_certified`, so full P6 field disposition/parity remains incomplete by design. This is consistent with the parity baseline and must not be reported as complete.
+
+### Exact-head verification status
+
+For `5f1cd188839a1255aaf754b8676dfb4d0711ac47`, the connected GitHub status interface currently returns no combined status entries and no workflow runs for that SHA. Therefore exact-head runtime verification remains **unverified**; no green-CI claim is made.
+
+**Corrected current audit HEAD:** `5f1cd188839a1255aaf754b8676dfb4d0711ac47`.
