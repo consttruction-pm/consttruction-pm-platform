@@ -172,7 +172,7 @@ class SQLiteCalendarMasterRepository:
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
             (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
         ).fetchone()
@@ -434,13 +434,14 @@ class PostgresCalendarMasterRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         revision = int(row[2]) + 1
         self.connection.execute(
-            "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s "
+            "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s,base_calendar_id=%s,base_calendar_version=%s "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s",
             (calendar.scope.project_revision, calendar.kind, calendar.name, revision,
+             calendar.base_calendar_id, calendar.base_calendar_version,
              calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id,
              calendar.calendar_version, int(row[2])),
         )
-        return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision)
+        return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision, calendar.base_calendar_id, calendar.base_calendar_version)
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
