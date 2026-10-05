@@ -57,6 +57,18 @@ def test_zero_ev_is_supported_when_pv_exists():
     assert result.earned_schedule == Decimal("0")
 
 
+def test_zero_ev_skips_flat_zero_pv_period():
+    values = (
+        EarnedSchedulePeriod(date(2026, 1, 31), 0),
+        EarnedSchedulePeriod(date(2026, 2, 28), 100),
+    )
+    result = calculate_earned_schedule(
+        values, earned_value=0, data_date=date(2026, 2, 15), project_start=date(2026, 1, 1)
+    )
+    assert result.earned_schedule == Decimal("0")
+    assert result.earned_schedule_date == date(2026, 1, 1)
+
+
 def test_zero_pv_period_does_not_divide_by_zero():
     values = (
         EarnedSchedulePeriod(date(2026, 1, 31), 0),
