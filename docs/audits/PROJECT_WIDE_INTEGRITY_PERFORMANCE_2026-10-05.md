@@ -349,3 +349,20 @@ However, the current HTTP route constructor/import surface does **not** wire:
 Therefore the current Web HTTP layer demonstrates partial P6 product wiring, not complete P6 subject-area transport parity. The generic sync system must not be counted as proof of P6 typed endpoint parity unless each subject's canonical contract, validation, persistence and client behavior are independently demonstrated.
 
 The route file also currently contains a duplicated import of `P6UserDefinedFieldDefinition`. This is a small hygiene issue only; it has no evidence of affecting runtime behavior and is not being treated as a material product defect in this audit.
+
+
+## U. Cross-platform offline mutation durability / P6 replay recheck — current main
+
+Fresh inspection of the shared client-sync layer and all three platform runtimes found a material distinction between **conflict-safe synchronization** and **durable offline mutation storage**:
+
+- `apps/client-sync/src/mutation-queue.ts` implements an in-memory `OfflineMutationQueue`. It correctly validates mutation contract/version, project identity, expected revision, idempotency reuse and authoritative stale-revision retry.
+- Web `WebSyncRuntime`, Desktop `DesktopRuntime` and Mobile `MobileRuntime` each instantiate this in-memory queue directly. Their tests verify same-process enqueue/sync/conflict/retry behavior, but no restart/persistence restoration is exercised.
+- The Python server/shared layer contains persistent/offline queue primitives (`SQLiteOfflineMutationQueue`, PostgreSQL sync state/idempotency persistence), but the current Web/Desktop/Mobile runtime wiring shown in the repository does not demonstrate a durable client-side queue adapter being used by those three runtimes.
+- Consequently, **offline scheduling calculation itself is present for Mobile through Shared Core**, and workspace cache/stale-state behavior is tested, but **offline mutation durability across application/browser restart is not proven**. A queued P6 mutation may be lost when the runtime instance is recreated unless an external persistence layer exists outside the inspected runtime boundary.
+- The generic `operation + payload` sync contract is intentionally transport-neutral, which is good architecture, but it is not by itself evidence of P6 typed domain mutation parity. P6 operations need canonical contract validation at the application boundary before being counted as complete three-platform P6 functionality.
+
+### Severity / confidence
+
+**Medium severity, high confidence:** this does not invalidate the Shared Scheduling Core or server-side idempotency design, but it prevents claiming full offline-first mutation durability for Web/Desktop/Mobile from the inspected runtime wiring.
+
+**Required architectural direction:** use one durable client-sync persistence adapter behind the existing shared queue interface, and keep P6 mutation typing/validation at the Shared Core/application boundary. Do not create separate P6 sync engines per platform.
