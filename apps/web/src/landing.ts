@@ -1,3 +1,4 @@
+// Issue 1239: compact bilingual commercial homepage contract.
 type LandingLocale = "en" | "fa";
 
 type LandingCopy = {
