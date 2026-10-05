@@ -642,3 +642,24 @@ Current-main inspection confirms a strong architectural boundary for AI-driven c
 **Remaining product gap:** the inspected tree contains governance/analysis primitives rather than a demonstrated complete production AI assistant pipeline covering retrieval, grounded answers, action proposals, approvals, execution, audit and offline behavior across all three platforms. This is a completeness/integration question, not evidence of a second calculation engine.
 
 Required direction: keep AI downstream of Shared Core authoritative results; expand AI through adapters/tools with source citations, revision checks and human approval for mutations. Never let an LLM recompute or overwrite authoritative P6 results.
+
+
+## AJ. Persistence context / transaction authority consolidation — current main
+
+Current-main inspection identifies legacy infrastructure that is structurally separate from the newer P6/P0 boundary:
+
+- `resources/context.py` defines `ProjectContext(tenant_id, company_id, project_id)`, while the canonical backend/P6 model uses `BackendScope(tenant_id, project_id, project_revision)`.
+- `resources/transactions.py` defines a separate transaction-manager family from `backend_p0/transactions.py`. The backend manager uses unique nested savepoint names; the resource manager uses a fixed savepoint name (`construction_pm_nested`). This is a latent nested-transaction collision risk if multiple nested resource transactions occur on one connection.
+- `resources/idempotency.py` also has its own context-scoped mutation idempotency model keyed by tenant/company/project, separate from the newer P6/client-sync idempotency contracts.
+- Current tree inspection did not find a dedicated HTTP route that consumes `resources.api.ResourceAPI`; therefore this resource stack appears to be a legacy/internal boundary rather than the public P6 resource transport path. It should not be expanded in parallel.
+- The presence of this legacy stack does not by itself change current CPM calculations, but maintaining two context + transaction + idempotency authorities increases integration and maintenance risk.
+
+### Verdict
+
+**Medium architectural hygiene risk, high confidence.** The main concern is not immediate page speed; it is divergent semantics and duplicated infrastructure that can cause future data/concurrency inconsistencies.
+
+Required direction: converge active production paths on the canonical `BackendScope`/application transaction/idempotency contracts. Migrate any still-required `resources/` consumers behind adapters, then retire the legacy duplicate infrastructure only after consumer and regression evidence. Do not silently delete it while consumers remain unknown.
+
+### Dependency revision note
+
+`DependencyLink.revision` and persisted `graph_revision` are intentionally distinct in the current implementation, but their semantic distinction is not self-evident from the public contract. Treat this as a low-confidence documentation/API clarity issue, not as a proven correctness defect, until the intended revision model is explicitly documented or certified.
