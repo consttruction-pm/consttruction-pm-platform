@@ -97,6 +97,7 @@ class CalendarMasterRepository(Protocol):
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster: ...
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]: ...
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool: ...
 
 
 class SQLiteCalendarMasterRepository:
@@ -172,6 +173,26 @@ class SQLiteCalendarMasterRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         self.connection.commit()
         return stored
+
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if isinstance(expected_revision, bool) or expected_revision < 1:
+            raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        self.connection.execute("DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master_snapshot WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM activity_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
+        self.connection.commit()
+        return True
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
@@ -446,6 +467,23 @@ class PostgresCalendarMasterRepository:
              calendar.calendar_version, int(row[2])),
         )
         return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
+
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if isinstance(expected_revision, bool) or expected_revision < 1:
+            raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        for table in ("calendar_exception", "calendar_master_snapshot", "activity_calendar_assignment", "relationship_lag_calendar_assignment"):
+            self.connection.execute(f"DELETE FROM {table} WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
+        return True
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
