@@ -350,7 +350,7 @@ _ROWS = (
     ("activity.remaining_non_labor_units","Activity","RemainingNonLaborUnits","Remaining Non Labor Units","double",True,False,"units"),
     ("activity.resume_date","Activity","ResumeDate","Resume Date","datetime",True,False,None),
     ("activity.schedule_performance_index","Activity","SchedulePerformanceIndex","Schedule Performance Index","double",False,True,None),
-    ("activity.scope_percent_complete","Activity","ScopePercentComplete","Scope Percent Complete","double",False,True,"percent"),
+    ("activity.scope_percent_complete","Activity","ScopePercentComplete","Scope Percent Complete","double",True,False,"percent"),
     ("activity.start_date_variance","Activity","StartDateVariance","Start Date Variance","double",False,True,"working-time"),
     ("activity.status","Activity","Status","Status","string",False,True,None),
     ("activity.suspend_date","Activity","SuspendDate","Suspend Date","datetime",True,False,None),
