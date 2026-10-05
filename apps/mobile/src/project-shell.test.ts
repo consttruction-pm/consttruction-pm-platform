@@ -288,3 +288,24 @@ test("rejects malformed persisted local projects", async () => {
   });
   await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT/);
 });
+
+test("rejects persisted projects with invalid nested records", async () => {
+  const malformed = JSON.stringify({
+    ...fixture,
+    wbs: [{ ...fixture.wbs[0], order: "bad" }],
+  });
+  const store = new PersistentMobileLocalProjectStore({
+    async read() { return malformed; },
+    async write() {},
+  });
+  await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT/);
+});
+
+test("rejects persisted projects whose stored context does not match the requested key", async () => {
+  const mismatched = JSON.stringify({ ...fixture, tenant_id: "other-tenant", project_id: "other-project" });
+  const store = new PersistentMobileLocalProjectStore({
+    async read() { return mismatched; },
+    async write() {},
+  });
+  await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT_CONTEXT/);
+});
