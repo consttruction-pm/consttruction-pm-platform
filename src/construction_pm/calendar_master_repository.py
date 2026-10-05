@@ -24,6 +24,7 @@ class CalendarMaster:
     record_revision: int = 0
     base_calendar_id: str | None = None
     base_calendar_version: str | None = None
+    calendar_type: str = "project"
 
     def validate(self) -> None:
         self.scope.validate()
@@ -39,6 +40,8 @@ class CalendarMaster:
             raise CalendarPersistenceError("CALENDAR_CANNOT_INHERIT_ITSELF")
         if self.kind not in {"working-day", "working-time"}:
             raise CalendarPersistenceError("INVALID_CALENDAR_KIND")
+        if self.calendar_type not in {"global", "resource", "project"}:
+            raise CalendarPersistenceError("INVALID_CALENDAR_TYPE")
         if isinstance(self.record_revision, bool) or not isinstance(self.record_revision, int) or self.record_revision < 0:
             raise CalendarPersistenceError("INVALID_RECORD_REVISION")
         if self.record_revision > MAX_SAFE_REVISION:
@@ -94,6 +97,7 @@ class CalendarMasterRepository(Protocol):
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster: ...
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]: ...
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool: ...
 
 
 class SQLiteCalendarMasterRepository:
@@ -107,12 +111,13 @@ class SQLiteCalendarMasterRepository:
                 calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL,
                 name TEXT NOT NULL, record_revision INTEGER NOT NULL,
                 base_calendar_id TEXT, base_calendar_version TEXT,
+                calendar_type TEXT NOT NULL DEFAULT 'project',
                 PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version)
             )"""
         )
-        for column in ("base_calendar_id", "base_calendar_version"):
+        for column in ("base_calendar_id", "base_calendar_version", "calendar_type"):
             try:
-                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT")
+                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT NOT NULL DEFAULT 'project'")
             except sqlite3.OperationalError as exc:
                 if "duplicate column name" not in str(exc).lower():
                     raise
@@ -137,30 +142,30 @@ class SQLiteCalendarMasterRepository:
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
         calendar.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
             (calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id, calendar.calendar_version),
         ).fetchone()
         if row is None:
             if expected_revision not in (None, 0):
                 raise CalendarPersistenceError("REVISION_CONFLICT")
-            stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
+            stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
             self.connection.execute(
-                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
                  stored.calendar_id, stored.calendar_version, stored.kind, stored.name, 1,
-                 stored.base_calendar_id, stored.base_calendar_version),
+                 stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type),
             )
             self.connection.commit()
             return stored
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, int(row[2]) + 1, calendar.base_calendar_id, calendar.base_calendar_version)
+        stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, int(row[2]) + 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
         cursor = self.connection.execute(
-            "UPDATE calendar_master SET project_revision=?,kind=?,name=?,record_revision=?,base_calendar_id=?,base_calendar_version=? "
+            "UPDATE calendar_master SET project_revision=?,kind=?,name=?,record_revision=?,base_calendar_id=?,base_calendar_version=?,calendar_type=? "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?",
             (stored.scope.project_revision, stored.kind, stored.name, stored.record_revision,
-             stored.base_calendar_id, stored.base_calendar_version,
+             stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type,
              stored.scope.tenant_id, stored.scope.project_id, stored.calendar_id, stored.calendar_version, int(row[2])),
         )
         if cursor.rowcount != 1:
@@ -169,10 +174,30 @@ class SQLiteCalendarMasterRepository:
         self.connection.commit()
         return stored
 
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if isinstance(expected_revision, bool) or expected_revision < 1:
+            raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        self.connection.execute("DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master_snapshot WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM activity_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
+        self.connection.commit()
+        return True
+
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
             (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
         ).fetchone()
@@ -180,16 +205,16 @@ class SQLiteCalendarMasterRepository:
             return None
         if int(row[3]) != scope.project_revision:
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        return CalendarMaster(scope, calendar_id, calendar_version, str(row[0]), str(row[1]), int(row[2]), row[4], row[5])
+        return CalendarMaster(scope, calendar_id, calendar_version, str(row[0]), str(row[1]), int(row[2]), row[4], row[5], str(row[6]))
 
     def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY calendar_id,calendar_version",
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
-        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), r[5], r[6]) for r in rows)
+        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), r[5], r[6], str(r[7])) for r in rows)
 
 
 class SQLiteCalendarAssignmentRepository:
@@ -393,11 +418,12 @@ class PostgresCalendarMasterRepository:
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
             "calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL, "
             "name TEXT NOT NULL, record_revision BIGINT NOT NULL, "
-            "base_calendar_id TEXT, base_calendar_version TEXT, "
+            "base_calendar_id TEXT, base_calendar_version TEXT, calendar_type TEXT NOT NULL DEFAULT 'project', "
             "PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version))"
         )
         self.connection.execute("ALTER TABLE calendar_master ADD COLUMN IF NOT EXISTS base_calendar_id TEXT")
         self.connection.execute("ALTER TABLE calendar_master ADD COLUMN IF NOT EXISTS base_calendar_version TEXT")
+        self.connection.execute("ALTER TABLE calendar_master ADD COLUMN IF NOT EXISTS calendar_type TEXT NOT NULL DEFAULT 'project'")
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS activity_calendar_assignment ("
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
@@ -415,7 +441,7 @@ class PostgresCalendarMasterRepository:
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
         calendar.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s FOR UPDATE",
             (calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id, calendar.calendar_version),
         ).fetchone()
@@ -423,29 +449,46 @@ class PostgresCalendarMasterRepository:
             if expected_revision not in (None, 0):
                 raise CalendarPersistenceError("REVISION_CONFLICT")
             self.connection.execute(
-                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (calendar.scope.tenant_id, calendar.scope.project_id, calendar.scope.project_revision,
                  calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1,
-                 calendar.base_calendar_id, calendar.base_calendar_version),
+                 calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type),
             )
-            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
+            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
         revision = int(row[2]) + 1
         self.connection.execute(
-            "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s,base_calendar_id=%s,base_calendar_version=%s "
+            "UPDATE calendar_master SET project_revision=%s,kind=%s,name=%s,record_revision=%s,base_calendar_id=%s,base_calendar_version=%s,calendar_type=%s "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s",
             (calendar.scope.project_revision, calendar.kind, calendar.name, revision,
-             calendar.base_calendar_id, calendar.base_calendar_version,
+             calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type,
              calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id,
              calendar.calendar_version, int(row[2])),
         )
-        return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision, calendar.base_calendar_id, calendar.base_calendar_version)
+        return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
+
+    def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if isinstance(expected_revision, bool) or expected_revision < 1:
+            raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        ).fetchone()
+        if row is None:
+            return False
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        for table in ("calendar_exception", "calendar_master_snapshot", "activity_calendar_assignment", "relationship_lag_calendar_assignment"):
+            self.connection.execute(f"DELETE FROM {table} WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
+        self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND record_revision=%s", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
+        return True
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
             (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
         ).fetchone()
@@ -453,16 +496,16 @@ class PostgresCalendarMasterRepository:
             return None
         if int(row[3]) != scope.project_revision:
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        return CalendarMaster(scope, calendar_id, calendar_version, str(row[0]), str(row[1]), int(row[2]), row[4], row[5])
+        return CalendarMaster(scope, calendar_id, calendar_version, str(row[0]), str(row[1]), int(row[2]), row[4], row[5], str(row[6]))
 
     def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version FROM calendar_master "
+            "SELECT calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY calendar_id,calendar_version",
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
-        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), r[5], r[6]) for r in rows)
+        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), r[5], r[6], str(r[7])) for r in rows)
 
 
 class PostgresCalendarAssignmentRepository(PostgresCalendarAssignmentRepositoryReadMixin):
