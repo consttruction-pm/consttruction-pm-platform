@@ -26,7 +26,7 @@ test("CUBI homepage follows the canonical Issue #1101 reference structure", () =
   assert.match(landing, /navAbout/);
   assert.match(landing, /cubi-lang-switch/);
   assert.match(landing, /translations/);
-  assert.match(landing, /\/logo\.svg/);
+  assert.match(landing, /\/logo-horizontal\.svg/);
   assert.match(landing, /\/logo-dark\.svg/);
   assert.match(styles, /canonical CUBI visual-reference alignment/);
   assert.match(styles, /\.cubi-reference-hero\s*\{[\s\S]*background:#0b3158/);
