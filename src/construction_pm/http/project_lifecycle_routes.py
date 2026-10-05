@@ -323,8 +323,14 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                     )
                     return self._json(200, result)
-                except (ValueError, AuthorizationError) as exc:
-                    return self._error(400 if not isinstance(exc, AuthorizationError) else 403, str(exc), "error.request.invalid" if not isinstance(exc, AuthorizationError) else "error.authorization.denied")
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
 
             if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/export"):
                 if self._p6_interchange_api is None:
