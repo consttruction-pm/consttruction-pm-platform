@@ -71,7 +71,6 @@ class Activity:
 
     id: str
     duration: int
-    name: str = ""
     actual_start: date | None = None
     actual_finish: date | None = None
     remaining_duration: int | None = None
@@ -82,6 +81,7 @@ class Activity:
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
+    name: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
