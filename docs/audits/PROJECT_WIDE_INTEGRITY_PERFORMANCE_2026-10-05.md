@@ -5,7 +5,7 @@
 This audit is intentionally broader than Jalal 3. It covers the project history represented in the current repository, the registered project requirements, the prior performance/design audits, and the current `main` branch.
 
 Reference point:
-- Current `main`: `d020df11cd28be1b30c1ee44546e01a287a69cfa` (this audit's performance fix)
+- Performance fixes: `d020df11cd28be1b30c1ee44546e01a287a69cfa` and `857f32adb361abc1224a2df1a9d743f03c0388e5`
 - Previous Jalal 3 baseline: `772d4c5f31a631e72d1fc6e4f26927df6113e3e6`
 - `main` was 49 commits ahead of the Jalal 3 baseline before this audit fix.
 
@@ -80,6 +80,13 @@ Open follow-up work remains in the calendar API parity issue. This is a genuine 
 The repository contains PostgreSQL-backed CI configuration and client typecheck/test workflows. However, the GitHub connector currently reports no workflow-run evidence for the exact current head and no combined status entries.
 
 Therefore this audit does **not** claim fresh runtime-green verification for the current head. Code reading and repository configuration are evidence of intended gates, not proof that those gates executed successfully on this exact commit.
+
+
+### G. Marketing-page compositing overhead — reduced
+
+A second performance pass removed two nonessential browser compositing costs from the marketing homepage: sticky-header backdrop blur and the hero grid mask effect. The dashboard visual keeps a restrained perspective treatment, but no longer depends on the heavier perspective stack previously used. This is intentionally limited to the marketing surface and does not alter the registered CUBI color/frame system or any product-control UI.
+
+Commit: `857f32adb361abc1224a2df1a9d743f03c0388e5`.
 
 ## Repository organization decision
 
