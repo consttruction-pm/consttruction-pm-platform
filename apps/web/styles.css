@@ -54,6 +54,9 @@ button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 .cp-app-shell { min-height: 100vh; }
 .cp-app-status {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   min-height: 52px;
   padding: .7rem 1rem;
   background:
@@ -331,6 +334,855 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
   .cubi-footer p { margin:0; }
 }
 
+
+
+/* ========================================================================== */
+/* CUBI UI Layout System — Web workspace, responsive clients and print        */
+/* ========================================================================== */
+:root {
+  --cubi-ui-base: 14px;
+  --cubi-ui-small: 12px;
+  --cubi-ui-label: 11px;
+  --cubi-ui-control-height: 36px;
+  --cubi-ui-touch-height: 40px;
+  --cubi-ui-header-height: 56px;
+  --cubi-ui-menu-height: 44px;
+  --cubi-ui-gap: 12px;
+  --cubi-ui-radius: 8px;
+  --cubi-ui-page-max: 1920px;
+  --cubi-ui-table-font-size: 12.5px;
+  --cubi-ui-table-head-size: 12px;
+  --cubi-ui-chart-min-height: 220px;
+  --cubi-ui-chart-height: clamp(220px, 30vw, 420px);
+  --cubi-ui-chart-max-width: 100%;
+}
+
+[dir="rtl"],
+html:lang(fa) {
+  font-family: "Vazirmatn", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cp-workspace {
+  width: min(100%, var(--cubi-ui-page-max));
+  margin: 0 auto;
+  padding: clamp(12px, 1.25vw, 24px);
+  font-size: var(--cubi-ui-base);
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.cp-header {
+  min-height: var(--cubi-ui-header-height);
+  padding: 10px 14px;
+  border-radius: var(--cubi-ui-radius);
+  gap: 10px 16px;
+}
+
+.cp-brand { font-size: 14px; letter-spacing: .01em; }
+.cp-project { min-width: 120px; font-size: 14px; }
+.cp-revision { color: var(--cp-muted); font-size: var(--cubi-ui-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.cp-menu {
+  min-height: var(--cubi-ui-menu-height);
+  position: sticky;
+  top: 52px;
+  z-index: 15;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  gap: 6px;
+  margin: 10px 0 12px;
+  padding: 4px;
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cubi-ui-radius);
+  background: rgba(245,247,250,.96);
+  box-shadow: 0 4px 18px rgba(8,26,47,.06);
+  backdrop-filter: blur(10px);
+}
+
+.cp-menu button {
+  flex: 0 0 auto;
+  min-height: var(--cubi-ui-control-height);
+  padding: 7px 11px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cp-main {
+  min-width: 0;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(220px, 280px);
+  gap: var(--cubi-ui-gap);
+}
+
+.cp-panel {
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--cubi-ui-radius);
+}
+
+.cp-panel h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.cp-panel h3,
+.cp-control-summary h3,
+.cp-field-assurance h3,
+.cp-field-ops h3,
+.cp-change-claim h3,
+.cp-procurement h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--cp-navy);
+}
+
+.cp-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 6px;
+  scrollbar-width: thin;
+}
+
+table {
+  width: max-content;
+  min-width: 100%;
+  font-size: var(--cubi-ui-table-font-size);
+  font-variant-numeric: tabular-nums;
+}
+
+th, td {
+  min-height: 34px;
+  padding: 7px 8px;
+  line-height: 1.3;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  font-size: var(--cubi-ui-table-head-size);
+  letter-spacing: .01em;
+}
+
+.cp-p6-column.is-pinned,
+.cp-p6-column.is-frozen {
+  background: var(--cp-surface);
+}
+
+[dir="rtl"] .cp-p6-column.is-pinned {
+  box-shadow: -2px 0 0 var(--cubi-titanium-light);
+}
+
+.cp-p6-field-chooser {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 7px;
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-p6-field-chooser-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--cp-muted);
+  font-size: var(--cubi-ui-label);
+}
+
+.cp-p6-field-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.cp-p6-field-item,
+.cp-p6-field-list > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 4px 6px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+  font-size: var(--cubi-ui-small);
+}
+
+.cp-p6-field-item input {
+  width: 150px;
+  min-width: 80px;
+  max-width: 220px;
+  height: 28px;
+  border: 1px solid var(--cp-border);
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: var(--cp-surface);
+}
+
+.cp-p6-field-item button,
+.cp-p6-field-list > button {
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid var(--cp-border);
+  border-radius: 5px;
+  padding: 4px 7px;
+  background: var(--cp-surface);
+  cursor: pointer;
+}
+
+.cp-p6-field-item button:hover,
+.cp-p6-field-list > button:hover {
+  border-color: var(--cp-blue);
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-wbs-node {
+  width: 100%;
+  min-height: 34px;
+  margin: 0 0 5px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cp-text);
+  text-align: start;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.cp-wbs-node:hover,
+.cp-wbs-node.is-selected {
+  border-color: var(--cubi-neutral-border);
+  background: var(--cubi-neutral-subtle);
+  color: var(--cp-navy);
+}
+
+.cp-gantt-board {
+  width: 100%;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 6px;
+}
+
+.cp-gantt-row {
+  grid-template-columns: minmax(100px, 150px) minmax(320px, 1fr);
+  min-width: 520px;
+  gap: 8px;
+  padding: 2px 8px;
+  margin: 0;
+}
+
+.cp-gantt-row + .cp-gantt-row {
+  border-top: 1px solid var(--cubi-neutral-divider);
+}
+
+.cp-gantt-row.is-selected {
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-gantt-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-gantt-track {
+  height: 24px;
+  min-width: 320px;
+  background: var(--cubi-titanium-light);
+  border-radius: 4px;
+}
+
+.cp-gantt-bar { min-width: 3px; }
+
+.cp-gantt-placeholder {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  border: 1px dashed var(--cubi-neutral-border);
+  border-radius: 6px;
+  color: var(--cp-muted);
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-navigation-surface {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+}
+
+.cp-navigation-surface > div,
+.cp-control-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cp-navigation-surface nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cp-submenu-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 6px;
+  background: var(--cubi-neutral-subtle);
+  color: var(--cp-navy);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.cp-submenu-item[aria-disabled="true"] {
+  opacity: .58;
+  cursor: not-allowed;
+}
+
+.cp-navigation-surface [data-surface-status] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--cubi-titanium-light);
+  color: var(--cp-navy);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cp-main > .cp-smart-guide,
+.cp-main > .cp-control-summary,
+.cp-main > .cp-site-logs,
+.cp-main > .cp-field-ops,
+.cp-main > .cp-field-assurance,
+.cp-main > .cp-change-claim,
+.cp-main > .cp-procurement {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.cp-smart-guide,
+.cp-control-summary,
+.cp-site-logs,
+.cp-field-ops,
+.cp-field-assurance,
+.cp-change-claim,
+.cp-procurement {
+  display: grid;
+  gap: 10px;
+}
+
+.cp-control-result {
+  color: var(--cp-blue);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-control-summary time {
+  color: var(--cp-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-control-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.cp-control-metric {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 7px;
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-control-metric span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cp-muted);
+  font-size: 11px;
+}
+
+.cp-control-metric strong {
+  color: var(--cp-navy);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-control-findings,
+.cp-field-list,
+.cp-site-log-entries,
+.control-room-cards {
+  display: grid;
+  gap: 8px;
+}
+
+.cp-control-finding,
+.cp-field-card,
+.control-room-card {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 7px;
+  background: var(--cp-surface);
+}
+
+.cp-control-finding-title,
+.cp-field-card > strong,
+.control-room-card > strong {
+  color: var(--cp-navy);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.cp-control-finding-detail,
+.cp-field-card > span,
+.cp-field-card > small,
+.control-room-card > span,
+.control-room-card > small {
+  color: var(--cp-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.cp-control-finding.is-high,
+.cp-field-card.is-high { border-inline-start: 3px solid var(--cp-error); }
+
+.cp-control-finding.is-medium,
+.cp-field-card.is-medium { border-inline-start: 3px solid var(--cp-warning); }
+
+.cp-control-finding.is-low,
+.cp-field-card.is-low { border-inline-start: 3px solid var(--cp-blue); }
+
+.cp-field-grid,
+.cp-field-assurance-grid,
+.cp-change-claim-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cp-field-grid > div,
+.cp-field-assurance-grid > div,
+.cp-change-claim-grid > div {
+  min-width: 0;
+}
+
+.cp-site-log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cp-site-log {
+  display: grid;
+  grid-template-columns: minmax(160px, .45fr) minmax(0, 1.55fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 7px;
+}
+
+.cp-site-log-meta {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  color: var(--cp-muted);
+  font-size: 11.5px;
+}
+
+.cp-site-log-meta strong { color: var(--cp-navy); font-size: 12.5px; }
+
+.cp-site-log-entry {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--cubi-neutral-divider);
+  font-size: 11.5px;
+}
+
+.cp-site-log-entry:last-child { border-bottom: 0; }
+
+.cp-ref {
+  display: inline-flex;
+  padding: 2px 5px;
+  border: 1px solid var(--cubi-neutral-border);
+  border-radius: 4px;
+  background: var(--cubi-neutral-subtle);
+  color: var(--cp-navy);
+  font-size: 11px;
+}
+
+.cp-project-selection,
+.cp-project-create-form input,
+.cp-project-create-form button {
+  min-height: var(--cubi-ui-touch-height);
+}
+
+.cubi-site { font-size: 16px; }
+
+.cubi-header {
+  min-height: 68px;
+  height: auto;
+}
+
+.cubi-nav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cubi-nav a {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.cubi-hero h1 {
+  font-size: clamp(2.6rem, 5vw, 5rem);
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.cubi-section-head h2,
+.cubi-control-copy h2,
+.cubi-ai h2,
+.cubi-cta h2,
+.cubi-faq h2 {
+  text-wrap: balance;
+}
+
+.cubi-dashboard,
+.cubi-control-card {
+  max-width: 100%;
+}
+
+.cubi-dashboard { min-height: 0; }
+.cubi-feature-grid article { min-width: 0; }
+.cubi-flow { flex-wrap: wrap; }
+
+@media (max-width: 1279px) {
+  .cp-main {
+    grid-template-columns: minmax(180px, 210px) minmax(0, 1fr) minmax(190px, 220px);
+  }
+}
+
+@media (max-width: 1023px) {
+  .cp-workspace { padding: 10px; }
+  .cp-main {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  }
+  .cp-details { grid-column: 1 / -1; }
+  .cp-control-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cp-field-grid,
+  .cp-field-assurance-grid,
+  .cp-change-claim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cp-site-log { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .cp-app-status {
+    top: 0;
+    min-height: 44px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .cp-workspace {
+    min-width: 0;
+    padding: 8px;
+    font-size: 13px;
+  }
+  .cp-header { padding: 9px 10px; }
+  .cp-project { flex-basis: 100%; order: 3; }
+  .cp-menu {
+    top: 44px;
+    margin-block: 8px 10px;
+    max-width: 100%;
+  }
+  .cp-menu button {
+    min-height: var(--cubi-ui-touch-height);
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .cp-main { grid-template-columns: 1fr; }
+  .cp-details { grid-column: auto; }
+  .cp-control-metrics,
+  .cp-field-grid,
+  .cp-field-assurance-grid,
+  .cp-change-claim-grid {
+    grid-template-columns: 1fr;
+  }
+  .cp-site-log-entry { grid-template-columns: 1fr; gap: 3px; }
+  .cp-gantt-row { min-width: 480px; }
+  .cp-p6-field-item input { width: 120px; }
+  .cubi-header { padding-inline: 12px; }
+  .cubi-header-actions .cubi-link { display: none; }
+  .cubi-hero {
+    min-height: auto;
+    padding: 3.25rem 1rem 4rem;
+  }
+  .cubi-hero h1 { font-size: clamp(2.4rem, 12vw, 3.4rem); }
+  .cubi-hero-visual { min-height: 330px; }
+  .cubi-feature-grid { grid-template-columns: 1fr; }
+  .cubi-section,
+  .cubi-control-section,
+  .cubi-faq { padding: 4rem 1rem; }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    min-width: 0;
+    font-size: 10pt;
+  }
+
+  .cp-app-status,
+  .cp-menu,
+  .cp-navigation-surface,
+  .cp-p6-field-chooser,
+  .cubi-header,
+  .cubi-footer,
+  .cubi-hero-actions,
+  .cubi-ai .cubi-button {
+    display: none !important;
+  }
+
+  .cp-workspace {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    min-height: auto;
+    font-size: 9pt;
+  }
+
+  .cp-header {
+    position: static;
+    min-height: 0;
+    padding: 0 0 4mm;
+    margin-bottom: 4mm;
+    border: 0;
+    border-bottom: 1px solid #777;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .cp-main { display: block; }
+
+  .cp-panel {
+    margin: 0 0 4mm;
+    padding: 4mm;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    background: #fff;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .cp-site-log,
+  .cp-field-card,
+  .cp-control-finding,
+  .control-room-card,
+  .cp-gantt-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cp-panel h2,
+  .cp-panel h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .cp-center { display: block; }
+
+  .cp-table-wrap,
+  .cp-gantt-board {
+    overflow: visible;
+    border-color: #aaa;
+  }
+
+  table {
+    width: 100%;
+    min-width: 0;
+    font-size: 8pt;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  th,
+  td {
+    padding: 1.5mm 1.2mm;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  th {
+    position: static;
+    background: #eee !important;
+    color: #111 !important;
+  }
+
+  .cp-p6-column.is-pinned,
+  .cp-p6-column.is-frozen {
+    position: static;
+    box-shadow: none !important;
+  }
+
+  .cp-gantt-row {
+    min-width: 0;
+    grid-template-columns: 38mm minmax(0, 1fr);
+    break-inside: avoid;
+    padding: 1mm 0;
+  }
+
+  .cp-gantt-track { min-width: 0; height: 5mm; }
+  .cp-gantt-bar { top: 1mm; height: 3mm; }
+
+  .cp-control-metrics,
+  .cp-field-grid,
+  .cp-field-assurance-grid,
+  .cp-change-claim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cubi-site {
+    font-size: 10pt;
+    background: #fff !important;
+    overflow: visible;
+  }
+
+  .cubi-hero {
+    min-height: auto;
+    padding: 12mm 0;
+    background: #fff !important;
+    color: #111 !important;
+    break-inside: avoid;
+  }
+
+  .cubi-hero h1 { color: #111 !important; font-size: 34pt; }
+  .cubi-hero h1 em { color: #111 !important; }
+  .cubi-lead,
+  .cubi-tagline { color: #333 !important; }
+  .cubi-hero-visual { min-height: 0; }
+  .cubi-dashboard { transform: none; box-shadow: none; }
+  .cubi-grid-glow,
+  .cubi-orbit { display: none; }
+  .cubi-section,
+  .cubi-control-section,
+  .cubi-faq { padding: 10mm 0; }
+  .cubi-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cubi-feature-grid article,
+  .cubi-control-card { box-shadow: none; }
+  .cubi-ai { color: #111; background: #fff; border: 1px solid #999; }
+  .cubi-ai h2 { color: #111; }
+  .cubi-ai > div > p:last-child { color: #333; }
+  a { color: inherit !important; text-decoration: none; }
+}
+
+
+
+.cp-chart {
+  width: 100%;
+  max-width: var(--cubi-ui-chart-max-width);
+  min-height: var(--cubi-ui-chart-min-height);
+  height: var(--cubi-ui-chart-height);
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.cp-chart > svg,
+.cp-chart > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
+.cp-chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .cp-chart {
+    min-height: 180px;
+    height: 280px;
+  }
+}
+
+@media print {
+  .cp-chart {
+    min-height: 55mm;
+    height: 55mm;
+    overflow: visible;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
 
 /* CUBI brand chrome: do not use on dense data panels. */
 .cubi-metal-chrome {
