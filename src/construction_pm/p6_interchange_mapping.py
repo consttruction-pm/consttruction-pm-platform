@@ -139,6 +139,10 @@ class P6InterchangeMapper:
             mapped_canonical.add(canonical)
             value = row.values[canonical]
             try:
+                field = get_field(canonical)
+            except KeyError as exc:
+                raise P6InterchangeCompatibilityError(f"UNKNOWN_CANONICAL_FIELD:{canonical}") from exc
+            try:
                 typed = typed_value_for_field(field, value)
             except P6InterchangeTypedConversionError as exc:
                 raise P6InterchangeCompatibilityError(str(exc)) from exc
