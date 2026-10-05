@@ -1142,7 +1142,6 @@ th {
 
 
 
-.cubi-chart,
 .cp-chart {
   width: 100%;
   max-width: var(--cubi-ui-chart-max-width);
@@ -1153,8 +1152,6 @@ th {
   position: relative;
 }
 
-.cubi-chart > svg,
-.cubi-chart > canvas,
 .cp-chart > svg,
 .cp-chart > canvas {
   display: block;
@@ -1163,7 +1160,6 @@ th {
   max-width: 100%;
 }
 
-.cubi-chart-scroll,
 .cp-chart-scroll {
   width: 100%;
   max-width: 100%;
@@ -1172,7 +1168,6 @@ th {
 }
 
 @media (max-width: 760px) {
-  .cubi-chart,
   .cp-chart {
     min-height: 180px;
     height: 280px;
@@ -1180,7 +1175,6 @@ th {
 }
 
 @media print {
-  .cubi-chart,
   .cp-chart {
     min-height: 55mm;
     height: 55mm;
