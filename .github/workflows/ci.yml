@@ -48,3 +48,32 @@ jobs:
         env:
           P6_TEST_POSTGRES_DSN: postgresql://construction_pm:construction_pm@127.0.0.1:5432/construction_pm_test
         run: python -m pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package.json
+
+      - name: Install Web dependencies
+        run: npm install
+
+      - name: Typecheck Web
+        run: npm run typecheck
+
+      - name: Test Web
+        run: npm test
+
+      - name: Build Web
+        run: npm run build
