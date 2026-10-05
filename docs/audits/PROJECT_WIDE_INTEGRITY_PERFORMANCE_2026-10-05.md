@@ -289,3 +289,22 @@ Direct inspection of the current Field Registry seed exposes two concrete cross-
 4. **Resource/Assignment is grouped, not fully modeled as independent subject areas:** the Registry has 14 rows under `Resource/Assignment`, covering resource identity and a subset of assignment values. It does not establish a complete independent P6 field disposition for all Resource, Assignment, Role, rate, calendar and time-phased semantics represented elsewhere in contracts/repositories.
 
 These are confirmed schema/registry facts, not inferred absences from code search. They should be resolved by extending the single canonical Registry and its mapping/contract validation, not by adding client-local catalogs.
+
+
+## R. P6 subject-area/API layer recheck — current main
+
+A direct repository-tree and source inspection of the remaining P6 subject areas confirms the following:
+
+- **Relationships:** `relationship_master_repository.py` is an authoritative persistence boundary and stores FS/SS/FF/SF, signed Decimal lag, lag unit and optimistic record revision. The Shared Scheduling Core remains authoritative for relationship arithmetic. However, the current `src/construction_pm/p6_*_api.py` set contains no dedicated P6 Relationship API. The generic scheduling model therefore has persistence + calculation, but a complete versioned P6 transport contract is not yet demonstrated.
+- **Roles:** the repository tree contains no dedicated P6 Role persistence/API boundary. Resource Assignment can store an optional `role_id`, and an XER role-only codec exists, but no canonical Role subject/field set or persistence contract was found. This is a concrete P6 parity gap, not a reason to duplicate role logic in clients.
+- **UDF definitions:** P6 UDF definition persistence exists and `P6FieldRegistryAPI` exposes definition CRUD. Typed UDF value persistence also exists and validates DATE/DATETIME/Decimal/Percentage/Enum/Duration semantics. However, there is no dedicated P6 UDF-value API file in the current API surface. The Web client has only an authenticated metadata fetch for Activity UDF definitions. Thus end-to-end typed UDF value transport across all three clients is not demonstrated.
+- **Expenses:** P6 Expense persistence exists with Decimal cost fields, Activity/WBS links and SQLite/PostgreSQL parity, but no dedicated `p6_expense_api.py` appears in the current API tree. Therefore persistence is present while an application/transport contract is incomplete.
+- **Codes:** Code definition + assignment repositories and versioned APIs do exist. This is a stronger subject area than the previous gaps, but the canonical Registry currently exposes only two Codes fields while the code persistence contract also models scope, values, owners and assignments. Full field-level P6 mapping/interchange certification remains incomplete.
+- **Activity Period Actuals / Financial Periods:** a dedicated `p6_activity_period_actual_api.py` exists, which correctly provides the activity-period actual transport boundary. This is evidence of a usable working-data layer, but it does not remove the previously identified Financial Period Registry mismatch or prove full P6 financial-period interoperability.
+- **Documents / Issues / Risks / Notices / Work Products:** construction-specific document and field-issue product surfaces exist in Web/P0 contracts, but the canonical P6 Field Registry has no independent subject-area rows for Document, Issue, Risk, Notice or Work Product. Therefore product functionality must not be confused with P6 subject-area parity.
+
+### Subject-area conclusion
+
+The repository has substantial real P6 persistence/API foundations, but the architecture is currently uneven by subject area: Activities are heavily represented in the canonical Registry, while Relationships, Roles, UDF values, Cost Accounts, and P6 working-data/document-control subject areas are not yet represented with a uniform canonical Field → API → Persistence → Client → Interchange contract.
+
+This reinforces Issue #389 as the umbrella P6 parity backlog and Issue #1227 for the interchange/type-validation integration. No new local client engine should be introduced to compensate for these gaps.
