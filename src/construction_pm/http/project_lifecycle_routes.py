@@ -480,7 +480,12 @@ class ProjectLifecycleHttpRoutes:
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
                 if not project_id: return self._error(400, "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
-                context = self._api.open_project(session_id, project_id, now=now).context
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.list_assignments(BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth)
                 return self._json(200, {"contract_version": P6_RESOURCE_READ_API_VERSION, "assignments": list(result)})
@@ -488,7 +493,12 @@ class ProjectLifecycleHttpRoutes:
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 prefix, assignment_id = path.split("/p6/resource-assignments/", 1); project_id = prefix[len("/api/projects/"):]; assignment_id = assignment_id.rstrip("/")
                 if not project_id or not assignment_id or "/" in assignment_id: return self._error(400, "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
-                context = self._api.open_project(session_id, project_id, now=now).context
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment(BackendScope(context.tenant_id, context.project_id, context.revision), assignment_id, auth_context=auth)
                 if result is None: return self._error(404, "P6_RESOURCE_ASSIGNMENT_NOT_FOUND", "error.p6.resource_assignment.not_found")
@@ -497,7 +507,12 @@ class ProjectLifecycleHttpRoutes:
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignment-periods")].rstrip("/")
                 if not project_id: return self._error(400, "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
-                context = self._api.open_project(session_id, project_id, now=now).context
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.list_assignment_periods(BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth)
                 return self._json(200, {"contract_version": P6_RESOURCE_READ_API_VERSION, "periods": list(result)})
@@ -505,7 +520,12 @@ class ProjectLifecycleHttpRoutes:
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 prefix, suffix = path.split("/p6/resource-assignment-periods/", 1); project_id = prefix[len("/api/projects/"):]; parts = suffix.rstrip("/").split("/")
                 if not project_id or len(parts) != 2 or not all(parts): return self._error(400, "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
-                context = self._api.open_project(session_id, project_id, now=now).context
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment_period(BackendScope(context.tenant_id, context.project_id, context.revision), parts[0], parts[1], auth_context=auth)
                 if result is None: return self._error(404, "P6_RESOURCE_ASSIGNMENT_PERIOD_NOT_FOUND", "error.p6.resource_assignment_period.not_found")
@@ -514,7 +534,12 @@ class ProjectLifecycleHttpRoutes:
                 if self._p6_resource_write_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignment-periods")].rstrip("/")
                 if not project_id: return self._error(400, "P6_RESOURCE_REQUEST_INVALID", "error.request.invalid")
-                context = self._api.open_project(session_id, project_id, now=now).context
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 try:
                     payload = json.loads(body.decode("utf-8") or "{}")
