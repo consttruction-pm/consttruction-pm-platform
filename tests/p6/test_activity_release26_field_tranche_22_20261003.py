@@ -15,7 +15,7 @@ EXPECTED = {
     "RemainingNonLaborUnits": (P6FieldType.DOUBLE, True, False),
     "ResumeDate": (P6FieldType.DATETIME, True, False),
     "SchedulePerformanceIndex": (P6FieldType.DOUBLE, False, True),
-    "ScopePercentComplete": (P6FieldType.DOUBLE, False, True),
+    "ScopePercentComplete": (P6FieldType.DOUBLE, True, False),
     "StartDateVariance": (P6FieldType.DOUBLE, False, True),
     "Status": (P6FieldType.STRING, False, True),
     "SuspendDate": (P6FieldType.DATETIME, True, False),
