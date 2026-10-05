@@ -174,6 +174,18 @@ def test_resolved_activity_calendar_provider_preserves_activity_identity():
 
 
 
+def test_registry_accepts_working_time_reference_with_matching_jalali_system():
+    ref = CalendarReference(
+        "time-jalali", "1", kind="working-time", system=CalendarSystem.JALALI
+    )
+    resolver = TimeAwareWorkingTimeResolver(
+        WorkingTimeCalendar(system=CalendarSystem.JALALI)
+    )
+    registry = CalendarResolverRegistry(time_resolvers={"time-jalali@1": resolver})
+
+    assert registry.resolve(ref) is resolver
+
+
 def test_registry_rejects_resolver_kind_mismatch_for_day_reference():
     ref = CalendarReference("project-main", "7", kind="working-day")
     resolver = TimeAwareWorkingTimeResolver(WorkingTimeCalendar())
