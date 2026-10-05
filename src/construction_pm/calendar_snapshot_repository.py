@@ -10,6 +10,10 @@ from typing import Protocol
 from .backend_p0.models import BackendScope
 from .calendar_master_repository import CalendarMaster, CalendarPersistenceError
 from .scheduling.calendar import WorkingCalendar
+from .scheduling.time_calendar import WorkingTimeCalendar
+
+
+CalendarDefinition = WorkingCalendar | WorkingTimeCalendar
 
 
 @dataclass(frozen=True)
@@ -17,35 +21,60 @@ class CalendarSnapshotRecord:
     scope: BackendScope
     calendar_id: str
     calendar_version: str
+    kind: str
     snapshot: dict[str, object]
 
     def validate(self) -> None:
         self.scope.validate()
         if not self.calendar_id.strip() or not self.calendar_version.strip():
             raise CalendarPersistenceError("INVALID_CALENDAR_REFERENCE")
+        if self.kind not in {"working-day", "working-time"}:
+            raise CalendarPersistenceError("INVALID_CALENDAR_KIND")
         if not isinstance(self.snapshot, dict):
             raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
         try:
-            WorkingCalendar.from_canonical_snapshot(self.snapshot)
+            kind = self.snapshot.get("kind", "working-day")
+            if kind != self.kind:
+                raise ValueError("calendar snapshot kind does not match master")
+            if kind == "working-day":
+                WorkingCalendar.from_canonical_snapshot(self.snapshot)
+            elif kind == "working-time":
+                WorkingTimeCalendar.from_canonical_snapshot(self.snapshot)
+            else:
+                raise ValueError("unsupported calendar snapshot kind")
         except (TypeError, ValueError) as exc:
             raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
 
 
 class CalendarSnapshotRepository(Protocol):
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord: ...
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord: ...
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None: ...
 
 
+def _canonicalize_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    """Normalize persisted JSON back to the Shared-Core canonical representation."""
+    kind = snapshot.get("kind", "working-day")
+    if kind == "working-time":
+        return WorkingTimeCalendar.from_canonical_snapshot(snapshot).canonical_snapshot()
+    if kind == "working-day":
+        return WorkingCalendar.from_canonical_snapshot(snapshot).canonical_snapshot()
+    raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
+
+
 def _record(calendar: CalendarMaster, snapshot: dict[str, object]) -> CalendarSnapshotRecord:
+    try:
+        normalized_snapshot = _canonicalize_snapshot(snapshot)
+    except (TypeError, ValueError) as exc:
+        raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
     record = CalendarSnapshotRecord(
         calendar.scope,
         calendar.calendar_id,
         calendar.calendar_version,
-        snapshot,
+        calendar.kind,
+        normalized_snapshot,
     )
     record.validate()
     return record
-
 
 def _canonical_json(snapshot: dict[str, object]) -> str:
     return json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -76,24 +105,38 @@ class SQLiteCalendarSnapshotRepository:
         )
         self.connection.commit()
 
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
         calendar.validate()
-        record = _record(calendar, working_calendar.canonical_snapshot())
+        record = _record(calendar, calendar_definition.canonical_snapshot())
+        canonical_snapshot = _canonical_json(record.snapshot)
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
             "(tenant_id,project_id,project_revision,calendar_id,calendar_version,snapshot_json) "
             "VALUES (?,?,?,?,?,?) "
-            "ON CONFLICT(tenant_id,project_id,calendar_id,calendar_version) DO UPDATE SET "
-            "project_revision=excluded.project_revision,snapshot_json=excluded.snapshot_json",
+            "ON CONFLICT(tenant_id,project_id,calendar_id,calendar_version) DO NOTHING",
             (
                 calendar.scope.tenant_id,
                 calendar.scope.project_id,
                 calendar.scope.project_revision,
                 calendar.calendar_id,
                 calendar.calendar_version,
-                _canonical_json(record.snapshot),
+                canonical_snapshot,
             ),
         )
+        existing = self.connection.execute(
+            "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
+            "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
+            (
+                calendar.scope.tenant_id, calendar.scope.project_id,
+                calendar.calendar_id, calendar.calendar_version,
+            ),
+        ).fetchone()
+        if existing is None:
+            raise CalendarPersistenceError("SNAPSHOT_WRITE_CONFLICT")
+        if int(existing[0]) != calendar.scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        if str(existing[1]) != canonical_snapshot:
+            raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
         self.connection.commit()
         return record
 
@@ -125,24 +168,37 @@ class PostgresCalendarSnapshotRepository:
             "REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version))"
         )
 
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
         calendar.validate()
-        record = _record(calendar, working_calendar.canonical_snapshot())
+        record = _record(calendar, calendar_definition.canonical_snapshot())
+        canonical_snapshot = _canonical_json(record.snapshot)
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
             "(tenant_id,project_id,project_revision,calendar_id,calendar_version,snapshot_json) "
             "VALUES (%s,%s,%s,%s,%s,%s::jsonb) "
-            "ON CONFLICT (tenant_id,project_id,calendar_id,calendar_version) DO UPDATE SET "
-            "project_revision=EXCLUDED.project_revision,snapshot_json=EXCLUDED.snapshot_json",
+            "ON CONFLICT (tenant_id,project_id,calendar_id,calendar_version) DO NOTHING",
             (
-                calendar.scope.tenant_id,
-                calendar.scope.project_id,
-                calendar.scope.project_revision,
-                calendar.calendar_id,
-                calendar.calendar_version,
-                _canonical_json(record.snapshot),
+                calendar.scope.tenant_id, calendar.scope.project_id,
+                calendar.scope.project_revision, calendar.calendar_id,
+                calendar.calendar_version, canonical_snapshot,
             ),
         )
+        existing = self.connection.execute(
+            "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+            (
+                calendar.scope.tenant_id, calendar.scope.project_id,
+                calendar.calendar_id, calendar.calendar_version,
+            ),
+        ).fetchone()
+        if existing is None:
+            raise CalendarPersistenceError("SNAPSHOT_WRITE_CONFLICT")
+        if int(existing[0]) != calendar.scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        raw = existing[1]
+        existing_snapshot = json.loads(raw) if isinstance(raw, str) else raw
+        if _canonical_json(existing_snapshot) != canonical_snapshot:
+            raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
         return record
 
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None:
