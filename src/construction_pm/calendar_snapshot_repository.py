@@ -148,7 +148,7 @@ class PostgresCalendarSnapshotRepository:
             "REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version))"
         )
 
-    def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
+    def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
         calendar.validate()
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
