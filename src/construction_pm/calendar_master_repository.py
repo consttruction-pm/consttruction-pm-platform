@@ -117,7 +117,7 @@ class SQLiteCalendarMasterRepository:
         )
         for column in ("base_calendar_id", "base_calendar_version", "calendar_type"):
             try:
-                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT")
+                self.connection.execute(f"ALTER TABLE calendar_master ADD COLUMN {column} TEXT NOT NULL DEFAULT 'project'")
             except sqlite3.OperationalError as exc:
                 if "duplicate column name" not in str(exc).lower():
                     raise
@@ -149,9 +149,9 @@ class SQLiteCalendarMasterRepository:
         if row is None:
             if expected_revision not in (None, 0):
                 raise CalendarPersistenceError("REVISION_CONFLICT")
-            stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
+            stored = CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
             self.connection.execute(
-                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
                  stored.calendar_id, stored.calendar_version, stored.kind, stored.name, 1,
                  stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type),
@@ -449,7 +449,7 @@ class PostgresCalendarMasterRepository:
             if expected_revision not in (None, 0):
                 raise CalendarPersistenceError("REVISION_CONFLICT")
             self.connection.execute(
-                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO calendar_master (tenant_id,project_id,project_revision,calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version,calendar_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (calendar.scope.tenant_id, calendar.scope.project_id, calendar.scope.project_revision,
                  calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1,
                  calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type),
