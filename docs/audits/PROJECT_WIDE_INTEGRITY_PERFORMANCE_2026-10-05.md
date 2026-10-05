@@ -332,3 +332,20 @@ The material completeness problem is therefore not “the Activity catalog is ab
 Most importantly, the global Registry status remains `seeded_not_certified`. The presence of 366 rows or complete Activity-name coverage must not be interpreted as P6 parity certification. Each applicable field still requires an evidence-backed disposition for identity, type, unit, writable/read-only, computed/stored, defaults/nullability, API/client context and import/export behavior.
 
 **Quantitative audit verdict:** Activity-name coverage = strong evidence; subject-area parity = partial; certification = not complete.
+
+
+## T. HTTP wiring recheck — current main
+
+Direct inspection of `src/construction_pm/http/project_lifecycle_routes.py` shows that the Web HTTP boundary currently wires Field Registry, Layout, Formula Authority, Calendar read, Baseline, Financial Period, Mapping, Interchange, Resource read/write/spread and Code APIs. This is positive evidence that several P6 boundaries are not merely dead Python classes.
+
+However, the current HTTP route constructor/import surface does **not** wire:
+- `P6ActivityPeriodActualAPI`;
+- a P6 Relationship API (none exists as a dedicated API file);
+- a P6 Cost Account API (none exists as a dedicated API file);
+- a P6 Expense API (none exists as a dedicated API file);
+- a dedicated P6 UDF-value API (definition CRUD is wired through Field Registry API, value persistence is not exposed through an equivalent transport boundary);
+- a full write-capable P6 Calendar API (only the read adapter is currently injected; this remains consistent with Issue #1209).
+
+Therefore the current Web HTTP layer demonstrates partial P6 product wiring, not complete P6 subject-area transport parity. The generic sync system must not be counted as proof of P6 typed endpoint parity unless each subject's canonical contract, validation, persistence and client behavior are independently demonstrated.
+
+The route file also currently contains a duplicated import of `P6UserDefinedFieldDefinition`. This is a small hygiene issue only; it has no evidence of affecting runtime behavior and is not being treated as a material product defect in this audit.
