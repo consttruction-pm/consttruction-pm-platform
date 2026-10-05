@@ -289,7 +289,21 @@ def test_import_converts_canonical_date_and_decimal_types() -> None:
 
 def test_mapping_rejects_unknown_canonical_field_and_type_mismatch() -> None:
     with pytest.raises(P6InterchangeCompatibilityError, match="UNKNOWN_CANONICAL_FIELD:activity.no_such_field"):
-        P6InterchangeMapper((mapping("bad", source="x", canonical="activity.no_such_field", status=P6MappingStatus.SUPPORTED),))
+        P6InterchangeMapper((
+            PersistedP6Mapping(
+                scope=scope(),
+                definition=P6MappingDefinition(
+                    mapping_id="bad",
+                    registry_version="p6-field-registry.v1",
+                    format=P6MappingFormat.XER_PROJECT,
+                    subject_area="Activity",
+                    source_field="x",
+                    canonical_field="activity.no_such_field",
+                    status=P6MappingStatus.SUPPORTED,
+                    canonical_type="string",
+                ),
+            ),
+        ))
     record = mapping("bad-type", source="x", canonical="activity.code", status=P6MappingStatus.SUPPORTED)
     d = record.definition
     bad = PersistedP6Mapping(scope=scope(), definition=P6MappingDefinition(
