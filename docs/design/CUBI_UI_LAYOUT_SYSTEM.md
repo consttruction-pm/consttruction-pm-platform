@@ -102,7 +102,9 @@ Print-specific behavior:
 - expands tables and Gantt surfaces to printable width;
 - reduces table typography only enough to fit professional reports;
 - prevents cards and Gantt rows from being split where practical;
-- keeps semantic structure and readable headings.
+- keeps semantic structure and readable headings;
+- repeats table headers on subsequent printed pages where the browser supports table header groups;
+- keeps Activity rows and other atomic report rows together across page boundaries where practical.
 
 No print rule may alter Shared Core calculations or project data; print is presentation-only.
 
