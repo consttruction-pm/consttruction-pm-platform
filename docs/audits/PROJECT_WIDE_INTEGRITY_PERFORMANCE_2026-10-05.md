@@ -736,3 +736,12 @@ The model explicitly treats the base-calendar pair as optional; `None/None` repr
 ### Required direction
 
 Use nullable defaults for the optional inheritance columns during migration (or a backfill that explicitly establishes `NULL` for existing rows), preserve `calendar_type` default separately, and add a legacy-schema migration regression test that verifies old calendars remain non-inherited unless inheritance was explicitly stored. Migration must be tested before any production database upgrade.
+
+
+## AP. P6 Calendar API/HTTP write-path exposure — confirmed gap
+
+The source tree contains a substantial `P6CalendarAPI` with create/update/delete/copy/replace, exception and work-hour operations. However, `src/construction_pm/http/project_lifecycle_routes.py` wires only `P6CalendarReadAPI` for the `/api/projects/{project}/p6/calendars` GET catalog and snapshot reads; no `P6CalendarAPI` write dependency is constructed or routed there.
+
+Therefore Calendar persistence and typed API code exist, but the Web HTTP boundary does not yet demonstrate an end-to-end Calendar write path. The same route-tree inspection also found no dedicated HTTP path for Relationship Master, Cost Account, or Expense persistence. This is an integration/completeness gap, not evidence of a missing domain implementation.
+
+**Medium–High severity, high confidence.** For the declared Web-first beta, calendar administration cannot be considered end-to-end complete until the write API is exposed with tenant/project/revision authorization and one transaction boundary. No client-side calendar mutation engine should be introduced to compensate.
