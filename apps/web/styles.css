@@ -54,6 +54,9 @@ button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 .cp-app-shell { min-height: 100vh; }
 .cp-app-status {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   min-height: 52px;
   padding: .7rem 1rem;
   background:
@@ -913,6 +916,7 @@ th {
 
 @media (max-width: 760px) {
   .cp-app-status {
+    top: 0;
     min-height: 44px;
     padding: 6px 10px;
     font-size: 12px;
