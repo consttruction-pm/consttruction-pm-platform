@@ -138,16 +138,18 @@ class SQLiteCalendarWorkHourRepository:
         if kind not in WORK_HOUR_KINDS:
             raise CalendarPersistenceError("INVALID_WORK_HOUR_KIND")
         rows = self.connection.execute(
-            "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision "
+            "SELECT weekday,is_working_day,total_work_hours,intervals_json,record_revision "
             "FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND project_revision=? "
             "ORDER BY weekday",
             (scope.tenant_id, scope.project_id, calendar_id, calendar_version, kind, scope.project_revision),
         ).fetchall()
-        weekdays = self.connection.execute(
-            "SELECT weekday FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND project_revision=? ORDER BY weekday",
-            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, kind, scope.project_revision),
-        ).fetchall()
-        return tuple(_row_to_rule(scope, calendar_id, calendar_version, kind, row[0], row) for row in rows)
+        return tuple(
+            _row_to_rule(
+                scope, calendar_id, calendar_version, kind, row[0],
+                (row[1], row[2], row[3], row[4]),
+            )
+            for row in rows
+        )
 
 class PostgresCalendarWorkHourRepository:
     def __init__(self, connection: object) -> None:
