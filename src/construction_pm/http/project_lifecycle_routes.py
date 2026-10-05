@@ -196,6 +196,17 @@ class ProjectLifecycleHttpRoutes:
                 raw_scope = payload.get("scope")
                 if not isinstance(raw_scope, dict):
                     return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                requested_project_id = raw_scope.get("project_id")
+                if not isinstance(requested_project_id, str) or not requested_project_id.strip():
+                    return self._error(400, "SCHEDULE_QUERY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, requested_project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
                 if raw_scope.get("tenant_id") != context.tenant_id or raw_scope.get("project_id") != context.project_id or raw_scope.get("project_revision") != context.revision:
                     return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
                 if payload.get("requested_by") != session.user_id:
