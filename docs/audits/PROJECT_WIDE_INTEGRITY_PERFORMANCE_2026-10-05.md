@@ -240,3 +240,37 @@ The current repository head is 9da4be61981f87a8584641c1266e58592411fd37, merge c
 Fresh exact-head CI evidence is still not established by the connected status/run interface; therefore this audit continues to classify exact-head runtime verification as unverified, not green.
 
 The current-main rule remains binding: future UI or parity PRs must rebuild/rebase from this head before merge, and no stale PR baseline should be treated as integrated work.
+
+
+## P. Baseline / Resource-Assignment / Cost-EVM / Financial-Period traceability recheck — current main 78f6d157fcd1585f92b14577209094596ed03964
+
+Fresh repository inspection on the actual current `main` confirms that these P6 persistence boundaries exist and are separated from Shared Core calculation semantics:
+
+- **Baseline:** `p6_baseline_repository.py` + `p6_baseline_api.py` provide tenant/project/revision-scoped immutable baseline metadata for PRIMARY/SECONDARY/TERTIARY/USER_SELECTED, with SQLite/PostgreSQL persistence, transaction ownership and API authorization. The architecture document explicitly limits this slice to metadata/provenance; baseline activity date/unit/cost comparison, selection behavior and variance calculation remain open Shared-Core semantics.
+- **Important baseline parity gap:** the repository already contains typed read-evidence for 11 primary, 11 secondary and 11 tertiary activity baseline fields, and those fields are seeded in the Field Registry, but the current baseline persistence model does **not** persist an activity-level baseline snapshot/value set. Therefore the existence of the metadata API must not be counted as full P6 baseline functionality. Writable/default/nullability/import-export and stored-vs-computed certification also remain open in the evidence artifacts.
+- **Resource assignment:** `p6_resource_assignment_repository.py` persists assignment identity, activity/resource/role references, units, actual/remaining units, cost snapshots, unit/currency, calendar reference and deterministic period buckets. Decimal values are preserved without float conversion. This is correctly a persistence boundary and does not duplicate resource/calendar/leveling/scheduling calculation.
+- **Resource-calendar parity gap:** the authoritative scheduling model carries activity calendar assignments, but a complete first-class resource-calendar precedence/assignment path is still not demonstrated. The legacy `resources/calendar.py` must remain outside the authoritative engine and must not be extended into a second calendar implementation.
+- **Cost accounts:** `p6_cost_account_repository.py` provides immutable hierarchical cost-account definitions with SQLite/PostgreSQL parity. It deliberately does not calculate costs or assign cost accounts to activities/resources; those remain follow-up integration semantics.
+- **Financial periods:** `p6_financial_period_repository.py` + `p6_financial_period_api.py` provide scoped immutable period metadata and OPEN/CLOSED state, with SQLite/PostgreSQL parity. They do not yet constitute financial-period value calculation, EVM periodization or complete import/export semantics.
+- **EVM:** the repository has real Shared-Core earned-schedule/EVM-related calculation surfaces, while `resources/evm_bridge.py` is a small resource-to-EVM adapter. It must remain an adapter and must not become a second EVM authority. End-to-end traceability from canonical P6 cost/resource/financial-period fields through the Field Registry, API, persistence, all three clients and interchange is still incomplete.
+- **Three-platform consumption:** the current Web/Desktop/Mobile app trees do not contain dedicated baseline/resource/cost/financial-period feature modules. This is not proof that generic project/sync contracts cannot carry these values, but it means dedicated cross-platform P6 consumption parity for these subject areas is not yet demonstrated. The existing Shared Core/API boundaries must remain authoritative; clients must not invent local calculation semantics.
+
+### P6 field-registry finding
+
+The canonical Field Registry contains the seeded Baseline1/2/3 activity fields, but the registry status remains `seeded_not_certified`. The typed evidence artifacts explicitly state that they certify read-side type/semantic evidence only and do not certify writable behavior, defaults, nullability, import/export or stored-vs-computed behavior. This is the correct conservative state and must not be upgraded without independent evidence.
+
+### Audit verdict for this tranche
+
+**Baseline:** persistence foundation = present; full P6 baseline semantics = **partial**.
+
+**Resource/Assignment:** persistence foundation = present; full resource/calendar/rate/leveling/client parity = **partial**.
+
+**Cost/EVM:** Shared-Core calculation foundations = present; canonical field/API/persistence/interchange/client traceability = **partial**.
+
+**Financial Period:** metadata persistence/API = present; full P6 financial-period calculation/interchange/client parity = **partial**.
+
+No second scheduling, calendar, formula or EVM calculation engine should be introduced to close these gaps.
+
+### Current-main authority note
+
+The repository branch endpoint currently identifies `78f6d157fcd1585f92b14577209094596ed03964` as the authoritative `main` head. Earlier sections of this document intentionally preserve historical audit checkpoints and their SHAs; they are not substitutes for this current-head value.
