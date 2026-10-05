@@ -1160,3 +1160,18 @@ Status: **100% — merged and runtime-verified**
 - Fresh #393 audit confirms the current backend-owned P6 surfaces are already represented on main: Field Registry/UDF, formula definitions, mapping/interchange, baseline, financial periods, resources/resource-spreads, codes, expenses, report profiles, activity period actuals, layout, calendar read, and dependency graph HTTP/API boundaries.
 - Remaining Activity Status/Type/StatusCode, WBS/WorkPackage and time-aware ScheduleOptions items remain blocked on authoritative Shared-Core/P6 semantic evidence; no backend semantics are inferred from presentation or field names.
 - Disposition: **evidence boundary; no speculative implementation**. Next Hasan implementation requires a newly reproducible backend defect or authoritative contract-backed seam on exact current main.
+
+
+### 2026-10-05 — P6 Mapping HTTP boundary checkpoint (PR #1160)
+Status: **runtime-verified and merged**
+- PR #1160 exposed the authenticated HTTP boundary for the existing versioned P6 Mapping API.
+- Exact implementation head: `563a746b7edce9b4f0f72bd2d721aa5f6995fb9a`.
+- ConstructionPM CI run **3963** completed successfully; client typechecks were successful on the exact head.
+- PR #1160 squash-merged as `73ed24e903c13866b3578cb30ec042c06a33fc1b`.
+- Current `main`: `73ed24e903c13866b3578cb30ec042c06a33fc1b`.
+- No mapping calculation, P6 scheduling semantics, or Shared-Core authority was moved into HTTP/API.
+
+### Current Hasan continuation
+- Fresh current-main audit is required before the next implementation.
+- Only a concrete Backend/Database/Application/API/Import-Export gap backed by authoritative project evidence may be implemented.
+- Stale branches/PRs and presentation-only gaps must not be revived or converted into backend semantics.
