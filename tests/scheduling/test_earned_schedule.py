@@ -37,6 +37,7 @@ def test_ahead_of_schedule():
         periods(), earned_value=250, data_date=date(2026, 3, 15), project_start=date(2026, 1, 1)
     )
     assert result.earned_schedule == Decimal("73.5")
+    assert result.earned_schedule_date == date(2026, 3, 16)
     assert result.status == "AHEAD"
     assert result.spi_t > Decimal("1")
 
