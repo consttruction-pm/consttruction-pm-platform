@@ -23,3 +23,11 @@ test("commercial homepage exposes the required SEO contract", () => {
   assert.match(index, /name="twitter:title"/);
   assert.match(index, /"@type": \["SoftwareApplication", "WebSite"\]/);
 });
+
+
+test("commercial surfaces do not expose external product provenance", () => {
+  for (const pattern of [/Oracle/i, /Primavera/i, /P6/i]) {
+    assert.doesNotMatch(landing, pattern);
+    assert.doesNotMatch(index, pattern);
+  }
+});
