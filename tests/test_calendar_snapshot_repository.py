@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 
 import pytest
@@ -88,16 +88,11 @@ def test_snapshot_repository_requires_authoritative_calendar_reference():
 
 
 def test_snapshot_save_is_idempotent_for_same_version_and_rejects_changed_content():
-    import sqlite3
-    from construction_pm.scheduling.calendar import WorkingCalendar
-
     s = BackendScope("T-1", "P-1", 7)
     calendar = CalendarMaster(s, "CAL-1", "1", "working-day", "Project Calendar")
     conn = sqlite3.connect(":memory:")
-    PostgresCalendarMasterRepository if False else None
-    from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
     SQLiteCalendarMasterRepository(conn).save(calendar)
-    repo = __import__("construction_pm.calendar_snapshot_repository", fromlist=["SQLiteCalendarSnapshotRepository"]).SQLiteCalendarSnapshotRepository(conn)
+    repo = SQLiteCalendarSnapshotRepository(conn)
 
     original = WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}),
