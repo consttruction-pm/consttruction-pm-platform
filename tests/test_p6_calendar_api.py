@@ -129,6 +129,30 @@ def test_replace_uses_authoritative_snapshot_and_optimistic_revision():
     assert api.snapshot_repository.get(target) is not None
 
 
+def test_replace_rejects_conflicting_target_snapshot_before_mutation():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    api.create(_scope(), _request("CAL-T"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    target = api.calendar_repository.get(_scope(), "CAL-T", "1")
+    api.snapshot_repository.save(source, _definition())
+    alternate = WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2}),
+        holidays=frozenset(),
+        system=CalendarSystem.GREGORIAN,
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("8"), hours_per_week=Decimal("24"),
+            hours_per_month=Decimal("104"), hours_per_year=Decimal("1248"),
+        ),
+    )
+    api.snapshot_repository.save(target, alternate)
+    with pytest.raises(ValueError, match="TARGET_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT"):
+        api.replace(_scope(), "CAL-T", "1", "CAL-S", "1", auth_context=_auth())
+    unchanged = api.calendar_repository.get(_scope(), "CAL-T", "1")
+    assert unchanged.record_revision == 1
+    assert unchanged.name == "Calendar"
+
+
 def test_delete_requires_current_record_revision():
     api, _ = _api()
     api.create(_scope(), _request("CAL-D"), auth_context=_auth())
