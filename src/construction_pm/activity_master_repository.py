@@ -213,7 +213,7 @@ class SQLiteActivityMasterRepository:
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=current.record_revision + 1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type)
-        self.connection.execute(
+        update_cursor = self.connection.execute(
             "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,percent_complete_type=?,record_revision=?,expected_finish=? WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
             (stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
              None if stored.actual_start is None else stored.actual_start.isoformat(),
@@ -225,7 +225,7 @@ class SQLiteActivityMasterRepository:
              stored.record_revision,
              None if stored.expected_finish is None else stored.expected_finish.isoformat(),
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
-        if self.connection.total_changes < 1:
+        if update_cursor.rowcount != 1:
             self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
         self.connection.commit()
