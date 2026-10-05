@@ -1246,6 +1246,10 @@ th {
   background: var(--cp-navy);
   border-color: rgba(184,189,197,.55);
 }
+.cubi-dot {
+  background: var(--cubi-titanium-dark);
+  box-shadow: 0 0 0 4px rgba(112,120,131,.12);
+}
 .cubi-dash-top b { color: var(--cp-muted); }
 .cubi-signal .cubi-mini-note span { color: var(--cp-blue); }
 
