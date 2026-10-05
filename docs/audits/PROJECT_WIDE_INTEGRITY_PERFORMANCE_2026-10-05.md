@@ -488,3 +488,22 @@ This is **Medium-to-High architectural/parity risk, high confidence**. It does n
 ### Required disposition
 
 Keep these persistence implementations; do not replace them with duplicate stores. Complete canonical Field Registry identities and API/HTTP wiring, add explicit Financial Period/Expense relationship semantics, and connect them to one Shared-Core EVM result contract. Preserve the separation between stored inputs and computed results.
+
+
+## AB. Relationship authority / P6 registry seam — current main
+
+Fresh current-main inspection of relationship persistence versus the Shared Core scheduler found:
+
+- `relationship_master_repository.py` is a real authoritative persistence boundary for predecessor/successor relationships and stores `relationship_type`, signed `Decimal lag_value`, `DurationUnit lag_unit` and record revision.
+- The Shared Core scheduler model in `scheduling/relationships.py` represents lag as an `int` and documents it as working-day lag. There is no inspected canonical adapter that proves lossless conversion from `LagQuantity` / `DurationUnit` into scheduler semantics for all supported P6 lag units.
+- No dedicated Relationship API or HTTP route was found in the current source tree. Thus relationship persistence is present, but the end-to-end P6 transport path is not demonstrated.
+- The Field Registry currently has no independent Relationship subject rows; only ScheduleOptions for relationship-lag-calendar and external-project handling are registered. This leaves relationship identity, endpoints, type, lag value and lag unit without independent registry traceability.
+- No Role domain/persistence/API subject was found in the current source tree. `role_id` and `primary_role` appear as fields on adjacent resource/assignment structures, but this is not equivalent to a canonical P6 Role subject model.
+
+### Verdict
+
+**High parity/integration risk, high confidence** for Relationships because persistence and scheduling representations use different lag types/units without a proven canonical conversion/API chain.
+
+**Medium parity risk, high confidence** for Roles because the independent P6 subject area is not represented as a canonical domain/API/registry surface.
+
+Required direction: make one canonical Relationship/Lag contract shared by persistence, scheduling, API and interchange, preserving signed lag and explicit duration-unit semantics. Add independent Registry subject definitions and a Role domain boundary before declaring these P6 areas complete. Do not modify CPM arithmetic merely to hide the transport gap.
