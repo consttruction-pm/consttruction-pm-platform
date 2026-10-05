@@ -81,6 +81,6 @@ def test_postgres_snapshot_same_version_rejects_changed_content():
         with PostgresTransactionManager(connection).transaction():
             masters.save(calendar)
             first = snapshots.save(calendar, original)
-        with pytest.raises(Exception, match="SNAPSHOT_IMMUTABLE_CONFLICT"):
+        with pytest.raises(CalendarPersistenceError, match="SNAPSHOT_IMMUTABLE_CONFLICT"):
             snapshots.save(calendar, changed)
         assert snapshots.get(calendar) == first
