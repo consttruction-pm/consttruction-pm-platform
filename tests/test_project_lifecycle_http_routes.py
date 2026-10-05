@@ -30,6 +30,8 @@ from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService, SQLiteP6ResourceSpreadRepository
+from construction_pm.p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
+from construction_pm.p6_code_repository import P6CodeApplicationService, P6CodeValue, SQLiteP6CodeRepository
 from construction_pm.p6_mapping_registry import P6MappingFormat
 from construction_pm.p6_xer_codec import P6XerCodec
 from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
@@ -278,6 +280,66 @@ def test_resource_spread_http_boundary_enforces_project_scope_and_payload_contra
     )
     assert status == 400
     assert json.loads(raw)["code"] == "P6_RESOURCE_SPREAD_REQUEST_INVALID"
+
+def p6_code_routes(roles=frozenset({"project_admin"})):
+    import sqlite3
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", roles, now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    connection = sqlite3.connect(":memory:")
+    transaction_manager = SQLiteTransactionManager(connection)
+    code_api = P6CodeAPI(
+        P6CodeApplicationService(SQLiteP6CodeRepository(connection), transaction_manager),
+        default_project_policy(),
+    )
+    return ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_code_api=code_api,
+    )
+
+
+def test_authenticated_p6_code_http_boundary_round_trips_typed_definition():
+    r = p6_code_routes()
+    payload = {
+        "code_id": "ACT-PHASE", "name": "Activity Phase", "subject_area": "Activity",
+        "scope_kind": "PROJECT", "scope_key": "p1",
+        "values": [{"value_id": "DES", "value": "Design", "description": "Design phase"}],
+    }
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/codes", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 200
+    created = json.loads(raw)
+    assert created["contract_version"] == P6_CODE_API_VERSION
+    assert created["code"]["code_id"] == "ACT-PHASE"
+    assert created["code"]["values"][0]["value"] == "Design"
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/codes/ACT-PHASE", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(raw) == created
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/codes", cookies={"cp_session": "s1"})
+    assert status == 200
+    listed = json.loads(raw)
+    assert listed["contract_version"] == P6_CODE_API_VERSION
+    assert [item["code"]["code_id"] for item in listed["codes"]] == ["ACT-PHASE"]
+
+
+def test_p6_code_http_boundary_enforces_scope_permission_and_payload_contract():
+    r = p6_code_routes()
+    status, _, raw = r.handle("GET", "/api/projects/p2/p6/codes", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    r = p6_code_routes(roles=frozenset())
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/codes", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert "authorization" in json.loads(raw)["code"].lower()
+    r = p6_code_routes()
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/codes", cookies={"cp_session": "s1"}, body=b"{not-json")
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_CODE_REQUEST_INVALID"
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/codes/missing", cookies={"cp_session": "s1"})
+    assert status == 404
+    assert json.loads(raw)["code"] == "P6_CODE_NOT_FOUND"
 
 def test_requires_session_cookie():
     status, _, _ = routes().handle("GET", "/api/session")
