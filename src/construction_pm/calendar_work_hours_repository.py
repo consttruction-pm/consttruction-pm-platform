@@ -7,6 +7,7 @@ records. It deliberately does not calculate schedule dates or duration.
 """
 
 import sqlite3
+from datetime import time
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Protocol
@@ -63,8 +64,8 @@ class CalendarWorkHourRule:
             if not isinstance(start, str) or not isinstance(end, str):
                 raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
             try:
-                start_time = __import__("datetime").time.fromisoformat(start)
-                end_time = __import__("datetime").time.fromisoformat(end)
+                start_time = time.fromisoformat(start)
+                end_time = time.fromisoformat(end)
             except ValueError as exc:
                 raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL") from exc
             if start_time >= end_time:
