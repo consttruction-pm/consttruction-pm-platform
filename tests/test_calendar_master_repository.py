@@ -22,6 +22,29 @@ def calendar(version: str = "1") -> CalendarMaster:
     return CalendarMaster(scope(), "CAL-1", version, "working-day", "Project Calendar")
 
 
+def test_legacy_sqlite_calendar_migration_keeps_optional_base_reference_null():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        """CREATE TABLE calendar_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+            calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL,
+            name TEXT NOT NULL, record_revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version)
+        )"""
+    )
+    conn.execute(
+        "INSERT INTO calendar_master VALUES (?,?,?,?,?,?,?,?)",
+        ("T-1", "P-1", 7, "CAL-LEGACY", "1", "working-day", "Legacy", 1),
+    )
+    SQLiteCalendarMasterRepository(conn)
+    row = conn.execute(
+        "SELECT base_calendar_id,base_calendar_version,calendar_type "
+        "FROM calendar_master WHERE calendar_id=?",
+        ("CAL-LEGACY",),
+    ).fetchone()
+    assert row == (None, None, "project")
+
+
 def test_calendar_master_versioned_round_trip_and_order():
     conn = sqlite3.connect(":memory:")
     repo = SQLiteCalendarMasterRepository(conn)
