@@ -15,7 +15,7 @@ type LandingCopy = {
   secondaryCta: string;
   tagline: string;
   visualLabel: string;
-  live: string;
+  demo: string;
   schedule: string;
   cost: string;
   wbs: string;
@@ -52,7 +52,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     secondaryCta: "See capabilities",
     tagline: "Plan. Control. Build Smarter.",
     visualLabel: "CUBI project control preview",
-    live: "Live",
+    demo: "Demo",
     schedule: "Schedule Health",
     cost: "Cost Performance",
     wbs: "WBS",
@@ -72,7 +72,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
       "Cost, resources and EVM context",
       "Documents, contracts and issues"
     ],
-    signals: "CONTROL SIGNALS",
+    signals: "CONTROL SIGNALS · DEMO",
     priority: "3 priority insights ready for review",
     footerTagline: "Plan. Control. Build Smarter.",
     footerDescriptor: "Construction & Building Intelligence",
@@ -99,7 +99,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     secondaryCta: "مشاهده قابلیت‌ها",
     tagline: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
     visualLabel: "نمایش کنترل پروژه CUBI",
-    live: "زنده",
+    demo: "نمونه",
     schedule: "سلامت زمان‌بندی",
     cost: "عملکرد هزینه",
     wbs: "ساختار شکست کار",
@@ -119,7 +119,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
       "زمینه هزینه، منابع و EVM",
       "اسناد، قراردادها و مسائل پروژه"
     ],
-    signals: "سیگنال‌های کنترل",
+    signals: "سیگنال‌های کنترل · نمونه",
     priority: "۳ بینش اولویت‌دار آماده بررسی است",
     footerTagline: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
     footerDescriptor: "هوشمندی ساخت و ساختمان",
@@ -177,7 +177,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
           <div class="cubi-hero-visual" aria-label="${t.visualLabel}">
             <div class="cubi-grid-glow"></div>
             <div class="cubi-dashboard">
-              <div class="cubi-dash-top"><span class="cubi-dot"></span><span>CUBI CONTROL CENTER</span><b>${t.live}</b></div>
+              <div class="cubi-dash-top"><span class="cubi-dot"></span><span>CUBI CONTROL CENTER · ${t.demo}</span><b>${t.demo}</b></div>
               <div class="cubi-dash-body">
                 <div class="cubi-metric"><small>${t.schedule}</small><strong>92%</strong><span>+4.8%</span></div>
                 <div class="cubi-metric"><small>${t.cost}</small><strong>0.96</strong><span>On track</span></div>
@@ -185,7 +185,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
               </div>
               <div class="cubi-timeline"><span>${t.wbs}</span><span>${t.activities}</span><span>${t.baseline}</span><span>${t.progress}</span><b>${t.aiInsight}</b></div>
             </div>
-            <div class="cubi-orbit"><img src="/logo.svg" alt="" /></div>
+            <div class="cubi-orbit"><img src="/logo-dark.svg" alt="" /></div>
           </div>
         </section>
 
