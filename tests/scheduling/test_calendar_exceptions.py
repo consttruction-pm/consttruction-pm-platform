@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pytest
 
+from construction_pm.scheduling.calendar_system import CalendarSystem, JalaliDate
 from construction_pm.scheduling.calendar_exceptions import (
     CalendarException,
     CalendarExceptionResolver,
@@ -138,3 +139,21 @@ def test_datetime_is_rejected_at_date_exception_boundaries():
     resolver = CalendarExceptionResolver(standard_is_working=True)
     with pytest.raises(TypeError, match="target_date must be a date"):
         resolver.resolve(datetime(2026, 3, 21, 12, 0))
+
+
+def test_jalali_exception_input_is_canonicalized_to_gregorian():
+    jalali = JalaliDate(1405, 1, 1)
+    exception = CalendarException(
+        jalali,
+        CalendarExceptionType.NONWORK,
+        calendar_system=CalendarSystem.JALALI,
+    )
+
+    assert exception.date == jalali.to_gregorian()
+
+    resolver = CalendarExceptionResolver(standard_is_working=True)
+    result = resolver.resolve(jalali, local_exceptions=[exception])
+
+    assert result.date == jalali.to_gregorian()
+    assert result.source == "local"
+    assert result.is_working is False
