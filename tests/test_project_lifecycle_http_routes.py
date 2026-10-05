@@ -92,6 +92,140 @@ def routes():
     )
 
 
+class WorkspaceReadAPI:
+    def __init__(self, result):
+        self.result = result
+        self.calls = []
+
+    def read_workspace_control_room(self, *, tenant_id, project_id, revision, auth_context):
+        self.calls.append((tenant_id, project_id, revision, auth_context))
+        return self.result
+
+
+def workspace_read_routes(result):
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    backend_api = WorkspaceReadAPI(result)
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        backend_p0_api=backend_api,
+    )
+    return routes, backend_api
+
+
+def workspace_snapshot(revision=2):
+    return {
+        "contract_version": "workspace-control-room-read.v1",
+        "context": {"tenant_id": "t1", "project_id": "p1", "revision": revision},
+        "workspace": {
+            "contract_version": "workspace-control-room.v1",
+            "context": {"tenant_id": "t1", "project_id": "p1", "revision": revision},
+            "columns": [],
+            "activities": [],
+        },
+        "field_daily_logs": [],
+        "field_issues": [],
+        "field_timecards": [],
+        "equipment_status_reports": [],
+        "inspections": [],
+        "quality_records": [],
+        "safety_observations": [],
+        "punch_items": [],
+    }
+
+
+def test_workspace_control_room_read_http_route_uses_authenticated_project_context():
+    r, backend = workspace_read_routes(workspace_snapshot())
+    status, _, body = r.handle(
+        "GET", "/api/v1/workspace/control-room/read",
+        cookies={"cp_session": "s1"},
+        headers={
+            "X-Tenant-Id": "t1",
+            "X-Project-Id": "p1",
+            "X-Project-Revision": "2",
+        },
+    )
+    assert status == 200
+    assert json.loads(body)["contract_version"] == "workspace-control-room-read.v1"
+    tenant_id, project_id, revision, auth_context = backend.calls[0]
+    assert (tenant_id, project_id, revision) == ("t1", "p1", 2)
+    assert auth_context.tenant_id == "t1"
+    assert auth_context.project_id == "p1"
+
+
+def test_workspace_control_room_read_http_route_rejects_missing_or_cross_scope_headers():
+    r, backend = workspace_read_routes(workspace_snapshot())
+    status, _, body = r.handle(
+        "GET", "/api/v1/workspace/control-room/read",
+        cookies={"cp_session": "s1"},
+        headers={"X-Project-Id": "p1", "X-Project-Revision": "2"},
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "WORKSPACE_READ_REQUEST_INVALID"
+    assert backend.calls == []
+
+    status, _, body = r.handle(
+        "GET", "/api/v1/workspace/control-room/read",
+        cookies={"cp_session": "s1"},
+        headers={
+            "X-Tenant-Id": "t1",
+            "X-Project-Id": "p2",
+            "X-Project-Revision": "2",
+        },
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    assert backend.calls == []
+
+
+def test_workspace_control_room_read_http_route_preserves_stale_revision_error():
+    r, _ = workspace_read_routes({
+        "error": {
+            "category": "conflict",
+            "code": "STALE_WORKSPACE_READ_SCOPE",
+            "message": "Workspace snapshot revision does not match the requested scope",
+            "retryable": True,
+        }
+    })
+    status, _, body = r.handle(
+        "GET", "/api/v1/workspace/control-room/read",
+        cookies={"cp_session": "s1"},
+        headers={
+            "X-Tenant-Id": "t1",
+            "X-Project-Id": "p1",
+            "X-Project-Revision": "1",
+        },
+    )
+    assert status == 409
+    payload = json.loads(body)
+    assert payload["error"]["code"] == "STALE_WORKSPACE_READ_SCOPE"
+    assert payload["error"]["retryable"] is True
+
+
+def test_workspace_control_room_read_http_route_rejects_malformed_backend_response():
+    r, _ = workspace_read_routes(["not-an-object"])
+    status, _, body = r.handle(
+        "GET", "/api/v1/workspace/control-room/read",
+        cookies={"cp_session": "s1"},
+        headers={
+            "X-Tenant-Id": "t1",
+            "X-Project-Id": "p1",
+            "X-Project-Revision": "2",
+        },
+    )
+    assert status == 502
+    assert json.loads(body)["code"] == "INVALID_WORKSPACE_READ_RESPONSE"
+
+
 class SyncHandler:
     def __init__(self):
         self.calls = []
