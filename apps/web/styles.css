@@ -376,6 +376,7 @@ html:lang(fa) {
 .cp-revision { color: var(--cp-muted); font-size: var(--cubi-ui-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .cp-menu {
+  min-height: var(--cubi-ui-menu-height);
   position: sticky;
   top: 52px;
   z-index: 15;
