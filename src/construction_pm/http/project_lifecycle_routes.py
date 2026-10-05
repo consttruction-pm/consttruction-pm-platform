@@ -10,7 +10,6 @@ from ..application.authorization import AuthorizationError
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.api import BackendP0API
-from ..backend_p0.errors import BackendApplicationError
 from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
