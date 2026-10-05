@@ -68,6 +68,16 @@ def _parse_snapshot(raw: str) -> dict[str, object]:
     value = json.loads(raw)
     if not isinstance(value, dict):
         raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
+    # JSON object keys are strings. Restore the typed weekday keys used by the
+    # Shared-Core WorkingTimeCalendar snapshot contract before validation and
+    # record comparison, so persistence is a true typed round trip.
+    if value.get("kind") == "working-time":
+        intervals = value.get("daily_intervals")
+        if isinstance(intervals, dict):
+            try:
+                value["daily_intervals"] = {int(key): entries for key, entries in intervals.items()}
+            except (TypeError, ValueError) as exc:
+                raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
     return value
 
 
@@ -93,7 +103,6 @@ class SQLiteCalendarSnapshotRepository:
         calendar.validate()
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
-        persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
         persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
