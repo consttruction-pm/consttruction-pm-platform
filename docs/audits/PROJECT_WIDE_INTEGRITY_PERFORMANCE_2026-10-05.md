@@ -201,3 +201,14 @@ A new cross-platform gap is recorded in Issue #1226: Desktop and Mobile currentl
 The empty `apps/web/src/p6-formula-api.ts` file is also recorded as a cleanup/documentation seam: it should not become a second transport or formula implementation. Any future implementation must consolidate on the existing versioned API/authority boundary.
 
 No calculation engine was duplicated. P6 registry certification remains blocked while the canonical registry status is `seeded_not_certified`.
+
+
+## M. P6 interchange / typed mapping recheck
+
+Fresh recheck on current main `530df3dceb3ced165070af43a581784cf5738197` verified a coherent interchange boundary: XER project/resource-only/role-only, Primavera XML, XLS/XLSX, Microsoft Project XML and MPX codecs exist; `P6InterchangeMapper` preserves unknown/unsupported fields or rejects them rather than silently dropping them; and dedicated codec/typed-value round-trip tests exist.
+
+The remaining parity gap is integration rather than absence of a typed contract. `P6InterchangeTypedValue` validates typed values independently, but the normal codec -> mapper -> canonical-field path still carries raw values. Mapping definitions retain source/canonical type metadata but do not yet enforce conversion against the canonical P6 field registry. Consequently the current typed-value tests do not by themselves prove real-file preservation of dates/timezones, duration units, Decimal precision, enums, codes/UDFs, calendars, baselines, relationships, resources/rates or financial-period data.
+
+Issue #1227 records the required follow-up: connect interchange mappings to the canonical P6 field/type registry, enforce conversion at the shared interchange boundary, add representative independent typed round-trip fixtures, and explicitly map/classify the remaining P6 subject areas. This must not create a second field registry, conversion engine or scheduling engine.
+
+**Interchange audit verdict:** architecture = sound foundation; P6 interoperability parity = partial and not yet certifiable. The no-silent-drop invariant is implemented at the interchange boundary, but complete P6 typed mapping coverage remains unverified.
