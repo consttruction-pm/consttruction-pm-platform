@@ -398,7 +398,6 @@ class PostgresCalendarMasterRepository:
         )
         self.connection.execute("ALTER TABLE calendar_master ADD COLUMN IF NOT EXISTS base_calendar_id TEXT")
         self.connection.execute("ALTER TABLE calendar_master ADD COLUMN IF NOT EXISTS base_calendar_version TEXT")
-        )
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS activity_calendar_assignment ("
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
@@ -416,7 +415,7 @@ class PostgresCalendarMasterRepository:
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
         calendar.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s FOR UPDATE",
             (calendar.scope.tenant_id, calendar.scope.project_id, calendar.calendar_id, calendar.calendar_version),
         ).fetchone()
