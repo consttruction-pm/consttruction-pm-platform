@@ -13,7 +13,7 @@ type LandingCopy = {
 const translations:Record<LandingLocale,LandingCopy>={
   en:{
     navHome:"Home",navFeatures:"Features",navSolutions:"Solutions",navPricing:"Pricing",navAi:"AI",navResources:"Resources",
-    language:"فا",open:"Open Platform",eyebrow:"CUBI PLATFORM",title:"Construction &",titleAccent:"Building Intelligence",
+    language:"فا",open:"Open Platform",eyebrow:"CUBI PLATFORM",title:"Construction Project Control,",titleAccent:"Reimagined.",
     lead:"Professional project controls, scheduling, cost, progress, resources, documents and AI assistance — designed around the way construction teams actually work.",
     tagline:"Plan. Control. Build Smarter.",cta:"Explore CUBI",secondary:"See capabilities",
     dashboard:"CUBI CONTROL CENTER",demo:"DEMO",schedule:"Schedule Health",progress:"Progress",cost:"Cost Performance",
@@ -29,7 +29,7 @@ const translations:Record<LandingLocale,LandingCopy>={
       ["◈","Cloud & Scalability","Web-ready architecture built to extend across desktop and mobile."]
     ],
     techKicker:"ENGINEERING FOUNDATION",techTitle:"Powered by the project model, not around it.",
-    techLead:"CPM / P6-aligned scheduling semantics, PostgreSQL, AI, data integration and security — with one shared engineering core.",
+    techLead:"CPM-aligned scheduling semantics, PostgreSQL, AI, data integration and security — with one shared engineering core.",
     aiTitle:"AI assistance that respects the project model.",
     aiLead:"Surface anomalies, explain control signals and suggest the next action without silently changing authoritative project data.",
     aiItems:["Schedule intelligence","Document intelligence","Report & KPI assistance"],
@@ -54,7 +54,7 @@ const translations:Record<LandingLocale,LandingCopy>={
       ["◈","ابر و مقیاس‌پذیری","معماری آماده وب برای توسعه یکپارچه در دسکتاپ و موبایل."]
     ],
     techKicker:"پایه مهندسی",techTitle:"بر پایه مدل پروژه، نه در حاشیه آن.",
-    techLead:"معماری زمان‌بندی هم‌راستا با CPM/P6، PostgreSQL، هوش مصنوعی، یکپارچگی داده و امنیت؛ با یک هسته مهندسی مشترک.",
+    techLead:"معماری زمان‌بندی هم‌راستا با CPM، PostgreSQL، هوش مصنوعی، یکپارچگی داده و امنیت؛ با یک هسته مهندسی مشترک.",
     aiTitle:"دستیار هوشمندی که به مدل پروژه احترام می‌گذارد.",
     aiLead:"ناهنجاری‌ها را آشکار می‌کند، سیگنال‌های کنترل را توضیح می‌دهد و اقدام بعدی را پیشنهاد می‌کند؛ بدون تغییر پنهانی داده‌های معتبر پروژه.",
     aiItems:["هوشمندی زمان‌بندی","هوشمندی اسناد","کمک به گزارش و KPI"],
@@ -103,7 +103,7 @@ function renderLanding(container:HTMLElement,locale:LandingLocale){
       </section>
       <section class="cubi-reference-tech cubi-section" id="solutions">
         <div class="cubi-section-head"><p class="cubi-kicker">${t.techKicker}</p><h2>${t.techTitle}</h2><p>${t.techLead}</p></div>
-        <div class="cubi-tech-pills"><span>CPM / P6</span><span>PostgreSQL</span><span>AI</span><span>Data Integration</span><span>Security</span></div>
+        <div class="cubi-tech-pills"><span>CPM Scheduling</span><span>PostgreSQL</span><span>AI</span><span>Data Integration</span><span>Security</span></div>
       </section>
       <section class="cubi-reference-ai cubi-section" id="ai">
         <div class="cubi-reference-ai-mark"><img src="/logo-dark.svg" width="64" height="64" alt="" /></div>
