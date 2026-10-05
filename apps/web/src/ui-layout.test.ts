@@ -41,6 +41,15 @@ test("workspace layout gives full-width treatment to auxiliary control surfaces"
   assert.ok(css.includes("grid-column: 1 / -1"));
 });
 
+test("chart surfaces have responsive and print-safe geometry", () => {
+  assert.ok(css.includes("--cubi-ui-chart-min-height"));
+  assert.ok(css.includes("--cubi-ui-chart-height"));
+  assert.ok(css.includes(".cubi-chart"));
+  assert.ok(css.includes(".cp-chart"));
+  assert.ok(css.includes("@media print"));
+  assert.ok(css.includes("55mm"));
+});
+
 test("workspace status bar stays above sticky primary navigation", () => {
   assert.ok(css.includes("position: sticky"));
   assert.ok(css.includes("z-index: 30"));
