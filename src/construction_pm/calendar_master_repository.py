@@ -428,7 +428,7 @@ class PostgresCalendarMasterRepository:
                  calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1,
                  calendar.base_calendar_id, calendar.base_calendar_version),
             )
-            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1)
+            return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, 1, calendar.base_calendar_id, calendar.base_calendar_version)
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
         revision = int(row[2]) + 1
@@ -445,7 +445,7 @@ class PostgresCalendarMasterRepository:
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT kind,name,record_revision,project_revision FROM calendar_master "
+            "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
             (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
         ).fetchone()
@@ -458,11 +458,11 @@ class PostgresCalendarMasterRepository:
     def list(self, scope: BackendScope) -> tuple[CalendarMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT calendar_id,calendar_version,kind,name,record_revision FROM calendar_master "
+            "SELECT calendar_id,calendar_version,kind,name,record_revision,base_calendar_id,base_calendar_version FROM calendar_master "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY calendar_id,calendar_version",
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
-        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4])) for r in rows)
+        return tuple(CalendarMaster(scope, str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), r[5], r[6]) for r in rows)
 
 
 class PostgresCalendarAssignmentRepository(PostgresCalendarAssignmentRepositoryReadMixin):
