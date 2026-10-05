@@ -157,17 +157,12 @@ def calculate_earned_schedule(
 
     previous_pv = _CANONICAL_ZERO
     previous_date = start
-    earned_schedule: Decimal | None = None
-    earned_schedule_date: date | None = None
-    earned_schedule_time: Decimal | None = None
-
-    if ev == _CANONICAL_ZERO:
-        earned_schedule_date = start
-        earned_schedule_time = _CANONICAL_ZERO
+    earned_schedule: Decimal | None = _CANONICAL_ZERO if ev == _CANONICAL_ZERO else None
+    earned_schedule_date: date | None = start if ev == _CANONICAL_ZERO else None
 
     for period in ordered:
         current_pv = period.cumulative_planned_value
-        if earned_schedule_time is None and ev <= current_pv:
+        if earned_schedule is None and ev <= current_pv:
             delta = current_pv - previous_pv
             if delta == 0:
                 # A flat cumulative-PV segment adds no earned progress.
@@ -181,9 +176,6 @@ def calculate_earned_schedule(
                 if fraction < 0 or fraction > 1:
                     raise EarnedScheduleError("INVALID_PV_AXIS")
                 earned_schedule_date = _interpolate_date(previous_date, period.end_date, fraction)
-                earned_schedule_time = Decimal((previous_date - start).days) + (
-                    Decimal((period.end_date - previous_date).days) * fraction
-                )
                 earned_schedule = (
                     Decimal((previous_date - start).days)
                     + _interpolate_elapsed_days(previous_date, period.end_date, fraction)
@@ -192,14 +184,8 @@ def calculate_earned_schedule(
         previous_pv = current_pv
         previous_date = period.end_date
 
-    if earned_schedule_date is None:
-        if ev == 0:
-            earned_schedule_date = start
-        else:
-            raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
-
-    if earned_schedule is None:
-        earned_schedule = Decimal((earned_schedule_date - start).days)
+    if earned_schedule is None or earned_schedule_date is None:
+        raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
 
     if actual_time == 0:
         spi_t = Decimal("0")
