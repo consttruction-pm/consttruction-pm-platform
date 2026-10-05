@@ -937,3 +937,20 @@ Status: **100% — merged**
 - PR #1161 squash-merged as `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
 - Verified current `main`: `820be2e7ee8a883fadc299cb6c98aa2c280be79f`.
 - Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Do not revive stale branches or invent Shared-Core/P6 semantics.
+
+
+### 2026-10-05 — Mobile V1 durable PostgreSQL idempotency (PR #1166)
+Status: **runtime-verified and merged**
+- Fresh current-main audit of assigned Issue #1134 identified the remaining concrete gap: the authenticated versioned sync endpoint still used the in-memory server idempotency store even though durable PostgreSQL sync-state persistence already existed.
+- PR #1166 wired the existing PostgresSyncStateStore through PostgresTransactionManager and TransactionalApplicationSyncGateway into the versioned sync endpoint, preserving the existing AtomicSyncExecutor transaction/idempotency boundary.
+- The endpoint now returns the existing sync-outcome.v1 IDEMPOTENCY_KEY_REUSE rejection when durable replay detects a fingerprint mismatch.
+- Focused PostgreSQL coverage verifies replay across separate connections, key reuse rejection, and concurrent same-key execution exactly once.
+- Exact implementation head: 9b334248061378a48571dfa7957b063f9e48b75c.
+- PostgreSQL Integration #983, PostgreSQL Sync State Integration #1181, Client Typecheck #3679, and ConstructionPM CI #3976 all passed on the exact head.
+- PR #1166 squash-merged as 6c6a959dc755da2819c30e66d2af5f1e5b653ada.
+- Current main: 6c6a959dc755da2819c30e66d2af5f1e5b653ada.
+- No scheduling, calendar, Progress/EVM, Resource/Cost or financial semantics were introduced; Shared Core/Application sync semantics remain authoritative.
+
+### Current continuation point
+- Mobile V1 Issue #1134 durable server idempotency persistence is now runtime-verified on current main.
+- Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Only the first newly reproducible Backend/Database/Application/API/Import-Export gap is eligible; do not revive stale branches or duplicate Shared-Core/client-owned work.
