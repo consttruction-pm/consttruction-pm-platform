@@ -8,7 +8,7 @@ records. It deliberately does not calculate schedule dates or duration.
 
 import sqlite3
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Protocol
 
 from .backend_p0.models import BackendScope
@@ -50,10 +50,25 @@ class CalendarWorkHourRule:
         if self.is_working_day is not None and not isinstance(self.is_working_day, bool):
             raise CalendarPersistenceError("INVALID_WORKING_DAY")
         if self.total_work_hours is not None:
-            if self.total_work_hours < 0:
+            try:
+                total_work_hours = self.total_work_hours if isinstance(self.total_work_hours, Decimal) else Decimal(str(self.total_work_hours))
+            except (InvalidOperation, ValueError) as exc:
+                raise CalendarPersistenceError("INVALID_TOTAL_WORK_HOURS") from exc
+            if not total_work_hours.is_finite() or total_work_hours < 0:
                 raise CalendarPersistenceError("INVALID_TOTAL_WORK_HOURS")
-        if any(len(pair) != 2 or pair[0] >= pair[1] for pair in self.intervals):
-            raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+        for pair in self.intervals:
+            if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+            start, end = pair
+            if not isinstance(start, str) or not isinstance(end, str):
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+            try:
+                start_time = __import__("datetime").time.fromisoformat(start)
+                end_time = __import__("datetime").time.fromisoformat(end)
+            except ValueError as exc:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL") from exc
+            if start_time >= end_time:
+                raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
         if self.kind == "total_work_hours" and self.weekday is not None:
             raise CalendarPersistenceError("TOTAL_WORK_HOURS_IS_CALENDAR_LEVEL")
         if self.kind == "total_work_hours" and not self.total_work_hours and self.total_work_hours != Decimal("0"):
