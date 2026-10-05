@@ -88,9 +88,9 @@ class SQLiteCalendarWorkHourRepository:
             """CREATE TABLE IF NOT EXISTS calendar_work_hour_rule (
                 tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
                 calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL,
-                weekday INTEGER, is_working_day INTEGER, total_work_hours TEXT, intervals_json TEXT NOT NULL,
+                weekday INTEGER, weekday_key INTEGER NOT NULL, is_working_day INTEGER, total_work_hours TEXT, intervals_json TEXT NOT NULL,
                 record_revision INTEGER NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version, kind, weekday),
+                PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version, kind, weekday_key),
                 FOREIGN KEY (tenant_id, project_id, calendar_id, calendar_version)
                     REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version)
             )"""
@@ -111,14 +111,15 @@ class SQLiteCalendarWorkHourRepository:
         existing = self.connection.execute(
             "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision "
             "FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND weekday IS ?",
-            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, key_weekday),
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, -1 if key_weekday is None else key_weekday),
         ).fetchone()
         canonical = rule.canonical_snapshot()
         if existing is None:
             self.connection.execute(
-                "INSERT INTO calendar_work_hour_rule VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO calendar_work_hour_rule VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (rule.scope.tenant_id, rule.scope.project_id, rule.scope.project_revision,
                  rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday,
+                 -1 if rule.weekday is None else rule.weekday,
                  None if rule.is_working_day is None else int(rule.is_working_day),
                  None if rule.total_work_hours is None else str(rule.total_work_hours),
                  intervals_json, 1),
@@ -160,9 +161,9 @@ class PostgresCalendarWorkHourRepository:
             """CREATE TABLE IF NOT EXISTS calendar_work_hour_rule (
                 tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL,
                 calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL,
-                weekday INTEGER, is_working_day BOOLEAN, total_work_hours TEXT, intervals_json JSONB NOT NULL,
+                weekday INTEGER, weekday_key INTEGER NOT NULL, is_working_day BOOLEAN, total_work_hours TEXT, intervals_json JSONB NOT NULL,
                 record_revision BIGINT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version, kind, weekday),
+                PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version, kind, weekday_key),
                 FOREIGN KEY (tenant_id, project_id, calendar_id, calendar_version)
                     REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version)
             )"""
@@ -179,14 +180,15 @@ class PostgresCalendarWorkHourRepository:
         import json
         existing = self.connection.execute(
             "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision FROM calendar_work_hour_rule "
-            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND weekday IS NOT DISTINCT FROM %s FOR UPDATE",
-            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday),
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND weekday_key=%s FOR UPDATE",
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, -1 if rule.weekday is None else rule.weekday),
         ).fetchone()
         if existing is None:
             self.connection.execute(
-                "INSERT INTO calendar_work_hour_rule VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
+                "INSERT INTO calendar_work_hour_rule VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
                 (rule.scope.tenant_id, rule.scope.project_id, rule.scope.project_revision,
                  rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday,
+                 -1 if rule.weekday is None else rule.weekday,
                  rule.is_working_day, None if rule.total_work_hours is None else str(rule.total_work_hours),
                  json.dumps([list(pair) for pair in rule.intervals], separators=(",", ":"), sort_keys=True), 1),
             )
