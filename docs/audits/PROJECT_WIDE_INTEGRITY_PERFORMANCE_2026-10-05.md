@@ -586,3 +586,22 @@ Current-main tests confirm two different layers:
 **End-to-end typed canonical import/export:** incomplete; **High parity risk, high confidence** for P6 field certification, but not evidence of current data corruption because unsupported mappings are preserved/rejected rather than silently discarded.
 
 Required direction remains exactly #1227; no new conversion engine should be created per codec or per client.
+
+
+## AG. Baseline authority and comparison semantics — current main
+
+Current-main inspection confirms that Baseline persistence is intentionally conservative but still incomplete for full P6 behavior:
+
+- `P6Baseline` and `P6BaselineAPI` provide scoped, immutable baseline metadata with PRIMARY/SECONDARY/TERTIARY/USER_SELECTED roles and source-revision provenance.
+- The architecture document explicitly states that baseline date/unit/cost comparisons, variance calculations, selection semantics and resource/cost/EVM calculations are non-goals of this persistence slice.
+- P6 Activity baseline typed evidence exists, but remains `typed_read_evidence_only`; it does not certify writable/default/nullability/import-export semantics.
+- No separate baseline snapshot/value repository was found in the inspected current tree that materializes activity/WBS/project baseline values independently of the live project data. Therefore baseline comparison cannot yet be certified as a complete authoritative P6 behavior from current main.
+- This is intentionally not counted as a defect in the metadata persistence layer. The gap is that the later Shared Core comparison/selection contract has not been demonstrated end-to-end.
+
+### Verdict
+
+**Baseline metadata persistence:** structurally sound.
+
+**Full baseline value snapshot + comparison + variance semantics:** incomplete / not certified; **High parity risk, high confidence** for P6 baseline completeness.
+
+Required direction: preserve the existing immutable metadata boundary and add one canonical baseline snapshot/comparison contract in Shared Core. Baseline-derived fields exposed through Registry/API/clients/import-export must all consume that same contract; never calculate baseline variance separately in UI or persistence.
