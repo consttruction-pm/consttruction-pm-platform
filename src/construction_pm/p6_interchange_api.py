@@ -6,7 +6,7 @@ from typing import Any, Mapping, Sequence
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
 from .p6_interchange_adapter import P6InterchangeAdapter, P6InterchangeCodec
-from .p6_interchange_mapping import P6InterchangeCompatibilityError
+from .p6_interchange_mapping import P6InterchangeCompatibilityError, P6InterchangeMapper
 from .p6_mapping_registry import P6MappingFormat, P6MappingRegistryApplicationService
 
 P6_INTERCHANGE_API_VERSION = "p6-interchange-api.v1"
@@ -87,7 +87,7 @@ class P6InterchangeAPI:
         if not mappings:
             raise P6InterchangeCompatibilityError("MAPPING_REGISTRY_EMPTY")
         return P6InterchangeAdapter(
-            mapper=__import__("construction_pm.p6_interchange_mapping", fromlist=["P6InterchangeMapper"]).P6InterchangeMapper(mappings),
+            mapper=P6InterchangeMapper(mappings),
             codec=codec,
         )
 
