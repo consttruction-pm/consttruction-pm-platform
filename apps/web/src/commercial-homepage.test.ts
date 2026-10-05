@@ -23,3 +23,19 @@ test("commercial homepage exposes the required SEO contract", () => {
   assert.match(index, /name="twitter:title"/);
   assert.match(index, /"@type": \["SoftwareApplication", "WebSite"\]/);
 });
+
+
+test("customer-facing surfaces remain provenance-neutral", () => {
+  const prohibited = [/Oracle/i, /Primavera/i, /P6/i];
+  for (const pattern of prohibited) {
+    assert.doesNotMatch(landing, pattern);
+    assert.doesNotMatch(index, pattern);
+  }
+  assert.doesNotMatch(nextWorkspaceCustomerText(workspace), /P6 Field Chooser|انتخاب‌گر فیلد P6/);
+});
+
+function nextWorkspaceCustomerText(source: string): string {
+  return source
+    .replace(/data-p6-[^"'\\s>]+/g, "")
+    .replace(/cp-p6-[^"'\\s>]+/g, "");
+}
