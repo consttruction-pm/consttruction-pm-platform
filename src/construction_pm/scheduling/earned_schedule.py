@@ -124,6 +124,10 @@ def _validate_periods(periods: Iterable[EarnedSchedulePeriod]) -> Tuple[EarnedSc
     return ordered
 
 
+def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Decimal:
+    return Decimal((right - left).days) * fraction
+
+
 def _interpolate_date(left: date, right: date, fraction: Decimal) -> date:
     days = Decimal((right - left).days)
     offset = int((days * fraction).to_integral_value())
@@ -171,6 +175,10 @@ def calculate_earned_schedule(
                 if fraction < 0 or fraction > 1:
                     raise EarnedScheduleError("INVALID_PV_AXIS")
                 earned_schedule_date = _interpolate_date(previous_date, period.end_date, fraction)
+                earned_schedule = (
+                    Decimal((previous_date - start).days)
+                    + _interpolate_elapsed_days(previous_date, period.end_date, fraction)
+                )
             break
         previous_pv = current_pv
         previous_date = period.end_date
@@ -181,7 +189,8 @@ def calculate_earned_schedule(
         else:
             raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
 
-    earned_schedule = Decimal((earned_schedule_date - start).days)
+    if "earned_schedule" not in locals():
+        earned_schedule = Decimal((earned_schedule_date - start).days)
 
     if actual_time == 0:
         spi_t = Decimal("0")
