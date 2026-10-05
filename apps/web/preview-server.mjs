@@ -1,10 +1,9 @@
 import http from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { join, normalize, sep } from "node:path";
+import { isAbsolute, join, normalize, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
-const rootPrefix = root.endsWith(sep) ? root : `${root}${sep}`;
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || "4173");
 
@@ -18,6 +17,10 @@ const CONTENT_TYPES = new Map([
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
   [".webp", "image/webp"],
+  [".woff", "font/woff"],
+  [".woff2", "font/woff2"],
+  [".otf", "font/otf"],
+  [".ttf", "font/ttf"],
 ]);
 
 function contentType(file) {
@@ -25,41 +28,52 @@ function contentType(file) {
   return CONTENT_TYPES.get(dot >= 0 ? file.slice(dot).toLowerCase() : "") || "application/octet-stream";
 }
 
-function safePath(requestPath) {
+function within(rootPath, candidate) {
+  const rel = relative(rootPath, candidate);
+  return rel === "" || (!rel.startsWith(".." + sep) && !isAbsolute(rel));
+}
+
+function resolveRequestFile(requestPath) {
   const pathname = decodeURIComponent(requestPath.split("?")[0]);
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const file = normalize(join(root, relative));
-  if (!file.startsWith(rootPrefix) && file !== root) return null;
-  return file;
+  const publicRoot = join(root, "public");
+  const distRoot = join(root, "dist");
+  const distWebEntry = join(distRoot, "web", "src");
+  const distClientSyncEntry = join(distRoot, "client-sync", "src");
+
+  let candidate;
+
+  if (pathname === "/") {
+    candidate = join(root, "index.html");
+  } else if (pathname.startsWith("/dist/")) {
+    const rest = pathname.slice("/dist/".length);
+    candidate = rest.startsWith("web/") || rest.startsWith("client-sync/")
+      ? join(distRoot, rest)
+      : join(distWebEntry, rest);
+  } else if (pathname.startsWith("/client-sync/src/")) {
+    candidate = join(distClientSyncEntry, pathname.slice("/client-sync/src/".length));
+  } else {
+    const relativePath = pathname.replace(/^\/+/, "");
+    candidate = join(root, relativePath);
+    if (!existsSync(candidate) || !statSync(candidate).isFile()) {
+      candidate = join(publicRoot, relativePath);
+    }
+  }
+
+  const normalized = normalize(candidate);
+  if (!within(root, normalized) && !within(distRoot, normalized) && !within(publicRoot, normalized)) {
+    return null;
+  }
+  return normalized;
 }
 
 const server = http.createServer((req, res) => {
   try {
-    const requested = safePath(req.url || "/");
-    if (!requested) {
-      res.writeHead(403);
+    const file = resolveRequestFile(req.url || "/");
+    if (!file) {
+      res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Forbidden");
       return;
     }
-
-    // tsconfig.build.json intentionally keeps Web and client-sync sources under
-    // one output tree. index.html uses the stable /dist/main.js browser path;
-    // map that entry point to the emitted Web entry without adding a bundler.
-    const distRoot = join(root, "dist");
-    const distWebEntry = join(distRoot, "web", "src");
-    const distClientSyncEntry = join(distRoot, "client-sync", "src");
-    const distPrefix = distRoot.endsWith(sep) ? distRoot : `${distRoot}${sep}`;
-    const clientSyncUrlPrefix = join(root, "client-sync", "src") + sep;
-    const relativeToDist = requested.slice(distRoot.length + 1);
-    const file = requested === join(distRoot, "main.js")
-      ? join(distWebEntry, "main.js")
-      : requested.startsWith(distPrefix)
-        ? (relativeToDist.includes(sep)
-          ? requested
-          : join(distWebEntry, relativeToDist))
-        : requested.startsWith(clientSyncUrlPrefix)
-          ? join(distClientSyncEntry, requested.slice(clientSyncUrlPrefix.length))
-          : requested;
 
     if (!existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
@@ -67,9 +81,8 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const type = contentType(file);
     res.writeHead(200, {
-      "Content-Type": type,
+      "Content-Type": contentType(file),
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
     });
