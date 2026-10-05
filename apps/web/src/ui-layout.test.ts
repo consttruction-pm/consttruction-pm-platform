@@ -64,6 +64,8 @@ test("workspace status bar stays above sticky primary navigation", () => {
   assert.ok(css.includes("position: sticky"));
   assert.ok(css.includes("z-index: 30"));
   assert.ok(css.includes("top: 52px"));
+  assert.ok(css.includes("white-space: nowrap"));
+  assert.ok(css.includes("overflow: hidden"));
 });
 
 test("tablet sticky menu does not overlap the 52px status bar", () => {
