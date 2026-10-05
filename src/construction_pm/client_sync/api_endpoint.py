@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
-from .application_gateway import ApplicationSyncGateway
+from .application_gateway import ApplicationSyncGateway, TransactionalApplicationSyncGateway
 from .server_gateway import IdempotentMutationGateway
+from .postgres_sync_state import PostgresSyncStateStore
+from .postgres_transaction import PostgresTransactionManager
 from .offline_mutation import OfflineMutation
 from .revision_limits import MAX_SAFE_PROJECT_REVISION
 
@@ -51,3 +53,38 @@ class VersionedSyncRevisionEndpoint:
         if isinstance(raw_revision,bool) or not isinstance(raw_revision,int) or raw_revision<0 or raw_revision>MAX_SAFE_PROJECT_REVISION:
             raise ValueError("INVALID_PROJECT_REVISION")
         return {"contract_version":"sync-project-revision.v1","tenant_id":self.tenant_id,"project_id":self.project_id,"revision":raw_revision}
+
+
+class PostgresSyncEndpoint:
+    """Request-scoped versioned sync endpoint backed by durable PostgreSQL idempotency state.
+
+    The caller supplies the application mutation handler and an already-open
+    PostgreSQL connection. The existing AtomicSyncExecutor remains the single
+    transaction/idempotency boundary; this adapter only wires it to the HTTP
+    contract and closes the request-scoped connection after the operation.
+    """
+
+    def __init__(self, tenant_id: str, project_id: str, connection, handler) -> None:
+        self._connection = connection
+        persistence = PostgresSyncStateStore(connection)
+        persistence.initialize()
+        commit = getattr(connection, "commit", None)
+        if callable(commit):
+            commit()
+        transaction_manager = PostgresTransactionManager(connection)
+        gateway = TransactionalApplicationSyncGateway(
+            tenant_id,
+            project_id,
+            persistence,
+            transaction_manager,
+            handler,
+        )
+        self._endpoint = VersionedSyncEndpoint(gateway)
+
+    def post(self, body: Mapping[str, object], headers: Mapping[str, str]) -> dict[str, object]:
+        try:
+            return self._endpoint.post(body, headers)
+        finally:
+            close = getattr(self._connection, "close", None)
+            if callable(close):
+                close()
