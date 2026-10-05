@@ -149,6 +149,64 @@ class SQLiteCalendarWorkHourRepository:
         ).fetchall()
         return tuple(_row_to_rule(scope, calendar_id, calendar_version, kind, row[0], row) for row in rows)
 
+class PostgresCalendarWorkHourRepository:
+    def __init__(self, connection: object) -> None:
+        self.connection = connection
+
+    def initialize(self) -> None:
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS calendar_work_hour_rule (
+                tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL,
+                calendar_id TEXT NOT NULL, calendar_version TEXT NOT NULL, kind TEXT NOT NULL,
+                weekday INTEGER, is_working_day BOOLEAN, total_work_hours TEXT, intervals_json JSONB NOT NULL,
+                record_revision BIGINT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, calendar_id, calendar_version, kind, weekday),
+                FOREIGN KEY (tenant_id, project_id, calendar_id, calendar_version)
+                    REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version)
+            )"""
+        )
+
+    def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule:
+        rule.validate()
+        master = self.connection.execute(
+            "SELECT 1 FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version),
+        ).fetchone()
+        if master is None:
+            raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+        import json
+        existing = self.connection.execute(
+            "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision FROM calendar_work_hour_rule "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND weekday IS NOT DISTINCT FROM %s FOR UPDATE",
+            (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday),
+        ).fetchone()
+        if existing is None:
+            self.connection.execute(
+                "INSERT INTO calendar_work_hour_rule VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
+                (rule.scope.tenant_id, rule.scope.project_id, rule.scope.project_revision,
+                 rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday,
+                 rule.is_working_day, None if rule.total_work_hours is None else str(rule.total_work_hours),
+                 json.dumps([list(pair) for pair in rule.intervals], separators=(",", ":"), sort_keys=True), 1),
+            )
+            return CalendarWorkHourRule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind,
+                rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals, 1)
+        if int(existing[4]) != rule.scope.project_revision:
+            raise CalendarPersistenceError("REVISION_CONFLICT")
+        existing_rule = _row_to_rule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind, rule.weekday, existing)
+        if existing_rule.canonical_snapshot() != rule.canonical_snapshot():
+            raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
+        return existing_rule
+
+    def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT weekday,is_working_day,total_work_hours,intervals_json,record_revision,project_revision FROM calendar_work_hour_rule "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND kind=%s AND project_revision=%s ORDER BY weekday",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, kind, scope.project_revision),
+        ).fetchall()
+        return tuple(_row_to_rule(scope, calendar_id, calendar_version, kind, row[0], (row[1], row[2], row[3], row[4], row[5])) for row in rows)
+
+
 
 def _row_to_rule(
     scope: BackendScope,
@@ -168,4 +226,4 @@ def _row_to_rule(
     )
 
 
-__all__ = ["WORK_HOUR_KINDS", "CalendarWorkHourRule", "CalendarWorkHourRepository", "SQLiteCalendarWorkHourRepository"]
+__all__ = ["WORK_HOUR_KINDS", "CalendarWorkHourRule", "CalendarWorkHourRepository", "SQLiteCalendarWorkHourRepository", "PostgresCalendarWorkHourRepository"]
