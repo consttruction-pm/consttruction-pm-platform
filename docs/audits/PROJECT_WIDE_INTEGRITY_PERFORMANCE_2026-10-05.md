@@ -418,3 +418,25 @@ Fresh source inspection of `src/construction_pm/resources/` versus the P6 resour
 **Required direction:** converge the richer resource/rate semantics and P6 persistence/API on one canonical Shared Core contract. Reuse existing calculations where appropriate; do not create a separate P6 calculator. Then expose the same canonical contract through Web/Desktop/Mobile and interchange.
 
 Existing P6 backlog #389 / ownership track #393 already covers this family of work, so no duplicate issue is required.
+
+
+## Y. EVM authority recheck — current main
+
+Fresh current-main tree inspection searched the complete repository for the EVM/earned-value implementation surface. The evidence found is:
+
+- `src/construction_pm/scheduling/earned_schedule.py` — real Shared Core Earned Schedule / SPI(t) / SV(t) calculation and reconciliation.
+- `src/construction_pm/resources/evm_bridge.py` — Resource-to-EVM adapter deriving ETC/EAC/VAC/CV/SV from supplied PV/EV/AC/resource-remaining-cost inputs.
+- P6 Activity typed semantic evidence artifacts for cost/EVM, actual cost/units, earned value/remaining and schedule performance/variance.
+- No distinct current-main canonical EVM calculation module/API was identified for the full PV/EV/AC/BAC/ETC/EAC/CV/SV/SPI/SPI(t) lifecycle beyond the resource bridge and Earned Schedule implementation.
+
+The existing resource bridge is correctly designed as an adapter and its simple arithmetic is not a substitute for a complete project/WBS/activity EVM authority. Therefore the current repository evidence is insufficient to certify the previously intended full Progress/EVM/Schedule Performance engine as complete on current main.
+
+### EVM verdict
+
+Earned Schedule: implemented Shared Core behavior with deterministic tests.
+
+Resource EVM bridge: implemented adapter, not the central EVM engine.
+
+Full P6-compatible EVM authority and end-to-end API/client/interchange path: not demonstrated on current main; treat as a parity gap until a canonical implementation/evidence chain is found or restored.
+
+No new EVM engine should be invented merely to satisfy this audit. The correct next action is to reconcile the intended EVM baseline against the actual current-main history/commits and, where necessary, restore or complete one canonical Shared Core implementation with regression evidence.
