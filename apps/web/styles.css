@@ -352,6 +352,9 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
   --cubi-ui-page-max: 1920px;
   --cubi-ui-table-font-size: 12.5px;
   --cubi-ui-table-head-size: 12px;
+  --cubi-ui-chart-min-height: 220px;
+  --cubi-ui-chart-height: clamp(220px, 30vw, 420px);
+  --cubi-ui-chart-max-width: 100%;
 }
 
 [dir="rtl"],
@@ -1125,6 +1128,55 @@ th {
   a { color: inherit !important; text-decoration: none; }
 }
 
+
+
+.cubi-chart,
+.cp-chart {
+  width: 100%;
+  max-width: var(--cubi-ui-chart-max-width);
+  min-height: var(--cubi-ui-chart-min-height);
+  height: var(--cubi-ui-chart-height);
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.cubi-chart > svg,
+.cubi-chart > canvas,
+.cp-chart > svg,
+.cp-chart > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
+.cubi-chart-scroll,
+.cp-chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .cubi-chart,
+  .cp-chart {
+    min-height: 180px;
+    height: 280px;
+  }
+}
+
+@media print {
+  .cubi-chart,
+  .cp-chart {
+    min-height: 55mm;
+    height: 55mm;
+    overflow: visible;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
 
 /* CUBI brand chrome: do not use on dense data panels. */
 .cubi-metal-chrome {
