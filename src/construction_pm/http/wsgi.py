@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from http.cookies import SimpleCookie
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping
 from urllib.parse import urlsplit
 
 from .project_lifecycle_routes import ProjectLifecycleHttpRoutes
@@ -28,6 +28,7 @@ class ProjectLifecycleWsgiApp:
         cookies = SimpleCookie()
         cookies.load(cookie_header)
         cookie_values = {key: morsel.value for key, morsel in cookies.items()}
+        request_headers = self._request_headers(environ)
         try:
             length = int(str(environ.get("CONTENT_LENGTH", "0") or "0"))
         except ValueError:
@@ -38,10 +39,26 @@ class ProjectLifecycleWsgiApp:
             stream = environ.get("wsgi.input")
             body = stream.read(length) if length and hasattr(stream, "read") else b""
             status, headers, body = self._routes.handle(
-                method, path, cookies=cookie_values, body=body
+                method,
+                path,
+                cookies=cookie_values,
+                body=body,
+                headers=request_headers,
             )
         reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found"}.get(status, "Internal Server Error")
         response_headers = [("Content-Length", str(len(body))), *headers.items(),
                             ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")]
         start_response(f"{status} {reason}", response_headers)
         return [body]
+
+    @staticmethod
+    def _request_headers(environ: Mapping[str, object]) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        for key, value in environ.items():
+            if not key.startswith("HTTP_") or key == "HTTP_COOKIE":
+                continue
+            if value is None:
+                continue
+            header_name = "-".join(part.capitalize() for part in key[5:].split("_"))
+            headers[header_name] = str(value)
+        return headers
