@@ -41,13 +41,23 @@ test("workspace layout gives full-width treatment to auxiliary control surfaces"
   assert.ok(css.includes("grid-column: 1 / -1"));
 });
 
-test("chart surfaces have responsive and print-safe geometry", () => {
+test("workspace chart surfaces use the dedicated UI contract", () => {
   assert.ok(css.includes("--cubi-ui-chart-min-height"));
   assert.ok(css.includes("--cubi-ui-chart-height"));
-  assert.ok(css.includes(".cubi-chart"));
-  assert.ok(css.includes(".cp-chart"));
+  assert.ok(css.includes(".cp-chart {"));
+  assert.ok(css.includes(".cp-chart > svg"));
+  assert.ok(css.includes(".cp-chart-scroll {"));
   assert.ok(css.includes("@media print"));
   assert.ok(css.includes("55mm"));
+});
+
+test("marketing dashboard chart keeps its local geometry", () => {
+  const marketingChartIndex = css.indexOf(".cubi-chart {");
+  assert.ok(marketingChartIndex >= 0);
+  const marketingChartCss = css.slice(marketingChartIndex, marketingChartIndex + 180);
+  assert.ok(marketingChartCss.includes("height:180px"));
+  assert.ok(css.includes(".cubi-chart { grid-column:1/-1; height:130px; }"));
+  assert.ok(!css.includes(".cubi-chart,\n.cp-chart {"));
 });
 
 test("workspace status bar stays above sticky primary navigation", () => {
