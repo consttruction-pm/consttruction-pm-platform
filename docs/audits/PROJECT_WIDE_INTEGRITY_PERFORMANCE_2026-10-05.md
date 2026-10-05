@@ -818,3 +818,12 @@ Added a regression test proving that legacy `calendar_master` rows migrated to t
 Test commit: `bce9f92b9f0cb49807f5b11cb71cd35c00f902dc`.
 
 **Finding status: corrected and regression-covered.** Exact-head CI is still absent for the current main commit chain.
+
+
+## AW. SQLite total work-hour replay key — corrected
+
+ممیزی `SQLiteCalendarWorkHourRepository.save()` نشان داد lookup رکورد موجود برای `weekday=None` از ستون nullable `weekday` با مقدار sentinel `-1` استفاده می‌کرد، در حالی که sentinel واقعی در schema در ستون `weekday_key` ذخیره می‌شود. در نتیجه replay/idempotent save برای `total_work_hours` رکورد قبلی را پیدا نمی‌کرد و می‌توانست به خطای primary-key به‌جای بازگرداندن رکورد canonical منجر شود.
+
+اصلاح: lookup SQLite اکنون با `weekday_key` انجام می‌شود و regression برای دو بار ذخیره‌کردن همان `total_work_hours` اضافه شد.
+
+Commits: `764ae49fe5d38f41bf89f01fc30a4a56f8146b0e`, `eea262b58259ab2e7dbe37d3faedc8cab853f88`.
