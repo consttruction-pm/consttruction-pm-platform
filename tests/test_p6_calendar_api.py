@@ -90,6 +90,20 @@ def test_update_has_explicit_crud_boundary_and_revision_check():
         api.update(_scope(), request, auth_context=_auth())
 
 
+def test_update_rejects_kind_change_when_snapshot_exists():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-K"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-K", "1")
+    api.snapshot_repository.save(source, _definition())
+    request = P6CalendarCreateRequest(
+        P6_CALENDAR_API_VERSION, "CAL-K", "1", "project",
+        "working-time", "Changed", 1,
+    )
+    with pytest.raises(ValueError, match="CALENDAR_SNAPSHOT_KIND_CONFLICT"):
+        api.update(_scope(), request, auth_context=_auth())
+    assert api.calendar_repository.get(_scope(), "CAL-K", "1").kind == "working-day"
+
+
 def test_copy_replays_snapshot_and_keeps_type():
     api, _ = _api()
     api.create(_scope(), _request("CAL-S", calendar_type="global"), auth_context=_auth())
