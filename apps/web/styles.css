@@ -1,20 +1,47 @@
 :root {
   font-family: Inter, "Vazirmatn", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #17202A;
-  background: #F5F7FA;
+  color: var(--cp-text);
+  background: var(--cp-bg);
   line-height: 1.45;
-  --cp-navy: #0F2747;
-  --cp-navy-dark: #081A2F;
-  --cp-blue: #1976D2;
-  --cp-copper: #F28C28;
+
+  /* CUBI registered brand anchors */
+  --cubi-deep-navy: #0F2747;
+  --cubi-navy-dark: #081A2F;
+  --cubi-engineering-blue: #1976D2;
+  --cubi-copper-orange: #F28C28;
+  --cubi-brushed-titanium: #B8BDC5;
+  --cubi-titanium-light: #E8EBEF;
+  --cubi-titanium-dark: #707883;
+
+  /* Status/KPI colors are semantic and must not be confused with brand accents. */
   --cp-success: #2E8B57;
   --cp-warning: #D99A00;
   --cp-error: #D64545;
+  --cp-info: var(--cubi-engineering-blue);
+
+  /* Shared UI tokens */
+  --cp-navy: var(--cubi-deep-navy);
+  --cp-navy-dark: var(--cubi-navy-dark);
+  --cp-blue: var(--cubi-engineering-blue);
+  --cp-copper: var(--cubi-copper-orange);
+  --cp-titanium: var(--cubi-brushed-titanium);
   --cp-bg: #F5F7FA;
   --cp-surface: #FFFFFF;
   --cp-border: #D9E0E7;
   --cp-text: #17202A;
   --cp-muted: #667085;
+
+  /* Low-noise brushed-metal finish: use for brand chrome only. */
+  --cubi-brushed-metal:
+    linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.08)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(112,120,131,.08) 0,
+      rgba(112,120,131,.08) 1px,
+      rgba(255,255,255,.04) 1px,
+      rgba(255,255,255,.04) 3px
+    ),
+    linear-gradient(135deg, #E8EBEF, #B8BDC5 52%, #E1E5E9);
 }
 * { box-sizing: border-box; }
 html { background: var(--cp-bg); }
@@ -93,12 +120,12 @@ button { color: inherit; }
 table { width:100%; border-collapse:collapse; min-width:760px; }
 th, td {
   padding:.55rem;
-  border-bottom:1px solid #E6E9EE;
+  border-bottom:1px solid var(--cubi-titanium-light);
   text-align:start;
   white-space:nowrap;
 }
 .cp-p6-column.is-pinned, .cp-p6-column.is-frozen { position:sticky; inset-inline-start:var(--cp-p6-sticky-offset, 0px); background:#fff; z-index:2; }
-.cp-p6-column.is-pinned { box-shadow:2px 0 0 #dce1e8; }
+.cp-p6-column.is-pinned { box-shadow:2px 0 0 var(--cubi-titanium-light); }
 .cp-p6-column.is-frozen { box-shadow:inset 0 -2px 0 currentColor; }
 thead .cp-p6-column.is-frozen { top:0; z-index:3; }
 th { color:var(--cp-navy); background:#F8FAFC; font-weight:700; }
@@ -151,7 +178,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 }
 .cp-project-selection > button:hover { border-color:var(--cp-blue); }
 .cp-project-create {
-  border-top:1px solid #E6E9EE;
+  border-top:1px solid var(--cubi-titanium-light);
   padding-top:1rem;
   display:grid;
   gap:.75rem;
@@ -221,11 +248,11 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-metric span { color:#2e8b57; font-size:.65rem; font-weight:700; }
 .cubi-chart { grid-column:1/-1; height:180px; border:1px solid #e6ebf0; border-radius:.65rem; padding:1rem; display:flex; align-items:end; gap:.55rem; background:linear-gradient(#fff,#f8fbfd); }
 .cubi-bars { height:100%; flex:1; display:flex; align-items:end; gap:.65rem; }
-.cubi-bars i { display:block; flex:1; max-width:36px; background:linear-gradient(#19a9dc,var(--cp-blue)); border-radius:.35rem .35rem .1rem .1rem; opacity:.86; }
-.cubi-line { position:absolute; left:8%; right:7%; height:100px; margin-top:-10px; border-bottom:2px solid #17b7ad; border-radius:50%; transform:skewY(-5deg); opacity:.7; }
+.cubi-bars i { display:block; flex:1; max-width:36px; background:linear-gradient(var(--cubi-engineering-blue),var(--cp-blue)); border-radius:.35rem .35rem .1rem .1rem; opacity:.86; }
+.cubi-line { position:absolute; left:8%; right:7%; height:100px; margin-top:-10px; border-bottom:2px solid var(--cubi-engineering-blue); border-radius:50%; transform:skewY(-5deg); opacity:.7; }
 .cubi-timeline { display:flex; gap:.6rem; flex-wrap:wrap; padding:.8rem 1rem; border-top:1px solid #e4eaf0; color:#6c7887; font-size:.64rem; }
 .cubi-timeline b { color:var(--cp-blue); margin-left:auto; }
-.cubi-orbit { position:absolute; right:-12px; bottom:8px; width:92px; height:92px; display:grid; place-items:center; border-radius:50%; background:#0b2341; border:8px solid rgba(255,255,255,.7); box-shadow:0 18px 38px rgba(8,26,47,.2); }
+.cubi-orbit { position:absolute; right:-12px; bottom:8px; width:92px; height:92px; display:grid; place-items:center; border-radius:50%; background:var(--cubi-deep-navy); border:8px solid rgba(255,255,255,.7); box-shadow:0 18px 38px rgba(8,26,47,.2); }
 .cubi-orbit img { width:58px; height:58px; }
 .cubi-proof { display:flex; align-items:center; gap:2rem; flex-wrap:wrap; padding:1rem clamp(1rem,6vw,7rem); background:var(--cp-navy-dark); color:#dce7f2; font-size:.74rem; letter-spacing:.05em; }
 .cubi-proof span { color:#90a3b8; margin-right:auto; }
@@ -236,7 +263,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-feature-grid { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--cp-border); border-left:1px solid var(--cp-border); }
 .cubi-feature-grid article { padding:2rem; min-height:230px; background:#fff; border-right:1px solid var(--cp-border); border-bottom:1px solid var(--cp-border); transition:transform .18s ease,box-shadow .18s ease; }
 .cubi-feature-grid article:hover { transform:translateY(-3px); box-shadow:0 16px 34px rgba(15,39,71,.08); position:relative; z-index:1; }
-.cubi-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:.65rem; background:#eaf4fd; color:var(--cp-blue); font-weight:800; font-size:1.2rem; margin-bottom:1.4rem; }
+.cubi-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:.65rem; background:var(--cubi-titanium-light); color:var(--cp-blue); font-weight:800; font-size:1.2rem; margin-bottom:1.4rem; }
 .cubi-feature-grid h3 { color:var(--cp-navy); margin:.2rem 0 .6rem; font-size:1.08rem; }
 .cubi-feature-grid p { color:#667085; line-height:1.7; font-size:.92rem; margin:0; }
 .cubi-control-section { display:grid; grid-template-columns:1.05fr .95fr; gap:5rem; align-items:center; padding:7rem clamp(1rem,6vw,7rem); background:#eef4f9; border-top:1px solid #dbe5ee; border-bottom:1px solid #dbe5ee; }
@@ -298,4 +325,12 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
   .cubi-flow i { transform:rotate(90deg); }
   .cubi-footer { flex-wrap:wrap; }
   .cubi-footer p { margin:0; }
+}
+
+
+/* CUBI brand chrome: do not use on dense data panels. */
+.cubi-metal-chrome {
+  background: var(--cubi-brushed-metal);
+  border: 1px solid color-mix(in srgb, var(--cubi-brushed-titanium) 72%, white);
+  color: var(--cubi-deep-navy);
 }
