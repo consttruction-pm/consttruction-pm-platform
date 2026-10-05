@@ -809,3 +809,12 @@ Correction:
 Commits: `ec3a617ce61d3039a8d061ba81694eb0d658bb96`, `be1e191afa763a539cc88653dc4f1dac039ceb22`.
 
 **Finding status: Corrected in main.** Exact-head CI must still verify the correction.
+
+
+## AV. Legacy SQLite calendar migration regression — covered
+
+Added a regression test proving that legacy `calendar_master` rows migrated to the current schema keep `base_calendar_id` and `base_calendar_version` as `NULL`, while `calendar_type` receives the intended `project` default. This locks the correction from `fac52509f9db253c2f35ee581cfb43afca0779e8` against future migration regressions.
+
+Test commit: `bce9f92b9f0cb49807f5b11cb71cd35c00f902dc`.
+
+**Finding status: corrected and regression-covered.** Exact-head CI is still absent for the current main commit chain.
