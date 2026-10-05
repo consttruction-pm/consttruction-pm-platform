@@ -160,12 +160,12 @@ def calculate_earned_schedule(
         if ev <= current_pv:
             delta = current_pv - previous_pv
             if delta == 0:
-                if ev == current_pv:
-                    earned_schedule_date = period.end_date
-                else:
-                    previous_pv = current_pv
-                    previous_date = period.end_date
-                    continue
+                # A flat cumulative-PV segment adds no earned progress.
+                # Keep searching for the first positive PV segment so EV=0
+                # (or a flat PV plateau) cannot be mapped to its period end.
+                previous_pv = current_pv
+                previous_date = period.end_date
+                continue
             else:
                 fraction = (ev - previous_pv) / delta
                 if fraction < 0 or fraction > 1:
