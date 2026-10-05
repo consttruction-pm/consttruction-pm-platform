@@ -110,7 +110,7 @@ class SQLiteCalendarWorkHourRepository:
         intervals_json = json.dumps([list(pair) for pair in rule.intervals], separators=(",", ":"), sort_keys=True)
         existing = self.connection.execute(
             "SELECT is_working_day,total_work_hours,intervals_json,record_revision,project_revision "
-            "FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND weekday IS ?",
+            "FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND kind=? AND weekday_key=?",
             (rule.scope.tenant_id, rule.scope.project_id, rule.calendar_id, rule.calendar_version, rule.kind, -1 if key_weekday is None else key_weekday),
         ).fetchone()
         canonical = rule.canonical_snapshot()
