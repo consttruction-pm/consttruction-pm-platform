@@ -150,6 +150,7 @@ def test_jalali_exception_input_is_canonicalized_to_gregorian():
     )
 
     assert exception.date == jalali.to_gregorian()
+    assert exception.canonical_snapshot()["calendar_system"] == "jalali"
 
     resolver = CalendarExceptionResolver(standard_is_working=True)
     result = resolver.resolve(jalali, local_exceptions=[exception])
