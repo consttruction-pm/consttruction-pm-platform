@@ -12,6 +12,10 @@
   --cubi-brushed-titanium: #B8BDC5;
   --cubi-titanium-light: #E8EBEF;
   --cubi-titanium-dark: #707883;
+  --cubi-titanium-mid: var(--cubi-titanium-mid);
+  --cubi-neutral-border: var(--cubi-neutral-border);
+  --cubi-neutral-divider: var(--cubi-neutral-divider);
+  --cubi-neutral-subtle: var(--cubi-neutral-subtle);
 
   /* Status/KPI colors are semantic and must not be confused with brand accents. */
   --cp-success: #2E8B57;
