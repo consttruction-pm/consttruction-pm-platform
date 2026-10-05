@@ -65,8 +65,8 @@ test("rejects invalid local project and cross-WBS activity navigation", async ()
 
   await assert.rejects(shell.openLocalProject("t1", "missing"), /LOCAL_PROJECT_NOT_FOUND/);
   await shell.openLocalProject("t1", "p1");
-  await assert.rejects(shell.showActivity("W1", "A1"), /ACTIVITY_NOT_FOUND/);
-  await assert.rejects(shell.listActivities("missing"), /WBS_NOT_FOUND/);
+  assert.throws(() => shell.showActivity("W1", "A1"), /ACTIVITY_NOT_FOUND/);
+  assert.throws(() => shell.listActivities("missing"), /WBS_NOT_FOUND/);
 });
 
 test("returns to WBS without losing the opened project context", async () => {
