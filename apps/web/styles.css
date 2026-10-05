@@ -1193,3 +1193,18 @@ th {
   border: 1px solid color-mix(in srgb, var(--cubi-brushed-titanium) 72%, white);
   color: var(--cubi-deep-navy);
 }
+
+/* Issue 1239 — compact, user-centered bilingual commercial homepage */
+.cubi-lang-switch { border:1px solid var(--cp-border); background:#fff; color:var(--cp-navy); border-radius:.5rem; min-width:42px; min-height:36px; padding:.35rem .6rem; font-weight:800; cursor:pointer; }
+.cubi-lang-switch:hover { border-color:var(--cp-blue); color:var(--cp-blue); }
+.cubi-hero { min-height:clamp(520px,72vh,690px); padding-block:4rem; }
+.cubi-proof, .cubi-resources { display:none; }
+.cubi-section { padding-block:4rem; }
+.cubi-control-section { padding-block:4rem; }
+.cubi-feature-grid article { min-height:180px; padding:1.35rem; }
+.cubi-ai { padding-block:2.25rem; }
+.cubi-cta { padding-block:4rem; }
+.cubi-faq { padding-block:4rem; }
+@media (max-width:760px) { .cubi-hero { padding-block:2.8rem 3.2rem; } .cubi-section,.cubi-control-section,.cubi-faq { padding-block:3rem; } .cubi-feature-grid article { min-height:150px; } }
+[dir="rtl"] .cubi-header { direction:rtl; }
+[dir="rtl"] .cubi-header-actions { margin-inline-start:0; margin-inline-end:auto; }
