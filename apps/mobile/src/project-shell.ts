@@ -100,6 +100,9 @@ export class PersistentMobileLocalProjectStore implements MobileLocalProjectStor
           !isSchedulingDuration((item as MobileActivityRelationship).lag))) {
       throw new Error("INVALID_LOCAL_PROJECT");
     }
+    if (project.tenant_id !== tenantId || project.project_id !== projectId) {
+      throw new Error("INVALID_LOCAL_PROJECT_CONTEXT");
+    }
     return Object.freeze({
       tenant_id: project.tenant_id, project_id: project.project_id, revision: project.revision,
       name: project.name, wbs: project.wbs, activities: project.activities, relationships: project.relationships,
