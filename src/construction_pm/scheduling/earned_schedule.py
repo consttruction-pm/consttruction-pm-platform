@@ -12,7 +12,6 @@ from .calendar_system import JalaliDate
 
 CalendarDate = date | JalaliDate
 _CANONICAL_ZERO = Decimal("0")
-_CANONICAL_ONE = Decimal("1")
 
 
 class EarnedScheduleError(ValueError):
@@ -128,10 +127,6 @@ def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Dec
     return Decimal((right - left).days) * fraction
 
 
-def _interpolate_elapsed_days(left: date, right: date, fraction: Decimal) -> Decimal:
-    return Decimal((right - left).days) * fraction
-
-
 def _interpolate_date(left: date, right: date, fraction: Decimal) -> date:
     offset = int(_interpolate_elapsed_days(left, right, fraction).to_integral_value())
     return left.fromordinal(left.toordinal() + offset)
@@ -151,6 +146,8 @@ def calculate_earned_schedule(
     start = _canonical_date(project_start)
     if data < start:
         raise EarnedScheduleError("DATA_DATE_PRECEDES_PROJECT_START")
+    if ordered[0].end_date < start:
+        raise EarnedScheduleError("PV_PERIOD_PRECEDES_PROJECT_START")
 
     ev = Decimal(str(earned_value))
     if not ev.is_finite() or ev < 0:
