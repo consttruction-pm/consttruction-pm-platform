@@ -1208,3 +1208,231 @@ th {
 @media (max-width:760px) { .cubi-hero { padding-block:2.8rem 3.2rem; } .cubi-section,.cubi-control-section,.cubi-faq { padding-block:3rem; } .cubi-feature-grid article { min-height:150px; } }
 [dir="rtl"] .cubi-header { direction:rtl; }
 [dir="rtl"] .cubi-header-actions { margin-inline-start:0; margin-inline-end:auto; }
+
+
+/* CUBI canonical reference alignment — docs/cubi/CUBI-website-reference.svg */
+.cubi-reference-site { background: #fff; color: var(--cp-text); }
+.cubi-reference-header {
+  min-height: 74px;
+  padding: 10px clamp(18px, 5vw, 90px);
+  background: #fff;
+  border-bottom: 1px solid var(--cubi-neutral-divider);
+  box-shadow: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: none;
+}
+.cubi-reference-brand { display:inline-flex; align-items:center; min-width:184px; }
+.cubi-reference-brand img { display:block; width:184px; height:auto; }
+.cubi-reference-header .cubi-nav { gap: 24px; justify-content:center; }
+.cubi-reference-header .cubi-nav a { color:var(--cp-navy); font-size:13px; font-weight:700; }
+.cubi-reference-header .cubi-header-actions { gap:8px; }
+
+.cubi-reference-hero {
+  display:grid;
+  grid-template-columns: minmax(0, .88fr) minmax(520px, 1.12fr);
+  gap:28px;
+  align-items:center;
+  padding:52px clamp(18px, 5vw, 90px) 58px;
+  background:var(--cp-navy-dark);
+  color:#fff;
+}
+.cubi-reference-hero-copy {
+  min-height:360px;
+  padding:42px;
+  border-radius:18px;
+  background:var(--cp-navy);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  box-shadow:0 18px 44px rgba(8,26,47,.18);
+}
+.cubi-reference-hero-copy .cubi-eyebrow { color:var(--cubi-titanium-light); letter-spacing:.16em; }
+.cubi-reference-hero h1 { margin:14px 0 18px; color:#fff; font-size:clamp(2.8rem,4.8vw,4.7rem); line-height:1.03; }
+.cubi-reference-hero h1 em { color:var(--cp-blue); font-style:normal; display:block; }
+.cubi-reference-hero .cubi-lead { max-width:680px; color:#d9e6f1; font-size:18px; line-height:1.7; }
+.cubi-reference-hero .cubi-tagline { margin-top:22px; color:var(--cubi-brushed-titanium); font-weight:800; letter-spacing:.04em; }
+
+.cubi-reference-dashboard {
+  min-height:360px;
+  padding:34px 34px 28px;
+  border-radius:20px;
+  background:#f6f9fc;
+  border:1px solid #d4e0ea;
+  box-shadow:0 20px 48px rgba(8,26,47,.22);
+  color:var(--cp-navy);
+}
+.cubi-reference-dashboard .cubi-dash-top {
+  min-height:48px;
+  border-bottom:1px solid #dfe7ef;
+  color:var(--cp-navy);
+}
+.cubi-reference-dashboard .cubi-dash-top b { color:var(--cp-muted); background:#eaf0f6; border-radius:999px; padding:5px 10px; font-size:10px; }
+.cubi-reference-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:18px 0; }
+.cubi-reference-dashboard .cubi-metric { background:#fff; border:1px solid #dbe4ec; border-radius:12px; padding:16px; box-shadow:none; }
+.cubi-reference-dashboard .cubi-metric small { color:#6a7d90; }
+.cubi-reference-dashboard .cubi-metric strong { color:var(--cp-navy); font-size:28px; }
+.cubi-reference-dashboard .cubi-metric span { color:var(--cp-blue); font-size:10px; font-weight:800; }
+.cubi-reference-chart {
+  position:relative;
+  height:168px;
+  overflow:hidden;
+  border:1px solid #dfe7ef;
+  border-radius:12px;
+  background:#fff;
+}
+.cubi-reference-chart::before {
+  content:"";
+  position:absolute;
+  inset:20px 18px;
+  background:repeating-linear-gradient(to bottom, transparent 0, transparent 30px, #edf2f6 31px);
+  pointer-events:none;
+}
+.cubi-reference-chart-bars {
+  position:absolute;
+  inset:24px 24px 18px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px;
+}
+.cubi-reference-chart-bars i {
+  display:block;
+  flex:1 1 0;
+  min-width:14px;
+  max-width:46px;
+  border-radius:5px 5px 2px 2px;
+  background:var(--cp-blue);
+  opacity:.86;
+}
+.cubi-reference-chart-line {
+  position:absolute;
+  left:22px; right:22px; top:30px; height:105px;
+  border-top:2px solid var(--cp-copper);
+  transform:skewY(-7deg);
+}
+.cubi-reference-chart-line::before,
+.cubi-reference-chart-line::after {
+  content:"";
+  position:absolute;
+  width:8px; height:8px;
+  border-radius:50%;
+  background:var(--cp-copper);
+}
+.cubi-reference-chart-line::before { left:28%; top:-5px; }
+.cubi-reference-chart-line::after { right:6%; top:-34px; }
+.cubi-reference-dashboard-footer {
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:18px;
+}
+.cubi-reference-dashboard-footer span,
+.cubi-reference-dashboard-footer b {
+  padding:7px 10px;
+  border-radius:999px;
+  background:#eaf1f7;
+  color:#31577f;
+  font-size:10px;
+}
+.cubi-reference-dashboard-footer b { background:#f9eadc; color:#9a5c1f; }
+
+.cubi-reference-features { padding:72px clamp(18px, 5vw, 90px); }
+.cubi-reference-feature-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.cubi-reference-feature-grid article {
+  min-height:180px;
+  padding:24px;
+  border:1px solid #dce5ed;
+  border-radius:16px;
+  background:#eef5ff;
+  box-shadow:none;
+}
+.cubi-reference-feature-grid article:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(15,39,71,.08); }
+.cubi-reference-feature-grid .cubi-icon {
+  width:44px; height:44px; display:grid; place-items:center; border-radius:12px;
+  background:#fff; color:var(--cp-blue); border:1px solid #dbe4ec; font-size:20px; font-weight:800;
+}
+.cubi-reference-feature-grid h3 { margin:16px 0 8px; color:var(--cp-navy); font-size:17px; }
+.cubi-reference-feature-grid p { margin:0; color:#587087; line-height:1.6; }
+
+.cubi-reference-tech {
+  padding:68px clamp(18px, 5vw, 90px);
+  background:#eef6ff;
+}
+.cubi-tech-pills { display:flex; flex-wrap:wrap; gap:10px; margin-top:26px; }
+.cubi-tech-pills span {
+  padding:11px 16px; border:1px solid #cfdeed; border-radius:999px; background:#fff; color:var(--cp-navy);
+  font-size:12px; font-weight:800;
+}
+.cubi-reference-ai {
+  display:grid; grid-template-columns:80px minmax(0,1fr); gap:22px; align-items:start;
+  padding:58px clamp(18px, 5vw, 90px);
+}
+.cubi-reference-ai-mark {
+  width:80px; height:80px; display:grid; place-items:center; border-radius:18px; background:var(--cp-navy-dark);
+}
+.cubi-reference-ai h2 { margin-top:6px; }
+.cubi-ai-items { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.cubi-ai-items span { padding:8px 12px; border:1px solid var(--cubi-neutral-border); border-radius:999px; background:var(--cubi-neutral-subtle); color:var(--cp-navy); font-size:11px; font-weight:800; }
+
+.cubi-reference-cta {
+  display:flex; align-items:center; justify-content:space-between; gap:28px;
+  padding:72px clamp(18px, 5vw, 90px);
+  background:var(--cp-navy-dark); color:#fff;
+}
+.cubi-reference-cta h2 { color:#fff; font-size:clamp(2rem,4vw,3.1rem); }
+.cubi-reference-cta p:not(.cubi-kicker) { color:#c5d8ea; max-width:720px; line-height:1.65; }
+.cubi-reference-cta .cubi-kicker { color:var(--cubi-titanium-light); }
+
+.cubi-reference-resources {
+  display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+  padding:24px clamp(18px, 5vw, 90px);
+  background:#fff; border-bottom:1px solid var(--cubi-neutral-divider);
+}
+.cubi-reference-resources span { padding:6px 10px; color:#5f7387; font-size:11px; font-weight:700; }
+.cubi-reference-footer {
+  min-height:96px;
+  padding:20px clamp(18px, 5vw, 90px);
+  background:var(--cp-navy-dark);
+  color:#c5d8ea;
+}
+.cubi-reference-footer .cubi-brand img { width:184px; }
+.cubi-reference-footer p { margin-inline:auto 18px; }
+.cubi-reference-footer > span { color:var(--cubi-brushed-titanium); font-size:12px; }
+
+[dir="rtl"] .cubi-reference-hero { grid-template-columns:minmax(520px,1.12fr) minmax(0,.88fr); }
+[dir="rtl"] .cubi-reference-hero-copy { order:2; }
+[dir="rtl"] .cubi-reference-dashboard { order:1; }
+[dir="rtl"] .cubi-reference-header .cubi-nav { direction:rtl; }
+[dir="rtl"] .cubi-reference-footer p { margin-inline:18px auto; }
+
+@media (max-width:1023px) {
+  .cubi-reference-header { position:relative; flex-wrap:wrap; }
+  .cubi-reference-header .cubi-nav { order:3; width:100%; justify-content:flex-start; padding-top:8px; }
+  .cubi-reference-hero { grid-template-columns:1fr; }
+  [dir="rtl"] .cubi-reference-hero { grid-template-columns:1fr; }
+  [dir="rtl"] .cubi-reference-hero-copy,
+  [dir="rtl"] .cubi-reference-dashboard { order:initial; }
+  .cubi-reference-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .cubi-reference-header { padding-inline:12px; }
+  .cubi-reference-brand { min-width:150px; }
+  .cubi-reference-brand img { width:154px; }
+  .cubi-reference-header .cubi-nav { gap:14px; }
+  .cubi-reference-header .cubi-nav a { font-size:12px; }
+  .cubi-reference-hero { padding:28px 12px 34px; gap:16px; }
+  .cubi-reference-hero-copy { min-height:0; padding:28px 22px; border-radius:15px; }
+  .cubi-reference-hero h1 { font-size:clamp(2.2rem,11vw,3.1rem); }
+  .cubi-reference-hero .cubi-lead { font-size:15px; }
+  .cubi-reference-dashboard { min-height:0; padding:20px; border-radius:15px; }
+  .cubi-reference-kpis { grid-template-columns:1fr; }
+  .cubi-reference-feature-grid { grid-template-columns:1fr; }
+  .cubi-reference-tech,.cubi-reference-features,.cubi-reference-ai { padding-block:48px; }
+  .cubi-reference-ai { grid-template-columns:1fr; }
+  .cubi-reference-ai-mark { width:64px; height:64px; }
+  .cubi-reference-cta { padding-block:48px; flex-direction:column; align-items:flex-start; }
+  .cubi-reference-footer { flex-wrap:wrap; gap:12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cubi-reference-feature-grid article { transition:none !important; }
+  .cubi-reference-feature-grid article:hover { transform:none !important; }
+}
