@@ -745,3 +745,17 @@ The source tree contains a substantial `P6CalendarAPI` with create/update/delete
 Therefore Calendar persistence and typed API code exist, but the Web HTTP boundary does not yet demonstrate an end-to-end Calendar write path. The same route-tree inspection also found no dedicated HTTP path for Relationship Master, Cost Account, or Expense persistence. This is an integration/completeness gap, not evidence of a missing domain implementation.
 
 **Medium–High severity, high confidence.** For the declared Web-first beta, calendar administration cannot be considered end-to-end complete until the write API is exposed with tenant/project/revision authorization and one transaction boundary. No client-side calendar mutation engine should be introduced to compensate.
+
+
+## AQ. Cross-client time-scheduling contract fragmentation — confirmed
+
+The repository currently contains two distinct time-scheduling transport contracts:
+
+- `shared/contracts/time-scheduling.schema.json` + `src/construction_pm/client_sync/time_api.py` use `contract_version = "1.0"` and a `calculation_context`-centric payload.
+- `apps/mobile/src/shared-scheduling-adapter.ts` uses `MOBILE_SCHEDULING_CONTRACT_VERSION = "time-scheduling-portability.v1"` with a different request/result shape and a mobile-specific API type family.
+
+The mobile contract exposes only a projection of the scheduling result (for example, early start/finish plus total/free float and criticality), while the canonical Shared Core has a richer result surface. More importantly, no equivalent Web/Desktop Scheduling adapter was found in the current tree.
+
+This is **Medium–High architectural/integration risk, high confidence** against the V1 requirement that Web/Desktop/Mobile consume the same versioned API/Application contracts. It is not evidence of duplicate scheduling arithmetic; both designs explicitly delegate calculation authority elsewhere.
+
+Required direction: establish one canonical cross-client scheduling transport contract or an explicitly versioned, lossless compatibility mapping. Web/Desktop/Mobile should each be thin adapters to that contract, with no scheduling formulas or calendar arithmetic locally. Preserve the existing richer Core semantics while defining which result projections each client may render.
