@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "preview": "npm run build && node preview-server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts"
   },
