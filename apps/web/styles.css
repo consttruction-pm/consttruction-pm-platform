@@ -903,7 +903,6 @@ th {
 
 @media (max-width: 1023px) {
   .cp-workspace { padding: 10px; }
-  .cp-menu { top: 48px; }
   .cp-main {
     grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   }
