@@ -212,3 +212,31 @@ The remaining parity gap is integration rather than absence of a typed contract.
 Issue #1227 records the required follow-up: connect interchange mappings to the canonical P6 field/type registry, enforce conversion at the shared interchange boundary, add representative independent typed round-trip fixtures, and explicitly map/classify the remaining P6 subject areas. This must not create a second field registry, conversion engine or scheduling engine.
 
 **Interchange audit verdict:** architecture = sound foundation; P6 interoperability parity = partial and not yet certifiable. The no-silent-drop invariant is implemented at the interchange boundary, but complete P6 typed mapping coverage remains unverified.
+
+
+## N. CPM relationship / constraint / Data Date / OOS recheck — current main 9da4be61981f87a8584641c1266e58592411fd37
+
+Fresh source-and-test inspection of the scheduling core confirms that the reviewed CPM semantics are implemented in Shared Core and are covered by deterministic regression tests:
+
+- RelationshipType implements FS/SS/FF/SF; working-day lag supports positive and negative values; relationship arithmetic is centralized and the forward-pass tests cover all four relationship types, lag signs, holidays, deterministic input ordering and cycle rejection.
+- ActivityConstraint implements Start/Finish No Earlier Than, Start/Finish No Later Than, Mandatory Start and Mandatory Finish. Secondary P6 constraint values are represented explicitly; supported executable secondary values map into the existing primary constraint types, while documented-but-non-executable values are rejected rather than silently approximated.
+- Constraint handling distinguishes early-date lower-bound semantics from late-date constraints, preserving P6-style float behavior. Regression tests cover conflicting windows, mandatory conflicts, relationship propagation, holidays, negative float and constrained ALAP behavior.
+- Out-of-sequence scheduling is an explicit Shared Core policy with RETAINED_LOGIC, PROGRESS_OVERRIDE and ACTUAL_DATES. The policy preserves actual dates/remaining work and changes only how predecessor logic constrains progressed work. Regression tests exercise the four relationship types across the three OOS modes.
+- Data Date is not merely a UI field: it participates in progressed-activity/OOS validation, SS lag calculation when actual progress changes the anchor, and the separate P6-style remaining-work-as-of-data-date calculation. This is correctly separated from explicit Remaining Duration, which remains authoritative.
+- Relationship lag calendar selection is centralized through RelationshipLagCalendar and CalendarResolverRegistry, including predecessor, successor, project-default and 24-hour choices. No client-side lag arithmetic was found in the reviewed scheduling boundary.
+
+### Important parity limitation
+
+The reviewed scheduler is a strong CPM implementation, but P6 certification is still not justified. The typed ScheduleOptions surface contains several options whose calculation behavior is deliberately rejected by _validate_supported_schedule_options when enabled (for example resource-cost recalculation, external-project relationship handling, some leveling modes and scheduled-date preservation). This is preferable to silently ignoring an option, but it means the field/option contract is broader than the currently executable scheduler capability.
+
+A second integration gap remains: the reviewed Relationship, ActivityConstraint, OOS policy and ScheduleOptions objects are authoritative Shared Core contracts, but this audit has not yet proven one-to-one mapping of every corresponding P6 field/option through the canonical Field Registry -> API -> Web/Desktop/Mobile -> interchange path. That traceability remains part of the existing P6 parity work and must be completed without duplicating the calculation engine.
+
+CPM audit verdict: relationship arithmetic, constraints, OOS policy and Data Date support are real Shared Core behavior with regression evidence; full P6 option/field/interchange certification remains partial.
+
+## O. Current-main integration status after UI merge
+
+The current repository head is 9da4be61981f87a8584641c1266e58592411fd37, merge commit for PR #1225 (feat(cubi): professionalize responsive layout on exact current main). The UI work is presentation-only in the reviewed diff: responsive layout, typography, chart containers, print rules and navigation geometry. No Shared Core scheduling calculation change is present in that merge diff.
+
+Fresh exact-head CI evidence is still not established by the connected status/run interface; therefore this audit continues to classify exact-head runtime verification as unverified, not green.
+
+The current-main rule remains binding: future UI or parity PRs must rebuild/rebase from this head before merge, and no stale PR baseline should be treated as integrated work.
