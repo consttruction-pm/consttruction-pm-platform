@@ -326,6 +326,32 @@ class ProjectLifecycleHttpRoutes:
                 except (ValueError, AuthorizationError) as exc:
                     return self._error(400 if not isinstance(exc, AuthorizationError) else 403, str(exc), "error.request.invalid" if not isinstance(exc, AuthorizationError) else "error.authorization.denied")
 
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/export"):
+                if self._p6_interchange_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, format_path = path.split("/p6/interchange/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                format_value = format_path[:-len("/export")].strip("/")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict) or not isinstance(payload.get("values"), list):
+                        return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
+                    format = P6MappingFormat(format_value)
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    auth = context.authorization_context(self._api.get_session(session_id, now=now).roles)
+                    result = self._p6_interchange_api.export_document(
+                        scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                        format=format,
+                        values=tuple(item for item in payload["values"] if isinstance(item, dict)),
+                        extensions=payload.get("extensions"),
+                        auth_context=auth,
+                    )
+                    return self._json(200, result)
+                except json.JSONDecodeError:
+                    return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
+                except (ValueError, AuthorizationError) as exc:
+                    return self._error(400 if not isinstance(exc, AuthorizationError) else 403, str(exc), "error.request.invalid" if not isinstance(exc, AuthorizationError) else "error.authorization.denied")
+
             if method == "GET" and path.startswith("/api/projects/") and "/dependencies/" in path:
                 if self._dependency_graph_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
