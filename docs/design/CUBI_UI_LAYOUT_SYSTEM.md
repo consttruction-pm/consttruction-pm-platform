@@ -65,6 +65,14 @@ On narrow screens Gantt scrolling is preferred to compressing the time axis or t
 
 Critical-path emphasis remains semantic and must not be implemented through decorative color overload.
 
+## Charts
+
+Cost, EVM, progress and other analytical charts must live inside bounded chart surfaces. The chart container uses a minimum readable height of about 220px on desktop and about 180px on mobile, with responsive height up to roughly 420px. The plotting surface must never create body-level horizontal overflow.
+
+When a chart has more horizontal data than the viewport can show, use an explicitly scrollable chart surface rather than shrinking labels or axes below readability. Charts should keep a stable aspect and let legends/wrapped labels occupy reserved space.
+
+Print charts use a controlled A4-safe height of about 55mm and must not split across pages when practical.
+
 ## Cards, dashboards and control surfaces
 
 Control summaries, Smart Guide, field assurance, site logs, procurement, change/claim and similar auxiliary panels span the complete workspace width rather than occupying arbitrary cells of the three-column shell.
