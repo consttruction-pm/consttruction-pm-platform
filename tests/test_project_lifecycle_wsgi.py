@@ -22,8 +22,9 @@ def app():
     service=ProjectLifecycleService(Sessions(),Projects(),default_project_policy())
     return ProjectLifecycleWsgiApp(ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service),Clock()))
 
-def call(path,cookie="s1"):
+def call(path,cookie="s1",extra_environ=None):
     environ={"REQUEST_METHOD":"GET","PATH_INFO":path,"HTTP_COOKIE":f"cp_session={cookie}","CONTENT_LENGTH":"0","wsgi.input":io.BytesIO(b"")}
+    environ.update(extra_environ or {})
     seen={}
     def start(status,headers): seen["status"]=status; seen["headers"]=headers
     body=b"".join(app()(environ,start))
@@ -38,3 +39,30 @@ def test_wsgi_preserves_unauthenticated_boundary():
     seen,body=call("/api/session",cookie="")
     assert seen["status"].startswith("401 ")
     assert json.loads(body)["code"]=="SESSION_REQUIRED"
+
+class HeaderCaptureRoutes:
+    def __init__(self):
+        self.headers=None
+
+    def handle(self, method, path, *, cookies, body, headers):
+        self.headers=headers
+        return 200,{"Content-Type":"application/json"},b"{}"
+
+def test_wsgi_forwards_http_headers_to_route_boundary():
+    routes=HeaderCaptureRoutes()
+    wsgi=ProjectLifecycleWsgiApp(routes)
+    environ={
+        "REQUEST_METHOD":"POST",
+        "PATH_INFO":"/api/v1/sync/mutations",
+        "HTTP_COOKIE":"cp_session=s1",
+        "HTTP_IDEMPOTENCY_KEY":"idem-1",
+        "HTTP_X_PROJECT_REVISION":"2",
+        "CONTENT_LENGTH":"0",
+        "wsgi.input":io.BytesIO(b""),
+    }
+    seen={}
+    def start(status,headers): seen["status"]=status
+    body=b"".join(wsgi(environ,start))
+    assert seen["status"].startswith("200 ")
+    assert body==b"{}"
+    assert routes.headers=={"Idempotency-Key":"idem-1","X-Project-Revision":"2"}
