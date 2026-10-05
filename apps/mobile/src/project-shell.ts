@@ -62,6 +62,7 @@ export class InMemoryMobileLocalProjectStore implements MobileLocalProjectStore 
  * progress and other business calculations stay outside this shell.
  */
 export class MobileProjectShell {
+  private localProject: MobileLocalProject | null = null;
   private state: MobileShellState = Object.freeze({
     screen: "projects",
     project: null,
@@ -97,6 +98,7 @@ export class MobileProjectShell {
       "offline",
     );
 
+    this.localProject = project;
     this.state = Object.freeze({
       screen: "wbs",
       project: runtimeState,
@@ -164,14 +166,8 @@ export class MobileProjectShell {
   }
 
   private requireProjectData(): MobileLocalProject {
-    const project = this.requireProject();
-    return {
-      tenant_id: project.tenant_id,
-      project_id: project.project_id,
-      revision: project.revision,
-      name: "",
-      wbs: [],
-      activities: [],
-    };
+    this.requireProject();
+    if (!this.localProject) throw new Error("PROJECT_NOT_OPEN");
+    return this.localProject;
   }
 }
