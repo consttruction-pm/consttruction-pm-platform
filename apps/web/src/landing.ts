@@ -144,7 +144,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
   setLandingDocumentLocale(locale);
 
   container.innerHTML = `
-    <div class="cubi-site" dir="${locale === "fa" ? "rtl" : "ltr}">
+    <div class="cubi-site" dir="${locale === "fa" ? "rtl" : "ltr"}">
       <header class="cubi-header">
         <a class="cubi-brand" href="/" aria-label="CUBI Platform home">
           <img src="/logo.svg" width="42" height="42" alt="" />
