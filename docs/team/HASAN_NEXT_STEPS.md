@@ -901,3 +901,13 @@ Status: 100% — merged and runtime-verified
 - Current main: **ade640f0b28475f397634ab4e17c9dae6a1a5967**.
 - No open PRs remain after #1148.
 - Next Hasan action: fresh current-main/open-PR audit and only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
+
+
+### 2026-10-05 — Fresh current-main audit after PR #1149
+
+- Exact current `main`: `2845623e33f6dcb7847e6f8931079eec112212bf`.
+- PR #1149 is Jalal/Shared-Core Activity semantic certification work; it does not create a Hasan-owned Backend/API/Persistence seam.
+- Repository-wide open-PR inspection found no open pull requests; no Hasan implementation PR is pending.
+- Issue #393 was re-audited against the current tree. P6 field/UDF, formula-definition, mapping/interchange, baseline, financial-period, resource assignment/spread, code, expense, report/profile, activity-period-actual, layout, calendar and dependency-graph backend/API slices are represented on current main.
+- Activity Status/Type/StatusCode, WBS/WorkPackage semantics, and time-aware ScheduleOptions remain evidence/Shared-Core dependencies where no authoritative backend mapping contract is present; no backend implementation is authorized from names or presentation code alone.
+- Disposition: **evidence boundary — no speculative Hasan implementation**. The next implementation must begin only after a newly reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed seam is proven on exact current main.
