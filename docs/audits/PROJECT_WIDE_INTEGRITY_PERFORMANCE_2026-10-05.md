@@ -723,3 +723,16 @@ This is **High severity, high confidence** for correctness of Calendar administr
 Make transaction ownership application-level for SQLite exactly as documented by the repository architecture: repository mutation methods must participate in the caller's transaction and must not commit/rollback independently. `P6CalendarAPI.copy/replace/delete` should execute their complete multi-repository mutation inside one transaction manager boundary. Initialization/schema setup may retain a separate initialization commit where necessary.
 
 Add failure-injection tests that fail at each step of `copy()`/`replace()` and verify complete rollback, plus successful multi-step atomicity tests. Do not alter Shared Scheduling Core calculations as part of this repair.
+
+
+## AO. SQLite Calendar schema migration default corruption risk
+
+Current-main `SQLiteCalendarMasterRepository.__init__()` creates the modern table correctly with nullable `base_calendar_id` / `base_calendar_version`, but its compatibility migration adds missing columns using `TEXT NOT NULL DEFAULT 'project'` for all three new columns. For pre-existing databases that lack these inheritance columns, existing calendar rows can therefore be backfilled with `base_calendar_id='project'` and `base_calendar_version='project'` rather than `NULL`.
+
+The model explicitly treats the base-calendar pair as optional; `None/None` represents no inheritance. The current migration default therefore can fabricate an inheritance reference in upgraded databases and change calendar-resolution behavior or make stored state fail later validation. Existing tests cover fresh in-memory schemas and normal round-trips, but no test was found that starts from the legacy schema and exercises the ALTER TABLE migration.
+
+**High severity, high confidence** for upgrade correctness. The risk is conditional on upgrading an older SQLite database, but if triggered it can change the authoritative calendar definition and consequently future scheduling results.
+
+### Required direction
+
+Use nullable defaults for the optional inheritance columns during migration (or a backfill that explicitly establishes `NULL` for existing rows), preserve `calendar_type` default separately, and add a legacy-schema migration regression test that verifies old calendars remain non-inherited unless inheritance was explicitly stored. Migration must be tested before any production database upgrade.
