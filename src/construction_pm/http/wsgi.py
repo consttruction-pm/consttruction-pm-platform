@@ -39,11 +39,7 @@ class ProjectLifecycleWsgiApp:
             stream = environ.get("wsgi.input")
             body = stream.read(length) if length and hasattr(stream, "read") else b""
             status, headers, body = self._routes.handle(
-                method,
-                path,
-                cookies=cookie_values,
-                body=body,
-                headers=request_headers,
+                method, path, cookies=cookie_values, body=body, headers=request_headers
             )
         reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found"}.get(status, "Internal Server Error")
         response_headers = [("Content-Length", str(len(body))), *headers.items(),
