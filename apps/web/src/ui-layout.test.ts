@@ -56,6 +56,14 @@ test("workspace status bar stays above sticky primary navigation", () => {
   assert.ok(css.includes("top: 52px"));
 });
 
+test("tablet sticky menu does not overlap the 52px status bar", () => {
+  const tabletStart = css.indexOf("@media (max-width: 1023px)");
+  const mobileStart = css.indexOf("@media (max-width: 760px)");
+  assert.ok(tabletStart >= 0 && mobileStart > tabletStart);
+  const tabletCss = css.slice(tabletStart, mobileStart);
+  assert.ok(!tabletCss.includes(".cp-menu { top: 48px; }"));
+});
+
 test("workspace responsive rules prevent menu wrap and cramped columns", () => {
   assert.ok(css.includes("flex-wrap: nowrap"));
   assert.ok(css.includes("overflow-x: auto"));
