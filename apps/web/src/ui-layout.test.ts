@@ -41,6 +41,12 @@ test("workspace layout gives full-width treatment to auxiliary control surfaces"
   assert.ok(css.includes("grid-column: 1 / -1"));
 });
 
+test("workspace status bar stays above sticky primary navigation", () => {
+  assert.ok(css.includes("position: sticky"));
+  assert.ok(css.includes("z-index: 30"));
+  assert.ok(css.includes("top: 52px"));
+});
+
 test("workspace responsive rules prevent menu wrap and cramped columns", () => {
   assert.ok(css.includes("flex-wrap: nowrap"));
   assert.ok(css.includes("overflow-x: auto"));
