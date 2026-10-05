@@ -28,6 +28,7 @@ from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from construction_pm.p6_mapping_registry import P6MappingFormat
 from construction_pm.p6_xer_codec import P6XerCodec
 from construction_pm.p6_mapping_registry import P6MappingRegistryApplicationService, SQLiteP6MappingRegistryRepository
 from construction_pm.dependency_graph_api import DependencyGraphAPI
