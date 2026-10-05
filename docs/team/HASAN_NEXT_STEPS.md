@@ -885,3 +885,19 @@ Status: 100% — merged and runtime-verified
 - Current `main`: `712d0ba6379e0ed30be53dae01888dba2b367120`.
 - PR #1140 was stale against an older base and remains closed/superseded; do not revive it.
 - Next Hasan action: fresh current-main/open-PR audit and only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence.
+
+
+### 2026-10-05 — Dependency Graph authenticated HTTP read boundary (PR #1148)
+
+- Fresh current-main audit identified a concrete Hasan-owned gap: the existing versioned Dependency Graph API had scope/permission-aware read behavior, but ProjectLifecycleHttpRoutes had no authenticated HTTP boundary for it.
+- PR #1148 added authenticated GET /api/projects/{project_id}/dependencies/{resource_id}, binding tenant/project context from the authenticated session and delegating dependency semantics and authorization to the existing DependencyGraphAPI.
+- Focused regression coverage verifies versioned contract preservation, project context, missing session/scope, not-found and malformed resource paths.
+- Exact implementation head: 60a90f873353e986ae288290b0bb36c333435bdf.
+- Client Typecheck **3650** and ConstructionPM CI **3947** both passed on the exact head.
+- PR #1148 squash-merged as **ade640f0b28475f397634ab4e17c9dae6a1a5967**.
+- No Scheduling/P6 calculation semantics or Shared Core authority were changed.
+
+### Current continuation point
+- Current main: **ade640f0b28475f397634ab4e17c9dae6a1a5967**.
+- No open PRs remain after #1148.
+- Next Hasan action: fresh current-main/open-PR audit and only the first concrete Backend/Database/Application/API/Import-Export gap backed by authoritative evidence. Do not revive stale branches or duplicate Shared-Core/Web ownership.
