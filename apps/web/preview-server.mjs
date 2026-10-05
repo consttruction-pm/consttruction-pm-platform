@@ -2,11 +2,27 @@ import http from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { lookup } from "node:mime-types";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || "4173");
+
+const CONTENT_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".webp", "image/webp"],
+]);
+
+function contentType(file) {
+  const dot = file.lastIndexOf(".");
+  return CONTENT_TYPES.get(dot >= 0 ? file.slice(dot).toLowerCase() : "") || "application/octet-stream";
+}
 
 function safePath(requestPath) {
   const pathname = decodeURIComponent(requestPath.split("?")[0]);
@@ -38,7 +54,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const type = lookup(file) || "application/octet-stream";
+    const type = contentType(file);
     res.writeHead(200, {
       "Content-Type": type,
       "Cache-Control": "no-store",
