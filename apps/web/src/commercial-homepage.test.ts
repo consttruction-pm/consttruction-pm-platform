@@ -44,3 +44,12 @@ test("commercial surface stays independent of external product provenance", () =
     assert.doesNotMatch(index, pattern);
   }
 });
+
+test("homepage uses self-hosted Inter and Vazirmatn fonts", () => {
+  assert.match(styles, /@font-face[\s\S]*font-family: "Inter"/);
+  assert.match(styles, /@font-face[\s\S]*font-family: "Vazirmatn"/);
+  assert.match(styles, /url\("/fonts/Inter-Regular\.woff2"\)/);
+  assert.match(styles, /url\("/fonts/Vazirmatn-Regular\.woff2"\)/);
+  assert.match(index, /rel="preload"[^>]+Inter-Regular\.woff2/);
+  assert.match(index, /rel="preload"[^>]+Vazirmatn-Regular\.woff2/);
+});
