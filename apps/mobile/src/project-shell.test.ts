@@ -4,6 +4,7 @@ import { MobileRuntime } from "./runtime.ts";
 import {
   InMemoryMobileLocalProjectStore,
   MobileProjectShell,
+  PersistentMobileLocalProjectStore,
   type MobileLocalProject,
 } from "./project-shell.ts";
 import { MOBILE_SCHEDULING_CONTRACT_VERSION, type MobileSchedulingRequest } from "./shared-scheduling-adapter.ts";
@@ -266,4 +267,24 @@ test("preserves the runtime project-context guard when scheduling from the shell
     ),
     /PROJECT_CONTEXT_MISMATCH/,
   );
+});
+
+
+test("persists and reloads a local project through the host storage boundary", async () => {
+  const values = new Map<string, string>();
+  const persistence = {
+    async read(key: string) { return values.get(key) ?? null; },
+    async write(key: string, value: string) { values.set(key, value); },
+  };
+  const store = new PersistentMobileLocalProjectStore(persistence);
+  await store.save(fixture);
+  assert.deepEqual(await store.load("t1", "p1"), fixture);
+});
+
+test("rejects malformed persisted local projects", async () => {
+  const store = new PersistentMobileLocalProjectStore({
+    async read() { return "{broken"; },
+    async write() {},
+  });
+  await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT/);
 });
