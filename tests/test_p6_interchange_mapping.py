@@ -47,7 +47,7 @@ def mapper() -> P6InterchangeMapper:
             mapping(
                 "activity.code",
                 source="task_code",
-                canonical="activity.code",
+                canonical="activity.activity_name",
                 status=P6MappingStatus.SUPPORTED,
             ),
             mapping(
@@ -142,7 +142,7 @@ def test_mapping_for_other_format_is_not_applied() -> None:
     mapper_for_both = P6InterchangeMapper((mapping(
         "activity.code",
         source="task_code",
-        canonical="activity.code",
+        canonical="activity.activity_name",
         status=P6MappingStatus.SUPPORTED,
     ), other_format))
 
@@ -209,14 +209,14 @@ def test_ambiguous_source_or_canonical_mapping_is_rejected() -> None:
         P6InterchangeMapper((mapping(
             "activity.code",
             source="task_code",
-            canonical="activity.code",
+            canonical="activity.activity_name",
             status=P6MappingStatus.SUPPORTED,
         ), duplicate_source))
 
     duplicate_canonical = mapping(
         "activity.code.alias",
         source="other_task_code",
-        canonical="activity.code",
+        canonical="activity.activity_name",
         status=P6MappingStatus.SUPPORTED,
     )
     with pytest.raises(
@@ -226,7 +226,7 @@ def test_ambiguous_source_or_canonical_mapping_is_rejected() -> None:
         P6InterchangeMapper((mapping(
             "activity.code",
             source="task_code",
-            canonical="activity.code",
+            canonical="activity.activity_name",
             status=P6MappingStatus.SUPPORTED,
         ), duplicate_canonical))
 
@@ -252,7 +252,7 @@ def test_mapping_scope_mismatch_is_rejected() -> None:
         P6InterchangeMapper((mapping(
             "activity.code",
             source="task_code",
-            canonical="activity.code",
+            canonical="activity.activity_name",
             status=P6MappingStatus.SUPPORTED,
         ), other))
 
@@ -277,13 +277,13 @@ def test_row_scope_mismatch_is_rejected() -> None:
 
 def test_import_converts_canonical_date_and_decimal_types() -> None:
     typed_mapper = P6InterchangeMapper((
-        mapping("activity.start_date", source="start", canonical="activity.start_date", status=P6MappingStatus.SUPPORTED),
+        mapping("activity.planned_start", source="start", canonical="activity.planned_start", status=P6MappingStatus.SUPPORTED),
         mapping("activity.earned_value_cost", source="ev", canonical="activity.earned_value_cost", status=P6MappingStatus.SUPPORTED),
     ))
     result = typed_mapper.import_row(P6InterchangeRow(scope=scope(), format=P6MappingFormat.XER_PROJECT, values={"start": "2026-10-05", "ev": "123.4500"}))
     from datetime import date
     from decimal import Decimal
-    assert result.values["activity.start_date"] == date(2026, 10, 5)
+    assert result.values["activity.planned_start"] == date(2026, 10, 5)
     assert result.values["activity.earned_value_cost"] == Decimal("123.4500")
 
 
@@ -304,17 +304,17 @@ def test_mapping_rejects_unknown_canonical_field_and_type_mismatch() -> None:
                 ),
             ),
         ))
-    record = mapping("bad-type", source="x", canonical="activity.code", status=P6MappingStatus.SUPPORTED)
+    record = mapping("bad-type", source="x", canonical="activity.activity_name", status=P6MappingStatus.SUPPORTED)
     d = record.definition
     bad = PersistedP6Mapping(scope=scope(), definition=P6MappingDefinition(
         mapping_id=d.mapping_id, registry_version=d.registry_version, format=d.format,
         subject_area=d.subject_area, source_field=d.source_field, canonical_field=d.canonical_field,
         status=d.status, canonical_type="date"))
-    with pytest.raises(P6InterchangeCompatibilityError, match="CANONICAL_TYPE_MISMATCH:activity.code:date:string"):
+    with pytest.raises(P6InterchangeCompatibilityError, match="CANONICAL_TYPE_MISMATCH:activity.activity_name:date:string"):
         P6InterchangeMapper((bad,))
 
 
 def test_export_rejects_invalid_canonical_type() -> None:
-    typed_mapper = P6InterchangeMapper((mapping("activity.start_date", source="start", canonical="activity.start_date", status=P6MappingStatus.SUPPORTED),))
-    with pytest.raises(P6InterchangeCompatibilityError, match="INVALID_CANONICAL_VALUE:activity.start_date:date"):
-        typed_mapper.export_row(P6InterchangeRow(scope=scope(), format=P6MappingFormat.XER_PROJECT, values={"activity.start_date": "not-a-date"}))
+    typed_mapper = P6InterchangeMapper((mapping("activity.planned_start", source="start", canonical="activity.planned_start", status=P6MappingStatus.SUPPORTED),))
+    with pytest.raises(P6InterchangeCompatibilityError, match="INVALID_CANONICAL_VALUE:activity.planned_start:date"):
+        typed_mapper.export_row(P6InterchangeRow(scope=scope(), format=P6MappingFormat.XER_PROJECT, values={"activity.planned_start": "not-a-date"}))
