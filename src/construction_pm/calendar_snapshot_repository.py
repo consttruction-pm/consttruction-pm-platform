@@ -51,17 +51,30 @@ class CalendarSnapshotRepository(Protocol):
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None: ...
 
 
+def _canonicalize_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    """Normalize persisted JSON back to the Shared-Core canonical representation."""
+    kind = snapshot.get("kind", "working-day")
+    if kind == "working-time":
+        return WorkingTimeCalendar.from_canonical_snapshot(snapshot).canonical_snapshot()
+    if kind == "working-day":
+        return WorkingCalendar.from_canonical_snapshot(snapshot).canonical_snapshot()
+    raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT")
+
+
 def _record(calendar: CalendarMaster, snapshot: dict[str, object]) -> CalendarSnapshotRecord:
+    try:
+        normalized_snapshot = _canonicalize_snapshot(snapshot)
+    except (TypeError, ValueError) as exc:
+        raise CalendarPersistenceError("INVALID_CALENDAR_SNAPSHOT") from exc
     record = CalendarSnapshotRecord(
         calendar.scope,
         calendar.calendar_id,
         calendar.calendar_version,
         calendar.kind,
-        snapshot,
+        normalized_snapshot,
     )
     record.validate()
     return record
-
 
 def _canonical_json(snapshot: dict[str, object]) -> str:
     return json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
