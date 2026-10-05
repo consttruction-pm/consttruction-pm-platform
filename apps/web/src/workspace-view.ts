@@ -61,12 +61,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
-        <aside class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
+        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
           <h2>${t.wbs}</h2>
           ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
         </aside>
         <section class="cp-center">
-          <section class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
+          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
             <h2>${t.activities}</h2>
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
@@ -76,9 +76,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
         </section>
-        <aside class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
     </section>
   `;
@@ -169,12 +169,27 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
+  const links = navigationAnchors(item.key);
   return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
-      ${item.submenus.map((submenu) => `<span class="cp-submenu-item">${escapeHtml(submenu[state.locale])}</span>`).join("")}
+      ${item.submenus.map((submenu, index) => {
+        const anchor = links[index];
+        return anchor
+          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(submenu[state.locale])}</a>`
+          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(submenu[state.locale])}</span>`;
+      }).join("")}
     </nav>
   </section>`;
+}
+
+function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string | null)[] {
+  switch (menu) {
+    case "project": return ["#cp-project-wbs", "#cp-details"];
+    case "schedule": return ["#cp-activity-grid", "#cp-gantt"];
+    default: return [];
+  }
+}
 }
 
 function renderSmartGuide(
