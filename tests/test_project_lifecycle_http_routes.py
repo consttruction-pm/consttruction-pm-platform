@@ -28,6 +28,9 @@ from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
+from construction_pm.p6_resource_assignment_repository import P6ResourceAssignment, P6ResourceAssignmentApplicationService, P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue, SQLiteP6ResourceAssignmentRepository, SQLiteP6ResourceAssignmentPeriodRepository
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService, SQLiteP6ResourceSpreadRepository
 from construction_pm.p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
@@ -195,6 +198,47 @@ def test_authenticated_sync_routes_require_session():
     status, _, raw = r.handle("GET", "/api/v1/sync/revision/p1")
     assert status == 401
     assert json.loads(raw)["code"] == "SESSION_REQUIRED"
+
+def resource_assignment_routes():
+    import sqlite3
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    connection = sqlite3.connect(":memory:")
+    transaction_manager = SQLiteTransactionManager(connection)
+    assignment_service = P6ResourceAssignmentApplicationService(SQLiteP6ResourceAssignmentRepository(connection), transaction_manager)
+    period_service = P6ResourceAssignmentPeriodApplicationService(SQLiteP6ResourceAssignmentPeriodRepository(connection), transaction_manager)
+    assignment_service.save(P6ResourceAssignment(BackendScope("t1", "p1", 2), "A-R-1", "ACT-1", "RES-1", role_id="ROLE-1", units=Decimal("8"), planned_cost=Decimal("100")))
+    spread_service = P6ResourceSpreadApplicationService(SQLiteP6ResourceSpreadRepository(connection), transaction_manager)
+    read_api = P6ResourceReadAPI(assignment_service, period_service, spread_service, default_project_policy())
+    write_api = P6ResourceWriteAPI(period_service, default_project_policy())
+    return ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service), clock=type("Clock", (), {"now": lambda self: now})(), p6_resource_read_api=read_api, p6_resource_write_api=write_api)
+
+
+def test_authenticated_resource_assignment_http_boundary_reads_assignment_and_period():
+    r = resource_assignment_routes()
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/resource-assignments/A-R-1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assignment = json.loads(raw)
+    assert assignment["contract_version"] == P6_RESOURCE_READ_API_VERSION
+    assert assignment["assignment"]["assignment_id"] == "A-R-1"
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/resource-assignment-periods", cookies={"cp_session": "s1"}, body=json.dumps({"assignment_id":"A-R-1","activity_id":"ACT-1","resource_id":"RES-1","period_start":"2026-10-01","units":"4","cost":"50"}).encode())
+    assert status == 200
+    period = json.loads(raw)
+    assert period["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/resource-assignment-periods/A-R-1/2026-10-01", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(raw) == period
+
+
+def test_resource_assignment_http_boundary_enforces_scope_and_payload():
+    r = resource_assignment_routes()
+    status, _, raw = r.handle("GET", "/api/projects/p2/p6/resource-assignments", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/resource-assignment-periods", cookies={"cp_session": "s1"}, body=b"{not-json")
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_REQUEST_INVALID"
 
 def resource_spread_routes():
     import sqlite3
