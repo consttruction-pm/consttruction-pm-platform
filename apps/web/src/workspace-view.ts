@@ -190,7 +190,6 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     default: return [];
   }
 }
-}
 
 function renderSmartGuide(
   guide: WorkspaceState["smartGuide"],
