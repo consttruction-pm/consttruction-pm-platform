@@ -40,6 +40,17 @@ def test_postgres_work_hours_contract_roundtrip():
         assert restored == stored
         assert restored.canonical_snapshot()["total_work_hours"] == "8"
 
+        total = CalendarWorkHourRule(
+            scope, calendar.calendar_id, calendar.calendar_version,
+            "total_work_hours", None, None, Decimal("40"), (),
+        )
+        total_stored = work_hours.save(total)
+        connection.commit()
+        total_restored = work_hours.list(scope, "CAL-H", "1", "total_work_hours")[0]
+        assert total_restored == total_stored
+        assert total_restored.weekday is None
+        assert total_restored.canonical_snapshot()["total_work_hours"] == "40"
+
         connection.execute("DELETE FROM calendar_work_hour_rule WHERE tenant_id=%s AND project_id=%s", (scope.tenant_id, scope.project_id))
         connection.execute("DELETE FROM calendar_master WHERE tenant_id=%s AND project_id=%s", (scope.tenant_id, scope.project_id))
         connection.commit()
