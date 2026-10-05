@@ -7,7 +7,7 @@ import pytest
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.calendar_master_repository import CalendarMaster, CalendarPersistenceError, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
-from construction_pm.scheduling.calendar import WorkingCalendar
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.calendar_system import CalendarSystem
 
