@@ -24,7 +24,7 @@ class SQLiteTransactionManager:
         self._savepoint_counter = 0
 
     def transaction(self) -> AbstractContextManager[None]:
-        return _SQLiteTransaction(self.connection)
+        return _SQLiteTransaction(self.connection, self)
 
 
 class _NoOpTransaction(AbstractContextManager[None]):
@@ -36,8 +36,9 @@ class _NoOpTransaction(AbstractContextManager[None]):
 
 
 class _SQLiteTransaction(AbstractContextManager[None]):
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(self, connection: sqlite3.Connection, manager: SQLiteTransactionManager) -> None:
         self.connection = connection
+        self.manager = manager
         self._owner = False
         self._savepoint: str | None = None
 
