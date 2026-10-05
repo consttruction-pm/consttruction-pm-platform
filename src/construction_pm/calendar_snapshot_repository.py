@@ -79,19 +79,35 @@ class SQLiteCalendarSnapshotRepository:
     def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
         calendar.validate()
         record = _record(calendar, working_calendar.canonical_snapshot())
+        canonical_snapshot = _canonical_json(record.snapshot)
+        existing = self.connection.execute(
+            "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
+            "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
+            (
+                calendar.scope.tenant_id,
+                calendar.scope.project_id,
+                calendar.calendar_id,
+                calendar.calendar_version,
+            ),
+        ).fetchone()
+        if existing is not None:
+            if int(existing[0]) != calendar.scope.project_revision:
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            if str(existing[1]) != canonical_snapshot:
+                raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
+            return record
+
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
             "(tenant_id,project_id,project_revision,calendar_id,calendar_version,snapshot_json) "
-            "VALUES (?,?,?,?,?,?) "
-            "ON CONFLICT(tenant_id,project_id,calendar_id,calendar_version) DO UPDATE SET "
-            "project_revision=excluded.project_revision,snapshot_json=excluded.snapshot_json",
+            "VALUES (?,?,?,?,?,?)",
             (
                 calendar.scope.tenant_id,
                 calendar.scope.project_id,
                 calendar.scope.project_revision,
                 calendar.calendar_id,
                 calendar.calendar_version,
-                _canonical_json(record.snapshot),
+                canonical_snapshot,
             ),
         )
         self.connection.commit()
@@ -128,19 +144,37 @@ class PostgresCalendarSnapshotRepository:
     def save(self, calendar: CalendarMaster, working_calendar: WorkingCalendar) -> CalendarSnapshotRecord:
         calendar.validate()
         record = _record(calendar, working_calendar.canonical_snapshot())
+        canonical_snapshot = _canonical_json(record.snapshot)
+        existing = self.connection.execute(
+            "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
+            "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+            (
+                calendar.scope.tenant_id,
+                calendar.scope.project_id,
+                calendar.calendar_id,
+                calendar.calendar_version,
+            ),
+        ).fetchone()
+        if existing is not None:
+            if int(existing[0]) != calendar.scope.project_revision:
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            raw = existing[1]
+            existing_snapshot = json.loads(raw) if isinstance(raw, str) else raw
+            if _canonical_json(existing_snapshot) != canonical_snapshot:
+                raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
+            return record
+
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
             "(tenant_id,project_id,project_revision,calendar_id,calendar_version,snapshot_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s::jsonb) "
-            "ON CONFLICT (tenant_id,project_id,calendar_id,calendar_version) DO UPDATE SET "
-            "project_revision=EXCLUDED.project_revision,snapshot_json=EXCLUDED.snapshot_json",
+            "VALUES (%s,%s,%s,%s,%s,%s::jsonb)",
             (
                 calendar.scope.tenant_id,
                 calendar.scope.project_id,
                 calendar.scope.project_revision,
                 calendar.calendar_id,
                 calendar.calendar_version,
-                _canonical_json(record.snapshot),
+                canonical_snapshot,
             ),
         )
         return record
