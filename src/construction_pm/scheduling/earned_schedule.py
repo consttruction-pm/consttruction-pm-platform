@@ -53,6 +53,7 @@ class EarnedScheduleResult:
     actual_time: Decimal
     spi_t: Decimal
     sv_t: Decimal
+    time_unit: str
     data_date: date
     earned_schedule_date: date | None
     status: str
@@ -89,6 +90,7 @@ class EarnedScheduleResult:
             "actual_time": str(self.actual_time),
             "spi_t": str(self.spi_t),
             "sv_t": str(self.sv_t),
+            "time_unit": self.time_unit,
             "data_date": self.data_date.isoformat(),
             "earned_schedule_date": (
                 self.earned_schedule_date.isoformat() if self.earned_schedule_date else None
@@ -136,13 +138,7 @@ def calculate_earned_schedule(
     data_date: CalendarDate,
     project_start: CalendarDate,
 ) -> EarnedScheduleResult:
-    """Calculate ES, AT, SPI(t), SV(t), and a deterministic time-axis status.
-
-    Period coordinates are one-based at each cumulative PV period end. The
-    current data date is positioned fractionally within its enclosing period
-    using canonical Gregorian elapsed days. Calendar-system conversion is
-    display/input context only; it does not alter the arithmetic.
-    """
+    """Calculate ES/AT/SPI(t)/SV(t) on an explicit canonical calendar-day axis."""
 
     ordered = _validate_periods(periods)
     data = _canonical_date(data_date)
@@ -154,52 +150,39 @@ def calculate_earned_schedule(
     if not ev.is_finite() or ev < 0:
         raise ValueError("earned_value must be finite and non-negative")
 
-    previous_end = start
-    actual_time = Decimal("0")
-    for index, period in enumerate(ordered, start=1):
-        period_length = (period.end_date - previous_end).days
-        if period_length <= 0:
-            raise EarnedScheduleError("PERIOD_END_MUST_FOLLOW_PREVIOUS_AXIS_POINT")
-        if data >= period.end_date:
-            actual_time = Decimal(index)
-        elif data >= previous_end:
-            fraction = Decimal((data - previous_end).days) / Decimal(period_length)
-            actual_time = Decimal(index - 1) + fraction
-            break
-        previous_end = period.end_date
-    else:
-        actual_time = Decimal(len(ordered))
+    actual_time = Decimal((data - start).days)
 
-    if ev == 0 and ordered[-1].cumulative_planned_value == 0:
-        raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
-
-    earned_schedule: Decimal | None = None
-    earned_schedule_date: date | None = None
     previous_pv = _CANONICAL_ZERO
     previous_date = start
+    earned_schedule_date: date | None = None
 
-    for index, period in enumerate(ordered, start=1):
+    for period in ordered:
         current_pv = period.cumulative_planned_value
         if ev <= current_pv:
             delta = current_pv - previous_pv
             if delta == 0:
                 if ev == current_pv:
-                    earned_schedule = Decimal(index)
                     earned_schedule_date = period.end_date
                 else:
+                    previous_pv = current_pv
+                    previous_date = period.end_date
                     continue
             else:
                 fraction = (ev - previous_pv) / delta
-                if fraction < 0:
+                if fraction < 0 or fraction > 1:
                     raise EarnedScheduleError("INVALID_PV_AXIS")
-                earned_schedule = Decimal(index - 1) + fraction
                 earned_schedule_date = _interpolate_date(previous_date, period.end_date, fraction)
             break
         previous_pv = current_pv
         previous_date = period.end_date
 
-    if earned_schedule is None:
-        raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
+    if earned_schedule_date is None:
+        if ev == 0:
+            earned_schedule_date = start
+        else:
+            raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
+
+    earned_schedule = Decimal((earned_schedule_date - start).days)
 
     if actual_time == 0:
         spi_t = Decimal("0")
@@ -219,13 +202,13 @@ def calculate_earned_schedule(
         actual_time=actual_time,
         spi_t=spi_t,
         sv_t=sv_t,
+        time_unit="calendar-day",
         data_date=data,
         earned_schedule_date=earned_schedule_date,
         status=status,
         cumulative_ev=ev,
         canonical_period_count=len(ordered),
     )
-
 
 __all__ = [
     "EarnedScheduleError",
