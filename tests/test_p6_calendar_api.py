@@ -194,6 +194,32 @@ def test_detailed_and_total_work_hours_are_first_class_contracts():
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "total_work_hours", auth_context=_auth())) == 1
 
 
+@pytest.mark.parametrize("value", [Decimal("NaN"), Decimal("Infinity"), Decimal("-Infinity"), float("nan"), float("inf"), "not-a-number"])
+def test_invalid_total_work_hours_are_rejected(value):
+    rule = CalendarWorkHourRule(
+        _scope(), "CAL-H", "1", "total_work_hours", None, None, value, ()
+    )
+    with pytest.raises(ValueError, match="INVALID_TOTAL_WORK_HOURS"):
+        rule.validate()
+
+
+@pytest.mark.parametrize(
+    "intervals",
+    [
+        ((1, 2),),
+        (("99:00", "100:00"),),
+        (("17:00", "08:00"),),
+        (("08:00", 12),),
+    ],
+)
+def test_invalid_work_hour_intervals_are_rejected(intervals):
+    rule = CalendarWorkHourRule(
+        _scope(), "CAL-H", "1", "detailed_work_hours", 0, True, Decimal("8"), intervals
+    )
+    with pytest.raises(ValueError, match="INVALID_WORK_HOUR_INTERVAL"):
+        rule.validate()
+
+
 def test_sqlite_total_work_hours_is_idempotent_across_replay():
     api, _ = _api()
     api.create(_scope(), _request("CAL-TOTAL"), auth_context=_auth())
