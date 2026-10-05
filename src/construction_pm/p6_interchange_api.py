@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
 from typing import Any, Mapping, Sequence
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
@@ -68,6 +69,16 @@ class P6InterchangeAPI:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         adapter = self._adapter(scope, format)
+        document = adapter.export_document(values, scope=scope, extensions=extensions)
+        if isinstance(document, bytes):
+            document_payload: Any = {
+                "encoding": "base64",
+                "data": base64.b64encode(document).decode("ascii"),
+            }
+        elif isinstance(document, str):
+            document_payload = {"encoding": "utf-8", "data": document}
+        else:
+            raise ValueError("UNSUPPORTED_INTERCHANGE_DOCUMENT_TYPE")
         return {
             "contract_version": P6_INTERCHANGE_API_VERSION,
             "scope": {
@@ -76,7 +87,7 @@ class P6InterchangeAPI:
                 "project_revision": scope.project_revision,
             },
             "format": format.value,
-            "document": adapter.export_document(values, scope=scope, extensions=extensions),
+            "document": document_payload,
         }
 
     def _adapter(self, scope: BackendScope, format: P6MappingFormat) -> P6InterchangeAdapter:
