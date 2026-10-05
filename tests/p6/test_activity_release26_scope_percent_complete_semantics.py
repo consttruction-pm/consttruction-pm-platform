@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from construction_pm.p6_field_registry import P6FieldType, get_field
+from construction_pm.p6_field_registry import P6FieldType, field_catalog, get_field
 
 
 def test_scope_percent_complete_matches_release26_semantics() -> None:
@@ -17,7 +17,7 @@ def test_scope_percent_complete_matches_release26_semantics() -> None:
 def test_scope_percent_complete_identity_is_unique() -> None:
     matches = [
         field
-        for field in (get_field("activity.scope_percent_complete"),)
-        if field.p6_field == "ScopePercentComplete"
+        for field in field_catalog()
+        if field.subject_area == "Activity" and field.p6_field == "ScopePercentComplete"
     ]
     assert len(matches) == 1
