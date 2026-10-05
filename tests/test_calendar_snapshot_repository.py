@@ -142,3 +142,13 @@ def test_working_time_snapshot_round_trip_preserves_canonical_representation():
     stored = repo.save(calendar, definition)
     assert stored.snapshot == definition.canonical_snapshot()
     assert repo.get(calendar) == stored
+
+
+def test_snapshot_repository_rejects_snapshot_kind_mismatch():
+    conn = sqlite3.connect(":memory:")
+    calendar = CalendarMaster(scope(), "CAL-TIME", "1", "working-time", "Time Calendar")
+    SQLiteCalendarMasterRepository(conn).save(calendar)
+    repo = SQLiteCalendarSnapshotRepository(conn)
+
+    with pytest.raises(CalendarPersistenceError, match="INVALID_CALENDAR_SNAPSHOT"):
+        repo.save(calendar, working_calendar())
