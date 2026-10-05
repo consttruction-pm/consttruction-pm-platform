@@ -795,3 +795,17 @@ Correction applied in commit 2212a3cbe8611484c27cec6b9a45c49943d60584:
 This is infrastructure-only and does not alter P6/CPM/Calendar/Formula/EVM calculations.
 
 **Finding status: Corrected in main.** Exact-head CI remains unverified because GitHub currently reports no workflow runs for the corrected commit.
+
+
+## AU. P6 Replace preflight — corrected
+
+Audit of the merged P6 Calendar API found that `replace()` could update the target CalendarMaster first and only then fail in the immutable snapshot repository when the target already had a different snapshot. That created a partial mutation: the master revision/name/kind could change while the target snapshot remained unchanged.
+
+Correction:
+- `replace()` now preflights the target snapshot before mutating the CalendarMaster.
+- A conflicting existing target snapshot raises `TARGET_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT` before any master mutation.
+- Regression verifies the target record remains unchanged after rejection.
+
+Commits: `ec3a617ce61d3039a8d061ba81694eb0d658bb96`, `be1e191afa763a539cc88653dc4f1dac039ceb22`.
+
+**Finding status: Corrected in main.** Exact-head CI must still verify the correction.
