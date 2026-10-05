@@ -686,3 +686,14 @@ Keep all Shared Core/P6 calculations untouched. Optimize only presentation/state
 5. preserve direct imports in `main.ts`; the barrel exports are not in the boot path and were not shown to cause bundle bloat.
 
 Do not move CPM, Calendar, Formula or EVM calculations into the browser as part of this optimization.
+
+
+## AL. Time-aware authoritative scheduling wiring — corrected
+
+A concrete parity gap was verified and corrected in current main. `schedule_evaluator.py` previously sent `TIME_AWARE` snapshots only through `time_forward_pass()`, while the Shared Scheduling Core already contained the complete `time_schedule()` orchestration with forward pass, backward pass and time-float reconciliation.
+
+The evaluator now delegates `TIME_AWARE` execution to that existing Shared Core `time_schedule()` implementation and retains `time_activities` as the early-activity compatibility projection while exposing the complete `TimeScheduleResult` through `time_result`. A regression test now certifies that authoritative time-aware evaluation exposes late dates and floats.
+
+This is a wiring correction, not a new engine. The single Shared Scheduling Core remains authoritative.
+
+**Finding status: Corrected in main.** Remaining work is end-to-end API/client projection of the full time-aware result where required; that is a transport/parity task, not a second calculation engine.
