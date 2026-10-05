@@ -781,3 +781,17 @@ Replace the linear probe with a semantically equivalent bounded-search strategy 
 This is not a calculation-engine duplication and it may be acceptable for a minimal display layer, but it is insufficient for full P6 column/type parity because formatting, filtering, sorting, editing, unit/currency display and semantic validation can depend on the original type. The Registry metadata is therefore richer than the Workspace column contract actually preserves.
 
 **Medium risk, high confidence** for P6 UI parity. Required direction: preserve authoritative P6 `data_type`, unit and allowed-value metadata through the shared presentation model, with specialized rendering/editing behavior layered on top. Do not infer or recalculate business values in the client.
+
+
+## AT. SQLite nested transaction manager binding — corrected
+
+A follow-up verification of the resource transaction fix found a concrete implementation regression: _SQLiteTransaction.__enter__() referenced self.manager, but the context object did not receive or store the owning SQLiteTransactionManager. Therefore the newly added nested-savepoint regression would fail at runtime instead of exercising savepoint isolation.
+
+Correction applied in commit 2212a3cbe8611484c27cec6b9a45c49943d60584:
+- SQLiteTransactionManager.transaction() now passes its manager into _SQLiteTransaction.
+- _SQLiteTransaction stores the manager and uses its monotonic savepoint counter.
+- Existing nested-transaction test remains the regression boundary.
+
+This is infrastructure-only and does not alter P6/CPM/Calendar/Formula/EVM calculations.
+
+**Finding status: Corrected in main.** Exact-head CI remains unverified because GitHub currently reports no workflow runs for the corrected commit.
