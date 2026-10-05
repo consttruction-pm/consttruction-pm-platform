@@ -129,6 +129,7 @@ test("creates and edits WBS and Activity locally with revision continuity", asyn
   assert.deepEqual(shell.listActivities("W2").map((item) => item.name), ["Foundation", "Frame", "Final Closeout"]);
   assert.equal(shell.listActivities("W2")[2]?.order, 3);
   assert.equal(runtime.current().revision, 16);
+  assert.equal(runtime.pendingMutationCount(), 4);
   assert.equal(afterActivityEdit.schedule_result, null);
 });
 
