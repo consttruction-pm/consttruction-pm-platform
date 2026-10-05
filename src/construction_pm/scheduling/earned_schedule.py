@@ -157,6 +157,7 @@ def calculate_earned_schedule(
 
     previous_pv = _CANONICAL_ZERO
     previous_date = start
+    earned_schedule: Decimal | None = None
     earned_schedule_date: date | None = None
 
     for period in ordered:
@@ -189,7 +190,7 @@ def calculate_earned_schedule(
         else:
             raise EarnedScheduleError("INSUFFICIENT_PV_COVERAGE")
 
-    if "earned_schedule" not in locals():
+    if earned_schedule is None:
         earned_schedule = Decimal((earned_schedule_date - start).days)
 
     if actual_time == 0:
