@@ -304,7 +304,7 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_MAPPING_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
-            if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path:
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/import"):
                 if self._p6_interchange_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 prefix, format_path = path.split("/p6/interchange/", 1)
