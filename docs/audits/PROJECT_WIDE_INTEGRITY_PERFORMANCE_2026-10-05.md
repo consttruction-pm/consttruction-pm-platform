@@ -759,3 +759,16 @@ The mobile contract exposes only a projection of the scheduling result (for exam
 This is **Medium–High architectural/integration risk, high confidence** against the V1 requirement that Web/Desktop/Mobile consume the same versioned API/Application contracts. It is not evidence of duplicate scheduling arithmetic; both designs explicitly delegate calculation authority elsewhere.
 
 Required direction: establish one canonical cross-client scheduling transport contract or an explicitly versioned, lossless compatibility mapping. Web/Desktop/Mobile should each be thin adapters to that contract, with no scheduling formulas or calendar arithmetic locally. Preserve the existing richer Core semantics while defining which result projections each client may render.
+
+
+## AR. Shared CPM Free-Float search complexity — performance risk
+
+Current-main inspection of `src/construction_pm/scheduling/schedule.py` found a potentially material scheduling-performance bottleneck. `_free_float()` increments delay one working unit at a time up to 10,000 iterations for each outgoing relationship. `_relationship_free_float()` and `_relationship_total_float()` use the same linear 0..10,000 search pattern for relationship-level reconciliation; these functions are also invoked by the Multiple Float Paths algorithm when that option is enabled.
+
+This preserves deterministic semantics but can become expensive on large construction networks or large float windows: relationship processing can approach 10,000 calendar-resolution probes per qualifying relationship, and Multiple Float Paths can repeat those probes across many path selections.
+
+**High performance risk, high confidence** for large projects; no current functional error is proven. The algorithm is not UI-only: it affects Shared Core schedule calculation latency and therefore can affect Web/Desktop/Mobile response time when authoritative scheduling is invoked.
+
+### Required optimization boundary
+
+Replace the linear probe with a semantically equivalent bounded-search strategy (for example, monotonic bracket + binary search) only after independent regression fixtures prove identical Free Float/Total Float results across FS/SS/FF/SF, positive/negative lag, multiple calendars, exceptions, and open-ended activities. Preserve the existing 10,000 guard semantics or explicitly version any changed behavior. Do not approximate or move the calculation into client code.
