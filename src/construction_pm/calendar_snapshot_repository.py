@@ -94,6 +94,7 @@ class SQLiteCalendarSnapshotRepository:
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
         persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
+        persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
@@ -125,7 +126,7 @@ class SQLiteCalendarSnapshotRepository:
             ),
         )
         self.connection.commit()
-        return record
+        return persisted_record
 
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None:
         calendar.validate()
@@ -159,6 +160,7 @@ class PostgresCalendarSnapshotRepository:
         calendar.validate()
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
+        persisted_record = _record(calendar, _parse_snapshot(canonical_snapshot))
         existing = self.connection.execute(
             "SELECT project_revision,snapshot_json FROM calendar_master_snapshot "
             "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
@@ -176,7 +178,7 @@ class PostgresCalendarSnapshotRepository:
             existing_snapshot = json.loads(raw) if isinstance(raw, str) else raw
             if _canonical_json(existing_snapshot) != canonical_snapshot:
                 raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
-            return record
+            return persisted_record
 
         self.connection.execute(
             "INSERT INTO calendar_master_snapshot "
@@ -191,7 +193,7 @@ class PostgresCalendarSnapshotRepository:
                 canonical_snapshot,
             ),
         )
-        return record
+        return persisted_record
 
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None:
         calendar.validate()
