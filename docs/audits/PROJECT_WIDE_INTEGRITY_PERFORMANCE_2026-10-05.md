@@ -697,3 +697,12 @@ The evaluator now delegates `TIME_AWARE` execution to that existing Shared Core 
 This is a wiring correction, not a new engine. The single Shared Scheduling Core remains authoritative.
 
 **Finding status: Corrected in main.** Remaining work is end-to-end API/client projection of the full time-aware result where required; that is a transport/parity task, not a second calculation engine.
+
+
+## AM. Legacy resource transaction savepoint collision — corrected
+
+A concrete transaction-safety defect was verified in `src/construction_pm/resources/transactions.py`: nested transactions reused the fixed SQLite savepoint name `construction_pm_nested`. The transaction manager now allocates a monotonically unique savepoint name per nesting level, matching the safer pattern already used by `backend_p0`.
+
+A regression test now exercises two nested resource transactions on one connection and verifies the final committed state. This change is infrastructure-only and does not alter P6/CPM/Calendar/Formula/EVM calculations.
+
+**Finding status: Corrected in main.** Executable verification remains unconfirmed because current main has no GitHub workflow runs or commit statuses.
