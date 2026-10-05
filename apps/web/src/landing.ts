@@ -9,7 +9,7 @@ export function renderLandingPage(container: HTMLElement): void {
         <nav class="cubi-nav" aria-label="Primary navigation">
           <a href="#product">Product</a><a href="#solutions">Solutions</a><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#ai">AI</a><a href="#resources">Resources</a>
         </nav>
-        <div class="cubi-header-actions"><a class="cubi-link" href="#faq">FAQ</a><a class="cubi-button cubi-button-small" href="/app">Open Platform</a></div>
+        <div class="cubi-header-actions"><button class="cubi-lang-switch" type="button" aria-label="Switch between English and Persian">فا</button><a class="cubi-link" href="#faq">FAQ</a><a class="cubi-button cubi-button-small" href="/app">Open Platform</a></div>
       </header>
 
       <main>
