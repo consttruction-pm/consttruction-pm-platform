@@ -11,6 +11,8 @@ This document records the bounded API/persistence slice for Issue #1209.
 - First-class API access to persisted Holiday/exception records.
 - SQLite and PostgreSQL schema support for the explicit calendar type.
 - Authorization and tenant/project scope enforcement.
+- First-class typed contracts now exist for standard work week, standard detailed work hours, detailed work hours, and calendar-level total work hours.
+- SQLite/PostgreSQL persistence and API-level regression coverage are included for the work-hour contract.
 - No CPM/scheduling arithmetic was added or duplicated.
 
 ## Boundary
@@ -26,8 +28,8 @@ CalendarMaster, CalendarSnapshotRepository, and CalendarExceptionRepository rema
 | Copy Calendar | Implemented | master/snapshot/exception replay regression |
 | Replace Calendar | Implemented (bounded) | target revision + authoritative snapshot replay regression |
 | Holiday/exception persistence | Implemented | existing immutable exception repository exposed through API |
-| StandardWorkWeek / StandardDetailedWorkHours | Equivalent-Superset pending dedicated contract | Shared-Core calendar snapshots already carry canonical working-week data |
-| DetailedWorkHours / TotalWorkHours | Equivalent-Superset pending dedicated contract | Working-time snapshot carries canonical intervals/factors |
+| StandardWorkWeek / StandardDetailedWorkHours | Implemented | Typed CalendarWorkHourRule contract + API + SQLite/PostgreSQL persistence and regression coverage |
+| DetailedWorkHours / TotalWorkHours | Implemented | Typed CalendarWorkHourRule contract + API + SQLite/PostgreSQL persistence and regression coverage |
 | Calendar fields metadata | Outside this slice | Must be connected to canonical P6 field registry in a separate parity task |
 
-The remaining dedicated work-hour contract/API work is intentionally not represented as complete by this slice.
+Calendar fields metadata remains outside this slice and must be connected to the canonical P6 field registry in a separate parity task. The work-hour contract is intentionally persistence/API-only; Shared Scheduling Core remains authoritative for interpreting these records.
