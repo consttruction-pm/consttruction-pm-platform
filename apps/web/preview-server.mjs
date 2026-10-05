@@ -4,6 +4,7 @@ import { join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+const rootPrefix = root.endsWith(sep) ? root : `${root}${sep}`;
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || "4173");
 
@@ -28,7 +29,7 @@ function safePath(requestPath) {
   const pathname = decodeURIComponent(requestPath.split("?")[0]);
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const file = normalize(join(root, relative));
-  if (!file.startsWith(root + sep) && file !== root) return null;
+  if (!file.startsWith(rootPrefix) && file !== root) return null;
   return file;
 }
 
