@@ -8,7 +8,7 @@ exceptions; this resolver determines the single effective rule for a date.
 """
 
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
@@ -35,7 +35,7 @@ class CalendarException:
     intervals: Tuple[Interval, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.date, date):
+        if not isinstance(self.date, date) or isinstance(self.date, datetime):
             raise TypeError("date must be a Gregorian date")
         if not isinstance(self.kind, CalendarExceptionType):
             raise TypeError("kind must be CalendarExceptionType")
@@ -193,7 +193,7 @@ class CalendarExceptionResolver:
         local_exceptions: Iterable[CalendarException] = (),
         inherited_exceptions: Iterable[CalendarException] = (),
     ) -> EffectiveCalendarDateRule:
-        if not isinstance(target_date, date):
+        if not isinstance(target_date, date) or isinstance(target_date, datetime):
             raise TypeError("target_date must be a date")
         local = self._by_date(local_exceptions)
         inherited = self._by_date(inherited_exceptions)
