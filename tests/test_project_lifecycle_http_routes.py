@@ -1014,7 +1014,7 @@ def test_p6_interchange_http_import_export_preserves_versioned_contract_and_scop
     assert imported["format"] == "XER_PROJECT"
     assert imported["rows"][0]["values"]["activity.activity_id"] == "A-100"
 
-    export_body = json.dumps({"values": [{"activity.activity_id": "A-100"}]}).encode()
+    export_body = json.dumps({"values": [{"activity.activity_id": "A-100"}], "extensions": [{"p6.xer.table": "TASK"}]}).encode()
     status, _, body = r.handle(
         "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/export",
         cookies={"cp_session": "s1"}, body=export_body,
@@ -1027,7 +1027,7 @@ def test_p6_interchange_http_import_export_preserves_versioned_contract_and_scop
 
 
 def test_p6_interchange_http_requires_scope_and_permission():
-    r, _, _ = p6_routes(roles=frozenset())
+    r, _, _ = p6_routes(roles=frozenset({"viewer"}))
     status, _, body = r.handle(
         "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
         cookies={"cp_session": "s1"}, body=b"%T\\tTASK\\n%F\\ttask_code\\n%R\\tA-100\\n%E\\n",
