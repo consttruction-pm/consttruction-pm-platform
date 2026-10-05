@@ -1200,3 +1200,20 @@ Status: **runtime-verified and merged**
 ### Current continuation point
 - Mobile V1 Issue #1134 durable server idempotency persistence is now runtime-verified on current main.
 - Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Only the first newly reproducible Backend/Database/Application/API/Import-Export gap is eligible; do not revive stale branches or duplicate Shared-Core/client-owned work.
+
+
+### 2026-10-05 — P6 Code authenticated HTTP boundary (PR #1177)
+Status: **100% — merged and runtime-verified**
+- Fresh current-main audit identified the concrete Hasan-owned gap: persisted P6 code definitions and the versioned P6CodeAPI already existed, but ProjectLifecycleHttpRoutes had no authenticated HTTP boundary.
+- PR #1177 added authenticated GET list/detail and POST create routes under /api/projects/{project_id}/p6/codes, binding tenant/project/revision from ProjectContext and preserving P6_CODE_API_VERSION.
+- Focused regression coverage verifies typed create/read/list round-trip, project scope, permission denial, malformed payload rejection and not-found behavior.
+- Exact implementation head: b960e9bf3347e0d1191488519287993547f06634.
+- ConstructionPM CI #3998 and Client Typecheck #3701 both passed on the exact head.
+- PR #1177 squash-merged as 76721078a0b31ea33613c0b569693ae84b084bb7.
+- Current main: 76721078a0b31ea33613c0b569693ae84b084bb7.
+- No scheduling, P6 calculation, resource/cost, financial, or Shared-Core semantics were introduced.
+
+### Current continuation point
+- Fresh current-main/open-PR audit is now required from 76721078a0b31ea33613c0b569693ae84b084bb7.
+- Only the first newly reproducible Backend/Database/Application/API/Import-Export gap backed by authoritative evidence is eligible.
+- Do not revive stale branches/PRs or infer backend semantics from presentation-only fields.
