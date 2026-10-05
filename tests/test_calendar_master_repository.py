@@ -31,6 +31,19 @@ def test_calendar_master_versioned_round_trip_and_order():
     assert tuple(c.calendar_version for c in repo.list(scope())) == ("1", "2")
 
 
+def test_calendar_master_rejects_kind_change_within_same_version():
+    repo = SQLiteCalendarMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(calendar())
+
+    with pytest.raises(CalendarPersistenceError, match="CALENDAR_VERSION_KIND_IMMUTABLE"):
+        repo.save(
+            CalendarMaster(
+                scope(), "CAL-1", "1", "working-time", "Changed Kind"
+            ),
+            expected_revision=1,
+        )
+
+
 def test_calendar_master_revision_conflict():
     repo = SQLiteCalendarMasterRepository(sqlite3.connect(":memory:"))
     repo.save(calendar())
