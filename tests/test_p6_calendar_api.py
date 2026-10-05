@@ -194,6 +194,16 @@ def test_detailed_and_total_work_hours_are_first_class_contracts():
     assert len(api.list_work_hours(_scope(), "CAL-H", "1", "total_work_hours", auth_context=_auth())) == 1
 
 
+def test_sqlite_total_work_hours_is_idempotent_across_replay():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-TOTAL"), auth_context=_auth())
+    total = CalendarWorkHourRule(_scope(), "CAL-TOTAL", "1", "total_work_hours", None, None, Decimal("40"), ())
+    first = api.save_work_hours(total, auth_context=_auth())
+    second = api.save_work_hours(total, auth_context=_auth())
+    assert second == first
+    assert api.list_work_hours(_scope(), "CAL-TOTAL", "1", "total_work_hours", auth_context=_auth()) == (first,)
+
+
 def test_sqlite_work_hours_list_preserves_weekday_identity():
     api, _ = _api()
     api.create(_scope(), _request("CAL-WD"), auth_context=_auth())
