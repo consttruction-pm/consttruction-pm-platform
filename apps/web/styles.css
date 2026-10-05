@@ -1221,9 +1221,9 @@ th {
 }
 .cubi-hero h1 { color: #fff; }
 .cubi-hero h1 em { color: var(--cp-copper); }
-.cubi-lead { color: #D7E2EE; }
+.cubi-lead { color: var(--cubi-titanium-light); }
 .cubi-tagline { color: var(--cubi-brushed-titanium); }
-.cubi-eyebrow { color: #8FC7FF; }
+.cubi-eyebrow { color: var(--cubi-titanium-light); }
 .cubi-eyebrow span { background: var(--cp-copper); }
 .cubi-button {
   background: var(--cp-copper);
