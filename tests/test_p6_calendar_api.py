@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.application.authorization import AuthorizationContext, default_project_policy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
@@ -109,5 +109,5 @@ def test_delete_requires_current_record_revision():
 
 def test_viewer_can_read_but_cannot_mutate():
     api, _ = _api()
-    with pytest.raises(ValueError, match="authorization denied"):
+    with pytest.raises(AuthorizationError, match="authorization denied"):
         api.create(_scope(), _request("CAL-V"), auth_context=_auth("viewer"))
