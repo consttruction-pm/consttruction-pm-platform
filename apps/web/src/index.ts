@@ -20,3 +20,4 @@ export * from "./workspace-change-claim.js";
 export * from "./workspace-document.js";
 export * from "./workspace-procurement.js";
 export * from "./workspace-smart-guide.js";
+export * from "./shared-scheduling-adapter.js";
