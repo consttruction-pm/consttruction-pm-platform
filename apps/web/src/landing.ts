@@ -9,7 +9,6 @@ type LandingCopy = {
   features: Array<[string,string,string]>;
   techTitle: string; techLead: string; techItems: string[];
   ctaTitle: string; ctaLead: string; trial: string; contact: string;
-  academyTitle: string; academyLead: string; academyBadge: string;
   footerDescriptor: string; footerTagline: string;
 };
 
@@ -31,13 +30,12 @@ const translations: Record<LandingLocale, LandingCopy> = {
       ["collaboration","Collaboration","Work together across your team and stakeholders."],
       ["cloud","Cloud & Scalability","Secure, reliable and built to grow with your needs."]
     ],
-    techTitle:"CUBI Intelligence & Engineering Core",
-    techLead:"CUBI integrates proven engineering foundations to give project teams reliability, visibility and intelligent control.",
-    techItems:["Scheduling Engine","PostgreSQL","AI & Analytics"],
+    techTitle:"Powered by Leading Technologies",
+    techLead:"CUBI integrates proven engineering foundations and modern intelligence to give project teams reliability, visibility and innovation.",
+    techItems:["Primavera P6","PostgreSQL","AI & Analytics"],
     ctaTitle:"Ready to Build Smarter?",
     ctaLead:"Join teams using CUBI to bring schedule, cost, progress, documents and intelligence into one control layer.",
     trial:"Start Free Trial", contact:"Contact Sales",
-    academyTitle:"CUBI Academy — V2", academyLead:"A guided multilingual journey through a real multi-story construction project, from project setup and WBS to scheduling, AI, voice, OCR, progress, charts and daily & weekly reports.", academyBadge:"Coming in Version 2",
     footerDescriptor:"Construction & Building Intelligence", footerTagline:"Plan. Control. Build Smarter."
   },
   fa: {
@@ -57,13 +55,12 @@ const translations: Record<LandingLocale, LandingCopy> = {
       ["collaboration","همکاری","همکاری یکپارچه تیم پروژه و ذی‌نفعان."],
       ["cloud","ابر و مقیاس‌پذیری","امن، قابل اتکا و آماده رشد متناسب با نیاز پروژه."]
     ],
-    techTitle:"هسته هوشمندی و مهندسی CUBI",
-    techLead:"CUBI زیرساخت‌های مهندسی آزموده‌شده را برای قابلیت اتکا، دیدپذیری و کنترل هوشمند پروژه یکپارچه می‌کند.",
-    techItems:["موتور زمان‌بندی","PostgreSQL","هوش مصنوعی و تحلیل"],
+    techTitle:"با فناوری‌های پیشرو",
+    techLead:"CUBI زیرساخت‌های مهندسی آزموده‌شده و هوشمندی مدرن را برای قابلیت اتکا، دیدپذیری و نوآوری یکپارچه می‌کند.",
+    techItems:["Primavera P6","PostgreSQL","هوش مصنوعی و تحلیل"],
     ctaTitle:"آماده ساخت هوشمندتر هستید؟",
     ctaLead:"با CUBI زمان‌بندی، هزینه، پیشرفت، اسناد و هوشمندی پروژه را در یک لایه کنترل یکپارچه کنید.",
     trial:"شروع آزمایشی رایگان", contact:"تماس با فروش",
-    academyTitle:"آکادمی CUBI — نسخه ۲", academyLead:"یک مسیر آموزشی چندزبانه و عملی برای اجرای یک پروژه ساختمانی واقعی؛ از اطلاعات اولیه و WBS تا زمان‌بندی، هوش مصنوعی، ورود صوتی و OCR، پیشرفت، نمودارها و گزارش‌های روزانه و هفتگی.", academyBadge:"در نسخه ۲",
     footerDescriptor:"هوشمندی ساخت و ساختمان", footerTagline:"برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
 };
@@ -133,11 +130,6 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
           </div>
         </section>
 
-        <section class="cubi-workflow" aria-label="CUBI workflow">
-          <div class="cubi-workflow-steps">${t.workflow.map((step, index) => `<span><b>${step}</b>${index < t.workflow.length - 1 ? "<i>→</i>" : ""}</span>`).join("")}</div>
-          <div class="cubi-workflow-meta">${t.workflowMeta.map(item => `<span>${item}</span>`).join("")}</div>
-        </section>
-
         <section class="cubi-features-section" id="features">
           <div class="cubi-section-head"><h2>${t.sectionTitle}</h2><p>${t.sectionLead}</p></div>
           <div class="cubi-feature-grid">
@@ -152,17 +144,6 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <a class="cubi-outline-button" href="./app/">${t.navFeatures} <span>→</span></a>
           </div>
           <div class="cubi-tech-visual" aria-hidden="true"><div class="cubi-stack"><b>◆</b><i></i><i></i><i></i></div><span>Project Controls</span><span>AI &amp; Analytics</span><span>Data &amp; Integration</span><span>Security &amp; Reliability</span></div>
-        </section>
-
-        <section class="cubi-academy" id="academy" aria-label="CUBI Academy Version 2">
-          <div>
-            <p class="cubi-kicker">${t.academyBadge}</p>
-            <h2>${t.academyTitle}</h2>
-            <p>${t.academyLead}</p>
-          </div>
-          <div class="cubi-academy-flow" aria-hidden="true">
-            <span>Project</span><i>→</i><span>WBS</span><i>→</i><span>Schedule</span><i>→</i><span>AI / OCR / Voice</span><i>→</i><span>Reports</span>
-          </div>
         </section>
 
         <section class="cubi-cta" id="pricing">
