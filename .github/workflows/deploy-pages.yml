@@ -65,7 +65,7 @@ jobs:
           sed -i 's#\./dist/main\.js#./dist/web/src/main.js#' "${{ github.workspace }}/_site/index.html"
           sed -i 's#\./styles\.css#./styles.css#' "${{ github.workspace }}/_site/index.html"
           sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#\./dist/main\.js#../dist/web/src/main.js#' "${{ github.workspace }}/_site/app/index.html"
+          sed -i 's#\./dist/landing-entry\.js#../dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/index.html"
           test -f "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
