@@ -89,7 +89,7 @@ export type SchedulingResult = Readonly<{
   activities: readonly ScheduledActivity[];
 }>;
 
-const DECIMAL = /^[+-]?\\d+(?:\\.\\d+)?$/;
+const DECIMAL = /^[+-]?\d+(?:\.\d+)?$/;
 
 function requireNonEmpty(value: string, code: string): void {
   if (typeof value !== "string" || !value.trim()) throw new Error(code);
