@@ -79,6 +79,7 @@ class CalendarWorkHourRule:
 class CalendarWorkHourRepository(Protocol):
     def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]: ...
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None: ...
 
 
 class SQLiteCalendarWorkHourRepository:
@@ -135,6 +136,13 @@ class SQLiteCalendarWorkHourRepository:
         if existing_rule.canonical_snapshot() != canonical:
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()
