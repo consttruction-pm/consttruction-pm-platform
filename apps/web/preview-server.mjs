@@ -35,6 +35,9 @@ function within(rootPath, candidate) {
 
 export function resolveRequestFile(requestPath) {
   const pathname = decodeURIComponent(requestPath.split("?")[0]);
+  // Reject traversal syntax before normalization so "/../x" cannot be
+  // silently normalized back inside the web root.
+  if (pathname.split("/").some((segment) => segment === "..")) return null;
   const publicRoot = join(root, "public");
   const distRoot = join(root, "dist");
   const distWebEntry = join(distRoot, "web", "src");
