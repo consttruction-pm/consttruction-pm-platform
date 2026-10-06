@@ -1271,3 +1271,7 @@ html:lang(fa) .cubi-site {
   .cubi-hero { min-height: 700px; }
   .cubi-feature-grid article { min-height: 145px; }
 }
+
+/* Marketing chart compatibility contract; isolated from workspace .cp-chart. */
+.cubi-chart { height:180px; min-height:180px; }
+@media (max-width:760px) { .cubi-chart { grid-column:1/-1; height:130px; min-height:130px; } }
