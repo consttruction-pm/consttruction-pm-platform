@@ -147,6 +147,7 @@ class SQLiteCalendarMasterRepository:
         self.connection.commit()
 
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
+        transaction_owned = not self.connection.in_transaction
         calendar.validate()
         row = self.connection.execute(
             "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
@@ -163,7 +164,9 @@ class SQLiteCalendarMasterRepository:
                  stored.calendar_id, stored.calendar_version, stored.kind, stored.name, 1,
                  stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type),
             )
-            self.connection.commit()
+            if transaction_owned:
+                if transaction_owned:
+                self.connection.commit()
             return stored
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
@@ -176,12 +179,17 @@ class SQLiteCalendarMasterRepository:
              stored.scope.tenant_id, stored.scope.project_id, stored.calendar_id, stored.calendar_version, int(row[2])),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            if transaction_owned:
+                if transaction_owned:
+                self.connection.rollback()
             raise CalendarPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if transaction_owned:
+            if transaction_owned:
+            self.connection.commit()
         return stored
 
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
+        transaction_owned = not self.connection.in_transaction
         scope.validate()
         if isinstance(expected_revision, bool) or expected_revision < 1:
             raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
@@ -199,7 +207,8 @@ class SQLiteCalendarMasterRepository:
         self.connection.execute("DELETE FROM relationship_lag_calendar_assignment WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version))
         self.connection.execute("DELETE FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND record_revision=?", (scope.tenant_id, scope.project_id, calendar_id, calendar_version, expected_revision))
-        self.connection.commit()
+        if transaction_owned:
+            self.connection.commit()
         return True
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> CalendarMaster | None:
@@ -230,6 +239,7 @@ class SQLiteCalendarAssignmentRepository:
         self.connection = connection
 
     def save_activity(self, assignment: ActivityCalendarAssignmentMaster, expected_revision: int | None = None) -> ActivityCalendarAssignmentMaster:
+        transaction_owned = not self.connection.in_transaction
         assignment.validate()
         row = self.connection.execute(
             "SELECT calendar_id,calendar_version,record_revision,project_revision FROM activity_calendar_assignment "
@@ -263,6 +273,7 @@ class SQLiteCalendarAssignmentRepository:
         return stored
 
     def save_relationship_lag(self, assignment: RelationshipLagCalendarAssignmentMaster, expected_revision: int | None = None) -> RelationshipLagCalendarAssignmentMaster:
+        transaction_owned = not self.connection.in_transaction
         assignment.validate()
         row = self.connection.execute(
             "SELECT option,calendar_id,calendar_version,record_revision,project_revision FROM relationship_lag_calendar_assignment "
