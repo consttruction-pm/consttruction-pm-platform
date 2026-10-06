@@ -164,8 +164,8 @@ class SQLiteCalendarMasterRepository:
                  stored.calendar_id, stored.calendar_version, stored.kind, stored.name, 1,
                  stored.base_calendar_id, stored.base_calendar_version, stored.calendar_type),
             )
-        if transaction_owned:
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return stored
         if int(row[3]) != calendar.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
