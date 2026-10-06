@@ -308,6 +308,13 @@ class PostgresCalendarExceptionRepository:
             CalendarSystem(str(existing[3])), int(existing[4])
         )
 
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
+
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
         row = self.connection.execute(
