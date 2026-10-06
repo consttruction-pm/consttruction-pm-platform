@@ -26,6 +26,9 @@ from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VE
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
+from construction_pm.p6_calendar_api import P6CalendarAPI, P6_CALENDAR_API_VERSION
+from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
+from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
@@ -706,6 +709,10 @@ def p6_routes(roles=frozenset({"project_admin"})):
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
+    p6_calendar_api = P6CalendarAPI(
+        calendar_repository, snapshot_repository, SQLiteCalendarExceptionRepository(connection),
+        default_project_policy(), SQLiteCalendarWorkHourRepository(connection), transaction_manager,
+    )
     baseline_api = P6BaselineAPI(
         P6BaselineApplicationService(SQLiteP6BaselineRepository(connection), transaction_manager),
         default_project_policy(),
@@ -728,6 +735,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
         p6_calendar_read_api=calendar_api,
+        p6_calendar_api=p6_calendar_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
         p6_mapping_api=mapping_api,
@@ -1560,3 +1568,36 @@ def test_wsgi_keeps_default_limit_for_non_import_endpoints():
     assert statuses == ["413 Payload Too Large"]
     assert routes.calls == []
     assert b"REQUEST_BODY_TOO_LARGE" in result[0]
+
+
+def test_p6_calendar_authenticated_http_create_update_and_work_hours():
+    r, *_ = p6_routes()
+    payload = {
+        "contract_version": P6_CALENDAR_API_VERSION, "calendar_id": "CAL-HTTP",
+        "calendar_version": "1", "calendar_type": "project", "kind": "working-day",
+        "name": "HTTP Calendar", "expected_revision": 0,
+    }
+    status, _, body = r.handle("POST", "/api/projects/p1/p6/calendars", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 201
+    update = dict(payload, name="HTTP Calendar v2", expected_revision=1)
+    status, _, body = r.handle("PUT", "/api/projects/p1/p6/calendars/CAL-HTTP/1", cookies={"cp_session": "s1"}, body=json.dumps(update).encode())
+    assert status == 200 and json.loads(body)["record_revision"] == 2
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-HTTP/1/work-hours",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"kind": "total_work_hours", "total_work_hours": "40", "intervals": []}).encode(),
+    )
+    assert status == 201
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/calendars/CAL-HTTP/1/work-hours/total_work_hours", cookies={"cp_session": "s1"})
+    assert status == 200 and json.loads(body)["work_hours"][0]["total_work_hours"] == "40"
+
+
+def test_p6_calendar_authenticated_http_rejects_cross_project_mutation():
+    r, *_ = p6_routes()
+    payload = {
+        "contract_version": P6_CALENDAR_API_VERSION, "calendar_id": "CAL-X",
+        "calendar_version": "1", "calendar_type": "project", "kind": "working-day",
+        "name": "X", "expected_revision": 0,
+    }
+    status, _, _ = r.handle("POST", "/api/projects/p2/p6/calendars", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 403
