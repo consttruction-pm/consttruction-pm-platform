@@ -288,7 +288,7 @@ def test_copy_rolls_back_partial_failure_and_leaves_no_target():
     api.create(_scope(), _request("CAL-S"), auth_context=_auth())
     source = api.calendar_repository.get(_scope(), "CAL-S", "1")
     api.snapshot_repository.save(source, _definition())
-    from construction_pm.calendar_exception_repository import CalendarException, SQLiteCalendarExceptionRepository
+    from construction_pm.calendar_exception_repository import CalendarException
     api.exception_repository.save(CalendarException(_scope(), "CAL-S", "1", date(2026, 5, 1), "nonwork"))
     original = api.exception_repository
 
@@ -307,7 +307,7 @@ def test_copy_rolls_back_partial_failure_and_leaves_no_target():
 
     # Two source exceptions ensure the second persistence step fails after target creation.
     api.exception_repository.save(CalendarException(_scope(), "CAL-S", "1", date(2026, 5, 2), "nonwork"))
-    api.exception_repository = FailingExceptionRepository(original)
+    object.__setattr__(api, "exception_repository", FailingExceptionRepository(original))
     with pytest.raises(RuntimeError, match="forced copy failure"):
         api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
     assert api.calendar_repository.get(_scope(), "CAL-C", "1") is None
