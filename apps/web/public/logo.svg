@@ -1,4 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
-<title>CUBI Platform</title><desc>Geometric CUBI mark representing connected project controls.</desc>
-<defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1976D2"/><stop offset="1" stop-color="#F28C28"/></linearGradient><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0F2747"/><stop offset="1" stop-color="#1976D2"/></linearGradient></defs>
-<path fill="url(#g2)" d="M24 50 66 26v42L40 83v47L24 121z"/><path fill="url(#g1)" d="m24 50 42 24 36-21-18-10-18 10-42-24z"/><path fill="url(#g1)" d="m66 68 36-21 34 20-36 21z"/><path fill="url(#g2)" d="M66 68v42l34 20V89z"/><path fill="#F28C28" d="m100 89 36-21v42l-36 20z"/><path fill="#0F2747" d="m70 82 17-10 17 10-17 10z"/><path fill="#F28C28" d="m70 82 17 10v20l-17-10z"/><path fill="#1976D2" d="m87 92 17-10v20l-17 10z"/></svg>
+<title>CUBI Platform</title>
+<desc>Geometric CUBI mark from the approved CUBI Platform brand artwork.</desc>
+<defs>
+  <linearGradient id="cubiTop" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#078FF5"/>
+    <stop offset="1" stop-color="#13D0E3"/>
+  </linearGradient>
+  <linearGradient id="cubiSide" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#0756B8"/>
+    <stop offset="1" stop-color="#1689E8"/>
+  </linearGradient>
+  <linearGradient id="cubiCube" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#13D0E3"/>
+    <stop offset="1" stop-color="#18AFA0"/>
+  </linearGradient>
+</defs>
+<path fill="url(#cubiSide)" d="M18 52 66 24v45L38 85v43L18 116z"/>
+<path fill="url(#cubiTop)" d="m18 52 48 27 38-22-19-11-19 11-48-27z"/>
+<path fill="url(#cubiTop)" d="m66 69 38-22 38 22-38 23z"/>
+<path fill="url(#cubiSide)" d="M66 69v45l38 22V92z"/>
+<path fill="url(#cubiTop)" d="m104 92 38-23v45l-38 22z"/>
+<path fill="#071C31" d="m68 83 19-11 19 11-19 11z"/>
+<path fill="#0C67C7" d="m68 83 19 11v22l-19-11z"/>
+<path fill="url(#cubiCube)" d="m87 94 19-11v22l-19 11z"/>
+</svg>
