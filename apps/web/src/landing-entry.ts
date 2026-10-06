@@ -5,7 +5,7 @@ if (!container) {
   throw new Error("APP_ROOT_NOT_FOUND");
 }
 
-const isLandingRoute = window.location.pathname === "/" || window.location.pathname === "/index.html";
+const pathname = window.location.pathname;\nconst isLandingRoute = pathname.endsWith("/") || pathname.endsWith("/index.html");
 
 if (isLandingRoute) {
   renderLandingPage(container);
