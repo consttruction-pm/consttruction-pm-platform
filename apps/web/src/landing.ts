@@ -36,7 +36,7 @@ function renderLanding(container: HTMLElement): void {
           </div>
           <div class="cubi-exact-dashboard" aria-label="CUBI project controls dashboard preview">
             <div class="cubi-dash-sidebar">
-              <img src="./logo.svg" width="30" height="30" alt="" /><strong>CUBI</strong>
+              <img src="./cubi-platform-logo-primary.svg" width="30" height="30" alt="CUBI Platform" /><strong>CUBI</strong>
               <span>▦ Dashboard</span><span>▤ Projects</span><span>◫ Schedule</span><span>◒ Cost</span><span>▱ Documents</span><span>▥ Reports</span><span>⚙ Settings</span>
             </div>
             <div class="cubi-dash-main">
