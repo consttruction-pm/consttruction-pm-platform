@@ -123,7 +123,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
                   <div><small>${t.progress}</small><strong>78%</strong><span class="cubi-ring"></span></div>
                   <div><small>${t.cost}</small><strong>0.92</strong><span>On track</span></div>
                   <div><small>${t.evm}</small><strong>0.96</strong><span>Healthy</span></div>
-                  <div><small>${t.ai}</small><b>✦</b><span>Ask anything about your project</span></div>
+                  <div><small>${t.ai}</small><b class="cubi-product-ai-mark">AI</b><span>Ask anything about your project</span></div>
                 </div>
               </div>
             </div>
