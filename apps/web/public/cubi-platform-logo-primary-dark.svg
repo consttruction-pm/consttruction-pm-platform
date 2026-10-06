@@ -1,23 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 190" role="img" aria-labelledby="title desc">
-<title>CUBI Platform</title>
-<desc>Construction and project intelligence logo with geometric cube, schedule bars and connected intelligence nodes.</desc>
-<defs>
-  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1264D6"/><stop offset="1" stop-color="#19B7D8"/></linearGradient>
-  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12B9B1"/><stop offset="1" stop-color="#62D6A7"/></linearGradient>
-</defs>
-<g transform="translate(18 18)">
-  <path fill="none" stroke="url(#blue)" stroke-width="18" stroke-linejoin="round" d="M62 8 118 40 62 72 6 40z"/>
-  <path fill="none" stroke="#0B3A7A" stroke-width="18" stroke-linejoin="round" d="M6 40v64l56 32 56-32V72"/>
-  <path fill="url(#teal)" d="M62 72 118 40v64l-56 32z"/>
-  <path fill="#071A2F" d="M48 76h18v42H48z"/>
-  <path fill="#071A2F" d="M74 84h18v34H74z"/>
-  <path fill="#071A2F" d="M100 92h18v26h-18z"/>
-  <circle cx="62" cy="72" r="7" fill="#071A2F"/>
-  <circle cx="88" cy="84" r="6" fill="#12B9B1"/>
-  <circle cx="114" cy="92" r="5" fill="#19B7D8"/>
-  <path d="M62 72h26v12h26v8" fill="none" stroke="#fff" stroke-width="3"/>
-</g>
-<text x="165" y="103" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="72" font-weight="800" letter-spacing="2" fill="#FFFFFF">CUBI</text>
-<text x="166" y="142" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="31" font-weight="400" letter-spacing="5" fill="#B9D1E8">Platform</text>
-<text x="168" y="174" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="600" letter-spacing="1.7" fill="#8FB7D4">CONSTRUCTION &amp; BUILDING INTELLIGENCE</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 170" role="img" aria-labelledby="title desc">
+<title id="title">CUBI Platform</title><desc id="desc">CUBI Platform blue cube mark and wordmark.</desc>
+<defs><linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2C9AF4"/><stop offset="1" stop-color="#1474D4"/></linearGradient><linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1674D2"/><stop offset="1" stop-color="#0B4EA4"/></linearGradient></defs>
+<g transform="translate(8 9)"><path d="M65 2 119 34 65 66 11 34z" fill="url(#top)"/><path d="M11 34v63l54 32V66z" fill="#0B66C8"/><path d="M119 34v63l-54 32V66z" fill="url(#side)"/><path d="M65 20 91 35 65 50 39 35z" fill="#fff" opacity=".96"/><path d="M39 35v30l26 15V50z" fill="#EAF5FF"/><path d="M91 35v30L65 80V50z" fill="#DCEEFF"/></g>
+<text x="155" y="70" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="54" font-weight="800" fill="#FFFFFF">CUBI</text><text x="157" y="105" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="27" font-weight="600" fill="#DCE7F2">Platform</text>
 </svg>
