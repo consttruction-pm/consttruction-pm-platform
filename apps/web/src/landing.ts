@@ -96,7 +96,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <p class="cubi-reference-lead">${t.lead}</p>
             <p class="cubi-reference-tagline">${t.tagline}</p>
             <div class="cubi-reference-actions-row">
-              <a class="cubi-reference-cta" href="/app">${t.primaryCta} <span aria-hidden="true">→</span></a>
+              <a class="cubi-reference-cta" href="./app/">${t.primaryCta} <span aria-hidden="true">→</span></a>
               <a class="cubi-reference-text-link" href="#features">${t.secondaryCta}</a>
             </div>
             </div>
@@ -132,7 +132,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
         </section>
 
         <section class="cubi-reference-pricing" id="pricing">
-          <p class="cubi-reference-kicker">CUBI PLATFORM</p><h2>${t.pricingTitle}</h2><p>${t.pricingLead}</p><a class="cubi-reference-cta" href="/app">${t.primaryCta} <span aria-hidden="true">→</span></a>
+          <p class="cubi-reference-kicker">CUBI PLATFORM</p><h2>${t.pricingTitle}</h2><p>${t.pricingLead}</p><a class="cubi-reference-cta" href="./app/">${t.primaryCta} <span aria-hidden="true">→</span></a>
         </section>
       </main>
 
