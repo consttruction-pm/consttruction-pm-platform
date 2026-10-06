@@ -1200,3 +1200,13 @@ Status: **runtime-verified and merged**
 ### Current continuation point
 - Mobile V1 Issue #1134 durable server idempotency persistence is now runtime-verified on current main.
 - Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Only the first newly reproducible Backend/Database/Application/API/Import-Export gap is eligible; do not revive stale branches or duplicate Shared-Core/client-owned work.
+
+
+### Issue #1249 — Canonical Web/Desktop/Mobile Scheduling Adapter
+Status: **implementation in progress; CI acceptance pending**
+- Added one canonical TypeScript scheduling request/result seam in `apps/client-sync/src/scheduling-adapter.ts`.
+- Web and Desktop consume it through thin re-export adapters; Mobile is compatibility-mapped to the same contract.
+- Added versioned result schema `constructionpm://contracts/time-scheduling-result/v1` and a shared request/result parity fixture.
+- Added negative tests for contract-version and tenant/project/revision scope mismatches.
+- No client-side CPM/calendar/EVM/resource/cost calculations introduced.
+- Exact-head Client Typecheck + ConstructionPM CI are required before closure.
