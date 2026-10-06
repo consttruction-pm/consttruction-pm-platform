@@ -15,8 +15,8 @@ test("Issue 1241 reference-aligned homepage contract", () => {
   assert.match(landing, /cubi-hero-photo/);
   assert.match(landing, /cubi-lang-switch/);
   assert.match(landing, /translations/);
-  assert.match(landing, /\/logo\\.svg/);
-  assert.match(landing, /\/logo-dark\\.svg/);
+  assert.match(landing, /\/logo\.svg/);
+  assert.match(landing, /\/logo-dark\.svg/);
   assert.doesNotMatch(landing, /Primavera|Oracle|P6/);
   assert.match(styles, /Issue 1241 reference-aligned redesign/);
 });
