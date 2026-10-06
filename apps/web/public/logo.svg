@@ -1,18 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
-<title id="title">CUBI Platform</title>
-<desc id="desc">CUBI commercial geometric construction and project intelligence mark.</desc>
-<defs>
-  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1264D6"/><stop offset="1" stop-color="#19B7D8"/></linearGradient>
-  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12B9B1"/><stop offset="1" stop-color="#62D6A7"/></linearGradient>
-</defs>
-<path fill="none" stroke="url(#blue)" stroke-width="18" stroke-linejoin="round" d="M62 8 118 40 62 72 6 40z"/>
-<path fill="none" stroke="#0B3A7A" stroke-width="18" stroke-linejoin="round" d="M6 40v64l56 32 56-32V72"/>
-<path fill="url(#teal)" d="M62 72 118 40v64l-56 32z"/>
-<path fill="#fff" d="M48 76h18v42H48z"/>
-<path fill="#fff" d="M74 84h18v34H74z"/>
-<path fill="#fff" d="M100 92h18v26h-18z"/>
-<circle cx="62" cy="72" r="7" fill="#fff"/>
-<circle cx="88" cy="84" r="6" fill="#12B9B1"/>
-<circle cx="114" cy="92" r="5" fill="#19B7D8"/>
-<path d="M62 72h26v12h26v8" fill="none" stroke="#fff" stroke-width="3"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" role="img" aria-labelledby="title"><title id="title">CUBI</title><defs><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2C9AF4"/><stop offset="1" stop-color="#1474D4"/></linearGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1674D2"/><stop offset="1" stop-color="#0B4EA4"/></linearGradient></defs><path d="M70 5 126 38 70 71 14 38z" fill="url(#a)"/><path d="M14 38v65l56 32V71z" fill="#0B66C8"/><path d="M126 38v65l-56 32V71z" fill="url(#b)"/><path d="M70 23 97 39 70 55 43 39z" fill="#fff"/><path d="M43 39v31l27 16V55z" fill="#EAF5FF"/><path d="M97 39v31L70 86V55z" fill="#DCEEFF"/></svg>
