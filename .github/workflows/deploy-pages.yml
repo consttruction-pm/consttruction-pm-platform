@@ -51,33 +51,35 @@ jobs:
 
       - name: Assemble Pages site
         run: |
-          rm -rf ../../_site
-          mkdir -p ../../_site/app
-          cp index.html ../../_site/index.html
-          cp styles.css ../../_site/styles.css
-          cp -R public/. ../../_site/
-          cp -R dist ../../_site/dist
-          cp index.html ../../_site/app/index.html
+          rm -rf "${{ github.workspace }}/_site"
+          mkdir -p "${{ github.workspace }}/_site/app"
+          cp index.html "${{ github.workspace }}/_site/index.html"
+          cp styles.css "${{ github.workspace }}/_site/styles.css"
+          cp -R public/. "${{ github.workspace }}/_site/"
+          cp -R dist "${{ github.workspace }}/_site/dist"
+          cp index.html "${{ github.workspace }}/_site/app/index.html"
+          touch "${{ github.workspace }}/_site/.nojekyll"
           # The TypeScript build writes to dist/web/src/main.js because
           # tsconfig.build.json uses rootDir=.. and outDir=dist.
           # Create correct asset paths for both the root site and /app route.
-          sed -i 's#\./dist/main\.js#./dist/web/src/main.js#' ../../_site/index.html
+          sed -i 's#\./dist/main\.js#./dist/web/src/main.js#' "${{ github.workspace }}/_site/index.html"
           sed -i 's#\./styles\.css#./styles.css#' ../../_site/index.html
-          sed -i 's#\./styles\.css#../styles.css#' ../../_site/app/index.html
+          sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
           sed -i 's#\./dist/main\.js#../dist/web/src/main.js#' ../../_site/app/index.html
-          test -f ../../_site/index.html
-          test -f ../../_site/app/index.html
-          test -f ../../_site/dist/web/src/main.js
-          test -f ../../_site/styles.css
-          test -f ../../_site/app/index.html
-          test -f ../../_site/logo.svg
-          grep -q 'dist/web/src/main.js' ../../_site/index.html
-          grep -q '../dist/web/src/main.js' ../../_site/app/index.html
+          test -f "${{ github.workspace }}/_site/index.html"
+          test -f "${{ github.workspace }}/_site/app/index.html"
+          test -f "${{ github.workspace }}/_site/dist/web/src/main.js"
+          test -f "${{ github.workspace }}/_site/styles.css"
+          test -f "${{ github.workspace }}/_site/logo.svg"
+          test -f "${{ github.workspace }}/_site/.nojekyll"
+          grep -q 'dist/web/src/main.js' "${{ github.workspace }}/_site/index.html"
+          grep -q '../dist/web/src/main.js' "${{ github.workspace }}/_site/app/index.html"
+          echo "Pages artifact ready: $(find "${{ github.workspace }}/_site" -type f | wc -l) files"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: _site
+          path: ${{ github.workspace }}/_site
 
   deploy:
     needs: build
