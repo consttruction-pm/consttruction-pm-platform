@@ -12,7 +12,7 @@
   </linearGradient>
   <linearGradient id="cubiCube" x1="0" y1="0" x2="1" y2="1">
     <stop stop-color="#13D0E3"/>
-    <stop offset="1" stop-color="#18AFA0"/>
+    <stop offset="1" stop-color="#13B8C4"/>
   </linearGradient>
 </defs>
 <path fill="url(#cubiSide)" d="M18 52 66 24v45L38 85v43L18 116z"/>
