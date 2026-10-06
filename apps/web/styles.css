@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/npm/@fontsource-variable/estedad@5.3.0/wght.css");
 @import url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css");
 :root {
   font-family: Inter, "Vazirmatn", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1211,4 +1212,62 @@ th {
   }
   .cubi-product-window { transform: none !important; }
   .cubi-button:hover { transform: none !important; }
+}
+
+
+/* CUBI homepage reference lock — 2026-10-06.
+   Persian marketing copy uses Estedad for a cleaner, modern construction-tech look.
+   Dense application/workspace surfaces retain the existing shared UI system. */
+.cubi-site {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+[dir="rtl"] .cubi-site,
+html:lang(fa) .cubi-site {
+  font-family: "Estedad Variable", Estedad, Vazirmatn, Tahoma, sans-serif;
+}
+[dir="rtl"] .cubi-header,
+[dir="rtl"] .cubi-nav,
+[dir="rtl"] .cubi-header-actions,
+[dir="rtl"] .cubi-hero,
+[dir="rtl"] .cubi-features-section,
+[dir="rtl"] .cubi-tech-section,
+[dir="rtl"] .cubi-cta,
+[dir="rtl"] .cubi-footer {
+  font-family: "Estedad Variable", Estedad, Vazirmatn, Tahoma, sans-serif;
+}
+.cubi-header {
+  min-height: 62px;
+  padding-inline: clamp(1rem, 5.5vw, 5.2rem);
+}
+.cubi-brand strong { letter-spacing: .035em; }
+.cubi-hero {
+  min-height: 540px;
+  padding-block: clamp(3rem, 6vw, 4.5rem);
+}
+.cubi-hero-copy { max-width: 610px; }
+.cubi-hero h1 { font-weight: 800; }
+.cubi-lead { max-width: 560px; }
+.cubi-features-section {
+  padding-block: clamp(3.5rem, 5vw, 4.8rem);
+}
+.cubi-feature-grid { gap: clamp(1rem, 2vw, 1.5rem); }
+.cubi-feature-grid article { min-height: 165px; }
+.cubi-tech-section {
+  padding-block: clamp(3.5rem, 5vw, 4.8rem);
+}
+.cubi-tech-list span:first-child {
+  border-color: #b9cee4;
+  font-weight: 800;
+}
+.cubi-cta {
+  min-height: 112px;
+  padding-block: 2.2rem;
+}
+.cubi-footer {
+  min-height: 148px;
+  padding-block: 1.4rem;
+}
+@media (max-width: 760px) {
+  .cubi-hero { min-height: 700px; }
+  .cubi-feature-grid article { min-height: 145px; }
 }
