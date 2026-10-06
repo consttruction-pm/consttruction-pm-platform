@@ -23,10 +23,10 @@ const fixture: MobileLocalProject = {
     { id: "A2", wbs_id: "W2", name: "Frame", order: 2 },
   ],
   relationships: [
-    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "WORKING_DAY" } },
-    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "WORKING_DAY" } },
-    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "WORKING_DAY" } },
-    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "WORKING_HOUR" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "working-day" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "working-day" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "working-day" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "working-hour" } },
   ],
 };
 
@@ -51,11 +51,11 @@ const schedulingRequest: MobileSchedulingRequest = {
   project_finish: null,
   data_date: "2026-10-05",
   activities: [
-    { id: "A1", duration: { value: "2", unit: "WORKING_DAY" } },
-    { id: "A2", duration: { value: "1", unit: "WORKING_DAY" } },
+    { id: "A1", duration: { value: "2", unit: "working-day" } },
+    { id: "A2", duration: { value: "1", unit: "working-day" } },
   ],
   relationships: [
-    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "0", unit: "WORKING_DAY" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "0", unit: "working-day" } },
   ],
   constraints: [],
 };
@@ -70,18 +70,18 @@ function deterministicResult() {
         activity_id: "A1",
         start: "2026-10-05",
         finish: "2026-10-06",
-        duration: { value: "2", unit: "WORKING_DAY" as const },
-        total_float: { value: "0", unit: "WORKING_DAY" as const },
-        free_float: { value: "0", unit: "WORKING_DAY" as const },
+        duration: { value: "2", unit: "working-day" as const },
+        total_float: { value: "0", unit: "working-day" as const },
+        free_float: { value: "0", unit: "working-day" as const },
         critical: true,
       },
       {
         activity_id: "A2",
         start: "2026-10-07",
         finish: "2026-10-07",
-        duration: { value: "1", unit: "WORKING_DAY" as const },
-        total_float: { value: "0", unit: "WORKING_DAY" as const },
-        free_float: { value: "0", unit: "WORKING_DAY" as const },
+        duration: { value: "1", unit: "working-day" as const },
+        total_float: { value: "0", unit: "working-day" as const },
+        free_float: { value: "0", unit: "working-day" as const },
         critical: true,
       },
     ],
@@ -158,10 +158,10 @@ test("lists FS SS FF SF relationships with lag and lead for an activity", async 
   await shell.openLocalProject("t1", "p1");
 
   assert.deepEqual(shell.listRelationships("A1"), [
-    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "WORKING_DAY" } },
-    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "WORKING_DAY" } },
-    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "WORKING_DAY" } },
-    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "WORKING_HOUR" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "2", unit: "working-day" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "SS", lag: { value: "-1", unit: "working-day" } },
+    { predecessor_id: "A2", successor_id: "A1", type: "FF", lag: { value: "0", unit: "working-day" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "SF", lag: { value: "3", unit: "working-hour" } },
   ]);
 });
 
