@@ -3,98 +3,56 @@ import test from "node:test";
 import {
   MOBILE_SCHEDULING_CONTRACT_VERSION,
   createSharedSchedulingCoreAdapter,
+  validateSchedulingRequest,
   type MobileSchedulingRequest,
   type MobileSchedulingResult,
 } from "./shared-scheduling-adapter.ts";
 
 const request: MobileSchedulingRequest = {
   contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
-  project_schema_version: 2,
-  tenant_id: "t1",
-  project_id: "p1",
-  project_revision: 7,
-  calculation_schema_version: "calc.v1",
-  calendar_assignments: {
-    project_calendar: { calendar_id: "site", calendar_version: 3, kind: "working-day" },
-    default_activity_calendar: { calendar_id: "site", calendar_version: 3, kind: "working-day" },
-    default_relationship_lag_calendar: { calendar_id: "site", calendar_version: 3, kind: "working-day" },
+  project_context: { tenant_id: "t1", project_id: "p1", revision: 7 },
+  calculation_context: {
+    schedule_mode: "EARLIEST",
+    project_start: "2026-10-05T08:00:00Z",
+    data_date: "2026-10-05T08:00:00Z",
+    project_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-time" },
   },
-  scheduling_settings: {
-    duration: "working-day",
-    calendar: "jalali-gregorian",
-    lag: "working",
-    constraints: "hybrid",
-    mode: "both",
-  },
-  project_start: "2026-10-05",
-  project_finish: null,
-  data_date: "2026-10-05",
-  activities: [
-    { id: "A1", duration: { value: "2", unit: "WORKING_DAY" } },
-    { id: "A2", duration: { value: "1", unit: "WORKING_DAY" } },
-  ],
-  relationships: [
-    {
-      predecessor_id: "A1",
-      successor_id: "A2",
-      type: "FS",
-      lag: { value: "0", unit: "WORKING_DAY" },
-    },
-  ],
+  activities: [{
+    activity_id: "A1",
+    duration_value: "4",
+    duration_unit: "working-hour",
+    calendar: { calendar_id: "site", calendar_version: "3", kind: "working-time" },
+  }],
+  relationships: [],
   constraints: [],
 };
 
-function deterministicResult(): MobileSchedulingResult {
-  return {
-    contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
-    calculation_fingerprint: "core-fp-001",
-    project_finish: "2026-10-07",
-    activities: [
-      {
-        activity_id: "A1",
-        start: "2026-10-05",
-        finish: "2026-10-06",
-        duration: { value: "2", unit: "WORKING_DAY" },
-        total_float: { value: "0", unit: "WORKING_DAY" },
-        free_float: { value: "0", unit: "WORKING_DAY" },
-        critical: true,
-      },
-      {
-        activity_id: "A2",
-        start: "2026-10-07",
-        finish: "2026-10-07",
-        duration: { value: "1", unit: "WORKING_DAY" },
-        total_float: { value: "0", unit: "WORKING_DAY" },
-        free_float: { value: "0", unit: "WORKING_DAY" },
-        critical: true,
-      },
-    ],
-  };
-}
+const result: MobileSchedulingResult = {
+  contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
+  project_context: request.project_context,
+  calculation_fingerprint: "sha256:mobile",
+  project_finish: "2026-10-05T12:00:00Z",
+  activities: [{
+    activity_id: "A1",
+    start: "2026-10-05T08:00:00Z",
+    finish: "2026-10-05T12:00:00Z",
+    duration: { value: "4", unit: "working-hour" },
+    total_float: null,
+    free_float: null,
+    critical: false,
+  }],
+};
 
-test("mobile scheduling boundary delegates unchanged to the authoritative core", async () => {
-  const calls: MobileSchedulingRequest[] = [];
-  const adapter = createSharedSchedulingCoreAdapter({
-    async schedule(input) {
-      calls.push(input);
-      return deterministicResult();
-    },
-  });
-
-  const result = await adapter.schedule(request);
-  assert.deepEqual(result, deterministicResult());
-  assert.deepEqual(calls[0], request);
+test("mobile adapter uses canonical shared scheduling contract", () => {
+  assert.deepEqual(validateSchedulingRequest(request), request);
 });
 
-test("the same portable input can be scheduled twice without client-side drift", async () => {
+test("mobile client delegates unchanged to the authoritative core", async () => {
   const adapter = createSharedSchedulingCoreAdapter({
-    async schedule() {
-      return deterministicResult();
+    async schedule(input) {
+      assert.deepEqual(input, request);
+      return result;
     },
   });
-
-  const first = await adapter.schedule(request);
-  const second = await adapter.schedule(request);
-  assert.deepEqual(first, second);
-  assert.equal(first.calculation_fingerprint, second.calculation_fingerprint);
+  assert.deepEqual(await adapter.schedule(request), result);
 });
