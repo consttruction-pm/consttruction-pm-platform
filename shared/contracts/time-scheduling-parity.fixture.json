@@ -1,4 +1,6 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConstructionPM Time Scheduling Parity Fixture v1",
   "request": {
     "contract_version": "1.0",
     "project_context": { "tenant_id": "fixture-tenant", "project_id": "fixture-project", "revision": 12 },
