@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css");
 :root {
   font-family: Inter, "Vazirmatn", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--cp-text);
@@ -218,7 +219,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 }
 
 /* CUBI marketing homepage — Issue 1241 reference-aligned redesign */
-.cubi-site { color:#13243a; background:#fff; min-height:100vh; overflow:hidden; font-family:Inter,"Vazirmatn",system-ui,sans-serif; }
+.cubi-site { color:#13243a; background:#fff; min-height:100vh; overflow:hidden; font-family:Inter,system-ui,sans-serif; }
 .cubi-header { min-height:64px; display:flex; align-items:center; gap:1.5rem; padding:0 clamp(1rem,5vw,5.2rem); background:#fff; border-bottom:1px solid #e5eaf0; position:sticky; top:0; z-index:30; }
 .cubi-brand { display:flex; align-items:center; gap:.55rem; color:#0b2441; text-decoration:none; min-width:max-content; }
 .cubi-brand img { display:block; border-radius:.5rem; }
@@ -264,6 +265,13 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-product-kpis span:not(.cubi-ring) { color:#718198; font-size:.52rem; }
 .cubi-ring { position:absolute; top:13px; right:12px; width:39px; height:39px; border:5px solid #13b8c4; border-right-color:#dfe9ef; border-radius:50%; }
 .cubi-product-kpis b { color:#087cf2; font-size:1.2rem; }
+.cubi-workflow { padding:1rem clamp(1rem,6vw,6rem); background:#062541; color:#fff; text-align:center; border-top:1px solid rgba(72,190,255,.16); border-bottom:1px solid rgba(72,190,255,.16); }
+.cubi-workflow-steps { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:.65rem; font-size:.78rem; font-weight:850; letter-spacing:.08em; }
+.cubi-workflow-steps span { display:inline-flex; align-items:center; gap:.65rem; }
+.cubi-workflow-steps i { color:#25c6ff; font-style:normal; font-size:1rem; }
+.cubi-workflow-meta { display:flex; justify-content:center; flex-wrap:wrap; gap:0; margin-top:.55rem; color:#9ebbd4; font-size:.62rem; }
+.cubi-workflow-meta span { padding:0 .75rem; border-inline-end:1px solid rgba(158,187,212,.28); }
+.cubi-workflow-meta span:last-child { border-inline-end:0; }
 .cubi-features-section { padding:4.8rem clamp(1rem,6vw,6rem); background:#fff; }
 .cubi-section-head { max-width:700px; margin:0 auto 3rem; text-align:center; }
 .cubi-section-head h2 { color:#102b4b; font-size:clamp(2rem,3.4vw,3rem); line-height:1.08; margin:0 0 .75rem; letter-spacing:-.03em; }
@@ -1167,3 +1175,8 @@ th {
 @media (max-width:760px) { .cubi-hero { padding-block:2.8rem 3.2rem; } .cubi-section,.cubi-control-section,.cubi-faq { padding-block:3rem; } .cubi-feature-grid article { min-height:150px; } }
 [dir="rtl"] .cubi-header { direction:rtl; }
 [dir="rtl"] .cubi-header-actions { margin-inline-start:0; margin-inline-end:auto; }
+
+[dir="rtl"] .cubi-site { font-family:Vazirmatn, "Tahoma", sans-serif; }
+[dir="rtl"] .cubi-hero-tagline { font-family:Vazirmatn, sans-serif; }
+[dir="rtl"] .cubi-workflow-steps { letter-spacing:0; }
+[dir="rtl"] .cubi-workflow-steps i { transform:scaleX(-1); }
