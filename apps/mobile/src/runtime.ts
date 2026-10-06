@@ -10,8 +10,9 @@ import { LanguagePackClientRuntime } from "../../client-sync/src/language-pack-c
 import { presentSyncConflict, type SyncConflictPresentation } from "../../client-sync/src/conflict-presentation.js";
 import { WorkspaceReadCacheAdapter, type WorkspaceReadResult } from "../../client-sync/src/workspace-read-cache-adapter.js";
 import {
-  MOBILE_SCHEDULING_CONTRACT_VERSION,
-  validateMobileSchedulingResult,
+  SCHEDULING_CONTRACT_VERSION,
+  validateSchedulingRequest,
+  validateSchedulingResult,
   type MobileSchedulingRequest,
   type MobileSchedulingResult,
   type SharedSchedulingCoreAdapter,
@@ -44,7 +45,7 @@ export class MobileRuntime {
   ): Promise<MobileSchedulingResult> {
     const current = this.current();
     if (current.mode !== "offline") throw new Error("OFFLINE_SCHEDULING_REQUIRES_OFFLINE_MODE");
-    if (input.contract_version !== MOBILE_SCHEDULING_CONTRACT_VERSION) {
+    if (input.contract_version !== SCHEDULING_CONTRACT_VERSION) {
       throw new Error("INVALID_SCHEDULING_CONTRACT_VERSION");
     }
     if (
@@ -54,7 +55,9 @@ export class MobileRuntime {
     ) {
       throw new Error("PROJECT_CONTEXT_MISMATCH");
     }
-    return validateMobileSchedulingResult(await core.schedule(input));
+    validateSchedulingRequest(input);
+    const result = await core.schedule(input);
+    return validateSchedulingResult(result, input.project_context);
   }
 
   async readWorkspace(adapter: WorkspaceReadCacheAdapter): Promise<WorkspaceReadResult> {
