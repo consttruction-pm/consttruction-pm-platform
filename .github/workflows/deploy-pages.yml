@@ -63,9 +63,9 @@ jobs:
           # tsconfig.build.json uses rootDir=.. and outDir=dist.
           # Create correct asset paths for both the root site and /app route.
           sed -i 's#\./dist/main\.js#./dist/web/src/main.js#' "${{ github.workspace }}/_site/index.html"
-          sed -i 's#\./styles\.css#./styles.css#' ../../_site/index.html
+          sed -i 's#\./styles\.css#./styles.css#' "${{ github.workspace }}/_site/index.html"
           sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#\./dist/main\.js#../dist/web/src/main.js#' ../../_site/app/index.html
+          sed -i 's#\./dist/main\.js#../dist/web/src/main.js#' "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/index.html"
           test -f "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/dist/web/src/main.js"
