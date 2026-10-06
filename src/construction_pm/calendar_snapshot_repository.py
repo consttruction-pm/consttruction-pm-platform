@@ -139,8 +139,8 @@ class SQLiteCalendarSnapshotRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         if str(existing[1]) != canonical_snapshot:
             raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
-            if transaction_owned:
-                self.connection.commit()
+        if transaction_owned:
+            self.connection.commit()
         return record
 
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None:
