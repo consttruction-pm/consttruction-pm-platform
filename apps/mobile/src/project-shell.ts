@@ -62,7 +62,7 @@ function isSchedulingDuration(value: unknown): value is SchedulingDuration {
   if (!value || typeof value !== "object") return false;
   const duration = value as Partial<SchedulingDuration>;
   return typeof duration.value === "string" && duration.value.trim().length > 0 &&
-    (duration.unit === "WORKING_DAY" || duration.unit === "WORKING_HOUR");
+    (duration.unit === "working-day" || duration.unit === "working-hour");
 }
 
 /** Persistence-backed store; the host supplies durable local storage. */
