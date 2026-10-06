@@ -254,7 +254,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-product-sidebar strong { color:#fff; font-size:.82rem; margin-bottom:.4rem; }
 .cubi-product-main { padding:1rem; color:#18314c; }
 .cubi-product-heading { display:flex; justify-content:space-between; align-items:center; font-size:.68rem; margin-bottom:.8rem; }
-.cubi-product-heading span { color:#18a98b; font-size:.58rem; font-weight:800; }
+.cubi-product-heading span { color:#18a98b; font-size:.58rem; font-weight:800; } .cubi-demo-badge { color:#9a5a1f !important; background:rgba(196,106,43,.12); border:1px solid rgba(196,106,43,.28); border-radius:999px; padding:.16rem .38rem; }
 .cubi-gantt-mini { display:grid; gap:.45rem; padding:.75rem; border:1px solid #e1e9f0; border-radius:.55rem; background:#fff; }
 .cubi-gantt-mini i { display:block; height:8px; border-radius:99px; background:linear-gradient(90deg,#1c86ed 0 54%,transparent 54%); }
 .cubi-gantt-mini i:nth-child(2){background:linear-gradient(90deg,#36b6c9 0 70%,transparent 70%)} .cubi-gantt-mini i:nth-child(3){background:linear-gradient(90deg,#735ee9 0 45%,transparent 45%)} .cubi-gantt-mini i:nth-child(4){background:linear-gradient(90deg,#1c86ed 0 78%,transparent 78%)} .cubi-gantt-mini i:nth-child(5){background:linear-gradient(90deg,#18b7a0 0 62%,transparent 62%)}
@@ -278,7 +278,7 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cubi-section-head p { color:#65758a; line-height:1.7; max-width:650px; margin:auto; }
 .cubi-feature-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:1.5rem; }
 .cubi-feature-grid article { text-align:center; padding:.8rem .25rem; min-width:0; }
-.cubi-feature-icon { width:48px; height:48px; display:grid; place-items:center; margin:0 auto 1rem; border-radius:.65rem; background:#eaf3ff; color:#087cf2; font-size:1.35rem; font-weight:800; }
+.cubi-feature-icon { width:48px; height:48px; display:grid; place-items:center; margin:0 auto 1rem; border-radius:.65rem; background:#eaf3ff; color:#087cf2; font-size:1.35rem; font-weight:800; } .cubi-feature-icon svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; } .cubi-feature-icon svg path:first-child { fill:currentColor; stroke:none; }
 .cubi-feature-grid h3 { color:#162f4c; margin:.25rem 0 .55rem; font-size:.92rem; }
 .cubi-feature-grid p { color:#6b7a8e; line-height:1.55; font-size:.75rem; margin:0; }
 .cubi-tech-section { display:grid; grid-template-columns:.9fr 1.1fr; gap:4rem; align-items:center; padding:4.8rem clamp(1rem,6vw,6rem); background:#edf6ff; }
@@ -1180,3 +1180,16 @@ th {
 [dir="rtl"] .cubi-hero-tagline { font-family:Vazirmatn, sans-serif; }
 [dir="rtl"] .cubi-workflow-steps { letter-spacing:0; }
 [dir="rtl"] .cubi-workflow-steps i { transform:scaleX(-1); }
+
+
+/* Accessibility: respect reduced-motion preferences in the commercial CUBI surface. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cubi-product-window { transform: none !important; }
+  .cubi-button:hover { transform: none !important; }
+}
