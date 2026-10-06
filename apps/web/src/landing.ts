@@ -75,15 +75,15 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
   container.innerHTML = `
     <div class="cubi-site cubi-reference-home" dir="${locale === "fa" ? "rtl" : "ltr"}" id="home">
       <header class="cubi-reference-header">
-        <a class="cubi-reference-brand cubi-reference-brand-image" href="/" aria-label="CUBI Platform home">
-          <img src="/cubi-platform-logo-primary.svg" width="206" height="72" alt="CUBI Platform — Plan. Control. Build Smarter." />
+        <a class="cubi-reference-brand cubi-reference-brand-image" href="./" aria-label="CUBI Platform home">
+          <img src="./cubi-platform-logo-primary.svg" width="206" height="72" alt="CUBI Platform — Plan. Control. Build Smarter." />
         </a>
         <nav class="cubi-reference-nav" aria-label="Primary navigation">
           <a href="#home">${t.navHome}</a><a href="#features">${t.navFeatures}</a><a href="#solutions">${t.navSolutions}</a><a href="#pricing">${t.navPricing}</a><a href="#resources">${t.navResources}</a><a href="#about">${t.navAbout}</a>
         </nav>
         <div class="cubi-reference-actions">
           <button class="cubi-lang-switch" type="button" aria-label="${locale === "fa" ? "Switch to English" : "تغییر به فارسی"}">${t.languageLabel}</button>
-          <a class="cubi-reference-cta cubi-reference-cta-small" href="/app">${t.open}</a>
+          <a class="cubi-reference-cta cubi-reference-cta-small" href="./app/">${t.open}</a>
         </div>
       </header>
 
@@ -113,7 +113,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
               </div>
               <div class="cubi-ref-ai"><span>AI</span><strong>${t.aiInsight}</strong><small>${t.demo}</small></div>
             </div>
-            <div class="cubi-reference-orbit"><img src="/logo-dark.svg" width="78" height="78" alt="" /></div>
+            <div class="cubi-reference-orbit"><img src="./logo-dark.svg" width="78" height="78" alt="" /></div>
           </div>
         </section>
 
@@ -137,7 +137,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
       </main>
 
       <footer class="cubi-reference-footer" id="about">
-        <div class="cubi-reference-brand cubi-reference-brand-image"><img src="/cubi-platform-logo-primary-dark.svg" width="186" height="65" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
+        <div class="cubi-reference-brand cubi-reference-brand-image"><img src="./cubi-platform-logo-primary-dark.svg" width="186" height="65" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
         <div><strong>${t.aboutTitle}</strong><span>${t.footerDescriptor}</span></div>
         <p>${t.tagline}</p>
       </footer>
