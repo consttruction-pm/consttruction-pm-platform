@@ -24,7 +24,7 @@ test("contract version mismatch is rejected before scheduling", () => {
     () => validateSchedulingRequest({
       ...fixture.request,
       contract_version: "0.9",
-    } as SchedulingRequest),
+    } as unknown as SchedulingRequest),
     /INVALID_SCHEDULING_CONTRACT_VERSION/,
   );
 });
