@@ -5,7 +5,7 @@ type LandingCopy = {
   navHome: string; navFeatures: string; navSolutions: string; navPricing: string; navResources: string; navAbout: string;
   signIn: string; getStarted: string; eyebrow: string; title: string; titleAccent: string; lead: string;
   watchDemo: string; heroLabel: string; success: string; progress: string; cost: string; evm: string; ai: string;
-  sectionTitle: string; sectionLead: string;
+  sectionTitle: string; sectionLead: string; workflow: string[]; workflowMeta: string[];
   features: Array<[string,string,string]>;
   techTitle: string; techLead: string; techItems: string[];
   ctaTitle: string; ctaLead: string; trial: string; contact: string;
@@ -20,6 +20,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     lead:"CUBI Platform brings project controls, AI and engineering precision together to help you plan, monitor and deliver construction projects with confidence.",
     watchDemo:"Watch Demo", heroLabel:"CUBI project controls preview", success:"Live", progress:"Overall Progress", cost:"Cost Performance", evm:"EVM", ai:"AI Assistant",
     sectionTitle:"Everything You Need for Project Success",
+    workflow:["PLAN","CONTROL","ANALYZE","BUILD"], workflowMeta:["Schedule","Cost","Progress","Documents","AI"],
     sectionLead:"From planning to closeout, CUBI gives you the tools, insights and control to manage construction projects smarter, faster and safer.",
     features:[
       ["▦","Project Controls","Plan, schedule and track progress with confidence."],
@@ -29,7 +30,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
       ["♧","Collaboration","Work together across your team and stakeholders."],
       ["◌","Cloud & Scalability","Secure, reliable and built to grow with your needs."]
     ],
-    techTitle:"Powered by Leading Technologies",
+    techTitle:"CUBI Intelligence & Engineering Core",
     techLead:"CUBI integrates proven engineering foundations to give project teams reliability, visibility and intelligent control.",
     techItems:["Scheduling Engine","PostgreSQL","AI & Analytics"],
     ctaTitle:"Ready to Build Smarter?",
@@ -44,6 +45,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     lead:"پلتفرم CUBI کنترل پروژه، هوش مصنوعی و دقت مهندسی را یکپارچه می‌کند تا پروژه‌های ساخت را با اطمینان برنامه‌ریزی، پایش و تحویل کنید.",
     watchDemo:"مشاهده دمو", heroLabel:"نمایش کنترل پروژه CUBI", success:"زنده", progress:"پیشرفت کل", cost:"عملکرد هزینه", evm:"EVM", ai:"دستیار هوشمند",
     sectionTitle:"همه آنچه برای موفقیت پروژه نیاز دارید",
+    workflow:["برنامه‌ریزی","کنترل","تحلیل","ساخت"], workflowMeta:["زمان‌بندی","هزینه","پیشرفت","اسناد","هوش مصنوعی"],
     sectionLead:"از برنامه‌ریزی تا اختتام، CUBI ابزار، بینش و کنترل لازم برای مدیریت هوشمندتر، سریع‌تر و مطمئن‌تر پروژه‌های ساخت را فراهم می‌کند.",
     features:[
       ["▦","کنترل پروژه","برنامه‌ریزی، زمان‌بندی و پایش پیشرفت با اطمینان."],
@@ -53,7 +55,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
       ["♧","همکاری","همکاری یکپارچه تیم پروژه و ذی‌نفعان."],
       ["◌","ابر و مقیاس‌پذیری","امن، قابل اتکا و آماده رشد متناسب با نیاز پروژه."]
     ],
-    techTitle:"مبتنی بر فناوری‌های پیشرو",
+    techTitle:"هسته هوشمندی و مهندسی CUBI",
     techLead:"CUBI زیرساخت‌های مهندسی آزموده‌شده را برای قابلیت اتکا، دیدپذیری و کنترل هوشمند پروژه یکپارچه می‌کند.",
     techItems:["موتور زمان‌بندی","PostgreSQL","هوش مصنوعی و تحلیل"],
     ctaTitle:"آماده ساخت هوشمندتر هستید؟",
@@ -117,6 +119,11 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
               </div>
             </div>
           </div>
+        </section>
+
+        <section class="cubi-workflow" aria-label="CUBI workflow">
+          <div class="cubi-workflow-steps">${t.workflow.map((step, index) => `<span><b>${step}</b>${index < t.workflow.length - 1 ? "<i>→</i>" : ""}</span>`).join("")}</div>
+          <div class="cubi-workflow-meta">${t.workflowMeta.map(item => `<span>${item}</span>`).join("")}</div>
         </section>
 
         <section class="cubi-features-section" id="features">
