@@ -1182,6 +1182,25 @@ th {
 [dir="rtl"] .cubi-workflow-steps i { transform:scaleX(-1); }
 
 
+.cubi-academy {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(320px,1.15fr);
+  gap:2rem;
+  align-items:center;
+  padding:3rem clamp(1rem,6vw,6rem);
+  background:linear-gradient(135deg,#f7fbff,#eef7ff);
+  border-top:1px solid var(--cubi-neutral-divider);
+  border-bottom:1px solid var(--cubi-neutral-divider);
+}
+.cubi-academy h2 { margin:.2rem 0 .6rem; color:var(--cubi-deep-navy); font-size:clamp(1.7rem,3vw,2.5rem); }
+.cubi-academy > div:first-child > p:last-child { max-width:720px; margin:0; color:var(--cp-muted); line-height:1.75; }
+.cubi-academy .cubi-kicker { margin:0; color:var(--cp-blue); font-weight:800; letter-spacing:.08em; }
+.cubi-academy-flow { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:.55rem; padding:1.25rem; border:1px solid var(--cubi-neutral-border); border-radius:.8rem; background:#fff; box-shadow:0 10px 28px rgba(8,26,47,.06); }
+.cubi-academy-flow span { padding:.55rem .7rem; border-radius:.5rem; background:#f5f8fb; color:var(--cubi-deep-navy); font-weight:750; font-size:.78rem; }
+.cubi-academy-flow i { color:var(--cp-blue); font-style:normal; font-weight:800; }
+@media (max-width:760px) { .cubi-academy { grid-template-columns:1fr; padding-block:2.5rem; } .cubi-academy-flow { justify-content:flex-start; } }
+[dir="rtl"] .cubi-academy-flow i { transform:scaleX(-1); }
+
 /* Accessibility: respect reduced-motion preferences in the commercial CUBI surface. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
