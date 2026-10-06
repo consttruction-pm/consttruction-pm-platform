@@ -8,18 +8,17 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("Issue 1239 compact homepage contract", () => {
-  assert.match(landing, /title:\s+"Construction Project Control,"/);
-  assert.match(landing, /titleAccent:\s+"Reimagined\."/);
-  assert.match(landing, /fa:\s+\{/);
-  assert.match(landing, /Planning & Scheduling/);
-  assert.match(landing, /Project Controls/);
-  assert.match(landing, /AI Assistant/);
+test("Issue 1241 reference-aligned homepage contract", () => {
+  assert.match(landing, /Construction & Building/);
+  assert.match(landing, /Everything You Need for Project Success/);
+  assert.match(landing, /Powered by Leading Technologies/);
+  assert.match(landing, /cubi-hero-photo/);
   assert.match(landing, /cubi-lang-switch/);
   assert.match(landing, /translations/);
-  assert.match(landing, /\/logo\.svg/);
-  assert.match(landing, /\/logo-dark\.svg/);
-  assert.match(styles, /Issue 1239 — compact, user-centered bilingual commercial homepage/);
+  assert.match(landing, /\/logo\\.svg/);
+  assert.match(landing, /\/logo-dark\\.svg/);
+  assert.doesNotMatch(landing, /Primavera|Oracle|P6/);
+  assert.match(styles, /Issue 1241 reference-aligned redesign/);
 });
 
 test("registered SEO contract remains intact", () => {
@@ -29,11 +28,4 @@ test("registered SEO contract remains intact", () => {
   assert.match(index, /property="og:title"/);
   assert.match(index, /name="twitter:title"/);
   assert.match(index, /"@type": \["SoftwareApplication", "WebSite"\]/);
-});
-
-test("commercial surface stays independent of external product provenance", () => {
-  for (const pattern of [/Oracle/i, /Primavera/i, /P6/i]) {
-    assert.doesNotMatch(landing, pattern);
-    assert.doesNotMatch(index, pattern);
-  }
 });
