@@ -77,7 +77,23 @@ Do not use brushed-metal texture as a background for dense tables, Gantt charts,
 
 ## Logo
 
-The CUBI geometric logo shape is preserved as the approved form. Primary and dark variants must use the registered palette; independent cyan/teal brand colors are not allowed.
+The **uploaded CUBI Platform logo sheet supplied on 2026-10-06 is the final brand reference**. It is the single source of truth for the CUBI mark and lockups across Web, Desktop and Mobile.
+
+Approved variants shown in that reference:
+- Full logo / CUBI Platform lockup.
+- Icon-only mark for favicon, app, dashboard and compact navigation.
+- Light app icon.
+- Dark app icon.
+- Light/dark presentation variants.
+- Brand lockup with the tagline: "Plan. Control. Build Smarter."
+
+Implementation rules:
+- Preserve the approved geometry, proportions, spacing and lockup.
+- Do not redraw, simplify, recolor or create a competing CUBI mark.
+- The logo's own approved blue/cyan/teal facets are **logo-specific identity colors** and may remain inside the logo asset. They are not a license to introduce cyan/teal as general UI accent colors.
+- Outside the logo asset, application UI continues to use the registered CUBI palette and semantic status colors.
+- Light/dark contexts must select the corresponding approved logo variant.
+- All three clients must consume the same canonical logo asset family.
 
 ## Forbidden drift
 
