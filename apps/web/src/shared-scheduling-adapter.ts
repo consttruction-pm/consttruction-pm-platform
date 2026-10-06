@@ -6,7 +6,7 @@ export {
   validateSchedulingResult,
 } from "../../client-sync/src/scheduling-adapter.ts";
 export type {
-  ProjectContext,
+  SchedulingProjectContext,
   CalendarReference,
   TimeQuantity,
   CalculationContext,
