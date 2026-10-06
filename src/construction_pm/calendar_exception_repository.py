@@ -201,8 +201,8 @@ class SQLiteCalendarExceptionRepository:
                  _canonical_json({"intervals": [[s.isoformat(), e.isoformat()] for s, e in exception.intervals]}),
                  exception.system.value, 1),
             )
-            if transaction_owned:
-                self.connection.commit()
+        if transaction_owned:
+            self.connection.commit()
             return CalendarException(exception.scope, exception.calendar_id, exception.calendar_version,
                                      exception.exception_date, exception.mode, exception.total_work_hours,
                                      exception.intervals, exception.system, 1)
