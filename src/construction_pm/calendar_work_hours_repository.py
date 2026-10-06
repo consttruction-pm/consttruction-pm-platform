@@ -211,6 +211,13 @@ class PostgresCalendarWorkHourRepository:
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
 
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_work_hour_rule WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
+
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()
         rows = self.connection.execute(
