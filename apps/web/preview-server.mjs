@@ -1,7 +1,7 @@
 import http from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { isAbsolute, join, normalize, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const host = process.env.HOST || "0.0.0.0";
@@ -33,7 +33,7 @@ function within(rootPath, candidate) {
   return rel === "" || (!rel.startsWith(".." + sep) && !isAbsolute(rel));
 }
 
-function resolveRequestFile(requestPath) {
+export function resolveRequestFile(requestPath) {
   const pathname = decodeURIComponent(requestPath.split("?")[0]);
   const publicRoot = join(root, "public");
   const distRoot = join(root, "dist");
@@ -66,6 +66,7 @@ function resolveRequestFile(requestPath) {
   return normalized;
 }
 
+function startPreviewServer() {
 const server = http.createServer((req, res) => {
   try {
     const file = resolveRequestFile(req.url || "/");
@@ -97,3 +98,7 @@ const server = http.createServer((req, res) => {
 server.listen(port, host, () => {
   console.log(`CUBI Web Preview listening on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
 });
+
+
+const entry = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (entry === import.meta.url) startPreviewServer();
