@@ -754,3 +754,26 @@ Compatibility impact:
 - Shared Core authority: preserved.
 - Backend/API: no duplicate semantic model is authorized.
 - Web/client: consumes authoritative registry/results and must not implement calculations.
+
+
+## 39. Canonical Cross-Client Scheduling Contract — 2026-10-06
+
+Issue #1249 establishes one versioned scheduling request/result seam for Web, Desktop and Mobile.
+
+Mandatory rules:
+- `constructionpm://contracts/time-scheduling/v1` is the canonical scheduling request contract.
+- `constructionpm://contracts/time-scheduling-result/v1` is the canonical scheduling result contract.
+- Project tenant_id, project_id and revision are explicit in the client-facing contract.
+- Duration unit, calendar identity/version, FS/SS/FF/SF, signed lag/lead, constraints, Data Date and calculation fingerprint remain lossless at the client boundary.
+- `apps/client-sync/src/scheduling-adapter.ts` is the canonical TypeScript adapter boundary.
+- Web, Desktop and Mobile use thin adapters/compatibility shims over that common boundary.
+- Older Mobile naming may remain only as a compatibility alias; it is not an independent semantic authority.
+- Clients must not calculate Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial semantics.
+
+Compatibility impact:
+- P6/Scheduling: unchanged; authoritative semantics remain in Shared Domain/Calculation Core.
+- Web-readiness: strengthened through one typed contract and shared parity fixture.
+- Portability: request/result identity and scope are preserved across clients.
+- Testing: common fixture, version mismatch and project-scope mismatch tests are mandatory.
+
+Acceptance remains conditional on exact-head Client Typecheck and ConstructionPM CI passing on the merged head.
