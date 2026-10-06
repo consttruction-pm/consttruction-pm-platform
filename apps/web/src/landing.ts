@@ -126,8 +126,8 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
           </div>
         </section>
 
-        <section class="cubi-tech-section" id="solutions"><span id="resources" aria-hidden="true"></span>
-          <div class="cubi-tech-copy">
+        <section class="cubi-tech-section" id="solutions">
+          <div class="cubi-tech-copy"><span id="resources" aria-hidden="true"></span>
             <p class="cubi-kicker">CUBI ENGINEERING STACK</p><h2>${t.techTitle}</h2><p>${t.techLead}</p>
             <div class="cubi-tech-list">${t.techItems.map(item => `<span>${item}</span>`).join("")}</div>
             <a class="cubi-outline-button" href="/app">${t.navFeatures} <span>→</span></a>
