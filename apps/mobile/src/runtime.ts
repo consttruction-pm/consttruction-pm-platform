@@ -48,9 +48,9 @@ export class MobileRuntime {
       throw new Error("INVALID_SCHEDULING_CONTRACT_VERSION");
     }
     if (
-      input.tenant_id !== current.tenant_id ||
-      input.project_id !== current.project_id ||
-      input.project_revision !== current.revision
+      input.project_context.tenant_id !== current.tenant_id ||
+      input.project_context.project_id !== current.project_id ||
+      input.project_context.revision !== current.revision
     ) {
       throw new Error("PROJECT_CONTEXT_MISMATCH");
     }
