@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "preview": "npm run build && node preview-server.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts"
+    "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts && node --test preview-server.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
