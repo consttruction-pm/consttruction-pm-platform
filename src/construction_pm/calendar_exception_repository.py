@@ -117,6 +117,7 @@ class CalendarExceptionRepository(Protocol):
         transaction_owned = not self.connection.in_transaction
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]: ...
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None: ...
 
 
 def _canonical_json(value: dict[str, object]) -> str:
@@ -218,6 +219,13 @@ class SQLiteCalendarExceptionRepository:
             str(existing[0]), existing[1], existing[2], str(existing[3]), int(existing[4])
         ))
 
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
+
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
         row = self.connection.execute(
@@ -299,6 +307,13 @@ class PostgresCalendarExceptionRepository:
             None if existing[1] is None else Decimal(str(existing[1])),
             tuple((time.fromisoformat(str(x[0])), time.fromisoformat(str(x[1]))) for x in interval_rows),
             CalendarSystem(str(existing[3])), int(existing[4])
+        )
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
         )
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
