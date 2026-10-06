@@ -7,7 +7,7 @@ export {
 } from "../../client-sync/src/scheduling-adapter.ts";
 
 export type {
-  ProjectContext as MobileProjectContext,
+  SchedulingProjectContext as MobileProjectContext,
   CalendarReference as SchedulingCalendarReference,
   TimeQuantity as SchedulingDuration,
   CalculationContext,
