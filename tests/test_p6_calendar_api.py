@@ -223,3 +223,92 @@ def test_calendar_delete_removes_persisted_work_hours():
     api.save_work_hours(rule, auth_context=_auth())
     assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=created["record_revision"], auth_context=_auth())
     assert api.calendar_repository.get(_scope(), "CAL-DEL", "1") is None
+
+
+def test_copy_replays_exceptions_and_all_work_hour_kinds_atomically():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+    api.save_exception(
+        __import__("construction_pm.calendar_exception_repository", fromlist=["CalendarException"]).CalendarException(
+            _scope(), "CAL-S", "1", date(2026, 5, 1), "nonwork",
+        ),
+        auth_context=_auth(),
+    )
+    rules = (
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "standard_work_week", 0, True, Decimal("8"), ()),
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "standard_detailed_work_hours", 1, True, None, (("08:00", "12:00"),)),
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "detailed_work_hours", 2, True, None, (("09:00", "17:00"),)),
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "total_work_hours", None, None, Decimal("40"), ()),
+    )
+    for rule in rules:
+        api.save_work_hours(rule, auth_context=_auth())
+    api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
+    assert len(api.exception_repository.list(_scope(), "CAL-C", "1")) == 1
+    for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+        assert len(api.work_hours_repository.list(_scope(), "CAL-C", "1", kind)) == 1
+
+
+def test_replace_replays_exceptions_and_work_hours_and_removes_stale_target_state():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    api.create(_scope(), _request("CAL-T"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    target = api.calendar_repository.get(_scope(), "CAL-T", "1")
+    api.snapshot_repository.save(source, _definition())
+    api.snapshot_repository.save(target, _definition())
+    api.save_exception(
+        __import__("construction_pm.calendar_exception_repository", fromlist=["CalendarException"]).CalendarException(
+            _scope(), "CAL-S", "1", date(2026, 5, 1), "nonwork",
+        ),
+        auth_context=_auth(),
+    )
+    api.save_exception(
+        __import__("construction_pm.calendar_exception_repository", fromlist=["CalendarException"]).CalendarException(
+            _scope(), "CAL-T", "1", date(2026, 6, 1), "nonwork",
+        ),
+        auth_context=_auth(),
+    )
+    api.save_work_hours(
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "total_work_hours", None, None, Decimal("40"), ()),
+        auth_context=_auth(),
+    )
+    api.save_work_hours(
+        CalendarWorkHourRule(_scope(), "CAL-T", "1", "total_work_hours", None, None, Decimal("32"), ()),
+        auth_context=_auth(),
+    )
+    api.replace(_scope(), "CAL-T", "1", "CAL-S", "1", auth_context=_auth())
+    assert [x.exception_date for x in api.exception_repository.list(_scope(), "CAL-T", "1")] == [date(2026, 5, 1)]
+    assert api.work_hours_repository.list(_scope(), "CAL-T", "1", "total_work_hours")[0].total_work_hours == Decimal("40")
+
+
+def test_copy_rolls_back_partial_failure_and_leaves_no_target():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+    from construction_pm.calendar_exception_repository import CalendarException, SQLiteCalendarExceptionRepository
+    api.exception_repository.save(CalendarException(_scope(), "CAL-S", "1", date(2026, 5, 1), "nonwork"))
+    original = api.exception_repository
+
+    class FailingExceptionRepository:
+        def __init__(self, delegate):
+            self.delegate = delegate
+            self.calls = 0
+            self.connection = delegate.connection
+        def list(self, *args):
+            return self.delegate.list(*args)
+        def save(self, exception):
+            self.calls += 1
+            if self.calls == 1:
+                return self.delegate.save(exception)
+            raise RuntimeError("forced copy failure")
+
+    # Two source exceptions ensure the second persistence step fails after target creation.
+    api.exception_repository.save(CalendarException(_scope(), "CAL-S", "1", date(2026, 5, 2), "nonwork"))
+    api.exception_repository = FailingExceptionRepository(original)
+    with pytest.raises(RuntimeError, match="forced copy failure"):
+        api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
+    assert api.calendar_repository.get(_scope(), "CAL-C", "1") is None
+    assert original.list(_scope(), "CAL-C", "1") == ()
