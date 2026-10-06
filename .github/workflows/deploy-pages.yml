@@ -58,12 +58,21 @@ jobs:
           cp -R public/. ../../_site/
           cp -R dist ../../_site/dist
           cp index.html ../../_site/app/index.html
-          sed -i 's#./styles.css#../styles.css#' ../../_site/app/index.html
-          sed -i 's#./dist/main.js#../dist/main.js#' ../../_site/app/index.html
+          # The TypeScript build writes to dist/web/src/main.js because
+          # tsconfig.build.json uses rootDir=.. and outDir=dist.
+          # Create correct asset paths for both the root site and /app route.
+          sed -i 's#\./dist/main\.js#./dist/web/src/main.js#' ../../_site/index.html
+          sed -i 's#\./styles\.css#./styles.css#' ../../_site/index.html
+          sed -i 's#\./styles\.css#../styles.css#' ../../_site/app/index.html
+          sed -i 's#\./dist/main\.js#../dist/web/src/main.js#' ../../_site/app/index.html
           test -f ../../_site/index.html
           test -f ../../_site/app/index.html
           test -f ../../_site/dist/web/src/main.js
+          test -f ../../_site/styles.css
+          test -f ../../_site/app/index.html
           test -f ../../_site/logo.svg
+          grep -q 'dist/web/src/main.js' ../../_site/index.html
+          grep -q '../dist/web/src/main.js' ../../_site/app/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
