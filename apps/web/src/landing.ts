@@ -93,7 +93,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
           <a class="is-active" href="#home">${t.navHome}</a><a href="#features">${t.navFeatures}</a><a href="#solutions">${t.navSolutions}</a><a href="#pricing">${t.navPricing}</a><a href="#resources">${t.navResources}</a><a href="#about">${t.navAbout}</a>
         </nav>
         <div class="cubi-header-actions">
-          <button class="cubi-lang-switch" type="button" aria-label="Change language">${locale === "fa" ? "EN" : "فا"}</button>
+          <button class="cubi-lang-switch" type="button" aria-label="Change language"><span class="cubi-globe" aria-hidden="true">◉</span>EN <span aria-hidden="true">⌄</span></button>
           <a class="cubi-sign-in" href="./app/">${t.signIn}</a>
           <a class="cubi-button cubi-button-small" href="./app/">${t.getStarted} <span>→</span></a>
         </div>
@@ -153,8 +153,19 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
       </main>
 
       <footer class="cubi-footer" id="about">
-        <div class="cubi-brand"><img src="./logo-dark.svg" width="46" height="46" alt="CUBI Platform" /><span><strong>CUBI</strong><small>Platform</small></span></div>
-        <p>${t.footerTagline}</p><span>${t.footerDescriptor}</span>
+        <div class="cubi-footer-brand">
+          <div class="cubi-brand"><img src="./logo-dark.svg" width="46" height="46" alt="CUBI Platform" /><span><strong>CUBI</strong><small>Platform</small></span></div>
+          <p>${t.footerTagline}</p>
+        </div>
+        <div class="cubi-footer-links">
+          <div><strong>Product</strong><a href="#features">${t.navFeatures}</a><a href="#pricing">${t.navPricing}</a><a href="#solutions">Integrations</a></div>
+          <div><strong>Resources</strong><a href="#resources">${t.navResources}</a><a href="#about">Documentation</a><a href="#about">Support</a></div>
+          <div><strong>Company</strong><a href="#about">${t.navAbout}</a><a href="#about">Careers</a><a href="#about">Contact</a></div>
+        </div>
+        <div class="cubi-footer-end">
+          <div class="cubi-socials" aria-label="Social links"><a href="#about" aria-label="LinkedIn">in</a><a href="#about" aria-label="X">𝕏</a><a href="#about" aria-label="YouTube">▶</a><a href="#about" aria-label="GitHub">◉</a></div>
+          <small>© 2026 CUBI Platform. All rights reserved.</small>
+        </div>
       </footer>
     </div>`;
 
