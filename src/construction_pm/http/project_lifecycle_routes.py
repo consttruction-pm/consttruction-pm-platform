@@ -313,9 +313,9 @@ class ProjectLifecycleHttpRoutes:
                 }))
             if self._p6_calendar_api is not None and path.startswith("/api/projects/") and "/p6/calendars" in path:
                 prefix = path[len("/api/projects/"):]
-                if not prefix.startswith("/") or "/" not in prefix:
+                if "/p6/calendars" not in prefix:
                     return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
-                project_id, suffix = prefix[1:].split("/p6/calendars", 1)
+                project_id, suffix = prefix.split("/p6/calendars", 1)
                 if not project_id:
                     return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
                 try:
