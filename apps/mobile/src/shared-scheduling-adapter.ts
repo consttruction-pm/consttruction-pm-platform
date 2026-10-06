@@ -6,6 +6,8 @@ export {
   validateSchedulingResult,
 } from "../../client-sync/src/scheduling-adapter.ts";
 
+import { validateSchedulingResult } from "../../client-sync/src/scheduling-adapter.ts";
+
 export type {
   SchedulingProjectContext as MobileProjectContext,
   CalendarReference as SchedulingCalendarReference,
