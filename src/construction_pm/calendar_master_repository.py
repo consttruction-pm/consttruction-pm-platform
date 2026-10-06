@@ -463,7 +463,6 @@ class PostgresCalendarMasterRepository:
         )
 
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
-        transaction_owned = not self.connection.in_transaction
         calendar.validate()
         row = self.connection.execute(
             "SELECT kind,name,record_revision,project_revision,base_calendar_id,base_calendar_version,calendar_type FROM calendar_master "
@@ -494,7 +493,6 @@ class PostgresCalendarMasterRepository:
         return CalendarMaster(calendar.scope, calendar.calendar_id, calendar.calendar_version, calendar.kind, calendar.name, revision, calendar.base_calendar_id, calendar.base_calendar_version, calendar.calendar_type)
 
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int) -> bool:
-        transaction_owned = not self.connection.in_transaction
         scope.validate()
         if isinstance(expected_revision, bool) or expected_revision < 1:
             raise CalendarPersistenceError("INVALID_EXPECTED_REVISION")
@@ -539,7 +537,6 @@ class PostgresCalendarAssignmentRepository(PostgresCalendarAssignmentRepositoryR
         self.connection = connection
 
     def save_activity(self, assignment: ActivityCalendarAssignmentMaster, expected_revision: int | None = None) -> ActivityCalendarAssignmentMaster:
-        transaction_owned = not self.connection.in_transaction
         assignment.validate()
         row = self.connection.execute(
             "SELECT calendar_id,calendar_version,record_revision,project_revision "
@@ -567,7 +564,6 @@ class PostgresCalendarAssignmentRepository(PostgresCalendarAssignmentRepositoryR
         return ActivityCalendarAssignmentMaster(assignment.scope, assignment.activity_id, assignment.calendar_id, assignment.calendar_version, revision)
 
     def save_relationship_lag(self, assignment: RelationshipLagCalendarAssignmentMaster, expected_revision: int | None = None) -> RelationshipLagCalendarAssignmentMaster:
-        transaction_owned = not self.connection.in_transaction
         assignment.validate()
         row = self.connection.execute(
             "SELECT option,calendar_id,calendar_version,record_revision,project_revision "
