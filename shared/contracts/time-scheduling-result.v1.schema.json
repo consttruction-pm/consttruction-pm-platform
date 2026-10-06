@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/time-scheduling-result/v1",
+  "title": "ConstructionPM Time Scheduling Result Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "project_context",
+    "calculation_fingerprint",
+    "project_finish",
+    "activities"
+  ],
+  "properties": {
+    "contract_version": { "const": "1.0" },
+    "project_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "revision"],
+      "properties": {
+        "tenant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "calculation_fingerprint": { "type": "string", "minLength": 1 },
+    "project_finish": { "type": "string", "minLength": 1 },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activity_id",
+          "start",
+          "finish",
+          "duration",
+          "critical"
+        ],
+        "properties": {
+          "activity_id": { "type": "string", "minLength": 1 },
+          "start": { "type": "string", "minLength": 1 },
+          "finish": { "type": "string", "minLength": 1 },
+          "duration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "unit"],
+            "properties": {
+              "value": { "type": "string", "pattern": "^[+-]?\\d+(?:\\.\\d+)?$" },
+              "unit": { "enum": ["working-hour", "working-day"] }
+            }
+          },
+          "total_float": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["value", "unit"],
+            "properties": {
+              "value": { "type": "string", "pattern": "^[+-]?\\d+(?:\\.\\d+)?$" },
+              "unit": { "enum": ["working-hour", "working-day"] }
+            }
+          },
+          "free_float": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["value", "unit"],
+            "properties": {
+              "value": { "type": "string", "pattern": "^[+-]?\\d+(?:\\.\\d+)?$" },
+              "unit": { "enum": ["working-hour", "working-day"] }
+            }
+          },
+          "critical": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
