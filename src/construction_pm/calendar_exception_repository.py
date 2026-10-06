@@ -114,8 +114,10 @@ class CalendarException:
 
 class CalendarExceptionRepository(Protocol):
     def save(self, exception: CalendarException) -> CalendarException: ...
+        transaction_owned = not self.connection.in_transaction
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]: ...
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None: ...
 
 
 def _canonical_json(value: dict[str, object]) -> str:
@@ -177,6 +179,7 @@ class SQLiteCalendarExceptionRepository:
         self.connection.commit()
 
     def save(self, exception: CalendarException) -> CalendarException:
+        transaction_owned = not self.connection.in_transaction
         master = self.connection.execute(
             "SELECT 1 FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
             (exception.scope.tenant_id, exception.scope.project_id, exception.calendar_id, exception.calendar_version),
@@ -198,7 +201,8 @@ class SQLiteCalendarExceptionRepository:
                  _canonical_json({"intervals": [[s.isoformat(), e.isoformat()] for s, e in exception.intervals]}),
                  exception.system.value, 1),
             )
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return CalendarException(exception.scope, exception.calendar_id, exception.calendar_version,
                                      exception.exception_date, exception.mode, exception.total_work_hours,
                                      exception.intervals, exception.system, 1)
@@ -214,6 +218,13 @@ class SQLiteCalendarExceptionRepository:
             exception.calendar_id, exception.calendar_version, exception.exception_date.isoformat(),
             str(existing[0]), existing[1], existing[2], str(existing[3]), int(existing[4])
         ))
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
@@ -296,6 +307,13 @@ class PostgresCalendarExceptionRepository:
             None if existing[1] is None else Decimal(str(existing[1])),
             tuple((time.fromisoformat(str(x[0])), time.fromisoformat(str(x[1]))) for x in interval_rows),
             CalendarSystem(str(existing[3])), int(existing[4])
+        )
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
         )
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
