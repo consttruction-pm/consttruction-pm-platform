@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import sqlite3
 from typing import Any
 
 from .backend_p0.transactions import SQLiteTransactionManager, TransactionManager
@@ -176,7 +177,7 @@ class P6CalendarAPI:
         if manager is not None:
             return manager.transaction()
         connection = getattr(self.calendar_repository, "connection", None)
-        if connection is not None and isinstance(connection, __import__("sqlite3").Connection):
+        if connection is not None and isinstance(connection, sqlite3.Connection):
             return SQLiteTransactionManager(connection).transaction()
         from contextlib import nullcontext
         return nullcontext()
