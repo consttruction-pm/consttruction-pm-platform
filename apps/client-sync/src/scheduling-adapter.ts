@@ -2,7 +2,7 @@ export const SCHEDULING_CONTRACT_ID =
   "constructionpm://contracts/time-scheduling/v1" as const;
 export const SCHEDULING_CONTRACT_VERSION = "1.0" as const;
 
-export type ProjectContext = Readonly<{
+export type SchedulingProjectContext = Readonly<{
   tenant_id: string;
   project_id: string;
   revision: number;
@@ -64,7 +64,7 @@ export type SchedulingConstraint = Readonly<{
 
 export type SchedulingRequest = Readonly<{
   contract_version: typeof SCHEDULING_CONTRACT_VERSION;
-  project_context: ProjectContext;
+  project_context: SchedulingProjectContext;
   calculation_context: CalculationContext;
   activities: readonly SchedulingActivity[];
   relationships: readonly SchedulingRelationship[];
@@ -83,7 +83,7 @@ export type ScheduledActivity = Readonly<{
 
 export type SchedulingResult = Readonly<{
   contract_version: typeof SCHEDULING_CONTRACT_VERSION;
-  project_context: ProjectContext;
+  project_context: SchedulingProjectContext;
   calculation_fingerprint: string;
   project_finish: string;
   activities: readonly ScheduledActivity[];
@@ -95,7 +95,7 @@ function requireNonEmpty(value: string, code: string): void {
   if (typeof value !== "string" || !value.trim()) throw new Error(code);
 }
 
-function validateContext(context: ProjectContext): void {
+function validateContext(context: SchedulingProjectContext): void {
   requireNonEmpty(context.tenant_id, "INVALID_SCHEDULING_TENANT");
   requireNonEmpty(context.project_id, "INVALID_SCHEDULING_PROJECT");
   if (!Number.isInteger(context.revision) || context.revision < 0) {
@@ -158,7 +158,7 @@ export function validateSchedulingRequest(
 
 export function validateSchedulingResult(
   result: SchedulingResult,
-  expectedContext?: ProjectContext,
+  expectedContext?: SchedulingProjectContext,
 ): SchedulingResult {
   if (result.contract_version !== SCHEDULING_CONTRACT_VERSION) {
     throw new Error("INVALID_SCHEDULING_CONTRACT_VERSION");
