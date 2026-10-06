@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .backend_p0.transactions import SQLiteTransactionManager, TransactionManager
+
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
 from .calendar_exception_repository import CalendarException, CalendarExceptionRepository
@@ -48,6 +50,7 @@ class P6CalendarAPI:
     exception_repository: CalendarExceptionRepository
     authorization_policy: AuthorizationPolicy
     work_hours_repository: CalendarWorkHourRepository | None = None
+    transaction_manager: TransactionManager | None = None
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
@@ -117,16 +120,17 @@ class P6CalendarAPI:
             kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
             base_calendar_version=source.base_calendar_version, calendar_type=source.calendar_type,
         )
-        stored = self.calendar_repository.save(target, expected_revision=0)
-        snapshot = self.snapshot_repository.get(source)
-        if snapshot is not None:
-            self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
-        for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
-            copied = CalendarException(
-                scope, target_calendar_id, target_calendar_version, exception.exception_date,
-                exception.mode, exception.total_work_hours, exception.intervals, exception.system,
-            )
-            self.exception_repository.save(copied)
+        with self._mutation_transaction():
+            stored = self.calendar_repository.save(target, expected_revision=0)
+            snapshot = self.snapshot_repository.get(source)
+            if snapshot is not None:
+                self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
+            for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
+                self.exception_repository.save(CalendarException(
+                    scope, target_calendar_id, target_calendar_version, exception.exception_date,
+                    exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+                ))
+            self._copy_work_hours(scope, source_calendar_id, source_calendar_version, target_calendar_id, target_calendar_version)
         return self._calendar_dto(stored)
 
     def replace(self, scope: BackendScope, target_calendar_id: str, target_calendar_version: str, source_calendar_id: str, source_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
@@ -148,8 +152,13 @@ class P6CalendarAPI:
             kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
             base_calendar_version=source.base_calendar_version, calendar_type=target.calendar_type,
         )
-        stored = self.calendar_repository.save(replacement, expected_revision=target.record_revision)
-        self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
+        with self._mutation_transaction():
+            stored = self.calendar_repository.save(replacement, expected_revision=target.record_revision)
+            self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
+            self._replace_exceptions(scope, target_calendar_id, target_calendar_version,
+                                     self.exception_repository.list(scope, source_calendar_id, source_calendar_version))
+            self._replace_work_hours(scope, source_calendar_id, source_calendar_version,
+                                     target_calendar_id, target_calendar_version)
         return self._calendar_dto(stored)
 
     def save_exception(self, exception: CalendarException, *, auth_context: AuthorizationContext) -> dict[str, Any]:
@@ -161,6 +170,46 @@ class P6CalendarAPI:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
         return tuple(item.canonical_snapshot() for item in self.exception_repository.list(scope, calendar_id, calendar_version))
 
+
+    def _mutation_transaction(self):
+        manager = self.transaction_manager
+        if manager is not None:
+            return manager.transaction()
+        connection = getattr(self.calendar_repository, "connection", None)
+        if connection is not None and isinstance(connection, __import__("sqlite3").Connection):
+            return SQLiteTransactionManager(connection).transaction()
+        from contextlib import nullcontext
+        return nullcontext()
+
+    def _copy_work_hours(self, scope: BackendScope, source_id: str, source_version: str, target_id: str, target_version: str) -> None:
+        if self.work_hours_repository is None:
+            return
+        for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+            for rule in self.work_hours_repository.list(scope, source_id, source_version, kind):
+                self.work_hours_repository.save(CalendarWorkHourRule(
+                    scope, target_id, target_version, rule.kind, rule.weekday,
+                    rule.is_working_day, rule.total_work_hours, rule.intervals,
+                ))
+
+    def _replace_exceptions(self, scope: BackendScope, target_id: str, target_version: str, source_exceptions: tuple[CalendarException, ...]) -> None:
+        deleter = getattr(self.exception_repository, "delete_all", None)
+        if deleter is None:
+            raise P6CalendarAPIError("CALENDAR_EXCEPTION_REPLACE_NOT_SUPPORTED")
+        deleter(scope, target_id, target_version)
+        for exception in source_exceptions:
+            self.exception_repository.save(CalendarException(
+                scope, target_id, target_version, exception.exception_date,
+                exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+            ))
+
+    def _replace_work_hours(self, scope: BackendScope, source_id: str, source_version: str, target_id: str, target_version: str) -> None:
+        if self.work_hours_repository is None:
+            return
+        deleter = getattr(self.work_hours_repository, "delete_all", None)
+        if deleter is None:
+            raise P6CalendarAPIError("CALENDAR_WORK_HOURS_REPLACE_NOT_SUPPORTED")
+        deleter(scope, target_id, target_version)
+        self._copy_work_hours(scope, source_id, source_version, target_id, target_version)
 
     def _work_hours(self) -> CalendarWorkHourRepository:
         if self.work_hours_repository is None:
