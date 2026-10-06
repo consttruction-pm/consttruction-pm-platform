@@ -89,7 +89,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
     <div class="cubi-site" dir="${locale === "fa" ? "rtl" : "ltr"}">
       <header class="cubi-header">
         <a class="cubi-brand" href="/" aria-label="CUBI Platform home">
-          <img src="/logo.svg" width="46" height="46" alt="CUBI Platform" />
+          <img src="./logo.svg" width="46" height="46" alt="CUBI Platform" />
           <span><strong>CUBI</strong><small>Platform</small></span>
         </a>
         <nav class="cubi-nav" aria-label="Primary navigation">
@@ -97,8 +97,8 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
         </nav>
         <div class="cubi-header-actions">
           <button class="cubi-lang-switch" type="button" aria-label="Change language">${locale === "fa" ? "EN" : "فا"}</button>
-          <a class="cubi-sign-in" href="/app">${t.signIn}</a>
-          <a class="cubi-button cubi-button-small" href="/app">${t.getStarted} <span>→</span></a>
+          <a class="cubi-sign-in" href="./app/">${t.signIn}</a>
+          <a class="cubi-button cubi-button-small" href="./app/">${t.getStarted} <span>→</span></a>
         </div>
       </header>
 
@@ -112,7 +112,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <p class="cubi-hero-tagline">Plan. Control. Build Smarter.</p>
             <p class="cubi-lead">${t.lead}</p>
             <div class="cubi-hero-actions">
-              <a class="cubi-button" href="/app">${t.getStarted} <span>→</span></a>
+              <a class="cubi-button" href="./app/">${t.getStarted} <span>→</span></a>
               <a class="cubi-demo-link" href="#features"><span class="cubi-play">▶</span>${t.watchDemo}</a>
             </div>
           </div>
@@ -149,7 +149,7 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
           <div class="cubi-tech-copy"><span id="resources" aria-hidden="true"></span>
             <p class="cubi-kicker">CUBI ENGINEERING STACK</p><h2>${t.techTitle}</h2><p>${t.techLead}</p>
             <div class="cubi-tech-list">${t.techItems.map(item => `<span>${item}</span>`).join("")}</div>
-            <a class="cubi-outline-button" href="/app">${t.navFeatures} <span>→</span></a>
+            <a class="cubi-outline-button" href="./app/">${t.navFeatures} <span>→</span></a>
           </div>
           <div class="cubi-tech-visual" aria-hidden="true"><div class="cubi-stack"><b>◆</b><i></i><i></i><i></i></div><span>Project Controls</span><span>AI &amp; Analytics</span><span>Data &amp; Integration</span><span>Security &amp; Reliability</span></div>
         </section>
@@ -167,12 +167,12 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
 
         <section class="cubi-cta" id="pricing">
           <div><p class="cubi-kicker">CUBI PLATFORM</p><h2>${t.ctaTitle}</h2><p>${t.ctaLead}</p></div>
-          <div class="cubi-cta-actions"><a class="cubi-button" href="/app">${t.trial} <span>→</span></a><a class="cubi-cta-contact" href="/app">${t.contact}</a></div>
+          <div class="cubi-cta-actions"><a class="cubi-button" href="./app/">${t.trial} <span>→</span></a><a class="cubi-cta-contact" href="./app/">${t.contact}</a></div>
         </section>
       </main>
 
       <footer class="cubi-footer" id="about">
-        <div class="cubi-brand"><img src="/logo-dark.svg" width="46" height="46" alt="CUBI Platform" /><span><strong>CUBI</strong><small>Platform</small></span></div>
+        <div class="cubi-brand"><img src="./logo-dark.svg" width="46" height="46" alt="CUBI Platform" /><span><strong>CUBI</strong><small>Platform</small></span></div>
         <p>${t.footerTagline}</p><span>${t.footerDescriptor}</span>
       </footer>
     </div>`;
