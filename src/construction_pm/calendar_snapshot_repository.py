@@ -48,7 +48,6 @@ class CalendarSnapshotRecord:
 
 class CalendarSnapshotRepository(Protocol):
     def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord: ...
-        transaction_owned = not self.connection.in_transaction
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None: ...
 
 
