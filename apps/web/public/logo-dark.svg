@@ -1,26 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
-<title>CUBI Platform — dark</title>
-<desc>Geometric CUBI mark from the approved CUBI Platform brand artwork, optimized for dark backgrounds.</desc>
+<title id="title">CUBI Platform — dark</title>
+<desc id="desc">CUBI commercial geometric construction and project intelligence mark.</desc>
 <defs>
-  <linearGradient id="cubiTop" x1="0" y1="0" x2="1" y2="1">
-    <stop stop-color="#078FF5"/>
-    <stop offset="1" stop-color="#13D0E3"/>
-  </linearGradient>
-  <linearGradient id="cubiSide" x1="0" y1="0" x2="1" y2="1">
-    <stop stop-color="#0756B8"/>
-    <stop offset="1" stop-color="#1689E8"/>
-  </linearGradient>
-  <linearGradient id="cubiCube" x1="0" y1="0" x2="1" y2="1">
-    <stop stop-color="#13D0E3"/>
-    <stop offset="1" stop-color="#13B8C4"/>
-  </linearGradient>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1264D6"/><stop offset="1" stop-color="#19B7D8"/></linearGradient>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12B9B1"/><stop offset="1" stop-color="#62D6A7"/></linearGradient>
 </defs>
-<path fill="url(#cubiSide)" d="M18 52 66 24v45L38 85v43L18 116z"/>
-<path fill="url(#cubiTop)" d="m18 52 48 27 38-22-19-11-19 11-48-27z"/>
-<path fill="url(#cubiTop)" d="m66 69 38-22 38 22-38 23z"/>
-<path fill="url(#cubiSide)" d="M66 69v45l38 22V92z"/>
-<path fill="url(#cubiTop)" d="m104 92 38-23v45l-38 22z"/>
-<path fill="#071C31" d="m68 83 19-11 19 11-19 11z"/>
-<path fill="#0C67C7" d="m68 83 19 11v22l-19-11z"/>
-<path fill="url(#cubiCube)" d="m87 94 19-11v22l-19 11z"/>
+<path fill="none" stroke="url(#blue)" stroke-width="18" stroke-linejoin="round" d="M62 8 118 40 62 72 6 40z"/>
+<path fill="none" stroke="#0B3A7A" stroke-width="18" stroke-linejoin="round" d="M6 40v64l56 32 56-32V72"/>
+<path fill="url(#teal)" d="M62 72 118 40v64l-56 32z"/>
+<path fill="#071A2F" d="M48 76h18v42H48z"/>
+<path fill="#071A2F" d="M74 84h18v34H74z"/>
+<path fill="#071A2F" d="M100 92h18v26h-18z"/>
+<circle cx="62" cy="72" r="7" fill="#071A2F"/>
+<circle cx="88" cy="84" r="6" fill="#12B9B1"/>
+<circle cx="114" cy="92" r="5" fill="#19B7D8"/>
+<path d="M62 72h26v12h26v8" fill="none" stroke="#fff" stroke-width="3"/>
 </svg>
