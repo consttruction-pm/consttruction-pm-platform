@@ -116,6 +116,7 @@ class CalendarExceptionRepository(Protocol):
     def save(self, exception: CalendarException) -> CalendarException: ...
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> tuple[CalendarException, ...]: ...
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None: ...
 
 
 def _canonical_json(value: dict[str, object]) -> str:
@@ -216,6 +217,13 @@ class SQLiteCalendarExceptionRepository:
             exception.calendar_id, exception.calendar_version, exception.exception_date.isoformat(),
             str(existing[0]), existing[1], existing[2], str(existing[3]), int(existing[4])
         ))
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_exception WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
 
     def get(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: date) -> CalendarException | None:
         scope.validate()
