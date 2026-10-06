@@ -32,30 +32,21 @@ const fixture: MobileLocalProject = {
 
 const schedulingRequest: MobileSchedulingRequest = {
   contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
-  project_schema_version: 2,
-  tenant_id: "t1",
-  project_id: "p1",
-  project_revision: 12,
-  calculation_schema_version: "calc.v1",
-  calendar_assignments: {
-    project_calendar: { calendar_id: "site", calendar_version: 3, kind: "working-day" },
+  project_context: { tenant_id: "t1", project_id: "p1", revision: 12 },
+  calculation_context: {
+    schedule_mode: "EARLIEST",
+    project_start: "2026-10-05",
+    data_date: "2026-10-05",
+    project_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" },
+    default_activity_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" },
+    default_relationship_lag_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" },
   },
-  scheduling_settings: {
-    duration: "working-day",
-    calendar: "jalali-gregorian",
-    lag: "working",
-    constraints: "hybrid",
-    mode: "both",
-  },
-  project_start: "2026-10-05",
-  project_finish: null,
-  data_date: "2026-10-05",
   activities: [
-    { id: "A1", duration: { value: "2", unit: "working-day" } },
-    { id: "A2", duration: { value: "1", unit: "working-day" } },
+    { activity_id: "A1", duration_value: "2", duration_unit: "working-day", calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" } },
+    { activity_id: "A2", duration_value: "1", duration_unit: "working-day", calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" } },
   ],
   relationships: [
-    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag: { value: "0", unit: "working-day" } },
+    { predecessor_id: "A1", successor_id: "A2", type: "FS", lag_value: "0", lag_unit: "working-day", lag_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-day" } },
   ],
   constraints: [],
 };
@@ -263,7 +254,7 @@ test("preserves the runtime project-context guard when scheduling from the shell
   await assert.rejects(
     shell.schedule(
       { async schedule() { return deterministicResult(); } },
-      { ...schedulingRequest, project_revision: 11 },
+      { ...schedulingRequest, project_context: { ...schedulingRequest.project_context, revision: 11 } },
     ),
     /PROJECT_CONTEXT_MISMATCH/,
   );
