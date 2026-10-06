@@ -177,6 +177,7 @@ class SQLiteCalendarExceptionRepository:
         self.connection.commit()
 
     def save(self, exception: CalendarException) -> CalendarException:
+        transaction_owned = not self.connection.in_transaction
         master = self.connection.execute(
             "SELECT 1 FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
             (exception.scope.tenant_id, exception.scope.project_id, exception.calendar_id, exception.calendar_version),
@@ -198,7 +199,8 @@ class SQLiteCalendarExceptionRepository:
                  _canonical_json({"intervals": [[s.isoformat(), e.isoformat()] for s, e in exception.intervals]}),
                  exception.system.value, 1),
             )
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return CalendarException(exception.scope, exception.calendar_id, exception.calendar_version,
                                      exception.exception_date, exception.mode, exception.total_work_hours,
                                      exception.intervals, exception.system, 1)
