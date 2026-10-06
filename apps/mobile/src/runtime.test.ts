@@ -137,39 +137,44 @@ test("Mobile reconciles stale offline workspace after returning online", async (
 test("mobile offline scheduling delegates to the same Shared Core adapter", async () => {
   const runtime = new MobileRuntime();
   runtime.openProject("t1", "p1", 7, "offline");
+  const calendar = { calendar_id: "CAL-1", calendar_version: "1", kind: "working-day" as const };
   const input = {
-    contract_version: "time-scheduling-portability.v1" as const,
-    project_schema_version: 2,
-    tenant_id: "t1",
-    project_id: "p1",
-    project_revision: 7,
-    calculation_schema_version: "calc.v1",
-    calendar_assignments: {},
-    scheduling_settings: { duration: "working-day", mode: "both" },
-    project_start: "2026-10-05",
-    project_finish: null,
-    data_date: "2026-10-05",
-    activities: [
-      { id: "A1", duration: { value: "1", unit: "WORKING_DAY" as const } },
-    ],
+    contract_version: "1.0" as const,
+    project_context: { tenant_id: "t1", project_id: "p1", revision: 7 },
+    calculation_context: {
+      schedule_mode: "EARLIEST" as const,
+      project_start: "2026-10-05",
+      project_finish: null,
+      data_date: "2026-10-05",
+      project_calendar: calendar,
+      default_activity_calendar: calendar,
+      default_relationship_lag_calendar: calendar,
+    },
+    activities: [{
+      activity_id: "A1",
+      duration_value: "1",
+      duration_unit: "working-day" as const,
+      calendar,
+    }],
     relationships: [],
     constraints: [],
   };
   let receivedRevision = -1;
   const result = await runtime.scheduleOffline({
     async schedule(request) {
-      receivedRevision = request.project_revision;
+      receivedRevision = request.project_context.revision;
       return {
-        contract_version: "time-scheduling-portability.v1" as const,
+        contract_version: "1.0" as const,
+        project_context: request.project_context,
         calculation_fingerprint: "fp-1",
         project_finish: "2026-10-05",
         activities: [{
           activity_id: "A1",
           start: "2026-10-05",
           finish: "2026-10-05",
-          duration: { value: "1", unit: "WORKING_DAY" as const },
-          total_float: { value: "0", unit: "WORKING_DAY" as const },
-          free_float: { value: "0", unit: "WORKING_DAY" as const },
+          duration: { value: "1", unit: "working-day" as const },
+          total_float: { value: "0", unit: "working-day" as const },
+          free_float: { value: "0", unit: "working-day" as const },
           critical: true,
         }],
       };
@@ -183,18 +188,14 @@ test("mobile offline scheduling delegates to the same Shared Core adapter", asyn
 test("mobile offline scheduling rejects a different project context", async () => {
   const runtime = new MobileRuntime();
   runtime.openProject("t1", "p1", 7, "offline");
+  const calendar = { calendar_id: "CAL-1", calendar_version: "1", kind: "working-day" as const };
   const input = {
-    contract_version: "time-scheduling-portability.v1" as const,
-    project_schema_version: 2,
-    tenant_id: "t1",
-    project_id: "p2",
-    project_revision: 7,
-    calculation_schema_version: "calc.v1",
-    calendar_assignments: {},
-    scheduling_settings: {},
-    project_start: null,
-    project_finish: null,
-    data_date: null,
+    contract_version: "1.0" as const,
+    project_context: { tenant_id: "t1", project_id: "p2", revision: 7 },
+    calculation_context: {
+      schedule_mode: "EARLIEST" as const,
+      project_start: "2026-10-05",
+    },
     activities: [],
     relationships: [],
     constraints: [],
