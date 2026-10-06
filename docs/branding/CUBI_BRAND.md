@@ -15,3 +15,4 @@ Use the supplied CUBI visual language: electric blue/cyan gradients, deep navy s
 
 ## Change record
 - 2026-10-06: replaced the previous orange CUBI SVG assets with the approved blue/cyan CUBI mark.
+- 2026-10-06: Issue 1241 homepage redesign aligned the public landing page to the supplied reference: white navigation, photographic construction hero, blue/cyan CTA system, six capability cards, engineering-stack section and dark conversion band. The reference image is treated as visual direction, while the product content remains CUBI-native.
