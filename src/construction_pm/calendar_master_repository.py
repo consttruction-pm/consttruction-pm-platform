@@ -180,8 +180,8 @@ class SQLiteCalendarMasterRepository:
              stored.scope.tenant_id, stored.scope.project_id, stored.calendar_id, stored.calendar_version, int(row[2])),
         )
         if cursor.rowcount != 1:
-        if transaction_owned:
-            self.connection.rollback()
+            if transaction_owned:
+                self.connection.rollback()
             raise CalendarPersistenceError("REVISION_CONFLICT")
         if transaction_owned:
             self.connection.commit()
@@ -267,8 +267,8 @@ class SQLiteCalendarAssignmentRepository:
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, int(row[2])),
         )
         if cursor.rowcount != 1:
-        if transaction_owned:
-            self.connection.rollback()
+            if transaction_owned:
+                self.connection.rollback()
             raise CalendarPersistenceError("REVISION_CONFLICT")
         if transaction_owned:
             self.connection.commit()
@@ -312,8 +312,8 @@ class SQLiteCalendarAssignmentRepository:
              stored.relationship_id, int(row[3])),
         )
         if cursor.rowcount != 1:
-        if transaction_owned:
-            self.connection.rollback()
+            if transaction_owned:
+                self.connection.rollback()
             raise CalendarPersistenceError("REVISION_CONFLICT")
         if transaction_owned:
             self.connection.commit()
