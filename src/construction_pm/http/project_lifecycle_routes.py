@@ -17,6 +17,10 @@ from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
+from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest
+from ..calendar_exception_repository import CalendarException
+from ..calendar_work_hours_repository import CalendarWorkHourRule
+from ..scheduling.calendar_system import CalendarSystem
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
 from ..dependency_graph_api import DependencyGraphAPI
@@ -77,6 +81,7 @@ class ProjectLifecycleHttpRoutes:
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
+        p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
@@ -96,6 +101,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_calendar_read_api = p6_calendar_read_api
+        self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_mapping_api = p6_mapping_api
@@ -305,6 +311,96 @@ class ProjectLifecycleHttpRoutes:
                     "X-Tenant-Id": context.tenant_id,
                     "X-Project-Id": context.project_id,
                 }))
+            if self._p6_calendar_api is not None and path.startswith("/api/projects/") and "/p6/calendars" in path:
+                prefix = path[len("/api/projects/"):]
+                if not prefix.startswith("/") or "/" not in prefix:
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                project_id, suffix = prefix[1:].split("/p6/calendars", 1)
+                if not project_id:
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError
+                    if method == "GET" and suffix == "":
+                        return self._json(200, self._p6_calendar_api.list(scope, auth_context=auth))
+                    if method == "POST" and suffix == "":
+                        request = P6CalendarCreateRequest(
+                            payload.get("contract_version", ""), payload.get("calendar_id", ""),
+                            payload.get("calendar_version", ""), payload.get("calendar_type", ""),
+                            payload.get("kind", ""), payload.get("name", ""),
+                            payload.get("expected_revision"), payload.get("base_calendar_id"),
+                            payload.get("base_calendar_version"),
+                        )
+                        return self._json(201, self._p6_calendar_api.create(scope, request, auth_context=auth))
+                    parts = suffix.strip("/").split("/")
+                    if len(parts) >= 2:
+                        calendar_id, calendar_version = parts[0], parts[1]
+                        if method == "GET" and len(parts) == 2:
+                            result = self._p6_calendar_api.get(scope, calendar_id, calendar_version, auth_context=auth)
+                            return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found") if result is None else self._json(200, result)
+                        if method == "PUT" and len(parts) == 2:
+                            request = P6CalendarCreateRequest(
+                                payload.get("contract_version", ""), calendar_id, calendar_version,
+                                payload.get("calendar_type", ""), payload.get("kind", ""),
+                                payload.get("name", ""), payload.get("expected_revision"),
+                                payload.get("base_calendar_id"), payload.get("base_calendar_version"),
+                            )
+                            return self._json(200, self._p6_calendar_api.update(scope, request, auth_context=auth))
+                        if method == "DELETE" and len(parts) == 2:
+                            return self._json(200, {"deleted": self._p6_calendar_api.delete(
+                                scope, calendar_id, calendar_version,
+                                expected_revision=payload.get("expected_revision"), auth_context=auth,
+                            )})
+                        if method == "POST" and len(parts) == 3 and parts[2] == "copy":
+                            return self._json(200, self._p6_calendar_api.copy(
+                                scope, calendar_id, calendar_version,
+                                payload.get("target_calendar_id", ""), payload.get("target_calendar_version", ""),
+                                auth_context=auth,
+                            ))
+                        if method == "POST" and len(parts) == 3 and parts[2] == "replace":
+                            return self._json(200, self._p6_calendar_api.replace(
+                                scope, calendar_id, calendar_version,
+                                payload.get("source_calendar_id", ""), payload.get("source_calendar_version", ""),
+                                auth_context=auth,
+                            ))
+                        if method == "GET" and len(parts) == 3 and parts[2] == "exceptions":
+                            return self._json(200, {"exceptions": list(self._p6_calendar_api.list_exceptions(
+                                scope, calendar_id, calendar_version, auth_context=auth
+                            ))})
+                        if method == "POST" and len(parts) == 3 and parts[2] == "exceptions":
+                            exception = CalendarException(
+                                scope, calendar_id, calendar_version,
+                                __import__("datetime").date.fromisoformat(str(payload.get("date"))),
+                                str(payload.get("mode")),
+                                payload.get("total_work_hours"),
+                                tuple((__import__("datetime").time.fromisoformat(str(x[0])), __import__("datetime").time.fromisoformat(str(x[1]))) for x in payload.get("intervals", [])),
+                                CalendarSystem(str(payload.get("system", CalendarSystem.GREGORIAN.value))),
+                            )
+                            return self._json(201, self._p6_calendar_api.save_exception(exception, auth_context=auth))
+                        if method == "GET" and len(parts) == 4 and parts[2] == "work-hours":
+                            return self._json(200, {"work_hours": list(self._p6_calendar_api.list_work_hours(
+                                scope, calendar_id, calendar_version, parts[3], auth_context=auth
+                            ))})
+                        if method == "POST" and len(parts) == 3 and parts[2] == "work-hours":
+                            rule = CalendarWorkHourRule(
+                                scope, calendar_id, calendar_version, str(payload.get("kind")),
+                                payload.get("weekday"), payload.get("is_working_day"),
+                                None if payload.get("total_work_hours") is None else Decimal(str(payload.get("total_work_hours"))),
+                                tuple((str(x[0]), str(x[1])) for x in payload.get("intervals", [])),
+                            )
+                            return self._json(201, self._p6_calendar_api.save_work_hours(rule, auth_context=auth))
+                except (TypeError, ValueError, KeyError, IndexError):
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/calendars"):
                 if self._p6_calendar_read_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
