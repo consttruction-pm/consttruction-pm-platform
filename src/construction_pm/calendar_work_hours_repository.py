@@ -127,8 +127,8 @@ class SQLiteCalendarWorkHourRepository:
                  None if rule.total_work_hours is None else str(rule.total_work_hours),
                  intervals_json, 1),
             )
-            if transaction_owned:
-                self.connection.commit()
+        if transaction_owned:
+            self.connection.commit()
             return CalendarWorkHourRule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind,
                 rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals, 1)
         if int(existing[4]) != rule.scope.project_revision:
