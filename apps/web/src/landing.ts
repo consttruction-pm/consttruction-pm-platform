@@ -9,6 +9,7 @@ type LandingCopy = {
   features: Array<[string,string,string]>;
   techTitle: string; techLead: string; techItems: string[];
   ctaTitle: string; ctaLead: string; trial: string; contact: string;
+  academyTitle: string; academyLead: string; academyBadge: string;
   footerDescriptor: string; footerTagline: string;
 };
 
@@ -36,6 +37,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     ctaTitle:"Ready to Build Smarter?",
     ctaLead:"Join teams using CUBI to bring schedule, cost, progress, documents and intelligence into one control layer.",
     trial:"Start Free Trial", contact:"Contact Sales",
+    academyTitle:"CUBI Academy — V2", academyLead:"A guided multilingual journey through a real multi-story construction project, from project setup and WBS to scheduling, AI, voice, OCR, progress, charts and daily & weekly reports.", academyBadge:"Coming in Version 2",
     footerDescriptor:"Construction & Building Intelligence", footerTagline:"Plan. Control. Build Smarter."
   },
   fa: {
@@ -61,6 +63,7 @@ const translations: Record<LandingLocale, LandingCopy> = {
     ctaTitle:"آماده ساخت هوشمندتر هستید؟",
     ctaLead:"با CUBI زمان‌بندی، هزینه، پیشرفت، اسناد و هوشمندی پروژه را در یک لایه کنترل یکپارچه کنید.",
     trial:"شروع آزمایشی رایگان", contact:"تماس با فروش",
+    academyTitle:"آکادمی CUBI — نسخه ۲", academyLead:"یک مسیر آموزشی چندزبانه و عملی برای اجرای یک پروژه ساختمانی واقعی؛ از اطلاعات اولیه و WBS تا زمان‌بندی، هوش مصنوعی، ورود صوتی و OCR، پیشرفت، نمودارها و گزارش‌های روزانه و هفتگی.", academyBadge:"در نسخه ۲",
     footerDescriptor:"هوشمندی ساخت و ساختمان", footerTagline:"برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
 };
@@ -149,6 +152,17 @@ function renderLanding(container: HTMLElement, locale: LandingLocale): void {
             <a class="cubi-outline-button" href="/app">${t.navFeatures} <span>→</span></a>
           </div>
           <div class="cubi-tech-visual" aria-hidden="true"><div class="cubi-stack"><b>◆</b><i></i><i></i><i></i></div><span>Project Controls</span><span>AI &amp; Analytics</span><span>Data &amp; Integration</span><span>Security &amp; Reliability</span></div>
+        </section>
+
+        <section class="cubi-academy" id="academy" aria-label="CUBI Academy Version 2">
+          <div>
+            <p class="cubi-kicker">${t.academyBadge}</p>
+            <h2>${t.academyTitle}</h2>
+            <p>${t.academyLead}</p>
+          </div>
+          <div class="cubi-academy-flow" aria-hidden="true">
+            <span>Project</span><i>→</i><span>WBS</span><i>→</i><span>Schedule</span><i>→</i><span>AI / OCR / Voice</span><i>→</i><span>Reports</span>
+          </div>
         </section>
 
         <section class="cubi-cta" id="pricing">
