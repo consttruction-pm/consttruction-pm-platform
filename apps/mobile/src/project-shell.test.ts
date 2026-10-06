@@ -54,6 +54,7 @@ const schedulingRequest: MobileSchedulingRequest = {
 function deterministicResult() {
   return {
     contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
+    project_context: { tenant_id: "t1", project_id: "p1", revision: 12 },
     calculation_fingerprint: "core-fp-001",
     project_finish: "2026-10-07",
     activities: [
