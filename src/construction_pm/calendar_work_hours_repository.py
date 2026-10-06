@@ -79,6 +79,7 @@ class CalendarWorkHourRule:
 class CalendarWorkHourRepository(Protocol):
     def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule: ...
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]: ...
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None: ...
 
 
 class SQLiteCalendarWorkHourRepository:
@@ -98,6 +99,7 @@ class SQLiteCalendarWorkHourRepository:
         self.connection.commit()
 
     def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule:
+        transaction_owned = not self.connection.in_transaction
         rule.validate()
         master = self.connection.execute(
             "SELECT 1 FROM calendar_master WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
@@ -124,7 +126,8 @@ class SQLiteCalendarWorkHourRepository:
                  None if rule.total_work_hours is None else str(rule.total_work_hours),
                  intervals_json, 1),
             )
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return CalendarWorkHourRule(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind,
                 rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals, 1)
         if int(existing[4]) != rule.scope.project_revision:
@@ -133,6 +136,13 @@ class SQLiteCalendarWorkHourRepository:
         if existing_rule.canonical_snapshot() != canonical:
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_work_hour_rule WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=? AND project_revision=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()
@@ -200,6 +210,13 @@ class PostgresCalendarWorkHourRepository:
         if existing_rule.canonical_snapshot() != rule.canonical_snapshot():
             raise CalendarPersistenceError("WORK_HOUR_IMMUTABLE_CONFLICT")
         return existing_rule
+
+    def delete_all(self, scope: BackendScope, calendar_id: str, calendar_version: str) -> None:
+        scope.validate()
+        self.connection.execute(
+            "DELETE FROM calendar_work_hour_rule WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s AND project_revision=%s",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version, scope.project_revision),
+        )
 
     def list(self, scope: BackendScope, calendar_id: str, calendar_version: str, kind: str) -> tuple[CalendarWorkHourRule, ...]:
         scope.validate()
