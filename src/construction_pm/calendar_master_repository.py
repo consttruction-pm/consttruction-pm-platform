@@ -252,8 +252,8 @@ class SQLiteCalendarAssignmentRepository:
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
                  stored.activity_id, stored.calendar_id, stored.calendar_version, 1),
             )
-        if transaction_owned:
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return stored
         if int(row[3]) != assignment.scope.project_revision or expected_revision != int(row[2]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
@@ -293,8 +293,8 @@ class SQLiteCalendarAssignmentRepository:
                  stored.relationship_id, stored.option.value, stored.calendar_id,
                  stored.calendar_version, 1),
             )
-        if transaction_owned:
-            self.connection.commit()
+            if transaction_owned:
+                self.connection.commit()
             return stored
         if int(row[4]) != assignment.scope.project_revision or expected_revision != int(row[3]):
             raise CalendarPersistenceError("REVISION_CONFLICT")
