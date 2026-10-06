@@ -1337,3 +1337,6 @@ html:lang(fa) .cubi-site {
 .cubi-footer-end small { color:#8299ae; font-size:9px; white-space:nowrap; }
 @media (max-width:1100px) { .cubi-header { padding-inline:20px; } .cubi-hero { grid-template-columns:1fr; } .cubi-hero-product { max-width:760px; } .cubi-footer { grid-template-columns:1fr; } .cubi-footer-end { justify-items:start; } }
 @media (max-width:760px) { .cubi-header { min-height:58px; } .cubi-header-actions { gap:6px; } .cubi-lang-switch { font-size:10px; } .cubi-hero { padding:42px 16px 32px; min-height:700px; } .cubi-features-section,.cubi-tech-section { padding-inline:16px; } .cubi-footer { padding-inline:16px; gap:26px; } .cubi-footer-links { grid-template-columns:repeat(3,1fr); gap:14px; } .cubi-footer-end { gap:14px; } }
+
+/* Legacy marketing chart geometry contract retained for workspace regression tests. */
+.cubi-chart { grid-column:1/-1; height:130px; }
