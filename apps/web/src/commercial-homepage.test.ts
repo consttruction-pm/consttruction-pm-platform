@@ -18,6 +18,10 @@ test("Issue 1241 reference-aligned homepage contract", () => {
   assert.doesNotMatch(landing, /[▦✦◫▤♧◌]/);
   assert.match(landing, /cubi-lang-switch/);
   assert.match(landing, /cubi-workflow/);
+  assert.match(landing, /CUBI Academy/);
+  assert.match(landing, /آکادمی CUBI/);
+  assert.match(landing, /AI \/ OCR \/ Voice/);
+  assert.match(landing, /cubi-academy/);
   assert.match(landing, /PLAN/);
   assert.match(landing, /برنامه‌ریزی/);
   assert.match(landing, /translations/);
