@@ -42,11 +42,11 @@ function renderLanding(container: HTMLElement): void {
           <div class="cubi-exact-section-head"><h2>Everything You Need for Project Success</h2><p>From planning to closeout, CUBI gives you the tools, insights and control to<br/>manage your construction projects smarter, faster and safer.</p></div>
           <div class="cubi-exact-feature-grid">
             <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-01-project-controls.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Project Controls</h3><p>Plan, schedule and<br/>track progress with<br/>confidence.</p></article>
-            <article><div class="cubi-feature-icon">✦</div><h3>AI Assistant</h3><p>Get instant insights,<br/>answers and<br/>recommendations.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-02-ai-assistant.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Resources &amp; Cost</h3><p>Manage budgets,<br/>resources and<br/>cost performance.</p></article>
-            <article><div class="cubi-feature-icon">▱</div><h3>Documents &amp; Contracts</h3><p>Centralize documents,<br/>contracts, claims<br/>and issues.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-03-resources-cost.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Collaboration</h3><p>Work together<br/>across your team<br/>and stakeholders.</p></article>
-            <article><div class="cubi-feature-icon">☁</div><h3>Cloud &amp; Scalability</h3><p>Secure, reliable and<br/>built to grow with<br/>your needs.</p></article>
+            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-02-ai-assistant.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>AI Assistant</h3><p>Get instant insights,<br/>answers and<br/>recommendations.</p></article>
+            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-03-resources-cost.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Resources &amp; Cost</h3><p>Manage budgets,<br/>resources and<br/>cost performance.</p></article>
+            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-04-documents-contracts.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Documents &amp; Contracts</h3><p>Centralize documents,<br/>contracts, claims<br/>and issues.</p></article>
+            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-05-collaboration.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Collaboration</h3><p>Work together<br/>across your team<br/>and stakeholders.</p></article>
+            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-06-cloud-scalability.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Cloud &amp; Scalability</h3><p>Secure, reliable and<br/>built to grow with<br/>your needs.</p></article>
           </div>
         </section>
         <section class="cubi-exact-tech" id="resources">
