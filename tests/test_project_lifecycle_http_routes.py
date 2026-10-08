@@ -613,6 +613,108 @@ def test_authenticated_sync_routes_require_session():
     assert status == 401
     assert json.loads(raw)["code"] == "SESSION_REQUIRED"
 
+def relationship_routes():
+    import sqlite3
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    relationship_api = P6RelationshipAPI(SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:")), default_project_policy())
+    return ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_relationship_api=relationship_api,
+    )
+
+
+def test_authenticated_relationship_http_boundary_supports_create_read_list_and_update():
+    r = relationship_routes()
+    payload = {
+        "contract_version": P6_RELATIONSHIP_API_VERSION,
+        "relationship_id": "rel-1",
+        "predecessor_id": "A-1",
+        "successor_id": "A-2",
+        "relationship_type": "FS",
+        "lag_value": "1.25",
+        "lag_unit": DurationUnit.WORKING_DAY.value,
+    }
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 200
+    created = json.loads(raw)
+    assert created["contract_version"] == P6_RELATIONSHIP_API_VERSION
+    assert created["relationship"]["lag_value"] == "1.25"
+    assert created["relationship"]["record_revision"] == 1
+
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/relationships/rel-1", cookies={"cp_session": "s1"})
+    assert status == 200
+    assert json.loads(raw) == created
+
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"})
+    assert status == 200
+    listed = json.loads(raw)
+    assert listed["contract_version"] == P6_RELATIONSHIP_API_VERSION
+    assert [item["relationship"]["relationship_id"] for item in listed["relationships"]] == ["rel-1"]
+
+    status, _, raw = r.handle(
+        "PATCH", "/api/projects/p1/p6/relationships/rel-1", cookies={"cp_session": "s1"},
+        body=json.dumps({**payload, "lag_value": "2.5", "expected_revision": 1}).encode(),
+    )
+    assert status == 200
+    updated = json.loads(raw)
+    assert updated["relationship"]["lag_value"] == "2.5"
+    assert updated["relationship"]["record_revision"] == 2
+
+
+def test_relationship_http_boundary_rejects_cross_scope_missing_permission_stale_revision_and_invalid_payload():
+    r = relationship_routes()
+    status, _, raw = r.handle("GET", "/api/projects/p2/p6/relationships", cookies={"cp_session": "s1"})
+    assert status == 403
+    assert json.loads(raw)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"},
+        body=b"{not-json",
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RELATIONSHIP_REQUEST_INVALID"
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/relationships/missing", cookies={"cp_session": "s1"}
+    )
+    assert status == 404
+    assert json.loads(raw)["code"] == "P6_RELATIONSHIP_NOT_FOUND"
+
+    status, _, raw = r.handle(
+        "PATCH", "/api/projects/p1/p6/relationships/missing", cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1, "predecessor_id": "A", "successor_id": "B", "relationship_type": "FS", "lag_value": "0", "lag_unit": DurationUnit.WORKING_DAY.value}).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RELATIONSHIP_REQUEST_INVALID"
+
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"viewer"}), now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    import sqlite3
+    viewer_api = P6RelationshipAPI(SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:")), default_project_policy())
+    viewer_routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_relationship_api=viewer_api,
+    )
+    status, _, raw = viewer_routes.handle(
+        "POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "relationship_id": "rel-v", "predecessor_id": "A", "successor_id": "B",
+            "relationship_type": "FS", "lag_value": "0", "lag_unit": DurationUnit.WORKING_DAY.value,
+        }).encode(),
+    )
+    assert status == 403
+    assert "permission=project.write" in json.loads(raw)["code"]
+
+
 def resource_assignment_routes():
     import sqlite3
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
