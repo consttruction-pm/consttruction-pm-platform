@@ -21,8 +21,8 @@ def expense(scope):
     )
 
 
-def auth(tenant="t1", project="p1", permissions=("project.read", "project.write")):
-    return AuthorizationContext("u1", tenant, project, frozenset(permissions))
+def auth(tenant="t1", project="p1", roles=("planner",)):
+    return AuthorizationContext(tenant, project, "u1", frozenset(roles))
 
 
 def api(connection):
@@ -58,4 +58,4 @@ def test_p6_expense_api_rejects_cross_scope_and_read_write_permissions():
         service.get(scope, "e-1", auth_context=auth(tenant="other"))
 
     with pytest.raises(AuthorizationError):
-        service.create(expense(scope), auth_context=auth(permissions=("project.read",)))
+        service.create(expense(scope), auth_context=auth(roles=("viewer",)))
