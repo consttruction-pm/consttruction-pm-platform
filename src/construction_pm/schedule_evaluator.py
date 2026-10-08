@@ -77,10 +77,17 @@ def evaluate_schedule_snapshot(
         raise ScheduleEvaluationError("PROJECT_REVISION_MISMATCH")
     if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleEvaluationError("TENANT_ID_MISMATCH")
-    if (
-        calculation_context.calculation_identity != snapshot.calculation_identity
-        and calculation_context.legacy_calculation_identity != snapshot.calculation_identity
-    ):
+    if snapshot.calculation_identity_version == 2:
+        identity_matches = (
+            calculation_context.calculation_identity == snapshot.calculation_identity
+        )
+    elif snapshot.calculation_identity_version == 1:
+        identity_matches = (
+            calculation_context.legacy_calculation_identity == snapshot.calculation_identity
+        )
+    else:
+        raise ScheduleEvaluationError("INVALID_CALCULATION_IDENTITY_VERSION")
+    if not identity_matches:
         raise ScheduleEvaluationError("CALCULATION_IDENTITY_MISMATCH")
 
     materialized = materialize_schedule_snapshot(snapshot, calendar_registry)
