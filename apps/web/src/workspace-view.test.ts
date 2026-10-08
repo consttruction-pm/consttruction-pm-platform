@@ -202,21 +202,21 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
     } as const,
   };
   const changes: Array<{ fieldId: string; width: number }> = [];
-  const listeners = new Map<string, () => void>();
+  let clickListener: ((event: Event) => void) | undefined;
   const widthButton = {
     dataset: { p6FieldWidth: "activity.activity_id", p6FieldWidthDelta: "increase" },
-    addEventListener: (_event: string, listener: () => void) => listeners.set("width", listener),
+    closest: () => widthButton,
   };
-  const container: RenderContainer = {
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
     innerHTML: "",
-    querySelectorAll: ((selector: string) =>
-      selector === "[data-p6-field-width]" ? [widthButton as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
   };
 
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onP6FieldWidthChange: (fieldId, width) => changes.push({ fieldId, width }),
   });
-  listeners.get("width")?.();
+  clickListener?.({ target: widthButton } as unknown as Event);
 
   assert.deepEqual(changes, [{ fieldId: "activity.activity_id", width: 140 }]);
   assert.match(container.innerHTML, /title="Wider"/);
@@ -249,12 +249,16 @@ test("P6 chooser exposes hidden authoritative fields", () => {
 test("P6 chooser rename control forwards the persisted presentation label", () => {
   const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), p6FieldRegistry: { registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "26", status: "active", fields: [{ field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" }] } as const, p6Layout: { schema_version: "p6-layout.v1", scope: "project", view_id: "activity-grid", revision: 1, columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }] } as const };
   const changes: Array<{ fieldId: string; label: string }> = [];
-  const listeners = new Map<string, () => void>();
-  const input = { value: "Activity ID", dataset: { p6FieldRename: "activity.activity_id" }, addEventListener: (_event: string, listener: () => void) => listeners.set("rename", listener) };
-  const container: RenderContainer = { innerHTML: "", querySelectorAll: ((selector: string) => selector === "[data-p6-field-rename]" ? [input as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"] };
+  let changeListener: ((event: Event) => void) | undefined;
+  const input = { value: "Activity ID", dataset: { p6FieldRename: "activity.activity_id" }, closest: () => input };
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "change") changeListener = listener; },
+  };
   renderMainWorkspace(container as unknown as HTMLElement, state, { onP6FieldPresentationChange: (fieldId, patch) => { if (patch.label) changes.push({ fieldId, label: patch.label }); } });
   input.value = " Activity title ";
-  listeners.get("rename")?.();
+  changeListener?.({ target: input } as unknown as Event);
   assert.deepEqual(changes, [{ fieldId: "activity.activity_id", label: "Activity title" }]);
   assert.match(container.innerHTML, /data-p6-field-rename="activity\.activity_id"/);
   assert.match(container.innerHTML, /aria-label="Rename"/);
@@ -281,20 +285,20 @@ test("Gantt activity selection forwards to the shared Activity selection callbac
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, (event?: Event) => void>();
+  let clickListener: ((event: Event) => void) | undefined;
   const ganttRow = {
     dataset: { ganttActivityId: "A-1" },
-    addEventListener: (event: string, listener: (event?: Event) => void) => listeners.set(event, listener),
+    closest: () => ganttRow,
   };
-  const container: RenderContainer = {
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
     innerHTML: "",
-    querySelectorAll: ((selector: string) =>
-      selector === "[data-gantt-activity-id]" ? [ganttRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
   };
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onGanttActivitySelect: (activityId) => selected.push(activityId),
   });
-  listeners.get("click")?.();
+  clickListener?.({ target: ganttRow } as unknown as Event);
   assert.deepEqual(selected, ["A-1"]);
   assert.match(container.innerHTML, /data-gantt-activity-id="A-1"/);
   assert.match(container.innerHTML, /tabindex="0"/);
