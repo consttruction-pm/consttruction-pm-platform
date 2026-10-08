@@ -1,3 +1,5 @@
+> **Historical snapshot notice:** The original 2026-10-01 matrix is retained as historical evidence. The authoritative live-main SHA and weighted-progress reference are maintained in [CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md](audits/CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md).
+
 # V1 Master Audit Matrix
 
 > **Snapshot:** 2026-10-01  
