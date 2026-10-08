@@ -45,7 +45,7 @@ test("commercial surface stays independent of external product provenance", () =
 
 
 test("compact homepage includes bilingual control and product-control capabilities", () => {
-  assert.match(landing, /type LandingLocale = "en" \\| "fa"/);
+  assert.match(landing, /type LandingLocale = "en" \| "fa"/);
   assert.match(landing, /cubi-language/);
-  for (const pattern of [/Planning &amp; Scheduling|برنامه‌ریزی و زمان‌بندی/, /Project Controls|کنترل پروژه/, /Resources &amp; Documents|منابع و اسناد/, /AI &amp; Insights|هوش مصنوعی و بینش/]) assert.match(landing, pattern);
+  for (const pattern of [/Planning & Scheduling|برنامه‌ریزی و زمان‌بندی/, /Project Controls|کنترل پروژه/, /Resources & Documents|منابع و اسناد/, /AI & Insights|هوش مصنوعی و بینش/]) assert.match(landing, pattern);
 });
