@@ -125,7 +125,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = labels[next.locale];
-    details.innerHTML = \`<h2 id="cp-details-heading">\${escapeHtml(t.details)}</h2>\${next.selectedActivityId ? \`<div class="cp-detail-selected">\${escapeHtml(next.selectedActivityId)}</div>\` : \`<div class="cp-empty">—</div>\`}\`;
+    details.innerHTML = `<h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${next.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(next.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}`;
   }
   return true;
 }
