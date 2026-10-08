@@ -60,3 +60,8 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
   assert.match(styles, /\[dir="rtl"\] \.cubi-tech-node\.n1,[\s\S]*?right:\s*0/);
   assert.match(styles, /\[dir="rtl"\] \.cubi-footer-brand img\s*\{[^}]*object-position:\s*right center/);
 });
+
+test("homepage footer links target the relevant page sections", () => {
+  assert.match(landing, /targets = \[\["#capabilities", "#technology", "#capabilities"\], \["#capabilities", "#technology", "#resources"\], \["#resources", "#technology", "#resources"\]\]/);
+  assert.doesNotMatch(landing, /col\.links\.map\(\(link\) => `<a href="#resources">/);
+});
