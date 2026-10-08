@@ -38,3 +38,40 @@ def test_time_scheduling_portability_rejects_unversioned_calendar():
         assert "calendar_version" in str(exc)
     else:
         raise AssertionError("expected calendar version validation failure")
+def test_time_scheduling_portability_explicitly_maps_to_canonical_request_v1():
+    canonical = _contract().to_canonical_request(
+        tenant_id="tenant-1",
+        project_id="project-1",
+        revision=7,
+        calculation_context={
+            "schedule_mode": "EARLIEST",
+            "project_start": "2026-09-24T08:00:00Z",
+        },
+    )
+    assert canonical["contract_version"] == "1.0"
+    assert canonical["project_context"] == {
+        "tenant_id": "tenant-1",
+        "project_id": "project-1",
+        "revision": 7,
+    }
+    assert canonical["activities"][0]["activity_id"] == "ACT-1"
+    assert canonical["activities"][0]["duration_unit"] == "working-hour"
+    assert canonical["relationships"][0]["lag_value"] == "-0.5"
+    assert canonical["relationships"][0]["lag_unit"] == "working-hour"
+    assert canonical["calculation_context"]["schedule_options"]["project_schema_version"] == 2
+
+def test_time_scheduling_portability_mapping_requires_activity_calendar_assignment():
+    contract = TimeSchedulingPortability(
+        2, {}, _contract().activities, _contract().relationships, _contract().constraints
+    )
+    try:
+        contract.to_canonical_request(
+            tenant_id="tenant-1",
+            project_id="project-1",
+            revision=7,
+            calculation_context={"schedule_mode": "EARLIEST", "project_start": "2026-09-24T08:00:00Z"},
+        )
+    except ValueError as exc:
+        assert "calendar assignment is required" in str(exc)
+    else:
+        raise AssertionError("expected missing activity calendar assignment failure")
