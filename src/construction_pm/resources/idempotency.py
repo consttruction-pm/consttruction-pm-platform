@@ -113,33 +113,4 @@ def _to_resource_error(exc: BackendApplicationError) -> ApplicationError:
     )
 
 
-def resource_fingerprint(resource: object, expected_revision: int | None = None) -> str:
-    return _fingerprint(
-        {"kind": "resource", "value": _canonical(resource), "expected_revision": expected_revision}
-    )
-
-
-def assignment_fingerprint(assignment: object, expected_revision: int | None = None) -> str:
-    return _fingerprint(
-        {"kind": "assignment", "value": _canonical(assignment), "expected_revision": expected_revision}
-    )
-
-
-def _fingerprint(value: object) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-    return sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _canonical(value: object) -> object:
-    if hasattr(value, "__dataclass_fields__"):
-        return {
-            name: _canonical(getattr(value, name))
-            for name in value.__dataclass_fields__
-        }
-    if isinstance(value, (list, tuple)):
-        return [_canonical(item) for item in value]
-    if hasattr(value, "value"):
-        return value.value
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
-    return value
+from ..backend_p0.idempotency import assignment_fingerprint, resource_fingerprint
