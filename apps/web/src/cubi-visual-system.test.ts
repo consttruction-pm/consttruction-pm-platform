@@ -35,3 +35,14 @@ test("CUBI logos use the approved reference palette", () => {
   assert.ok(colors.length > 0);
   for (const color of colors) assert.ok(allowed.has(color), `unexpected logo color #${color}`);
 });
+
+test("canonical CUBI logo lockups are available for the public homepage", () => {
+  const lockup = readFileSync(new URL("../public/cubi-logo-lockup.svg", import.meta.url), "utf8");
+  const darkLockup = readFileSync(new URL("../public/cubi-logo-lockup-dark.svg", import.meta.url), "utf8");
+  for (const markup of [lockup, darkLockup]) {
+    assert.match(markup, /CUBI/);
+    assert.match(markup, /Platform/);
+    assert.match(markup, /#1689ff/i);
+    assert.match(markup, /#19c7d4/i);
+  }
+});
