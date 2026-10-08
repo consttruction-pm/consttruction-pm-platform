@@ -777,3 +777,24 @@ Compatibility impact:
 - Testing: common fixture, version mismatch and project-scope mismatch tests are mandatory.
 
 Acceptance remains conditional on exact-head Client Typecheck and ConstructionPM CI passing on the merged head.
+
+
+## 39. Shared Multi-Project Schedule Option Consistency — 2026-10-09
+
+When multiple project snapshots are executed as one shared scheduling graph, the Shared Core scheduler runs once and receives one effective ScheduleOptions object. Calculation-affecting options therefore must not silently vary by project or be chosen implicitly from whichever snapshot appears first.
+
+Mandatory rules:
+- Calculation-affecting ScheduleOptions that feed a single shared graph must match across participating snapshots.
+- Mismatches fail before scheduler execution with `MULTI_PROJECT_SCHEDULE_OPTIONS_MISMATCH:` and a deterministic, sorted list of option names.
+- Only explicitly batch-routing/resource-selection fields already handled by orchestration-specific logic may be excluded from the shared calculation equality check.
+- Existing guards for float basis, cross-project relationship options and resource leveling remain mandatory.
+- Do not infer unapproved Primavera semantics and do not create a second scheduling engine.
+- Input order must not silently change the effective calculation options.
+
+Compatibility impact:
+- P6/Shared Scheduling: protects the authoritative calculation boundary by rejecting ambiguous mixed settings.
+- Web/Desktop/Mobile: no client-side scheduling changes.
+- Portability/replay: deterministic fail-fast behavior is required when one shared graph cannot honor all project settings.
+- Regression: reverse input order for mismatched options and assert the same stable error.
+
+Implementation record: `docs/architecture/STAGE_33_4_66_SHARED_GRAPH_OPTION_CONSISTENCY.md`. Exact-head runtime CI is required before marking this work verified.
