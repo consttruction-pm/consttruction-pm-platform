@@ -43,3 +43,11 @@ test("commercial surface stays independent of external product provenance", () =
     assert.doesNotMatch(index, pattern);
   }
 });
+
+
+test("compact homepage includes bilingual control and product-control capabilities", () => {
+  assert.match(landing, /LandingLocale = "en" \| "fa"/);
+  assert.match(landing, /cubi-language/);
+  for (const pattern of [/Planning &amp; Scheduling|برنامه‌ریزی و زمان‌بندی/, /Project Controls|کنترل پروژه/, /Resources &amp; Documents|منابع و اسناد/, /AI &amp; Insights|هوش مصنوعی و بینش/]) assert.match(landing, pattern);
+  assert.doesNotMatch(landing, /cubi-exact-feature-grid/);
+});
