@@ -16,6 +16,118 @@ const labels = {
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
+type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
+const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
+const workspaceEventDelegation = new WeakSet<HTMLElement>();
+
+function bindWorkspaceEvents(container: HTMLElement): void {
+  workspaceEventDelegation.add(container);
+  container.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-menu],[data-wbs-id],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-gantt-activity-id],[data-activity-id]") : null;
+    if (!target) return;
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    const { state, options } = record;
+    if (target.dataset.menu) return void options.onMenuSelect?.(target.dataset.menu as WorkspaceState["activeMenu"]);
+    if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
+    if (target.dataset.p6FieldAdd) return void options.onP6FieldAdd?.(target.dataset.p6FieldAdd);
+    if (target.dataset.p6FieldRemove) return void options.onP6FieldRemove?.(target.dataset.p6FieldRemove);
+    if (target.dataset.p6FieldVisibility) return void options.onP6FieldVisibilityChange?.(target.dataset.p6FieldVisibility, target.dataset.p6FieldVisible === "true");
+    if (target.dataset.p6FieldWidth) {
+      const delta = target.dataset.p6FieldWidthDelta;
+      if (delta !== "increase" && delta !== "decrease") return;
+      const column = state.p6Layout?.columns.find((item) => item.field_id === target.dataset.p6FieldWidth);
+      if (column) options.onP6FieldWidthChange?.(target.dataset.p6FieldWidth, Math.max(40, column.width + (delta === "increase" ? 20 : -20)));
+      return;
+    }
+    if (target.dataset.p6FieldAlignment) {
+      const alignment = target.dataset.p6FieldAlignmentValue;
+      if (alignment === "start" || alignment === "center" || alignment === "end") options.onP6FieldPresentationChange?.(target.dataset.p6FieldAlignment, { alignment });
+      return;
+    }
+    if (target.dataset.p6FieldPin) return void options.onP6FieldPresentationChange?.(target.dataset.p6FieldPin, { pinned: target.dataset.p6FieldPinned !== "true" });
+    if (target.dataset.p6FieldFreeze) return void options.onP6FieldPresentationChange?.(target.dataset.p6FieldFreeze, { frozen: target.dataset.p6FieldFrozen !== "true" });
+    if (target.dataset.p6FieldMove) {
+      const direction = target.dataset.p6FieldDirection;
+      if (direction !== "up" && direction !== "down") return;
+      const fieldId = target.dataset.p6FieldMove;
+      const visible = state.p6Layout?.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order) ?? [];
+      const ordered = state.p6Layout?.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id) ?? [];
+      const index = ordered.indexOf(fieldId);
+      const visibleIndex = visible.findIndex((column) => column.field_id === fieldId);
+      const nextVisibleIndex = direction === "up" ? visibleIndex - 1 : visibleIndex + 1;
+      if (visibleIndex < 0 || nextVisibleIndex < 0 || nextVisibleIndex >= visible.length || index < 0) return;
+      const adjacentIndex = ordered.indexOf(visible[nextVisibleIndex].field_id);
+      if (adjacentIndex < 0) return;
+      [ordered[index], ordered[adjacentIndex]] = [ordered[adjacentIndex], ordered[index]];
+      options.onP6FieldReorder?.(ordered);
+      return;
+    }
+    if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
+    if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
+  });
+  container.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id]") : null;
+    if (!target) return;
+    event.preventDefault();
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    if (target.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
+    else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
+  });
+  container.addEventListener("change", (event) => {
+    const target = event.target instanceof HTMLInputElement ? event.target.closest<HTMLInputElement>("[data-p6-field-rename]") : null;
+    if (!target) return;
+    const fieldId = target.dataset.p6FieldRename;
+    const label = target.value.trim();
+    if (fieldId && label) workspaceRenderRecords.get(container)?.options.onP6FieldPresentationChange?.(fieldId, { label });
+  });
+}
+
+function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
+  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
+}
+
+function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: WorkspaceState, next: WorkspaceState): boolean {
+  if (!canIncrementallyUpdate(previous, next)) return false;
+  const menuChanged = previous.activeMenu !== next.activeMenu;
+  const wbsChanged = previous.selectedWbsId !== next.selectedWbsId;
+  const activityChanged = previous.selectedActivityId !== next.selectedActivityId;
+  if (Number(menuChanged) + Number(wbsChanged) + Number(activityChanged) !== 1) return false;
+  if (menuChanged) {
+    container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.setAttribute("aria-current", button.dataset.menu === next.activeMenu ? "page" : "false"));
+    const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
+    if (navigation) navigation.outerHTML = renderNavigationSurface(next);
+    return true;
+  }
+  if (wbsChanged) {
+    container.querySelectorAll<HTMLElement>("[data-wbs-id]").forEach((button) => {
+      const selected = button.dataset.wbsId === next.selectedWbsId;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-current", selected ? "true" : "false");
+    });
+    return true;
+  }
+  container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
+    const selected = row.dataset.activityId === next.selectedActivityId;
+    row.classList.toggle("is-selected", selected);
+    row.setAttribute("aria-selected", selected ? "true" : "false");
+  });
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
+    const selected = row.dataset.ganttActivityId === next.selectedActivityId;
+    row.classList.toggle("is-selected", selected);
+    row.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+  const details = container.querySelector<HTMLElement>("#cp-details");
+  if (details) {
+    const t = labels[next.locale];
+    details.innerHTML = \`<h2 id="cp-details-heading">\${escapeHtml(t.details)}</h2>\${next.selectedActivityId ? \`<div class="cp-detail-selected">\${escapeHtml(next.selectedActivityId)}</div>\` : \`<div class="cp-empty">—</div>\`}\`;
+  }
+  return true;
+}
+
+
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
@@ -29,7 +141,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldPresentationChange?: (fieldId: string, patch: { label?: string; alignment?: "start" | "center" | "end"; pinned?: boolean; frozen?: boolean }) => void;
 };
 
-export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
+export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {\n  const previous = workspaceRenderRecords.get(container);\n  if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state)) {\n    workspaceRenderRecords.set(container, { state, options });\n    return;\n  }
   const t = labels[state.locale];
   const wbsIds = [...new Set(state.activities.map((activity) => activity.wbsId))];
   const scale = createGanttScale(state.activities);
@@ -83,85 +195,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     </section>
   `;
 
-  container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.addEventListener("click", () => options.onMenuSelect?.(button.dataset.menu as WorkspaceState["activeMenu"])));
-  container.querySelectorAll<HTMLElement>("[data-wbs-id]").forEach((button) => button.addEventListener("click", () => { const wbsId = button.dataset.wbsId; if (wbsId) options.onWbsSelect?.(wbsId); }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-add]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldAdd;
-    if (fieldId) options.onP6FieldAdd?.(fieldId);
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-remove]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldRemove;
-    if (fieldId) options.onP6FieldRemove?.(fieldId);
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-visibility]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldVisibility;
-    const visible = button.dataset.p6FieldVisible === "true";
-    if (fieldId) options.onP6FieldVisibilityChange?.(fieldId, visible);
-  }));
-
-  container.querySelectorAll<HTMLInputElement>("[data-p6-field-rename]").forEach((input) => input.addEventListener("change", () => {
-    const fieldId = input.dataset.p6FieldRename;
-    const label = input.value.trim();
-    if (fieldId && label) options.onP6FieldPresentationChange?.(fieldId, { label });
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-width]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldWidth;
-    const delta = button.dataset.p6FieldWidthDelta;
-    if (!fieldId || (delta !== "increase" && delta !== "decrease")) return;
-    const column = state.p6Layout?.columns.find((item) => item.field_id === fieldId);
-    if (!column) return;
-    const nextWidth = Math.max(40, column.width + (delta === "increase" ? 20 : -20));
-    options.onP6FieldWidthChange?.(fieldId, nextWidth);
-  }));
-  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => {
-    const select = () => {
-      const id = row.dataset.ganttActivityId;
-      if (id) options.onGanttActivitySelect?.(id);
-    };
-    row.addEventListener("click", select);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        select();
-      }
-    });
-  });
-  container.querySelectorAll<HTMLElement>("[data-p6-field-alignment]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldAlignment;
-    const alignment = button.dataset.p6FieldAlignmentValue;
-    if (!fieldId || (alignment !== "start" && alignment !== "center" && alignment !== "end")) return;
-    options.onP6FieldPresentationChange?.(fieldId, { alignment });
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-pin]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldPin;
-    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { pinned: button.dataset.p6FieldPinned !== "true" });
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-freeze]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldFreeze;
-    if (fieldId) options.onP6FieldPresentationChange?.(fieldId, { frozen: button.dataset.p6FieldFrozen !== "true" });
-  }));
-  container.querySelectorAll<HTMLElement>("[data-p6-field-move]").forEach((button) => button.addEventListener("click", () => {
-    const fieldId = button.dataset.p6FieldMove;
-    const direction = button.dataset.p6FieldDirection;
-    if (!fieldId || (direction !== "up" && direction !== "down")) return;
-    const visible = state.p6Layout?.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order) ?? [];
-    const ordered = state.p6Layout?.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id) ?? [];
-    const index = ordered.indexOf(fieldId);
-    const visibleIndex = visible.findIndex((column) => column.field_id === fieldId);
-    const nextVisibleIndex = direction === "up" ? visibleIndex - 1 : visibleIndex + 1;
-    if (visibleIndex < 0 || nextVisibleIndex < 0 || nextVisibleIndex >= visible.length || index < 0) return;
-    const adjacentFieldId = visible[nextVisibleIndex].field_id;
-    const adjacentIndex = ordered.indexOf(adjacentFieldId);
-    if (adjacentIndex < 0) return;
-    [ordered[index], ordered[adjacentIndex]] = [ordered[adjacentIndex], ordered[index]];
-    options.onP6FieldReorder?.(ordered);
-  }));
-
-  container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
-    const select = () => { const id = row.dataset.activityId; if (id) options.onActivitySelect?.(id); };
-    row.addEventListener("click", select);
-    row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
-  });
+  workspaceRenderRecords.set(container, { state, options });
+  if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
