@@ -50,17 +50,18 @@ export function createGanttBarGeometry(
   activity: WorkspaceActivityRow,
   scale: GanttScale,
 ): GanttBarGeometry | null {
+  const gantt = activity.gantt;
   const cached = ganttGeometryCache.get(activity);
   if (cached &&
       cached.scale === scale &&
-      cached.start === activity.gantt?.start &&
-      cached.finish === activity.gantt?.finish &&
-      cached.progressPercent === activity.gantt?.progressPercent &&
-      cached.critical === activity.gantt?.critical) {
+      cached.start === gantt?.start &&
+      cached.finish === gantt?.finish &&
+      cached.progressPercent === gantt?.progressPercent &&
+      cached.critical === gantt?.critical) {
     return cached.geometry;
   }
 
-  if (!activity.gantt) {
+  if (!gantt) {
     ganttGeometryCache.set(activity, {
       scale,
       start: "",
@@ -72,15 +73,15 @@ export function createGanttBarGeometry(
     return null;
   }
 
-  const startMs = Date.parse(activity.gantt.start);
-  const endMs = Date.parse(activity.gantt.finish);
+  const startMs = Date.parse(gantt.start);
+  const endMs = Date.parse(gantt.finish);
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
     ganttGeometryCache.set(activity, {
       scale,
-      start: activity.gantt.start,
-      finish: activity.gantt.finish,
-      progressPercent: activity.gantt.progressPercent,
-      critical: activity.gantt.critical,
+      start: gantt.start,
+      finish: gantt.finish,
+      progressPercent: gantt.progressPercent,
+      critical: gantt.critical,
       geometry: null,
     });
     return null;
@@ -94,15 +95,15 @@ export function createGanttBarGeometry(
     activityId: activity.id,
     leftPercent,
     widthPercent,
-    progressPercent: clampPercent(activity.gantt.progressPercent),
-    critical: activity.gantt.critical,
+    progressPercent: clampPercent(gantt.progressPercent),
+    critical: gantt.critical,
   };
   ganttGeometryCache.set(activity, {
     scale,
-    start: activity.gantt.start,
-    finish: activity.gantt.finish,
-    progressPercent: activity.gantt.progressPercent,
-    critical: activity.gantt.critical,
+    start: gantt.start,
+    finish: gantt.finish,
+    progressPercent: gantt.progressPercent,
+    critical: gantt.critical,
     geometry,
   });
   return geometry;
