@@ -2,7 +2,8 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.backend_p0.idempotency import InMemoryScopedIdempotencyStore\nfrom construction_pm.resources.application import ResourceApplicationService
+from construction_pm.backend_p0.idempotency import InMemoryScopedIdempotencyStore
+from construction_pm.resources.application import ResourceApplicationService
 from construction_pm.resources.context import ProjectContext
 from construction_pm.resources.errors import ApplicationError
 from construction_pm.resources.idempotency import (
