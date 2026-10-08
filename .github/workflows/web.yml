@@ -46,15 +46,31 @@ jobs:
 
       - name: Preview runtime smoke test
         run: |
-          nohup node --input-type=module -e "import(\"./preview-server.mjs\").then(({ startPreviewServer }) => startPreviewServer())" > "$RUNNER_TEMP/cubi-preview.log" 2>&1 < /dev/null &
-          preview_pid=$!
-          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
-          for i in $(seq 1 60); do
-            if ! kill -0 "$preview_pid" 2>/dev/null; then cat "$RUNNER_TEMP/cubi-preview.log"; exit 1; fi
-            if curl -fsS http://127.0.0.1:4173/ > /dev/null; then break; fi
-            sleep 0.25
-          done
-          if ! curl -fsS http://127.0.0.1:4173/ > "$RUNNER_TEMP/cubi-homepage.html"; then cat "$RUNNER_TEMP/cubi-preview.log"; exit 1; fi
-          grep -q "Construction &amp; Building" "$RUNNER_TEMP/cubi-homepage.html"
-          curl -fsS "http://127.0.0.1:4173/styles.css" | grep -q "prefers-reduced-motion"
-          curl -fsS "http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js" | grep -q "SCHEDULING_CONTRACT_VERSION"
+          node --input-type=module <<'NODE'
+          import { startPreviewServer } from "./preview-server.mjs";
+
+          const server = startPreviewServer();
+          await new Promise((resolve, reject) => {
+            server.once("listening", resolve);
+            server.once("error", reject);
+          });
+
+          try {
+            const checks = [
+              ["http://127.0.0.1:4173/", "Construction &amp; Building"],
+              ["http://127.0.0.1:4173/styles.css", "prefers-reduced-motion"],
+              ["http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js", "SCHEDULING_CONTRACT_VERSION"],
+            ];
+
+            for (const [url, expected] of checks) {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error(\`HTTP \${response.status} for \${url}\`);
+              const body = await response.text();
+              if (!body.includes(expected)) {
+                throw new Error(\`Expected \${expected} in \${url}\`);
+              }
+            }
+          } finally {
+            await new Promise((resolve) => server.close(resolve));
+          }
+          NODE
