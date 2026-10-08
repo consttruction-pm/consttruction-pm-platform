@@ -54,3 +54,9 @@ test("full homepage keeps bilingual control and the six capability areas", () =>
     /Cloud & Scalability|ابر و توسعه‌پذیری/,
   ]) assert.match(landing, pattern);
 });
+
+test("Persian homepage mirrors dashboard and technology layout in RTL mode", () => {
+  assert.match(styles, /\[dir="rtl"\] \.cubi-exact-dashboard\s*\{[^}]*margin-right:\s*-1\.5rem/);
+  assert.match(styles, /\[dir="rtl"\] \.cubi-tech-node\.n1,[\s\S]*?right:\s*0/);
+  assert.match(styles, /\[dir="rtl"\] \.cubi-footer-brand img\s*\{[^}]*object-position:\s*right center/);
+});
