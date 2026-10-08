@@ -26,11 +26,22 @@ from construction_pm.scheduling.authoritative_schedule_batch import (
     execute_authoritative_schedule_batch,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.calendar_context import (
+    CalendarReference,
+    CalendarResolverRegistry,
+    RelationshipLagCalendar,
+)
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.external_resource_assignments import ExternalResourceAssignment
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import (
+    CriticalActivityPathType,
+    OutOfSequenceScheduleType,
+    ScheduleMode,
+    ScheduleOptions,
+    StartToStartLagCalculationType,
+    TotalFloatCalculationType,
+)
 
 
 def snapshot(project_id, finish, *, options=None, priority=10):
@@ -497,11 +508,22 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
 @pytest.mark.parametrize(
     "changed_option",
     [
+        {"compute_total_float_type": TotalFloatCalculationType.FINISH_FLOAT},
         {"critical_activity_float_threshold": 1.0},
+        {"critical_activity_path_type": CriticalActivityPathType.LONGEST_PATH},
         {"make_open_ended_activities_critical": True},
+        {"mode": ScheduleMode.ALAP},
         {"multiple_float_paths_enabled": True},
         {"maximum_multiple_float_paths": 3},
+        {"multiple_float_paths_use_total_float": False},
+        {"multiple_float_paths_ending_activity_object_id": "P2-A"},
+        {"multiple_float_paths_ending_activity_short_name": "P2-A"},
+        {"out_of_sequence_schedule_type": OutOfSequenceScheduleType.PROGRESS_OVERRIDE},
+        {"start_to_start_lag_calculation_type": StartToStartLagCalculationType.ACTUAL_START},
+        {"relationship_lag_calendar": RelationshipLagCalendar.TWENTY_FOUR_HOUR},
         {"use_expected_finish_dates": True},
+        {"recalculate_resource_costs": True},
+        {"preserve_scheduled_early_and_late_dates": True},
         {"data_date": date(2026, 10, 2)},
     ],
 )
