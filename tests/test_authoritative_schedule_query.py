@@ -309,6 +309,7 @@ def test_persisted_replay_requires_request_snapshot_id_only():
 
     for constraints in (
         {"input_snapshot_id": "S-CONTEXT-ONLY"},
+        {"snapshot_id": "   "},
         {},
     ):
         request = ScheduleQueryRequest(
