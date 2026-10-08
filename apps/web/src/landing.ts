@@ -127,7 +127,7 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
-        ${t.footerColumns.map((col) => `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link) => `<a href="#resources">${link}</a>`).join("")}</div>`).join("")}
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["#capabilities", "#technology", "#capabilities"], ["#capabilities", "#technology", "#resources"], ["#resources", "#technology", "#resources"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "#home"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
     </div>`;
