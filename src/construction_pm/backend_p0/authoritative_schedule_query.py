@@ -190,11 +190,11 @@ def _resolve_snapshot_id(
     request: ScheduleQueryRequest,
     calculation_context: CalculationContext | None,
 ) -> str:
+    # Persisted-context replay is keyed only by the request's authoritative
+    # snapshot_id. Client-supplied CalculationContext metadata must never
+    # select a persisted snapshot implicitly.
+    del calculation_context
     requested = request.constraints.get("snapshot_id")
-    if requested is None:
-        requested = request.constraints.get("input_snapshot_id")
-    if requested is None and calculation_context is not None:
-        requested = calculation_context.input_snapshot_id
     if not isinstance(requested, str) or not requested.strip():
         raise ValueError("SCHEDULE_INPUT_SNAPSHOT_ID_REQUIRED")
     return requested
