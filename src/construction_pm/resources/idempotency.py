@@ -1,3 +1,9 @@
+"""Deprecated Resource idempotency compatibility boundary.
+
+New cross-module infrastructure should use backend_p0.idempotency.IdempotencyStore.
+This module remains only while the Resource package is migrated.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
