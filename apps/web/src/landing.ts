@@ -66,7 +66,7 @@ function renderLanding(container: HTMLElement): void {
           <div class="cubi-tech-copy">
             <h2>Powered by Leading<br/>Technologies</h2>
             <p>CUBI integrates industry standards and proven tools<br/>to give you the best of both worlds — reliability and<br/>innovation.</p>
-            <div class="cubi-tech-badges"><b class="p6">P6</b><span>Primavera P6</span><b class="pg">♟</b><span>PostgreSQL</span><b class="ai">✧</b><span>AI</span></div>
+            <div class="cubi-tech-badges"><b class="p6">S</b><span>Scheduling</span><b class="pg">◆</b><span>Database</span><b class="ai">✧</b><span>AI</span></div>
             <a class="cubi-exact-outline" href="#solutions">Learn More <span>→</span></a>
           </div>
           <div class="cubi-tech-diagram" aria-label="CUBI technology architecture">
