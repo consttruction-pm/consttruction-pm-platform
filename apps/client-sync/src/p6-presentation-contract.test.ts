@@ -6,6 +6,7 @@ import {
   P6_PRESENTATION_CONTRACT_VERSION,
   createP6PresentationAdapter,
   validateP6PresentationBundle,
+  reorderFields,
 } from "./p6-presentation-contract.ts";
 
 const fixture = JSON.parse(
@@ -33,4 +34,11 @@ test("canonical P6 presentation contract preserves formula dependency and result
   const result = validateP6PresentationBundle(fixture).formula_authoritative;
   assert.deepEqual(result.dependencies.field_ids, ["activity.duration"]);
   assert.equal(result.result_type.data_type, "duration");
+});
+
+test("reorderFields rejects duplicate field IDs", () => {
+  assert.throws(
+    () => reorderFields(fixture.layout, ["activity.activity_id", "activity.activity_id", "activity.total_float"]),
+    /INVALID_LAYOUT_ORDER/,
+  );
 });
