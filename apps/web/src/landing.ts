@@ -73,7 +73,7 @@ function renderLanding(container: HTMLElement): void {
 html:lang(fa) .cubi-compact-home{font-family:"Vazirmatn",Inter,system-ui,sans-serif}.cubi-compact-home[dir="rtl"]{}
 @media(max-width:900px){.cubi-compact-header{padding:10px 5%;height:auto;flex-wrap:wrap}.cubi-compact-header nav{order:3;width:100%;justify-content:center;overflow:auto}.cubi-compact-hero{grid-template-columns:1fr;padding:3.5rem 6%;min-height:auto}.cubi-compact-control{justify-self:start}.cubi-compact-grid{grid-template-columns:repeat(2,1fr)}.cubi-compact-capabilities,.cubi-compact-cta{padding-left:6%;padding-right:6%}}
 @media(max-width:560px){.cubi-compact-header nav a:nth-child(n+3){display:none}.cubi-compact-signin{display:none}.cubi-compact-copy h1{font-size:38px}.cubi-compact-grid{grid-template-columns:1fr}.cubi-control-grid{grid-template-columns:1fr}.cubi-compact-cta{flex-direction:column;align-items:flex-start}.cubi-compact-footer{flex-wrap:wrap;padding-left:6%;padding-right:6%}.cubi-compact-footer span{margin:0}}
-</style>\n    <div class="cubi-compact-home" id="home">
+</style>\n    <div class="cubi-compact-home cubi-reference-home" id="home">
       <header class="cubi-compact-header">
         <a class="cubi-compact-brand" href="./" aria-label="CUBI Platform home">
           <img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" />
