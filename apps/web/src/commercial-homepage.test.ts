@@ -8,18 +8,20 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("CUBI homepage follows the active compact commercial structure", () => {
+test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
-    /cubi-compact-home/,
-    /cubi-compact-header/,
-    /cubi-compact-hero/,
-    /cubi-compact-control/,
-    /cubi-compact-capabilities/,
-    /cubi-compact-cta/,
-    /cubi-compact-footer/,
+    /cubi-exact-home/,
+    /cubi-exact-header/,
+    /cubi-exact-hero/,
+    /cubi-exact-dashboard/,
+    /cubi-exact-features/,
+    /cubi-exact-tech/,
+    /cubi-exact-cta/,
+    /cubi-exact-footer/,
     /cubi-platform-logo-primary\.svg/,
     /cubi-platform-logo-primary-dark\.svg/,
-  ]) assert.match(landing, pattern);
+    /cubi-hero-field\.svg/,
+  ]) assert.match(landing + styles, pattern);
 });
 
 test("registered SEO contract remains intact", () => {
@@ -39,8 +41,15 @@ test("commercial surface stays independent of external product provenance", () =
 });
 
 
-test("compact homepage includes bilingual control and product-control capabilities", () => {
+test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = "en" \| "fa"/);
   assert.match(landing, /cubi-language/);
-  for (const pattern of [/Planning & Scheduling|برنامه‌ریزی و زمان‌بندی/, /Project Controls|کنترل پروژه/, /Resources & Documents|منابع و اسناد/, /AI & Insights|هوش مصنوعی و بینش/]) assert.match(landing, pattern);
+  for (const pattern of [
+    /Project Controls|کنترل پروژه/,
+    /AI Assistant|دستیار هوشمند/,
+    /Resources & Cost|منابع و هزینه/,
+    /Documents & Contracts|اسناد و قراردادها/,
+    /Team Collaboration|همکاری تیمی/,
+    /Cloud & Scalability|ابر و توسعه‌پذیری/,
+  ]) assert.match(landing, pattern);
 });
