@@ -102,6 +102,27 @@ def test_evaluator_is_deterministic_for_same_snapshot_and_context():
     assert first.date_result == second.date_result
 
 
+def test_evaluator_replays_same_snapshot_across_provenance_metadata():
+    snapshot, context = make_snapshot_and_context()
+    replay_context = CalculationContext(
+        **{
+            **context.to_dict(),
+            "calculation_timestamp": "2026-10-01T00:00:00+00:00",
+            "actor_id": "actor-replay",
+            "request_id": "request-replay",
+            "idempotency_key": "idem-replay",
+        }
+    )
+
+    first = evaluate_schedule_snapshot(snapshot, context, registry())
+    replay = evaluate_schedule_snapshot(snapshot, replay_context, registry())
+
+    assert context.calculation_identity == replay_context.calculation_identity
+    assert first.calculation_identity == replay.calculation_identity
+    assert first.calculation_run_identity == replay.calculation_run_identity
+    assert first.date_result == replay.date_result
+
+
 def test_evaluator_routes_leveling_options_to_authoritative_seam():
     options = ScheduleOptions(
         level_all_resources=True,
