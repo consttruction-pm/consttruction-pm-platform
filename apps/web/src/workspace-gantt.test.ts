@@ -37,6 +37,18 @@ test("Gantt scale derives only from authoritative activity dates", () => {
   assert.equal(scale?.endMs, Date.parse("2026-09-10T17:00:00Z"));
 });
 
+test("unchanged Gantt presentation data reuses cached scale and geometry", () => {
+  const scale = createGanttScale(activities);
+  assert.ok(scale);
+  const repeatedScale = createGanttScale(activities);
+  assert.strictEqual(repeatedScale, scale);
+
+  const geometry = createGanttBarGeometry(activities[0], scale);
+  const repeatedGeometry = createGanttBarGeometry(activities[0], scale);
+  assert.ok(geometry);
+  assert.strictEqual(repeatedGeometry, geometry);
+});
+
 test("Gantt bar geometry maps scheduled dates to visual percentages", () => {
   const scale = createGanttScale(activities);
   assert.ok(scale);
