@@ -156,6 +156,43 @@ test("activity deselection also stays incremental", () => {
   assert.match(details.innerHTML, /—/);
 });
 
+test("delegated activity events use the latest render callbacks after incremental updates", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  let clickListener: ((event: Event) => void) | undefined;
+  const activityTarget = {
+    dataset: { activityId: "A-1" },
+    closest: () => activityTarget,
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => {
+      if (type === "click") clickListener = listener;
+    },
+  };
+
+  const firstSelected: string[] = [];
+  const secondSelected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, base, {
+    onActivitySelect: (activityId) => firstSelected.push(activityId),
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...base,
+    selectedActivityId: "A-1",
+  }, {
+    onActivitySelect: (activityId) => secondSelected.push(activityId),
+  });
+
+  clickListener?.({ target: activityTarget } as unknown as Event);
+
+  assert.deepEqual(firstSelected, []);
+  assert.deepEqual(secondSelected, ["A-1"]);
+});
+
 test("menu-only rerenders replace only the navigation surface", () => {
   const base = createWorkspaceState(
     { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
