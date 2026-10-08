@@ -83,6 +83,45 @@ test("locale switch relocalizes default grid columns", () => {
   assert.equal(state.columns.find((column) => column.id === "progress")?.label, "Progress");
 });
 
+test("P6 presentation preserves the authoritative field data types", () => {
+  const state = createWorkspaceState(context);
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "25.12",
+    status: "seeded_not_certified",
+    fields: [
+      { field_id: "f-string", subject_area: "activity", p6_field: "NAME", display_name: "Name", data_type: "string" as const, writable: true, computed: false, disposition: "supported" },
+      { field_id: "f-datetime", subject_area: "activity", p6_field: "DT", display_name: "Date Time", data_type: "datetime" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "f-percentage", subject_area: "activity", p6_field: "PCT", display_name: "Percent", data_type: "percentage" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "f-cost", subject_area: "activity", p6_field: "COST", display_name: "Cost", data_type: "cost" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "f-enum", subject_area: "activity", p6_field: "TYPE", display_name: "Type", data_type: "enum" as const, writable: true, computed: false, disposition: "supported" },
+      { field_id: "f-object-array", subject_area: "activity", p6_field: "REFS", display_name: "References", data_type: "object-id-array" as const, writable: false, computed: false, disposition: "supported" },
+      { field_id: "f-spread", subject_area: "activity", p6_field: "SPREAD", display_name: "Spread", data_type: "spread" as const, writable: false, computed: false, disposition: "supported" },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity",
+    revision: 1,
+    columns: registry.fields.map((field, order) => ({
+      field_id: field.field_id,
+      visible: true,
+      order,
+      width: 120,
+      alignment: "start" as const,
+      pinned: false,
+      frozen: false,
+    })),
+  };
+  const next = setP6Presentation(state, registry, layout);
+  assert.deepEqual(
+    next.columns.map((column) => column.dataType),
+    ["text", "datetime", "percentage", "cost", "enum", "object-id-array", "spread"],
+  );
+});
+
 test("formula columns remain metadata and do not calculate client values", () => {
   const state = createWorkspaceState(context);
   const next = addFormulaColumn(state, {
