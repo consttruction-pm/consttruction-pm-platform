@@ -145,6 +145,37 @@ test("menu-only rerenders replace only the navigation surface", () => {
   assert.ok(navigation.outerHTML.includes('data-surface-status="preview"'));
 });
 
+test("incremental selection rerenders avoid workspace innerHTML replacement", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  let html = "";
+  let innerHtmlWrites = 0;
+  const container = {
+    get innerHTML() {
+      return html;
+    },
+    set innerHTML(value: string) {
+      innerHtmlWrites += 1;
+      html = value;
+    },
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  assert.equal(innerHtmlWrites, 1);
+
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...base,
+    selectedActivityId: "A-1",
+  });
+
+  assert.equal(innerHtmlWrites, 1);
+});
+
 test("renderer honors visible workspace panel flags", () => {
   const state = {
     ...createWorkspaceState(
