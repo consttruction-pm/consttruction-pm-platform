@@ -4,7 +4,7 @@ from construction_pm.resources.api import ResourceAPI
 from construction_pm.resources.application import ResourceApplicationService
 from construction_pm.resources.authorization import AllowAllAuthorizationPolicy
 from construction_pm.resources.context import ProjectContext
-from construction_pm.resources.idempotency import InMemoryMutationIdempotencyStore
+from construction_pm.backend_p0.idempotency import InMemoryScopedIdempotencyStore
 from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
 from construction_pm.resources.repository import InMemoryResourceRepository
 from construction_pm.resources.transactions import NoOpTransactionManager
@@ -17,7 +17,7 @@ def test_resource_backend_contracts_work_together():
         repository=repository,
         context=context,
         transaction_manager=NoOpTransactionManager(),
-        idempotency_store=InMemoryMutationIdempotencyStore(),
+        idempotency_store=InMemoryScopedIdempotencyStore(),
         authorization_policy=AllowAllAuthorizationPolicy(),
     )
     api = ResourceAPI(service)
@@ -51,7 +51,7 @@ def test_resource_backend_contracts_work_together():
 
 def test_revision_and_idempotency_contracts_remain_context_scoped():
     repository = InMemoryResourceRepository()
-    store = InMemoryMutationIdempotencyStore()
+    store = InMemoryScopedIdempotencyStore()
     context_a = ProjectContext("tenant-1", "company-1", "project-a")
     context_b = ProjectContext("tenant-1", "company-1", "project-b")
     calls = []
