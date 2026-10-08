@@ -16,7 +16,7 @@ This file is the single live pointer for V1 current-main audit evidence. Histori
 - PR #1285 — P6 calendar exception precedence wired into authoritative resolvers; merged as `1ea4c9333a49c53f894dd1c93178ed1b7152d1ed`.
 - PR #1281 — Web P6 workspace preserves canonical P6 field data types; merged as `5382c1ac24f027f8e37066399983df0d40d455a9`.
 - PR #1276 — authenticated P6 Calendar CRUD/copy/replace and atomic replication; merged as `f5edaf2254a87c1eea05eb4b76972d1d94654f8a`.
-- PR #1279 — authenticated P6 Expense API; merged as `6c689d14532c1ee9f1c6d7c4c74e07b0b4e5a46d`.
+- PR #1279 — authenticated P6 Expense API; merged as `6c689d14532c4a9dc5ec402891f85782ddf373bc`.
 - PR #1260 — endpoint-aware P6 import upload limits; merged as `e4855110f2077cf673ed823d93161e9eca6a1a596`.
 
 ## Open Jalal work
