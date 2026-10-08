@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Deprecated Resource idempotency compatibility boundary.\n\nNew cross-module infrastructure should use backend_p0.idempotency.IdempotencyStore.\nThis module remains only while the Resource package is migrated.\n"""\n\nfrom __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
