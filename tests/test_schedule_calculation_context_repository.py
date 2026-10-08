@@ -81,7 +81,7 @@ def test_context_get_rejects_scope_revision_mismatch():
     repo = SQLiteCalculationContextRepository(sqlite3.connect(":memory:"))
     repo.save(build_persisted_context(scope(), make_context()))
 
-    with pytest.raises(CalculationContextPersistenceError, match="REVISION_CONFLICT"):
+    with pytest.raises(CalculationContextPersistenceError, match="SNAPSHOT_CONTEXT_SCOPE_MISMATCH"):
         repo.get(BackendScope("T-1", "P-1", 8), "S-1")
 
 
