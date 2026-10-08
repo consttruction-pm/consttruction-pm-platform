@@ -2,8 +2,8 @@ type LandingLocale = "en" | "fa";
 type Feature = { icon: string; title: string; body: string };
 type LandingCopy = {
   nav: string[]; eyebrow: string; title: string; accent: string; subtitle: string; body: string;
-  primary: string; secondary: string; featuresTitle: string; featuresBody: string; features: Feature[];
-  techTitle: string; techBody: string; techLink: string; techNodes: string[];
+  primary: string; secondary: string; featuresEyebrow: string; featuresTitle: string; featuresBody: string; features: Feature[];
+  techEyebrow: string; techTitle: string; techBody: string; techLink: string; techNodes: string[];
   ctaTitle: string; ctaBody: string; signIn: string; start: string; language: string;
   footerColumns: Array<{ title: string; links: string[] }>; footerNote: string;
 };
@@ -15,6 +15,7 @@ const copy: Record<LandingLocale, LandingCopy> = {
     subtitle: "Plan. Control. Build Smarter.",
     body: "Bring schedules, cost, progress, resources and project evidence into one clear control room—so your team can make the next decision with confidence.",
     primary: "Explore the Platform →", secondary: "See How It Works",
+    featuresEyebrow: "ONE CONNECTED WORKFLOW",
     featuresTitle: "Everything your project needs to stay in control",
     featuresBody: "Connect the work, the numbers and the evidence in one practical workspace built for construction teams.",
     features: [
@@ -25,6 +26,7 @@ const copy: Record<LandingLocale, LandingCopy> = {
       { icon: "◎", title: "Team Collaboration", body: "Give stakeholders a shared view of project status and actions." },
       { icon: "☁", title: "Cloud & Scalability", body: "Access a consistent project workspace as teams and projects grow." }
     ],
+    techEyebrow: "BUILT FOR REAL PROJECTS",
     techTitle: "A connected foundation for better decisions",
     techBody: "CUBI brings project planning, controls, information and intelligent assistance together while keeping the project workflow at the center.",
     techLink: "Explore platform capabilities →",
@@ -46,6 +48,7 @@ const copy: Record<LandingLocale, LandingCopy> = {
     subtitle: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
     body: "زمان‌بندی، هزینه، پیشرفت، منابع و شواهد پروژه را در یک اتاق کنترل روشن کنار هم قرار دهید تا تیم شما با اطمینان تصمیم بعدی را بگیرد.",
     primary: "کاوش پلتفرم ←", secondary: "نحوه کار را ببینید",
+    featuresEyebrow: "جریان کاری یکپارچه",
     featuresTitle: "همه آنچه پروژه برای کنترل بهتر نیاز دارد",
     featuresBody: "کارها، اعداد و مستندات پروژه را در یک فضای کاری کاربردی برای تیم‌های ساخت به هم متصل کنید.",
     features: [
@@ -56,6 +59,7 @@ const copy: Record<LandingLocale, LandingCopy> = {
       { icon: "◎", title: "همکاری تیمی", body: "نمای مشترک و روشنی از وضعیت پروژه و اقدامات در اختیار ذی‌نفعان قرار دهید." },
       { icon: "☁", title: "ابر و توسعه‌پذیری", body: "با رشد تیم‌ها و پروژه‌ها به فضای کاری یکپارچه دسترسی داشته باشید." }
     ],
+    techEyebrow: "برای پروژه‌های واقعی",
     techTitle: "زیرساختی یکپارچه برای تصمیم‌های بهتر",
     techBody: "کوبی برنامه‌ریزی، کنترل پروژه، اطلاعات و دستیار هوشمند را کنار هم قرار می‌دهد و جریان کاری پروژه را در مرکز نگه می‌دارد.",
     techLink: "مشاهده قابلیت‌های پلتفرم ←",
@@ -107,11 +111,11 @@ function renderLanding(container: HTMLElement): void {
           </div>
         </section>
         <section class="cubi-exact-features" id="capabilities">
-          <div class="cubi-exact-section-head"><p class="cubi-kicker">ONE CONNECTED WORKFLOW</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
           <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon" aria-hidden="true">${f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
-          <div class="cubi-tech-copy"><p class="cubi-kicker">BUILT FOR REAL PROJECTS</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
+          <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
             <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
             <a class="cubi-exact-outline" href="./app/">${t.techLink}</a>
           </div>
