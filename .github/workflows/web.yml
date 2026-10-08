@@ -49,10 +49,11 @@ jobs:
           node preview-server.mjs > "$RUNNER_TEMP/cubi-preview.log" 2>&1 &
           preview_pid=$!
           trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
-          for i in $(seq 1 20); do
+          for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:4173/ > /dev/null; then break; fi
             sleep 0.25
           done
-          curl -fsS http://127.0.0.1:4173/ | grep -q "Construction &amp; Building"
+          if ! curl -fsS http://127.0.0.1:4173/ > "$RUNNER_TEMP/cubi-homepage.html"; then cat "$RUNNER_TEMP/cubi-preview.log"; exit 1; fi
+          grep -q "Construction &amp; Building" "$RUNNER_TEMP/cubi-homepage.html"
           curl -fsS "http://127.0.0.1:4173/styles.css" | grep -q "prefers-reduced-motion"
           curl -fsS "http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js" | grep -q "SCHEDULING_CONTRACT_VERSION"
