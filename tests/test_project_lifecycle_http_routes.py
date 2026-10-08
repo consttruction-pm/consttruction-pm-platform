@@ -94,6 +94,149 @@ def routes():
     )
 
 
+class FakeP6CalendarAPI:
+    def __init__(self):
+        self.calls = []
+
+    def create(self, scope, request, *, auth_context):
+        self.calls.append(("create", scope, request, auth_context))
+        return {"contract_version": "p6-calendar.v1", "calendar_id": request.calendar_id}
+
+    def update(self, scope, request, *, auth_context):
+        self.calls.append(("update", scope, request, auth_context))
+        return {"contract_version": "p6-calendar.v1", "calendar_id": request.calendar_id}
+
+    def delete(self, scope, calendar_id, calendar_version, *, expected_revision, auth_context):
+        self.calls.append(("delete", scope, calendar_id, calendar_version, expected_revision, auth_context))
+        return True
+
+    def copy(self, scope, source_calendar_id, source_calendar_version, target_calendar_id, target_calendar_version, *, auth_context):
+        self.calls.append(("copy", scope, source_calendar_id, source_calendar_version, target_calendar_id, target_calendar_version, auth_context))
+        return {"contract_version": "p6-calendar.v1", "calendar_id": target_calendar_id}
+
+    def replace(self, scope, target_calendar_id, target_calendar_version, source_calendar_id, source_calendar_version, *, auth_context):
+        self.calls.append(("replace", scope, target_calendar_id, target_calendar_version, source_calendar_id, source_calendar_version, auth_context))
+        return {"contract_version": "p6-calendar.v1", "calendar_id": target_calendar_id}
+
+    def save_exception(self, exception, *, auth_context):
+        self.calls.append(("save_exception", exception, auth_context))
+        return exception.canonical_snapshot()
+
+    def list_exceptions(self, scope, calendar_id, calendar_version, *, auth_context):
+        self.calls.append(("list_exceptions", scope, calendar_id, calendar_version, auth_context))
+        return ()
+
+    def save_work_hours(self, rule, *, auth_context):
+        self.calls.append(("save_work_hours", rule, auth_context))
+        return rule.canonical_snapshot()
+
+    def list_work_hours(self, scope, calendar_id, calendar_version, kind, *, auth_context):
+        self.calls.append(("list_work_hours", scope, calendar_id, calendar_version, kind, auth_context))
+        return ()
+
+
+def p6_calendar_write_routes():
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    calendar_api = FakeP6CalendarAPI()
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_calendar_api=calendar_api,
+    )
+    return routes, calendar_api
+
+
+def test_p6_calendar_http_write_routes_use_authenticated_project_scope():
+    r, api = p6_calendar_write_routes()
+    payload = {
+        "contract_version": "p6-calendar.v1",
+        "calendar_id": "CAL-1",
+        "calendar_version": "1",
+        "calendar_type": "project",
+        "kind": "working-time",
+        "name": "Project Calendar",
+        "expected_revision": 0,
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode()
+    )
+    assert status == 200
+    assert json.loads(body)["calendar_id"] == "CAL-1"
+    call = api.calls[-1]
+    assert call[0] == "create"
+    assert call[1] == BackendScope("t1", "p1", 2)
+    assert call[3].tenant_id == "t1"
+    assert call[3].project_id == "p1"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1/p6/calendars/CAL-1/1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({**payload, "name": "Renamed", "expected_revision": 1}).encode(),
+    )
+    assert status == 200
+    assert api.calls[-1][0] == "update"
+
+    status, _, body = r.handle(
+        "DELETE", "/api/projects/p1/p6/calendars/CAL-1/1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 2}).encode(),
+    )
+    assert status == 200
+    assert api.calls[-1][0] == "delete"
+
+
+def test_p6_calendar_http_copy_replace_exception_and_work_hours_contracts():
+    r, api = p6_calendar_write_routes()
+
+    for operation in ("copy", "replace"):
+        status, _, _ = r.handle(
+            "POST", f"/api/projects/p1/p6/calendars/CAL-1/1/{operation}",
+            cookies={"cp_session": "s1"},
+            body=json.dumps({"target_calendar_id": "CAL-2", "target_calendar_version": "1"}).encode(),
+        )
+        assert status == 200
+        assert api.calls[-1][0] == operation
+
+    exception_payload = {
+        "date": "2026-10-01",
+        "mode": "nonwork",
+        "system": "gregorian",
+        "intervals": [],
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions",
+        cookies={"cp_session": "s1"}, body=json.dumps(exception_payload).encode(),
+    )
+    assert status == 200
+    assert api.calls[-1][0] == "save_exception"
+    assert json.loads(body)["mode"] == "nonwork"
+
+    work_hours_payload = {
+        "kind": "standard_work_week",
+        "weekday": 0,
+        "is_working_day": True,
+        "total_work_hours": "8",
+        "intervals": [],
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/work-hours",
+        cookies={"cp_session": "s1"}, body=json.dumps(work_hours_payload).encode(),
+    )
+    assert status == 200
+    assert api.calls[-1][0] == "save_work_hours"
+    assert json.loads(body)["kind"] == "standard_work_week"
+
+
 class WorkspaceReadAPI:
     def __init__(self, result):
         self.result = result

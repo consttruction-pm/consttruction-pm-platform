@@ -1,12 +1,14 @@
 import sqlite3
 from datetime import date
+from unittest.mock import Mock
 from decimal import Decimal
 
 import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.calendar_exception_repository import CalendarException, SQLiteCalendarExceptionRepository, EXCEPTION_NONWORK
 from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository, CalendarWorkHourRule
@@ -34,7 +36,7 @@ def _api():
     snapshot = SQLiteCalendarSnapshotRepository(conn)
     exceptions = SQLiteCalendarExceptionRepository(conn)
     work_hours = SQLiteCalendarWorkHourRepository(conn)
-    return P6CalendarAPI(master, snapshot, exceptions, default_project_policy(), work_hours), conn
+    return P6CalendarAPI(master, snapshot, exceptions, default_project_policy(), work_hours, SQLiteTransactionManager(conn)), conn
 
 
 def _definition() -> WorkingCalendar:
@@ -114,6 +116,47 @@ def test_copy_replays_snapshot_and_keeps_type():
     copied = api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
     assert copied["calendar_type"] == "global"
     assert api.snapshot_repository.get(api.calendar_repository.get(_scope(), "CAL-C", "1")) is not None
+
+
+def test_copy_replays_exceptions_and_all_work_hour_rules():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+    api.save_exception(
+        CalendarException(_scope(), "CAL-S", "1", date(2026, 3, 22), EXCEPTION_NONWORK),
+        auth_context=_auth(),
+    )
+    api.save_work_hours(
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "standard_work_week", 0, True, Decimal("8"), ()),
+        auth_context=_auth(),
+    )
+    api.save_work_hours(
+        CalendarWorkHourRule(_scope(), "CAL-S", "1", "total_work_hours", None, None, Decimal("40"), ()),
+        auth_context=_auth(),
+    )
+
+    api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
+
+    assert len(api.list_exceptions(_scope(), "CAL-C", "1", auth_context=_auth())) == 1
+    assert len(api.list_work_hours(_scope(), "CAL-C", "1", "standard_work_week", auth_context=_auth())) == 1
+    assert len(api.list_work_hours(_scope(), "CAL-C", "1", "total_work_hours", auth_context=_auth())) == 1
+
+
+def test_copy_rolls_back_target_master_when_snapshot_write_fails(monkeypatch):
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+
+    def fail_snapshot(*args, **kwargs):
+        raise RuntimeError("injected snapshot failure")
+
+    monkeypatch.setattr(SQLiteCalendarSnapshotRepository, "save", fail_snapshot)
+    with pytest.raises(RuntimeError, match="injected snapshot failure"):
+        api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
+
+    assert api.calendar_repository.get(_scope(), "CAL-C", "1") is None
 
 
 def test_replace_uses_authoritative_snapshot_and_optimistic_revision():
