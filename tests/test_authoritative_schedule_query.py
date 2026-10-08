@@ -3,6 +3,7 @@ import sqlite3
 from unittest.mock import patch
 
 from construction_pm.application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryApplicationService,
     AuthoritativeScheduleQueryProvider,
@@ -244,7 +245,7 @@ def test_query_resolves_authoritative_context_from_persisted_state():
     )
     snapshot_repo.save(snapshot)
     context_repo.save(build_persisted_context(
-        __import__("construction_pm.backend_p0.models", fromlist=["BackendScope"]).BackendScope("T-1", "P-1", 9),
+        BackendScope("T-1", "P-1", 9),
         persisted_context,
     ))
 
@@ -315,7 +316,6 @@ def test_query_ignores_client_calculation_metadata_when_persisted_context_exists
             datetime(2026, 9, 30, tzinfo=timezone.utc),
         )
     )
-    from construction_pm.backend_p0.models import BackendScope
     context_repo.save(build_persisted_context(
         BackendScope("T-1", "P-1", 9),
         authoritative,
