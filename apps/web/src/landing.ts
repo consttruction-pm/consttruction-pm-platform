@@ -112,7 +112,7 @@ function renderLanding(container: HTMLElement): void {
         </section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">BUILT FOR REAL PROJECTS</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
-            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="p6">P6</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
+            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
             <a class="cubi-exact-outline" href="./app/">${t.techLink}</a>
           </div>
           <div class="cubi-tech-diagram" aria-label="Connected platform capabilities"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
