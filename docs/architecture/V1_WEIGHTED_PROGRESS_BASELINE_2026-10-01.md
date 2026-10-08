@@ -1,3 +1,5 @@
+> **Historical baseline notice:** This 2026-10-01 document is retained as the original weighted-baseline record. Live weighted progress is governed by the current Jalal 3 snapshot and the current-main audit pointer; do not interpret the historical SHA below as today's main HEAD.
+
 # V1 Weighted Progress Baseline — 2026-10-01
 
 ## Purpose
