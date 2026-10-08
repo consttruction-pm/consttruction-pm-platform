@@ -142,6 +142,9 @@ _ROWS = (
     ("project.data_date","Project","DataDate","Data Date","date",True,False,None),
     ("project.calendar","Project","ProjectCalendar","Project Calendar","string",True,False,None),
     ("project.finish","Project","ProjectFinishDate","Project Finish","date",False,True,None),
+    ("role.id","Role","RoleId","Role ID","string",True,False,None),
+    ("role.name","Role","RoleName","Role Name","string",True,False,None),
+    ("role.description","Role","RoleDescription","Role Description","string",True,False,None),
     ("resource.id","Resource/Assignment","ResourceId","Resource ID","string",True,False,None),
     ("resource.name","Resource/Assignment","ResourceName","Resource Name","string",True,False,None),
     ("resource.type","Resource/Assignment","ResourceType","Resource Type","enum",True,False,None),
@@ -507,7 +510,7 @@ def validate_catalog() -> None:
         raise ValueError("duplicate P6 field within subject area")
 
     required = {
-        "Activity", "WBS", "Project", "Resource/Assignment",
+        "Activity", "WBS", "Project", "Resource/Assignment", "Role",
         "Activity Step", "Expense", "Codes", "Baseline", "Financial Period", "ScheduleOptions",
     }
     actual = {field.subject_area for field in P6_FIELD_CATALOG}
