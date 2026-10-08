@@ -1,58 +1,57 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  MOBILE_SCHEDULING_CONTRACT_VERSION,
+  SCHEDULING_CONTRACT_VERSION,
   createSharedSchedulingCoreAdapter,
   validateSchedulingRequest,
+  validateSchedulingResult,
   type MobileSchedulingRequest,
   type MobileSchedulingResult,
 } from "./shared-scheduling-adapter.ts";
 
-const request: MobileSchedulingRequest = {
-  contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
-  project_context: { tenant_id: "t1", project_id: "p1", revision: 7 },
-  calculation_context: {
-    schedule_mode: "EARLIEST",
-    project_start: "2026-10-05T08:00:00Z",
-    data_date: "2026-10-05T08:00:00Z",
-    project_calendar: { calendar_id: "site", calendar_version: "3", kind: "working-time" },
-  },
-  activities: [{
-    activity_id: "A1",
-    duration_value: "4",
-    duration_unit: "working-hour",
-    calendar: { calendar_id: "site", calendar_version: "3", kind: "working-time" },
-  }],
-  relationships: [],
-  constraints: [],
-};
+const fixture = JSON.parse(
+  readFileSync(
+    new URL("../../../shared/contracts/time-scheduling-parity.fixture.json", import.meta.url),
+    "utf8",
+  ),
+) as { request: MobileSchedulingRequest; result: MobileSchedulingResult };
 
-const result: MobileSchedulingResult = {
-  contract_version: MOBILE_SCHEDULING_CONTRACT_VERSION,
-  project_context: request.project_context,
-  calculation_fingerprint: "sha256:mobile",
-  project_finish: "2026-10-05T12:00:00Z",
-  activities: [{
-    activity_id: "A1",
-    start: "2026-10-05T08:00:00Z",
-    finish: "2026-10-05T12:00:00Z",
-    duration: { value: "4", unit: "working-hour" },
-    total_float: null,
-    free_float: null,
-    critical: false,
-  }],
-};
+test("mobile uses the same canonical scheduling fixture and validator", () => {
+  assert.equal(SCHEDULING_CONTRACT_VERSION, "1.0");
+  assert.deepEqual(validateSchedulingRequest(fixture.request), fixture.request);
+  assert.deepEqual(
+    validateSchedulingResult(fixture.result, fixture.request.project_context),
+    fixture.result,
+  );
+});
 
-test("mobile adapter uses canonical shared scheduling contract", () => {
-  assert.deepEqual(validateSchedulingRequest(request), request);
+test("mobile rejects a project scope mismatch at the shared contract boundary", () => {
+  assert.throws(
+    () =>
+      validateSchedulingResult(
+        {
+          ...fixture.result,
+          project_context: {
+            ...fixture.result.project_context,
+            tenant_id: "other-tenant",
+          },
+        },
+        fixture.request.project_context,
+      ),
+    /SCHEDULING_PROJECT_CONTEXT_MISMATCH/,
+  );
 });
 
 test("mobile client delegates unchanged to the authoritative core", async () => {
+  const calls: MobileSchedulingRequest[] = [];
   const adapter = createSharedSchedulingCoreAdapter({
     async schedule(input) {
-      assert.deepEqual(input, request);
-      return result;
+      calls.push(input);
+      return fixture.result;
     },
   });
-  assert.deepEqual(await adapter.schedule(request), result);
+  const actual = await adapter.schedule(validateSchedulingRequest(fixture.request));
+  assert.deepEqual(calls, [fixture.request]);
+  assert.deepEqual(actual, fixture.result);
 });
