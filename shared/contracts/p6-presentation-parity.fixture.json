@@ -1,4 +1,7 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-presentation-parity/v1",
+  "title": "ConstructionPM P6 Presentation Parity Fixture v1",
   "contract_version": "1.0",
   "registry": {
     "registry_version": "p6-field-registry.v1",
@@ -46,14 +49,48 @@
     "view_id": "activity",
     "revision": 3,
     "columns": [
-      {"field_id":"activity.activity_id","visible":true,"order":0,"width":150,"alignment":"start","pinned":true,"frozen":false},
-      {"field_id":"activity.duration","visible":true,"order":1,"width":140,"alignment":"end","pinned":false,"frozen":false},
-      {"field_id":"activity.total_float","visible":true,"order":2,"width":140,"alignment":"end","pinned":false,"frozen":false}
+      {
+        "field_id": "activity.activity_id",
+        "visible": true,
+        "order": 0,
+        "width": 150,
+        "alignment": "start",
+        "pinned": true,
+        "frozen": false
+      },
+      {
+        "field_id": "activity.duration",
+        "visible": true,
+        "order": 1,
+        "width": 140,
+        "alignment": "end",
+        "pinned": false,
+        "frozen": false
+      },
+      {
+        "field_id": "activity.total_float",
+        "visible": true,
+        "order": 2,
+        "width": 140,
+        "alignment": "end",
+        "pinned": false,
+        "frozen": false
+      }
     ]
   },
   "formula_authoritative": {
-    "validation": {"valid": true, "error_code": null, "message_key": null},
-    "dependencies": {"field_ids": ["activity.duration"]},
-    "result_type": {"data_type": "duration"}
+    "validation": {
+      "valid": true,
+      "error_code": null,
+      "message_key": null
+    },
+    "dependencies": {
+      "field_ids": [
+        "activity.duration"
+      ]
+    },
+    "result_type": {
+      "data_type": "duration"
+    }
   }
 }
