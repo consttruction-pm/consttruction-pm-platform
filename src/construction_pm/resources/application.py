@@ -6,12 +6,14 @@ from .authorization import AllowAllAuthorizationPolicy, AuthorizationPolicy
 from .context import ProjectContext
 from .errors import (
     ApplicationError,
+    ErrorCategory,
     context_error,
     not_found_error,
     conflict_error,
     validation_error,
 )
 from .errors import OptimisticLockError
+from ..backend_p0.errors import BackendApplicationError
 from ..backend_p0.idempotency import (
     ScopedIdempotencyStore,
     assignment_fingerprint,
@@ -26,6 +28,15 @@ from .validation import validate_assignment, validate_resource
 def _raise_if_invalid(errors: list[str]) -> None:
     if errors:
         raise validation_error("INVALID_INPUT", ";".join(errors))
+
+
+def _to_resource_error(exc: BackendApplicationError) -> ApplicationError:
+    return ApplicationError(
+        ErrorCategory(exc.category.value),
+        exc.code,
+        exc.message,
+        exc.retryable,
+    )
 
 
 @dataclass(frozen=True)
@@ -73,6 +84,8 @@ class ResourceApplicationService:
             )
         except OptimisticLockError as exc:
             raise conflict_error("STALE_REVISION", str(exc)) from exc
+        except BackendApplicationError as exc:
+            raise _to_resource_error(exc) from exc
 
     def assign_resource(
         self,
@@ -125,6 +138,8 @@ class ResourceApplicationService:
             )
         except OptimisticLockError as exc:
             raise conflict_error("STALE_REVISION", str(exc)) from exc
+        except BackendApplicationError as exc:
+            raise _to_resource_error(exc) from exc
 
     def get_resource(self, resource_id: str) -> Resource | None:
         return self.repository.get_resource(self.context, resource_id)
