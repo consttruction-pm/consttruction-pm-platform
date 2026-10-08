@@ -29,9 +29,20 @@ export type WorkspaceColumnDataType =
   | "text"
   | "integer"
   | "decimal"
+  | "double"
+  | "percentage"
+  | "cost"
+  | "unit"
   | "date"
+  | "datetime"
   | "duration"
-  | "boolean";
+  | "boolean"
+  | "enum"
+  | "object-id"
+  | "object-id-array"
+  | "string-array"
+  | "complex"
+  | "spread";
 
 export type WorkspaceCellValue = string | number | boolean | null;
 
@@ -386,17 +397,27 @@ export function updateP6FieldPresentation(
 
 function toWorkspaceColumnDataType(dataType: string): WorkspaceColumnDataType {
   switch (dataType) {
-    case "integer": return "integer";
+    case "string":
+      return "text";
+    case "integer":
     case "decimal":
     case "double":
     case "percentage":
     case "cost":
-    case "unit": return "decimal";
+    case "unit":
     case "date":
-    case "datetime": return "date";
-    case "duration": return "duration";
-    case "boolean": return "boolean";
-    default: return "text";
+    case "datetime":
+    case "duration":
+    case "boolean":
+    case "enum":
+    case "object-id":
+    case "object-id-array":
+    case "string-array":
+    case "complex":
+    case "spread":
+      return dataType;
+    default:
+      return "text";
   }
 }
 
