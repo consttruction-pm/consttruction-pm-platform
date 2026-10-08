@@ -12,8 +12,7 @@ from .errors import (
     validation_error,
 )
 from .errors import OptimisticLockError
-from ..backend_p0.idempotency import ScopedIdempotencyStore
-from .idempotency import assignment_fingerprint, resource_fingerprint
+from ..backend_p0.idempotency import (\n    ScopedIdempotencyStore,\n    assignment_fingerprint,\n    resource_fingerprint,\n)
 from .models import Resource, ResourceAssignment
 from .repository import ResourceRepository
 from ..backend_p0.transactions import TransactionManager
