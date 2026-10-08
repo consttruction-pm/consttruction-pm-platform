@@ -65,8 +65,8 @@ export function createGanttBarGeometry(
       scale,
       start: "",
       finish: "",
-      progressPercent: activity.gantt?.progressPercent ?? 0,
-      critical: activity.gantt?.critical ?? false,
+      progressPercent: 0,
+      critical: false,
       geometry: null,
     });
     return null;
