@@ -82,6 +82,19 @@ export type FormulaEditorModel = {
   authoritative: FormulaAuthoritativeResult | null;
 };
 
+export type P6FieldRegistryProvider = {
+  getFields(subjectArea?: string): Promise<readonly P6Field[]>;
+};
+
+export type P6LayoutPersistence = {
+  load(scope: LayoutScope, viewId: string): Promise<LayoutDefinition | null>;
+  save(layout: LayoutDefinition): Promise<LayoutDefinition>;
+};
+
+export type P6FormulaAuthority = {
+  validate(expression: string, contextFieldId?: string): Promise<FormulaAuthoritativeResult>;
+};
+
 export type P6PresentationBundle = Readonly<{
   contract_version: typeof P6_PRESENTATION_CONTRACT_VERSION;
   registry: FieldRegistry;
