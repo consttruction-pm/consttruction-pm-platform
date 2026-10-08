@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import sqlite3
 
 import pytest
@@ -53,9 +53,9 @@ def make_snapshot(context):
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=CalendarReference(context.calendar_id, context.calendar_version),
         activities=(Activity("A", 1),),
-        relationships=(Relationship("A", "A"),),
+        relationships=(),
         activity_calendar_assignments=(),
-        project_start=None,
+        project_start=date(2026, 10, 8),
     )
     return build_snapshot(
         source,
