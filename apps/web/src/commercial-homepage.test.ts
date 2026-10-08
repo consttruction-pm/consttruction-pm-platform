@@ -8,24 +8,31 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("CUBI homepage follows the active CUBI commercial reference structure", () => {
-  for (const pattern of [
-    /cubi-reference-home/,
-    /cubi-exact-header/,
-    /cubi-exact-hero/,
-    /cubi-exact-dashboard/,
-    /cubi-exact-features/,
-    /cubi-exact-tech/,
-    /cubi-exact-cta/,
-    /cubi-exact-footer/,
-    /cubi-platform-logo-primary\.svg/,
-    /cubi-platform-logo-primary-dark\.svg/,
-  ]) assert.match(landing, pattern);
-  assert.match(styles, /\.cubi-exact-header/);
-  assert.match(styles, /\.cubi-exact-hero/);
-  assert.match(styles, /\.cubi-exact-feature-grid/);
-  assert.match(styles, /\.cubi-exact-tech/);
-  assert.match(styles, /\.cubi-exact-cta/);
+test("CUBI homepage follows the canonical Issue #1101 reference structure", () => {
+  assert.match(landing, /title:\s+"Construction Project Control,"/);
+  assert.match(landing, /titleAccent:\s+"Reimagined\."/);
+  assert.match(landing, /fa:\s+\{/);
+  assert.match(landing, /cubi-reference-header/);
+  assert.match(landing, /cubi-reference-hero/);
+  assert.match(landing, /cubi-reference-dashboard/);
+  assert.match(landing, /cubi-reference-feature-grid/);
+  assert.match(landing, /cubi-reference-tech/);
+  assert.match(landing, /cubi-reference-pricing/);
+  assert.match(landing, /cubi-reference-footer/);
+  assert.match(landing, /navFeatures/);
+  assert.match(landing, /navSolutions/);
+  assert.match(landing, /navPricing/);
+  assert.match(landing, /navResources/);
+  assert.match(landing, /navAbout/);
+  assert.match(landing, /cubi-lang-switch/);
+  assert.match(landing, /translations/);
+  assert.match(landing, /\/cubi-logo-lockup\.svg/);
+  assert.match(landing, /\/cubi-logo-lockup-dark\.svg/);
+  assert.match(styles, /canonical CUBI visual-reference alignment/);
+  assert.match(styles, /\.cubi-reference-hero\s*\{[\s\S]*background:#0b3158/);
+  assert.match(styles, /\.cubi-reference-feature-grid\s*\{[\s\S]*grid-template-columns:repeat\(5/);
+  assert.match(styles, /\.cubi-reference-tech\s*\{[\s\S]*background:#eef6ff/);
+  assert.match(styles, /\.cubi-reference-pricing\s*\{[\s\S]*background:#092b50/);
 });
 
 test("registered SEO contract remains intact", () => {
@@ -38,7 +45,7 @@ test("registered SEO contract remains intact", () => {
 });
 
 test("commercial surface stays independent of external product provenance", () => {
-  for (const pattern of [/Oracle/i, /Primavera/i, />\\s*P6\\s*</i]) {
+  for (const pattern of [/Oracle/i, /Primavera/i, /P6/i]) {
     assert.doesNotMatch(landing, pattern);
     assert.doesNotMatch(index, pattern);
   }
