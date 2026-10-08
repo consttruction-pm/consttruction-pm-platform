@@ -240,7 +240,7 @@ _ROWS = (
     ("activity.baseline2_finish_date","Activity","Baseline2FinishDate","Baseline2 Finish Date","date",False,True,None),
     ("activity.baseline2_planned_duration","Activity","Baseline2PlannedDuration","Baseline2 Planned Duration","double",False,True,"working-time"),
     ("activity.baseline2_planned_expense_cost","Activity","Baseline2PlannedExpenseCost","Baseline2 Planned Expense Cost","double",False,True,"currency"),
-    ("activity.baseline2_planned_labor_cost","Activity","Baseline2PlannedLaborCost","Baseline2 Planned Labor Cost","double",False,True,"currency"),
+    ("activity.baseline2_planned_labor_cost","Activity","Baseline2PlannedLaborCost","Baseline2 Planned Labor Cost","double",False,False,"currency"),
     ("activity.baseline2_planned_labor_units","Activity","Baseline2PlannedLaborUnits","Baseline2 Planned Labor Units","double",False,True,"units"),
     ("activity.baseline2_planned_material_cost","Activity","Baseline2PlannedMaterialCost","Baseline2 Planned Material Cost","double",False,True,"currency"),
     ("activity.baseline2_planned_non_labor_cost","Activity","Baseline2PlannedNonLaborCost","Baseline2 Planned Non Labor Cost","double",False,True,"currency"),
@@ -455,6 +455,17 @@ P6_ACTIVITY_READ_ONLY_OVERRIDES: dict[str, bool] = {
     "Baseline1PlannedNonLaborUnits": True,
     "Baseline1PlannedTotalCost": True,
     "Baseline1StartDate": True,
+    "Baseline2Duration": True,
+    "Baseline2FinishDate": True,
+    "Baseline2PlannedDuration": True,
+    "Baseline2PlannedExpenseCost": True,
+    "Baseline2PlannedLaborCost": True,
+    "Baseline2PlannedLaborUnits": True,
+    "Baseline2PlannedMaterialCost": True,
+    "Baseline2PlannedNonLaborCost": True,
+    "Baseline2PlannedNonLaborUnits": True,
+    "Baseline2PlannedTotalCost": True,
+    "Baseline2StartDate": True,
 }
 
 # These names exist in an older/internal Activity seed but are not exact
