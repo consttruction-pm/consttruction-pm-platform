@@ -97,6 +97,8 @@ def _project_result(
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
         return _project_scenario_proposal(request, source)
+    if result is None:
+        raise ValueError("SCHEDULE_EVALUATION_RESULT_REQUIRED")
     if result.date_result is not None:
         activities = result.date_result.activities
         if request.kind is ScheduleQueryKind.FACT:
