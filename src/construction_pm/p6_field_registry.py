@@ -455,6 +455,17 @@ P6_ACTIVITY_READ_ONLY_OVERRIDES: dict[str, bool] = {
     "Baseline1PlannedNonLaborUnits": True,
     "Baseline1PlannedTotalCost": True,
     "Baseline1StartDate": True,
+    "Baseline2Duration": True,
+    "Baseline2FinishDate": True,
+    "Baseline2PlannedDuration": True,
+    "Baseline2PlannedExpenseCost": True,
+    "Baseline2PlannedLaborCost": True,
+    "Baseline2PlannedLaborUnits": True,
+    "Baseline2PlannedMaterialCost": True,
+    "Baseline2PlannedNonLaborCost": True,
+    "Baseline2PlannedNonLaborUnits": True,
+    "Baseline2PlannedTotalCost": True,
+    "Baseline2StartDate": True,
 }
 
 # These names exist in an older/internal Activity seed but are not exact
