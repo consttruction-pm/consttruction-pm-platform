@@ -47,6 +47,14 @@ def select_resource_assignments_for_scheduling(
         raise ResourceLevelingError("INVALID_SCHEDULED_PROJECT_ID")
     if not isinstance(include_external_res_ass, bool):
         raise ResourceLevelingError("INVALID_INCLUDE_EXTERNAL_RES_ASS")
+    # Materialize once because callers may supply a generator. If there are no
+    # assignments, the external-resource options are not evaluated: an empty
+    # assignment set cannot affect the schedule and the P6 default sentinel
+    # (priority limit 0) must not turn a no-op into a runtime failure.
+    assignment_list = tuple(assignments)
+    if not assignment_list:
+        return ()
+
     if isinstance(external_project_priority_limit, bool) or not isinstance(external_project_priority_limit, int):
         raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
     if not 1 <= external_project_priority_limit <= 100:
@@ -59,7 +67,7 @@ def select_resource_assignments_for_scheduling(
             raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
 
     selected: list[ResourceDemand] = []
-    for assignment in assignments:
+    for assignment in assignment_list:
         if not isinstance(assignment, ExternalResourceAssignment):
             raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
         if assignment.project_id != scheduled_project_id:
