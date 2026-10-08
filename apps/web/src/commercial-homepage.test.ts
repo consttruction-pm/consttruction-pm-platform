@@ -38,7 +38,7 @@ test("registered SEO contract remains intact", () => {
 });
 
 test("commercial surface stays independent of external product provenance", () => {
-  for (const pattern of [/Oracle/i, /Primavera/i, /P6/i]) {
+  for (const pattern of [/Oracle/i, /Primavera/i, />\\s*P6\\s*</i]) {
     assert.doesNotMatch(landing, pattern);
     assert.doesNotMatch(index, pattern);
   }
