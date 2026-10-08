@@ -954,3 +954,13 @@ Status: **runtime-verified and merged**
 ### Current continuation point
 - Mobile V1 Issue #1134 durable server idempotency persistence is now runtime-verified on current main.
 - Next Hasan action: fresh current-main/open-PR and assigned-issue audit. Only the first newly reproducible Backend/Database/Application/API/Import-Export gap is eligible; do not revive stale branches or duplicate Shared-Core/client-owned work.
+
+
+### 2026-10-08 — Fresh current-main checkpoint after PR #1318
+
+- Verified authoritative current `main`: **c55e03a6a2a9bdff36535a6d690565b35dc1befb** (merge of PR #1318, canonical CUBI asset family across Web/Desktop/Mobile).
+- Re-audited open Hasan-owned work against this exact tree. The concrete P6 Backend/API slices for Role, Expense, Relationship, Activity Period Actual, Mapping, Financial Period, Dependency Graph and Calendar lifecycle are already represented on current main; do not revive their historical branches/issues as implementation work.
+- Re-audited the broader V1/P0 backend surface: Field Operations, Change/Claim, Procurement/Commercial, Documents and Portfolio Control foundations are present as versioned Backend/Application contracts and persisted/read-model boundaries. Their remaining production composition/HTTP concerns must be separated from Shared Core/Jalal and Web/Javad ownership before implementation.
+- Current Calendar parity gaps (#1207/#1209) are Shared Scheduling Core semantics (base-calendar inheritance, exceptions and resource-calendar resolution), not a Hasan-side duplicate resolver/API implementation.
+- Issue #1236 remains an open Hasan-assigned item, but its stated remaining work is homepage logo/language presentation and therefore belongs to the Web/client presentation lane rather than Backend/API.
+- **Continuation rule:** start the next Hasan implementation only after a fresh exact-main audit proves a concrete Backend/Database/Application/API/Import-Export seam or defect. No stale branch, duplicate calculation engine, or speculative P6 semantics may be introduced.
