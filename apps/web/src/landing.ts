@@ -1,142 +1,141 @@
 type LandingLocale = "en" | "fa";
-
-const copy: Record<LandingLocale, {
-  nav: string[]; eyebrow: string; title: string; titleAccent: string; sub: string; body: string;
-  primary: string; secondary: string; capabilities: string; capabilityBody: string;
-  cards: Array<[string,string,string]>; cta: string; ctaBody: string; lang: string;
-}> = {
+type Feature = { icon: string; title: string; body: string };
+type LandingCopy = {
+  nav: string[]; eyebrow: string; title: string; accent: string; subtitle: string; body: string;
+  primary: string; secondary: string; featuresEyebrow: string; featuresTitle: string; featuresBody: string; features: Feature[];
+  techEyebrow: string; techTitle: string; techBody: string; techLink: string; techNodes: string[];
+  ctaTitle: string; ctaBody: string; signIn: string; start: string; language: string;
+  footerColumns: Array<{ title: string; links: string[] }>; footerNote: string;
+};
+const copy: Record<LandingLocale, LandingCopy> = {
   en: {
-    nav: ["Home", "Product", "Solutions", "Resources"],
-    eyebrow: "CUBI PLATFORM",
-    title: "Construction control,",
-    titleAccent: "built for decisions.",
-    sub: "Plan. Control. Build Smarter.",
-    body: "A construction project-control platform that connects scheduling, progress, cost, resources, documents and AI around one authoritative project workflow.",
-    primary: "Open Platform →", secondary: "Explore capabilities ↓",
-    capabilities: "One control room for the project",
-    capabilityBody: "Keep the most important project signals close to the work—without turning the homepage into a long marketing brochure.",
-    cards: [
-      ["Planning & Scheduling", "Authoritative project planning, schedules and dependencies.", "01"],
-      ["Project Controls", "Progress, cost and EVM signals for practical control.", "02"],
-      ["Resources & Documents", "Connect people, resources, records and project evidence.", "03"],
-      ["AI & Insights", "Turn project data into faster questions, summaries and decisions.", "04"],
+    nav: ["Home", "Platform", "Solutions", "Resources"],
+    eyebrow: "CONSTRUCTION & BUILDING INTELLIGENCE",
+    title: "Control every detail.", accent: "Build with confidence.",
+    subtitle: "Plan. Control. Build Smarter.",
+    body: "Bring schedules, cost, progress, resources and project evidence into one clear control room—so your team can make the next decision with confidence.",
+    primary: "Explore the Platform →", secondary: "See How It Works",
+    featuresEyebrow: "ONE CONNECTED WORKFLOW",
+    featuresTitle: "Everything your project needs to stay in control",
+    featuresBody: "Connect the work, the numbers and the evidence in one practical workspace built for construction teams.",
+    features: [
+      { icon: "⌁", title: "Project Controls", body: "Track milestones, progress and performance signals in one project view." },
+      { icon: "✧", title: "AI Assistant", body: "Turn project information into useful summaries, questions and next steps." },
+      { icon: "↗", title: "Resources & Cost", body: "Connect resource plans, cost visibility and delivery performance." },
+      { icon: "▤", title: "Documents & Contracts", body: "Keep project records and supporting evidence close to the workflow." },
+      { icon: "◎", title: "Team Collaboration", body: "Give stakeholders a shared view of project status and actions." },
+      { icon: "☁", title: "Cloud & Scalability", body: "Access a consistent project workspace as teams and projects grow." }
     ],
-    cta: "Ready to control the next project?",
-    ctaBody: "Open the platform and move from project data to project decisions.",
-    lang: "فارسی",
+    techEyebrow: "BUILT FOR REAL PROJECTS",
+    techTitle: "A connected foundation for better decisions",
+    techBody: "CUBI brings project planning, controls, information and intelligent assistance together while keeping the project workflow at the center.",
+    techLink: "Explore platform capabilities →",
+    techNodes: ["Project controls", "AI assistance", "Connected data", "Secure workflow"],
+    ctaTitle: "Bring your project into focus.",
+    ctaBody: "Start with one connected view of schedules, costs, progress and decisions.",
+    signIn: "Sign In", start: "Get Started", language: "فارسی",
+    footerColumns: [
+      { title: "Platform", links: ["Project Controls", "Planning & Scheduling", "Resources & Cost"] },
+      { title: "Solutions", links: ["Construction Teams", "Project Leadership", "Project Delivery"] },
+      { title: "Resources", links: ["Documentation", "Product Overview", "Contact"] }
+    ],
+    footerNote: "Plan. Control. Build Smarter."
   },
   fa: {
-    nav: ["خانه", "محصول", "راهکارها", "منابع"],
-    eyebrow: "پلتفرم CUBI",
-    title: "کنترل پروژه‌های ساخت،",
-    titleAccent: "برای تصمیم‌های بهتر.",
-    sub: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
-    body: "یک پلتفرم کنترل پروژه ساختمانی که زمان‌بندی، پیشرفت، هزینه، منابع، اسناد و هوش مصنوعی را در یک جریان کاری یکپارچه قرار می‌دهد.",
-    primary: "ورود به پلتفرم ←", secondary: "مشاهده قابلیت‌ها ↓",
-    capabilities: "یک اتاق کنترل برای کل پروژه",
-    capabilityBody: "مهم‌ترین سیگنال‌های پروژه را نزدیک به کار نگه دارید؛ بدون تبدیل صفحه اصلی به یک بروشور طولانی.",
-    cards: [
-      ["برنامه‌ریزی و زمان‌بندی", "برنامه پروژه، زمان‌بندی و روابط وابستگی در یک مرجع واحد.", "۰۱"],
-      ["کنترل پروژه", "پیشرفت، هزینه و شاخص‌های EVM برای کنترل عملیاتی.", "۰۲"],
-      ["منابع و اسناد", "افراد، منابع، سوابق و شواهد پروژه را به هم متصل کنید.", "۰۳"],
-      ["هوش مصنوعی و بینش", "داده پروژه را به پرسش، خلاصه و تصمیم سریع‌تر تبدیل کنید.", "۰۴"],
+    nav: ["خانه", "پلتفرم", "راهکارها", "منابع"],
+    eyebrow: "هوشمندی ساخت و مدیریت پروژه",
+    title: "جزئیات را کنترل کنید؛", accent: "با اطمینان بسازید.",
+    subtitle: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.",
+    body: "زمان‌بندی، هزینه، پیشرفت، منابع و شواهد پروژه را در یک اتاق کنترل روشن کنار هم قرار دهید تا تیم شما با اطمینان تصمیم بعدی را بگیرد.",
+    primary: "کاوش پلتفرم ←", secondary: "نحوه کار را ببینید",
+    featuresEyebrow: "جریان کاری یکپارچه",
+    featuresTitle: "همه آنچه پروژه برای کنترل بهتر نیاز دارد",
+    featuresBody: "کارها، اعداد و مستندات پروژه را در یک فضای کاری کاربردی برای تیم‌های ساخت به هم متصل کنید.",
+    features: [
+      { icon: "⌁", title: "کنترل پروژه", body: "نقاط عطف، پیشرفت و شاخص‌های عملکرد را در یک نمای پروژه دنبال کنید." },
+      { icon: "✧", title: "دستیار هوشمند", body: "اطلاعات پروژه را به خلاصه‌ها، پرسش‌ها و گام‌های بعدی مفید تبدیل کنید." },
+      { icon: "↗", title: "منابع و هزینه", body: "برنامه منابع، شفافیت هزینه و عملکرد اجرا را به هم متصل کنید." },
+      { icon: "▤", title: "اسناد و قراردادها", body: "سوابق و شواهد پشتیبان پروژه را در کنار جریان کار نگه دارید." },
+      { icon: "◎", title: "همکاری تیمی", body: "نمای مشترک و روشنی از وضعیت پروژه و اقدامات در اختیار ذی‌نفعان قرار دهید." },
+      { icon: "☁", title: "ابر و توسعه‌پذیری", body: "با رشد تیم‌ها و پروژه‌ها به فضای کاری یکپارچه دسترسی داشته باشید." }
     ],
-    cta: "برای کنترل پروژه بعدی آماده‌اید؟",
-    ctaBody: "وارد پلتفرم شوید و از داده پروژه به تصمیم پروژه برسید.",
-    lang: "EN",
-  },
+    techEyebrow: "برای پروژه‌های واقعی",
+    techTitle: "زیرساختی یکپارچه برای تصمیم‌های بهتر",
+    techBody: "کوبی برنامه‌ریزی، کنترل پروژه، اطلاعات و دستیار هوشمند را کنار هم قرار می‌دهد و جریان کاری پروژه را در مرکز نگه می‌دارد.",
+    techLink: "مشاهده قابلیت‌های پلتفرم ←",
+    techNodes: ["کنترل پروژه", "دستیار هوشمند", "داده یکپارچه", "جریان کاری امن"],
+    ctaTitle: "تصویر روشنی از پروژه بسازید.",
+    ctaBody: "با نمایی یکپارچه از زمان‌بندی، هزینه، پیشرفت و تصمیم‌ها شروع کنید.",
+    signIn: "ورود", start: "شروع کنید", language: "EN",
+    footerColumns: [
+      { title: "پلتفرم", links: ["کنترل پروژه", "برنامه‌ریزی و زمان‌بندی", "منابع و هزینه"] },
+      { title: "راهکارها", links: ["تیم‌های ساخت", "مدیریت پروژه", "تحویل پروژه"] },
+      { title: "منابع", links: ["مستندات", "معرفی محصول", "تماس"] }
+    ],
+    footerNote: "برنامه‌ریزی. کنترل. ساخت هوشمندتر."
+  }
 };
-
 let locale: LandingLocale = "en";
-
 function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
 }
-
 function renderLanding(container: HTMLElement): void {
   const t = copy[locale];
   setLandingDocumentLocale();
   container.innerHTML = `
-    <style>
-.cubi-compact-home{min-height:100vh;background:#fff;color:#132b4a;font-family:Inter,"Vazirmatn",system-ui,sans-serif}
-.cubi-compact-header{height:72px;display:flex;align-items:center;gap:2rem;padding:0 7%;border-bottom:1px solid #e6ebf1;background:#fff}
-.cubi-compact-brand{display:flex;align-items:center}.cubi-compact-brand img{width:108px;height:48px;object-fit:contain}
-.cubi-compact-header nav{display:flex;gap:2rem;margin:auto}.cubi-compact-header nav a{color:#34445a;text-decoration:none;font-size:12px;font-weight:650}
-.cubi-compact-actions{display:flex;align-items:center;gap:.7rem}.cubi-compact-actions button{border:0;background:transparent;color:#1976d2;font-weight:700;cursor:pointer}.cubi-compact-signin,.cubi-compact-start{padding:.62rem .9rem;border-radius:7px;text-decoration:none;font-size:12px;font-weight:750}.cubi-compact-signin{border:1px solid #d9e1ea;color:#253a52}.cubi-compact-start{background:#1976d2;color:#fff}
-.cubi-compact-hero{min-height:510px;display:grid;grid-template-columns:45% 55%;align-items:center;padding:3.6rem 7%;gap:2rem;background:linear-gradient(100deg,#071d36,#0f3a65);color:#fff}
-.cubi-compact-copy{max-width:590px}.cubi-compact-eyebrow{margin:0 0 .8rem;color:#39a6ff;font-size:12px;font-weight:850;letter-spacing:.13em}.cubi-compact-copy h1{margin:0;font-size:clamp(38px,4.6vw,58px);line-height:1.02;letter-spacing:-.045em}.cubi-compact-copy h1 span{display:block;color:#2c9bf4}.cubi-compact-copy h2{font-size:21px;margin:1rem 0 .8rem}.cubi-compact-copy>p:not(.cubi-compact-eyebrow){max-width:550px;color:#dce8f3;line-height:1.65;font-size:14px}
-.cubi-compact-hero-actions{display:flex;gap:.8rem;margin-top:1.3rem}.cubi-compact-primary,.cubi-compact-secondary{display:inline-flex;align-items:center;min-height:45px;padding:0 1.1rem;border-radius:7px;text-decoration:none;font-size:12px;font-weight:800}.cubi-compact-primary{background:#1976d2;color:#fff}.cubi-compact-secondary{border:1px solid rgba(255,255,255,.6);color:#fff}
-.cubi-compact-control{width:min(100%,620px);justify-self:end;background:#fff;border-radius:10px;color:#29425d;box-shadow:0 25px 65px rgba(0,0,0,.28);padding:15px}.cubi-control-top{display:flex;justify-content:space-between;font-size:10px;padding-bottom:12px;border-bottom:1px solid #e5ebf2}.cubi-control-top span{color:#2e9b6f;font-weight:850}.cubi-control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0}.cubi-control-grid div{border:1px solid #e6ecf2;border-radius:6px;padding:10px}.cubi-control-grid small{display:block;color:#7b8997;font-size:8px}.cubi-control-grid b{display:block;font-size:19px;margin:5px 0}.cubi-control-grid i{display:block;height:5px;border-radius:5px;background:linear-gradient(90deg,#1976d2 0 75%,#e9eef3 75%)}.cubi-control-grid div:nth-child(2) i{background:linear-gradient(90deg,#2e9b6f 0 88%,#e9eef3 88%)}.cubi-control-grid div:nth-child(3) i{background:linear-gradient(90deg,#f28c28 0 64%,#e9eef3 64%)}.cubi-control-timeline{height:100px;border:1px solid #e6ecf2;border-radius:6px;padding:16px 10px;display:flex;flex-direction:column;justify-content:center;gap:9px;background:#fbfdff}.cubi-control-timeline span{height:6px;border-radius:4px;background:#1976d2}.cubi-control-timeline span:nth-child(2){width:75%;background:#2e9b6f}.cubi-control-timeline span:nth-child(3){width:61%;background:#8b6bd9}.cubi-control-timeline span:nth-child(4){width:84%;background:#e36a51}.cubi-control-timeline span:nth-child(5){width:48%;background:#f28c28}.cubi-control-footer{display:flex;justify-content:space-between;font-size:8px;color:#7a8998;padding:10px 3px 0}
-.cubi-compact-capabilities{padding:4rem 7%}.cubi-compact-section-head{text-align:center;max-width:720px;margin:0 auto 2.2rem}.cubi-compact-section-head h2{font-size:28px;margin:.2rem 0;color:#122c4d}.cubi-compact-section-head>p:last-child{font-size:12px;line-height:1.7;color:#68788a}.cubi-compact-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #dfe7ee;border-left:1px solid #dfe7ee}.cubi-compact-grid article{min-height:185px;padding:22px;border-right:1px solid #dfe7ee;border-bottom:1px solid #dfe7ee}.cubi-compact-grid article>span{color:#1976d2;font-size:11px;font-weight:850}.cubi-compact-grid h3{font-size:14px;margin:25px 0 8px;color:#213b57}.cubi-compact-grid p{font-size:11px;line-height:1.65;color:#6b7b8d;margin:0}
-.cubi-compact-cta{padding:2.2rem 7%;display:flex;align-items:center;justify-content:space-between;gap:2rem;background:#eef7ff;border-top:1px solid #dce8f2}.cubi-compact-cta h2{margin:.2rem 0 .4rem;font-size:25px;color:#122c4d}.cubi-compact-cta p:last-child{margin:0;color:#64768a;font-size:12px}.cubi-compact-footer{min-height:100px;padding:1.4rem 7%;display:flex;align-items:center;gap:1.5rem;background:#071a30;color:#9fb2c5;font-size:10px}.cubi-compact-footer span{margin-right:auto}
-html:lang(fa) .cubi-compact-home{font-family:"Vazirmatn",Inter,system-ui,sans-serif}.cubi-compact-home[dir="rtl"]{}
-@media(max-width:900px){.cubi-compact-header{padding:10px 5%;height:auto;flex-wrap:wrap}.cubi-compact-header nav{order:3;width:100%;justify-content:center;overflow:auto}.cubi-compact-hero{grid-template-columns:1fr;padding:3.5rem 6%;min-height:auto}.cubi-compact-control{justify-self:start}.cubi-compact-grid{grid-template-columns:repeat(2,1fr)}.cubi-compact-capabilities,.cubi-compact-cta{padding-left:6%;padding-right:6%}}
-@media(max-width:560px){.cubi-compact-header nav a:nth-child(n+3){display:none}.cubi-compact-signin{display:none}.cubi-compact-copy h1{font-size:38px}.cubi-compact-grid{grid-template-columns:1fr}.cubi-control-grid{grid-template-columns:1fr}.cubi-compact-cta{flex-direction:column;align-items:flex-start}.cubi-compact-footer{flex-wrap:wrap;padding-left:6%;padding-right:6%}.cubi-compact-footer span{margin:0}}
-</style>\n    <div class="cubi-compact-home cubi-reference-home" id="home">
-      <header class="cubi-compact-header">
-        <a class="cubi-compact-brand" href="./" aria-label="CUBI Platform home">
-          <img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" />
-        </a>
-        <nav aria-label="Primary navigation">
-          <a href="#home">${t.nav[0]}</a><a href="#capabilities">${t.nav[1]}</a><a href="#capabilities">${t.nav[2]}</a><a href="#resources">${t.nav[3]}</a>
+    <div class="cubi-reference-home cubi-exact-home" id="home">
+      <header class="cubi-exact-header">
+        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" /></a>
+        <nav class="cubi-exact-nav" aria-label="Primary navigation">
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="#capabilities">${t.nav[1]}</a><a href="#technology">${t.nav[2]}</a><a href="#resources">${t.nav[3]}</a>
         </nav>
-        <div class="cubi-compact-actions">
-          <button id="cubi-language" type="button" aria-label="Language selector">${t.lang}</button>
-          <a href="./app/" class="cubi-compact-signin">${locale === "fa" ? "ورود" : "Sign In"}</a>
-          <a href="./app/" class="cubi-compact-start">${locale === "fa" ? "شروع" : "Get Started"} →</a>
+        <div class="cubi-exact-actions">
+          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">${t.language}</button>
+          <a href="./app/" class="cubi-exact-signin">${t.signIn}</a><a href="./app/" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
-
       <main>
-        <section class="cubi-compact-hero" aria-labelledby="cubi-hero-title">
-          <div class="cubi-compact-copy">
-            <p class="cubi-compact-eyebrow">${t.eyebrow}</p>
-            <h1 id="cubi-hero-title">${t.title} <span>${t.titleAccent}</span></h1>
-            <h2>${t.sub}</h2>
-            <p>${t.body}</p>
-            <div class="cubi-compact-hero-actions">
-              <a class="cubi-compact-primary" href="./app/">${t.primary}</a>
-              <a class="cubi-compact-secondary" href="#capabilities">${t.secondary}</a>
+        <section class="cubi-exact-hero" aria-labelledby="cubi-hero-title">
+          <div class="cubi-exact-hero-copy">
+            <p class="cubi-exact-eyebrow">${t.eyebrow}</p><h1 id="cubi-hero-title">${t.title}<span>${t.accent}</span></h1><h2>${t.subtitle}</h2><p>${t.body}</p>
+            <div class="cubi-exact-hero-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#technology"><span class="play" aria-hidden="true">▶</span>${t.secondary}</a></div>
+          </div>
+          <div class="cubi-exact-dashboard" role="img" aria-label="Illustrative CUBI project dashboard showing schedule, progress and performance">
+            <aside class="cubi-dash-sidebar"><img src="./cubi-platform-logo-primary-dark.svg" width="26" height="26" alt="" /><strong>CUBI</strong><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
+            <div class="cubi-dash-main"><div class="cubi-dash-title"><strong>Project Control Center</strong><span>PROJECT / 026</span></div>
+              <div class="cubi-gantt" aria-hidden="true"><i style="width:76%"></i><i style="width:58%"></i><i style="width:82%"></i><i style="width:49%"></i><i style="width:67%"></i><i style="width:38%"></i></div>
+              <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>Progress trend</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>Schedule</b><div class="cubi-ring"><strong>78%</strong></div><small>On track</small></div><div class="cubi-ai-card"><b>AI insight</b><div class="cubi-ai-bubble" aria-hidden="true">✧</div><small>Review next milestone</small></div></div>
             </div>
-          </div>
-          <div class="cubi-compact-control" aria-label="Project control dashboard preview">
-            <div class="cubi-control-top"><strong>CUBI / Project Control</strong><span>LIVE</span></div>
-            <div class="cubi-control-grid">
-              <div><small>Schedule</small><b>78%</b><i style="width:78%"></i></div>
-              <div><small>Cost Performance</small><b>0.92</b><i style="width:92%"></i></div>
-              <div><small>Progress</small><b>84%</b><i style="width:84%"></i></div>
-            </div>
-            <div class="cubi-control-timeline"><span></span><span></span><span></span><span></span><span></span></div>
-            <div class="cubi-control-footer"><span>Planning</span><span>Cost</span><span>Resources</span><span>AI</span></div>
+            <aside class="cubi-progress-card"><div class="cubi-progress-ring"><strong>84%</strong></div><b>Project progress</b><div><span>Plan</span><span>Actual</span></div></aside>
           </div>
         </section>
-
-        <section class="cubi-compact-capabilities" id="capabilities" aria-labelledby="capabilities-title">
-          <div class="cubi-compact-section-head"><p class="cubi-compact-eyebrow">CONTROL CENTER</p><h2 id="capabilities-title">${t.capabilities}</h2><p>${t.capabilityBody}</p></div>
-          <div class="cubi-compact-grid">
-            ${t.cards.map(([title, body, number]) => `<article><span>${number}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}
+        <section class="cubi-exact-features" id="capabilities">
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
+          <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon" aria-hidden="true">${f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
+        </section>
+        <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
+          <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
+            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
+            <a class="cubi-exact-outline" href="./app/">${t.techLink}</a>
+          </div>
+          <div class="cubi-tech-diagram" aria-label="Connected platform capabilities"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
+            <div class="cubi-tech-node n1"><span>${t.techNodes[0]}</span></div><div class="cubi-tech-node n2"><span>${t.techNodes[1]}</span></div><div class="cubi-tech-node n3"><span>${t.techNodes[2]}</span></div><div class="cubi-tech-node n4"><span>${t.techNodes[3]}</span></div>
           </div>
         </section>
-
-        <section class="cubi-compact-cta" id="resources">
-          <div><p class="cubi-compact-eyebrow">CUBI PLATFORM</p><h2>${t.cta}</h2><p>${t.ctaBody}</p></div>
-          <a class="cubi-compact-primary" href="./app/">${t.primary}</a>
-        </section>
+        <section class="cubi-exact-cta" id="resources"><div><h2>${t.ctaTitle}</h2><p>${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">${t.secondary}</a></div></section>
       </main>
-      <footer class="cubi-compact-footer">
-        <img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" />
-        <span>Plan. Control. Build Smarter.</span>
-        <small>© 2026 CUBI Platform</small>
+      <footer class="cubi-exact-footer">
+        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["#capabilities", "#technology", "#capabilities"], ["#capabilities", "#technology", "#resources"], ["#resources", "#technology", "#resources"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "#home"}">${link}</a>`).join("")}</div>`; }).join("")}
+        <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
     </div>`;
-
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     locale = locale === "en" ? "fa" : "en";
     renderLanding(container);
   });
 }
-
 export function renderLandingPage(container: HTMLElement): void {
   renderLanding(container);
 }

@@ -8,18 +8,21 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("CUBI homepage follows the active compact commercial structure", () => {
+test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
-    /cubi-compact-home/,
-    /cubi-compact-header/,
-    /cubi-compact-hero/,
-    /cubi-compact-control/,
-    /cubi-compact-capabilities/,
-    /cubi-compact-cta/,
-    /cubi-compact-footer/,
+    /cubi-reference-home/,
+    /cubi-exact-home/,
+    /cubi-exact-header/,
+    /cubi-exact-hero/,
+    /cubi-exact-dashboard/,
+    /cubi-exact-features/,
+    /cubi-exact-tech/,
+    /cubi-exact-cta/,
+    /cubi-exact-footer/,
     /cubi-platform-logo-primary\.svg/,
     /cubi-platform-logo-primary-dark\.svg/,
-  ]) assert.match(landing, pattern);
+    /cubi-hero-field\.svg/,
+  ]) assert.match(landing + styles, pattern);
 });
 
 test("registered SEO contract remains intact", () => {
@@ -39,8 +42,26 @@ test("commercial surface stays independent of external product provenance", () =
 });
 
 
-test("compact homepage includes bilingual control and product-control capabilities", () => {
+test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = "en" \| "fa"/);
   assert.match(landing, /cubi-language/);
-  for (const pattern of [/Planning & Scheduling|برنامه‌ریزی و زمان‌بندی/, /Project Controls|کنترل پروژه/, /Resources & Documents|منابع و اسناد/, /AI & Insights|هوش مصنوعی و بینش/]) assert.match(landing, pattern);
+  for (const pattern of [
+    /Project Controls|کنترل پروژه/,
+    /AI Assistant|دستیار هوشمند/,
+    /Resources & Cost|منابع و هزینه/,
+    /Documents & Contracts|اسناد و قراردادها/,
+    /Team Collaboration|همکاری تیمی/,
+    /Cloud & Scalability|ابر و توسعه‌پذیری/,
+  ]) assert.match(landing, pattern);
+});
+
+test("Persian homepage mirrors dashboard and technology layout in RTL mode", () => {
+  assert.match(styles, /\[dir="rtl"\] \.cubi-exact-dashboard\s*\{[^}]*margin-right:\s*-1\.5rem/);
+  assert.match(styles, /\[dir="rtl"\] \.cubi-tech-node\.n1,[\s\S]*?right:\s*0/);
+  assert.match(styles, /\[dir="rtl"\] \.cubi-footer-brand img\s*\{[^}]*object-position:\s*right center/);
+});
+
+test("homepage footer links target the relevant page sections", () => {
+  assert.match(landing, /targets = \[\["#capabilities", "#technology", "#capabilities"\], \["#capabilities", "#technology", "#resources"\], \["#resources", "#technology", "#resources"\]\]/);
+  assert.doesNotMatch(landing, /col\.links\.map\(\(link\) => `<a href="#resources">/);
 });
