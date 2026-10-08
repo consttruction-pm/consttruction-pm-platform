@@ -129,11 +129,11 @@ class PostgresP6RoleRepository:
         if row is None:
             if expected_revision not in (None, 0):
                 raise ValueError("REVISION_CONFLICT")
-            stored = P6Role(role.tenant_id, role.project_id, role.project_revision, role.role_id, role.name, role.description, 0)
+            stored = P6Role(role.tenant_id, role.project_id, role.project_revision, role.role_id, role.name, role.description, 1)
             self.connection.execute(
                 "INSERT INTO p6_role VALUES (%s,%s,%s,%s,%s,%s,%s)",
                 (stored.tenant_id, stored.project_id, stored.project_revision, stored.role_id,
-                 stored.name, stored.description, 0),
+                 stored.name, stored.description, stored.record_revision),
             )
             return stored
         current = int(row[3])
