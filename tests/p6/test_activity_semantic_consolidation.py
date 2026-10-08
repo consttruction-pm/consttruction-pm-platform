@@ -47,6 +47,13 @@ def test_activity_consolidation_evidence_is_registered_without_aliases():
     unit_overrides = {
         "Baseline1Duration": "working-time",
         "Baseline1PlannedDuration": "working-time",
+        "Baseline1PlannedExpenseCost": "currency",
+        "Baseline1PlannedLaborCost": "currency",
+        "Baseline1PlannedLaborUnits": "units",
+        "Baseline1PlannedMaterialCost": "currency",
+        "Baseline1PlannedNonLaborCost": "currency",
+        "Baseline1PlannedNonLaborUnits": "units",
+        "Baseline1PlannedTotalCost": "currency",
     }
 
     assert len(evidence["fields"]) == 83
