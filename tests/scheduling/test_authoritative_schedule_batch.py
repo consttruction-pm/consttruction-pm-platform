@@ -492,3 +492,59 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
+
+
+@pytest.mark.parametrize(
+    "changed_option",
+    [
+        {"critical_activity_float_threshold": 1.0},
+        {"make_open_ended_activities_critical": True},
+        {"multiple_float_paths_enabled": True},
+        {"maximum_multiple_float_paths": 3},
+        {"use_expected_finish_dates": True},
+        {"data_date": date(2026, 10, 2)},
+    ],
+)
+def test_shared_graph_rejects_calculation_option_mismatch_independent_of_order(
+    changed_option,
+):
+    first = snapshot("P1", date(2026, 10, 10))
+    second = snapshot("P2", date(2026, 10, 20), options=ScheduleOptions(**changed_option))
+    edge = Relationship("P1-A", "P2-A")
+
+    errors = []
+    for ordered in ((first, second), (second, first)):
+        with pytest.raises(
+            UnsupportedMultiProjectSchedulingError,
+            match="MULTI_PROJECT_SCHEDULE_OPTIONS_MISMATCH:",
+        ) as exc:
+            execute_authoritative_schedule_batch(
+                ordered,
+                resolvers={"P1": resolver(), "P2": resolver()},
+                external_relationships=(edge,),
+            )
+        errors.append(str(exc.value))
+
+    assert errors[0] == errors[1]
+    assert errors[0].endswith(",".join(sorted(changed_option)))
+
+
+def test_shared_graph_allows_project_routing_options_to_differ_when_not_used_globally():
+    first = snapshot(
+        "P1",
+        date(2026, 10, 10),
+        options=ScheduleOptions(include_external_res_ass=False),
+    )
+    second = snapshot(
+        "P2",
+        date(2026, 10, 20),
+        options=ScheduleOptions(include_external_res_ass=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        (first, second),
+        resolvers={"P1": resolver(), "P2": resolver()},
+        external_relationships=(Relationship("P1-A", "P2-A"),),
+    )
+
+    assert {item.project_id for item in result.projects} == {"P1", "P2"}
