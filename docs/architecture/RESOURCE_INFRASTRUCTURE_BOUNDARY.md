@@ -30,3 +30,7 @@ This is intentionally a containment gate, not a claim that the Resource package 
 2. Migrate Resource production consumers from legacy scope/idempotency to canonical adapters with dedicated regression coverage.
 3. Re-run full repository search and CI.
 4. Remove the legacy modules only after supported consumers reach zero.
+
+## Current-main reconciliation — 2026-10-08
+
+PR #1297 merged the scoped idempotency regression expectation fix into `main`. This document/PR #1296 must be evaluated against that current baseline; #1296 does not duplicate the Resource test change and remains limited to boundary containment and enforcement.
