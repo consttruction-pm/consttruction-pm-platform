@@ -1,3 +1,5 @@
+> **Historical snapshot notice:** This audit was authored on 2026-10-05 and contains historical current-main SHAs from that date. The live repository head is maintained separately in [CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md](CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md). Do not use SHAs in this historical audit as the current integration baseline.
+
 # Project-wide integrity, performance and architecture audit — 2026-10-05
 
 ## Audit scope
