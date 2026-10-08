@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Iterable
 
 from .calendar import WorkingCalendar, WorkingTimeResolver
-from .calendar_exceptions import CalendarException, CalendarExceptionResolver
+from .calendar_exceptions import CalendarException, CalendarExceptionResolver, CalendarExceptionType
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 
 
@@ -80,7 +80,25 @@ class ExceptionAwareWorkingCalendar:
 def _interval_hours(interval: tuple[time, time]) -> Decimal:
     start, end = interval
     anchor = date(2000, 1, 1)
-    return Decimal((datetime.combine(anchor, end) - datetime.combine(anchor, start)).total_seconds()) / Decimal("3600")
+    return (
+        Decimal(_timedelta_microseconds(datetime.combine(anchor, end) - datetime.combine(anchor, start)))
+        / Decimal("3600000000")
+    )
+
+
+def _timedelta_microseconds(value: timedelta) -> int:
+    return (
+        value.days * 86_400_000_000
+        + value.seconds * 1_000_000
+        + value.microseconds
+    )
+
+
+def _hours_to_microseconds(hours: Decimal) -> int:
+    microseconds = hours * Decimal("3600000000")
+    if microseconds != microseconds.to_integral_value():
+        raise ValueError("total_work_hours is more precise than one microsecond")
+    return int(microseconds)
 
 
 def _intervals_for_total_hours(
@@ -102,7 +120,9 @@ def _intervals_for_total_hours(
             result.append((start, end))
             remaining -= available
             continue
-        end_dt = datetime.combine(target_date, start) + timedelta(hours=float(remaining))
+        end_dt = datetime.combine(target_date, start) + timedelta(
+            microseconds=_hours_to_microseconds(remaining)
+        )
         result.append((start, end_dt.time()))
         remaining = Decimal("0")
         break
@@ -160,13 +180,13 @@ class ExceptionAwareWorkingTimeCalendar:
 
     def intervals_for(self, value: date):
         rule = self.effective_rule(value)
-        if rule.kind is None or rule.kind is rule.kind.RESET_TO_STANDARD:
+        if rule.kind is None or rule.kind is CalendarExceptionType.RESET_TO_STANDARD:
             return self._standard_intervals(value)
-        if rule.kind is rule.kind.NONWORK:
+        if rule.kind is CalendarExceptionType.NONWORK:
             return ()
-        if rule.kind is rule.kind.DETAILED_WORK_HOURS:
+        if rule.kind is CalendarExceptionType.DETAILED_WORK_HOURS:
             return rule.intervals
-        if rule.kind is rule.kind.TOTAL_WORK_HOURS:
+        if rule.kind is CalendarExceptionType.TOTAL_WORK_HOURS:
             standard = self._standard_intervals(value)
             return _intervals_for_total_hours(value, standard, rule.total_work_hours or Decimal("0"))
         raise ValueError(f"unsupported effective calendar rule: {rule.kind}")
