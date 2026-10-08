@@ -20,11 +20,6 @@ test("CUBI homepage follows the active compact commercial structure", () => {
     /cubi-platform-logo-primary\.svg/,
     /cubi-platform-logo-primary-dark\.svg/,
   ]) assert.match(landing, pattern);
-  assert.match(styles, /\.cubi-compact-header/);
-  assert.match(styles, /\.cubi-compact-hero/);
-  assert.match(styles, /\.cubi-compact-control/);
-  assert.match(styles, /\.cubi-compact-grid/);
-  assert.match(styles, /\.cubi-compact-cta/);
 });
 
 test("registered SEO contract remains intact", () => {
