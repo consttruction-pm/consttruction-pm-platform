@@ -106,6 +106,7 @@ class SQLiteCalendarSnapshotRepository:
         self.connection.commit()
 
     def save(self, calendar: CalendarMaster, calendar_definition: CalendarDefinition) -> CalendarSnapshotRecord:
+        was_in_transaction = self.connection.in_transaction
         calendar.validate()
         record = _record(calendar, calendar_definition.canonical_snapshot())
         canonical_snapshot = _canonical_json(record.snapshot)
@@ -137,7 +138,8 @@ class SQLiteCalendarSnapshotRepository:
             raise CalendarPersistenceError("REVISION_CONFLICT")
         if str(existing[1]) != canonical_snapshot:
             raise CalendarPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
-        self.connection.commit()
+        if not was_in_transaction:
+                self.connection.commit()
         return record
 
     def get(self, calendar: CalendarMaster) -> CalendarSnapshotRecord | None:

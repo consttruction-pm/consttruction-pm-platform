@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
+from .backend_p0.transactions import TransactionManager
 from .calendar_exception_repository import CalendarException, CalendarExceptionRepository
 from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
 from .calendar_snapshot_repository import CalendarSnapshotRepository
@@ -48,6 +50,7 @@ class P6CalendarAPI:
     exception_repository: CalendarExceptionRepository
     authorization_policy: AuthorizationPolicy
     work_hours_repository: CalendarWorkHourRepository | None = None
+    transaction_manager: TransactionManager | None = None
 
     def list(self, scope: BackendScope, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
@@ -107,50 +110,70 @@ class P6CalendarAPI:
 
     def copy(self, scope: BackendScope, source_calendar_id: str, source_calendar_version: str, target_calendar_id: str, target_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
-        source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
-        if source is None:
-            raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
-        if self.calendar_repository.get(scope, target_calendar_id, target_calendar_version) is not None:
-            raise CalendarPersistenceError("CALENDAR_ALREADY_EXISTS")
-        target = CalendarMaster(
-            scope=scope, calendar_id=target_calendar_id, calendar_version=target_calendar_version,
-            kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
-            base_calendar_version=source.base_calendar_version, calendar_type=source.calendar_type,
-        )
-        stored = self.calendar_repository.save(target, expected_revision=0)
-        snapshot = self.snapshot_repository.get(source)
-        if snapshot is not None:
-            self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
-        for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
-            copied = CalendarException(
-                scope, target_calendar_id, target_calendar_version, exception.exception_date,
-                exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+        with self._transaction():
+            source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
+            if source is None:
+                raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+            if self.calendar_repository.get(scope, target_calendar_id, target_calendar_version) is not None:
+                raise CalendarPersistenceError("CALENDAR_ALREADY_EXISTS")
+            target = CalendarMaster(
+                scope=scope, calendar_id=target_calendar_id, calendar_version=target_calendar_version,
+                kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
+                base_calendar_version=source.base_calendar_version, calendar_type=source.calendar_type,
             )
-            self.exception_repository.save(copied)
-        return self._calendar_dto(stored)
+            stored = self.calendar_repository.save(target, expected_revision=0)
+            snapshot = self.snapshot_repository.get(source)
+            if snapshot is not None:
+                self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
+            for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
+                self.exception_repository.save(CalendarException(
+                    scope, target_calendar_id, target_calendar_version, exception.exception_date,
+                    exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+                ))
+            if self.work_hours_repository is not None:
+                for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+                    for rule in self.work_hours_repository.list(scope, source_calendar_id, source_calendar_version, kind):
+                        self.work_hours_repository.save(CalendarWorkHourRule(
+                            scope, target_calendar_id, target_calendar_version, rule.kind,
+                            rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals,
+                        ))
+            return self._calendar_dto(stored)
 
     def replace(self, scope: BackendScope, target_calendar_id: str, target_calendar_version: str, source_calendar_id: str, source_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
-        source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
-        if source is None:
-            raise CalendarPersistenceError("SOURCE_CALENDAR_NOT_FOUND")
-        target = self.calendar_repository.get(scope, target_calendar_id, target_calendar_version)
-        if target is None:
-            raise CalendarPersistenceError("TARGET_CALENDAR_NOT_FOUND")
-        snapshot = self.snapshot_repository.get(source)
-        if snapshot is None:
-            raise CalendarPersistenceError("SOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
-        target_snapshot = self.snapshot_repository.get(target)
-        if target_snapshot is not None and target_snapshot.snapshot != snapshot.snapshot:
-            raise CalendarPersistenceError("TARGET_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT")
-        replacement = CalendarMaster(
-            scope=scope, calendar_id=target.calendar_id, calendar_version=target.calendar_version,
-            kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
-            base_calendar_version=source.base_calendar_version, calendar_type=target.calendar_type,
-        )
-        stored = self.calendar_repository.save(replacement, expected_revision=target.record_revision)
-        self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
-        return self._calendar_dto(stored)
+        with self._transaction():
+            source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
+            if source is None:
+                raise CalendarPersistenceError("SOURCE_CALENDAR_NOT_FOUND")
+            target = self.calendar_repository.get(scope, target_calendar_id, target_calendar_version)
+            if target is None:
+                raise CalendarPersistenceError("TARGET_CALENDAR_NOT_FOUND")
+            snapshot = self.snapshot_repository.get(source)
+            if snapshot is None:
+                raise CalendarPersistenceError("SOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
+            target_snapshot = self.snapshot_repository.get(target)
+            if target_snapshot is not None and target_snapshot.snapshot != snapshot.snapshot:
+                raise CalendarPersistenceError("TARGET_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT")
+            replacement = CalendarMaster(
+                scope=scope, calendar_id=target.calendar_id, calendar_version=target.calendar_version,
+                kind=source.kind, name=source.name, base_calendar_id=source.base_calendar_id,
+                base_calendar_version=source.base_calendar_version, calendar_type=target.calendar_type,
+            )
+            stored = self.calendar_repository.save(replacement, expected_revision=target.record_revision)
+            self.snapshot_repository.save(stored, _definition_from_snapshot(snapshot.snapshot, source.kind))
+            for exception in self.exception_repository.list(scope, source_calendar_id, source_calendar_version):
+                self.exception_repository.save(CalendarException(
+                    scope, target_calendar_id, target_calendar_version, exception.exception_date,
+                    exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+                ))
+            if self.work_hours_repository is not None:
+                for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+                    for rule in self.work_hours_repository.list(scope, source_calendar_id, source_calendar_version, kind):
+                        self.work_hours_repository.save(CalendarWorkHourRule(
+                            scope, target_calendar_id, target_calendar_version, rule.kind,
+                            rule.weekday, rule.is_working_day, rule.total_work_hours, rule.intervals,
+                        ))
+            return self._calendar_dto(stored)
 
     def save_exception(self, exception: CalendarException, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(exception.scope, auth_context, Permission.PROJECT_WRITE)
@@ -161,6 +184,11 @@ class P6CalendarAPI:
         self._authorize(scope, auth_context, Permission.PROJECT_READ)
         return tuple(item.canonical_snapshot() for item in self.exception_repository.list(scope, calendar_id, calendar_version))
 
+
+    def _transaction(self):
+        if self.transaction_manager is None:
+            return nullcontext()
+        return self.transaction_manager.transaction()
 
     def _work_hours(self) -> CalendarWorkHourRepository:
         if self.work_hours_repository is None:
