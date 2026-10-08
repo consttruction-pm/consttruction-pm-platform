@@ -412,3 +412,106 @@ def test_postgres_list_rejects_corrupt_record_revision():
     repo = PostgresScheduleInputSnapshotRepository(FakeConnection())
     with pytest.raises(ScheduleSnapshotPersistenceError, match="INVALID_RECORD_REVISION"):
         repo.list(BackendScope("T-1", "P-1", 7))
+
+
+def test_sqlite_legacy_snapshot_is_explicitly_migratable_to_v2_identity():
+    from dataclasses import replace
+
+    original_context = make_context(
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        actor_id="actor-legacy",
+        request_id="request-legacy",
+        idempotency_key="idem-legacy",
+    )
+    v2_snapshot = build_snapshot(
+        make_input(), original_context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    legacy_snapshot = replace(
+        v2_snapshot,
+        calculation_identity=original_context.legacy_calculation_identity,
+        calculation_identity_version=1,
+    )
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE schedule_input_snapshot (
+            tenant_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL,
+            snapshot_id TEXT NOT NULL,
+            snapshot_hash TEXT NOT NULL,
+            canonical_payload TEXT NOT NULL,
+            calculation_identity TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            record_revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, project_id, snapshot_id)
+        )"""
+    )
+    connection.execute(
+        "INSERT INTO schedule_input_snapshot "
+        "(tenant_id,project_id,project_revision,snapshot_id,snapshot_hash,canonical_payload,"
+        "calculation_identity,created_at,record_revision) VALUES (?,?,?,?,?,?,?,?,?)",
+        (
+            legacy_snapshot.scope.tenant_id,
+            legacy_snapshot.scope.project_id,
+            legacy_snapshot.scope.project_revision,
+            legacy_snapshot.snapshot_id,
+            legacy_snapshot.snapshot_hash,
+            legacy_snapshot.canonical_payload,
+            legacy_snapshot.calculation_identity,
+            legacy_snapshot.created_at.isoformat(),
+            legacy_snapshot.record_revision,
+        ),
+    )
+    connection.commit()
+
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    loaded = repo.get(legacy_snapshot.scope, legacy_snapshot.snapshot_id)
+    assert loaded is not None
+    assert loaded.calculation_identity_version == 1
+
+    replay_context = CalculationContext(
+        **{
+            **original_context.to_dict(),
+            "calculation_timestamp": "2026-09-22T08:00:00+00:00",
+            "actor_id": "actor-replay",
+            "request_id": "request-replay",
+            "idempotency_key": "idem-replay",
+        }
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_IDENTITY_MIGRATION_SOURCE_MISMATCH",
+    ):
+        repo.migrate_calculation_identity(
+            legacy_snapshot.scope,
+            legacy_snapshot.snapshot_id,
+            replay_context,
+        )
+
+    migrated = repo.migrate_calculation_identity(
+        legacy_snapshot.scope,
+        legacy_snapshot.snapshot_id,
+        original_context,
+    )
+    assert migrated.calculation_identity_version == 2
+    assert migrated.calculation_identity == original_context.calculation_identity
+    assert migrated.snapshot_hash == legacy_snapshot.snapshot_hash
+    assert migrated.canonical_payload == legacy_snapshot.canonical_payload
+
+    reread = repo.get(legacy_snapshot.scope, legacy_snapshot.snapshot_id)
+    assert reread == migrated
+
+
+def test_snapshot_validate_rejects_unknown_calculation_identity_version():
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    candidate = snapshot.__class__(
+        **{**snapshot.__dict__, "calculation_identity_version": 3}
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="INVALID_CALCULATION_IDENTITY_VERSION",
+    ):
+        candidate.validate()
