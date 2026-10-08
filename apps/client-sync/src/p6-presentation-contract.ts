@@ -283,7 +283,12 @@ export function updateFieldPresentation(
 
 export function reorderFields(layout: LayoutDefinition, orderedFieldIds: readonly string[]): LayoutDefinition {
   const current = new Set(layout.columns.map((column) => column.field_id));
-  if (current.size !== orderedFieldIds.length || orderedFieldIds.some((id) => !current.has(id))) {
+  const requested = new Set(orderedFieldIds);
+  if (
+    current.size !== orderedFieldIds.length ||
+    requested.size !== current.size ||
+    orderedFieldIds.some((id) => !current.has(id))
+  ) {
     throw new Error("INVALID_LAYOUT_ORDER");
   }
   const byId = new Map(layout.columns.map((column) => [column.field_id, column]));
