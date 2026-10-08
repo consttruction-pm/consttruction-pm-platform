@@ -12,11 +12,8 @@ from .errors import (
     validation_error,
 )
 from .errors import OptimisticLockError
-from .idempotency import (
-    MutationIdempotencyStore,
-    assignment_fingerprint,
-    resource_fingerprint,
-)
+from ..backend_p0.idempotency import ScopedIdempotencyStore
+from .idempotency import assignment_fingerprint, resource_fingerprint
 from .models import Resource, ResourceAssignment
 from .repository import ResourceRepository
 from ..backend_p0.transactions import TransactionManager
@@ -33,7 +30,7 @@ class ResourceApplicationService:
     repository: ResourceRepository
     context: ProjectContext
     transaction_manager: TransactionManager
-    idempotency_store: MutationIdempotencyStore | None = None
+    idempotency_store: ScopedIdempotencyStore | None = None
     authorization_policy: AuthorizationPolicy | None = None
 
     def register_resource(
@@ -62,9 +59,11 @@ class ResourceApplicationService:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
         try:
             return self.idempotency_store.execute(
-                self.context,
-                key=idempotency_key or "",
+                self.context.tenant_id,
+                self.context.company_id,
+                self.context.project_id,
                 operation="register_resource",
+                key=idempotency_key or "",
                 fingerprint=resource_fingerprint(resource, expected_revision),
                 mutation=mutation,
                 replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
@@ -105,9 +104,11 @@ class ResourceApplicationService:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
         try:
             return self.idempotency_store.execute(
-                self.context,
-                key=idempotency_key or "",
+                self.context.tenant_id,
+                self.context.company_id,
+                self.context.project_id,
                 operation="assign_resource",
+                key=idempotency_key or "",
                 fingerprint=assignment_fingerprint(assignment, expected_revision),
                 mutation=mutation,
                 replay=lambda: next(
