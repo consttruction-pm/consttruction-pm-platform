@@ -49,6 +49,37 @@ test("unchanged Gantt presentation data reuses cached scale and geometry", () =>
   assert.strictEqual(repeatedGeometry, geometry);
 });
 
+test("repeated Gantt presentation renders eliminate repeated date parsing", () => {
+  const renderActivities = activities.map((activity) => ({ ...activity, gantt: activity.gantt ? { ...activity.gantt } : undefined }));
+  let parseCount = 0;
+  const originalParse = Date.parse;
+  Date.parse = ((value: string) => {
+    parseCount += 1;
+    return originalParse(value);
+  }) as typeof Date.parse;
+
+  try {
+    const scale = createGanttScale(renderActivities);
+    assert.ok(scale);
+    renderActivities.forEach((activity) => {
+      createGanttBarGeometry(activity, scale);
+    });
+    const firstRenderParses = parseCount;
+
+    parseCount = 0;
+    const repeatedScale = createGanttScale(renderActivities);
+    assert.strictEqual(repeatedScale, scale);
+    renderActivities.forEach((activity) => {
+      createGanttBarGeometry(activity, scale);
+    });
+
+    assert.equal(firstRenderParses, renderActivities.length * 4);
+    assert.equal(parseCount, 0);
+  } finally {
+    Date.parse = originalParse;
+  }
+});
+
 test("Gantt bar geometry maps scheduled dates to visual percentages", () => {
   const scale = createGanttScale(activities);
   assert.ok(scale);
