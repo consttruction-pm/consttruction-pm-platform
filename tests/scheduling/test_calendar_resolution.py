@@ -572,3 +572,43 @@ def test_registry_without_exception_layers_preserves_resolver_identity():
     base = WorkingTimeResolver(WorkingCalendar())
     registry = CalendarResolverRegistry(day_resolvers={"project@1": base})
     assert registry.resolve(CalendarReference("project", "1")) is base
+
+
+def test_registry_exception_overlay_preserves_jalali_input_as_gregorian_arithmetic():
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import (
+        CalendarException,
+        CalendarExceptionType,
+    )
+    from construction_pm.scheduling.calendar_system import CalendarSystem, JalaliDate
+
+    target = JalaliDate(1405, 1, 1)
+    reference = CalendarReference(
+        "jalali-project",
+        "1",
+        system=CalendarSystem.JALALI,
+    )
+    base = WorkingTimeResolver(
+        WorkingCalendar.from_calendar_dates(
+            system=CalendarSystem.JALALI,
+            holidays=(),
+        )
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={"jalali-project@1": base},
+        exception_layers={
+            "jalali-project@1": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        target,
+                        CalendarExceptionType.NONWORK,
+                        calendar_system=CalendarSystem.JALALI,
+                    ),
+                )
+            )
+        },
+    )
+
+    resolved = registry.resolve(reference)
+    assert resolved.is_working_day(target) is False
+    assert resolved.is_working_day(target.to_gregorian()) is False
