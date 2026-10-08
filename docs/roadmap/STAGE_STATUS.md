@@ -1210,3 +1210,14 @@ Status: **implementation in progress; CI acceptance pending**
 - Added negative tests for contract-version and tenant/project/revision scope mismatches.
 - No client-side CPM/calendar/EVM/resource/cost calculations introduced.
 - Exact-head Client Typecheck + ConstructionPM CI are required before closure.
+
+
+### Stage 33.4.66 — Shared-Graph Schedule Option Consistency
+Status: **implemented on main; exact-head CI pending**
+- Added a deterministic fail-fast guard before a single shared multi-project graph is evaluated.
+- Calculation-affecting ScheduleOptions mismatches now return `MULTI_PROJECT_SCHEDULE_OPTIONS_MISMATCH:` with sorted option names rather than silently inheriting the first snapshot's settings.
+- Kept existing float-basis, cross-project relationship and resource-leveling guards.
+- Added regression coverage for option mismatch under reversed project input order and for an explicitly orchestration-scoped resource-selection option.
+- Added architecture contract and Master Reference Section 39.
+- GitHub Issue #1331 updated with implementation evidence.
+- Do not mark verified or award final Jalal 3 credit until ConstructionPM CI and required exact-head integration workflows pass.
