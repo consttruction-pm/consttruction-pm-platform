@@ -119,6 +119,43 @@ test("selection-only rerenders update DOM incrementally", () => {
   assert.match(details.innerHTML, /A-1/);
 });
 
+test("activity deselection also stays incremental", () => {
+  const base = { ...createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), selectedActivityId: "A-1" };
+  const activityRow = {
+    dataset: { activityId: "A-1" },
+    classList: { toggled: [] as Array<[string, boolean]>, toggle(name: string, value: boolean) { this.toggled.push([name, value]); } },
+    setAttribute: () => {},
+  };
+  const ganttRow = {
+    dataset: { ganttActivityId: "A-1" },
+    classList: { toggled: [] as Array<[string, boolean]>, toggle(name: string, value: boolean) { this.toggled.push([name, value]); } },
+    setAttribute: () => {},
+  };
+  const details = { innerHTML: "" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-activity-id]"
+      ? [activityRow]
+      : selector === "[data-gantt-activity-id]"
+        ? [ganttRow]
+        : [],
+    querySelector: (selector: string) => selector === "#cp-details" ? details : null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  const initialHtml = container.innerHTML;
+  renderMainWorkspace(container as unknown as HTMLElement, { ...base, selectedActivityId: null });
+
+  assert.equal(container.innerHTML, initialHtml);
+  assert.deepEqual(activityRow.classList.toggled, [["is-selected", false]]);
+  assert.deepEqual(ganttRow.classList.toggled, [["is-selected", false]]);
+  assert.match(details.innerHTML, /—/);
+});
+
 test("menu-only rerenders replace only the navigation surface", () => {
   const base = createWorkspaceState(
     { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
