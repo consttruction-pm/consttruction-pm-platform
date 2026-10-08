@@ -179,3 +179,25 @@ def test_scheduler_orchestration_uses_schedule_options_for_external_filtering():
         options=disabled,
     )
     assert [d.resource_id for d in result_disabled] == ["R1"]
+
+
+def test_empty_external_assignments_are_a_noop_even_with_default_zero_priority_limit():
+    result = select_resource_assignments_for_scheduling(
+        (),
+        scheduled_project_id="P2",
+        include_external_res_ass=True,
+        project_leveling_priorities={},
+        external_project_priority_limit=0,
+    )
+    assert result == ()
+
+
+def test_empty_external_assignment_generator_is_consumed_once_and_returns_no_demands():
+    result = select_resource_assignments_for_scheduling(
+        (item for item in ()),
+        scheduled_project_id="P2",
+        include_external_res_ass=True,
+        project_leveling_priorities={},
+        external_project_priority_limit=0,
+    )
+    assert result == ()
