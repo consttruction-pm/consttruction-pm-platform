@@ -35,6 +35,8 @@ from ..p6_field_registry import (
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
+from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
+from ..p6_expense_repository import P6Expense
 from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
@@ -84,6 +86,7 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
+        p6_expense_api: P6ExpenseAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
@@ -104,6 +107,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
         self._p6_financial_period_api = p6_financial_period_api
+        self._p6_expense_api = p6_expense_api
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
@@ -693,6 +697,60 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
+                prefix = "/p6/expenses"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_EXPENSE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    expense_id = suffix.strip("/")
+                    if method == "GET" and not expense_id:
+                        result = self._p6_expense_api.list(
+                            scope,
+                            activity_id=payload.get("activity_id"),
+                            wbs_id=payload.get("wbs_id"),
+                            auth_context=auth,
+                        )
+                        return self._json(200, {
+                            "contract_version": P6_EXPENSE_API_VERSION,
+                            "expenses": list(result),
+                        })
+                    if method == "GET" and expense_id and "/" not in expense_id:
+                        result = self._p6_expense_api.get(scope, expense_id, auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_EXPENSE_NOT_FOUND", "error.p6.expense.not_found")
+                        return self._json(200, result)
+                    if method == "POST" and not expense_id:
+                        expense = P6Expense(
+                            scope=scope,
+                            expense_id=payload.get("expense_id", ""),
+                            name=payload.get("name", ""),
+                            category=payload.get("category", ""),
+                            activity_id=payload.get("activity_id"),
+                            wbs_id=payload.get("wbs_id"),
+                            expense_date=payload.get("expense_date"),
+                            planned_cost=None if payload.get("planned_cost") is None else Decimal(str(payload.get("planned_cost"))),
+                            actual_cost=None if payload.get("actual_cost") is None else Decimal(str(payload.get("actual_cost"))),
+                            remaining_cost=None if payload.get("remaining_cost") is None else Decimal(str(payload.get("remaining_cost"))),
+                            currency=payload.get("currency"),
+                            note=payload.get("note"),
+                        )
+                        return self._json(200, self._p6_expense_api.create(expense, auth_context=auth))
+                except (TypeError, ValueError, ArithmeticError):
+                    return self._error(400, "P6_EXPENSE_REQUEST_INVALID", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")

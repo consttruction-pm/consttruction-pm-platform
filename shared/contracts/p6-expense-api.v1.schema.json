@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://constructionpm.dev/contracts/v1/p6-expense-api.v1.schema.json",
+  "title": "P6 Expense API v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "kind", "scope", "expense"],
+  "properties": {
+    "contract_version": {"const": "p6-expense-api.v1"},
+    "kind": {"const": "p6_expense"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      }
+    },
+    "expense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expense_id", "name", "category", "activity_id", "wbs_id", "expense_date", "planned_cost", "actual_cost", "remaining_cost", "currency", "note"],
+      "properties": {
+        "expense_id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "category": {"type": "string", "minLength": 1},
+        "activity_id": {"type": ["string", "null"]},
+        "wbs_id": {"type": ["string", "null"]},
+        "expense_date": {"type": ["string", "null"]},
+        "planned_cost": {"type": ["string", "null"]},
+        "actual_cost": {"type": ["string", "null"]},
+        "remaining_cost": {"type": ["string", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "note": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
