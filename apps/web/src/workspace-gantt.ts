@@ -42,6 +42,7 @@ export function createGanttBarGeometry(
   activity: WorkspaceActivityRow,
   scale: GanttScale,
 ): GanttBarGeometry | null {
+  const gantt = activity.gantt;
   if (!gantt) {
     return null;
   }
