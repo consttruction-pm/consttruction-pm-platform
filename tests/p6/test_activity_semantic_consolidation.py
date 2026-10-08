@@ -28,18 +28,34 @@ def test_activity_consolidation_evidence_is_registered_without_aliases():
         "ActualThisPeriodLaborUnits": (True, False),
         "ActualThisPeriodNonLaborCost": (True, False),
         "ActualThisPeriodNonLaborUnits": (True, False),
+        "Baseline1PlannedExpenseCost": (True, False),
+        "Baseline1PlannedLaborUnits": (True, False),
+        "Baseline1PlannedMaterialCost": (True, False),
+        "Baseline1PlannedNonLaborUnits": (True, False),
+    }
+    type_overrides = {
+        "Baseline1Duration": "duration",
+        "Baseline1PlannedDuration": "duration",
+    }
+    unit_overrides = {
+        "Baseline1Duration": "working-time",
+        "Baseline1PlannedDuration": "working-time",
     }
 
     assert len(evidence["fields"]) == 83
     for item in evidence["fields"]:
         field = registry[item["p6_field"]]
-        assert field.data_type.value == ("datetime" if item["data_type"] == "date-time" else item["data_type"])
+        expected_type = type_overrides.get(
+            item["p6_field"],
+            "datetime" if item["data_type"] == "date-time" else item["data_type"],
+        )
+        assert field.data_type.value == expected_type
         expected_writable, expected_computed = certified_overrides.get(
             item["p6_field"], (item["writable"], item["computed"])
         )
         assert field.writable is expected_writable
         assert field.computed is expected_computed
-        assert field.unit == item["unit"]
+        assert field.unit == unit_overrides.get(item["p6_field"], item["unit"])
         assert field.disposition == "seeded_not_certified"
 
 
