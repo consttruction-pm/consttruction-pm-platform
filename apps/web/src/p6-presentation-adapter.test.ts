@@ -16,6 +16,6 @@ test("web normalizes layout order through the shared contract", () => {
     ...fixture.layout,
     columns: [...fixture.layout.columns].reverse(),
   });
-  assert.deepEqual(layout.columns.map((column) => column.field_id), ["activity.total_float","activity.duration","activity.activity_id"]);
+  assert.deepEqual(layout.columns.map((column) => column.field_id), ["activity.activity_id","activity.duration","activity.total_float"]);
   assert.deepEqual(layout.columns.map((column) => column.order), [0,1,2]);
 });
