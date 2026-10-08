@@ -136,3 +136,63 @@ def test_production_composition_wires_persisted_context_into_schedule_query_rout
     assert payload_out["scope"] == {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9}
     assert payload_out["data"]["project_finish"] == "2026-09-22"
     assert payload_out["data"]["calculation_run_identity"]
+
+class FakeBackendP0API:
+    def read_workspace_control_room(self, *, tenant_id, project_id, revision, auth_context):
+        return {
+            "contract_version": "workspace-control-room.v1",
+            "scope": {
+                "tenant_id": tenant_id,
+                "project_id": project_id,
+                "project_revision": revision,
+            },
+            "rows": [],
+        }
+
+
+def test_production_composition_wires_backend_p0_workspace_control_room():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    backend_p0_api = FakeBackendP0API()
+
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        backend_p0_api=backend_p0_api,
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    status_line: list[str] = []
+    result: list[bytes] = []
+    environ = {
+        "REQUEST_METHOD": "GET",
+        "PATH_INFO": "/api/v1/workspace/control-room/read",
+        "HTTP_COOKIE": "cp_session=s1",
+        "HTTP_X_TENANT_ID": "T-1",
+        "HTTP_X_PROJECT_ID": "P-1",
+        "HTTP_X_PROJECT_REVISION": "9",
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": BytesIO(b""),
+    }
+
+    def start_response(status: str, headers: list[tuple[str, str]]) -> None:
+        status_line.append(status)
+
+    result.extend(app(environ, start_response))
+    payload_out = json.loads(b"".join(result))
+
+    assert status_line == ["200 OK"]
+    assert payload_out["contract_version"] == "workspace-control-room.v1"
+    assert payload_out["scope"] == {
+        "tenant_id": "T-1",
+        "project_id": "P-1",
+        "project_revision": 9,
+    }
