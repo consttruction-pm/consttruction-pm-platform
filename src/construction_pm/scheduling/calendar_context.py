@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Mapping
 
 from .calendar import WorkingTimeResolver
+from .calendar_exception_overlay import CalendarExceptionLayers, overlay_day_resolver, overlay_time_resolver
 from .calendar_system import CalendarSystem
 from .time_calendar import TimeAwareWorkingTimeResolver
 
@@ -173,9 +174,16 @@ class CalendarResolverRegistry:
         self,
         day_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
         time_resolvers: Mapping[str, TimeAwareWorkingTimeResolver] | None = None,
+        exception_layers: Mapping[str, CalendarExceptionLayers] | None = None,
     ) -> None:
         self._day = dict(day_resolvers or {})
         self._time = dict(time_resolvers or {})
+        self._exception_layers = dict(exception_layers or {})
+        for key, layers in self._exception_layers.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("exception layer keys must be non-empty strings")
+            if not isinstance(layers, CalendarExceptionLayers):
+                raise TypeError("exception layers must be CalendarExceptionLayers")
 
     @staticmethod
     def _key(reference: CalendarReference) -> str:
@@ -205,7 +213,20 @@ class CalendarResolverRegistry:
                     f"calendar system mismatch for {key}: "
                     f"reference={reference.system.value}, resolver={resolver_system.value}"
                 )
-        return resolver
+        layers = self._exception_layers.get(key)
+        if layers is None:
+            return resolver
+        if reference.kind == "working-day":
+            return overlay_day_resolver(
+                resolver,
+                local_exceptions=layers.local,
+                inherited_exceptions=layers.inherited,
+            )
+        return overlay_time_resolver(
+            resolver,
+            local_exceptions=layers.local,
+            inherited_exceptions=layers.inherited,
+        )
 
     def resolve_relationship_lag(
         self,
