@@ -95,7 +95,7 @@ def test_store_isolated_by_project_context():
 
 
 def test_application_resource_mutation_replays_with_same_idempotency_key():
-    store = InMemoryMutationIdempotencyStore()
+    store = InMemoryScopedIdempotencyStore()
     service = make_service(store)
     resource = make_resource()
 
