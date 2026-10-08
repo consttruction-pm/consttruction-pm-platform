@@ -49,6 +49,24 @@ class AuthoritativeScheduleQueryProvider:
         if snapshot is None:
             raise ValueError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
 
+        if request.kind is ScheduleQueryKind.SCENARIO:
+            _validate_snapshot_context(snapshot, calculation_context)
+            source = SourceReference(
+                source_id=snapshot.snapshot_id,
+                source_type="schedule-input-snapshot",
+                locator=f"/schedule/input-snapshots/{snapshot.snapshot_id}",
+                revision=request.scope.project_revision,
+                content_hash=snapshot.snapshot_hash,
+            )
+            data = _project_result(request, None, source)
+            return ScheduleQueryAnswer(
+                query_id=request.query_id,
+                scope=request.scope,
+                answer_key="schedule.query.result",
+                data=data,
+                source_refs=(source,),
+            )
+
         result = evaluate_schedule_snapshot(
             snapshot,
             calculation_context,
@@ -74,7 +92,7 @@ class AuthoritativeScheduleQueryProvider:
 
 def _project_result(
     request: ScheduleQueryRequest,
-    result: ScheduleEvaluationResult,
+    result: ScheduleEvaluationResult | None,
     source: SourceReference,
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
@@ -151,6 +169,22 @@ def _project_result(
             }
 
     raise ValueError("UNSUPPORTED_SCHEDULE_QUERY_PROJECTION")
+
+
+def _validate_snapshot_context(
+    snapshot: object,
+    calculation_context: CalculationContext,
+) -> None:
+    if calculation_context.input_snapshot_id != snapshot.snapshot_id:
+        raise ValueError("INPUT_SNAPSHOT_ID_MISMATCH")
+    if calculation_context.project_id != snapshot.scope.project_id:
+        raise ValueError("PROJECT_ID_MISMATCH")
+    if calculation_context.project_version != snapshot.scope.project_revision:
+        raise ValueError("PROJECT_REVISION_MISMATCH")
+    if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
+        raise ValueError("TENANT_ID_MISMATCH")
+    if calculation_context.calculation_identity != snapshot.calculation_identity:
+        raise ValueError("CALCULATION_IDENTITY_MISMATCH")
 
 
 def _project_scenario_proposal(request: ScheduleQueryRequest, source: SourceReference) -> Mapping[str, object]:
