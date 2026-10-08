@@ -57,7 +57,7 @@ jobs:
 
           try {
             const checks = [
-              ["http://127.0.0.1:4173/", "Construction &amp; Building"],
+              ["http://127.0.0.1:4173/", "CUBI Platform"],
               ["http://127.0.0.1:4173/styles.css", "prefers-reduced-motion"],
               ["http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js", "SCHEDULING_CONTRACT_VERSION"],
             ];
