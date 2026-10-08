@@ -637,8 +637,8 @@ def test_inherited_global_nonwork_is_overridden_by_project_reset_to_standard():
         base_calendar_references={"PROJECT@1": global_ref},
     )
 
-    assert registry.resolve(project_ref).calendar.intervals_for(target)
-    assert registry.resolve(global_ref).calendar.intervals_for(target) == ()
+    assert registry.resolve(project_ref).is_working_day(target) is True
+    assert registry.resolve(global_ref).is_working_day(target) is False
 
 
 def test_project_total_hours_override_takes_precedence_over_inherited_global_detailed_hours():
@@ -741,8 +741,8 @@ def test_resource_local_exception_overrides_project_exception_and_global_base():
         (time(8, 0), time(10, 0)),
         (time(14, 0), time(16, 0)),
     )
-    assert registry.resolve(project_ref).is_working_day(target) is True
-    assert registry.resolve(global_ref).is_working_day(target) is False
+    assert registry.resolve(project_ref).calendar.intervals_for(target)
+    assert registry.resolve(global_ref).calendar.intervals_for(target) == ()
 
 
 def test_version_pinned_calendar_inheritance_does_not_change_historical_resolution():
