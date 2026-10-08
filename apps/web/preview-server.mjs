@@ -69,7 +69,7 @@ export function resolveRequestFile(requestPath) {
   return normalized;
 }
 
-function startPreviewServer() {
+export function startPreviewServer() {
 const server = http.createServer((req, res) => {
   try {
     const file = resolveRequestFile(req.url || "/");
