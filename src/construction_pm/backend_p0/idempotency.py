@@ -210,34 +210,45 @@ class SQLiteScopedIdempotencyStore:
                 "INVALID_IDEMPOTENCY_KEY",
                 "Idempotency key is required",
             )
-        row = self.connection.execute(
-            "SELECT fingerprint FROM backend_p0_scoped_idempotency "
-            "WHERE tenant_id=? AND company_id=? AND project_id=? "
-            "AND operation=? AND idempotency_key=?",
-            (tenant_id, company_id, project_id, operation, key),
-        ).fetchone()
-        if row is not None:
-            if row[0] != fingerprint:
-                raise BackendApplicationError(
-                    ErrorCategory.CONFLICT,
-                    "IDEMPOTENCY_KEY_REUSE",
-                    "Idempotency key was already used for a different mutation",
-                )
-            if replay is None:
-                raise BackendApplicationError(
-                    ErrorCategory.CONFLICT,
-                    "IDEMPOTENCY_REPLAY_UNAVAILABLE",
-                    "A replay callback is required for an already-applied idempotent mutation",
-                )
-            return replay()
 
-        result = mutation()
-        self.connection.execute(
-            "INSERT INTO backend_p0_scoped_idempotency "
-            "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (tenant_id, company_id, project_id, operation, key, fingerprint),
-        )
+        was_in_transaction = self.connection.in_transaction
+        if not was_in_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.connection.execute(
+                "SELECT fingerprint FROM backend_p0_scoped_idempotency "
+                "WHERE tenant_id=? AND company_id=? AND project_id=? "
+                "AND operation=? AND idempotency_key=?",
+                (tenant_id, company_id, project_id, operation, key),
+            ).fetchone()
+            if row is not None:
+                if row[0] != fingerprint:
+                    raise BackendApplicationError(
+                        ErrorCategory.CONFLICT,
+                        "IDEMPOTENCY_KEY_REUSE",
+                        "Idempotency key was already used for a different mutation",
+                    )
+                if replay is None:
+                    raise BackendApplicationError(
+                        ErrorCategory.CONFLICT,
+                        "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+                        "A replay callback is required for an already-applied idempotent mutation",
+                    )
+                result = replay()
+            else:
+                self.connection.execute(
+                    "INSERT INTO backend_p0_scoped_idempotency "
+                    "(tenant_id, company_id, project_id, operation, idempotency_key, fingerprint) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (tenant_id, company_id, project_id, operation, key, fingerprint),
+                )
+                result = mutation()
+        except Exception:
+            if not was_in_transaction:
+                self.connection.rollback()
+            raise
+        if not was_in_transaction:
+            self.connection.commit()
         return result
 
 
