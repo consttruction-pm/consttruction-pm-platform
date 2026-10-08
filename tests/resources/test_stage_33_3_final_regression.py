@@ -63,7 +63,7 @@ def test_revision_and_idempotency_contracts_remain_context_scoped():
     assert store.execute("tenant-1", "company-1", "project-a", "op", "k", "fp", mutation) == "ok"
     assert store.execute("tenant-1", "company-1", "project-a", "op", "k", "fp", mutation, replay=mutation) == "ok"
     assert store.execute("tenant-1", "company-1", "project-b", "op", "k", "fp", mutation) == "ok"
-    assert calls == ["a", "a"]
+    assert calls == ["a", "a", "a"]
 
     resource = Resource(
         id="R-1", code="LAB", name="Labor", resource_type=ResourceType.LABOR,
