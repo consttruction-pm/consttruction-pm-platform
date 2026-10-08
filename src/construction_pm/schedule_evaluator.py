@@ -60,6 +60,11 @@ def evaluate_schedule_snapshot(
     The evaluator never reads mutable repositories during calculation. The
     snapshot and CalculationContext are the complete calculation inputs.
 
+    Identity compatibility:
+    - New snapshots bind to the deterministic v2 semantic calculation identity.
+    - Persisted pre-v2 snapshots may still bind to the legacy full-context hash
+      during the explicit compatibility window.
+
     Resource-leveling ScheduleOptions are routed explicitly through the
     authoritative leveling seam when the application supplies its already
     mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
@@ -72,7 +77,10 @@ def evaluate_schedule_snapshot(
         raise ScheduleEvaluationError("PROJECT_REVISION_MISMATCH")
     if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleEvaluationError("TENANT_ID_MISMATCH")
-    if calculation_context.calculation_identity != snapshot.calculation_identity:
+    if (
+        calculation_context.calculation_identity != snapshot.calculation_identity
+        and calculation_context.legacy_calculation_identity != snapshot.calculation_identity
+    ):
         raise ScheduleEvaluationError("CALCULATION_IDENTITY_MISMATCH")
 
     materialized = materialize_schedule_snapshot(snapshot, calendar_registry)
