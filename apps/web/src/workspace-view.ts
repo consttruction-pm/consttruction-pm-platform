@@ -21,6 +21,7 @@ const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>()
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 
 function bindWorkspaceEvents(container: HTMLElement): void {
+  if (typeof container.addEventListener !== "function") return;
   workspaceEventDelegation.add(container);
   container.addEventListener("click", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-menu],[data-wbs-id],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-gantt-activity-id],[data-activity-id]") : null;
