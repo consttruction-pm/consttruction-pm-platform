@@ -6,15 +6,15 @@ from construction_pm.p6_field_registry import P6FieldType, get_field
 
 
 CASES = (
-    ("Baseline2Duration", "activity.baseline2_duration", P6FieldType.DURATION, False, True, "working-time"),
+    ("Baseline2Duration", "activity.baseline2_duration", P6FieldType.DOUBLE, False, True, "working-time"),
     ("Baseline2FinishDate", "activity.baseline2_finish_date", P6FieldType.DATE, False, True, None),
     ("Baseline2PlannedDuration", "activity.baseline2_planned_duration", P6FieldType.DURATION, False, True, "working-time"),
-    ("Baseline2PlannedExpenseCost", "activity.baseline2_planned_expense_cost", P6FieldType.DOUBLE, False, False, "currency"),
-    ("Baseline2PlannedLaborCost", "activity.baseline2_planned_labor_cost", P6FieldType.DOUBLE, False, False, "currency"),
-    ("Baseline2PlannedLaborUnits", "activity.baseline2_planned_labor_units", P6FieldType.DOUBLE, False, False, "units"),
-    ("Baseline2PlannedMaterialCost", "activity.baseline2_planned_material_cost", P6FieldType.DOUBLE, False, False, "currency"),
+    ("Baseline2PlannedExpenseCost", "activity.baseline2_planned_expense_cost", P6FieldType.DOUBLE, False, True, "currency"),
+    ("Baseline2PlannedLaborCost", "activity.baseline2_planned_labor_cost", P6FieldType.DOUBLE, False, True, "currency"),
+    ("Baseline2PlannedLaborUnits", "activity.baseline2_planned_labor_units", P6FieldType.DOUBLE, False, True, "units"),
+    ("Baseline2PlannedMaterialCost", "activity.baseline2_planned_material_cost", P6FieldType.DOUBLE, False, True, "currency"),
     ("Baseline2PlannedNonLaborCost", "activity.baseline2_planned_non_labor_cost", P6FieldType.DOUBLE, False, True, "currency"),
-    ("Baseline2PlannedNonLaborUnits", "activity.baseline2_planned_non_labor_units", P6FieldType.DOUBLE, False, False, "units"),
+    ("Baseline2PlannedNonLaborUnits", "activity.baseline2_planned_non_labor_units", P6FieldType.DOUBLE, False, True, "units"),
     ("Baseline2PlannedTotalCost", "activity.baseline2_planned_total_cost", P6FieldType.DOUBLE, False, True, "currency"),
     ("Baseline2StartDate", "activity.baseline2_start_date", P6FieldType.DATE, False, True, None),
 )
