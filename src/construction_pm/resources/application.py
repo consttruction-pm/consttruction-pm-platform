@@ -19,7 +19,7 @@ from .idempotency import (
 )
 from .models import Resource, ResourceAssignment
 from .repository import ResourceRepository
-from .transactions import TransactionManager
+from ..backend_p0.transactions import TransactionManager
 from .validation import validate_assignment, validate_resource
 
 
