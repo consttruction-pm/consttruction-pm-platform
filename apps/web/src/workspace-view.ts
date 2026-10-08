@@ -141,7 +141,12 @@ export type WorkspaceRendererOptions = {
   onP6FieldPresentationChange?: (fieldId: string, patch: { label?: string; alignment?: "start" | "center" | "end"; pinned?: boolean; frozen?: boolean }) => void;
 };
 
-export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {\n  const previous = workspaceRenderRecords.get(container);\n  if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state)) {\n    workspaceRenderRecords.set(container, { state, options });\n    return;\n  }
+export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
+  const previous = workspaceRenderRecords.get(container);
+  if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state)) {
+    workspaceRenderRecords.set(container, { state, options });
+    return;
+  }
   const t = labels[state.locale];
   const wbsIds = [...new Set(state.activities.map((activity) => activity.wbsId))];
   const scale = createGanttScale(state.activities);
