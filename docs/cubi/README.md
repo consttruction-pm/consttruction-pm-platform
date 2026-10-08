@@ -9,14 +9,16 @@
 
 ## Implementation reference
 
-- Canonical implemented logo: `apps/web/public/logo.svg`
+- Canonical full logo lockup: `apps/web/public/cubi-platform-logo-primary.svg`
+- Canonical dark-context lockup: `apps/web/public/cubi-platform-logo-primary-dark.svg`
+- Shared Web/Desktop/Mobile brand contracts point to this asset family.
 - Public CUBI homepage: `/`
 - Existing project workspace: `/app`
-- Current homepage implementation is on the current `main` line.
+- Current homepage implementation is on the `main` line.
 
 ## Handoff rule
 
-These SVGs are visual handoff/reference files for Jalal. They do not replace the canonical implementation assets and do not modify the CPM/P6 engineering core.
+The SVGs above are visual handoff/reference files. The canonical implementation assets and cross-client contracts are the source of truth; do not confuse the handoff reference with the runtime asset paths. Branding changes must not modify the CPM/P6 engineering core.
 
 ## Latest saved commits
 
