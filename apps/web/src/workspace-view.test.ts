@@ -61,17 +61,20 @@ test("menu selection wiring forwards the selected workspace surface", () => {
     "en",
   );
   const selected: WorkspaceMenuKey[] = [];
-  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
-  const listeners = new Map<string, () => void>();
-  const buttons = ["schedule", "reports"].map((menu) => ({
-    dataset: { menu },
-    addEventListener: (_event: string, listener: () => void) => listeners.set(menu, listener),
-  }));
-  container.querySelectorAll = ((selector: string) => selector === "[data-menu]" ? buttons as unknown as HTMLElement[] : []) as RenderContainer["querySelectorAll"];
+  let clickListener: ((event: Event) => void) | undefined;
+  const reportsButton = {
+    dataset: { menu: "reports" },
+    closest: () => reportsButton,
+  };
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (_event, listener) => { clickListener = listener; },
+  };
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onMenuSelect: (menu) => selected.push(menu),
   });
-  listeners.get("reports")?.();
+  clickListener?.({ target: reportsButton } as unknown as Event);
   assert.deepEqual(selected, ["reports"]);
 });
 
@@ -389,15 +392,15 @@ test("Gantt activity selection responds to Enter and Space keyboard activation",
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, (event?: KeyboardEvent) => void>();
+  let keydownListener: ((event: Event) => void) | undefined;
   const ganttRow = {
     dataset: { ganttActivityId: "A-1" },
-    addEventListener: (event: string, listener: (event?: KeyboardEvent) => void) => listeners.set(event, listener),
+    closest: () => ganttRow,
   };
-  const container: RenderContainer = {
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
     innerHTML: "",
-    querySelectorAll: ((selector: string) =>
-      selector === "[data-gantt-activity-id]" ? [ganttRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "keydown") keydownListener = listener; },
   };
 
   renderMainWorkspace(container as unknown as HTMLElement, state, {
@@ -405,8 +408,8 @@ test("Gantt activity selection responds to Enter and Space keyboard activation",
   });
 
   const preventDefaultCalls: string[] = [];
-  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
-  listeners.get("keydown")?.({ key: " ", preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
+  keydownListener?.({ key: "Enter", target: ganttRow, preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
+  keydownListener?.({ key: " ", target: ganttRow, preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
 
   assert.deepEqual(selected, ["A-1", "A-1"]);
   assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
@@ -427,15 +430,15 @@ test("Activity Grid selection responds to Enter and Space keyboard activation", 
     }],
   };
   const selected: string[] = [];
-  const listeners = new Map<string, (event?: Event) => void>();
+  let keydownListener: ((event: Event) => void) | undefined;
   const gridRow = {
     dataset: { activityId: "A-1" },
-    addEventListener: (event: string, listener: (event?: Event) => void) => listeners.set(event, listener),
+    closest: () => gridRow,
   };
-  const container: RenderContainer = {
+  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
     innerHTML: "",
-    querySelectorAll: ((selector: string) =>
-      selector === "[data-activity-id]" ? [gridRow as unknown as HTMLElement] : []) as RenderContainer["querySelectorAll"],
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "keydown") keydownListener = listener; },
   };
 
   renderMainWorkspace(container as unknown as HTMLElement, state, {
@@ -443,8 +446,8 @@ test("Activity Grid selection responds to Enter and Space keyboard activation", 
   });
 
   const preventDefaultCalls: string[] = [];
-  listeners.get("keydown")?.({ key: "Enter", preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
-  listeners.get("keydown")?.({ key: " ", preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
+  keydownListener?.({ key: "Enter", target: gridRow, preventDefault: () => { preventDefaultCalls.push("Enter"); } } as unknown as KeyboardEvent);
+  keydownListener?.({ key: " ", target: gridRow, preventDefault: () => { preventDefaultCalls.push("Space"); } } as unknown as KeyboardEvent);
 
   assert.deepEqual(selected, ["A-1", "A-1"]);
   assert.deepEqual(preventDefaultCalls, ["Enter", "Space"]);
