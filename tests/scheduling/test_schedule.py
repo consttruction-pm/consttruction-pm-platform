@@ -16,6 +16,7 @@ from construction_pm.scheduling.schedule import (
     ScheduleMode,
     ScheduleOptions,
     TotalFloatCalculationType,
+    _free_float,
     _multiple_float_paths,
     _relationship_free_float,
     _relationship_holds,
@@ -35,6 +36,118 @@ def resolver():
     return WorkingTimeResolver(WorkingCalendar())
 
 
+class CountingWorkingTimeResolver(WorkingTimeResolver):
+    def __init__(self, calendar):
+        super().__init__(calendar)
+        self.add_working_duration_calls = 0
+
+    def add_working_duration(self, start, duration):
+        self.add_working_duration_calls += 1
+        return super().add_working_duration(start, duration)
+
+
+def _linear_relationship_float_boundary(
+    relationship,
+    predecessor,
+    successor,
+    predecessor_activity,
+    resolver,
+):
+    delay = 0
+    while delay < 10_000:
+        candidate_start = resolver.add_working_duration(predecessor.start, delay)
+        candidate = ScheduledActivity(
+            activity_id=predecessor.activity_id,
+            start=candidate_start,
+            finish=resolver.add_working_duration(candidate_start, predecessor_activity.duration),
+            duration=predecessor_activity.duration,
+        )
+        if not _relationship_holds(relationship, candidate, successor, resolver, resolver):
+            return max(0, delay - 1)
+        delay += 1
+    return 10_000
+
+
+@pytest.mark.parametrize(
+    ("relationship_type", "lag"),
+    [
+        (RelationshipType.FS, 2),
+        (RelationshipType.FS, -2),
+        (RelationshipType.SS, 2),
+        (RelationshipType.SS, -2),
+        (RelationshipType.FF, 2),
+        (RelationshipType.FF, -2),
+        (RelationshipType.SF, 2),
+        (RelationshipType.SF, -2),
+    ],
+)
+def test_relationship_float_search_matches_linear_reference_for_all_link_types(
+    resolver, relationship_type, lag
+):
+    predecessor = ScheduledActivity(
+        "A", date(2026, 9, 21), date(2026, 9, 22), 2
+    )
+    successor = ScheduledActivity(
+        "B", date(2026, 10, 20), date(2026, 10, 21), 2
+    )
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    predecessor_activity = Activity("A", 2)
+
+    expected = _linear_relationship_float_boundary(
+        relationship, predecessor, successor, predecessor_activity, resolver
+    )
+    assert _relationship_free_float(
+        relationship, predecessor, successor, predecessor_activity, resolver, resolver
+    ) == expected
+    assert _relationship_total_float(
+        relationship, predecessor, successor, predecessor_activity, resolver, resolver
+    ) == expected
+
+
+def test_relationship_float_search_preserves_bounded_all_holding_sentinel(resolver):
+    predecessor = ScheduledActivity(
+        "A", date(2026, 9, 21), date(2026, 9, 21), 1
+    )
+    successor = ScheduledActivity(
+        "B", date(2100, 1, 1), date(2100, 1, 1), 1
+    )
+    relationship = Relationship("A", "B", RelationshipType.FS)
+
+    assert _relationship_free_float(
+        relationship, predecessor, successor, Activity("A", 1), resolver, resolver
+    ) == 10_000
+    assert _free_float(
+        Activity("A", 1),
+        predecessor,
+        [relationship],
+        {"B": successor},
+        resolver,
+        {("A", "B"): resolver},
+    ) == 9_999
+
+
+def test_relationship_float_search_uses_logarithmic_probe_count():
+    resolver = CountingWorkingTimeResolver(WorkingCalendar())
+    predecessor = ScheduledActivity(
+        "A", date(2026, 9, 21), date(2026, 9, 21), 1
+    )
+    successor = ScheduledActivity(
+        "B", date(2045, 1, 1), date(2045, 1, 1), 1
+    )
+    relationship = Relationship("A", "B", RelationshipType.FS)
+    predecessor_activity = Activity("A", 1)
+
+    result = _relationship_free_float(
+        relationship,
+        predecessor,
+        successor,
+        predecessor_activity,
+        resolver,
+        resolver,
+    )
+
+    assert result > 4_000
+    assert resolver.add_working_duration_calls < 500
 def test_backward_pass_produces_zero_float_on_critical_chain(resolver):
     activities = [Activity("A", 2), Activity("B", 2), Activity("C", 1)]
     relationships = [Relationship("A", "B"), Relationship("B", "C")]
