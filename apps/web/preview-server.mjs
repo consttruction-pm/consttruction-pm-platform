@@ -101,6 +101,8 @@ const server = http.createServer((req, res) => {
 server.listen(port, host, () => {
   console.log(`CUBI Web Preview listening on http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
 });
+
+return server;
 }
 
 const entry = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
