@@ -23,7 +23,7 @@ const workspaceEventDelegation = new WeakSet<HTMLElement>();
 function bindWorkspaceEvents(container: HTMLElement): void {
   workspaceEventDelegation.add(container);
   container.addEventListener("click", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-menu],[data-wbs-id],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-gantt-activity-id],[data-activity-id]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-menu],[data-wbs-id],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-gantt-activity-id],[data-activity-id]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -68,7 +68,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id]") : null;
     if (!target) return;
     event.preventDefault();
     const record = workspaceRenderRecords.get(container);
@@ -77,7 +77,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("change", (event) => {
-    const target = event.target instanceof HTMLInputElement ? event.target.closest<HTMLInputElement>("[data-p6-field-rename]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLInputElement).closest<HTMLInputElement>("[data-p6-field-rename]") : null;
     if (!target) return;
     const fieldId = target.dataset.p6FieldRename;
     const label = target.value.trim();
