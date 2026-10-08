@@ -35,7 +35,7 @@
   --cp-text: #17202A;
   --cp-muted: #667085;
 
-  /* CUBI canonical visual-reference alignment — Issue #1101. */
+  /* Canonical CUBI visual-reference alignment — Issue #1101. */
   /* Low-noise brushed-metal finish: use for brand chrome only. */
   --cubi-brushed-metal:
     linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.08)),
