@@ -15,7 +15,7 @@ from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
-from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
+from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 
@@ -172,7 +172,7 @@ def _project_result(
 
 
 def _validate_snapshot_context(
-    snapshot: object,
+    snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
 ) -> None:
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
