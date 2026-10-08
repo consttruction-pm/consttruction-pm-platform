@@ -8,7 +8,7 @@ const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 
-test("CUBI homepage follows the active commercial reference structure", () => {
+test("CUBI homepage follows the active CUBI commercial reference structure", () => {
   for (const pattern of [
     /cubi-reference-home/,
     /cubi-exact-header/,
