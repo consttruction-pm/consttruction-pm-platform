@@ -42,12 +42,12 @@ export function createGanttBarGeometry(
   activity: WorkspaceActivityRow,
   scale: GanttScale,
 ): GanttBarGeometry | null {
-  if (!activity.gantt) {
+  if (!gantt) {
     return null;
   }
 
-  const startMs = Date.parse(activity.gantt.start);
-  const endMs = Date.parse(activity.gantt.finish);
+  const startMs = Date.parse(gantt.start);
+  const endMs = Date.parse(gantt.finish);
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
     return null;
   }
@@ -60,8 +60,8 @@ export function createGanttBarGeometry(
     activityId: activity.id,
     leftPercent,
     widthPercent,
-    progressPercent: clampPercent(activity.gantt.progressPercent),
-    critical: activity.gantt.critical,
+    progressPercent: clampPercent(gantt.progressPercent),
+    critical: gantt.critical,
   };
 }
 
