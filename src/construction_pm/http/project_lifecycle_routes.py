@@ -36,6 +36,7 @@ from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VE
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
+from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_expense_repository import P6Expense
 from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
@@ -87,6 +88,7 @@ class ProjectLifecycleHttpRoutes:
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
+        p6_relationship_api: P6RelationshipAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
@@ -108,6 +110,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_baseline_api = p6_baseline_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
+        self._p6_relationship_api = p6_relationship_api
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
@@ -697,6 +700,73 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
+                prefix = "/p6/relationships"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET" and not parts:
+                        result = self._p6_relationship_api.list(scope, auth_context=auth)
+                        return self._json(200, {"contract_version": P6_RELATIONSHIP_API_VERSION, "relationships": list(result)})
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_relationship_api.get(scope, parts[0], auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_RELATIONSHIP_NOT_FOUND", "error.p6.relationship.not_found")
+                        return self._json(200, result)
+                    if method == "POST" and not parts:
+                        from ..relationship_master_repository import RelationshipMaster
+                        from ..scheduling.relationships import RelationshipType
+                        from ..scheduling.time_duration import DurationUnit
+                        relationship = RelationshipMaster(
+                            scope=scope,
+                            relationship_id=payload.get("relationship_id", ""),
+                            predecessor_id=payload.get("predecessor_id", ""),
+                            successor_id=payload.get("successor_id", ""),
+                            relationship_type=RelationshipType(payload.get("relationship_type", "FS")),
+                            lag_value=Decimal(str(payload.get("lag_value", "0"))),
+                            lag_unit=DurationUnit(payload.get("lag_unit", DurationUnit.WORKING_DAY.value)),
+                        )
+                        expected_revision = payload.get("expected_revision")
+                        if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
+                            raise ValueError("invalid expected_revision")
+                        return self._json(200, self._p6_relationship_api.create(relationship, expected_revision=expected_revision, auth_context=auth))
+                    if method == "PATCH" and len(parts) == 1 and parts[0]:
+                        from ..relationship_master_repository import RelationshipMaster
+                        from ..scheduling.relationships import RelationshipType
+                        from ..scheduling.time_duration import DurationUnit
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        relationship = RelationshipMaster(
+                            scope=scope,
+                            relationship_id=parts[0],
+                            predecessor_id=payload.get("predecessor_id", ""),
+                            successor_id=payload.get("successor_id", ""),
+                            relationship_type=RelationshipType(payload.get("relationship_type", "FS")),
+                            lag_value=Decimal(str(payload.get("lag_value", "0"))),
+                            lag_unit=DurationUnit(payload.get("lag_unit", DurationUnit.WORKING_DAY.value)),
+                            record_revision=expected_revision,
+                        )
+                        return self._json(200, self._p6_relationship_api.update(relationship, expected_revision=expected_revision, auth_context=auth))
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except (TypeError, ValueError, ArithmeticError):
+                    return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
                 prefix = "/p6/expenses"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
