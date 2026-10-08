@@ -226,14 +226,14 @@ _ROWS = (
     ("activity.at_completion_total_cost","Activity","AtCompletionTotalCost","At Completion Total Cost","double",False,True,None),
     ("activity.at_completion_total_units","Activity","AtCompletionTotalUnits","At Completion Total Units","double",False,True,None),
     ("activity.auto_compute_actuals","Activity","AutoComputeActuals","Auto Compute Actuals","boolean",True,False,None),
-    ("activity.baseline1_duration","Activity","Baseline1Duration","Baseline1 Duration","double",False,True,None),
+    ("activity.baseline1_duration","Activity","Baseline1Duration","Baseline1 Duration","double",False,True,"working-time"),
     ("activity.baseline1_finish_date","Activity","Baseline1FinishDate","Baseline1 Finish Date","date",False,True,None),
-    ("activity.baseline1_planned_duration","Activity","Baseline1PlannedDuration","Baseline1 Planned Duration","double",False,True,None),
-    ("activity.baseline1_planned_expense_cost","Activity","Baseline1PlannedExpenseCost","Baseline1 Planned Expense Cost","double",False,True,None),
-    ("activity.baseline1_planned_labor_cost","Activity","Baseline1PlannedLaborCost","Baseline1 Planned Labor Cost","double",False,True,None),
-    ("activity.baseline1_planned_material_cost","Activity","Baseline1PlannedMaterialCost","Baseline1 Planned Material Cost","double",False,True,"currency"),
+    ("activity.baseline1_planned_duration","Activity","Baseline1PlannedDuration","Baseline1 Planned Duration","double",False,True,"working-time"),
+    ("activity.baseline1_planned_expense_cost","Activity","Baseline1PlannedExpenseCost","Baseline1 Planned Expense Cost","double",False,False,"currency"),
+    ("activity.baseline1_planned_labor_cost","Activity","Baseline1PlannedLaborCost","Baseline1 Planned Labor Cost","double",False,True,"currency"),
+    ("activity.baseline1_planned_material_cost","Activity","Baseline1PlannedMaterialCost","Baseline1 Planned Material Cost","double",False,False,"currency"),
     ("activity.baseline1_planned_non_labor_cost","Activity","Baseline1PlannedNonLaborCost","Baseline1 Planned Non Labor Cost","double",False,True,"currency"),
-    ("activity.baseline1_planned_non_labor_units","Activity","Baseline1PlannedNonLaborUnits","Baseline1 Planned Non Labor Units","double",False,True,"units"),
+    ("activity.baseline1_planned_non_labor_units","Activity","Baseline1PlannedNonLaborUnits","Baseline1 Planned Non Labor Units","double",False,False,"units"),
     ("activity.baseline1_planned_total_cost","Activity","Baseline1PlannedTotalCost","Baseline1 Planned Total Cost","double",False,True,"currency"),
     ("activity.baseline1_start_date","Activity","Baseline1StartDate","Baseline1 Start Date","date",False,True,None),
     ("activity.baseline2_duration","Activity","Baseline2Duration","Baseline2 Duration","double",False,True,"working-time"),
@@ -441,6 +441,22 @@ _ROWS = (
 )
 
 
+# Oracle Integration API Field Summary marks these primary-baseline Activity fields Read Only.
+# This external mutability fact is separate from internal computed/stored disposition.
+P6_ACTIVITY_READ_ONLY_OVERRIDES: dict[str, bool] = {
+    "Baseline1Duration": True,
+    "Baseline1FinishDate": True,
+    "Baseline1PlannedDuration": True,
+    "Baseline1PlannedExpenseCost": True,
+    "Baseline1PlannedLaborCost": True,
+    "Baseline1PlannedLaborUnits": True,
+    "Baseline1PlannedMaterialCost": True,
+    "Baseline1PlannedNonLaborCost": True,
+    "Baseline1PlannedNonLaborUnits": True,
+    "Baseline1PlannedTotalCost": True,
+    "Baseline1StartDate": True,
+}
+
 # These names exist in an older/internal Activity seed but are not exact
 # Release 26 Activity inventory identities. They must not be silently aliased
 # by name similarity because their Oracle representation is composite or a
@@ -476,6 +492,7 @@ P6_FIELD_CATALOG: tuple[P6FieldDefinition, ...] = tuple(
         writable=writable,
         computed=computed,
         unit=unit,
+        read_only=P6_ACTIVITY_READ_ONLY_OVERRIDES.get(p6_field),
     )
     for field_id, subject_area, p6_field, display_name, data_type, writable, computed, unit in _ROWS
 )
