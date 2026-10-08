@@ -15,7 +15,7 @@ from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
-from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
+from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 
@@ -49,6 +49,24 @@ class AuthoritativeScheduleQueryProvider:
         if snapshot is None:
             raise ValueError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
 
+        if request.kind is ScheduleQueryKind.SCENARIO:
+            _validate_snapshot_context(snapshot, calculation_context)
+            source = SourceReference(
+                source_id=snapshot.snapshot_id,
+                source_type="schedule-input-snapshot",
+                locator=f"/schedule/input-snapshots/{snapshot.snapshot_id}",
+                revision=request.scope.project_revision,
+                content_hash=snapshot.snapshot_hash,
+            )
+            data = _project_result(request, None, source)
+            return ScheduleQueryAnswer(
+                query_id=request.query_id,
+                scope=request.scope,
+                answer_key="schedule.query.result",
+                data=data,
+                source_refs=(source,),
+            )
+
         result = evaluate_schedule_snapshot(
             snapshot,
             calculation_context,
@@ -74,11 +92,13 @@ class AuthoritativeScheduleQueryProvider:
 
 def _project_result(
     request: ScheduleQueryRequest,
-    result: ScheduleEvaluationResult,
+    result: ScheduleEvaluationResult | None,
     source: SourceReference,
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
         return _project_scenario_proposal(request, source)
+    if result is None:
+        raise ValueError("SCHEDULE_EVALUATION_RESULT_REQUIRED")
     if result.date_result is not None:
         activities = result.date_result.activities
         if request.kind is ScheduleQueryKind.FACT:
@@ -151,6 +171,22 @@ def _project_result(
             }
 
     raise ValueError("UNSUPPORTED_SCHEDULE_QUERY_PROJECTION")
+
+
+def _validate_snapshot_context(
+    snapshot: ScheduleInputSnapshot,
+    calculation_context: CalculationContext,
+) -> None:
+    if calculation_context.input_snapshot_id != snapshot.snapshot_id:
+        raise ValueError("INPUT_SNAPSHOT_ID_MISMATCH")
+    if calculation_context.project_id != snapshot.scope.project_id:
+        raise ValueError("PROJECT_ID_MISMATCH")
+    if calculation_context.project_version != snapshot.scope.project_revision:
+        raise ValueError("PROJECT_REVISION_MISMATCH")
+    if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
+        raise ValueError("TENANT_ID_MISMATCH")
+    if calculation_context.calculation_identity != snapshot.calculation_identity:
+        raise ValueError("CALCULATION_IDENTITY_MISMATCH")
 
 
 def _project_scenario_proposal(request: ScheduleQueryRequest, source: SourceReference) -> Mapping[str, object]:
