@@ -15,6 +15,7 @@ from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
+from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -31,23 +32,35 @@ class AuthoritativeScheduleQueryProvider:
 
     snapshot_repository: ScheduleInputSnapshotRepository
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
+    calculation_context_repository: CalculationContextRepository | None = None
 
     def execute(
         self,
         request: ScheduleQueryRequest,
         *,
-        calculation_context: CalculationContext,
+        calculation_context: CalculationContext | None = None,
     ) -> ScheduleQueryAnswer:
-        snapshot = self.snapshot_repository.get(
-            BackendScope(
-                request.scope.tenant_id,
-                request.scope.project_id,
-                request.scope.project_revision,
-            ),
-            calculation_context.input_snapshot_id,
+        scope = BackendScope(
+            request.scope.tenant_id,
+            request.scope.project_id,
+            request.scope.project_revision,
         )
+        snapshot_id = _resolve_snapshot_id(request, calculation_context)
+        snapshot = self.snapshot_repository.get(scope, snapshot_id)
         if snapshot is None:
             raise ValueError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
+
+        if self.calculation_context_repository is not None:
+            persisted = self.calculation_context_repository.get(
+                scope,
+                snapshot.snapshot_id,
+                expected_calculation_identity=snapshot.calculation_identity,
+            )
+            if persisted is None:
+                raise ValueError("CALCULATION_CONTEXT_NOT_FOUND")
+            calculation_context = persisted.context
+        elif calculation_context is None:
+            raise ValueError("CALCULATION_CONTEXT_REQUIRED")
 
         if request.kind is ScheduleQueryKind.SCENARIO:
             _validate_snapshot_context(snapshot, calculation_context)
@@ -173,6 +186,20 @@ def _project_result(
     raise ValueError("UNSUPPORTED_SCHEDULE_QUERY_PROJECTION")
 
 
+def _resolve_snapshot_id(
+    request: ScheduleQueryRequest,
+    calculation_context: CalculationContext | None,
+) -> str:
+    requested = request.constraints.get("snapshot_id")
+    if requested is None:
+        requested = request.constraints.get("input_snapshot_id")
+    if requested is None and calculation_context is not None:
+        requested = calculation_context.input_snapshot_id
+    if not isinstance(requested, str) or not requested.strip():
+        raise ValueError("SCHEDULE_INPUT_SNAPSHOT_ID_REQUIRED")
+    return requested
+
+
 def _validate_snapshot_context(
     snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
@@ -234,7 +261,7 @@ class AuthoritativeScheduleQueryApplicationService:
         request: ScheduleQueryRequest,
         *,
         auth_context: AuthorizationContext,
-        calculation_context: CalculationContext,
+        calculation_context: CalculationContext | None = None,
     ) -> ScheduleQueryAnswer:
         return ScheduleQueryApplicationService(
             _ContextBoundProvider(self.provider, calculation_context),
@@ -245,7 +272,7 @@ class AuthoritativeScheduleQueryApplicationService:
 @dataclass(frozen=True)
 class _ContextBoundProvider:
     provider: AuthoritativeScheduleQueryProvider
-    calculation_context: CalculationContext
+    calculation_context: CalculationContext | None
 
     def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
         return self.provider.execute(
