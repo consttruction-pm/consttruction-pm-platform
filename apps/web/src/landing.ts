@@ -1,97 +1,157 @@
-type LandingLocale = "en";
+// CUBI commercial homepage — aligned to canonical Issue #1101 reference handoff.
+type LandingLocale = "en" | "fa";
 
-function setLandingDocumentLocale(): void {
-  document.documentElement.lang = "en";
-  document.documentElement.dir = "ltr";
+type LandingCopy = {
+  navHome: string; navFeatures: string; navSolutions: string; navPricing: string; navResources: string; navAbout: string;
+  languageLabel: string; open: string; eyebrow: string; title: string; titleAccent: string; lead: string;
+  primaryCta: string; secondaryCta: string; tagline: string; visualLabel: string; demo: string;
+  schedule: string; cost: string; progress: string; wbs: string; activities: string; baseline: string; aiInsight: string;
+  capabilitiesTitle: string; capabilitiesLead: string; solutionsTitle: string; solutionsLead: string;
+  solutionItems: string[]; techTitle: string; techLead: string; pricingTitle: string; pricingLead: string; aboutTitle: string;
+  footerDescriptor: string; features: Array<[string, string, string]>;
+};
+
+const translations: Record<LandingLocale, LandingCopy> = {
+  en: {
+    navHome: "Home", navFeatures: "Features", navSolutions: "Solutions", navPricing: "Pricing", navResources: "Resources", navAbout: "About",
+    languageLabel: "فا", open: "Open Platform", eyebrow: "CUBI PLATFORM",
+    title: "Construction Project Control,", titleAccent: "Reimagined.",
+    lead: "Project controls, AI and engineering precision in one professional platform for planning, scheduling, cost, progress, resources and project information.",
+    primaryCta: "Explore CUBI", secondaryCta: "View capabilities", tagline: "Plan. Control. Build Smarter.", visualLabel: "CUBI project control dashboard preview", demo: "DEMO",
+    schedule: "Schedule Health", cost: "Cost Performance", progress: "Progress", wbs: "WBS", activities: "Activities", baseline: "Baseline", aiInsight: "AI Assistant",
+    capabilitiesTitle: "Everything You Need for Project Success",
+    capabilitiesLead: "A focused control layer that keeps schedule, cost, resources, documents and intelligence connected.",
+    solutionsTitle: "Built around the way construction teams control delivery",
+    solutionsLead: "CUBI connects the project model to the information teams use every day, without duplicating engineering calculation logic.",
+    solutionItems: ["Planning & Scheduling", "Project Controls", "Progress & EVM", "Resources & Cost", "Documents & Contracts", "AI & Collaboration"],
+    techTitle: "Powered by Leading Technologies",
+    techLead: "CPM Scheduling • PostgreSQL • AI • Data Integration • Security & Reliability",
+    pricingTitle: "Ready to Build Smarter?",
+    pricingLead: "Start with the CUBI workspace and scale across web, desktop and mobile as your control needs grow.",
+    aboutTitle: "Construction & Building Intelligence", footerDescriptor: "Project Controls • AI & Intelligence • Engineering Precision",
+    features: [
+      ["◈", "Project Controls", "Schedule, baseline, progress and performance signals in one control picture."],
+      ["✦", "AI Assistant", "Context-aware guidance and insight that supports decisions without replacing engineering judgment."],
+      ["◒", "Resources & Cost", "Resource demand, cost context and EVM signals connected to the project model."],
+      ["▤", "Documents & Contracts", "Contracts, drawings, RFIs, submittals, claims and evidence connected to project work."],
+      ["◎", "Collaboration", "A shared project view across disciplines, records, decisions and delivery workflows."]
+    ]
+  },
+  fa: {
+    navHome: "خانه", navFeatures: "قابلیت‌ها", navSolutions: "راهکارها", navPricing: "قیمت‌گذاری", navResources: "منابع", navAbout: "درباره",
+    languageLabel: "EN", open: "ورود به پلتفرم", eyebrow: "پلتفرم CUBI",
+    title: "کنترل پروژه‌های ساخت،", titleAccent: "بازطراحی‌شده.",
+    lead: "کنترل پروژه، هوش مصنوعی و دقت مهندسی در یک پلتفرم حرفه‌ای برای برنامه‌ریزی، زمان‌بندی، هزینه، پیشرفت، منابع و اطلاعات پروژه.",
+    primaryCta: "ورود به CUBI", secondaryCta: "مشاهده قابلیت‌ها", tagline: "برنامه‌ریزی. کنترل. ساخت هوشمندتر.", visualLabel: "پیش‌نمایش داشبورد کنترل پروژه CUBI", demo: "نمونه",
+    schedule: "سلامت زمان‌بندی", cost: "عملکرد هزینه", progress: "پیشرفت", wbs: "ساختار شکست کار", activities: "فعالیت‌ها", baseline: "خط مبنا", aiInsight: "دستیار هوشمند",
+    capabilitiesTitle: "همه آنچه برای موفقیت پروژه نیاز دارید",
+    capabilitiesLead: "یک لایه کنترل متمرکز که زمان‌بندی، هزینه، منابع، اسناد و هوشمندی را به هم متصل می‌کند.",
+    solutionsTitle: "بر اساس شیوه واقعی کنترل پروژه‌های ساخت",
+    solutionsLead: "CUBI مدل پروژه را به اطلاعاتی که تیم‌ها هر روز استفاده می‌کنند متصل می‌کند، بدون تکرار منطق محاسبات مهندسی.",
+    solutionItems: ["برنامه‌ریزی و زمان‌بندی", "کنترل پروژه", "پیشرفت و EVM", "منابع و هزینه", "اسناد و قراردادها", "هوش مصنوعی و همکاری"],
+    techTitle: "مبتنی بر فناوری‌های پیشرو",
+    techLead: "زمان‌بندی CPM • PostgreSQL • AI • یکپارچه‌سازی داده • امنیت و قابلیت اطمینان",
+    pricingTitle: "آماده ساخت هوشمندتر هستید؟",
+    pricingLead: "با فضای کاری CUBI شروع کنید و با رشد نیازهای کنترل پروژه، در وب، دسکتاپ و موبایل مقیاس دهید.",
+    aboutTitle: "هوشمندی ساخت و ساختمان", footerDescriptor: "کنترل پروژه • هوش مصنوعی و Intelligence • دقت مهندسی",
+    features: [
+      ["◈", "کنترل پروژه", "زمان‌بندی، خط مبنا، پیشرفت و سیگنال‌های عملکرد در یک نمای واحد."],
+      ["✦", "دستیار هوشمند", "راهنمایی و بینش متکی بر context پروژه، بدون جایگزینی قضاوت مهندسی."],
+      ["◒", "منابع و هزینه", "تقاضای منابع، زمینه هزینه و سیگنال‌های EVM متصل به مدل پروژه."],
+      ["▤", "اسناد و قراردادها", "قرارداد، نقشه، RFI، Submittal، Claim و شواهد متصل به کار پروژه."],
+      ["◎", "همکاری", "نمای مشترک پروژه برای رشته‌ها، سوابق، تصمیمات و جریان‌های اجرایی."]
+    ]
+  }
+};
+
+function setLandingDocumentLocale(locale: LandingLocale): void {
+  document.documentElement.lang = locale;
+  document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
 }
 
-function renderLanding(container: HTMLElement): void {
-  setLandingDocumentLocale();
+function renderLanding(container: HTMLElement, locale: LandingLocale): void {
+  const t = translations[locale];
+  setLandingDocumentLocale(locale);
   container.innerHTML = `
-    <div class="cubi-reference-home" id="home">
-      <header class="cubi-exact-header">
-        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home">
-          <img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" />
+    <div class="cubi-site cubi-reference-home" dir="${locale === "fa" ? "rtl" : "ltr"}" id="home">
+      <header class="cubi-reference-header">
+        <a class="cubi-reference-brand cubi-reference-brand-image" href="./" aria-label="CUBI Platform home">
+          <img src="./cubi-logo-lockup.svg" width="206" height="72" alt="CUBI Platform — Plan. Control. Build Smarter." />
         </a>
-        <nav class="cubi-exact-nav" aria-label="Primary navigation">
-          <a class="is-active" href="#home">Home</a><a href="#features">Features</a><a href="#solutions">Solutions</a><a href="#pricing">Pricing</a><a href="#resources">Resources</a><a href="#about">About</a>
+        <nav class="cubi-reference-nav" aria-label="Primary navigation">
+          <a href="#home">${t.navHome}</a><a href="#features">${t.navFeatures}</a><a href="#solutions">${t.navSolutions}</a><a href="#pricing">${t.navPricing}</a><a href="#resources">${t.navResources}</a><a href="#about">${t.navAbout}</a>
         </nav>
-        <div class="cubi-exact-actions">
-          <button class="cubi-exact-language" type="button" aria-label="Language selector"><span>◉</span> EN <b>⌄</b></button>
-          <a class="cubi-exact-signin" href="./app/">Sign In</a>
-          <a class="cubi-exact-start" href="./app/">Get Started</a>
+        <div class="cubi-reference-actions">
+          <button class="cubi-lang-switch" type="button" aria-label="${locale === "fa" ? "Switch to English" : "تغییر به فارسی"}">${t.languageLabel}</button>
+          <a class="cubi-reference-cta cubi-reference-cta-small" href="./app/">${t.open}</a>
         </div>
       </header>
+
       <main>
-        <section class="cubi-exact-hero" aria-labelledby="cubi-hero-title">
-          <div class="cubi-exact-hero-copy">
-            <p class="cubi-exact-eyebrow">CUBI PLATFORM</p>
-            <h1 id="cubi-hero-title">Construction &amp; Building <span>Intelligence</span></h1>
-            <h2>Plan. Control. Build Smarter.</h2>
-            <p>CUBI Platform brings together project controls, AI and engineering precision to help you plan, monitor and deliver construction projects with confidence.</p>
-            <div class="cubi-exact-hero-actions">
-              <a class="cubi-exact-primary" href="./app/">Get Started <span>→</span></a>
-              <a class="cubi-exact-demo" href="#features"><span class="play">▶</span> Watch Demo</a>
+        <section class="cubi-reference-hero">
+          <div class="cubi-reference-hero-card">
+            <div class="cubi-reference-hero-copy">
+              <p class="cubi-reference-eyebrow"><span></span>${t.eyebrow}</p>
+            <h1>${t.title} <em>${t.titleAccent}</em></h1>
+            <p class="cubi-reference-lead">${t.lead}</p>
+            <p class="cubi-reference-tagline">${t.tagline}</p>
+            <div class="cubi-reference-actions-row">
+              <a class="cubi-reference-cta" href="./app/">${t.primaryCta} <span aria-hidden="true">→</span></a>
+              <a class="cubi-reference-text-link" href="#features">${t.secondaryCta}</a>
+            </div>
             </div>
           </div>
-          <div class="cubi-exact-dashboard" aria-label="CUBI project controls dashboard preview">
-            <div class="cubi-dash-sidebar">
-              <img src="./cubi-platform-logo-primary.svg" width="30" height="30" alt="CUBI Platform" /><strong>CUBI</strong>
-              <span>▦ Dashboard</span><span>▤ Projects</span><span>◫ Schedule</span><span>◒ Cost</span><span>▱ Documents</span><span>▥ Reports</span><span>⚙ Settings</span>
-            </div>
-            <div class="cubi-dash-main">
-              <div class="cubi-dash-title"><b>Project Schedule</b><span>◷</span></div>
-              <div class="cubi-gantt"><i style="width:33%"></i><i style="width:42%"></i><i style="width:52%"></i><i style="width:45%"></i><i style="width:61%"></i><i style="width:35%"></i></div>
-              <div class="cubi-dash-bottom">
-                <div class="cubi-mini-chart"><b>Cost Performance</b><div class="cubi-line-chart"></div></div>
-                <div class="cubi-ring-card"><b>EVM</b><div class="cubi-ring"><strong>0.92</strong></div><small>Cost Performance Index</small></div>
-                <div class="cubi-ai-card"><b>AI Assistant</b><div class="cubi-ai-bubble">◉</div><small>Ask anything about<br/>your project...</small></div>
+          <div class="cubi-reference-dashboard-wrap" aria-label="${t.visualLabel}">
+            <div class="cubi-reference-dashboard">
+              <div class="cubi-ref-dash-head"><strong>CUBI CONTROL CENTER</strong><span>${t.demo}</span></div>
+              <div class="cubi-ref-dash-toolbar"><i></i><i></i><i></i><b>Project Controls</b></div>
+              <div class="cubi-ref-dash-grid">
+                <article><small>${t.schedule}</small><strong>92%</strong><span>+4.8%</span></article>
+                <article><small>${t.cost}</small><strong>0.96</strong><span>${t.demo}</span></article>
+                <article class="cubi-ref-chart" aria-hidden="true"><div><i style="height:42%"></i><i style="height:64%"></i><i style="height:51%"></i><i style="height:76%"></i><i style="height:68%"></i><i style="height:88%"></i></div><span></span></article>
+                <article class="cubi-ref-table"><small>${t.wbs}</small><div><span>${t.activities}</span><b>124</b></div><div><span>${t.baseline}</span><b>v3.1</b></div><div><span>${t.progress}</span><b>78%</b></div></article>
               </div>
+              <div class="cubi-ref-ai"><span>AI</span><strong>${t.aiInsight}</strong><small>${t.demo}</small></div>
             </div>
-            <div class="cubi-progress-card"><div class="cubi-progress-ring"><strong>78%</strong></div><b>Overall Progress</b><div><span>12.4m</span><span>10.8m</span><span>-1.6m</span></div></div>
+            <div class="cubi-reference-orbit"><img src="./logo-dark.svg" width="78" height="78" alt="" /></div>
           </div>
         </section>
-        <section class="cubi-exact-features" id="features">
-          <div class="cubi-exact-section-head"><h2>Everything You Need for Project Success</h2><p>From planning to closeout, CUBI gives you the tools, insights and control to<br/>manage your construction projects smarter, faster and safer.</p></div>
-          <div class="cubi-exact-feature-grid">
-            <article><div class="cubi-feature-icon">▣</div><h3>Project Controls</h3><p>Plan, schedule and<br/>track progress with<br/>confidence.</p></article>
-            <article><div class="cubi-feature-icon">✦</div><h3>AI Assistant</h3><p>Get instant insights,<br/>answers and<br/>recommendations.</p></article>
-            <article><div class="cubi-feature-icon">▤</div><h3>Resources &amp; Cost</h3><p>Manage budgets,<br/>resources and<br/>cost performance.</p></article>
-            <article><div class="cubi-feature-icon">▱</div><h3>Documents &amp; Contracts</h3><p>Centralize documents,<br/>contracts, claims<br/>and issues.</p></article>
-            <article><div class="cubi-feature-icon">♧</div><h3>Collaboration</h3><p>Work together<br/>across your team<br/>and stakeholders.</p></article>
-            <article><div class="cubi-feature-icon">☁</div><h3>Cloud &amp; Scalability</h3><p>Secure, reliable and<br/>built to grow with<br/>your needs.</p></article>
-          </div>
+
+        <section class="cubi-reference-section cubi-reference-features" id="features">
+          <div class="cubi-reference-section-head"><p class="cubi-reference-kicker">CORE CAPABILITIES</p><h2>${t.capabilitiesTitle}</h2><p>${t.capabilitiesLead}</p></div>
+          <div class="cubi-reference-feature-grid">${t.features.map(([icon,title,body]) => `<article><span class="cubi-reference-icon">${icon}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div>
         </section>
-        <section class="cubi-exact-tech" id="resources">
-          <div class="cubi-tech-copy">
-            <h2>Powered by Leading<br/>Technologies</h2>
-            <p>CUBI integrates industry standards and proven tools<br/>to give you the best of both worlds — reliability and<br/>innovation.</p>
-            <div class="cubi-tech-badges"><b class="p6">S</b><span>Scheduling</span><b class="pg">◆</b><span>Database</span><b class="ai">✧</b><span>AI</span></div>
-            <a class="cubi-exact-outline" href="#solutions">Learn More <span>→</span></a>
-          </div>
-          <div class="cubi-tech-diagram" aria-label="CUBI technology architecture">
-            <div class="cubi-tech-node n1">▣ <span>Project Controls<br/>&amp; Scheduling</span></div>
-            <div class="cubi-tech-node n2">◉ <span>AI &amp; Analytics</span></div>
-            <div class="cubi-tech-node n3">▤ <span>Data &amp; Integration</span></div>
-            <div class="cubi-tech-node n4">◈ <span>Security &amp; Reliability</span></div>
-            <div class="cubi-stack"><i></i><i></i><i></i><b>◆</b></div>
-          </div>
+
+        <section class="cubi-reference-solutions" id="solutions">
+          <div><p class="cubi-reference-kicker">CONTROL SYSTEM</p><h2>${t.solutionsTitle}</h2><p>${t.solutionsLead}</p></div>
+          <div class="cubi-reference-solution-list">${t.solutionItems.map(item => `<span>${item}</span>`).join("")}</div>
         </section>
-        <section class="cubi-exact-cta" id="pricing">
-          <div><h2>Ready to Build Smarter?</h2><p>Join teams around the world who are transforming construction<br/>with CUBI Platform.</p></div>
-          <div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">Start Free Trial <span>→</span></a><a class="cubi-exact-demo" href="#about">Contact Sales</a></div>
+
+        <section class="cubi-reference-tech" id="resources">
+          <p class="cubi-reference-kicker">TECHNOLOGY</p><h2>${t.techTitle}</h2><p>${t.techLead}</p>
+        </section>
+
+        <section class="cubi-reference-pricing" id="pricing">
+          <p class="cubi-reference-kicker">CUBI PLATFORM</p><h2>${t.pricingTitle}</h2><p>${t.pricingLead}</p><a class="cubi-reference-cta" href="./app/">${t.primaryCta} <span aria-hidden="true">→</span></a>
         </section>
       </main>
-      <footer class="cubi-exact-footer" id="about">
-        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform"/><small>Plan. Control. Build Smarter.</small></div>
-        <div class="cubi-footer-col"><b>Product</b><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#resources">Integrations</a></div>
-        <div class="cubi-footer-col"><b>Resources</b><a href="#resources">Documentation</a><a href="#resources">Blog</a><a href="#about">Support</a></div>
-        <div class="cubi-footer-col"><b>Company</b><a href="#about">About Us</a><a href="#about">Careers</a><a href="#about">Contact</a></div>
-        <div class="cubi-footer-social"><span>in</span><span>𝕏</span><span>▶</span><span>◉</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
+
+      <footer class="cubi-reference-footer" id="about">
+        <div class="cubi-reference-brand cubi-reference-brand-image"><img src="./cubi-logo-lockup-dark.svg" width="186" height="65" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
+        <div><strong>${t.aboutTitle}</strong><span>${t.footerDescriptor}</span></div>
+        <p>${t.tagline}</p>
       </footer>
     </div>`;
+
+  const switcher = container.querySelector<HTMLButtonElement>(".cubi-lang-switch");
+  switcher?.addEventListener("click", () => {
+    const next: LandingLocale = locale === "fa" ? "en" : "fa";
+    const scrollY = window.scrollY;
+    renderLanding(container, next);
+    window.scrollTo({ top: scrollY, behavior: "auto" });
+  });
 }
 
 export function renderLandingPage(container: HTMLElement): void {
-  renderLanding(container);
+  renderLanding(container, "en");
 }
