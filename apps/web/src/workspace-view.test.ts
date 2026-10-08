@@ -176,6 +176,48 @@ test("incremental selection rerenders avoid workspace innerHTML replacement", ()
   assert.equal(innerHtmlWrites, 1);
 });
 
+test("representative activity sets avoid full workspace replacement on selection", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const activities = Array.from({ length: 500 }, (_, index) => ({
+    id: `A-${index + 1}`,
+    wbsId: "WBS-1",
+    code: `ACT-${index + 1}`,
+    name: `Activity ${index + 1}`,
+    cells: {},
+  }));
+  const state = { ...base, activities };
+  let html = "";
+  let innerHtmlWrites = 0;
+  let initialHtmlLength = 0;
+  const container = {
+    get innerHTML() {
+      return html;
+    },
+    set innerHTML(value: string) {
+      innerHtmlWrites += 1;
+      html = value;
+      if (innerHtmlWrites === 1) initialHtmlLength = value.length;
+    },
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...state,
+    selectedActivityId: "A-250",
+  });
+
+  assert.equal(activities.length, 500);
+  assert.ok(initialHtmlLength > 5000);
+  assert.equal(innerHtmlWrites, 1);
+  assert.equal(container.innerHTML.length, initialHtmlLength);
+});
+
 test("renderer honors visible workspace panel flags", () => {
   const state = {
     ...createWorkspaceState(
