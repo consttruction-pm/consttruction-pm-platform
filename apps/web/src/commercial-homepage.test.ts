@@ -10,6 +10,7 @@ const styles = readFileSync(join(root, "styles.css"), "utf8");
 
 test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
+    /cubi-reference-home/,
     /cubi-exact-home/,
     /cubi-exact-header/,
     /cubi-exact-hero/,
