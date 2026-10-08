@@ -69,7 +69,7 @@ test("menu selection wiring forwards the selected workspace surface", () => {
   const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
     innerHTML: "",
     querySelectorAll: () => [],
-    addEventListener: (_event, listener) => { clickListener = listener; },
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
   };
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onMenuSelect: (menu) => selected.push(menu),
