@@ -175,21 +175,50 @@ class CalendarResolverRegistry:
         day_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
         time_resolvers: Mapping[str, TimeAwareWorkingTimeResolver] | None = None,
         exception_layers: Mapping[str, CalendarExceptionLayers] | None = None,
+        base_calendar_references: Mapping[str, CalendarReference] | None = None,
     ) -> None:
         self._day = dict(day_resolvers or {})
         self._time = dict(time_resolvers or {})
         self._exception_layers = dict(exception_layers or {})
+        self._base_calendar_references = dict(base_calendar_references or {})
         for key, layers in self._exception_layers.items():
             if not isinstance(key, str) or not key.strip():
                 raise ValueError("exception layer keys must be non-empty strings")
             if not isinstance(layers, CalendarExceptionLayers):
                 raise TypeError("exception layers must be CalendarExceptionLayers")
+        for key, parent in self._base_calendar_references.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("base calendar reference keys must be non-empty strings")
+            if not isinstance(parent, CalendarReference):
+                raise TypeError("base calendar references must be CalendarReference values")
 
     @staticmethod
     def _key(reference: CalendarReference) -> str:
         return f"{reference.calendar_id}@{reference.calendar_version}"
 
-    def resolve(self, reference: CalendarReference):
+    @staticmethod
+    def _merge_inherited_layers(groups: tuple[tuple, ...]) -> tuple:
+        """Merge nearest inherited exception layers first, by date.
+
+        Duplicate dates inside one source layer are invalid. When parent and
+        grandparent layers describe the same date, the closest parent wins.
+        """
+        merged = []
+        seen_dates = set()
+        for group in groups:
+            layer_dates = set()
+            for exception in group:
+                if exception.date in layer_dates:
+                    raise ValueError(
+                        f"duplicate calendar exception for {exception.date.isoformat()}"
+                    )
+                layer_dates.add(exception.date)
+                if exception.date not in seen_dates:
+                    merged.append(exception)
+                    seen_dates.add(exception.date)
+        return tuple(merged)
+
+    def _registered_resolver(self, reference: CalendarReference):
         key = self._key(reference)
         if reference.kind == "working-day":
             resolver = self._day.get(key)
@@ -213,19 +242,57 @@ class CalendarResolverRegistry:
                     f"calendar system mismatch for {key}: "
                     f"reference={reference.system.value}, resolver={resolver_system.value}"
                 )
+        return resolver
+
+    def _resolved_exception_layers(
+        self,
+        reference: CalendarReference,
+        ancestry: tuple[str, ...] = (),
+    ) -> tuple[tuple, tuple]:
+        key = self._key(reference)
+        if key in ancestry:
+            cycle = "->".join((*ancestry, key))
+            raise ValueError(f"CALENDAR_INHERITANCE_CYCLE:{cycle}")
+
         layers = self._exception_layers.get(key)
-        if layers is None:
+        local = layers.local if layers is not None else ()
+        explicit_inherited = layers.inherited if layers is not None else ()
+        parent = self._base_calendar_references.get(key)
+        if parent is None:
+            # Preserve strict duplicate detection for explicitly supplied inheritance.
+            self._merge_inherited_layers((explicit_inherited,))
+            return local, tuple(explicit_inherited)
+
+        if parent.kind != reference.kind:
+            raise ValueError(f"CALENDAR_INHERITANCE_KIND_MISMATCH:{key}")
+        if parent.system is not reference.system:
+            raise ValueError(f"CALENDAR_INHERITANCE_SYSTEM_MISMATCH:{key}")
+
+        # Pin the parent version explicitly and fail if its calendar is not registered.
+        self._registered_resolver(parent)
+        parent_local, parent_inherited = self._resolved_exception_layers(
+            parent, (*ancestry, key)
+        )
+        inherited = self._merge_inherited_layers(
+            (tuple(explicit_inherited), parent_local, parent_inherited)
+        )
+        return tuple(local), inherited
+
+    def resolve(self, reference: CalendarReference):
+        resolver = self._registered_resolver(reference)
+        local, inherited = self._resolved_exception_layers(reference)
+        if not local and not inherited:
             return resolver
         if reference.kind == "working-day":
             return overlay_day_resolver(
                 resolver,
-                local_exceptions=layers.local,
-                inherited_exceptions=layers.inherited,
+                local_exceptions=local,
+                inherited_exceptions=inherited,
             )
         return overlay_time_resolver(
             resolver,
-            local_exceptions=layers.local,
-            inherited_exceptions=layers.inherited,
+            local_exceptions=local,
+            inherited_exceptions=inherited,
         )
 
     def resolve_relationship_lag(

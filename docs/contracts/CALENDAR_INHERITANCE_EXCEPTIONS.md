@@ -13,21 +13,29 @@ This bounded issue #1207 slice establishes persistence-ready semantics for P6 ca
 - Exception identity includes calendar version and exception date, enabling deterministic replay.
 
 ## Precedence contract
-This slice stores the data required to express inheritance and overrides. It does not alter the scheduling resolver. The intended materialization precedence is:
-1. child/project/resource override;
-2. inherited base-calendar exception;
-3. standard/base rule.
+The Shared Core resolver now accepts an explicit, version-pinned `base_calendar_references` map keyed by the child's exact `calendar_id@calendar_version`. It resolves parent chains before handing the resulting layers to the existing day/time resolver. No CPM arithmetic is reimplemented.
 
-Scheduling arithmetic remains exclusively in Shared Core.
+For one date, the effective rule follows these precedence rules:
+1. local exception on the current Project/Resource calendar;
+2. an explicitly supplied inherited exception for that calendar;
+3. the nearest parent calendar's local exception;
+4. more distant inherited parent exception;
+5. the current calendar's standard rule when no exception applies.
+
+Within one inherited source layer, duplicate exception dates are rejected. When two ancestor levels define the same date, the closest ancestor wins. A local `RESET_TO_STANDARD` is retained as an explicit override; it is not treated as an absent record. Missing parent registrations, calendar-kind/system mismatches, and inheritance cycles fail before scheduling. Parent references include exact versions so updating a base calendar does not rewrite earlier child resolution.
+
+The resolver only composes effective date rules. `WorkingTimeResolver` and `TimeAwareWorkingTimeResolver` remain the only arithmetic authorities.
 
 ## P6 evidence classification
 | Capability | Classification | Evidence boundary |
 | --- | --- | --- |
-| Versioned base/global calendar reference | Equivalent-Superset | Persisted and round-tripped; resolver inheritance is a follow-up |
-| Nonwork exception | Implemented | SQLite/PostgreSQL round-trip tests |
-| Total work-hours override | Implemented | SQLite domain/persistence regression |
-| Detailed non-contiguous work-hours | Implemented | SQLite/PostgreSQL round-trip tests |
-| Reset-to-standard | Implemented | SQLite persistence regression |
+| Versioned base/global calendar reference | Implemented at Shared Core boundary | Explicit parent id/version map; version-pinned regression cases in `tests/scheduling/test_calendar_resolution.py` |
+| Global nonwork + Project reset-to-standard | Implemented | Resolver inheritance/precedence regression |
+| Global detailed hours + Project total-hours override | Implemented | Time-aware resolver regression |
+| Resource local override > Project override > Global base | Implemented | Three-level resolver regression |
+| Parent/child version changes preserve historical resolution | Implemented | Exact-version isolation regression |
+| Missing parent, kind/system mismatch, inheritance cycles | Implemented | Fail-fast resolution contract; cycle regression |
+| Nonwork/total/detailed/reset exception persistence | Implemented | SQLite/PostgreSQL domain and round-trip tests |
 | Full Calendar CRUD / Copy / Replace / REST API parity | Outside-Scope | Tracked by issue #1209 |
 
-No P6 parity claim is made beyond the executable evidence above.
+No claim is made that a running production persistence adapter automatically builds this map; persistence-to-Shared-Core composition remains a separate integration boundary. No P6 parity claim is made beyond the executable evidence above.

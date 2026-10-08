@@ -612,3 +612,187 @@ def test_registry_exception_overlay_preserves_jalali_input_as_gregorian_arithmet
     resolved = registry.resolve(reference)
     assert resolved.is_working_day(target) is False
     assert resolved.is_working_day(target.to_gregorian()) is False
+
+
+def test_inherited_global_nonwork_is_overridden_by_project_reset_to_standard():
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import CalendarException, CalendarExceptionType
+
+    target = date(2026, 9, 22)
+    global_ref = CalendarReference("GLOBAL", "1")
+    project_ref = CalendarReference("PROJECT", "1")
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "GLOBAL@1": WorkingTimeResolver(WorkingCalendar()),
+            "PROJECT@1": WorkingTimeResolver(WorkingCalendar()),
+        },
+        exception_layers={
+            "GLOBAL@1": CalendarExceptionLayers(
+                local=(CalendarException(target, CalendarExceptionType.NONWORK),)
+            ),
+            "PROJECT@1": CalendarExceptionLayers(
+                local=(CalendarException(target, CalendarExceptionType.RESET_TO_STANDARD),)
+            ),
+        },
+        base_calendar_references={"PROJECT@1": global_ref},
+    )
+
+    assert registry.resolve(project_ref).is_working_day(target) is True
+    assert registry.resolve(global_ref).is_working_day(target) is False
+
+
+def test_project_total_hours_override_takes_precedence_over_inherited_global_detailed_hours():
+    from datetime import time
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import CalendarException, CalendarExceptionType
+    from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+
+    target = date(2026, 9, 22)
+    global_ref = CalendarReference("GLOBAL-TIME", "1", "working-time")
+    project_ref = CalendarReference("PROJECT-TIME", "1", "working-time")
+    standard = WorkingTimeCalendar(
+        daily_intervals={1: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0)))}
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={
+            "GLOBAL-TIME@1": TimeAwareWorkingTimeResolver(standard),
+            "PROJECT-TIME@1": TimeAwareWorkingTimeResolver(standard),
+        },
+        exception_layers={
+            "GLOBAL-TIME@1": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        target,
+                        CalendarExceptionType.DETAILED_WORK_HOURS,
+                        intervals=((time(9, 0), time(12, 0)), (time(13, 0), time(16, 0))),
+                    ),
+                )
+            ),
+            "PROJECT-TIME@1": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        target,
+                        CalendarExceptionType.TOTAL_WORK_HOURS,
+                        total_work_hours=Decimal("6"),
+                    ),
+                )
+            ),
+        },
+        base_calendar_references={"PROJECT-TIME@1": global_ref},
+    )
+
+    resolved = registry.resolve(project_ref)
+    assert resolved.calendar.intervals_for(target) == (
+        (time(8, 0), time(12, 0)),
+        (time(13, 0), time(15, 0)),
+    )
+
+
+def test_resource_local_exception_overrides_project_exception_and_global_base():
+    from datetime import time
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import CalendarException, CalendarExceptionType
+    from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
+
+    target = date(2026, 9, 22)
+    global_ref = CalendarReference("GLOBAL-RESOURCE", "1", "working-time")
+    project_ref = CalendarReference("PROJECT-RESOURCE", "1", "working-time")
+    resource_ref = CalendarReference("RESOURCE-1", "1", "working-time")
+    standard = WorkingTimeCalendar(
+        daily_intervals={1: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0)))}
+    )
+    registry = CalendarResolverRegistry(
+        time_resolvers={
+            "GLOBAL-RESOURCE@1": TimeAwareWorkingTimeResolver(standard),
+            "PROJECT-RESOURCE@1": TimeAwareWorkingTimeResolver(standard),
+            "RESOURCE-1@1": TimeAwareWorkingTimeResolver(standard),
+        },
+        exception_layers={
+            "GLOBAL-RESOURCE@1": CalendarExceptionLayers(
+                local=(CalendarException(target, CalendarExceptionType.NONWORK),)
+            ),
+            "PROJECT-RESOURCE@1": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        target,
+                        CalendarExceptionType.TOTAL_WORK_HOURS,
+                        total_work_hours=Decimal("4"),
+                    ),
+                )
+            ),
+            "RESOURCE-1@1": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        target,
+                        CalendarExceptionType.DETAILED_WORK_HOURS,
+                        intervals=((time(8, 0), time(10, 0)), (time(14, 0), time(16, 0))),
+                    ),
+                )
+            ),
+        },
+        base_calendar_references={
+            "PROJECT-RESOURCE@1": global_ref,
+            "RESOURCE-1@1": project_ref,
+        },
+    )
+
+    resource = registry.resolve(resource_ref)
+    assert resource.calendar.intervals_for(target) == (
+        (time(8, 0), time(10, 0)),
+        (time(14, 0), time(16, 0)),
+    )
+    assert registry.resolve(project_ref).calendar.intervals_for(target)
+    assert registry.resolve(global_ref).calendar.intervals_for(target) == ()
+
+
+def test_version_pinned_calendar_inheritance_does_not_change_historical_resolution():
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import CalendarException, CalendarExceptionType
+
+    target = date(2026, 9, 22)
+    global_v1 = CalendarReference("GLOBAL-VERSIONED", "1")
+    global_v2 = CalendarReference("GLOBAL-VERSIONED", "2")
+    project_v1 = CalendarReference("PROJECT-VERSIONED", "1")
+    project_v2 = CalendarReference("PROJECT-VERSIONED", "2")
+    standard = WorkingCalendar()
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "GLOBAL-VERSIONED@1": WorkingTimeResolver(standard),
+            "GLOBAL-VERSIONED@2": WorkingTimeResolver(standard),
+            "PROJECT-VERSIONED@1": WorkingTimeResolver(standard),
+            "PROJECT-VERSIONED@2": WorkingTimeResolver(standard),
+        },
+        exception_layers={
+            "GLOBAL-VERSIONED@1": CalendarExceptionLayers(
+                local=(CalendarException(target, CalendarExceptionType.NONWORK),)
+            ),
+        },
+        base_calendar_references={
+            "PROJECT-VERSIONED@1": global_v1,
+            "PROJECT-VERSIONED@2": global_v2,
+        },
+    )
+
+    historical = registry.resolve(project_v1)
+    revised = registry.resolve(project_v2)
+    assert historical.is_working_day(target) is False
+    assert revised.is_working_day(target) is True
+    assert registry.resolve(project_v1).is_working_day(target) is False
+
+
+def test_calendar_inheritance_cycle_fails_fast():
+    ref_a = CalendarReference("CYCLE-A", "1")
+    ref_b = CalendarReference("CYCLE-B", "1")
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "CYCLE-A@1": WorkingTimeResolver(WorkingCalendar()),
+            "CYCLE-B@1": WorkingTimeResolver(WorkingCalendar()),
+        },
+        base_calendar_references={
+            "CYCLE-A@1": ref_b,
+            "CYCLE-B@1": ref_a,
+        },
+    )
+
+    with pytest.raises(ValueError, match="CALENDAR_INHERITANCE_CYCLE"):
+        registry.resolve(ref_a)
