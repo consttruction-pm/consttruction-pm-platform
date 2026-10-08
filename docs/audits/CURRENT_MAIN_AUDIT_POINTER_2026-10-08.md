@@ -5,7 +5,7 @@ This document is the live governance pointer for the current repository integrat
 ## Authoritative main
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
-- Current `main` HEAD: `6931993b81cb369dbc34948c719e0ee212d702cb`
+- Current `main` HEAD: `d4a24216e28bb8be750e4e64e6f138344d12163c`
 - Last merged Jalal capability slices:
   - PR #1311 — production composition seam for authoritative Schedule Query.
   - PR #1312 — P6 Activity Baseline1 semantic certification.
@@ -25,12 +25,11 @@ This prevents PR count, commit count, additions/deletions, or duplicate/supersed
 
 ## Active Jalal lanes
 
-- PR #1313 — Mobile canonical scheduling fixture/validator coverage for #1249.
-- PR #1314 — legacy scheduling DTO to canonical v1 compatibility mapping for #1249.
 - Issue #1251 — calculation identity vs provenance policy.
 - Issue #1226 — cross-platform P6 field/column/formula contract parity.
+- Issue #1226 — cross-platform P6 field/column/formula contract parity.
 
-PRs #1291/#1292 were superseded and closed; their fresh-main replacements are #1313/#1314.
+Issue #1249 is closed after #1314 and #1316 were merged and independently verified on current `main`. PR #1313 was superseded by #1316.
 
 ## Acceptance rule
 
