@@ -21,6 +21,45 @@ from .resource_leveling import BackwardLevelingActivity, LevelingActivity, Resou
 from .schedule_batch import AuthoritativeScheduleBatch
 
 
+_BATCH_ROUTING_OPTION_FIELDS = frozenset({
+    "ignore_other_project_relationships",
+    "include_external_res_ass",
+    "external_project_priority_limit",
+    "calculate_float_based_on_finish_date",
+    "level_all_resources",
+    "level_within_float",
+    "min_float_to_preserve",
+    "over_allocation_percentage",
+    "resource_list",
+    "priority_list",
+})
+
+
+def _validate_shared_graph_schedule_options(snapshot_list: tuple) -> None:
+    """Reject order-dependent options before one global graph uses a single option set.
+
+    Batch-routing and resource-selection fields are resolved per project or by
+    explicit guards at this orchestration boundary. All remaining ScheduleOptions
+    fields must match because the shared graph is evaluated once.
+    """
+    if len(snapshot_list) < 2:
+        return
+    first = snapshot_list[0].schedule_options
+    mismatches = sorted(
+        name
+        for name in first.__dataclass_fields__
+        if name not in _BATCH_ROUTING_OPTION_FIELDS
+        and any(
+            getattr(snapshot.schedule_options, name) != getattr(first, name)
+            for snapshot in snapshot_list[1:]
+        )
+    )
+    if mismatches:
+        raise UnsupportedMultiProjectSchedulingError(
+            "MULTI_PROJECT_SCHEDULE_OPTIONS_MISMATCH:" + ",".join(mismatches)
+        )
+
+
 class UnsupportedMultiProjectSchedulingError(ValueError):
     """Raised when a multi-project capability cannot be safely executed."""
 
@@ -159,6 +198,7 @@ def execute_authoritative_schedule_batch(
     )
 
     if len(snapshot_list) > 1 and (shared_relationships or leveling_input is not None):
+        _validate_shared_graph_schedule_options(snapshot_list)
         first_resolver = resolvers.get(snapshot_list[0].project_id)
         if first_resolver is None:
             raise KeyError(
