@@ -64,10 +64,10 @@ jobs:
 
             for (const [url, expected] of checks) {
               const response = await fetch(url);
-              if (!response.ok) throw new Error(\`HTTP \${response.status} for \${url}\`);
+              if (!response.ok) throw new Error("HTTP " + response.status + " for " + url);
               const body = await response.text();
               if (!body.includes(expected)) {
-                throw new Error(\`Expected \${expected} in \${url}\`);
+                throw new Error("Expected " + expected + " in " + url);
               }
             }
           } finally {
