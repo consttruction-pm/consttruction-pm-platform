@@ -156,6 +156,24 @@ test("activity deselection also stays incremental", () => {
   assert.match(details.innerHTML, /—/);
 });
 
+test("full rerenders do not accumulate delegated workspace listeners", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const registrations: string[] = [];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string) => { registrations.push(type); },
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
+
+  assert.deepEqual(registrations, ["click", "keydown", "change"]);
+});
+
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
   const base = createWorkspaceState(
     { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
