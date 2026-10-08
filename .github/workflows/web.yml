@@ -46,7 +46,7 @@ jobs:
 
       - name: Preview runtime smoke test
         run: |
-          nohup node preview-server.mjs > "$RUNNER_TEMP/cubi-preview.log" 2>&1 < /dev/null &
+          nohup node --input-type=module -e "import(\"./preview-server.mjs\").then(({ startPreviewServer }) => startPreviewServer())" > "$RUNNER_TEMP/cubi-preview.log" 2>&1 < /dev/null &
           preview_pid=$!
           trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 60); do
