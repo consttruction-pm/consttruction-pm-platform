@@ -32,6 +32,37 @@ class TimeSchedulingAPIPayload:
             "relationships": [dict(item) for item in self.relationships],
             "constraints": [dict(item) for item in self.constraints],
         }
+    def to_canonical_request(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        revision: int,
+    ) -> dict[str, object]:
+        """Map this legacy DTO onto canonical scheduling request v1.
+
+        This is a compatibility boundary only; it performs validation and
+        field mapping, never scheduling calculations.
+        """
+        self.validate()
+        if not tenant_id.strip():
+            raise ValueError("tenant_id is required")
+        if not project_id.strip():
+            raise ValueError("project_id is required")
+        if not isinstance(revision, int) or revision < 0:
+            raise ValueError("revision must be a non-negative integer")
+        return {
+            "contract_version": "1.0",
+            "project_context": {
+                "tenant_id": tenant_id,
+                "project_id": project_id,
+                "revision": revision,
+            },
+            "calculation_context": dict(self.calculation_context),
+            "activities": [dict(item) for item in self.activities],
+            "relationships": [dict(item) for item in self.relationships],
+            "constraints": [dict(item) for item in self.constraints],
+        }
 
     def validate(self) -> None:
         schedule_mode = self.calculation_context.get("schedule_mode")
