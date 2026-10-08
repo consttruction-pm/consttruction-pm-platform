@@ -80,7 +80,7 @@ function renderLanding(container: HTMLElement): void {
   const t = copy[locale];
   setLandingDocumentLocale();
   container.innerHTML = `
-    <div class="cubi-exact-home" id="home">
+    <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
