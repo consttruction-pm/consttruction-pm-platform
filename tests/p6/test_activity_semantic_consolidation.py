@@ -28,18 +28,48 @@ def test_activity_consolidation_evidence_is_registered_without_aliases():
         "ActualThisPeriodLaborUnits": (True, False),
         "ActualThisPeriodNonLaborCost": (True, False),
         "ActualThisPeriodNonLaborUnits": (True, False),
+        "Baseline1Duration": (False, True),
+        "Baseline1FinishDate": (False, True),
+        "Baseline1PlannedDuration": (False, True),
+        "Baseline1PlannedExpenseCost": (False, False),
+        "Baseline1PlannedLaborCost": (False, True),
+        "Baseline1PlannedLaborUnits": (False, False),
+        "Baseline1PlannedMaterialCost": (False, False),
+        "Baseline1PlannedNonLaborCost": (False, True),
+        "Baseline1PlannedNonLaborUnits": (False, False),
+        "Baseline1PlannedTotalCost": (False, True),
+        "Baseline1StartDate": (False, True),
+    }
+    type_overrides = {
+        "Baseline1Duration": "duration",
+        "Baseline1PlannedDuration": "duration",
+    }
+    unit_overrides = {
+        "Baseline1Duration": "working-time",
+        "Baseline1PlannedDuration": "working-time",
+        "Baseline1PlannedExpenseCost": "currency",
+        "Baseline1PlannedLaborCost": "currency",
+        "Baseline1PlannedLaborUnits": "units",
+        "Baseline1PlannedMaterialCost": "currency",
+        "Baseline1PlannedNonLaborCost": "currency",
+        "Baseline1PlannedNonLaborUnits": "units",
+        "Baseline1PlannedTotalCost": "currency",
     }
 
     assert len(evidence["fields"]) == 83
     for item in evidence["fields"]:
         field = registry[item["p6_field"]]
-        assert field.data_type.value == ("datetime" if item["data_type"] == "date-time" else item["data_type"])
+        expected_type = type_overrides.get(
+            item["p6_field"],
+            "datetime" if item["data_type"] == "date-time" else item["data_type"],
+        )
+        assert field.data_type.value == expected_type
         expected_writable, expected_computed = certified_overrides.get(
             item["p6_field"], (item["writable"], item["computed"])
         )
         assert field.writable is expected_writable
         assert field.computed is expected_computed
-        assert field.unit == item["unit"]
+        assert field.unit == unit_overrides.get(item["p6_field"], item["unit"])
         assert field.disposition == "seeded_not_certified"
 
 
