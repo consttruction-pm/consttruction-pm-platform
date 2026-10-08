@@ -218,6 +218,41 @@ test("representative activity sets avoid full workspace replacement on selection
   assert.equal(container.innerHTML.length, initialHtmlLength);
 });
 
+test("WBS selection still uses a full render because it clears activity selection", () => {
+  const base = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    selectedActivityId: "A-1",
+  };
+  let html = "";
+  let innerHtmlWrites = 0;
+  const container = {
+    get innerHTML() {
+      return html;
+    },
+    set innerHTML(value: string) {
+      innerHtmlWrites += 1;
+      html = value;
+    },
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  assert.equal(innerHtmlWrites, 1);
+
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...base,
+    selectedWbsId: "WBS-1",
+    selectedActivityId: null,
+  });
+
+  assert.equal(innerHtmlWrites, 2);
+});
+
 test("renderer honors visible workspace panel flags", () => {
   const state = {
     ...createWorkspaceState(
