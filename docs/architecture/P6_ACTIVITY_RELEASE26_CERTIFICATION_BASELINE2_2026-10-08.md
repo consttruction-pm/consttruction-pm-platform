@@ -3,7 +3,7 @@
 Date: 2026-10-08  
 Owner: Jalal  
 Issue: #1322  
-Base: `main@ee2c6e42047d7cc6c4baf5b60427ab1117a9250e`  
+Base: current-main certification tranche (branch refreshed semantically after review)  
 Scope: existing canonical Activity registry metadata and source evidence only.
 
 ## Oracle authority
@@ -16,9 +16,9 @@ The Integration API Field Summary marks the secondary-baseline fields below Read
 
 | P6 field | Registry type | Read Only | Writable | Computed | Unit |
 |---|---|---:|---:|---:|---|
-| Baseline2Duration | DURATION | Yes | No | Yes | working-time |
+| Baseline2Duration | DOUBLE | Yes | No | Yes | working-time |
 | Baseline2FinishDate | DATE | Yes | No | Yes | — |
-| Baseline2PlannedDuration | DURATION | Yes | No | Yes | working-time |
+| Baseline2PlannedDuration | DOUBLE | Yes | No | Yes | working-time |
 | Baseline2PlannedExpenseCost | DOUBLE | Yes | No | No | currency |
 | Baseline2PlannedLaborCost | DOUBLE | Yes | No | No | currency |
 | Baseline2PlannedLaborUnits | DOUBLE | Yes | No | No | units |
@@ -32,8 +32,8 @@ The Integration API Field Summary marks the secondary-baseline fields below Read
 
 - **Baseline2Duration** and **Baseline2PlannedDuration** are computed working-time values using the activity calendar.
 - **Baseline2FinishDate** is the status-dependent current finish selected from planned, remaining, or actual finish; the registry therefore treats it as derived.
-- **Baseline2PlannedExpenseCost**, **Baseline2PlannedLaborUnits**, **Baseline2PlannedMaterialCost**, and **Baseline2PlannedNonLaborUnits** are retained as read-only values because the reviewed Release 26 Activity material does not publish a derivation formula for them.
-- **Baseline2PlannedLaborCost** is retained as a read-only value because the reviewed secondary-baseline description does not publish a derivation formula in the evidence available to this tranche.
+- **Baseline2PlannedExpenseCost**, **Baseline2PlannedLaborUnits**, **Baseline2PlannedMaterialCost**, and **Baseline2PlannedNonLaborUnits** retain the existing canonical registry `computed=True` disposition; this tranche does not reinterpret those internal flags as newly proven Oracle formulas.
+- **Baseline2PlannedLaborCost** retains the existing canonical registry `computed=True` disposition; this tranche does not alter that internal calculation classification.
 - **Baseline2PlannedNonLaborCost** is computed where Oracle documents the nonlabor-units × default-price/time fallback.
 - **Baseline2PlannedTotalCost** is computed because Oracle explicitly defines it as planned labor cost + planned nonlabor cost + planned expense cost.
 - **Baseline2StartDate** is the status-dependent current start (planned until started, then actual), so it is treated as derived.
