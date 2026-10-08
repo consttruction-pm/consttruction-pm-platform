@@ -49,7 +49,7 @@ def test_query_executes_real_snapshot_evaluation():
         provider,
         RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
     )
-    request = ScheduleQueryRequest("Q-I", ControlScope("T-1", "P-1", 9), "user-1", "show schedule")
+    request = ScheduleQueryRequest("Q-I", ControlScope("T-1", "P-1", 9), "user-1", "show schedule", constraints={"snapshot_id": "S-I"})
     auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
 
     answer = service.execute(request, auth_context=auth, calculation_context=context)
@@ -85,7 +85,7 @@ def test_filter_projection_selects_explicit_activity_ids():
     request = ScheduleQueryRequest(
         "Q-F", ControlScope("T-1", "P-1", 9), "user-1", "filter",
         kind=__import__("construction_pm.control_intelligence.query", fromlist=["ScheduleQueryKind"]).ScheduleQueryKind.FILTER,
-        constraints={"activity_ids": ["B"]},
+        constraints={"activity_ids": ["B"], "snapshot_id": "S-F"},
     )
     auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
     answer = service.execute(request, auth_context=auth, calculation_context=context)
@@ -137,6 +137,7 @@ def test_scenario_projection_does_not_invoke_scheduler():
         "scenario purpose",
         kind=ScheduleQueryKind.SCENARIO,
         constraints={
+            "snapshot_id": "S-SKIP",
             "changes": [
                 {
                     "change_id": "C-1",
@@ -197,7 +198,7 @@ def test_scenario_projection_is_proposal_only_and_traceable():
     request = ScheduleQueryRequest(
         "Q-S", ControlScope("T-1", "P-1", 9), "user-1", "scenario purpose",
         kind=ScheduleQueryKind.SCENARIO,
-        constraints={"changes": [{"change_id": "C-1", "domain": "schedule", "entity_type": "activity",
+        constraints={"snapshot_id": "S-S", "changes": [{"change_id": "C-1", "domain": "schedule", "entity_type": "activity",
                                   "entity_id": "A", "operation": "set_duration", "proposed_value": {"duration": 3}}]},
     )
     auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
