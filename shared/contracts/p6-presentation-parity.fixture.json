@@ -1,0 +1,59 @@
+{
+  "contract_version": "1.0",
+  "registry": {
+    "registry_version": "p6-field-registry.v1",
+    "reference_product": "Oracle Primavera P6 Professional",
+    "reference_version": "26.4",
+    "status": "seeded_not_certified",
+    "fields": [
+      {
+        "field_id": "activity.activity_id",
+        "subject_area": "Activity",
+        "p6_field": "Id",
+        "display_name": "Activity ID",
+        "data_type": "object-id",
+        "writable": false,
+        "computed": false,
+        "disposition": "seeded_not_certified"
+      },
+      {
+        "field_id": "activity.duration",
+        "subject_area": "Activity",
+        "p6_field": "OriginalDuration",
+        "display_name": "Original Duration",
+        "data_type": "duration",
+        "writable": true,
+        "computed": false,
+        "disposition": "seeded_not_certified",
+        "unit": "hour"
+      },
+      {
+        "field_id": "activity.total_float",
+        "subject_area": "Activity",
+        "p6_field": "TotalFloat",
+        "display_name": "Total Float",
+        "data_type": "duration",
+        "writable": false,
+        "computed": true,
+        "disposition": "seeded_not_certified",
+        "unit": "hour"
+      }
+    ]
+  },
+  "layout": {
+    "schema_version": "p6-layout.v1",
+    "scope": "project",
+    "view_id": "activity",
+    "revision": 3,
+    "columns": [
+      {"field_id":"activity.activity_id","visible":true,"order":0,"width":150,"alignment":"start","pinned":true,"frozen":false},
+      {"field_id":"activity.duration","visible":true,"order":1,"width":140,"alignment":"end","pinned":false,"frozen":false},
+      {"field_id":"activity.total_float","visible":true,"order":2,"width":140,"alignment":"end","pinned":false,"frozen":false}
+    ]
+  },
+  "formula_authoritative": {
+    "validation": {"valid": true, "error_code": null, "message_key": null},
+    "dependencies": {"field_ids": ["activity.duration"]},
+    "result_type": {"data_type": "duration"}
+  }
+}
