@@ -6,14 +6,16 @@ from .authorization import AllowAllAuthorizationPolicy, AuthorizationPolicy
 from .context import ProjectContext
 from .errors import (
     ApplicationError,
+    ErrorCategory,
     context_error,
     not_found_error,
     conflict_error,
     validation_error,
 )
 from .errors import OptimisticLockError
-from .idempotency import (
-    MutationIdempotencyStore,
+from ..backend_p0.errors import BackendApplicationError
+from ..backend_p0.idempotency import (
+    ScopedIdempotencyStore,
     assignment_fingerprint,
     resource_fingerprint,
 )
@@ -28,12 +30,21 @@ def _raise_if_invalid(errors: list[str]) -> None:
         raise validation_error("INVALID_INPUT", ";".join(errors))
 
 
+def _to_resource_error(exc: BackendApplicationError) -> ApplicationError:
+    return ApplicationError(
+        ErrorCategory(exc.category.value),
+        exc.code,
+        exc.message,
+        exc.retryable,
+    )
+
+
 @dataclass(frozen=True)
 class ResourceApplicationService:
     repository: ResourceRepository
     context: ProjectContext
     transaction_manager: TransactionManager
-    idempotency_store: MutationIdempotencyStore | None = None
+    idempotency_store: ScopedIdempotencyStore | None = None
     authorization_policy: AuthorizationPolicy | None = None
 
     def register_resource(
@@ -62,15 +73,19 @@ class ResourceApplicationService:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
         try:
             return self.idempotency_store.execute(
-                self.context,
-                key=idempotency_key or "",
+                self.context.tenant_id,
+                self.context.company_id,
+                self.context.project_id,
                 operation="register_resource",
+                key=idempotency_key or "",
                 fingerprint=resource_fingerprint(resource, expected_revision),
                 mutation=mutation,
                 replay=lambda: self.repository.get_resource(self.context, resource.id) or resource,
             )
         except OptimisticLockError as exc:
             raise conflict_error("STALE_REVISION", str(exc)) from exc
+        except BackendApplicationError as exc:
+            raise _to_resource_error(exc) from exc
 
     def assign_resource(
         self,
@@ -105,9 +120,11 @@ class ResourceApplicationService:
                 raise conflict_error("STALE_REVISION", str(exc)) from exc
         try:
             return self.idempotency_store.execute(
-                self.context,
-                key=idempotency_key or "",
+                self.context.tenant_id,
+                self.context.company_id,
+                self.context.project_id,
                 operation="assign_resource",
+                key=idempotency_key or "",
                 fingerprint=assignment_fingerprint(assignment, expected_revision),
                 mutation=mutation,
                 replay=lambda: next(
@@ -121,6 +138,8 @@ class ResourceApplicationService:
             )
         except OptimisticLockError as exc:
             raise conflict_error("STALE_REVISION", str(exc)) from exc
+        except BackendApplicationError as exc:
+            raise _to_resource_error(exc) from exc
 
     def get_resource(self, resource_id: str) -> Resource | None:
         return self.repository.get_resource(self.context, resource_id)

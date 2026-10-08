@@ -2,13 +2,14 @@ from decimal import Decimal
 
 import pytest
 
+from construction_pm.backend_p0.idempotency import (
+    InMemoryScopedIdempotencyStore,
+    assignment_fingerprint,
+)
 from construction_pm.resources.application import ResourceApplicationService
 from construction_pm.resources.context import ProjectContext
 from construction_pm.resources.errors import ApplicationError
-from construction_pm.resources.idempotency import (
-    InMemoryMutationIdempotencyStore,
-    assignment_fingerprint,
-)
+from construction_pm.resources.idempotency import InMemoryMutationIdempotencyStore
 from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
 from construction_pm.resources.repository import InMemoryResourceRepository
 from construction_pm.resources.transactions import NoOpTransactionManager
@@ -30,7 +31,7 @@ def make_resource() -> Resource:
     )
 
 
-def make_service(store: InMemoryMutationIdempotencyStore) -> ResourceApplicationService:
+def make_service(store: InMemoryScopedIdempotencyStore) -> ResourceApplicationService:
     return ResourceApplicationService(
         repository=InMemoryResourceRepository(),
         context=CONTEXT,
@@ -94,7 +95,7 @@ def test_store_isolated_by_project_context():
 
 
 def test_application_resource_mutation_replays_with_same_idempotency_key():
-    store = InMemoryMutationIdempotencyStore()
+    store = InMemoryScopedIdempotencyStore()
     service = make_service(store)
     resource = make_resource()
 

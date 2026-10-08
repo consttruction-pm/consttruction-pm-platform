@@ -16,7 +16,7 @@ class OptimisticLockError(RuntimeError):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass
 class BackendApplicationError(Exception):
     category: ErrorCategory
     code: str

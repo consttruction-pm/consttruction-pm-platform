@@ -42,7 +42,7 @@ def test_sqlite_idempotency_rolls_back_record_when_mutation_fails():
         )
 
     row = connection.execute(
-        "SELECT 1 FROM mutation_idempotency WHERE tenant_id=? AND company_id=? "
+        "SELECT 1 FROM backend_p0_scoped_idempotency WHERE tenant_id=? AND company_id=? "
         "AND project_id=? AND operation=? AND idempotency_key=?",
         ("tenant-1", "company-1", "project-1", "op", "key-1"),
     ).fetchone()

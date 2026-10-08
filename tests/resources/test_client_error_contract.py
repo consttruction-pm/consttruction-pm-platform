@@ -4,7 +4,7 @@ from construction_pm.resources.api import ResourceAPI
 from construction_pm.resources.application import ResourceApplicationService
 from construction_pm.resources.authorization import AllowAllAuthorizationPolicy, DenyAuthorizationPolicy
 from construction_pm.resources.context import ProjectContext
-from construction_pm.resources.idempotency import InMemoryMutationIdempotencyStore
+from construction_pm.backend_p0.idempotency import InMemoryScopedIdempotencyStore
 from construction_pm.resources.models import Resource, ResourceAssignment, ResourceType
 from construction_pm.resources.repository import InMemoryResourceRepository
 from construction_pm.resources.transactions import NoOpTransactionManager
@@ -15,7 +15,7 @@ def _api():
         repository=InMemoryResourceRepository(),
         context=ProjectContext("t", "c", "p"),
         transaction_manager=NoOpTransactionManager(),
-        idempotency_store=InMemoryMutationIdempotencyStore(),
+        idempotency_store=InMemoryScopedIdempotencyStore(),
         authorization_policy=AllowAllAuthorizationPolicy(),
     )
     return ResourceAPI(service)
@@ -68,7 +68,7 @@ def test_client_error_contract_is_stable_for_authorization_denial():
         repository=InMemoryResourceRepository(),
         context=ProjectContext("t", "c", "p"),
         transaction_manager=NoOpTransactionManager(),
-        idempotency_store=InMemoryMutationIdempotencyStore(),
+        idempotency_store=InMemoryScopedIdempotencyStore(),
         authorization_policy=DenyAuthorizationPolicy(),
     )
     result = ResourceAPI(service).create_resource(_valid_resource())
