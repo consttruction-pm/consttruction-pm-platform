@@ -37,6 +37,7 @@ from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
+from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
 from ..p6_expense_repository import P6Expense
 from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
@@ -89,6 +90,7 @@ class ProjectLifecycleHttpRoutes:
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
+        p6_role_api: P6RoleAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
@@ -111,6 +113,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
         self._p6_relationship_api = p6_relationship_api
+        self._p6_role_api = p6_role_api
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
@@ -700,6 +703,56 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_FINANCIAL_PERIOD_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/p6/roles" in path and self._p6_role_api is not None:
+                prefix = "/p6/roles"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_ROLE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET" and not parts:
+                        result = self._p6_role_api.list(context.tenant_id, context.project_id, context.revision, auth_context=auth)
+                        return self._json(200, {"contract_version": P6_ROLE_API_VERSION, "roles": list(result)})
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_role_api.get(context.tenant_id, context.project_id, context.revision, parts[0], auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_ROLE_NOT_FOUND", "error.p6.role.not_found")
+                        return self._json(200, result)
+                    if method == "POST" and not parts:
+                        from ..p6_role_repository import P6Role
+                        role = P6Role(
+                            scope.tenant_id, scope.project_id, scope.project_revision,
+                            payload.get("role_id", ""), payload.get("name", ""), payload.get("description")
+                        )
+                        return self._json(200, self._p6_role_api.create(role, auth_context=auth))
+                    if method == "PATCH" and len(parts) == 1 and parts[0]:
+                        from ..p6_role_repository import P6Role
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        role = P6Role(
+                            scope.tenant_id, scope.project_id, scope.project_revision,
+                            parts[0], payload.get("name", ""), payload.get("description"),
+                            expected_revision
+                        )
+                        return self._json(200, self._p6_role_api.update(role, expected_revision=expected_revision, auth_context=auth))
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except (TypeError, ValueError, ArithmeticError, KeyError):
+                    return self._error(400, "P6_ROLE_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
