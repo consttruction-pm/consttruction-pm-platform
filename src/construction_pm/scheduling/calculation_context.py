@@ -7,12 +7,42 @@ import json
 from typing import Any
 
 
+CALCULATION_IDENTITY_VERSION = "2"
+
+SEMANTIC_IDENTITY_FIELDS = (
+    "project_id",
+    "project_version",
+    "calendar_id",
+    "calendar_version",
+    "rules_version",
+    "engine_version",
+    "timezone",
+    "input_snapshot_id",
+    "tenant_id",
+)
+
+PROVENANCE_FIELDS = (
+    "calculation_timestamp",
+    "actor_id",
+    "request_id",
+    "idempotency_key",
+)
+
+
 @dataclass(frozen=True)
 class CalculationContext:
     """Immutable context carried across Shared Core calculations.
 
-    The context is part of calculation identity: the same input snapshot
-    evaluated under the same context must produce the same calculation result.
+    Calculation identity contains only deterministic scheduling inputs and
+    execution-scope fields. Request/provenance metadata is retained in the
+    context and full-context hash for auditability, but never changes the
+    semantic calculation identity.
+
+    Identity policy (v2):
+    - Semantic: project_id, project_version, calendar_id, calendar_version,
+      rules_version, engine_version, timezone, input_snapshot_id, tenant_id.
+    - Provenance/audit: calculation_timestamp, actor_id, request_id,
+      idempotency_key.
     """
 
     project_id: str
@@ -62,9 +92,35 @@ class CalculationContext:
             separators=(",", ":"),
         )
 
+    def provenance_dict(self) -> dict[str, Any]:
+        """Return request/audit metadata that must not affect calculation semantics."""
+        return {field: getattr(self, field) for field in PROVENANCE_FIELDS}
+
+    def semantic_identity_dict(self) -> dict[str, Any]:
+        """Return the versioned deterministic inputs that define calculation identity."""
+        return {
+            "identity_version": CALCULATION_IDENTITY_VERSION,
+            **{field: getattr(self, field) for field in SEMANTIC_IDENTITY_FIELDS},
+        }
+
+    def calculation_identity_json(self) -> str:
+        return json.dumps(
+            self.semantic_identity_dict(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
     def sha256(self) -> str:
+        """Hash the complete context, including provenance, for legacy/audit use."""
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
 
     @property
-    def calculation_identity(self) -> str:
+    def legacy_calculation_identity(self) -> str:
+        """Pre-v2 identity hash retained for persisted-snapshot compatibility."""
         return self.sha256()
+
+    @property
+    def calculation_identity(self) -> str:
+        """Deterministic identity for semantically identical scheduling inputs."""
+        return hashlib.sha256(self.calculation_identity_json().encode("utf-8")).hexdigest()
