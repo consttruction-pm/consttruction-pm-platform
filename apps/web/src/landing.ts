@@ -79,23 +79,23 @@ function setLandingDocumentLocale(): void {
 function renderLanding(container: HTMLElement): void {
   const t = copy[locale];
   setLandingDocumentLocale();
-  container.innerHTML = \`
+  container.innerHTML = `
     <div class="cubi-exact-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
-          <a class="is-active" href="#home">\${t.nav[0]}</a><a href="#capabilities">\${t.nav[1]}</a><a href="#technology">\${t.nav[2]}</a><a href="#resources">\${t.nav[3]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="#capabilities">${t.nav[1]}</a><a href="#technology">${t.nav[2]}</a><a href="#resources">${t.nav[3]}</a>
         </nav>
         <div class="cubi-exact-actions">
-          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">\${t.language}</button>
-          <a href="./app/" class="cubi-exact-signin">\${t.signIn}</a><a href="./app/" class="cubi-exact-start">\${t.start} →</a>
+          <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">${t.language}</button>
+          <a href="./app/" class="cubi-exact-signin">${t.signIn}</a><a href="./app/" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
       <main>
         <section class="cubi-exact-hero" aria-labelledby="cubi-hero-title">
           <div class="cubi-exact-hero-copy">
-            <p class="cubi-exact-eyebrow">\${t.eyebrow}</p><h1 id="cubi-hero-title">\${t.title}<span>\${t.accent}</span></h1><h2>\${t.subtitle}</h2><p>\${t.body}</p>
-            <div class="cubi-exact-hero-actions"><a class="cubi-exact-primary" href="./app/">\${t.primary}</a><a class="cubi-exact-demo" href="#technology"><span class="play" aria-hidden="true">▶</span>\${t.secondary}</a></div>
+            <p class="cubi-exact-eyebrow">${t.eyebrow}</p><h1 id="cubi-hero-title">${t.title}<span>${t.accent}</span></h1><h2>${t.subtitle}</h2><p>${t.body}</p>
+            <div class="cubi-exact-hero-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#technology"><span class="play" aria-hidden="true">▶</span>${t.secondary}</a></div>
           </div>
           <div class="cubi-exact-dashboard" role="img" aria-label="Illustrative CUBI project dashboard showing schedule, progress and performance">
             <aside class="cubi-dash-sidebar"><img src="./cubi-platform-logo-primary-dark.svg" width="26" height="26" alt="" /><strong>CUBI</strong><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
@@ -107,26 +107,26 @@ function renderLanding(container: HTMLElement): void {
           </div>
         </section>
         <section class="cubi-exact-features" id="capabilities">
-          <div class="cubi-exact-section-head"><p class="cubi-kicker">ONE CONNECTED WORKFLOW</p><h2>\${t.featuresTitle}</h2><p>\${t.featuresBody}</p></div>
-          <div class="cubi-exact-feature-grid">\${t.features.map((f) => \`<article><div class="cubi-feature-icon" aria-hidden="true">\${f.icon}</div><h3>\${f.title}</h3><p>\${f.body}</p></article>\`).join("")}</div>
+          <div class="cubi-exact-section-head"><p class="cubi-kicker">ONE CONNECTED WORKFLOW</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
+          <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon" aria-hidden="true">${f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
-          <div class="cubi-tech-copy"><p class="cubi-kicker">BUILT FOR REAL PROJECTS</p><h2 id="cubi-tech-title">\${t.techTitle}</h2><p>\${t.techBody}</p>
+          <div class="cubi-tech-copy"><p class="cubi-kicker">BUILT FOR REAL PROJECTS</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
             <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="p6">P6</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
-            <a class="cubi-exact-outline" href="./app/">\${t.techLink}</a>
+            <a class="cubi-exact-outline" href="./app/">${t.techLink}</a>
           </div>
           <div class="cubi-tech-diagram" aria-label="Connected platform capabilities"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
-            <div class="cubi-tech-node n1"><span>\${t.techNodes[0]}</span></div><div class="cubi-tech-node n2"><span>\${t.techNodes[1]}</span></div><div class="cubi-tech-node n3"><span>\${t.techNodes[2]}</span></div><div class="cubi-tech-node n4"><span>\${t.techNodes[3]}</span></div>
+            <div class="cubi-tech-node n1"><span>${t.techNodes[0]}</span></div><div class="cubi-tech-node n2"><span>${t.techNodes[1]}</span></div><div class="cubi-tech-node n3"><span>${t.techNodes[2]}</span></div><div class="cubi-tech-node n4"><span>${t.techNodes[3]}</span></div>
           </div>
         </section>
-        <section class="cubi-exact-cta" id="resources"><div><h2>\${t.ctaTitle}</h2><p>\${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">\${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">\${t.secondary}</a></div></section>
+        <section class="cubi-exact-cta" id="resources"><div><h2>${t.ctaTitle}</h2><p>${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">${t.secondary}</a></div></section>
       </main>
       <footer class="cubi-exact-footer">
-        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" /><small>\${t.footerNote}</small></div>
-        \${t.footerColumns.map((col) => \`<div class="cubi-footer-col"><b>\${col.title}</b>\${col.links.map((link) => \`<a href="#resources">\${link}</a>\`).join("")}</div>\`).join("")}
+        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
+        ${t.footerColumns.map((col) => `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link) => `<a href="#resources">${link}</a>`).join("")}</div>`).join("")}
         <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
-    </div>\`;
+    </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     locale = locale === "en" ? "fa" : "en";
     renderLanding(container);
