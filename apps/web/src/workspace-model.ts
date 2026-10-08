@@ -113,7 +113,7 @@ export type WorkspaceState = {
 export const DEFAULT_WORKSPACE_COLUMNS: readonly WorkspaceColumn[] = [
   { id: "activity_id", label: "Activity ID", dataType: "text", editable: false, formula: null, width: 120, alignment: "start", pinned: false, frozen: false },
   { id: "activity_code", label: "Code", dataType: "text", editable: false, formula: null, width: 100, alignment: "start", pinned: false, frozen: false },
-  { id: "activity_name", label: "Activity Name", dataType: "text", editable: true, formula: null, width: 260, alignment: "start", pinned: false, frozen: false },
+  { id: "activity_name", label: "Activity Name", dataType: "text", editable: false, formula: null, width: 260, alignment: "start", pinned: false, frozen: false },
   { id: "start", label: "Start", dataType: "date", editable: false, formula: null, width: 120, alignment: "end", pinned: false, frozen: false },
   { id: "finish", label: "Finish", dataType: "date", editable: false, formula: null, width: 120, alignment: "end", pinned: false, frozen: false },
   { id: "duration", label: "Duration", dataType: "duration", editable: false, formula: null, width: 110, alignment: "end", pinned: false, frozen: false },
