@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 from .activity import Activity
 from .calculation_context import CalculationContext
@@ -204,6 +204,40 @@ def backward_pass(
     return result
 
 
+_MAX_FLOAT_SEARCH = 10_000
+
+
+def _max_holding_delay(predicate: Callable[[int], bool]) -> int:
+    """Find the last holding delay without probing every working unit.
+
+    The relationship predicate is monotonic in delay for fixed successor dates:
+    once delaying the predecessor breaks the relationship, larger delays remain
+    invalid. Preserve the existing 0..9,999 probe boundary; callers retain their
+    historical 10,000 sentinel behavior when every bounded delay still holds.
+    """
+    last_probe = _MAX_FLOAT_SEARCH - 1
+    if not predicate(0):
+        return -1
+
+    low = 0
+    high = 1
+    while high <= last_probe:
+        if not predicate(high):
+            break
+        low = high
+        if high == last_probe:
+            return _MAX_FLOAT_SEARCH
+        high = min(last_probe, high * 2)
+
+    while low + 1 < high:
+        middle = (low + high) // 2
+        if predicate(middle):
+            low = middle
+        else:
+            high = middle
+    return low
+
+
 def _working_delay_between(early: date, delayed: date, resolver: WorkingTimeResolver) -> int:
     if delayed < early:
         return -_working_delay_between(delayed, early, resolver)
@@ -261,8 +295,11 @@ def _free_float(
     activity_resolver = (activity_resolvers or {}).get(activity.id, resolver)
     for rel in successors:
         successor = early_schedule[rel.successor_id]
-        delay = 0
-        while delay < 10000:
+        lag_resolver = (relationship_lag_resolvers or {}).get(
+            (rel.predecessor_id, rel.successor_id)
+        )
+
+        def holds(delay: int) -> bool:
             candidate_start = activity_resolver.add_working_duration(early.start, delay)
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
@@ -270,13 +307,10 @@ def _free_float(
                 finish=activity_resolver.add_working_duration(candidate_start, activity.duration),
                 duration=activity.duration,
             )
-            if not _relationship_holds(
-                rel, candidate, successor, activity_resolver,
-                (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
-            ):
-                break
-            delay += 1
-        limits.append(delay - 1)
+            return _relationship_holds(rel, candidate, successor, activity_resolver, lag_resolver)
+
+        boundary = _max_holding_delay(holds)
+        limits.append(min(boundary, _MAX_FLOAT_SEARCH - 1))
     return max(0, min(limits))
 
 
@@ -365,8 +399,8 @@ def _relationship_free_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
-    delay = 0
-    while delay < 10000:
+
+    def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
@@ -374,10 +408,9 @@ def _relationship_free_float(
             finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor, resolver, lag_resolver):
-            return max(0, delay - 1)
-        delay += 1
-    return 10000
+        return _relationship_holds(relationship, candidate, successor, resolver, lag_resolver)
+
+    return max(0, _max_holding_delay(holds))
 
 
 def _relationship_total_float(
@@ -391,8 +424,8 @@ def _relationship_total_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
-    delay = 0
-    while delay < 10000:
+
+    def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
@@ -400,10 +433,9 @@ def _relationship_total_float(
             finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
             duration=predecessor_activity.duration,
         )
-        if not _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver):
-            return max(0, delay - 1)
-        delay += 1
-    return 10000
+        return _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver)
+
+    return max(0, _max_holding_delay(holds))
 
 
 def _choose_default_float_path_endpoint(
