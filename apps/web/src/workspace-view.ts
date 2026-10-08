@@ -19,6 +19,8 @@ type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
+const workspaceWbsIdsCache = new WeakMap<readonly WorkspaceActivityRow[], readonly string[]>();
+const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
@@ -149,15 +151,22 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     return;
   }
   const t = labels[state.locale];
-  const wbsIds = [...new Set(state.activities.map((activity) => activity.wbsId))];
+  const cachedWbsIds = workspaceWbsIdsCache.get(state.activities);
+  const wbsIds = cachedWbsIds ?? [...new Set(state.activities.map((activity) => activity.wbsId))];
+  if (!cachedWbsIds) workspaceWbsIdsCache.set(state.activities, wbsIds);
   const scale = createGanttScale(state.activities);
-  const stickyOffsets = new Map<string, number>();
-  let stickyOffset = 0;
-  for (const column of state.columns) {
-    if (column.pinned || column.frozen) {
-      stickyOffsets.set(column.id, stickyOffset);
-      stickyOffset += column.width;
+  let stickyOffsets = workspaceStickyOffsetsCache.get(state.columns);
+  if (!stickyOffsets) {
+    const nextStickyOffsets = new Map<string, number>();
+    let stickyOffset = 0;
+    for (const column of state.columns) {
+      if (column.pinned || column.frozen) {
+        nextStickyOffsets.set(column.id, stickyOffset);
+        stickyOffset += column.width;
+      }
     }
+    stickyOffsets = nextStickyOffsets;
+    workspaceStickyOffsetsCache.set(state.columns, stickyOffsets);
   }
 
   container.innerHTML = `
