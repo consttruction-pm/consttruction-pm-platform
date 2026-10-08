@@ -279,6 +279,56 @@ def test_query_resolves_authoritative_context_from_persisted_state():
     assert answer.data["project_finish"] == "2026-09-22"
 
 
+def test_persisted_replay_requires_request_snapshot_id_only():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-CONTEXT-ONLY",
+        tenant_id="T-1",
+    )
+    provider = AuthoritativeScheduleQueryProvider(
+        snapshot_repo,
+        lambda: CalendarResolverRegistry(),
+        calculation_context_repository=context_repo,
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        provider,
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+
+    for constraints in (
+        {"input_snapshot_id": "S-CONTEXT-ONLY"},
+        {},
+    ):
+        request = ScheduleQueryRequest(
+            "Q-REQUIRE-SNAPSHOT-ID",
+            ControlScope("T-1", "P-1", 9),
+            "user-1",
+            "show schedule",
+            constraints=constraints,
+        )
+        try:
+            service.execute(
+                request,
+                auth_context=auth,
+                calculation_context=context,
+            )
+        except ValueError as exc:
+            assert str(exc) == "SCHEDULE_INPUT_SNAPSHOT_ID_REQUIRED"
+        else:
+            raise AssertionError("persisted replay accepted a non-authoritative lookup identifier")
+
+
 def test_query_ignores_client_calculation_metadata_when_persisted_context_exists():
     conn = sqlite3.connect(":memory:")
     snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
