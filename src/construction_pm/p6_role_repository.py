@@ -82,7 +82,7 @@ class SQLiteP6RoleRepository:
             (stored.name, stored.description, stored.project_revision, stored.record_revision,
              stored.tenant_id, stored.project_id, stored.role_id, current),
         )
-        if self.connection.total_changes < 1:
+        if self.connection.execute("SELECT changes()").fetchone()[0] != 1:
             raise ValueError("REVISION_CONFLICT")
         self.connection.commit()
         return stored
