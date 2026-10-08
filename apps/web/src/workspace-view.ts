@@ -1,5 +1,5 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceColumn, WorkspaceState } from "./workspace-model.js";
-import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
+import { createGanttBarGeometry, createGanttScale, type GanttBarGeometry } from "./workspace-gantt.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
 
 const labels = {
@@ -667,7 +667,7 @@ function renderCellValue(columnId: string, value: WorkspaceCellValue): string {
 
 function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string, selectedActivityId: string | null): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
-  const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is NonNullable<typeof bar> => Boolean(bar));
+  const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is GanttBarGeometry => bar !== null);
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(ariaLabel)}">${bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + criticalLabel : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("")}</div>`;
 }
