@@ -5,7 +5,7 @@ This file is the single live pointer for V1 current-main audit evidence. Histori
 ## Current integration point
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
-- Current main at audit: `b55dc1b27fd38df2667600d4d7a074060bf562b0`
+- Current main at audit: `b15aef35b73031887756af28b87a75c33517613f`
 - Current V1 weighted-progress source: approved **Jalal 3** workbook, updated 2026-10-08.
 - Current verified weighted progress recorded from that workbook reconciliation: **59.41%**.
 - Remaining weighted work: **40.59%**.
