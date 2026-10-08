@@ -1,9 +1,9 @@
-"""Deprecated Resource idempotency compatibility adapters.
+"""Deprecated Resource idempotency compatibility boundary.
 
-Production code uses construction_pm.backend_p0.idempotency. These adapters retain
-the historical ProjectContext-shaped test contract while delegating persistence
-to the canonical backend boundary.
+New cross-module infrastructure should use construction_pm.backend_p0.idempotency.IdempotencyStore.
+This module remains only while the Resource package is migrated.
 """
+
 
 from __future__ import annotations
 
