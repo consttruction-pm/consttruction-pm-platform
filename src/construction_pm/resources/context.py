@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ProjectContext:
-    """Validated tenant/company/project boundary for resource application work."""
+    """Deprecated Resource scope compatibility boundary.\n\nNew cross-module infrastructure should use backend_p0.models.BackendScope.\nThis type remains only while the Resource package is migrated.\n"""
 
     tenant_id: str
     company_id: str
