@@ -7,11 +7,11 @@ function setLandingDocumentLocale(): void {
 
 function renderLanding(container: HTMLElement): void {
   setLandingDocumentLocale();
-  container.innerHTML = \`
+  container.innerHTML = `
     <div class="cubi-reference-home" id="home">
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home">
-          <img src="./homepage/jalal151/logo-header.svg" width="108" height="48" alt="CUBI Platform" />
+          <img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" />
         </a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
           <a class="is-active" href="#home">Home</a><a href="#features">Features</a><a href="#solutions">Solutions</a><a href="#pricing">Pricing</a><a href="#resources">Resources</a><a href="#about">About</a>
@@ -35,18 +35,31 @@ function renderLanding(container: HTMLElement): void {
             </div>
           </div>
           <div class="cubi-exact-dashboard" aria-label="CUBI project controls dashboard preview">
-            <img src="./homepage/jalal151/hero-dashboard.svg" alt="CUBI project controls dashboard preview" style="width:100%;height:100%;object-fit:contain;" />
+            <div class="cubi-dash-sidebar">
+              <img src="./cubi-platform-logo-primary.svg" width="30" height="30" alt="CUBI Platform" /><strong>CUBI</strong>
+              <span>▦ Dashboard</span><span>▤ Projects</span><span>◫ Schedule</span><span>◒ Cost</span><span>▱ Documents</span><span>▥ Reports</span><span>⚙ Settings</span>
+            </div>
+            <div class="cubi-dash-main">
+              <div class="cubi-dash-title"><b>Project Schedule</b><span>◷</span></div>
+              <div class="cubi-gantt"><i style="width:33%"></i><i style="width:42%"></i><i style="width:52%"></i><i style="width:45%"></i><i style="width:61%"></i><i style="width:35%"></i></div>
+              <div class="cubi-dash-bottom">
+                <div class="cubi-mini-chart"><b>Cost Performance</b><div class="cubi-line-chart"></div></div>
+                <div class="cubi-ring-card"><b>EVM</b><div class="cubi-ring"><strong>0.92</strong></div><small>Cost Performance Index</small></div>
+                <div class="cubi-ai-card"><b>AI Assistant</b><div class="cubi-ai-bubble">◉</div><small>Ask anything about<br/>your project...</small></div>
+              </div>
+            </div>
+            <div class="cubi-progress-card"><div class="cubi-progress-ring"><strong>78%</strong></div><b>Overall Progress</b><div><span>12.4m</span><span>10.8m</span><span>-1.6m</span></div></div>
           </div>
         </section>
         <section class="cubi-exact-features" id="features">
           <div class="cubi-exact-section-head"><h2>Everything You Need for Project Success</h2><p>From planning to closeout, CUBI gives you the tools, insights and control to<br/>manage your construction projects smarter, faster and safer.</p></div>
           <div class="cubi-exact-feature-grid">
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-01-project-controls.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Project Controls</h3><p>Plan, schedule and<br/>track progress with<br/>confidence.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-02-ai-assistant.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>AI Assistant</h3><p>Get instant insights,<br/>answers and<br/>recommendations.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-03-resources-cost.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Resources &amp; Cost</h3><p>Manage budgets,<br/>resources and<br/>cost performance.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-04-documents-contracts.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Documents &amp; Contracts</h3><p>Centralize documents,<br/>contracts, claims<br/>and issues.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-05-collaboration.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Collaboration</h3><p>Work together<br/>across your team<br/>and stakeholders.</p></article>
-            <article><img class="cubi-feature-icon" src="./homepage/jalal151/feature-06-cloud-scalability.svg" alt="" aria-hidden="true" style="object-fit:contain;" /><h3>Cloud &amp; Scalability</h3><p>Secure, reliable and<br/>built to grow with<br/>your needs.</p></article>
+            <article><div class="cubi-feature-icon">▣</div><h3>Project Controls</h3><p>Plan, schedule and<br/>track progress with<br/>confidence.</p></article>
+            <article><div class="cubi-feature-icon">✦</div><h3>AI Assistant</h3><p>Get instant insights,<br/>answers and<br/>recommendations.</p></article>
+            <article><div class="cubi-feature-icon">▤</div><h3>Resources &amp; Cost</h3><p>Manage budgets,<br/>resources and<br/>cost performance.</p></article>
+            <article><div class="cubi-feature-icon">▱</div><h3>Documents &amp; Contracts</h3><p>Centralize documents,<br/>contracts, claims<br/>and issues.</p></article>
+            <article><div class="cubi-feature-icon">♧</div><h3>Collaboration</h3><p>Work together<br/>across your team<br/>and stakeholders.</p></article>
+            <article><div class="cubi-feature-icon">☁</div><h3>Cloud &amp; Scalability</h3><p>Secure, reliable and<br/>built to grow with<br/>your needs.</p></article>
           </div>
         </section>
         <section class="cubi-exact-tech" id="resources">
@@ -57,22 +70,26 @@ function renderLanding(container: HTMLElement): void {
             <a class="cubi-exact-outline" href="#solutions">Learn More <span>→</span></a>
           </div>
           <div class="cubi-tech-diagram" aria-label="CUBI technology architecture">
-            <img src="./homepage/jalal151/tech-stack-illustration.svg" alt="CUBI technology architecture" style="width:100%;height:100%;object-fit:contain;" />
+            <div class="cubi-tech-node n1">▣ <span>Project Controls<br/>&amp; Scheduling</span></div>
+            <div class="cubi-tech-node n2">◉ <span>AI &amp; Analytics</span></div>
+            <div class="cubi-tech-node n3">▤ <span>Data &amp; Integration</span></div>
+            <div class="cubi-tech-node n4">◈ <span>Security &amp; Reliability</span></div>
+            <div class="cubi-stack"><i></i><i></i><i></i><b>◆</b></div>
           </div>
         </section>
-        <section class="cubi-exact-cta" id="pricing" style="background-image:linear-gradient(100deg,rgba(10,42,75,.94),rgba(6,33,67,.94)),url('./homepage/jalal151/cta-background.svg');background-size:cover;background-position:center;">
+        <section class="cubi-exact-cta" id="pricing">
           <div><h2>Ready to Build Smarter?</h2><p>Join teams around the world who are transforming construction<br/>with CUBI Platform.</p></div>
           <div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">Start Free Trial <span>→</span></a><a class="cubi-exact-demo" href="#about">Contact Sales</a></div>
         </section>
       </main>
       <footer class="cubi-exact-footer" id="about">
-        <div class="cubi-footer-brand"><img src="./homepage/jalal151/logo-footer.svg" width="112" height="52" alt="CUBI Platform"/><small>Plan. Control. Build Smarter.</small></div>
+        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform"/><small>Plan. Control. Build Smarter.</small></div>
         <div class="cubi-footer-col"><b>Product</b><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#resources">Integrations</a></div>
         <div class="cubi-footer-col"><b>Resources</b><a href="#resources">Documentation</a><a href="#resources">Blog</a><a href="#about">Support</a></div>
         <div class="cubi-footer-col"><b>Company</b><a href="#about">About Us</a><a href="#about">Careers</a><a href="#about">Contact</a></div>
         <div class="cubi-footer-social"><span>in</span><span>𝕏</span><span>▶</span><span>◉</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
-    </div>\`;
+    </div>`;
 }
 
 export function renderLandingPage(container: HTMLElement): void {
