@@ -41,7 +41,14 @@ def make_input(snapshot_id: str = "S-1"):
     )
 
 
-def make_context(snapshot_id: str = "S-1"):
+def make_context(
+    snapshot_id: str = "S-1",
+    *,
+    calculation_timestamp: str = "2026-09-21T08:00:00+00:00",
+    actor_id: str | None = None,
+    request_id: str | None = None,
+    idempotency_key: str | None = None,
+):
     return CalculationContext(
         project_id="P-1",
         project_version=7,
@@ -50,9 +57,12 @@ def make_context(snapshot_id: str = "S-1"):
         rules_version="rules-1",
         engine_version="engine-1",
         timezone="UTC",
-        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        calculation_timestamp=calculation_timestamp,
         input_snapshot_id=snapshot_id,
         tenant_id="T-1",
+        actor_id=actor_id,
+        request_id=request_id,
+        idempotency_key=idempotency_key,
     )
 
 
