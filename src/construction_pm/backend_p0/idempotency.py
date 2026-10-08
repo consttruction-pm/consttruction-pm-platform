@@ -239,3 +239,30 @@ class SQLiteScopedIdempotencyStore:
             (tenant_id, company_id, project_id, operation, key, fingerprint),
         )
         return result
+
+
+def resource_fingerprint(resource: object, expected_revision: int | None = None) -> str:
+    return fingerprint(
+        {"kind": "resource", "value": _canonical(resource), "expected_revision": expected_revision}
+    )
+
+
+def assignment_fingerprint(assignment: object, expected_revision: int | None = None) -> str:
+    return fingerprint(
+        {"kind": "assignment", "value": _canonical(assignment), "expected_revision": expected_revision}
+    )
+
+
+def _canonical(value: object) -> object:
+    if hasattr(value, "__dataclass_fields__"):
+        return {
+            name: _canonical(getattr(value, name))
+            for name in value.__dataclass_fields__
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical(item) for item in value]
+    if hasattr(value, "value"):
+        return value.value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
