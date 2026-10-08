@@ -79,6 +79,72 @@ test("menu selection wiring forwards the selected workspace surface", () => {
 });
 
 
+test("selection-only rerenders update DOM incrementally", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const attributes: Array<[string, string]> = [];
+  const activityRow = {
+    dataset: { activityId: "A-1" },
+    classList: { toggled: [] as Array<[string, boolean]>, toggle(name: string, value: boolean) { this.toggled.push([name, value]); } },
+    setAttribute(name: string, value: string) { attributes.push([name, value]); },
+  };
+  const ganttRow = {
+    dataset: { ganttActivityId: "A-1" },
+    classList: { toggled: [] as Array<[string, boolean]>, toggle(name: string, value: boolean) { this.toggled.push([name, value]); } },
+    setAttribute(name: string, value: string) { attributes.push([name, value]); },
+  };
+  const details = { innerHTML: "" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-activity-id]"
+      ? [activityRow]
+      : selector === "[data-gantt-activity-id]"
+        ? [ganttRow]
+        : [],
+    querySelector: (selector: string) => selector === "#cp-details" ? details : null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  const initialHtml = container.innerHTML;
+  renderMainWorkspace(container as unknown as HTMLElement, { ...base, selectedActivityId: "A-1" });
+
+  assert.equal(container.innerHTML, initialHtml);
+  assert.deepEqual(activityRow.classList.toggled, [["is-selected", true]]);
+  assert.deepEqual(ganttRow.classList.toggled, [["is-selected", true]]);
+  assert.ok(attributes.some(([name, value]) => name === "aria-selected" && value === "true"));
+  assert.ok(attributes.some(([name, value]) => name === "aria-pressed" && value === "true"));
+  assert.match(details.innerHTML, /A-1/);
+});
+
+test("menu-only rerenders replace only the navigation surface", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  const navigation = { outerHTML: "" };
+  const menuButtons = [
+    { dataset: { menu: "schedule" }, setAttribute: () => {} },
+    { dataset: { menu: "reports" }, setAttribute: () => {} },
+  ];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-menu]" ? menuButtons : [],
+    querySelector: (selector: string) => selector === ".cp-navigation-surface" ? navigation : null,
+    addEventListener: () => {},
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, base);
+  const initialHtml = container.innerHTML;
+  renderMainWorkspace(container as unknown as HTMLElement, { ...base, activeMenu: "reports" });
+
+  assert.equal(container.innerHTML, initialHtml);
+  assert.ok(navigation.outerHTML.includes("<strong>Reports</strong>"));
+  assert.ok(navigation.outerHTML.includes('data-surface-status="preview"'));
+});
+
 test("renderer honors visible workspace panel flags", () => {
   const state = {
     ...createWorkspaceState(
