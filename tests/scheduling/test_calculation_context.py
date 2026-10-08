@@ -1,3 +1,5 @@
+import pytest
+
 from construction_pm.scheduling.calculation_context import CalculationContext
 
 
@@ -54,8 +56,6 @@ def test_project_version_cannot_be_negative():
     else:
         raise AssertionError("negative project version must be rejected")
 
-
-import pytest
 
 
 @pytest.mark.parametrize(
