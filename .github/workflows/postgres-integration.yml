@@ -68,6 +68,8 @@ on:
 
   pull_request:
     paths:
+      - "src/construction_pm/http/production_composition.py"
+      - "tests/test_schedule_query_production_composition.py"
       - "src/construction_pm/scheduling/**"
       - "tests/scheduling/**"
       - "src/construction_pm/client_sync/**"
