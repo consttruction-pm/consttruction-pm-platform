@@ -153,6 +153,15 @@ def schedule_with_resource_leveling(
     """
     if not isinstance(leveling_input, SchedulerLevelingInput):
         raise TypeError("leveling_input must be SchedulerLevelingInput")
+    if resource_calendar_resolvers is not None and (
+        not isinstance(resource_calendar_resolvers, Mapping)
+        or any(
+            not isinstance(resource_id, str) or not resource_id.strip()
+            or not isinstance(resource_resolver, WorkingTimeResolver)
+            for resource_id, resource_resolver in resource_calendar_resolvers.items()
+        )
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_RESOLVER")
     selected_options = options or ScheduleOptions()
     # ScheduleOptions is the public typed configuration surface. Map only its
     # already-authoritative leveling fields into the existing Shared Core input;
@@ -196,6 +205,7 @@ def schedule_with_resource_leveling(
     shifted_forward = apply_leveling_shifts(
         leveling_input.forward_activities, forward_shifts, resolver=resolver,
         allow_beyond_float=not leveling_input.options.level_within_float,
+        resource_calendar_resolvers=resource_calendar_resolvers,
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
 
