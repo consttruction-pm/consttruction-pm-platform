@@ -998,3 +998,22 @@ Status: **merged; exact-head CI runtime-verified**
 ### Next point
 
 Reconcile current `main`, open PRs and assigned Hasan issues before choosing another implementation. Continue only with a concrete, reproducible Backend/Database/Application/API/Import-Export gap. Do not duplicate existing P6 subject APIs, revive stale branches, or implement Shared-Core/Jalal or Web/client-owned work. Record exact-head CI and PostgreSQL evidence where applicable.
+
+
+### 2026-10-09 — P6 Relationship delete API parity (PR #1352)
+
+Status: **implemented, exact-head runtime-verified and merged**
+
+- Issue #1350 recorded the missing authenticated P6 Relationship Delete contract, compared against Oracle Primavera P6 EPPM REST API Release 26.
+- PR #1352 added scope-bound, optimistic-revision-checked delete to the canonical relationship repository protocol and SQLite/PostgreSQL adapters.
+- P6RelationshipAPI.delete() enforces PROJECT_WRITE; the authenticated HTTP boundary exposes DELETE /api/projects/{project_id}/p6/relationships/{relationship_id} and derives tenant/project/revision scope from authenticated project context.
+- Regression coverage includes successful deletion, missing relationships, stale revisions, invalid expected revisions, cross-scope isolation, API authorization, HTTP behavior and PostgreSQL integration.
+- Exact implementation head: 4c5bdb8a18ca9ae6819ab8b8da5c78a17f793f6e.
+- ConstructionPM CI run 37923036166 passed on Python 3.11, 3.12 and 3.13; PostgreSQL Integration run 37923036179 passed; Client Typecheck run 37923036132 passed.
+- PR #1352 was squash-merged as 7024e5e8ce4b730e05ca5449d5ccdd785570e2d6; Issue #1350 is closed.
+- Exact-head checks are verified; a separate workflow run on the merge commit was not present at the time of this reconciliation.
+- Relationship type and Decimal lag semantics are preserved. No Shared Core scheduling, calendar/duration, resource/cost, progress/EVM or financial calculations were added or changed.
+
+### Next point
+
+Re-read current main, this file, docs/roadmap/STAGE_STATUS.md, and open PRs/issues before choosing the next task. Do not treat the broad historical P6 parity issue as authorization to duplicate existing surfaces. Implement only a newly evidenced, concrete Hasan-owned Backend/Database/Application/API/Import-Export gap with an authoritative contract, focused regression tests and runtime verification.

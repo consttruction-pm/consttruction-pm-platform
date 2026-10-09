@@ -1914,3 +1914,49 @@ def test_change_claim_http_rejects_malformed_payload_and_unknown_project():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+
+def test_authenticated_relationship_http_delete_supports_revision_and_not_found():
+    r = relationship_routes()
+    payload = {
+        "relationship_id": "rel-delete", "predecessor_id": "A-1", "successor_id": "A-2",
+        "relationship_type": "SF", "lag_value": "-1.25",
+        "lag_unit": DurationUnit.WORKING_HOUR.value,
+    }
+    status, _, raw = r.handle("POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    assert status == 200
+    assert json.loads(raw)["relationship"]["record_revision"] == 1
+    status, _, raw = r.handle(
+        "DELETE", "/api/projects/p1/p6/relationships/rel-delete", cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1, "tenant_id": "attacker", "project_id": "attacker"}).encode(),
+    )
+    assert status == 200
+    deleted = json.loads(raw)
+    assert deleted["deleted"] is True
+    assert deleted["scope"]["tenant_id"] == "t1"
+    assert deleted["scope"]["project_id"] == "p1"
+    status, _, raw = r.handle("GET", "/api/projects/p1/p6/relationships/rel-delete", cookies={"cp_session": "s1"})
+    assert status == 404
+    assert json.loads(raw)["code"] == "P6_RELATIONSHIP_NOT_FOUND"
+
+
+def test_authenticated_relationship_http_delete_rejects_stale_and_missing_revision():
+    r = relationship_routes()
+    payload = {
+        "relationship_id": "rel-delete", "predecessor_id": "A-1", "successor_id": "A-2",
+        "relationship_type": "FS", "lag_value": "0", "lag_unit": DurationUnit.WORKING_DAY.value,
+    }
+    r.handle("POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"}, body=json.dumps(payload).encode())
+    status, _, raw = r.handle(
+        "DELETE", "/api/projects/p1/p6/relationships/rel-delete", cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 9}).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["code"] == "REVISION_CONFLICT"
+    status, _, raw = r.handle(
+        "DELETE", "/api/projects/p1/p6/relationships/rel-delete", cookies={"cp_session": "s1"},
+        body=json.dumps({}).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RELATIONSHIP_REQUEST_INVALID"

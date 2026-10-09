@@ -8,3 +8,10 @@ test("all client variants resolve to one canonical approved CUBI logo", () => {
   assert.equal(cubiBrandAsset("dark"), CUBI_BRAND_ASSET);
   assert.equal(CUBI_BRAND_ASSETS.light, CUBI_BRAND_ASSETS.dark);
 });
+
+ test("homepage canonical URL stays relative for GitHub Pages project paths", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /<link rel="canonical" href="\.\/"\s*\/>/);
+  assert.doesNotMatch(html, /<link rel="canonical" href="\/"\s*\/>/);
+});

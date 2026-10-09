@@ -1,8 +1,10 @@
 from datetime import date, datetime, timezone
 
+import pytest
+
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_interchange_adapter import P6InterchangeAdapter
-from construction_pm.p6_interchange_mapping import P6InterchangeMapper
+from construction_pm.p6_interchange_mapping import P6InterchangeCompatibilityError, P6InterchangeMapper
 from construction_pm.p6_mapping_registry import (
     P6MappingDefinition,
     P6MappingFormat,
@@ -55,7 +57,7 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "%F\ttask_code\ttask_name\ttask_id\ttask_type\tstatus_code\t"
         "target_start_date\ttarget_end_date\trestart_date\treend_date\t"
         "update_date\tupdate_user\n"
-        "%R\tA-10\tFoundation\t1001\tTask Dependent\tTK_NotStart\t"
+        "%R\tA-10\tFoundation\t1001\tTT_Task\tTK_NotStart\t"
         "2026-01-10\t2026-01-20\t2026-01-12\t2026-01-18\t"
         "2026-01-05\tplanner\n"
         "%E\n",
@@ -67,7 +69,7 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "activity.name": "Foundation",
         "activity.object_id": "1001",
         "activity.type": "Task Dependent",
-        "activity.status": "TK_NotStart",
+        "activity.status": "Not Started",
         "activity.planned_start": date(2026, 1, 10),
         "activity.planned_finish": date(2026, 1, 20),
         "activity.remaining_early_start_date": datetime(2026, 1, 12, tzinfo=timezone.utc),
@@ -76,3 +78,60 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "activity.last_update_user": "planner",
     }
     assert imported[0].extensions["p6.xer.table"] == "TASK"
+
+
+
+def test_xer_activity_status_and_type_round_trip_uses_native_wire_tokens() -> None:
+    adapter = P6InterchangeAdapter(
+        mapper=P6InterchangeMapper((
+            mapping("task_type", "activity.type"),
+            mapping("status_code", "activity.status"),
+        )),
+        codec=P6XerCodec(),
+    )
+    exported = adapter.export_document(
+        [{"activity.type": "Resource Dependent", "activity.status": "Completed"}],
+        scope=scope(),
+        extensions=[{"p6.xer.table": "TASK"}],
+    )
+    assert "%R\tTK_Complete\tTT_Rsrc" in exported
+
+    imported = adapter.import_document(exported, scope=scope())
+    assert imported[0].values == {
+        "activity.type": "Resource Dependent",
+        "activity.status": "Completed",
+    }
+
+
+@pytest.mark.parametrize(
+    ("source_field", "canonical_field", "wire_value", "error_code"),
+    [
+        ("status_code", "activity.status", "TK_Unknown", "UNSUPPORTED_XER_ACTIVITY_STATUS"),
+        ("task_type", "activity.type", "TT_Unknown", "UNSUPPORTED_XER_ACTIVITY_TYPE"),
+    ],
+)
+def test_xer_activity_enum_mappings_reject_unknown_wire_values(
+    source_field: str, canonical_field: str, wire_value: str, error_code: str
+) -> None:
+    adapter = P6InterchangeAdapter(
+        mapper=P6InterchangeMapper((mapping(source_field, canonical_field),)),
+        codec=P6XerCodec(),
+    )
+    with pytest.raises(P6InterchangeCompatibilityError, match=error_code):
+        adapter.import_document(
+            f"%T\tTASK\n%F\t{source_field}\n%R\t{wire_value}\n%E\n",
+            scope=scope(),
+        )
+
+
+def test_xer_activity_enum_mapping_rejects_unknown_canonical_export_value() -> None:
+    adapter = P6InterchangeAdapter(
+        mapper=P6InterchangeMapper((mapping("status_code", "activity.status"),)),
+        codec=P6XerCodec(),
+    )
+    with pytest.raises(P6InterchangeCompatibilityError, match="UNSUPPORTED_CANONICAL_XER_ACTIVITY_STATUS"):
+        adapter.export_document(
+            [{"activity.status": "Running"}],
+            scope=scope(),
+            extensions=[{"p6.xer.table": "TASK"}],
+        )

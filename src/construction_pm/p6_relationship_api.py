@@ -72,5 +72,17 @@ class P6RelationshipAPI:
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         return tuple(_dto(item) for item in self.repository.list(scope))
 
+    def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
+        _require_scope(scope, auth_context)
+        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        deleted = self.repository.delete(scope, relationship_id, expected_revision=expected_revision)
+        return {
+            "contract_version": P6_RELATIONSHIP_API_VERSION,
+            "kind": "p6_relationship_delete",
+            "scope": _scope_dto(scope),
+            "relationship_id": relationship_id,
+            "deleted": deleted,
+        }
+
 
 __all__ = ["P6_RELATIONSHIP_API_VERSION", "P6RelationshipAPI"]
