@@ -1221,3 +1221,16 @@ Status: **implemented on main; exact-head CI pending**
 - Added architecture contract and Master Reference Section 39.
 - GitHub Issue #1331 updated with implementation evidence.
 - Do not mark verified or award final Jalal 3 credit until ConstructionPM CI and required exact-head integration workflows pass.
+
+
+### 2026-10-09 — P6 Relationship delete API parity (PR #1352)
+
+Status: **implemented, exact-head runtime-verified and merged**
+- Added scope-bound optimistic deletion to the canonical relationship repository protocol, SQLite/PostgreSQL adapters, P6 application API and authenticated HTTP boundary.
+- The delete request requires an expected record revision; tenant/project/revision scope is taken from the authenticated project context rather than caller-supplied scope fields.
+- Regression coverage verifies success, read-after-delete, missing record, stale/invalid revision, scope isolation, authorization and PostgreSQL integration.
+- Exact implementation head: 4c5bdb8a18ca9ae6819ab8b8da5c78a17f793f6e.
+- ConstructionPM CI run 37923036166 passed on Python 3.11, 3.12 and 3.13; PostgreSQL Integration run 37923036179 passed; Client Typecheck run 37923036132 passed.
+- PR #1352 merged as 7024e5e8ce4b730e05ca5449d5ccdd785570e2d6; Issue #1350 closed.
+- These are exact-PR-head checks; no separate post-merge workflow run was present at the time of this note.
+- No P6 scheduling/calculation semantics or duplicate Shared Core logic were introduced.
