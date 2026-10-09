@@ -1051,3 +1051,14 @@ Status: **merged and exact-head CI verified**
 ### Next point
 
 Reconcile current `main`, inspect Issue #1227 and its evidence, and select one concrete format/field-family gap that can be proven from existing codecs, registry contracts and tests. Avoid speculative mappings; add focused round-trip and fail-closed tests, run exact-head CI, then update the evidence here and in `docs/roadmap/STAGE_STATUS.md`.
+
+
+### 2026-10-09 — P6 canonical decimal finite-value guard (PR #1362)
+Status: **merged and exact-head CI verified**
+- Added a finite-value guard to the shared canonical P6 decimal conversion path; NaN and positive/negative infinity are rejected, while finite Decimal precision is preserved.
+- Regression coverage exercises direct conversion and mapper import rejection for a non-finite canonical decimal.
+- Exact implementation head: `cdbad2d4ac9ef1ec29eb9006c7e6e22c4b02e90d`.
+- ConstructionPM CI run **37932817797** (run #4719) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run **37932817833** (run #4422) passed.
+- PR #1362 squash merge commit: **74a8fbcacc799ee7e47d7482f137886c0b322249**.
+- Issue #1227 remains open: this closes only the non-finite decimal integrity slice, not full cross-format P6 interchange certification. No scheduling or Shared Core semantics changed.
