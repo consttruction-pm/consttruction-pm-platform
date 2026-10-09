@@ -34,9 +34,13 @@ from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     ResourceCapacity,
     ResourceDemand,
+    ResourceLevelingOptions,
     propose_backward_leveling,
     propose_forward_leveling_within_float,
 )
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.schedule import ScheduleOptions
+from construction_pm.scheduling.authoritative_schedule_batch import execute_authoritative_schedule_batch
 
 
 GLOBAL = CalendarReference("GLOBAL", "3")
@@ -44,7 +48,14 @@ PROJECT = CalendarReference("PROJECT", "4")
 RESOURCE = CalendarReference("RESOURCE", "8")
 
 
-def make_snapshot(assignments=(), *, project_id="P1", project_calendar=PROJECT):
+def make_snapshot(
+    assignments=(),
+    *,
+    project_id="P1",
+    project_calendar=PROJECT,
+    project_start=date(2026, 10, 1),
+    project_finish=date(2026, 10, 20),
+):
     return AuthoritativeScheduleInput(
         snapshot_id=f"snapshot-{project_id}",
         tenant_id="T1",
@@ -56,7 +67,8 @@ def make_snapshot(assignments=(), *, project_id="P1", project_calendar=PROJECT):
         relationships=(),
         activity_calendar_assignments=(),
         resource_calendar_assignments=tuple(assignments),
-        project_start=date(2026, 10, 1),
+        project_start=project_start,
+        project_finish=project_finish,
     )
 
 
@@ -357,4 +369,78 @@ def test_resource_calendar_context_preserves_local_inherited_standard_precedence
     assert inherited_rule.is_working is True
     assert local_rule.source == "local"
     assert local_rule.is_working is True
+
+def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
+    project_calendar = CalendarReference("BATCH-PROJECT", "1")
+    resource_calendar = CalendarReference("BATCH-RESOURCE", "1")
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "BATCH-PROJECT@1": project_resolver,
+            "BATCH-RESOURCE@1": resource_resolver,
+        },
+        base_calendar_references={"BATCH-RESOURCE@1": project_calendar},
+    )
+    snapshots = (
+        make_snapshot(
+            [ResourceCalendarAssignment("R1", resource_calendar)],
+            project_id="P1",
+            project_calendar=project_calendar,
+            project_start=date(2026, 10, 2),
+            project_finish=date(2026, 10, 20),
+        ),
+        make_snapshot(
+            [ResourceCalendarAssignment("R2", resource_calendar)],
+            project_id="P2",
+            project_calendar=project_calendar,
+            project_start=date(2026, 10, 2),
+            project_finish=date(2026, 10, 20),
+        ),
+    )
+    resource_demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P1-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 2), date(2026, 10, 2), 3, (resource_demand,)),
+        LevelingActivity("P2-A", date(2026, 10, 2), date(2026, 10, 2), 3, ()),
+    )
+    backward = (
+        BackwardLevelingActivity(
+            "P1-A", date(2026, 10, 2), date(2026, 10, 2),
+            date(2026, 10, 2), date(2026, 10, 2), (resource_demand,),
+        ),
+        BackwardLevelingActivity(
+            "P2-A", date(2026, 10, 2), date(2026, 10, 2),
+            date(2026, 10, 2), date(2026, 10, 2), (),
+        ),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
+            ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 5), Decimal("0")),
+            ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    options = ScheduleOptions(level_all_resources=True)
+    project_only = execute_authoritative_schedule_batch(
+        snapshots,
+        resolvers={"P1": project_resolver, "P2": project_resolver},
+        leveling_input=leveling_input,
+    )
+    resource_aware = execute_authoritative_schedule_batch(
+        snapshots,
+        resolvers={"P1": project_resolver, "P2": project_resolver},
+        leveling_input=leveling_input,
+        calendar_registry=registry,
+    )
+    # Without a registry, demand moves through Monday and Tuesday capacity.
+    assert project_only.project("P1").result.activities["P1-A"].start == date(2026, 10, 6)
+    # The authoritative resource calendar permits the demand shift on Saturday,
+    # while the CPM activity date itself remains on the project working calendar.
+    assert resource_aware.project("P1").result.activities["P1-A"].start == date(2026, 10, 5)
 
