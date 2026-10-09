@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 import hashlib
@@ -15,6 +16,7 @@ from construction_pm.schedule_input_snapshot_repository import (
 from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.authoritative_schedule import (
+    ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
     ResourceCalendarAssignment,
@@ -474,6 +476,68 @@ def test_resource_calendar_context_preserves_local_inherited_standard_precedence
     assert inherited_rule.total_work_hours == Decimal("6")
     assert local_rule.source == "local"
     assert local_rule.is_working is True
+
+def test_authoritative_batch_preserves_distinct_activity_calendars_during_leveling():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    p1 = replace(
+        make_snapshot(
+            project_id="P1",
+            project_calendar=PROJECT,
+            project_start=date(2026, 10, 2),
+            project_finish=date(2026, 10, 20),
+            schedule_options=options,
+        ),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("P1-A", RESOURCE),
+        ),
+    )
+    p2 = make_snapshot(
+        project_id="P2",
+        project_calendar=PROJECT,
+        project_start=date(2026, 10, 2),
+        project_finish=date(2026, 10, 20),
+        schedule_options=options,
+    )
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 2), date(2026, 10, 2), 3),
+        LevelingActivity("P2-A", date(2026, 10, 2), date(2026, 10, 2), 3),
+    )
+    backward = (
+        BackwardLevelingActivity(
+            "P1-A", date(2026, 10, 2), date(2026, 10, 2),
+            date(2026, 10, 2), date(2026, 10, 2),
+        ),
+        BackwardLevelingActivity(
+            "P2-A", date(2026, 10, 2), date(2026, 10, 2),
+            date(2026, 10, 2), date(2026, 10, 2),
+        ),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        (p1, p2),
+        resolvers={
+            "P1": WorkingTimeResolver(WorkingCalendar()),
+            "P2": WorkingTimeResolver(WorkingCalendar()),
+        },
+        leveling_input=leveling_input,
+        calendar_registry=make_registry(),
+    )
+
+    # P1's explicit seven-day calendar runs through Saturday; P2 falls back
+    # to the Monday-Friday project calendar. All leveling recalculations must
+    # preserve these distinct authoritative activity calendars.
+    assert result.project("P1").result.activities["P1-A"].finish == date(2026, 10, 3)
+    assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 5)
+
 
 def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
     project_calendar = CalendarReference("BATCH-PROJECT", "1")
