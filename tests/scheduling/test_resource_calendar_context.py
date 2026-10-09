@@ -35,6 +35,7 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingOptions,
+    apply_leveling_shifts,
     propose_backward_leveling,
     propose_forward_leveling_within_float,
 )
@@ -248,7 +249,7 @@ def test_snapshot_materializer_accepts_legacy_payload_without_resource_assignmen
     materialized = materialize_schedule_snapshot(legacy, make_registry())
     assert materialized.schedule_input.resource_calendar_assignments == ()
 
-def test_forward_leveling_shifts_demand_with_resource_calendar_not_project_calendar():
+def test_forward_leveling_keeps_resource_demands_aligned_with_activity_dates():
     project_resolver = WorkingTimeResolver(WorkingCalendar())
     resource_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset(range(7)))
@@ -263,7 +264,6 @@ def test_forward_leveling_shifts_demand_with_resource_calendar_not_project_calen
     )
     capacities = (
         ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
-        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
         ResourceCapacity("R1", date(2026, 10, 5), Decimal("0")),
         ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
     )
@@ -279,13 +279,52 @@ def test_forward_leveling_shifts_demand_with_resource_calendar_not_project_calen
     )
 
     assert project_only[0].shift_working_days == 2
-    assert resource_aware[0].shift_working_days == 1
-    # Activity dates remain on the activity/project calendar; only demand
-    # bucket movement uses the resource-specific calendar.
+    assert resource_aware[0].shift_working_days == 2
+    applied = apply_leveling_shifts(
+        (activity,), resource_aware, resolver=project_resolver
+    )
+    assert applied[0].start == date(2026, 10, 6)
+    assert applied[0].resource_demands[0].period == applied[0].start
+
+
+def test_resource_calendar_rejects_capacity_on_nonworking_dates():
+    project_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "A")
+    activity = LevelingActivity(
+        activity_id="A",
+        start=date(2026, 10, 2),
+        finish=date(2026, 10, 2),
+        total_float=5,
+        resource_demands=(demand,),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 4), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 5), Decimal("1")),
+    )
+
+    project_only = propose_forward_leveling_within_float(
+        (activity,), capacities, resolver=project_resolver
+    )
+    resource_aware = propose_forward_leveling_within_float(
+        (activity,),
+        capacities,
+        resolver=project_resolver,
+        resource_calendar_resolvers={"R1": resource_resolver},
+    )
+
+    assert project_only[0].new_start == date(2026, 10, 3)
     assert resource_aware[0].new_start == date(2026, 10, 5)
+    assert resource_aware[0].shift_working_days == 3
 
 
-def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_calendar():
+def test_backward_leveling_keeps_resource_demands_aligned_with_activity_dates():
     project_resolver = WorkingTimeResolver(WorkingCalendar())
     resource_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset(range(7)))
@@ -317,10 +356,9 @@ def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_cale
     )
 
     assert project_only[0].advanced_days == 2
-    assert resource_aware[0].advanced_days == 1
-    # The demand moves back one resource working day (Sunday); the activity
-    # itself moves one project working day (Monday to Friday).
-    assert resource_aware[0].new_start == date(2026, 10, 2)
+    assert resource_aware[0].advanced_days == 2
+    assert project_only[0].new_start == date(2026, 10, 1)
+    assert resource_aware[0].new_start == date(2026, 10, 1)
 
 def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
     from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
@@ -378,9 +416,11 @@ def test_resource_calendar_context_preserves_local_inherited_standard_precedence
 def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
     project_calendar = CalendarReference("BATCH-PROJECT", "1")
     resource_calendar = CalendarReference("BATCH-RESOURCE", "1")
-    project_resolver = WorkingTimeResolver(WorkingCalendar())
-    resource_resolver = WorkingTimeResolver(
+    project_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
     )
     registry = CalendarResolverRegistry(
         day_resolvers={
@@ -428,8 +468,8 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
         capacities=(
             ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
             ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
-            ResourceCapacity("R1", date(2026, 10, 5), Decimal("0")),
-            ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 4), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 5), Decimal("1")),
         ),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
@@ -444,9 +484,9 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
         leveling_input=leveling_input,
         calendar_registry=registry,
     )
-    # Without a registry, demand moves through Monday and Tuesday capacity.
-    assert project_only.project("P1").result.activities["P1-A"].start == date(2026, 10, 6)
-    # The authoritative resource calendar permits the demand shift on Saturday,
-    # while the CPM activity date itself remains on the project working calendar.
+    # Without the authoritative resource calendar, Saturday capacity is accepted.
+    assert project_only.project("P1").result.activities["P1-A"].start == date(2026, 10, 3)
+    # The resource calendar marks weekend capacity unavailable, so the activity
+    # and its demand move together to Monday rather than splitting across dates.
     assert resource_aware.project("P1").result.activities["P1-A"].start == date(2026, 10, 5)
 
