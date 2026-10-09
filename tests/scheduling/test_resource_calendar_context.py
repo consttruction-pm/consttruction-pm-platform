@@ -306,3 +306,55 @@ def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_cale
     assert resource_aware[0].advanced_days == 1
     assert resource_aware[0].new_start == date(2026, 10, 4)
 
+def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
+    from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
+    from construction_pm.scheduling.calendar_exceptions import (
+        CalendarException,
+        CalendarExceptionType,
+    )
+
+    inherited_date = date(2026, 10, 8)
+    local_reset_date = date(2026, 10, 9)
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "GLOBAL@3": WorkingTimeResolver(WorkingCalendar()),
+            "PROJECT@4": WorkingTimeResolver(WorkingCalendar()),
+            "RESOURCE@8": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset(range(7)))
+            ),
+        },
+        base_calendar_references={
+            "PROJECT@4": GLOBAL,
+            "RESOURCE@8": PROJECT,
+        },
+        exception_layers={
+            "GLOBAL@3": CalendarExceptionLayers(
+                local=(CalendarException(inherited_date, CalendarExceptionType.NONWORK),)
+            ),
+            "PROJECT@4": CalendarExceptionLayers(
+                local=(
+                    CalendarException(
+                        inherited_date,
+                        CalendarExceptionType.TOTAL_WORK_HOURS,
+                        total_work_hours=Decimal("6"),
+                    ),
+                )
+            ),
+            "RESOURCE@8": CalendarExceptionLayers(
+                local=(
+                    CalendarException(local_reset_date, CalendarExceptionType.RESET_TO_STANDARD),
+                )
+            ),
+        },
+    )
+    snapshot = make_snapshot([ResourceCalendarAssignment("R1", RESOURCE)])
+    context = ResourceCalendarContext.from_snapshots([snapshot], registry)
+    resolved = context.for_resource("P1", "R1")
+
+    inherited_rule = resolved.calendar.effective_rule(inherited_date)
+    local_rule = resolved.calendar.effective_rule(local_reset_date)
+    assert inherited_rule.source == "inherited"
+    assert inherited_rule.is_working is True
+    assert local_rule.source == "local"
+    assert local_rule.is_working is True
+
