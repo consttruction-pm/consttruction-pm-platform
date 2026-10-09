@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
 
@@ -18,7 +18,11 @@ def scope() -> BackendScope:
     return BackendScope(tenant_id="t1", project_id="p1", project_revision=4)
 
 
-def mapping(source_field: str, canonical_field: str) -> PersistedP6Mapping:
+def mapping(
+    source_field: str,
+    canonical_field: str,
+    status: P6MappingStatus = P6MappingStatus.SUPPORTED,
+) -> PersistedP6Mapping:
     return PersistedP6Mapping(
         scope=scope(),
         definition=P6MappingDefinition(
@@ -28,7 +32,7 @@ def mapping(source_field: str, canonical_field: str) -> PersistedP6Mapping:
             subject_area="Activity",
             source_field=source_field,
             canonical_field=canonical_field,
-            status=P6MappingStatus.SUPPORTED,
+            status=status,
         ),
     )
 
@@ -42,9 +46,21 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         mapping("status_code", "activity.status"),
         mapping("target_start_date", "activity.planned_start"),
         mapping("target_end_date", "activity.planned_finish"),
-        mapping("restart_date", "activity.remaining_early_start_date"),
+        # XER carries this value as a date-only token. Preserve it until its
+        # canonical datetime semantics are explicitly certified.
+        mapping(
+            "restart_date",
+            "activity.remaining_early_start_date",
+            status=P6MappingStatus.UNSUPPORTED_PRESERVE,
+        ),
         mapping("reend_date", "activity.remaining_early_finish_date"),
-        mapping("update_date", "activity.last_update_date"),
+        # XER update_date is date-only in this fixture, not an offset-aware
+        # timestamp; preserve it pending a certified source/canonical contract.
+        mapping(
+            "update_date",
+            "activity.last_update_date",
+            status=P6MappingStatus.UNSUPPORTED_PRESERVE,
+        ),
         mapping("update_user", "activity.last_update_user"),
     )
     adapter = P6InterchangeAdapter(
@@ -72,12 +88,20 @@ def test_xer_codec_composes_with_canonical_task_mapping_boundary() -> None:
         "activity.status": "Not Started",
         "activity.planned_start": date(2026, 1, 10),
         "activity.planned_finish": date(2026, 1, 20),
-        "activity.remaining_early_start_date": datetime(2026, 1, 12, tzinfo=timezone.utc),
         "activity.remaining_early_finish_date": date(2026, 1, 18),
-        "activity.last_update_date": datetime(2026, 1, 5, tzinfo=timezone.utc),
         "activity.last_update_user": "planner",
     }
     assert imported[0].extensions["p6.xer.table"] == "TASK"
+    assert imported[0].extensions[
+        "p6.interchange.t1.p1.restart_date"
+    ] == "2026-01-12"
+    assert imported[0].extensions[
+        "p6.interchange.t1.p1.update_date"
+    ] == "2026-01-05"
+    assert imported[0].warnings == (
+        "PRESERVED_UNSUPPORTED_FIELD:restart_date",
+        "PRESERVED_UNSUPPORTED_FIELD:update_date",
+    )
 
 
 
