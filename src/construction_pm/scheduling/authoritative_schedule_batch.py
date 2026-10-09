@@ -194,21 +194,39 @@ def execute_authoritative_schedule_batch(
         for assignment in resource_assignment_list:
             register_resource_calendar(assignment.project_id, assignment.resource_id)
 
-        explicit_resource_ids = {
-            assignment.resource_id
+        explicit_snapshot_resource_keys = {
+            (snapshot.project_id, assignment.resource_id)
             for snapshot in snapshot_list
             for assignment in snapshot.resource_calendar_assignments
         }
-        explicit_resource_ids.update(
+        explicit_external_resource_ids = {
             assignment.resource_id for assignment in resource_assignment_list
-        )
+        }
         for activity in (*leveling_input.forward_activities, *leveling_input.backward_activities):
             owning_project = all_activity_projects.get(activity.activity_id)
             for demand in activity.resource_demands:
-                # A persisted resource assignment identifies the resource's owner
-                # project and remains authoritative even when the demand is consumed
-                # by an activity in another project.
-                if demand.resource_id in explicit_resource_ids:
+                # Snapshot-level assignments are project-scoped. Do not let an
+                # explicit assignment in P1 suppress project-calendar fallback for
+                # a same-named local resource in P2; registering P2's fallback will
+                # either resolve consistently or fail closed on a calendar mismatch.
+                if owning_project is not None and (
+                    owning_project, demand.resource_id
+                ) in explicit_snapshot_resource_keys:
+                    continue
+                # External assignments identify the resource owner's project and
+                # may be consumed by an activity in another project. The current
+                # bare-ID leveling model cannot distinguish a colliding local ID,
+                # so if a local fallback would otherwise be required, resolve it
+                # and let register_resource_calendar fail closed on a mismatch.
+                if demand.resource_id in explicit_external_resource_ids:
+                    if owning_project is None:
+                        continue
+                    if not any(
+                        assignment.resource_id == demand.resource_id
+                        and assignment.project_id == owning_project
+                        for assignment in resource_assignment_list
+                    ):
+                        register_resource_calendar(owning_project, demand.resource_id)
                     continue
                 if owning_project is not None:
                     register_resource_calendar(owning_project, demand.resource_id)
