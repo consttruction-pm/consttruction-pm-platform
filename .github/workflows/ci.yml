@@ -6,8 +6,10 @@ permissions:
 on:
   push:
     branches: ["main"]
+  # Run the full test matrix for stacked and non-main-targeting PRs too.
+  # Without this, follow-up PRs targeting an integration branch can miss
+  # the Python 3.11/3.12/3.13 test suite entirely.
   pull_request:
-    branches: ["main"]
 
 jobs:
   test:
