@@ -7,7 +7,11 @@ from typing import Any, Mapping, Sequence
 from .backend_p0.models import BackendScope
 from .p6_mapping_registry import P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from .p6_field_registry import get_field
-from .p6_interchange_typed_conversion import P6InterchangeTypedConversionError, typed_value_for_field
+from .p6_interchange_typed_conversion import (
+    P6InterchangeTypedConversionError,
+    source_value_for_mapping,
+    typed_value_for_mapping,
+)
 
 
 class P6InterchangeCompatibilityError(ValueError):
@@ -134,7 +138,9 @@ class P6InterchangeMapper:
                     canonical[definition.canonical_field] = value
                 else:
                     try:
-                        canonical[definition.canonical_field] = typed_value_for_field(field, value).value
+                        canonical[definition.canonical_field] = typed_value_for_mapping(
+                            field, value, format=definition.format, source_field=definition.source_field
+                        ).value
                     except P6InterchangeTypedConversionError as exc:
                         raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
@@ -176,7 +182,9 @@ class P6InterchangeMapper:
                     source_values[definition.source_field] = value
                 else:
                     try:
-                        source_values[definition.source_field] = typed_value_for_field(field, value).value
+                        source_values[definition.source_field] = source_value_for_mapping(
+                            field, value, format=definition.format, source_field=definition.source_field
+                        )
                     except P6InterchangeTypedConversionError as exc:
                         raise P6InterchangeCompatibilityError(str(exc)) from exc
             elif definition.status is P6MappingStatus.UNSUPPORTED_PRESERVE:
