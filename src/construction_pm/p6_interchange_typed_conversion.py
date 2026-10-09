@@ -41,7 +41,14 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
             if not isinstance(raw, bool): raise ValueError("boolean required")
             return P6InterchangeTypedValue("boolean", raw)
         if kind is P6FieldType.INTEGER:
-            return P6InterchangeTypedValue("integer", raw if isinstance(raw, int) and not isinstance(raw, bool) else int(raw))
+            # File codecs commonly provide numbers as strings. Accept only finite,
+            # mathematically integral values; never truncate a fractional value.
+            if isinstance(raw, bool):
+                raise ValueError("boolean is not integer")
+            numeric = raw if isinstance(raw, Decimal) else Decimal(str(raw))
+            if not numeric.is_finite() or numeric != numeric.to_integral_value():
+                raise ValueError("integer value required")
+            return P6InterchangeTypedValue("integer", int(numeric))
         if kind is P6FieldType.ENUM: return P6InterchangeTypedValue("enum", str(raw))
         if kind in {P6FieldType.STRING, P6FieldType.OBJECT_ID}: return P6InterchangeTypedValue("string", str(raw))
     except (InvalidOperation, TypeError, ValueError) as exc:
