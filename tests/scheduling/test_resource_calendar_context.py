@@ -315,6 +315,45 @@ def test_forward_leveling_keeps_resource_demands_aligned_with_activity_dates():
     assert applied[0].resource_demands[0].period == applied[0].start
 
 
+def test_forward_leveling_moves_activity_with_its_assigned_calendar():
+    project_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    weekend_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    movable = LevelingActivity(
+        "A", date(2026, 10, 2), date(2026, 10, 2), 1,
+        (ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "A"),),
+    )
+    fixed = LevelingActivity(
+        "B", date(2026, 10, 2), date(2026, 10, 2), 0,
+        (ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "B"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        (movable, fixed),
+        capacities,
+        resolver=project_resolver,
+        activity_resolvers={"A": weekend_resolver},
+    )
+    applied = apply_leveling_shifts(
+        (movable, fixed),
+        shifts,
+        resolver=project_resolver,
+        activity_resolvers={"A": weekend_resolver},
+    )
+
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == date(2026, 10, 3)
+    assert applied[0].start == date(2026, 10, 3)
+    assert applied[0].resource_demands[0].period == applied[0].start
+
+
 def test_resource_calendar_rejects_capacity_on_nonworking_dates():
     project_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset(range(7)))
