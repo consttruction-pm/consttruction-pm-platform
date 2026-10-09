@@ -983,3 +983,18 @@ Status: **runtime-verified and merged**
 - PR #1343 changes this to fail closed with `TRANSACTION_MANAGER_REQUIRED` before either multi-step operation mutates data; focused regression tests cover copy and replace.
 - PR head: `55e11c244e5f2be3274734b9d5eb1f32f49f4afe`. No runtime/CI success is claimed until exact-head checks are observed.
 - Scope is API/persistence transaction orchestration only; no Shared Scheduling Core calculations changed.
+
+### 2026-10-09 — Change/Claim authenticated HTTP boundary (PR #1344)
+
+Status: **merged; exact-head CI runtime-verified**
+- Fresh current-main inspection found that the versioned ChangeClaimAPI and its persistence/service boundary existed, but ProjectLifecycleHttpRoutes did not expose authenticated HTTP create/read endpoints.
+- PR #1344 added POST `/api/projects/{project_id}/change-claims` and GET `/api/projects/{project_id}/change-claims/{resource_id}` behind the existing authenticated project context. Tenant, project, and actor identity are derived from that context; caller-supplied spoofed identity fields are ignored.
+- Focused regression coverage verifies create/read, scope and actor isolation, malformed request rejection, and unknown-project denial.
+- Exact implementation head: `748097bdd2ced72266632a561680942687ff0f7b`.
+- Client Typecheck run `37876363650` passed. ConstructionPM CI run `37876363654` passed on Python 3.11, 3.12 and 3.13.
+- PR #1344 was squash-merged as `258ba00d4b2a24473659766aaeda444d57f676ed`; current-main source verification confirmed the routes are present.
+- No Shared Core, scheduling, calendar, duration, progress/EVM, resource/cost or financial calculation semantics changed.
+
+### Next point
+
+Reconcile current `main`, open PRs and assigned Hasan issues before choosing another implementation. Continue only with a concrete, reproducible Backend/Database/Application/API/Import-Export gap. Do not duplicate existing P6 subject APIs, revive stale branches, or implement Shared-Core/Jalal or Web/client-owned work. Record exact-head CI and PostgreSQL evidence where applicable.
