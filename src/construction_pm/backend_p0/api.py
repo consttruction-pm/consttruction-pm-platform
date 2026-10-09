@@ -78,13 +78,13 @@ class BackendP0API:
         revision: int,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
-        if self.workspace_read_service is None:
-            raise BackendApplicationError(
-                ErrorCategory.VALIDATION,
-                "WORKSPACE_READ_NOT_CONFIGURED",
-                "Workspace control-room read service is not configured",
-            )
         try:
+            if self.workspace_read_service is None:
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "WORKSPACE_READ_NOT_CONFIGURED",
+                    "Workspace control-room read service is not configured",
+                )
             from .models import BackendScope
             snapshot = self.workspace_read_service.read(
                 BackendScope(tenant_id, project_id, revision),
