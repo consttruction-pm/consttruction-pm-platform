@@ -49,7 +49,7 @@ from construction_pm.client_sync.api_endpoint import VersionedSyncEndpoint
 from construction_pm.client_sync.application_gateway import ApplicationSyncGateway
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
-from construction_pm.scheduling.calendar_system import CalendarSystem
+from construction_pm.scheduling.calendar_system import CalendarSystem, JalaliDate
 from datetime import date
 from decimal import Decimal
 from construction_pm.p6_layout_definition_repository import LayoutColumn, PersistedP6Layout, SQLiteP6LayoutRepository
@@ -222,6 +222,31 @@ def test_p6_calendar_http_copy_replace_exception_and_work_hours_contracts():
     assert status == 200
     assert api.calls[-1][0] == "save_exception"
     assert json.loads(body)["mode"] == "nonwork"
+
+    jalali_payload = {
+        "date": "1405-01-01",
+        "mode": "nonwork",
+        "system": "jalali",
+        "intervals": [],
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions",
+        cookies={"cp_session": "s1"}, body=json.dumps(jalali_payload).encode(),
+    )
+    assert status == 200
+    jalali_result = json.loads(body)
+    assert jalali_result["system"] == "jalali"
+    assert jalali_result["date"] == JalaliDate(1405, 1, 1).to_gregorian().isoformat()
+    assert api.calls[-1][0] == "save_exception"
+    assert api.calls[-1][1].exception_date == JalaliDate(1405, 1, 1).to_gregorian()
+
+    invalid_jalali_payload = {**jalali_payload, "date": "1405-13-01"}
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/exceptions",
+        cookies={"cp_session": "s1"}, body=json.dumps(invalid_jalali_payload).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_CALENDAR_REQUEST_INVALID"
 
     work_hours_payload = {
         "kind": "standard_work_week",
