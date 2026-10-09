@@ -193,7 +193,7 @@ def test_authoritative_batch_uses_activity_calendar_context():
         ),
     )
     p2 = replace(
-        snapshot("P2", date(2026, 10, 10)),
+        snapshot("P2", date(2026, 10, 10), options=leveling_schedule_options),
         project_start=date(2026, 10, 2),
         activities=(Activity("P2-A", 2),),
     )
@@ -246,8 +246,12 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
 
 def test_mixed_activity_calendars_are_supported_for_shared_resource_leveling():
     resource_calendar = CalendarReference("CAL", "1")
+    leveling_schedule_options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
     p1 = replace(
-        snapshot("P1", date(2026, 10, 10)),
+        snapshot("P1", date(2026, 10, 10), options=leveling_schedule_options),
         activity_calendar_assignments=(
             ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
         ),
