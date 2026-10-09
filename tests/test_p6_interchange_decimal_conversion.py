@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -90,3 +91,26 @@ def test_duration_conversion_preserves_finite_value_and_unit() -> None:
     )
     assert value.value.value == Decimal("1.2500")
     assert value.value.unit == "working-time"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        datetime(2026, 10, 5, 12, 30),
+        "2026-10-05T12:30:00",
+        "2026-10-05",
+    ],
+)
+def test_datetime_conversion_rejects_implicit_timezone(raw) -> None:
+    with pytest.raises(
+        P6InterchangeTypedConversionError,
+        match="INVALID_CANONICAL_VALUE:activity.create_date:datetime",
+    ):
+        typed_value_for_field(get_field("activity.create_date"), raw)
+
+
+def test_datetime_conversion_preserves_explicit_timezone() -> None:
+    raw = datetime.fromisoformat("2026-10-05T12:30:00+04:00")
+    value = typed_value_for_field(get_field("activity.create_date"), raw)
+    assert value.value == raw
+    assert value.value.utcoffset().total_seconds() == 4 * 60 * 60
