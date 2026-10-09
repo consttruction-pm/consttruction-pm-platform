@@ -60,6 +60,9 @@ jobs:
           cp -R public/. "${{ github.workspace }}/_site/"
           cp -R dist "${{ github.workspace }}/_site/dist"
           cp index.html "${{ github.workspace }}/_site/app/index.html"
+          # The shared landing component uses document-relative logo paths on both routes.
+          # Copy the same canonical asset into /app so those references resolve there too.
+          cp public/cubi-platform-logo-primary.svg "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
           touch "${{ github.workspace }}/_site/.nojekyll"
           # The TypeScript build writes the commercial entry to dist/web/src/landing-entry.js because
           # tsconfig.build.json uses rootDir=.. and outDir=dist.
@@ -74,6 +77,7 @@ jobs:
           test -f "${{ github.workspace }}/_site/dist/web/src/landing.js"
           test -f "${{ github.workspace }}/_site/styles.css"
           test -f "${{ github.workspace }}/_site/cubi-platform-logo-primary.svg"
+          test -f "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
           test ! -f "${{ github.workspace }}/_site/logo.svg"
           test ! -f "${{ github.workspace }}/_site/logo-dark.svg"
           test ! -f "${{ github.workspace }}/_site/cubi-platform-logo-primary-dark.svg"
