@@ -355,10 +355,10 @@ def test_backward_leveling_keeps_resource_demands_aligned_with_activity_dates():
         resource_calendar_resolvers={"R1": resource_resolver},
     )
 
-    assert project_only[0].advanced_days == 2
-    assert resource_aware[0].advanced_days == 2
-    assert project_only[0].new_start == date(2026, 10, 1)
-    assert resource_aware[0].new_start == date(2026, 10, 1)
+    assert project_only[-1].advanced_days == 2
+    assert resource_aware[-1].advanced_days == 2
+    assert project_only[-1].new_start == date(2026, 10, 1)
+    assert resource_aware[-1].new_start == date(2026, 10, 1)
 
 def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
     from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
