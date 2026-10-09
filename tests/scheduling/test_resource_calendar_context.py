@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from construction_pm.schedule_calculation_context_repository import CalculationContext
+from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.schedule_input_snapshot_repository import (
     SQLiteScheduleInputSnapshotRepository,
     build_snapshot,
@@ -179,8 +179,6 @@ def test_snapshot_materializer_round_trips_resource_calendar_assignments():
         input_snapshot_id=source.snapshot_id,
         tenant_id=source.tenant_id,
     )
-    from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
-
     conn = sqlite3.connect(":memory:")
     repository = SQLiteScheduleInputSnapshotRepository(conn)
     stored = repository.save(
