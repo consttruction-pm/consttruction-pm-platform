@@ -38,6 +38,7 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
             if isinstance(raw, P6DurationValue): value = raw
             elif isinstance(raw, dict) and {"value", "unit"} <= set(raw): value = P6DurationValue(Decimal(str(raw["value"])), str(raw["unit"]))
             else: raise ValueError("duration object with value and unit required")
+            value.validate()
             return P6InterchangeTypedValue("duration", value, unit=value.unit)
         if kind is P6FieldType.BOOLEAN:
             if not isinstance(raw, bool): raise ValueError("boolean required")
