@@ -45,6 +45,7 @@ from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
+from ..relationship_master_repository import RelationshipPersistenceError
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
 from ..p6_expense_repository import P6Expense
 from ..p6_financial_period_repository import P6FinancialPeriod
@@ -843,6 +844,12 @@ class ProjectLifecycleHttpRoutes:
                     if method == "GET" and not parts:
                         result = self._p6_relationship_api.list(scope, auth_context=auth)
                         return self._json(200, {"contract_version": P6_RELATIONSHIP_API_VERSION, "relationships": list(result)})
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        result = self._p6_relationship_api.delete(scope, parts[0], expected_revision=expected_revision, auth_context=auth)
+                        return self._json(200, result)
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_relationship_api.get(scope, parts[0], auth_context=auth)
                         if result is None:
@@ -885,6 +892,12 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, self._p6_relationship_api.update(relationship, expected_revision=expected_revision, auth_context=auth))
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")
+                except RelationshipPersistenceError as exc:
+                    if str(exc) == "RELATIONSHIP_NOT_FOUND":
+                        return self._error(404, str(exc), "error.p6.relationship.not_found")
+                    if str(exc) == "REVISION_CONFLICT":
+                        return self._error(409, str(exc), "error.revision.conflict")
+                    return self._error(400, str(exc), "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:

@@ -73,3 +73,19 @@ def test_p6_relationship_api_requires_optimistic_revision_for_update():
 
     with pytest.raises(ValueError, match="REVISION_CONFLICT"):
         service.update(relationship(scope, lag="3", revision=2), expected_revision=1, auth_context=auth())
+
+
+
+def test_p6_relationship_api_delete_requires_write_permission_and_revision():
+    service = api(sqlite3.connect(":memory:"))
+    scope = BackendScope("t1", "p1", 2)
+    service.create(relationship(scope), auth_context=auth())
+    result = service.delete(scope, "rel-1", expected_revision=1, auth_context=auth())
+    assert result["contract_version"] == P6_RELATIONSHIP_API_VERSION
+    assert result["deleted"] is True
+    assert service.get(scope, "rel-1", auth_context=auth()) is None
+    service.create(relationship(scope), auth_context=auth())
+    with pytest.raises(ValueError, match="REVISION_CONFLICT"):
+        service.delete(scope, "rel-1", expected_revision=99, auth_context=auth())
+    with pytest.raises(AuthorizationError):
+        service.delete(scope, "rel-1", expected_revision=1, auth_context=auth(roles=("viewer",)))
