@@ -1,3 +1,7 @@
+## Revalidation correction — 2026-10-09 (exact main `30ff3af6bc936d18fca69023072e4fe7257a6c26`)
+
+The original AN finding below overstated repository-level commit behavior. Current SQLite calendar mutation methods check `connection.in_transaction` and only commit when operating standalone; `P6CalendarAPI.copy()` and `replace()` already use the configured transaction manager. The reproducible defect is narrower: because `transaction_manager` is optional, `_transaction()` silently falls back to `nullcontext()`, allowing multi-step copy/replace to run without an application-owned transaction. PR #1343 changes this fallback to a fail-closed `TRANSACTION_MANAGER_REQUIRED` error and adds tests asserting no mutation occurs in that configuration. Exact-head CI/runtime verification is pending.
+
 > **Historical snapshot notice:** This audit was authored on 2026-10-05 and contains historical current-main SHAs from that date. The live repository head is maintained separately in [CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md](CURRENT_MAIN_AUDIT_POINTER_2026-10-08.md). Do not use SHAs in this historical audit as the current integration baseline.
 
 # Project-wide integrity, performance and architecture audit — 2026-10-05
