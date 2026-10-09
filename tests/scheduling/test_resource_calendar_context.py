@@ -1,9 +1,13 @@
 from datetime import date, datetime, timezone
+import hashlib
+import json
+import sqlite3
 
 import pytest
 
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.schedule_input_snapshot_repository import (
+    ScheduleInputSnapshot,
     SQLiteScheduleInputSnapshotRepository,
     build_snapshot,
 )
@@ -163,8 +167,6 @@ def test_resource_calendar_context_preserves_jalali_calendar_identity():
 
 
 def test_snapshot_materializer_round_trips_resource_calendar_assignments():
-    import sqlite3
-
     registry = make_registry()
     source = make_snapshot([ResourceCalendarAssignment("R1", RESOURCE)])
     context = CalculationContext(
@@ -190,3 +192,36 @@ def test_snapshot_materializer_round_trips_resource_calendar_assignments():
     )
     resolved = ResourceCalendarContext.from_snapshots([materialized.schedule_input], registry)
     assert resolved.reference_for_resource("P1", "R1") == RESOURCE
+
+def test_snapshot_materializer_accepts_legacy_payload_without_resource_assignments():
+    source = make_snapshot()
+    context = CalculationContext(
+        project_id=source.project_id,
+        project_version=source.project_revision,
+        calendar_id=source.project_calendar.calendar_id,
+        calendar_version=source.project_calendar.calendar_version,
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-10-01T08:00:00+00:00",
+        input_snapshot_id=source.snapshot_id,
+        tenant_id=source.tenant_id,
+    )
+    original = build_snapshot(
+        source, context, datetime(2026, 10, 1, 8, tzinfo=timezone.utc)
+    )
+    payload = json.loads(original.canonical_payload)
+    payload.pop("resource_calendar_assignments")
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    legacy = ScheduleInputSnapshot(
+        scope=original.scope,
+        snapshot_id=original.snapshot_id,
+        snapshot_hash=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical_payload=canonical,
+        calculation_identity=original.calculation_identity,
+        created_at=original.created_at,
+        calculation_identity_version=original.calculation_identity_version,
+    )
+    materialized = materialize_schedule_snapshot(legacy, make_registry())
+    assert materialized.schedule_input.resource_calendar_assignments == ()
+
