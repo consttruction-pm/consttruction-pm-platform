@@ -35,7 +35,7 @@ Issue #1249 was recorded as closed after #1314 and #1316 were merged and indepen
 ## Branch freshness at this audit
 
 - **PR #1368** (`fix/cubi-canonical-logo-current-main-2026-10-10`): 5 commits ahead / 2 behind `main`, diverged. Reconcile branch and rerun exact-head CI before review or merge.
-- **This audit-pointer PR #1370** (`audit/refresh-current-main-pointer-2026-10-10`): 2 commits ahead / 1 behind `main`, diverged (rechecked after the audit-pointer update). This document refresh does not itself reconcile the branch history; keep the PR open pending reconciliation and owner review.
+- **This audit-pointer PR #1370** (`audit/refresh-current-main-pointer-2026-10-10`): diverged and 1 commit behind `main` at the latest compare. Its ahead count increases as this audit is updated, so recheck the comparison before merge. This document refresh does not itself reconcile the branch history; keep the PR open pending reconciliation and owner review.
 - These compare results are snapshots and must be rechecked if `main` advances again.
 
 ## Acceptance rule
