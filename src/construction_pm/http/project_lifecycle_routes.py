@@ -893,11 +893,11 @@ class ProjectLifecycleHttpRoutes:
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except RelationshipPersistenceError as exc:
-                    if str(exc) == "RELATIONSHIP_NOT_FOUND":
+                    if method == "DELETE" and str(exc) == "RELATIONSHIP_NOT_FOUND":
                         return self._error(404, str(exc), "error.p6.relationship.not_found")
-                    if str(exc) == "REVISION_CONFLICT":
+                    if method == "DELETE" and str(exc) == "REVISION_CONFLICT":
                         return self._error(409, str(exc), "error.revision.conflict")
-                    return self._error(400, str(exc), "error.request.invalid")
+                    return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
