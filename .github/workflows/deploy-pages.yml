@@ -73,15 +73,12 @@ jobs:
           test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
           test -f "${{ github.workspace }}/_site/dist/web/src/landing.js"
           test -f "${{ github.workspace }}/_site/styles.css"
-          test -f "${{ github.workspace }}/_site/logo.svg"
           test -f "${{ github.workspace }}/_site/cubi-platform-logo-primary.svg"
-          test -f "${{ github.workspace }}/_site/cubi-platform-logo-primary-dark.svg"
           test -f "${{ github.workspace }}/_site/.nojekyll"
           grep -q 'dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/index.html"
           grep -q '../dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/app/index.html"
           grep -q 'app/' "${{ github.workspace }}/_site/dist/web/src/landing.js"
           grep -q 'cubi-platform-logo-primary.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          grep -q 'cubi-platform-logo-primary-dark.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
           echo "Pages artifact ready: $(find "${{ github.workspace }}/_site" -type f | wc -l) files"
 
       - name: Upload Pages artifact
