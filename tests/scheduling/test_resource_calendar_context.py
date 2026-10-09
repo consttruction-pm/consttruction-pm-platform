@@ -34,9 +34,11 @@ from construction_pm.scheduling.resource_calendar_context import (
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
+    LevelingShift,
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingOptions,
+    _shift_demands_backward,
     apply_leveling_shifts,
     propose_backward_leveling,
     propose_forward_leveling_within_float,
@@ -350,6 +352,60 @@ def test_forward_leveling_keeps_resource_demands_aligned_with_activity_dates():
     )
     assert applied[0].start == date(2026, 10, 6)
     assert applied[0].resource_demands[0].period == applied[0].start
+
+
+def test_forward_shift_moves_each_daily_demand_by_activity_workdays_across_weekend():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    activity = LevelingActivity(
+        "A",
+        date(2026, 10, 2),
+        date(2026, 10, 5),
+        1,
+        (
+            ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "A"),
+            ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A"),
+        ),
+    )
+    accepted_shift = (
+        LevelingShift(
+            "A",
+            shift_working_days=1,
+            new_start=date(2026, 10, 5),
+            new_finish=date(2026, 10, 6),
+            consumed_float=1,
+            remaining_float=0,
+        ),
+    )
+
+    shifted = apply_leveling_shifts(
+        (activity,), accepted_shift, resolver=resolver
+    )
+
+    assert shifted[0].start == date(2026, 10, 5)
+    assert shifted[0].finish == date(2026, 10, 6)
+    assert [demand.period for demand in shifted[0].resource_demands] == [
+        date(2026, 10, 5),
+        date(2026, 10, 6),
+    ]
+
+
+def test_backward_demand_periods_follow_activity_workdays_across_weekend():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    demands = (
+        ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A"),
+        ResourceDemand("R1", date(2026, 10, 6), Decimal("1"), "A"),
+    )
+
+    shifted = _shift_demands_backward(demands, -1, resolver)
+
+    assert [demand.period for demand in shifted] == [
+        date(2026, 10, 2),
+        date(2026, 10, 5),
+    ]
 
 
 def test_forward_leveling_moves_activity_with_its_assigned_calendar():
