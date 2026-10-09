@@ -1,20 +1,16 @@
-# CUBI Platform Brand Asset
+# CUBI Platform — Canonical Brand Asset
 
-## Approved logo
-The CUBI Platform logo supplied in the project handoff on 2026-10-06 is the approved web brand mark.
+## Single source of truth
+The approved CUBI logo sheet supplied on 2026-10-06 is the visual authority. The one implemented master logo is `apps/web/public/cubi-platform-logo-primary.svg`.
 
-### Web source-of-truth assets
-- `apps/web/public/logo.svg` — primary CUBI mark for the homepage, favicon and social metadata.
-- `apps/web/public/logo-dark.svg` — dark-background variant used by the homepage footer.
+This is the only runtime logo asset. Web, Desktop, Mobile, homepage header/footer, favicon and social metadata must reference this file. Light/dark client variants resolve to the same canonical path; do not create alternate logo files, redraw the mark, or point surfaces at legacy assets.
 
-### Homepage usage
-The public homepage already references `/logo.svg` for the header/hero mark and `/logo-dark.svg` for the footer. Replacing these source-of-truth assets therefore updates the homepage without changing product routing or layout.
+## Approved identity
+Preserve the connected C-shaped cube mark, blue/cyan/teal facets, CUBI Platform wordmark, and “PLAN. CONTROL. BUILD SMARTER.” tagline from the supplied reference. Logo-specific colors stay inside the logo; the rest of the application retains its calm, data-first UI palette.
 
-### Brand direction
-Use the supplied CUBI visual language: electric blue/cyan gradients, deep navy structure, and turquoise/cyan cube. Do not revert these logo assets to the previous orange palette.
+## Legacy cleanup
+`logo.svg`, `logo-dark.svg`, and `cubi-platform-logo-primary-dark.svg` are deprecated and must not be referenced by runtime code or deployment workflows. The single-source change removes them. Tests enforce one canonical path.
 
 ## Change record
-- 2026-10-06: replaced the previous orange CUBI SVG assets with the approved blue/cyan CUBI mark.
-- 2026-10-06: Issue 1241 homepage redesign aligned the public landing page to the supplied reference: white navigation, photographic construction hero, blue/cyan CTA system, six capability cards, engineering-stack section and dark conversion band. The reference image is treated as visual direction, while the product content remains CUBI-native.
-
-- 2026-10-06: approved homepage visual reference now includes the PLAN → CONTROL → ANALYZE → BUILD workflow strip and CUBI Intelligence & Engineering Core section. Persian UI typography uses Vazirmatn v33.003 as the primary RTL web font, with the official upstream project/license reference retained.
+- 2026-10-06: user-approved CUBI logo sheet recorded as visual authority.
+- 2026-10-09: replaced simplified cube/wordmark with the connected C-shaped logo lockup and established one canonical runtime asset for all clients.
