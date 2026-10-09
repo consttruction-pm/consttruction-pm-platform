@@ -1234,3 +1234,14 @@ Status: **implemented, exact-head runtime-verified and merged**
 - PR #1352 merged as 7024e5e8ce4b730e05ca5449d5ccdd785570e2d6; Issue #1350 closed.
 - These are exact-PR-head checks; no separate post-merge workflow run was present at the time of this note.
 - No P6 scheduling/calculation semantics or duplicate Shared Core logic were introduced.
+
+### 2026-10-09 — P6 XER Activity Status/Type enum translation (PR #1356)
+
+Status: **merged and exact-head CI verified**
+- PR #1356 translated native XER `TASK.status_code` and `TASK.task_type` wire tokens to canonical Activity Status/Type values on import, and back to native XER tokens on export.
+- Added fail-closed handling for unsupported XER tokens/canonical export values and focused round-trip/negative regression coverage.
+- Exact implementation head: `02422549a9f0c32cd1768bdd7434e9e6d8f9a875`.
+- ConstructionPM CI run `37924344885`: success on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run `37924344821`: success for desktop, mobile, client-sync and web.
+- Squash merge commit: `097c2da2bd0c100b6f8e06f4091d1f98c2d3880f`.
+- Issue #1227 remains open because this PR completes only the XER Activity Status/Type slice of the wider import/export scope. No scheduling or calculation logic was changed.
