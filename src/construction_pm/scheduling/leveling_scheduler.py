@@ -110,7 +110,7 @@ def _backward_activities_from_intermediate(
                             resolver.working_days_between(
                                 forward_by_id[activity.activity_id].start,
                                 late.start,
-                            ),
+                            ) + 1,
                         ),
                         demand.units,
                         demand.activity_id,
