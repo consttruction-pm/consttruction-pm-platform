@@ -2,21 +2,20 @@
 
 ## Saved reference package
 
-- [CUBI logo reference — SVG](./CUBI-logo-reference.svg)
 - [CUBI website reference — SVG](./CUBI-website-reference.svg)
 - [Logo reference notes](./CUBI-logo-reference.md)
 - [Website reference notes](./CUBI-website-reference.md)
 
 ## Implementation reference
 
-- Canonical implemented logo: `apps/web/public/logo.svg`
+- Sole canonical implemented logo: `apps/web/public/cubi-platform-logo-primary.svg`
 - Public CUBI homepage: `/`
 - Existing project workspace: `/app`
 - Current homepage implementation is on the current `main` line.
 
 ## Handoff rule
 
-These SVGs are visual handoff/reference files for Jalal. They do not replace the canonical implementation assets and do not modify the CPM/P6 engineering core.
+The original user-approved logo sheet is the visual authority (Library image `1000044285.png`, uploaded 2026-10-06). The sole runtime asset is `apps/web/public/cubi-platform-logo-primary.svg`. Do not add alternate logo files or change CPM/P6 engineering logic for branding work.
 
 ## Latest saved commits
 
