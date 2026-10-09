@@ -40,8 +40,12 @@ def select_resource_assignments_for_scheduling(
 
     P6's IncludeExternalResAss option controls whether assignments from
     projects other than the project being scheduled participate in resource
-    calculations. This boundary filters the authoritative assignment source;
-    it never invents external demand or changes CPM calculations.
+    calculations. This boundary filters the authoritative assignment source.
+
+    ResourceDemand currently identifies resources by bare resource_id. Until
+    project identity is carried through the full leveling pipeline, selected
+    assignments with the same resource_id from different projects are rejected
+    rather than silently conflated or resolved using another project's calendar.
     """
     if not isinstance(scheduled_project_id, str) or not scheduled_project_id.strip():
         raise ResourceLevelingError("INVALID_SCHEDULED_PROJECT_ID")
@@ -66,7 +70,7 @@ def select_resource_assignments_for_scheduling(
         if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 100:
             raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
 
-    selected: list[ResourceDemand] = []
+    selected_assignments: list[ExternalResourceAssignment] = []
     for assignment in assignment_list:
         if not isinstance(assignment, ExternalResourceAssignment):
             raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
@@ -77,9 +81,18 @@ def select_resource_assignments_for_scheduling(
                 raise ResourceLevelingError("MISSING_PROJECT_LEVELING_PRIORITY")
             if priorities[assignment.project_id] > external_project_priority_limit:
                 continue
-        selected.append(assignment.to_demand())
-    return tuple(selected)
+        selected_assignments.append(assignment)
 
+    project_by_resource: dict[str, str] = {}
+    for assignment in selected_assignments:
+        previous_project = project_by_resource.get(assignment.resource_id)
+        if previous_project is not None and previous_project != assignment.project_id:
+            raise ResourceLevelingError(
+                f"CROSS_PROJECT_RESOURCE_ID_COLLISION:{assignment.resource_id}"
+            )
+        project_by_resource[assignment.resource_id] = assignment.project_id
+
+    return tuple(assignment.to_demand() for assignment in selected_assignments)
 
 
 def select_batch_resource_assignments_for_scheduling(
