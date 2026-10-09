@@ -10,6 +10,7 @@ from construction_pm.scheduling.time_duration import TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity
 from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
+    ResourceCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
@@ -243,31 +244,56 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
-def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
+def test_mixed_activity_calendars_are_supported_for_shared_resource_leveling():
+    resource_calendar = CalendarReference("CAL", "1")
     p1 = replace(
         snapshot("P1", date(2026, 10, 10)),
         activity_calendar_assignments=(
             ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
         ),
+        resource_calendar_assignments=(
+            ResourceCalendarAssignment("R1", resource_calendar),
+        ),
     )
-    p2 = snapshot("P2", date(2026, 10, 10))
+    p2 = replace(
+        snapshot("P2", date(2026, 10, 10)),
+        resource_calendar_assignments=(
+            ResourceCalendarAssignment("R1", resource_calendar),
+        ),
+    )
+    demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
     leveling_input = SchedulerLevelingInput(
-        forward_activities=(),
-        backward_activities=(),
-        capacities=(),
-        options=ResourceLevelingOptions(level_all_resources=True),
+        forward_activities=(
+            LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p1,)),
+            LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p2,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p1,)),
+            BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p2,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
     )
 
-    with pytest.raises(
-        UnsupportedMultiProjectSchedulingError,
-        match="MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED",
-    ):
-        execute_authoritative_schedule_batch(
-            [p1, p2],
-            resolvers={"P1": resolver(), "P2": resolver()},
-            leveling_input=leveling_input,
-            calendar_registry=calendar_registry(),
-        )
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+        calendar_registry=calendar_registry(),
+    )
+
+    starts = sorted((
+        result.project("P1").result.activities["P1-A"].start,
+        result.project("P2").result.activities["P2-A"].start,
+    ))
+    assert starts == [date(2026, 10, 1), date(2026, 10, 2)]
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
