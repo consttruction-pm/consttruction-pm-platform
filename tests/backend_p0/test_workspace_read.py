@@ -226,6 +226,7 @@ def test_workspace_read_service_rejects_malformed_optional_collection(key: str) 
         ({"contract_version": "workspace-control-room.v99", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": [], "activities": []}, "UNSUPPORTED_WORKSPACE_CONTRACT"),
         ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 6}, "columns": [], "activities": []}, "STALE_WORKSPACE_SNAPSHOT_SCOPE"),
         ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": {}, "activities": []}, "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION"),
+        ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": (), "activities": []}, "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION"),
         ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": []}, "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION"),
     ],
 )
