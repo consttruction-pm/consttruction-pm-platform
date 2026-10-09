@@ -83,33 +83,11 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
     )
 
 
-def _shift_resource_demand_date_forward(
-    value: date,
-    offset_working_days: int,
-    resolver: WorkingTimeResolver,
-) -> date:
-    """Move a demand bucket by a zero-based working-day offset.
-
-    Resource-demand offsets are not activity durations: offset zero must keep
-    the existing date, and offset one advances to the next resource working day.
-    """
-    if isinstance(offset_working_days, bool) or not isinstance(offset_working_days, int) or offset_working_days < 0:
-        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_OFFSET")
-    if not isinstance(resolver, WorkingTimeResolver):
-        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_RESOLVER")
-    cursor = resolver.calendar.to_gregorian(value)
-    for _ in range(offset_working_days):
-        cursor = resolver.next_working_day(cursor)
-    return cursor
-
-
 def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
-    resolver: object,
-    resource_calendar_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -126,18 +104,8 @@ def _backward_activities_from_intermediate(
                 resource_demands=tuple(
                     ResourceDemand(
                         demand.resource_id,
-                        _shift_resource_demand_date_forward(
-                            demand.period,
-                            resolver.working_days_between(
-                                forward_by_id[activity.activity_id].start,
-                                late.start,
-                            ),
-                            (
-                                resource_calendar_resolvers.get(demand.resource_id, resolver)
-                                if resource_calendar_resolvers is not None
-                                else resolver
-                            ),
-                        ),
+                        demand.period
+                        + (late.start - forward_by_id[activity.activity_id].start),
                         demand.units,
                         demand.activity_id,
                     )
@@ -245,8 +213,6 @@ def schedule_with_resource_leveling(
             leveling_input,
             early_schedule=initial.early_activities or initial.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
-            resolver=resolver,
-            resource_calendar_resolvers=resource_calendar_resolvers,
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
