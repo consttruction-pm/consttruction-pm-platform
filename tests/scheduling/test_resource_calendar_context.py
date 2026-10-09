@@ -463,6 +463,46 @@ def test_backward_leveling_rejects_capacity_on_resource_nonworking_dates():
     assert resource_aware[-1].new_start == date(2026, 10, 2)
 
 
+def test_backward_leveling_uses_selected_activity_calendar_for_shift_dates():
+    project_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    weekend_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    movable = BackwardLevelingActivity(
+        "Z-MOVABLE",
+        date(2026, 10, 2),
+        date(2026, 10, 2),
+        date(2026, 10, 5),
+        date(2026, 10, 5),
+        (ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "Z-MOVABLE"),),
+    )
+    fixed = BackwardLevelingActivity(
+        "A-FIXED",
+        date(2026, 10, 5),
+        date(2026, 10, 5),
+        date(2026, 10, 5),
+        date(2026, 10, 5),
+        (ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A-FIXED"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 5), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 4), Decimal("1")),
+    )
+
+    shifts = propose_backward_leveling(
+        (movable, fixed),
+        capacities,
+        resolver=project_resolver,
+        activity_resolvers={"Z-MOVABLE": weekend_resolver},
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "Z-MOVABLE"
+    assert shifts[0].new_start == date(2026, 10, 4)
+
+
 def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
     from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
     from construction_pm.scheduling.calendar_exceptions import (
