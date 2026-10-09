@@ -102,7 +102,7 @@ function renderLanding(container: HTMLElement): void {
             <div class="cubi-exact-hero-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#technology"><span class="play" aria-hidden="true">▶</span>${t.secondary}</a></div>
           </div>
           <div class="cubi-exact-dashboard" role="img" aria-label="Illustrative CUBI project dashboard showing schedule, progress and performance">
-            <aside class="cubi-dash-sidebar"><img src="./cubi-platform-logo-primary-dark.svg" width="26" height="26" alt="" /><strong>CUBI</strong><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
+            <aside class="cubi-dash-sidebar"><img src="./cubi-platform-logo-primary.svg" width="110" height="32" alt="CUBI Platform" /><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
             <div class="cubi-dash-main"><div class="cubi-dash-title"><strong>Project Control Center</strong><span>PROJECT / 026</span></div>
               <div class="cubi-gantt" aria-hidden="true"><i style="width:76%"></i><i style="width:58%"></i><i style="width:82%"></i><i style="width:49%"></i><i style="width:67%"></i><i style="width:38%"></i></div>
               <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>Progress trend</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>Schedule</b><div class="cubi-ring"><strong>78%</strong></div><small>On track</small></div><div class="cubi-ai-card"><b>AI insight</b><div class="cubi-ai-bubble" aria-hidden="true">✧</div><small>Review next milestone</small></div></div>
@@ -126,7 +126,7 @@ function renderLanding(container: HTMLElement): void {
         <section class="cubi-exact-cta" id="resources"><div><h2>${t.ctaTitle}</h2><p>${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">${t.secondary}</a></div></section>
       </main>
       <footer class="cubi-exact-footer">
-        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary-dark.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
+        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
         ${t.footerColumns.map((col, columnIndex) => { const targets = [["#capabilities", "#technology", "#capabilities"], ["#capabilities", "#technology", "#resources"], ["#resources", "#technology", "#resources"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "#home"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>

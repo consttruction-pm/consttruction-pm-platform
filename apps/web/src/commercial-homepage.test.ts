@@ -20,9 +20,9 @@ test("CUBI homepage follows the registered full commercial structure", () => {
     /cubi-exact-cta/,
     /cubi-exact-footer/,
     /cubi-platform-logo-primary\.svg/,
-    /cubi-platform-logo-primary-dark\.svg/,
     /cubi-hero-field\.svg/,
   ]) assert.match(landing + styles, pattern);
+  assert.doesNotMatch(landing + styles + index, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
 test("registered SEO contract remains intact", () => {

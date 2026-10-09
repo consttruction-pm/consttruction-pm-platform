@@ -92,8 +92,8 @@ Implementation rules:
 - Do not redraw, simplify, recolor or create a competing CUBI mark.
 - The logo's own approved blue/cyan/teal facets are **logo-specific identity colors** and may remain inside the logo asset. They are not a license to introduce cyan/teal as general UI accent colors.
 - Outside the logo asset, application UI continues to use the registered CUBI palette and semantic status colors.
-- Light/dark contexts must select the corresponding approved logo variant.
-- All three clients must consume the same canonical logo asset family.
+- All contexts and clients resolve to the single canonical logo asset; do not introduce separate light/dark logo files.
+- All three clients must consume the exact same canonical logo file path.
 
 ## Forbidden drift
 
@@ -111,8 +111,7 @@ New colors require a documented semantic purpose and should normally be a tint/s
 
 Web source of truth:
 - apps/web/styles.css
-- apps/web/public/logo.svg
-- apps/web/public/logo-dark.svg
+- apps/web/public/cubi-platform-logo-primary.svg (the sole canonical logo asset)
 
 The CSS variables beginning with --cubi- are the canonical palette and neutral tokens. Client applications should consume equivalent semantic tokens rather than inventing client-local brand colors.
 
