@@ -44,7 +44,10 @@ from construction_pm.scheduling.resource_leveling import (
 )
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.schedule import ScheduleOptions
-from construction_pm.scheduling.authoritative_schedule_batch import execute_authoritative_schedule_batch
+from construction_pm.scheduling.authoritative_schedule_batch import (
+    UnsupportedMultiProjectSchedulingError,
+    execute_authoritative_schedule_batch,
+)
 
 
 GLOBAL = CalendarReference("GLOBAL", "3")
@@ -827,3 +830,73 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
     # and its demand move together to Monday rather than splitting across dates.
     assert resource_aware.project("P1").result.activities["P1-A"].start == date(2026, 10, 5)
 
+
+
+def test_same_resource_id_with_different_project_calendars_fails_closed():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    project_two_calendar = CalendarReference("PROJECT-2", "1")
+    resource_two_calendar = CalendarReference("RESOURCE-2", "1")
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "GLOBAL@3": WorkingTimeResolver(WorkingCalendar()),
+            "PROJECT@4": WorkingTimeResolver(WorkingCalendar()),
+            "RESOURCE@8": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset(range(7)))),
+            "PROJECT-2@1": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))),
+            "RESOURCE-2@1": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 2, 4}))),
+        },
+        base_calendar_references={
+            "PROJECT@4": GLOBAL,
+            "RESOURCE@8": PROJECT,
+            "PROJECT-2@1": GLOBAL,
+            "RESOURCE-2@1": project_two_calendar,
+        },
+    )
+    snapshots = (
+        make_snapshot(
+            [ResourceCalendarAssignment("R1", RESOURCE)],
+            project_id="P1",
+            project_calendar=PROJECT,
+            schedule_options=options,
+        ),
+        make_snapshot(
+            [ResourceCalendarAssignment("R1", resource_two_calendar)],
+            project_id="P2",
+            project_calendar=project_two_calendar,
+            schedule_options=options,
+        ),
+    )
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 2), 2,
+                         (ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P1-A"),)),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 2), 2,
+                         (ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P2-A"),)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 2),
+                                 date(2026, 10, 5), date(2026, 10, 6), forward[0].resource_demands),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 2),
+                                 date(2026, 10, 5), date(2026, 10, 6), forward[1].resource_demands),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="RESOURCE_CALENDAR_ASSIGNMENT_MISMATCH:R1",
+    ):
+        execute_authoritative_schedule_batch(
+            snapshots,
+            resolvers={
+                "P1": WorkingTimeResolver(WorkingCalendar()),
+                "P2": WorkingTimeResolver(WorkingCalendar()),
+            },
+            leveling_input=leveling_input,
+            calendar_registry=registry,
+        )
