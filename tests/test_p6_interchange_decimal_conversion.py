@@ -68,3 +68,25 @@ def test_import_rejects_non_finite_value_in_canonical_decimal_field() -> None:
                 values={"ev": "NaN"},
             )
         )
+
+
+@pytest.mark.parametrize("raw", [
+    {"value": "NaN", "unit": "working-time"},
+    {"value": "Infinity", "unit": "working-time"},
+    {"value": "-Infinity", "unit": "working-time"},
+])
+def test_duration_conversion_rejects_non_finite_values(raw) -> None:
+    with pytest.raises(
+        P6InterchangeTypedConversionError,
+        match="INVALID_CANONICAL_VALUE:activity.remaining_float:duration",
+    ):
+        typed_value_for_field(get_field("activity.remaining_float"), raw)
+
+
+def test_duration_conversion_preserves_finite_value_and_unit() -> None:
+    value = typed_value_for_field(
+        get_field("activity.remaining_float"),
+        {"value": "1.2500", "unit": "working-time"},
+    )
+    assert value.value.value == Decimal("1.2500")
+    assert value.value.unit == "working-time"

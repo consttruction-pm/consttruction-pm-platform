@@ -1694,7 +1694,7 @@ th {
 
 
 /* Exact CUBI homepage reference — 2026-10-07 */
-.cubi-reference-home{min-height:100vh;background:#fff;color:#132B4A;font-family:Inter,"Segoe UI",system-ui,sans-serif}
+.cubi-reference-home{min-height:100vh;background:#fff;color:#132B4A;font-family:"Vazirmatn",Inter,"Segoe UI",system-ui,sans-serif}
 .cubi-exact-header{height:72px;display:flex;align-items:center;padding:0 7.1%;gap:2.6rem;background:#fff;border-bottom:1px solid #e6ebf1;position:relative;z-index:20}
 .cubi-exact-brand{display:flex;align-items:center;flex:0 0 108px;text-decoration:none}.cubi-exact-brand img{width:108px;height:48px;object-fit:contain}
 .cubi-exact-nav{display:flex;align-items:center;gap:2.6rem;height:100%;margin-left:2rem}.cubi-exact-nav a{height:100%;display:flex;align-items:center;color:#34445A;text-decoration:none;font-size:12px;font-weight:600;position:relative}.cubi-exact-nav a.is-active{color:#1976D2}.cubi-exact-nav a.is-active:after{content:"";position:absolute;bottom:0;left:0;right:0;height:2px;background:#1976D2}

@@ -1062,3 +1062,27 @@ Status: **merged and exact-head CI verified**
 - Client Typecheck run **37932817833** (run #4422) passed.
 - PR #1362 squash merge commit: **74a8fbcacc799ee7e47d7482f137886c0b322249**.
 - Issue #1227 remains open: this closes only the non-finite decimal integrity slice, not full cross-format P6 interchange certification. No scheduling or Shared Core semantics changed.
+
+
+### 2026-10-09 — P6 canonical duration finite-value guard (PR #1364)
+Status: **merged and exact-head CI verified**
+- Closed the canonical typed-conversion bypass where duration values were constructed and returned without calling the existing P6DurationValue validator.
+- NaN and positive/negative infinity duration magnitudes are rejected; finite Decimal precision and duration unit are preserved.
+- Focused regression tests cover all three non-finite values and finite `1.2500` preservation.
+- Exact implementation head: `70a0cacd79ba8d7e87bcc7e16373b11e7560caf0`.
+- ConstructionPM CI run `37933768935` (run #4727) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run `37933768501` (run #4430) passed.
+- PR #1364 squash merge commit: `9ec7dda242886c2b6a1a2d2b692ed2a520d62b26`.
+- Issue #1227 remains open; this completes only the canonical duration finite-value integrity slice, not cross-format P6 interchange certification. No scheduling/calendar semantics changed.
+
+
+### 2026-10-09 — P6 XER date/Decimal round-trip certification slice (PR #1365)
+
+Status: **merged; exact-head CI verified**
+- Added an independent adapter-level XER export → import fixture for canonical `activity.planned_start` and `activity.earned_value_cost`.
+- The fixture asserts a canonical `date(2026, 10, 5)` survives as a date and `Decimal("1234567890.123400")` retains exact Decimal precision after round-trip.
+- Exact implementation head: `988252f3965734be014b6c2ef21456354ad7a546`.
+- ConstructionPM CI run **37935488210** (run #4733) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run **37935488069** (run #4436) passed.
+- PR #1365 squash-merged as **2a445b66a527e8fb7af97938f5f2eec2b17369e7**.
+- This certifies only the XER date/Decimal slice; Issue #1227 remains open for broader cross-format/field-family parity. No scheduling calculations or Shared Core semantics changed.
