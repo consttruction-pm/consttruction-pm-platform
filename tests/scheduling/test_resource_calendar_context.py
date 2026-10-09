@@ -138,6 +138,43 @@ def test_resource_calendar_assignment_is_versioned_and_changes_snapshot_hash():
     ]
 
 
+def test_resource_calendar_assignment_order_does_not_change_snapshot_hash():
+    first = make_snapshot(
+        [
+            ResourceCalendarAssignment("R2", RESOURCE),
+            ResourceCalendarAssignment("R1", PROJECT),
+        ]
+    )
+    reordered = make_snapshot(
+        [
+            ResourceCalendarAssignment("R1", PROJECT),
+            ResourceCalendarAssignment("R2", RESOURCE),
+        ]
+    )
+
+    assert first.snapshot_hash == reordered.snapshot_hash
+    assert first.canonical_payload()["resource_calendar_assignments"] == [
+        {
+            "resource_id": "R1",
+            "calendar": {
+                "calendar_id": "PROJECT",
+                "calendar_version": "4",
+                "kind": "working-day",
+                "system": "gregorian",
+            },
+        },
+        {
+            "resource_id": "R2",
+            "calendar": {
+                "calendar_id": "RESOURCE",
+                "calendar_version": "8",
+                "kind": "working-day",
+                "system": "gregorian",
+            },
+        },
+    ]
+
+
 def test_resource_calendar_assignments_reject_duplicate_resource_ids():
     with pytest.raises(ValueError, match="resource calendar assignments must be unique"):
         make_snapshot([
