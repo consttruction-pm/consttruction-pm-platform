@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 import hashlib
 import json
 import sqlite3
@@ -27,6 +28,14 @@ from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.resource_calendar_context import (
     ResourceCalendarContext,
     ResourceCalendarContextError,
+)
+from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    ResourceCapacity,
+    ResourceDemand,
+    propose_backward_leveling,
+    propose_forward_leveling_within_float,
 )
 
 
@@ -224,4 +233,76 @@ def test_snapshot_materializer_accepts_legacy_payload_without_resource_assignmen
     )
     materialized = materialize_schedule_snapshot(legacy, make_registry())
     assert materialized.schedule_input.resource_calendar_assignments == ()
+
+def test_forward_leveling_shifts_demand_with_resource_calendar_not_project_calendar():
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "A")
+    activity = LevelingActivity(
+        activity_id="A",
+        start=date(2026, 10, 2),
+        finish=date(2026, 10, 2),
+        total_float=3,
+        resource_demands=(demand,),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 5), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
+    )
+
+    project_only = propose_forward_leveling_within_float(
+        (activity,), capacities, resolver=project_resolver
+    )
+    resource_aware = propose_forward_leveling_within_float(
+        (activity,),
+        capacities,
+        resolver=project_resolver,
+        resource_calendar_resolvers={"R1": resource_resolver},
+    )
+
+    assert project_only[0].shift_working_days == 2
+    assert resource_aware[0].shift_working_days == 1
+    # Activity dates remain on the activity/project calendar; only demand
+    # bucket movement uses the resource-specific calendar.
+    assert resource_aware[0].new_start == date(2026, 10, 5)
+
+
+def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_calendar():
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    demand = ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A")
+    activity = BackwardLevelingActivity(
+        activity_id="A",
+        early_start=date(2026, 10, 2),
+        early_finish=date(2026, 10, 2),
+        late_start=date(2026, 10, 5),
+        late_finish=date(2026, 10, 5),
+        resource_demands=(demand,),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 5), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 4), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+    )
+
+    project_only = propose_backward_leveling(
+        (activity,), capacities, resolver=project_resolver
+    )
+    resource_aware = propose_backward_leveling(
+        (activity,),
+        capacities,
+        resolver=project_resolver,
+        resource_calendar_resolvers={"R1": resource_resolver},
+    )
+
+    assert project_only[0].advanced_days == 2
+    assert resource_aware[0].advanced_days == 1
+    assert resource_aware[0].new_start == date(2026, 10, 4)
 
