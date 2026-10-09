@@ -55,6 +55,7 @@ def make_snapshot(
     project_calendar=PROJECT,
     project_start=date(2026, 10, 1),
     project_finish=date(2026, 10, 20),
+    schedule_options=ScheduleOptions(),
 ):
     return AuthoritativeScheduleInput(
         snapshot_id=f"snapshot-{project_id}",
@@ -69,6 +70,7 @@ def make_snapshot(
         resource_calendar_assignments=tuple(assignments),
         project_start=project_start,
         project_finish=project_finish,
+        schedule_options=schedule_options,
     )
 
 
@@ -391,6 +393,7 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
             project_calendar=project_calendar,
             project_start=date(2026, 10, 2),
             project_finish=date(2026, 10, 20),
+            schedule_options=ScheduleOptions(level_all_resources=True),
         ),
         make_snapshot(
             [ResourceCalendarAssignment("R2", resource_calendar)],
@@ -398,6 +401,7 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
             project_calendar=project_calendar,
             project_start=date(2026, 10, 2),
             project_finish=date(2026, 10, 20),
+            schedule_options=ScheduleOptions(level_all_resources=True),
         ),
     )
     resource_demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P1-A")
@@ -426,7 +430,6 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
         ),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
-    options = ScheduleOptions(level_all_resources=True)
     project_only = execute_authoritative_schedule_batch(
         snapshots,
         resolvers={"P1": project_resolver, "P2": project_resolver},
