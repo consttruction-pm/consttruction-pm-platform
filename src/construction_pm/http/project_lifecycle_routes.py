@@ -41,6 +41,8 @@ from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VE
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
+from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
+from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
@@ -96,6 +98,7 @@ class ProjectLifecycleHttpRoutes:
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
+        p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
         p6_role_api: P6RoleAPI | None = None,
@@ -121,6 +124,7 @@ class ProjectLifecycleHttpRoutes:
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
+        self._p6_cost_account_api = p6_cost_account_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_relationship_api = p6_relationship_api
         self._p6_role_api = p6_role_api
@@ -772,6 +776,50 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, ArithmeticError, KeyError):
                     return self._error(400, "P6_ROLE_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/cost-accounts" in path and self._p6_cost_account_api is not None:
+                prefix = "/p6/cost-accounts"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET" and not parts:
+                        result = self._p6_cost_account_api.list(scope, auth_context=auth)
+                        return self._json(200, {
+                            "contract_version": P6_COST_ACCOUNT_API_VERSION,
+                            "cost_accounts": list(result),
+                        })
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_cost_account_api.get(scope, parts[0], auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_COST_ACCOUNT_NOT_FOUND", "error.p6.cost_account.not_found")
+                        return self._json(200, result)
+                    if method == "POST" and not parts:
+                        account = P6CostAccount(
+                            scope=scope,
+                            account_id=payload.get("account_id", ""),
+                            name=payload.get("name", ""),
+                            parent_account_id=payload.get("parent_account_id"),
+                            description=payload.get("description"),
+                        )
+                        return self._json(200, self._p6_cost_account_api.create(account, auth_context=auth))
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except (TypeError, ValueError, KeyError):
+                    return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
