@@ -83,6 +83,26 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
     )
 
 
+def _shift_resource_demand_date_forward(
+    value: date,
+    offset_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Move a demand bucket by a zero-based working-day offset.
+
+    Resource-demand offsets are not activity durations: offset zero must keep
+    the existing date, and offset one advances to the next resource working day.
+    """
+    if isinstance(offset_working_days, bool) or not isinstance(offset_working_days, int) or offset_working_days < 0:
+        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_OFFSET")
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_RESOLVER")
+    cursor = resolver.calendar.to_gregorian(value)
+    for _ in range(offset_working_days):
+        cursor = resolver.next_working_day(cursor)
+    return cursor
+
+
 def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
@@ -106,15 +126,16 @@ def _backward_activities_from_intermediate(
                 resource_demands=tuple(
                     ResourceDemand(
                         demand.resource_id,
-                        (
-                            resource_calendar_resolvers.get(demand.resource_id, resolver)
-                            if resource_calendar_resolvers is not None
-                            else resolver
-                        ).add_working_duration(
+                        _shift_resource_demand_date_forward(
                             demand.period,
                             resolver.working_days_between(
                                 forward_by_id[activity.activity_id].start,
                                 late.start,
+                            ),
+                            (
+                                resource_calendar_resolvers.get(demand.resource_id, resolver)
+                                if resource_calendar_resolvers is not None
+                                else resolver
                             ),
                         ),
                         demand.units,
