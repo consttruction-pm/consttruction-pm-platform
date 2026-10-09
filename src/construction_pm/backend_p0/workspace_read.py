@@ -158,7 +158,7 @@ class WorkspaceControlRoomReadService:
             )
 
         for key in ("columns", "activities"):
-            if not isinstance(workspace.get(key), (list, tuple)):
+            if not isinstance(workspace.get(key), list):
                 raise BackendApplicationError(
                     ErrorCategory.VALIDATION,
                     "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION",
