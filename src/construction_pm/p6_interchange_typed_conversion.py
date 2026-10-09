@@ -31,6 +31,8 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
             return P6InterchangeTypedValue("datetime", value, unit=field.unit)
         if kind in {P6FieldType.DECIMAL, P6FieldType.DOUBLE, P6FieldType.COST, P6FieldType.PERCENTAGE, P6FieldType.UNIT}:
             value = raw if isinstance(raw, Decimal) else Decimal(str(raw))
+            if not value.is_finite():
+                raise ValueError("finite decimal required")
             return P6InterchangeTypedValue("decimal", value, unit=field.unit)
         if kind is P6FieldType.DURATION:
             if isinstance(raw, P6DurationValue): value = raw

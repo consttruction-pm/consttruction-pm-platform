@@ -1245,3 +1245,26 @@ Status: **merged and exact-head CI verified**
 - Client Typecheck run `37924344821`: success for desktop, mobile, client-sync and web.
 - Squash merge commit: `097c2da2bd0c100b6f8e06f4091d1f98c2d3880f`.
 - Issue #1227 remains open because this PR completes only the XER Activity Status/Type slice of the wider import/export scope. No scheduling or calculation logic was changed.
+
+
+### 2026-10-09 — P6 lossless integer interchange conversion (PR #1361)
+
+Status: **merged and exact-head CI verified**
+- Fixed silent truncation/coercion of canonical integer fields: fractional values, booleans, NaN and infinity are rejected; integer strings and integral Decimal values are accepted.
+- Focused conversion and mapper-import regression tests were added.
+- Exact implementation head: `5eef299b0ca135ddd63f375cc1a87318451c385c`.
+- ConstructionPM CI run `37930786824` (run #4713): success on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run `37930787035` (run #4416): success.
+- PR #1361 squash merge commit: `e957b68522032f59cd8e92a454ae2ed910478de0`.
+- Issue #1227 remains open: this is one narrow integrity slice, not certification of full P6 import/export parity. No scheduling or calculation semantics changed.
+
+
+### 2026-10-09 — P6 canonical decimal finite-value guard (PR #1362)
+Status: **merged and exact-head CI verified**
+- Added a finite-value guard to the shared canonical P6 decimal conversion path; NaN and positive/negative infinity are rejected, while finite Decimal precision is preserved.
+- Regression coverage exercises direct conversion and mapper import rejection for a non-finite canonical decimal.
+- Exact implementation head: `cdbad2d4ac9ef1ec29eb9006c7e6e22c4b02e90d`.
+- ConstructionPM CI run **37932817797** (run #4719) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run **37932817833** (run #4422) passed.
+- PR #1362 squash merge commit: **74a8fbcacc799ee7e47d7482f137886c0b322249**.
+- Issue #1227 remains open: this closes only the non-finite decimal integrity slice, not full cross-format P6 interchange certification. No scheduling or Shared Core semantics changed.
