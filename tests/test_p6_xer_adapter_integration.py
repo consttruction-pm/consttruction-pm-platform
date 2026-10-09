@@ -94,7 +94,7 @@ def test_xer_activity_status_and_type_round_trip_uses_native_wire_tokens() -> No
         scope=scope(),
         extensions=[{"p6.xer.table": "TASK"}],
     )
-    assert "%R\tTT_Rsrc\tTK_Complete" in exported
+    assert "%R\tTK_Complete\tTT_Rsrc" in exported
 
     imported = adapter.import_document(exported, scope=scope())
     assert imported[0].values == {
