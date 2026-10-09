@@ -32,8 +32,8 @@ test("canonical CUBI logo keeps an accessible open mark and distinct teal cube f
   assert.match(logo, /PLAN\. CONTROL\. BUILD SMARTER\./);
   assert.match(logo, /id="cubeFront"/);
   assert.match(logo, /id="cubeSide"/);
-  assert.match(logo, /fill="url\(cubeFront\)"/);
-  assert.match(logo, /fill="url\(cubeSide\)"/);
+  assert.match(logo, /fill="url\(#cubeFront\)"/);
+  assert.match(logo, /fill="url\(#cubeSide\)"/);
   assert.doesNotMatch(logo, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
