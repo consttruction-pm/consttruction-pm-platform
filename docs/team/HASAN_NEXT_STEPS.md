@@ -964,3 +964,13 @@ Status: **runtime-verified and merged**
 - Current Calendar parity gaps (#1207/#1209) are Shared Scheduling Core semantics (base-calendar inheritance, exceptions and resource-calendar resolution), not a Hasan-side duplicate resolver/API implementation.
 - Issue #1236 remains an open Hasan-assigned item, but its stated remaining work is homepage logo/language presentation and therefore belongs to the Web/client presentation lane rather than Backend/API.
 - **Continuation rule:** start the next Hasan implementation only after a fresh exact-main audit proves a concrete Backend/Database/Application/API/Import-Export seam or defect. No stale branch, duplicate calculation engine, or speculative P6 semantics may be introduced.
+
+
+### 2026-10-09 — Fresh exact-main Hasan continuation audit
+
+- Exact current `main` inspected: `079ee1a9fbb95fca4cb72416761589bb2c3abff7` (latest commit returned by the repository's commit search at audit time).
+- Open pull-request review found active visible work in Web/branding/client presentation; no open Hasan-owned Backend/Database/Application/API/Import-Export implementation PR was identified.
+- Re-inspected the current P6 interchange path: `P6InterchangeMapper` already calls `typed_value_for_field` for supported canonical fields on import and export, validates declared canonical types against the Field Registry, and has focused tests for date/Decimal conversion, invalid values, unknown canonical fields and type mismatch. The previously noted typed-conversion integration candidate is therefore already represented on current `main`; do not duplicate it.
+- The active external-project ScheduleOptions orchestration/conformance items (#697, #753 and #758) are explicitly Shared Core/Jalal-owned. The current work requires authoritative multi-project execution and activity-scoped calendar behavior; no Hasan-owned persistence/API mapping defect was demonstrated by this audit. Do not add a backend scheduler or duplicate calculation semantics.
+- Current-main commit status query returned no status entries for the inspected head. This is **not** evidence that CI is green; no fresh exact-head runtime verification is claimed by this audit.
+- **Disposition: evidence/ownership boundary — no speculative Hasan implementation.** Continue only when a concrete reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed dependency is demonstrated on the then-current `main`. If one appears, branch from that exact SHA, add focused regression coverage and PostgreSQL verification where applicable, and record exact-head CI evidence before claiming completion.
