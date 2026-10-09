@@ -30,7 +30,7 @@ test("canonical SVG preserves the approved C-shaped cube lockup and tagline", ()
   const svg = readFileSync(new URL("../public/cubi-platform-logo-primary.svg", import.meta.url), "utf8");
   assert.match(svg, /viewBox="0 0 640 180"/);
   assert.match(svg, /CUBI's connected C-shaped isometric mark surrounding a teal cube/);
-  assert.match(svg, /PLAN\\. CONTROL\\. BUILD SMARTER\\./);
+  assert.match(svg, /PLAN\. CONTROL\. BUILD SMARTER\./);
   assert.match(svg, /#00BFEA|#078BFF/);
   assert.match(svg, /#19D5D0|#0AA6A7/);
   assert.doesNotMatch(svg, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
