@@ -83,7 +83,7 @@ class FakeCostAccountAPI:
         }
 
 
-def routes():
+def build_routes():
     now = datetime(2026, 10, 9, tzinfo=timezone.utc)
     session = AuthenticatedSession(
         "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
@@ -99,7 +99,7 @@ def routes():
 
 
 def test_p6_cost_account_http_create_uses_authenticated_scope_and_preserves_version():
-    routes, fake = routes()
+    routes, fake = build_routes()
     payload = {
         "account_id": "CA-01",
         "name": "Site establishment",
