@@ -93,6 +93,32 @@ def make_registry():
     )
 
 
+def test_resource_calendar_field_preserves_legacy_positional_constructor_layout():
+    snapshot = AuthoritativeScheduleInput(
+        "snapshot-positional",
+        "T1",
+        "P1",
+        7,
+        AuthoritativeScheduleMode.DATE_BASED,
+        PROJECT,
+        (Activity("P1-A", 1),),
+        (),
+        (),
+        (),
+        ScheduleOptions(level_all_resources=True),
+        date(2026, 10, 1),
+        date(2026, 10, 20),
+        17,
+    )
+
+    assert snapshot.constraints == ()
+    assert snapshot.schedule_options.level_all_resources is True
+    assert snapshot.project_start == date(2026, 10, 1)
+    assert snapshot.project_finish == date(2026, 10, 20)
+    assert snapshot.project_leveling_priority == 17
+    assert snapshot.resource_calendar_assignments == ()
+
+
 def test_resource_calendar_assignment_is_versioned_and_changes_snapshot_hash():
     base = make_snapshot()
     assigned = make_snapshot([ResourceCalendarAssignment("R1", RESOURCE)])
