@@ -38,7 +38,6 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingOptions,
-    _shift_demands_backward,
     apply_leveling_shifts,
     propose_backward_leveling,
     propose_forward_leveling_within_float,
@@ -391,21 +390,61 @@ def test_forward_shift_moves_each_daily_demand_by_activity_workdays_across_weeke
     ]
 
 
-def test_backward_demand_periods_follow_activity_workdays_across_weekend():
-    resolver = WorkingTimeResolver(
+def test_backward_leveling_moves_each_demand_period_on_activity_calendar_across_weekend():
+    weekday_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
     )
-    demands = (
-        ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A"),
-        ResourceDemand("R1", date(2026, 10, 6), Decimal("1"), "A"),
+    weekend_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    movable = BackwardLevelingActivity(
+        "A",
+        early_start=date(2026, 10, 2),
+        early_finish=date(2026, 10, 5),
+        late_start=date(2026, 10, 5),
+        late_finish=date(2026, 10, 6),
+        resource_demands=(
+            ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A"),
+            ResourceDemand("R1", date(2026, 10, 6), Decimal("1"), "A"),
+        ),
+    )
+    fixed_successor = BackwardLevelingActivity(
+        "C",
+        early_start=date(2026, 10, 6),
+        early_finish=date(2026, 10, 6),
+        late_start=date(2026, 10, 6),
+        late_finish=date(2026, 10, 6),
+        resource_demands=(
+            ResourceDemand("R1", date(2026, 10, 6), Decimal("1"), "C"),
+        ),
+    )
+    weekend_demand = BackwardLevelingActivity(
+        "D",
+        early_start=date(2026, 10, 2),
+        early_finish=date(2026, 10, 2),
+        late_start=date(2026, 10, 3),
+        late_finish=date(2026, 10, 3),
+        resource_demands=(
+            ResourceDemand("R1", date(2026, 10, 3), Decimal("1"), "D"),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("2")),
+        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 5), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
     )
 
-    shifted = _shift_demands_backward(demands, -1, resolver)
+    shifts = propose_backward_leveling(
+        (movable, fixed_successor, weekend_demand),
+        capacities,
+        resolver=weekday_resolver,
+        activity_resolvers={"D": weekend_resolver},
+    )
 
-    assert [demand.period for demand in shifted] == [
-        date(2026, 10, 2),
-        date(2026, 10, 5),
-    ]
+    # The Monday/Tuesday demand slices on A move to Friday/Monday. They do
+    # not incorrectly collide with D's Saturday demand, so D stays in place.
+    assert [(shift.activity_id, shift.advanced_days) for shift in shifts] == [("A", 1)]
 
 
 def test_forward_leveling_moves_activity_with_its_assigned_calendar():
