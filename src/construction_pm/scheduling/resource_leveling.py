@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from typing import Mapping
 
@@ -228,25 +228,32 @@ def _shift_date_forward(
 
 def _shift_demands(
     demands: tuple[ResourceDemand, ...],
-    calendar_day_delta: int,
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
-    """Translate demand periods by the same elapsed-day delta as the activity.
+    """Move every demand period by the owning activity's working-day offset.
 
-    Resource-calendar working-day arithmetic must not move demand independently
-    of its owning activity. Resource calendars instead determine which periods
-    can carry capacity during leveling.
+    Each daily demand must follow the activity-calendar workday sequence. A
+    constant elapsed-day delta from the activity start misaligns later demand
+    periods when a multi-day activity crosses weekends or calendar exceptions.
+    Resource calendars determine capacity availability, not demand-date motion.
     """
-    if isinstance(calendar_day_delta, bool) or not isinstance(calendar_day_delta, int):
+    if isinstance(shift_working_days, bool) or not isinstance(shift_working_days, int):
         raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_OFFSET")
-    return tuple(
-        ResourceDemand(
-            demand.resource_id,
-            demand.period + timedelta(days=calendar_day_delta),
-            demand.units,
-            demand.activity_id,
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+    shifted: list[ResourceDemand] = []
+    for demand in demands:
+        if shift_working_days > 0:
+            period = _shift_date_forward(demand.period, shift_working_days, resolver)
+        elif shift_working_days < 0:
+            period = _shift_date_backward(demand.period, shift_working_days, resolver)
+        else:
+            period = demand.period
+        shifted.append(
+            ResourceDemand(demand.resource_id, period, demand.units, demand.activity_id)
         )
-        for demand in demands
-    )
+    return tuple(shifted)
 
 
 def _priority_value(activity: LevelingActivity, field_name: str):
@@ -368,9 +375,7 @@ def propose_forward_leveling_within_float(
 
     def demands_for_shift(activity: LevelingActivity, shift_working_days: int) -> tuple[ResourceDemand, ...]:
         activity_resolver = _resolve_activity_calendar(activity.activity_id, resolver, activity_resolvers)
-        shifted_start = _shift_date_forward(activity.start, shift_working_days, activity_resolver)
-        calendar_day_delta = (shifted_start - activity.start).days
-        return _shift_demands(activity.resource_demands, calendar_day_delta)
+        return _shift_demands(activity.resource_demands, shift_working_days, activity_resolver)
 
     def current_demands() -> list[ResourceDemand]:
         out: list[ResourceDemand] = []
@@ -512,7 +517,8 @@ def apply_leveling_shifts(
             total_float=max(0, activity.total_float - shift.consumed_float),
             resource_demands=_shift_demands(
                 activity.resource_demands,
-                (shift.new_start - activity.start).days,
+                shift.shift_working_days,
+                activity_resolver,
             ),
             activity_priority=activity.activity_priority,
         ))
@@ -583,10 +589,11 @@ def _shift_date_backward(
 
 def _shift_demands_backward(
     demands: tuple[ResourceDemand, ...],
-    calendar_day_delta: int,
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
-    """Translate backward demand periods with their owning activity."""
-    return _shift_demands(demands, calendar_day_delta)
+    """Translate each backward demand period using its activity calendar."""
+    return _shift_demands(demands, shift_working_days, resolver)
 
 
 def propose_backward_leveling(
@@ -671,9 +678,9 @@ def propose_backward_leveling(
 
     def demands_for_shift(activity: BackwardLevelingActivity, shift_working_days: int) -> tuple[ResourceDemand, ...]:
         activity_resolver = _resolve_activity_calendar(activity.activity_id, resolver, activity_resolvers)
-        shifted_start = _shift_date_backward(activity.late_start, shift_working_days, activity_resolver)
-        calendar_day_delta = (shifted_start - activity.late_start).days
-        return _shift_demands_backward(activity.resource_demands, calendar_day_delta)
+        return _shift_demands_backward(
+            activity.resource_demands, shift_working_days, activity_resolver
+        )
 
     def current_demands() -> list[ResourceDemand]:
         result: list[ResourceDemand] = []
