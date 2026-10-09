@@ -127,7 +127,7 @@ def test_p6_cost_account_http_create_uses_authenticated_scope_and_preserves_vers
 
 
 def test_p6_cost_account_http_list_get_not_found_and_unknown_project():
-    routes, fake = routes()
+    routes, fake = build_routes()
     payload = {"account_id": "CA-01", "name": "Site establishment"}
     status, _, _ = routes.handle(
         "POST", "/api/projects/p1/p6/cost-accounts",
@@ -160,7 +160,7 @@ def test_p6_cost_account_http_list_get_not_found_and_unknown_project():
 
 
 def test_p6_cost_account_http_rejects_malformed_payload_and_missing_session():
-    routes, _ = routes()
+    routes, _ = build_routes()
     status, _, _ = routes.handle(
         "POST", "/api/projects/p1/p6/cost-accounts",
         cookies={"cp_session": "s1"}, body=b"{",
