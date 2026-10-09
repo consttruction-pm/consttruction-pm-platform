@@ -187,6 +187,20 @@ class LevelingShift:
     remaining_float: int
 
 
+def _shift_date_forward(
+    value: date,
+    shift_working_days: int,
+    resolver: WorkingTimeResolver,
+) -> date:
+    """Move a date by a working-day offset; unlike duration, offset zero is identity."""
+    if isinstance(shift_working_days, bool) or not isinstance(shift_working_days, int) or shift_working_days < 0:
+        raise ResourceLevelingError("INVALID_FORWARD_SHIFT")
+    cursor = resolver.calendar.to_gregorian(value)
+    for _ in range(shift_working_days):
+        cursor = resolver.next_working_day(cursor)
+    return cursor
+
+
 def _shift_demands(
     demands: tuple[ResourceDemand, ...],
     shift_working_days: int,
@@ -206,7 +220,7 @@ def _shift_demands(
         shifted.append(
             ResourceDemand(
                 demand.resource_id,
-                resource_resolver.add_working_duration(demand.period, shift_working_days),
+                _shift_date_forward(demand.period, shift_working_days, resource_resolver),
                 demand.units,
                 demand.activity_id,
             )
@@ -373,8 +387,8 @@ def propose_forward_leveling_within_float(
             LevelingShift(
                 activity_id,
                 next_shift,
-                resolver.add_working_duration(activity.start, next_shift),
-                resolver.add_working_duration(activity.finish, next_shift),
+                _shift_date_forward(activity.start, next_shift, resolver),
+                _shift_date_forward(activity.finish, next_shift, resolver),
                 next_shift,
                 activity.total_float - next_shift,
             )
@@ -456,8 +470,8 @@ def apply_leveling_shifts(
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
         if shift.consumed_float != shift.shift_working_days:
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
-        expected_start = resolver.add_working_duration(activity.start, shift.shift_working_days)
-        expected_finish = resolver.add_working_duration(activity.finish, shift.shift_working_days)
+        expected_start = _shift_date_forward(activity.start, shift.shift_working_days, resolver)
+        expected_finish = _shift_date_forward(activity.finish, shift.shift_working_days, resolver)
         if (shift.new_start, shift.new_finish) != (expected_start, expected_finish):
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT_DATES")
         result.append(LevelingActivity(
