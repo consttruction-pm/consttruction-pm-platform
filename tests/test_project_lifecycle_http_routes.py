@@ -3,6 +3,8 @@ from io import BytesIO
 import json
 
 from construction_pm.application.authorization import default_project_policy, AuthorizationContext
+from construction_pm.change_claim_api import ChangeClaimAPI, P0_CHANGE_CLAIM_API_VERSION
+from construction_pm.change_claims import ChangeClaimService, InMemoryChangeClaimRepository
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     ProjectSummary,
@@ -1832,3 +1834,83 @@ def test_wsgi_keeps_default_limit_for_non_import_endpoints():
     assert statuses == ["413 Payload Too Large"]
     assert routes.calls == []
     assert b"REQUEST_BODY_TOO_LARGE" in result[0]
+
+
+def change_claim_routes():
+    now = datetime(2026, 10, 9, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    repository = InMemoryChangeClaimRepository()
+    change_claim_api = ChangeClaimAPI(
+        ChangeClaimService(repository), repository, default_project_policy()
+    )
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        change_claim_api=change_claim_api,
+    )
+    return routes, repository
+
+
+def test_change_claim_http_create_and_get_use_authenticated_scope_and_actor():
+    r, repository = change_claim_routes()
+    payload = {
+        "contract_version": P0_CHANGE_CLAIM_API_VERSION,
+        "resource_id": "CC-1",
+        "revision": 0,
+        "resource_type": "change",
+        "status": "draft",
+        "occurred_at": "2026-10-09T10:00:00Z",
+        "payload": {"title": "Site instruction"},
+        "evidence_refs": ["doc-1"],
+        "expected_revision": 0,
+        "idempotency_key": "create-cc-1",
+        # Deliberately malicious: actor identity must come from the session.
+        "actor_id": "another-user",
+        "tenant_id": "another-tenant",
+        "project_id": "another-project",
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/change-claims",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 201
+    created = json.loads(body)
+    assert created["contract_version"] == P0_CHANGE_CLAIM_API_VERSION
+    assert created["tenant_id"] == "t1"
+    assert created["project_id"] == "p1"
+    assert created["actor_id"] == "u1"
+    assert created["evidence_refs"] == ["doc-1"]
+    assert repository.get("t1", "p1", "CC-1") is not None
+    assert repository.get("another-tenant", "another-project", "CC-1") is None
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/change-claims/CC-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["resource_id"] == "CC-1"
+
+
+def test_change_claim_http_rejects_malformed_payload_and_unknown_project():
+    r, _ = change_claim_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/change-claims",
+        cookies={"cp_session": "s1"}, body=b"{",
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "CHANGE_CLAIM_REQUEST_INVALID"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/not-a-project/change-claims/CC-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"

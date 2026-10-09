@@ -7,6 +7,11 @@ from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
 
 from ..application.authorization import AuthorizationError
+from ..change_claim_api import (
+    ChangeClaimAPI, ChangeClaimCreateRequest, ChangeClaimReadRequest,
+    P0_CHANGE_CLAIM_API_VERSION,
+)
+from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.api import BackendP0API
@@ -88,6 +93,7 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
@@ -112,6 +118,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
+        self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
@@ -1089,6 +1096,75 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_resource_spread_api.save(bucket, auth_context=auth)
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RESOURCE_SPREAD_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/change-claims"):
+                if self._change_claim_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/change-claims")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "CHANGE_CLAIM_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict):
+                        raise ValueError("CHANGE_CLAIM_REQUEST_INVALID")
+                    occurred_at = datetime.fromisoformat(str(payload.get("occurred_at", "")).replace("Z", "+00:00"))
+                    evidence_refs = payload.get("evidence_refs", [])
+                    claim_payload = payload.get("payload", {})
+                    if not isinstance(evidence_refs, list) or not isinstance(claim_payload, dict):
+                        raise ValueError("CHANGE_CLAIM_REQUEST_INVALID")
+                    request = ChangeClaimCreateRequest(
+                        contract_version=payload.get("contract_version", ""),
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        resource_id=payload.get("resource_id", ""),
+                        revision=payload.get("revision", -1),
+                        resource_type=ChangeClaimType(payload.get("resource_type", "")),
+                        status=ChangeClaimStatus(payload.get("status", "draft")),
+                        actor_id=context.user_id,
+                        occurred_at=occurred_at,
+                        payload=claim_payload,
+                        evidence_refs=tuple(evidence_refs),
+                        expected_revision=payload.get("expected_revision", -1),
+                        idempotency_key=payload.get("idempotency_key", ""),
+                    )
+                    result = self._change_claim_api.create(request, auth_context=auth)
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    return self._error(400, "CHANGE_CLAIM_REQUEST_INVALID", "error.request.invalid")
+                return self._json(201, result)
+            if method == "GET" and path.startswith("/api/projects/") and "/change-claims/" in path:
+                if self._change_claim_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/change-claims/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "CHANGE_CLAIM_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._change_claim_api.get(
+                    ChangeClaimReadRequest(
+                        contract_version=P0_CHANGE_CLAIM_API_VERSION,
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        resource_id=resource_id,
+                    ),
+                    auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "CHANGE_CLAIM_NOT_FOUND", "error.change_claim.not_found")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/baselines"):
                 if self._p6_baseline_api is None:
