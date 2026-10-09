@@ -1035,3 +1035,19 @@ Status: **implemented, exact-head CI verified and merged; broad Issue #1227 rema
 ### Next point
 
 Reconcile current `main`, Hasan's instructions and open issues/PRs again. Continue only with the first concrete, authoritative Backend/Database/Application/API/Import-Export gap. Keep Shared Core scheduling semantics authoritative and avoid broad speculative enum/field mappings.
+
+
+### 2026-10-09 — P6 lossless integer interchange conversion (PR #1361)
+
+Status: **merged and exact-head CI verified**
+- Corrected canonical integer conversion so fractional, Boolean, NaN and infinite inputs fail closed instead of being silently truncated/coerced.
+- Lossless integer strings and integral Decimal values remain accepted; focused tests cover typed conversion and mapper import rejection.
+- Exact implementation head: `5eef299b0ca135ddd63f375cc1a87318451c385c`.
+- ConstructionPM CI run `37930786824` (run #4713) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run `37930787035` (run #4416) passed.
+- PR #1361 squash-merged as `e957b68522032f59cd8e92a454ae2ed910478de0`.
+- This closes only the lossless-integer-conversion slice. Issue #1227 remains open for broader P6 interchange parity; no scheduling/calculation semantics were changed.
+
+### Next point
+
+Reconcile current `main`, inspect Issue #1227 and its evidence, and select one concrete format/field-family gap that can be proven from existing codecs, registry contracts and tests. Avoid speculative mappings; add focused round-trip and fail-closed tests, run exact-head CI, then update the evidence here and in `docs/roadmap/STAGE_STATUS.md`.
