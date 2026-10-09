@@ -7,6 +7,7 @@ const root = process.cwd();
 const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
+const logo = readFileSync(join(root, "public/cubi-platform-logo-primary.svg"), "utf8");
 
 test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
@@ -25,6 +26,17 @@ test("CUBI homepage follows the registered full commercial structure", () => {
   assert.doesNotMatch(landing + styles + index, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
+test("canonical CUBI logo keeps an accessible open mark and distinct teal cube faces", () => {
+  assert.match(logo, /aria-labelledby="title desc"/);
+  assert.match(logo, /CUBI Platform/);
+  assert.match(logo, /PLAN\. CONTROL\. BUILD SMARTER\./);
+  assert.match(logo, /id="cubeFront"/);
+  assert.match(logo, /id="cubeSide"/);
+  assert.match(logo, /fill="url\(cubeFront\)"/);
+  assert.match(logo, /fill="url\(cubeSide\)"/);
+  assert.doesNotMatch(logo, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
+});
+
 test("registered SEO contract remains intact", () => {
   assert.match(index, /<title>Construction Project Management &amp; Project Controls Software<\/title>/);
   assert.match(index, /rel="canonical"/);
@@ -40,7 +52,6 @@ test("commercial surface stays independent of external product provenance", () =
     assert.doesNotMatch(index, pattern);
   }
 });
-
 
 test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = "en" \| "fa"/);
@@ -63,5 +74,5 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
 
 test("homepage footer links target the relevant page sections", () => {
   assert.match(landing, /targets = \[\["#capabilities", "#technology", "#capabilities"\], \["#capabilities", "#technology", "#resources"\], \["#resources", "#technology", "#resources"\]\]/);
-  assert.doesNotMatch(landing, /col\.links\.map\(\(link\) => `<a href="#resources">/);
+  assert.doesNotMatch(landing, /col\.links\.map\(\(link\) => `<a href="#resources">`/);
 });
