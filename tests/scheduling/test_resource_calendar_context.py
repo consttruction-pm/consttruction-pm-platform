@@ -279,8 +279,8 @@ def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_cale
     demand = ResourceDemand("R1", date(2026, 10, 5), Decimal("1"), "A")
     activity = BackwardLevelingActivity(
         activity_id="A",
-        early_start=date(2026, 10, 2),
-        early_finish=date(2026, 10, 2),
+        early_start=date(2026, 10, 1),
+        early_finish=date(2026, 10, 1),
         late_start=date(2026, 10, 5),
         late_finish=date(2026, 10, 5),
         resource_demands=(demand,),
