@@ -20,7 +20,7 @@ from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
-from ..scheduling.calendar_system import CalendarSystem
+from ..scheduling.calendar_system import CalendarSystem, JalaliDate
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
 from ..dependency_graph_api import DependencyGraphAPI
@@ -403,10 +403,19 @@ class ProjectLifecycleHttpRoutes:
                             if not isinstance(raw_intervals, list): raise ValueError("invalid intervals")
                             intervals = tuple((time.fromisoformat(str(item[0])), time.fromisoformat(str(item[1]))) for item in raw_intervals if isinstance(item, (list, tuple)) and len(item) == 2)
                             if len(intervals) != len(raw_intervals): raise ValueError("invalid intervals")
+                            calendar_system = CalendarSystem(str(payload.get("system", CalendarSystem.GREGORIAN.value)))
+                            raw_date = str(payload.get("date", ""))
+                            if calendar_system is CalendarSystem.JALALI:
+                                date_parts = raw_date.split("-")
+                                if len(date_parts) != 3 or any(not part.isdigit() for part in date_parts):
+                                    raise ValueError("invalid Jalali date")
+                                exception_date = JalaliDate(*(int(part) for part in date_parts))
+                            else:
+                                exception_date = date.fromisoformat(raw_date)
                             exception = CalendarException(
-                                scope, calendar_id, calendar_version, date.fromisoformat(str(payload.get("date", ""))),
+                                scope, calendar_id, calendar_version, exception_date,
                                 str(payload.get("mode", "")), payload.get("total_work_hours"), intervals,
-                                CalendarSystem(str(payload.get("system", CalendarSystem.GREGORIAN.value))),
+                                calendar_system,
                             )
                             return self._json(200, self._p6_calendar_api.save_exception(exception, auth_context=auth))
                         if method == "POST" and resource == "work-hours":
