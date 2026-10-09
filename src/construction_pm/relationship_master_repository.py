@@ -60,6 +60,19 @@ class RelationshipMasterRepository(Protocol):
     def save(self, relationship: RelationshipMaster, expected_revision: int | None = None) -> RelationshipMaster: ...
     def get(self, scope: BackendScope, relationship_id: str) -> RelationshipMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[RelationshipMaster, ...]: ...
+    def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int) -> bool: ...
+
+
+def _validate_expected_record_revision(expected_revision: int) -> None:
+    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+        raise RelationshipPersistenceError("INVALID_EXPECTED_REVISION")
+    if expected_revision > MAX_SAFE_REVISION:
+        raise RelationshipPersistenceError("INVALID_EXPECTED_REVISION")
+
+
+def _validate_relationship_id(relationship_id: str) -> None:
+    if not isinstance(relationship_id, str) or not relationship_id.strip():
+        raise RelationshipPersistenceError("INVALID_RELATIONSHIP_ID")
 
 
 def _from_row(scope: BackendScope, row: tuple[object, ...]) -> RelationshipMaster:
@@ -202,6 +215,30 @@ class SQLiteRelationshipMasterRepository:
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
+    def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        _validate_relationship_id(relationship_id)
+        _validate_expected_record_revision(expected_revision)
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM relationship_master "
+            "WHERE tenant_id=? AND project_id=? AND relationship_id=?",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        ).fetchone()
+        if row is None:
+            raise RelationshipPersistenceError("RELATIONSHIP_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise RelationshipPersistenceError("REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "DELETE FROM relationship_master WHERE tenant_id=? AND project_id=? "
+            "AND project_revision=? AND relationship_id=? AND record_revision=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, relationship_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            self.connection.rollback()
+            raise RelationshipPersistenceError("REVISION_CONFLICT")
+        self.connection.commit()
+        return True
+
 
 class PostgresRelationshipMasterRepository:
     def __init__(self, connection: object) -> None:
@@ -302,3 +339,25 @@ class PostgresRelationshipMasterRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision),
         ).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
+
+    def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        _validate_relationship_id(relationship_id)
+        _validate_expected_record_revision(expected_revision)
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM relationship_master "
+            "WHERE tenant_id=%s AND project_id=%s AND relationship_id=%s FOR UPDATE",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        ).fetchone()
+        if row is None:
+            raise RelationshipPersistenceError("RELATIONSHIP_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise RelationshipPersistenceError("REVISION_CONFLICT")
+        cursor = self.connection.execute(
+            "DELETE FROM relationship_master WHERE tenant_id=%s AND project_id=%s "
+            "AND project_revision=%s AND relationship_id=%s AND record_revision=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, relationship_id, expected_revision),
+        )
+        if getattr(cursor, "rowcount", 1) != 1:
+            raise RelationshipPersistenceError("REVISION_CONFLICT")
+        return True

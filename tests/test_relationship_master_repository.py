@@ -80,3 +80,34 @@ def test_relationship_master_lists_deterministically():
     repo.save(relationship("R-2"))
     repo.save(relationship("R-1"))
     assert tuple(r.relationship_id for r in repo.list(scope())) == ("R-1", "R-2")
+
+
+
+def test_relationship_master_delete_is_scope_bound_and_optimistic():
+    repo = SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(relationship())
+    assert stored.record_revision == 1
+    assert repo.delete(scope(), "R-1", expected_revision=1) is True
+    assert repo.get(scope(), "R-1") is None
+    with pytest.raises(RelationshipPersistenceError, match="RELATIONSHIP_NOT_FOUND"):
+        repo.delete(scope(), "R-1", expected_revision=1)
+
+
+def test_relationship_master_delete_rejects_stale_revision_and_isolation():
+    repo = SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(relationship())
+    with pytest.raises(RelationshipPersistenceError, match="REVISION_CONFLICT"):
+        repo.delete(scope(), "R-1", expected_revision=2)
+    assert repo.get(scope(), "R-1") is not None
+    with pytest.raises(RelationshipPersistenceError, match="RELATIONSHIP_NOT_FOUND"):
+        repo.delete(BackendScope("T-other", "P-1", 7), "R-1", expected_revision=1)
+    with pytest.raises(RelationshipPersistenceError, match="RELATIONSHIP_NOT_FOUND"):
+        repo.delete(BackendScope("T-1", "P-other", 7), "R-1", expected_revision=1)
+
+
+@pytest.mark.parametrize("expected_revision", [0, -1, True, "1", None])
+def test_relationship_master_delete_rejects_invalid_expected_revision(expected_revision):
+    repo = SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(relationship())
+    with pytest.raises(RelationshipPersistenceError, match="INVALID_EXPECTED_REVISION"):
+        repo.delete(scope(), "R-1", expected_revision=expected_revision)
