@@ -616,6 +616,13 @@ def propose_backward_leveling(
     shifts = {a.activity_id: 0 for a in activity_list}
 
     def effective_capacity(resource_id: str, period: date) -> Decimal:
+        resource_resolver = (
+            resource_calendar_resolvers.get(resource_id)
+            if resource_calendar_resolvers is not None
+            else None
+        )
+        if resource_resolver is not None and not resource_resolver.is_working_day(period):
+            return Decimal("0")
         return capacity_map.get((resource_id, period), Decimal("0")) * (
             Decimal("1") + over_allocation_percentage / Decimal("100")
         )
