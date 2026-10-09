@@ -393,7 +393,7 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
             project_calendar=project_calendar,
             project_start=date(2026, 10, 2),
             project_finish=date(2026, 10, 20),
-            schedule_options=ScheduleOptions(level_all_resources=True),
+            schedule_options=ScheduleOptions(level_all_resources=True, preserve_scheduled_early_and_late_dates=True),
         ),
         make_snapshot(
             [ResourceCalendarAssignment("R2", resource_calendar)],
@@ -401,7 +401,7 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
             project_calendar=project_calendar,
             project_start=date(2026, 10, 2),
             project_finish=date(2026, 10, 20),
-            schedule_options=ScheduleOptions(level_all_resources=True),
+            schedule_options=ScheduleOptions(level_all_resources=True, preserve_scheduled_early_and_late_dates=True),
         ),
     )
     resource_demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P1-A")
