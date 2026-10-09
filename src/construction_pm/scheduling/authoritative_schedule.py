@@ -43,6 +43,20 @@ class ActivityCalendarAssignment:
 
 
 @dataclass(frozen=True)
+class ResourceCalendarAssignment:
+    """Versioned calendar assignment for one resource within a project snapshot."""
+
+    resource_id: str
+    calendar: CalendarReference
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.resource_id, str) or not self.resource_id.strip():
+            raise ValueError("resource_id must be a non-empty string")
+        if not isinstance(self.calendar, CalendarReference):
+            raise TypeError("calendar must be a CalendarReference")
+
+
+@dataclass(frozen=True)
 class AuthoritativeScheduleInput:
     """Immutable, calculation-ready schedule input contract.
 
@@ -65,6 +79,8 @@ class AuthoritativeScheduleInput:
     project_start: date | datetime | None = None
     project_finish: date | datetime | None = None
     project_leveling_priority: int = 10
+    # Appended to preserve the positional layout of older constructor calls.
+    resource_calendar_assignments: tuple[ResourceCalendarAssignment, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
@@ -85,6 +101,8 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must be a tuple")
         if not isinstance(self.activity_calendar_assignments, tuple):
             raise TypeError("activity_calendar_assignments must be a tuple")
+        if not isinstance(self.resource_calendar_assignments, tuple):
+            raise TypeError("resource_calendar_assignments must be a tuple")
         if not isinstance(self.constraints, tuple):
             raise TypeError("constraints must be a tuple")
         if not all(isinstance(item, (Activity, TimeActivity)) for item in self.activities):
@@ -93,6 +111,8 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must contain scheduling relationships")
         if not all(isinstance(item, ActivityCalendarAssignment) for item in self.activity_calendar_assignments):
             raise TypeError("activity_calendar_assignments must contain ActivityCalendarAssignment items")
+        if not all(isinstance(item, ResourceCalendarAssignment) for item in self.resource_calendar_assignments):
+            raise TypeError("resource_calendar_assignments must contain ResourceCalendarAssignment items")
         if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
             raise TypeError("constraints must contain ActivityConstraint items")
         if not isinstance(self.project_calendar, CalendarReference):
@@ -111,6 +131,13 @@ class AuthoritativeScheduleInput:
             raise ValueError(
                 f"{self.mode.value} snapshot requires {expected_calendar_kind} activity calendars"
             )
+        if any(
+            assignment.calendar.kind != expected_calendar_kind
+            for assignment in self.resource_calendar_assignments
+        ):
+            raise ValueError(
+                f"{self.mode.value} snapshot requires {expected_calendar_kind} resource calendars"
+            )
         if not isinstance(self.schedule_options, ScheduleOptions):
             raise TypeError("schedule_options must be a ScheduleOptions")
 
@@ -126,6 +153,10 @@ class AuthoritativeScheduleInput:
         unknown_assignments = set(assignment_ids) - set(activity_ids)
         if unknown_assignments:
             raise ValueError("calendar assignment references unknown activity")
+
+        resource_ids = [assignment.resource_id for assignment in self.resource_calendar_assignments]
+        if len(resource_ids) != len(set(resource_ids)):
+            raise ValueError("resource calendar assignments must be unique")
 
         if self.mode is AuthoritativeScheduleMode.DATE_BASED:
             if not all(isinstance(item, Activity) for item in self.activities):
@@ -175,6 +206,12 @@ class AuthoritativeScheduleInput:
             "activities": self.activities,
             "relationships": self.relationships,
             "activity_calendar_assignments": self.activity_calendar_assignments,
+            "resource_calendar_assignments": tuple(
+                sorted(
+                    self.resource_calendar_assignments,
+                    key=lambda assignment: assignment.resource_id,
+                )
+            ),
             "constraints": self.constraints,
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,

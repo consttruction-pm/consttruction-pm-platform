@@ -9,6 +9,7 @@ from .activity_calendar_context import ActivityCalendarContext
 from .authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from .calendar import WorkingTimeResolver
 from .calendar_context import CalendarResolverRegistry
+from .resource_calendar_context import ResourceCalendarContext, ResourceCalendarContextError
 from .external_resource_assignments import (
     ExternalResourceAssignment,
     select_batch_resource_assignments_for_scheduling,
@@ -150,20 +151,93 @@ def execute_authoritative_schedule_batch(
             all_activity_projects[activity.id] = snapshot.project_id
 
     external_relationship_list = tuple(external_relationships)
+    resource_assignment_list = tuple(resource_assignments)
     activity_calendar_resolvers = None
     if calendar_registry is not None:
         activity_calendar_context = ActivityCalendarContext.from_snapshots(
             snapshot_list, calendar_registry
         )
         activity_calendar_resolvers = activity_calendar_context.as_mapping()
-        if leveling_input is not None:
-            activity_calendars = {
-                resolver.calendar for resolver in activity_calendar_resolvers.values()
-            }
-            if len(activity_calendars) > 1:
+    resource_calendar_resolvers: dict[str, WorkingTimeResolver] | None = None
+    if calendar_registry is not None and leveling_input is not None:
+        try:
+            resource_context = ResourceCalendarContext.from_snapshots(
+                snapshot_list, calendar_registry
+            )
+        except ResourceCalendarContextError as exc:
+            raise UnsupportedMultiProjectSchedulingError(
+                "RESOURCE_CALENDAR_CONTEXT_INVALID"
+            ) from exc
+
+        resolved_by_resource: dict[str, WorkingTimeResolver] = {}
+        reference_by_resource: dict[str, object] = {}
+
+        def register_resource_calendar(project_id: str, resource_id: str) -> None:
+            try:
+                reference = resource_context.reference_for_resource(project_id, resource_id)
+                resource_resolver = resource_context.for_resource(project_id, resource_id)
+            except ResourceCalendarContextError as exc:
                 raise UnsupportedMultiProjectSchedulingError(
-                    "MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED"
+                    "RESOURCE_CALENDAR_CONTEXT_UNRESOLVED"
+                ) from exc
+            previous = reference_by_resource.get(resource_id)
+            if previous is not None and previous != reference:
+                raise UnsupportedMultiProjectSchedulingError(
+                    "RESOURCE_CALENDAR_ASSIGNMENT_MISMATCH:" + resource_id
                 )
+            reference_by_resource[resource_id] = reference
+            resolved_by_resource[resource_id] = resource_resolver
+
+        for snapshot in snapshot_list:
+            for assignment in snapshot.resource_calendar_assignments:
+                register_resource_calendar(snapshot.project_id, assignment.resource_id)
+        for assignment in resource_assignment_list:
+            register_resource_calendar(assignment.project_id, assignment.resource_id)
+
+        explicit_snapshot_resource_keys = {
+            (snapshot.project_id, assignment.resource_id)
+            for snapshot in snapshot_list
+            for assignment in snapshot.resource_calendar_assignments
+        }
+        explicit_external_resource_ids = {
+            assignment.resource_id for assignment in resource_assignment_list
+        }
+        for activity in (*leveling_input.forward_activities, *leveling_input.backward_activities):
+            owning_project = all_activity_projects.get(activity.activity_id)
+            for demand in activity.resource_demands:
+                # Snapshot-level assignments are project-scoped. Do not let an
+                # explicit assignment in P1 suppress project-calendar fallback for
+                # a same-named local resource in P2; registering P2's fallback will
+                # either resolve consistently or fail closed on a calendar mismatch.
+                if owning_project is not None and (
+                    owning_project, demand.resource_id
+                ) in explicit_snapshot_resource_keys:
+                    continue
+                # External assignments identify the resource owner's project and
+                # may be consumed by an activity in another project. The current
+                # bare-ID leveling model cannot distinguish a colliding local ID,
+                # so if a local fallback would otherwise be required, resolve it
+                # and let register_resource_calendar fail closed on a mismatch.
+                if demand.resource_id in explicit_external_resource_ids:
+                    if owning_project is None:
+                        continue
+                    if not any(
+                        assignment.resource_id == demand.resource_id
+                        and assignment.project_id == owning_project
+                        for assignment in resource_assignment_list
+                    ):
+                        register_resource_calendar(owning_project, demand.resource_id)
+                    continue
+                if owning_project is not None:
+                    register_resource_calendar(owning_project, demand.resource_id)
+                elif len(snapshot_list) == 1:
+                    register_resource_calendar(snapshot_list[0].project_id, demand.resource_id)
+                else:
+                    raise UnsupportedMultiProjectSchedulingError(
+                        "RESOURCE_CALENDAR_CONTEXT_AMBIGUOUS:" + demand.resource_id
+                    )
+        resource_calendar_resolvers = resolved_by_resource
+
     executions: list[AuthoritativeProjectScheduleExecution] = []
 
     has_leveling_options = any(
@@ -245,7 +319,7 @@ def execute_authoritative_schedule_batch(
             selected_by_project[snapshot.project_id] = (
                 select_batch_resource_assignments_for_scheduling(
                     batch,
-                    resource_assignments,
+                    resource_assignment_list,
                     scheduled_project_id=snapshot.project_id,
                     options=snapshot.schedule_options,
                 )
@@ -368,6 +442,8 @@ def execute_authoritative_schedule_batch(
                 constraints=global_constraints,
                 options=snapshot_list[0].schedule_options,
                 batch_scheduled_finish=batch_finish,
+                resource_calendar_resolvers=resource_calendar_resolvers,
+                activity_resolvers=activity_calendar_resolvers,
             )
             for snapshot in snapshot_list:
                 owned_ids = {activity.id for activity in snapshot.activities}
@@ -492,7 +568,7 @@ def execute_authoritative_schedule_batch(
         if options.include_external_res_ass:
             resource_demands = select_batch_resource_assignments_for_scheduling(
                 batch,
-                resource_assignments,
+                resource_assignment_list,
                 scheduled_project_id=snapshot.project_id,
                 options=options,
             )
