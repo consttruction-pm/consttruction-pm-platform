@@ -742,6 +742,7 @@ def propose_backward_leveling(
 
         _, _, activity_id = min(candidates, key=lambda item: (item[0], item[1], item[2]))
         activity = next(a for a in activity_list if a.activity_id == activity_id)
+        activity_resolver = _resolve_activity_calendar(activity.activity_id, resolver, activity_resolvers)
         next_shift = shifts[activity_id] - 1
         shifts[activity_id] = next_shift
         result.append(
