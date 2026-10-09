@@ -202,10 +202,21 @@ def execute_authoritative_schedule_batch(
         for assignment in resource_assignment_list:
             register_resource_calendar(assignment.project_id, assignment.resource_id)
 
+        explicit_resource_ids = {
+            assignment.resource_id
+            for snapshot in snapshot_list
+            for assignment in snapshot.resource_calendar_assignments
+        }
+        explicit_resource_ids.update(
+            assignment.resource_id for assignment in resource_assignment_list
+        )
         for activity in (*leveling_input.forward_activities, *leveling_input.backward_activities):
             owning_project = all_activity_projects.get(activity.activity_id)
             for demand in activity.resource_demands:
-                if demand.resource_id in resolved_by_resource:
+                # A persisted resource assignment identifies the resource's owner
+                # project and remains authoritative even when the demand is consumed
+                # by an activity in another project.
+                if demand.resource_id in explicit_resource_ids:
                     continue
                 if owning_project is not None:
                     register_resource_calendar(owning_project, demand.resource_id)
