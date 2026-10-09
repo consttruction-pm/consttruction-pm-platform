@@ -151,7 +151,7 @@ def test_p6_cost_account_http_list_get_not_found_and_unknown_project():
         "GET", "/api/projects/p1/p6/cost-accounts/missing", cookies={"cp_session": "s1"}
     )
     assert status == 404
-    assert json.loads(body)["error"]["code"] == "P6_COST_ACCOUNT_NOT_FOUND"
+    assert json.loads(body)["code"] == "P6_COST_ACCOUNT_NOT_FOUND"
 
     status, _, _ = routes.handle(
         "GET", "/api/projects/unknown/p6/cost-accounts", cookies={"cp_session": "s1"}
