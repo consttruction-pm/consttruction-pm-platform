@@ -442,22 +442,12 @@ def apply_leveling_shifts(
     *,
     resolver: WorkingTimeResolver,
     allow_beyond_float: bool = False,
-    resource_calendar_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[LevelingActivity, ...]:
     """Apply accepted forward shifts using the caller's authoritative calendar."""
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(allow_beyond_float, bool):
         raise ResourceLevelingError("INVALID_ALLOW_BEYOND_FLOAT")
-    if resource_calendar_resolvers is not None and (
-        not isinstance(resource_calendar_resolvers, Mapping)
-        or any(
-            not isinstance(resource_id, str) or not resource_id.strip()
-            or not isinstance(resource_resolver, WorkingTimeResolver)
-            for resource_id, resource_resolver in resource_calendar_resolvers.items()
-        )
-    ):
-        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_RESOLVER")
     shift_map = {s.activity_id: s for s in shifts}
     if len(shift_map) != len(shifts):
         raise ResourceLevelingError("DUPLICATE_LEVELING_SHIFT")
