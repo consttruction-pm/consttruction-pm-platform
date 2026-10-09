@@ -974,3 +974,12 @@ Status: **runtime-verified and merged**
 - The active external-project ScheduleOptions orchestration/conformance items (#697, #753 and #758) are explicitly Shared Core/Jalal-owned. The current work requires authoritative multi-project execution and activity-scoped calendar behavior; no Hasan-owned persistence/API mapping defect was demonstrated by this audit. Do not add a backend scheduler or duplicate calculation semantics.
 - Current-main commit status query returned no status entries for the inspected head. This is **not** evidence that CI is green; no fresh exact-head runtime verification is claimed by this audit.
 - **Disposition: evidence/ownership boundary — no speculative Hasan implementation.** Continue only when a concrete reproducible Backend/Database/Application/API/Import-Export defect or authoritative contract-backed dependency is demonstrated on the then-current `main`. If one appears, branch from that exact SHA, add focused regression coverage and PostgreSQL verification where applicable, and record exact-head CI evidence before claiming completion.
+
+
+### 2026-10-09 — P6 calendar transaction-boundary hardening (PR #1343)
+
+- Fresh audit of exact main `30ff3af6bc936d18fca69023072e4fe7257a6c26` corrected the earlier transaction finding: SQLite calendar repository mutations already skip their own commit while a caller transaction is active, and `P6CalendarAPI.copy()` / `replace()` already open `SQLiteTransactionManager` when configured.
+- The concrete remaining gap was fail-open configuration: `P6CalendarAPI.transaction_manager` is optional, and `_transaction()` silently returned `nullcontext()` when it was missing. In that configuration repository methods could commit each mutation separately and break copy/replace atomicity.
+- PR #1343 changes this to fail closed with `TRANSACTION_MANAGER_REQUIRED` before either multi-step operation mutates data; focused regression tests cover copy and replace.
+- PR head: `55e11c244e5f2be3274734b9d5eb1f32f49f4afe`. No runtime/CI success is claimed until exact-head checks are observed.
+- Scope is API/persistence transaction orchestration only; no Shared Scheduling Core calculations changed.

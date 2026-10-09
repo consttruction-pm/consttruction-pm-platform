@@ -159,6 +159,47 @@ def test_copy_rolls_back_target_master_when_snapshot_write_fails(monkeypatch):
     assert api.calendar_repository.get(_scope(), "CAL-C", "1") is None
 
 
+def test_copy_requires_transaction_manager_before_mutating():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+    unsafe_api = P6CalendarAPI(
+        api.calendar_repository,
+        api.snapshot_repository,
+        api.exception_repository,
+        api.authorization_policy,
+        api.work_hours_repository,
+    )
+
+    with pytest.raises(ValueError, match="TRANSACTION_MANAGER_REQUIRED"):
+        unsafe_api.copy(_scope(), "CAL-S", "1", "CAL-C", "1", auth_context=_auth())
+
+    assert api.calendar_repository.get(_scope(), "CAL-C", "1") is None
+
+
+def test_replace_requires_transaction_manager_before_mutating():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-S"), auth_context=_auth())
+    api.create(_scope(), _request("CAL-T"), auth_context=_auth())
+    source = api.calendar_repository.get(_scope(), "CAL-S", "1")
+    api.snapshot_repository.save(source, _definition())
+    unsafe_api = P6CalendarAPI(
+        api.calendar_repository,
+        api.snapshot_repository,
+        api.exception_repository,
+        api.authorization_policy,
+        api.work_hours_repository,
+    )
+    before = api.calendar_repository.get(_scope(), "CAL-T", "1")
+
+    with pytest.raises(ValueError, match="TRANSACTION_MANAGER_REQUIRED"):
+        unsafe_api.replace(_scope(), "CAL-T", "1", "CAL-S", "1", auth_context=_auth())
+
+    after = api.calendar_repository.get(_scope(), "CAL-T", "1")
+    assert after == before
+
+
 def test_replace_uses_authoritative_snapshot_and_optimistic_revision():
     api, _ = _api()
     api.create(_scope(), _request("CAL-S"), auth_context=_auth())
