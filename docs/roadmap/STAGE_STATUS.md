@@ -1292,3 +1292,14 @@ Status: **merged; exact-head CI verified**
 - Client Typecheck run **37935488069** (run #4436) passed.
 - PR #1365 squash-merged as **2a445b66a527e8fb7af97938f5f2eec2b17369e7**.
 - This certifies only the XER date/Decimal slice; Issue #1227 remains open for broader cross-format/field-family parity. No scheduling calculations or Shared Core semantics changed.
+
+
+### 2026-10-10 — P6 timezone-safe datetime conversion (PR #1366)
+
+Status: **merged; exact-head CI verified**
+- Canonical datetime conversion now rejects naive datetime objects/strings and date-only strings rather than assuming a timezone; explicit timezone offsets are preserved without normalization.
+- XER date-only fields whose temporal meaning is not established are preserved as scoped unsupported extensions with explicit warnings; this does not claim lossless XER export for those extensions, because the XER codec rejects extensions it cannot represent.
+- Exact implementation head: `dc5189bb9865b23c30fd12a9379df88aca670600`.
+- ConstructionPM CI run `37989543171` and Client Typecheck run `37989543108` passed on the exact PR head.
+- PR #1366 squash-merged as `21722a2da2bd5af535774db478af528c147a62dc`.
+- Issue #1227 remains open; this is a narrow datetime integrity slice, not full cross-format P6 interchange certification. No scheduling or calculation semantics changed.
