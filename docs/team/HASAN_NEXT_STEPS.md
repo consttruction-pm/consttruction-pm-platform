@@ -1017,3 +1017,37 @@ Status: **implemented, exact-head runtime-verified and merged**
 ### Next point
 
 Re-read current main, this file, docs/roadmap/STAGE_STATUS.md, and open PRs/issues before choosing the next task. Do not treat the broad historical P6 parity issue as authorization to duplicate existing surfaces. Implement only a newly evidenced, concrete Hasan-owned Backend/Database/Application/API/Import-Export gap with an authoritative contract, focused regression tests and runtime verification.
+
+### 2026-10-09 — P6 XER Activity Status/Type enum translation (PR #1356)
+
+Status: **implemented, exact-head CI verified and merged; broad Issue #1227 remains open**
+
+- Corrected the XER interchange boundary to decode native TASK wire tokens to canonical values on import and encode canonical values back to native tokens on export.
+- Status tokens covered: `TK_NotStart`, `TK_Active`, `TK_Complete`; activity type tokens covered: `TT_Task`, `TT_Rsrc`, `TT_LOE`, `TT_Mile`, `TT_FinMile`, `TT_WBS`.
+- Unknown XER tokens and unsupported canonical export values fail closed with explicit conversion errors.
+- Focused tests cover native XER fixture values, round-trip export/import, and unknown wire/canonical values.
+- Exact implementation head: `02422549a9f0c32cd1768bdd7434e9e6d8f9a875`.
+- ConstructionPM CI run `37924344885` passed on Python 3.11, 3.12 and 3.13; Client Typecheck run `37924344821` passed for desktop, mobile, client-sync and web.
+- PR #1356 squash-merged as `097c2da2bd0c100b6f8e06f4091d1f98c2d3880f`.
+- No local test result is claimed; verification evidence is the exact-head GitHub Actions runs above. No separate PostgreSQL-specific workflow was reported for this change.
+- This is only the XER Activity Status/Type slice of Issue #1227. Other interchange formats/field families remain open; do not close #1227 on this slice alone. No scheduling calculations or duplicate Shared Core semantics were added.
+
+### Next point
+
+Reconcile current `main`, Hasan's instructions and open issues/PRs again. Continue only with the first concrete, authoritative Backend/Database/Application/API/Import-Export gap. Keep Shared Core scheduling semantics authoritative and avoid broad speculative enum/field mappings.
+
+
+### 2026-10-09 — P6 lossless integer interchange conversion (PR #1361)
+
+Status: **merged and exact-head CI verified**
+- Corrected canonical integer conversion so fractional, Boolean, NaN and infinite inputs fail closed instead of being silently truncated/coerced.
+- Lossless integer strings and integral Decimal values remain accepted; focused tests cover typed conversion and mapper import rejection.
+- Exact implementation head: `5eef299b0ca135ddd63f375cc1a87318451c385c`.
+- ConstructionPM CI run `37930786824` (run #4713) passed on Python 3.11, 3.12 and 3.13.
+- Client Typecheck run `37930787035` (run #4416) passed.
+- PR #1361 squash-merged as `e957b68522032f59cd8e92a454ae2ed910478de0`.
+- This closes only the lossless-integer-conversion slice. Issue #1227 remains open for broader P6 interchange parity; no scheduling/calculation semantics were changed.
+
+### Next point
+
+Reconcile current `main`, inspect Issue #1227 and its evidence, and select one concrete format/field-family gap that can be proven from existing codecs, registry contracts and tests. Avoid speculative mappings; add focused round-trip and fail-closed tests, run exact-head CI, then update the evidence here and in `docs/roadmap/STAGE_STATUS.md`.
