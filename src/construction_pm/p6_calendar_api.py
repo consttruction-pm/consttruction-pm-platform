@@ -187,7 +187,7 @@ class P6CalendarAPI:
 
     def _transaction(self):
         if self.transaction_manager is None:
-            return nullcontext()
+            raise P6CalendarAPIError("TRANSACTION_MANAGER_REQUIRED")
         return self.transaction_manager.transaction()
 
     def _work_hours(self) -> CalendarWorkHourRepository:
