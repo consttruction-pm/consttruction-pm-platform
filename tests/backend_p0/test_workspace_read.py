@@ -242,3 +242,17 @@ def test_workspace_read_service_rejects_malformed_nested_workspace(
         service.read(BackendScope("tenant-1", "project-1", 7), auth_context=auth())
 
     assert getattr(exc.value, "code") == expected_code
+
+def test_backend_p0_api_returns_unconfigured_workspace_read_error_as_dto() -> None:
+    api = BackendP0API(service=object())
+
+    result = api.read_workspace_control_room(
+        tenant_id="tenant-1",
+        project_id="project-1",
+        revision=7,
+        auth_context=auth(),
+    )
+
+    assert result is not None
+    assert result["error"]["category"] == ErrorCategory.VALIDATION.value
+    assert result["error"]["code"] == "WORKSPACE_READ_NOT_CONFIGURED"
