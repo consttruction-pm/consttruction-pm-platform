@@ -27,7 +27,7 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
                 else:
                     value = datetime.fromisoformat(text)
             if value.tzinfo is None or value.utcoffset() is None:
-                value = value.replace(tzinfo=timezone.utc)
+                raise ValueError("timezone-aware datetime required")
             return P6InterchangeTypedValue("datetime", value, unit=field.unit)
         if kind in {P6FieldType.DECIMAL, P6FieldType.DOUBLE, P6FieldType.COST, P6FieldType.PERCENTAGE, P6FieldType.UNIT}:
             value = raw if isinstance(raw, Decimal) else Decimal(str(raw))
