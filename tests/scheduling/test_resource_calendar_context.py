@@ -318,7 +318,9 @@ def test_backward_leveling_shifts_demand_with_resource_calendar_not_project_cale
 
     assert project_only[0].advanced_days == 2
     assert resource_aware[0].advanced_days == 1
-    assert resource_aware[0].new_start == date(2026, 10, 4)
+    # The demand moves back one resource working day (Sunday); the activity
+    # itself moves one project working day (Monday to Friday).
+    assert resource_aware[0].new_start == date(2026, 10, 2)
 
 def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
     from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
@@ -369,6 +371,7 @@ def test_resource_calendar_context_preserves_local_inherited_standard_precedence
     local_rule = resolved.calendar.effective_rule(local_reset_date)
     assert inherited_rule.source == "inherited"
     assert inherited_rule.is_working is True
+    assert inherited_rule.total_work_hours == Decimal("6")
     assert local_rule.source == "local"
     assert local_rule.is_working is True
 
