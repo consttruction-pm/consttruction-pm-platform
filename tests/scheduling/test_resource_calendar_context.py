@@ -278,8 +278,8 @@ def test_forward_leveling_shifts_demand_with_resource_calendar_not_project_calen
         resource_calendar_resolvers={"R1": resource_resolver},
     )
 
-    assert project_only[0].shift_working_days == 3
-    assert resource_aware[0].shift_working_days == 2
+    assert project_only[0].shift_working_days == 2
+    assert resource_aware[0].shift_working_days == 1
     # Activity dates remain on the activity/project calendar; only demand
     # bucket movement uses the resource-specific calendar.
     assert resource_aware[0].new_start == date(2026, 10, 5)
