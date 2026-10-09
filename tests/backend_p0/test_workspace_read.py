@@ -217,3 +217,27 @@ def test_workspace_read_service_rejects_malformed_optional_collection(key: str) 
         service.read(BackendScope("tenant-1", "project-1", 7), auth_context=auth())
 
     assert getattr(exc.value, "code") == "INVALID_WORKSPACE_READ_COLLECTION"
+
+
+@pytest.mark.parametrize(
+    ("workspace_value", "expected_code"),
+    [
+        (None, "INVALID_WORKSPACE_READ_WORKSPACE"),
+        ({"contract_version": "workspace-control-room.v99", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": [], "activities": []}, "UNSUPPORTED_WORKSPACE_CONTRACT"),
+        ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 6}, "columns": [], "activities": []}, "STALE_WORKSPACE_SNAPSHOT_SCOPE"),
+        ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": {}, "activities": []}, "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION"),
+        ({"contract_version": "workspace-control-room.v1", "context": {"tenant_id": "tenant-1", "project_id": "project-1", "revision": 7}, "columns": []}, "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION"),
+    ],
+)
+def test_workspace_read_service_rejects_malformed_nested_workspace(
+    workspace_value: object,
+    expected_code: str,
+) -> None:
+    value = snapshot()
+    value["workspace"] = workspace_value
+    service = service_with(value)
+
+    with pytest.raises(Exception) as exc:
+        service.read(BackendScope("tenant-1", "project-1", 7), auth_context=auth())
+
+    assert getattr(exc.value, "code") == expected_code
