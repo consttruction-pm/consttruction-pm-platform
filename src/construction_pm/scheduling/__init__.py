@@ -3,6 +3,7 @@
 from .activity import Activity
 from .authoritative_schedule import (
     ActivityCalendarAssignment,
+    ResourceCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
@@ -11,6 +12,7 @@ from .calendar_periods import CalendarTimePeriodFactors, P6_CALENDAR_PERIOD_FIEL
 from .calendar_system import CalendarDateError, CalendarSystem, JalaliDate, gregorian_to_jalali, jalali_to_gregorian
 from .calendar_context import CalendarReference, CalendarResolverRegistry, RelationshipLagCalendar, SchedulingCalendarContext
 from .calendar_resolution import ResolvedActivityCalendars, resolve_authoritative_activity_calendars, resolve_relationship_lag_calendar, resolve_relationship_lag_resolvers
+from .resource_calendar_context import ResourceCalendarContext, ResourceCalendarContextError
 from .activity_calendar_provider import ActivityCalendarProvider, ResolvedActivityCalendarProvider, require_activity_calendar_provider
 from .calculation_context import CalculationContext
 from .time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
@@ -88,6 +90,7 @@ from .schedule_options import (
 __all__ = [
     "Activity",
     "ActivityCalendarAssignment",
+    "ResourceCalendarAssignment",
     "AuthoritativeScheduleInput",
     "AuthoritativeScheduleMode",
     "ActivityConstraint",
@@ -144,6 +147,8 @@ __all__ = [
     "RelationshipLagCalendar",
     "ResolvedActivityCalendars",
     "resolve_authoritative_activity_calendars",
+    "ResourceCalendarContext",
+    "ResourceCalendarContextError",
     "resolve_relationship_lag_calendar",
     "resolve_relationship_lag_resolvers",
     "ActivityCalendarProvider",
