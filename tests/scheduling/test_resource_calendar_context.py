@@ -832,6 +832,74 @@ def test_authoritative_batch_wires_resource_calendar_into_resource_leveling():
 
 
 
+
+def test_explicit_resource_assignment_in_one_project_does_not_hide_other_project_fallback():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    project_two_calendar = CalendarReference("PROJECT-2", "1")
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "GLOBAL@3": WorkingTimeResolver(WorkingCalendar()),
+            "PROJECT@4": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset(range(7)))),
+            "PROJECT-2@1": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))),
+            "RESOURCE@8": WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset(range(7)))),
+        },
+        base_calendar_references={
+            "PROJECT@4": GLOBAL,
+            "PROJECT-2@1": GLOBAL,
+            "RESOURCE@8": PROJECT,
+        },
+    )
+    snapshots = (
+        make_snapshot(
+            [ResourceCalendarAssignment("R1", RESOURCE)],
+            project_id="P1",
+            project_calendar=PROJECT,
+            schedule_options=options,
+        ),
+        make_snapshot(
+            [],
+            project_id="P2",
+            project_calendar=project_two_calendar,
+            schedule_options=options,
+        ),
+    )
+    p1_demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P1-A")
+    p2_demand = ResourceDemand("R1", date(2026, 10, 2), Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 2), date(2026, 10, 2), 3, (p1_demand,)),
+        LevelingActivity("P2-A", date(2026, 10, 2), date(2026, 10, 2), 3, (p2_demand,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 2), date(2026, 10, 2),
+                                 date(2026, 10, 5), date(2026, 10, 5), (p1_demand,)),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 2), date(2026, 10, 2),
+                                 date(2026, 10, 5), date(2026, 10, 5), (p2_demand,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="RESOURCE_CALENDAR_ASSIGNMENT_MISMATCH:R1",
+    ):
+        execute_authoritative_schedule_batch(
+            snapshots,
+            resolvers={
+                "P1": WorkingTimeResolver(WorkingCalendar()),
+                "P2": WorkingTimeResolver(WorkingCalendar()),
+            },
+            leveling_input=leveling_input,
+            calendar_registry=registry,
+        )
+
+
 def test_same_resource_id_with_different_project_calendars_fails_closed():
     options = ScheduleOptions(
         level_all_resources=True,
