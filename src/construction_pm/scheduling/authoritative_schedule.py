@@ -206,7 +206,12 @@ class AuthoritativeScheduleInput:
             "activities": self.activities,
             "relationships": self.relationships,
             "activity_calendar_assignments": self.activity_calendar_assignments,
-            "resource_calendar_assignments": self.resource_calendar_assignments,
+            "resource_calendar_assignments": tuple(
+                sorted(
+                    self.resource_calendar_assignments,
+                    key=lambda assignment: assignment.resource_id,
+                )
+            ),
             "constraints": self.constraints,
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,
