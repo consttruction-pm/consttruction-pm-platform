@@ -124,6 +124,47 @@ class WorkspaceControlRoomReadService:
                 retryable=True,
             )
 
+        workspace = snapshot.get("workspace")
+        if not isinstance(workspace, Mapping):
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "INVALID_WORKSPACE_READ_WORKSPACE",
+                "Workspace control-room payload is invalid",
+            )
+        if workspace.get("contract_version") != "workspace-control-room.v1":
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "UNSUPPORTED_WORKSPACE_CONTRACT",
+                "Workspace control-room contract version is not supported",
+            )
+
+        workspace_context = workspace.get("context")
+        if not isinstance(workspace_context, Mapping):
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "INVALID_WORKSPACE_SNAPSHOT_CONTEXT",
+                "Workspace control-room context is invalid",
+            )
+        if (
+            workspace_context.get("tenant_id") != scope.tenant_id
+            or workspace_context.get("project_id") != scope.project_id
+            or workspace_context.get("revision") != scope.project_revision
+        ):
+            raise BackendApplicationError(
+                ErrorCategory.CONFLICT,
+                "STALE_WORKSPACE_SNAPSHOT_SCOPE",
+                "Workspace control-room snapshot does not match the requested scope",
+                retryable=True,
+            )
+
+        for key in ("columns", "activities"):
+            if not isinstance(workspace.get(key), list):
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "INVALID_WORKSPACE_READ_WORKSPACE_COLLECTION",
+                    f"Workspace control-room {key} collection is invalid",
+                )
+
         for key in (
             "workspace",
             "field_daily_logs",
