@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from .p6_field_registry import P6FieldDefinition, P6FieldType
@@ -23,11 +23,10 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
             else:
                 text = str(raw)
                 if len(text) == 10:
-                    value = datetime.fromisoformat(text).replace(tzinfo=timezone.utc)
-                else:
-                    value = datetime.fromisoformat(text)
+                    raise ValueError("timezone-aware datetime required")
+                value = datetime.fromisoformat(text)
             if value.tzinfo is None or value.utcoffset() is None:
-                value = value.replace(tzinfo=timezone.utc)
+                raise ValueError("timezone-aware datetime required")
             return P6InterchangeTypedValue("datetime", value, unit=field.unit)
         if kind in {P6FieldType.DECIMAL, P6FieldType.DOUBLE, P6FieldType.COST, P6FieldType.PERCENTAGE, P6FieldType.UNIT}:
             value = raw if isinstance(raw, Decimal) else Decimal(str(raw))
