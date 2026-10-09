@@ -193,7 +193,7 @@ def test_authoritative_batch_uses_activity_calendar_context():
         ),
     )
     p2 = replace(
-        snapshot("P2", date(2026, 10, 10), options=leveling_schedule_options),
+        snapshot("P2", date(2026, 10, 10)),
         project_start=date(2026, 10, 2),
         activities=(Activity("P2-A", 2),),
     )
@@ -260,7 +260,7 @@ def test_mixed_activity_calendars_are_supported_for_shared_resource_leveling():
         ),
     )
     p2 = replace(
-        snapshot("P2", date(2026, 10, 10)),
+        snapshot("P2", date(2026, 10, 10), options=leveling_schedule_options),
         resource_calendar_assignments=(
             ResourceCalendarAssignment("R1", resource_calendar),
         ),
