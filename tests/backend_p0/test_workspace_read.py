@@ -243,6 +243,7 @@ def test_workspace_read_service_rejects_malformed_nested_workspace(
 
     assert getattr(exc.value, "code") == expected_code
 
+
 def test_backend_p0_api_returns_unconfigured_workspace_read_error_as_dto() -> None:
     api = BackendP0API(service=object())
 
