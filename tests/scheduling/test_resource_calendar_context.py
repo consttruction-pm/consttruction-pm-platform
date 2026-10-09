@@ -386,6 +386,42 @@ def test_backward_leveling_keeps_resource_demands_aligned_with_activity_dates():
     assert project_only[-1].new_start == date(2026, 10, 1)
     assert resource_aware[-1].new_start == date(2026, 10, 1)
 
+def test_backward_leveling_rejects_capacity_on_resource_nonworking_dates():
+    project_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    resource_resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+    )
+    demand = ResourceDemand("R1", date(2026, 10, 4), Decimal("1"), "A")
+    activity = BackwardLevelingActivity(
+        activity_id="A",
+        early_start=date(2026, 10, 2),
+        early_finish=date(2026, 10, 2),
+        late_start=date(2026, 10, 4),
+        late_finish=date(2026, 10, 4),
+        resource_demands=(demand,),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 4), Decimal("0")),
+        ResourceCapacity("R1", date(2026, 10, 3), Decimal("1")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+    )
+
+    project_only = propose_backward_leveling(
+        (activity,), capacities, resolver=project_resolver
+    )
+    resource_aware = propose_backward_leveling(
+        (activity,),
+        capacities,
+        resolver=project_resolver,
+        resource_calendar_resolvers={"R1": resource_resolver},
+    )
+
+    assert project_only[-1].new_start == date(2026, 10, 3)
+    assert resource_aware[-1].new_start == date(2026, 10, 2)
+
+
 def test_resource_calendar_context_preserves_local_inherited_standard_precedence():
     from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
     from construction_pm.scheduling.calendar_exceptions import (
