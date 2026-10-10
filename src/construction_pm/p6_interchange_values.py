@@ -62,6 +62,11 @@ class P6InterchangeTypedValue:
         elif kind == "string":
             if not isinstance(self.value, str):
                 raise P6InterchangeValueError("INVALID_STRING_VALUE")
+        elif kind in {"string-array", "object-id-array"}:
+            if not isinstance(self.value, list) or any(
+                not isinstance(item, str) for item in self.value
+            ):
+                raise P6InterchangeValueError(f"INVALID_{kind.upper().replace('-', '_')}_VALUE")
         else:
             raise P6InterchangeValueError(f"UNSUPPORTED_DATA_TYPE:{kind}")
 
@@ -125,6 +130,12 @@ class P6InterchangeTypedValue:
                 if not isinstance(raw, str):
                     raise ValueError("string required")
                 value = raw
+            elif kind in {"string-array", "object-id-array"}:
+                if not isinstance(raw, list) or any(
+                    not isinstance(item, str) for item in raw
+                ):
+                    raise ValueError("string array required")
+                value = list(raw)
             else:
                 raise P6InterchangeValueError(f"UNSUPPORTED_DATA_TYPE:{kind}")
         except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
