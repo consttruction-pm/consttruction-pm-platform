@@ -23,6 +23,8 @@ from construction_pm.p6_user_defined_field_values_repository import P6DurationVa
         P6InterchangeTypedValue("enum", "TASK"),
         P6InterchangeTypedValue("integer", 42),
         P6InterchangeTypedValue("string", "A-10"),
+        P6InterchangeTypedValue("string-array", ["Activity Code", "WBS"]),
+        P6InterchangeTypedValue("object-id-array", ["obj-1", "obj-2"]),
         P6InterchangeTypedValue("decimal", Decimal("1250.00"), currency="USD"),
     ),
 )
@@ -80,3 +82,23 @@ def test_from_payload_rejects_non_string_values_without_coercion(kind: str) -> N
         P6InterchangeTypedValue.from_payload(
             {"data_type": kind, "value": 123}
         )
+
+
+@pytest.mark.parametrize("kind", ("string-array", "object-id-array"))
+@pytest.mark.parametrize("raw", ("not-an-array", [1, "valid"], [None]))
+def test_array_typed_values_reject_non_string_members(kind: str, raw) -> None:
+    with pytest.raises(
+        P6InterchangeValueError,
+        match=f"INVALID_{kind.upper().replace('-', '_')}_VALUE",
+    ):
+        P6InterchangeTypedValue(kind, raw).to_payload()
+
+
+@pytest.mark.parametrize("kind", ("string-array", "object-id-array"))
+@pytest.mark.parametrize("raw", ("not-an-array", [1, "valid"], [None]))
+def test_array_payloads_reject_non_string_members(kind: str, raw) -> None:
+    with pytest.raises(
+        P6InterchangeValueError,
+        match=f"INVALID_{kind.upper().replace('-', '_')}_VALUE",
+    ):
+        P6InterchangeTypedValue.from_payload({"data_type": kind, "value": raw})
