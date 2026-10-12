@@ -74,6 +74,10 @@ def select_resource_assignments_for_scheduling(
     for assignment in assignment_list:
         if not isinstance(assignment, ExternalResourceAssignment):
             raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
+        if not isinstance(assignment.project_id, str) or not assignment.project_id.strip():
+            raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_PROJECT_ID")
+        if not isinstance(assignment.resource_id, str) or not assignment.resource_id.strip():
+            raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_RESOURCE_ID")
         if assignment.project_id != scheduled_project_id:
             if not include_external_res_ass:
                 continue
