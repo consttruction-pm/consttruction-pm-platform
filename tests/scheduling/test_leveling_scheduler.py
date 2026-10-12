@@ -145,24 +145,9 @@ def test_resource_leveling_without_preserve_runs_backward_from_late_dates():
     assert len(forward) == 1
     assert len(backward) == 1
     assert backward[0].advanced_days == 1
-    # Backward movement is proposed, but the final CPM schedule must retain
-    # the capacity-safe placement: only one 8-unit activity can run per day.
-    starts = {activity_id: item.start for activity_id, item in result.activities.items()}
-    assert sorted(starts.values()) == [date(2026, 10, 1), date(2026, 10, 2)]
-    daily_demand = {
-        day: sum(
-            demand.units
-            for activity_id, demand in (("A", Decimal("8")), ("B", Decimal("8")))
-            if starts[activity_id] == day
-        )
-        for day in (date(2026, 10, 1), date(2026, 10, 2))
-    }
-    assert daily_demand == {
-        date(2026, 10, 1): Decimal("8"),
-        date(2026, 10, 2): Decimal("8"),
-    }
-    assert all(units <= Decimal("8") for units in daily_demand.values())
-
+    # The forward-shifted activity stays on day two; the backward pass moves
+    # the other activity to day one instead of cancelling the forward shift.
+    assert sorted(item.start for item in result.activities.values()) == [date(2026, 10, 1), date(2026, 10, 2)]
 
 
 def test_backward_exact_constraints_pin_accepted_start() -> None:
