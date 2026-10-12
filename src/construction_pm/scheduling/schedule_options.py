@@ -99,7 +99,7 @@ class ScheduleOptions:
     level_all_resources: bool = False
     level_within_float: bool = False
     over_allocation_percentage: float = 0.0
-    resource_list: str | None = None
+    resource_list: tuple[str, ...] | None = None
     priority_list: tuple[PriorityListItem, ...] | None = None
     external_project_priority_limit: int = 0
     preserve_scheduled_early_and_late_dates: bool = False
@@ -197,10 +197,13 @@ class ScheduleOptions:
         if not 0 <= self.external_project_priority_limit <= 100:
             raise ValueError("external_project_priority_limit must be between 0 and 100")
 
-        if self.resource_list is not None and not (
-            isinstance(self.resource_list, str) and self.resource_list.strip()
-        ):
-            raise ValueError("resource_list must be a non-empty string or None")
+        if self.resource_list is not None:
+            if not isinstance(self.resource_list, tuple) or not self.resource_list:
+                raise ValueError("resource_list must be a non-empty tuple of resource IDs or None")
+            if any(not isinstance(item, str) or not item.strip() for item in self.resource_list):
+                raise ValueError("resource_list must contain only non-empty resource IDs")
+            if len(set(self.resource_list)) != len(self.resource_list):
+                raise ValueError("resource_list must not contain duplicate resource IDs")
 
         if self.priority_list is not None:
             if not isinstance(self.priority_list, tuple) or not self.priority_list:
