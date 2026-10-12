@@ -225,3 +225,30 @@ def test_duplicate_resource_id_is_allowed_when_external_project_is_filtered_out(
         include_external_res_ass=False,
     )
     assert [(d.resource_id, d.units) for d in result] == [("R1", Decimal("1"))]
+
+
+@pytest.mark.parametrize(
+    ("project_id", "resource_id", "expected_error"),
+    [
+        (None, "R1", "INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_PROJECT_ID"),
+        (" ", "R1", "INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_PROJECT_ID"),
+        ("P2", None, "INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_RESOURCE_ID"),
+        ("P2", " ", "INVALID_EXTERNAL_RESOURCE_ASSIGNMENT_RESOURCE_ID"),
+    ],
+)
+def test_invalid_assignment_identifiers_are_rejected_before_filtering(
+    project_id, resource_id, expected_error
+):
+    assignment = ExternalResourceAssignment(
+        project_id=project_id,
+        resource_id=resource_id,
+        period=date(2026, 10, 1),
+        units=Decimal("1"),
+        activity_id="A",
+    )
+    with pytest.raises(ResourceLevelingError, match=expected_error):
+        select_resource_assignments_for_scheduling(
+            (assignment,),
+            scheduled_project_id="P1",
+            include_external_res_ass=False,
+        )
