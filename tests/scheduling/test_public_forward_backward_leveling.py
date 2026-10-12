@@ -156,14 +156,17 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
     assert result.activities["B"].finish == day_two
     assert result.project_finish == day_two
 
-    final_demand_by_day = {
-        day: sum(
-            demand.units
-            for activity_id, demand in (("A", demands[0]), ("B", demands[1]))
-            if result.activities[activity_id].start == day
-        )
-        for day in (day_one, day_two)
-    }
+    # ScheduleResult does not expose a resource-demand ledger. Reproject each
+    # activity's typed input assignments by the final scheduled start offset,
+    # then aggregate the resulting demand periods against the capacity fixture.
+    final_demand_by_day = {day_one: Decimal("0"), day_two: Decimal("0")}
+    for activity in leveling_input.forward_activities:
+        final_start = result.activities[activity.activity_id].start
+        shift_days = resolver.working_days_between(activity.start, final_start)
+        for demand in activity.resource_demands:
+            final_period = resolver.add_working_duration(demand.period, shift_days)
+            if demand.resource_id == "R1" and final_period in final_demand_by_day:
+                final_demand_by_day[final_period] += demand.units
     capacity_by_day = {day_one: Decimal("8"), day_two: Decimal("16")}
     assert final_demand_by_day == {
         day_one: Decimal("0"),
