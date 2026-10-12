@@ -3,7 +3,7 @@
 ## Baseline and method
 
 - Source workbook: `جلال3_اصلاح_مبنای_پیشرفت_2026-10-10.xlsx` (Library source; sheet `جلال 3`, refreshed after GitHub reconciliation dated 2026-10-10).
-- Current repository `main` HEAD when reconciled: `1fcfe54119cc22623dc3c8b33a3400bbbcf0b63d` (this documentation update). The product-code baseline remains `488e683a8a65e4316cc14b106cda0989784372bc`; changes after it on main are documentation-only.
+- Current repository `main` HEAD refreshed on 2026-10-12: `ba2c04351f5f630545a273ee7ecea035f3123e20` (merge of PR #1395, which adds scheduling acceptance tests). The product-code baseline remains `488e683a8a65e4316cc14b106cda0989784372bc`; no new weighted product capability is credited by the test-only merge. The prior main-HEAD pointer was stale and is corrected here.
 - Formula: `sum(weight × activity_completion_fraction)` across the 23 activities. Weights total 100.00.
 - Earned weighted points: **59.50 / 100**. Remaining: **40.50 / 100**.
 - This is a weighted implementation schedule indicator, not release readiness, deployment acceptance, or full P6 parity certification.
