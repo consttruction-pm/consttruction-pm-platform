@@ -39,6 +39,14 @@ def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTy
             else: raise ValueError("duration object with value and unit required")
             value.validate()
             return P6InterchangeTypedValue("duration", value, unit=value.unit)
+        if kind in {P6FieldType.STRING_ARRAY, P6FieldType.OBJECT_ID_ARRAY}:
+            # Array fields must remain arrays of strings. Never split scalar CSV
+            # or coerce arbitrary values: both operations can lose identity/order.
+            if not isinstance(raw, list) or any(
+                not isinstance(item, str) for item in raw
+            ):
+                raise ValueError("string array required")
+            return P6InterchangeTypedValue(kind.value, list(raw), unit=field.unit)
         if kind is P6FieldType.BOOLEAN:
             if not isinstance(raw, bool): raise ValueError("boolean required")
             return P6InterchangeTypedValue("boolean", raw)
