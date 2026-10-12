@@ -85,8 +85,10 @@ def select_resource_assignments_for_scheduling(
 
     project_by_resource: dict[str, str] = {}
     for assignment in selected_assignments:
-        previous_project = project_by_resource.get(assignment.resource_id)
-        if previous_project is not None and previous_project != assignment.project_id:
+        if (
+            assignment.resource_id in project_by_resource
+            and project_by_resource[assignment.resource_id] != assignment.project_id
+        ):
             raise ResourceLevelingError(
                 f"CROSS_PROJECT_RESOURCE_ID_COLLISION:{assignment.resource_id}"
             )
