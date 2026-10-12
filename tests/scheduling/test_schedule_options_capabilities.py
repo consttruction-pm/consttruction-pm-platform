@@ -25,7 +25,7 @@ def resolver():
         ("level_all_resources", True),
         ("level_within_float", True),
         ("over_allocation_percentage", 10.0),
-        ("resource_list", "R1"),
+        ("resource_list", ("R1",)),
         ("priority_list", (PriorityListItem("PRIORITY", PrioritySortOrder.ASCENDING),)),
         ("min_float_to_preserve", 1),
         ("preserve_scheduled_early_and_late_dates", True),
