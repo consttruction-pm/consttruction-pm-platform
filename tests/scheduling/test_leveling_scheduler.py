@@ -281,3 +281,61 @@ def test_public_leveling_orchestration_preserves_configured_minimum_float() -> N
     assert backward == ()
     assert result.activities["A"].start == date(2026, 10, 1)
     assert result.activities["B"].start == date(2026, 10, 1)
+
+
+
+def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() -> None:
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    activities = (Activity("A", 1), Activity("B", 1))
+    relationships = (Relationship("A", "B", RelationshipType.SS),)
+
+    result, forward, backward = schedule_with_resource_leveling(
+        activities,
+        relationships,
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=True),
+    )
+
+    # Accepted leveling movement must flow back through the ordinary CPM scheduler.
+    assert len(forward) == 1
+    assert backward == ()
+    assert result.activities["B"].start >= result.activities["A"].start
+    assert result.project_finish == max(item.finish for item in result.activities.values())
+    assert set(result.floats) == {"A", "B"}
+    for activity_id, float_result in result.floats.items():
+        early = result.early_activities[activity_id]
+        late = result.late_activities[activity_id]
+        assert float_result.early_start == early.start
+        assert float_result.early_finish == early.finish
+        assert float_result.late_start == late.start
+        assert float_result.late_finish == late.finish
+
+
+def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> None:
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(ResourceLevelingError, match="UNKNOWN_RESOURCE"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            options=ScheduleOptions(
+                level_all_resources=False,
+                resource_list=("UNKNOWN",),
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
