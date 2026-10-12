@@ -871,7 +871,7 @@ def test_materializer_rejects_malformed_resource_list(value):
         hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         canonical, snapshot.calculation_identity, snapshot.created_at,
     )
-    with pytest.raises(SnapshotMaterializationError, match="INVALID_SCHEDULE_OPTION:resource_list"):
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_SCHEDULE_OPTIONS"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
