@@ -378,6 +378,50 @@ def execute_authoritative_schedule_batch(
                 for demands in selected_by_project.values()
                 for demand in demands
             )
+
+            # ResourceDemand carries only a bare resource_id. Before merging
+            # assignment-derived demands into the leveling input, reject any
+            # selected assignment whose ID is already used by a demand owned
+            # by another project. Otherwise a local demand can be silently
+            # conflated with an external assignment even when calendars match.
+            existing_demands = tuple(
+                demand
+                for activity in (
+                    *leveling_input.forward_activities,
+                    *leveling_input.backward_activities,
+                )
+                for demand in activity.resource_demands
+            )
+            for assignment in resource_assignment_list:
+                # An assignment without an activity cannot be merged into the
+                # leveling graph (demands_for routes by activity_id). Do not
+                # infer selection from a matching None-valued demand tuple:
+                # that can make a filtered-out project's assignment look selected.
+                if assignment.activity_id is None:
+                    continue
+                assignment_is_selected = (
+                    all_activity_projects.get(assignment.activity_id)
+                    == assignment.project_id
+                    and any(
+                        demand.resource_id == assignment.resource_id
+                        and demand.period == assignment.period
+                        and demand.units == assignment.units
+                        and demand.activity_id == assignment.activity_id
+                        for demand in selected_demands
+                    )
+                )
+                if not assignment_is_selected:
+                    continue
+                for demand in existing_demands:
+                    if demand.resource_id != assignment.resource_id:
+                        continue
+                    demand_project = all_activity_projects.get(demand.activity_id)
+                    if demand_project != assignment.project_id:
+                        raise UnsupportedMultiProjectSchedulingError(
+                            "CROSS_PROJECT_RESOURCE_ID_COLLISION:"
+                            + assignment.resource_id
+                        )
+
             def demands_for(activity_id: str, existing: Iterable[ResourceDemand]) -> tuple[ResourceDemand, ...]:
                 merged = tuple(existing) + tuple(
                     demand for demand in selected_demands
