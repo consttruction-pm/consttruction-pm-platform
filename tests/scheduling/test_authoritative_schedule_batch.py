@@ -496,6 +496,47 @@ def test_missing_external_project_membership_is_explicit():
         )
 
 
+def test_external_assignment_rejects_collision_with_other_projects_existing_leveling_demand():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=True,
+        external_project_priority_limit=10,
+        calculate_float_based_on_finish_date=False,
+    )
+    local_demand = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, ()),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (local_demand,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), ()),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (local_demand,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="CROSS_PROJECT_RESOURCE_ID_COLLISION:R1",
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot("P1", date(2026, 10, 10), options=options),
+                snapshot("P2", date(2026, 10, 10), options=options, priority=5),
+            ],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            resource_assignments=(assignment("P1", "R1"),),
+            leveling_input=leveling_input,
+        )
+
+
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     options = ScheduleOptions(
         level_all_resources=True,
