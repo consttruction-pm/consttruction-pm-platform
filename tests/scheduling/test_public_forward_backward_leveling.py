@@ -12,7 +12,11 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceDemand,
     ResourceLevelingOptions,
 )
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import (
+    PriorityListItem,
+    PrioritySortOrder,
+    ScheduleOptions,
+)
 
 
 def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm() -> None:
@@ -24,12 +28,12 @@ def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm()
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity("A", day_one, day_one, 1, (demands[0],)),
-            LevelingActivity("B", day_one, day_one, 1, (demands[1],)),
+            LevelingActivity("A", day_one, day_one, 1, (demands[0],), activity_priority=0),
+            LevelingActivity("B", day_one, day_one, 1, (demands[1],), activity_priority=1),
         ),
         backward_activities=(
-            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],)),
-            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],)),
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],), activity_priority=1),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],), activity_priority=0),
         ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("8")),
@@ -54,13 +58,13 @@ def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm()
         options=ScheduleOptions(
             level_all_resources=True,
             preserve_scheduled_early_and_late_dates=False,
+            priority_list=(PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),),
         ),
     )
 
-    # Public options must reach both passes. The forward pass moves A to day
-    # two; the backward pass advances B to day one. The final ordinary CPM
-    # schedule must preserve both movements without putting both demands on
-    # the same day.
+    # The forward pass prioritizes A; the backward pass prioritizes B. This
+    # exercises both public passes without letting the backward pass cancel
+    # the same activity's forward shift.
     assert len(forward) == 1
     assert forward[0].activity_id == "A"
     assert len(backward) == 1
