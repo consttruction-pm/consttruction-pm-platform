@@ -203,7 +203,10 @@ def schedule_with_resource_leveling(
     if not leveling_input.options.preserve_scheduled_early_and_late_dates:
         backward_activities = _backward_activities_from_intermediate(
             leveling_input,
-            early_schedule=initial.early_activities or initial.activities,
+            # Backward candidates must respect the CPM early dates after forward
+            # leveling has been applied. Using the initial dates can propose a
+            # move that violates a relationship newly activated by a forward shift.
+            early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
         )
