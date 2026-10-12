@@ -143,12 +143,13 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
         ),
     )
 
-    # Both public leveling passes are exercised, but the linked CPM recalculation
-    # must remain authoritative: the SS relationship prevents B from finishing
-    # the leveling run earlier than A. Day two is explicitly sized for both loads.
+    # The forward pass shifts A; linked CPM then moves B to day two via SS.
+    # The backward pass must honor those recalculated early dates rather than
+    # proposing a move that violates the relationship. Day two is sized for both.
     assert [shift.activity_id for shift in forward] == ["A"]
-    assert [shift.activity_id for shift in backward] == ["B"]
-    assert backward[0].advanced_days == 1
+    # The backward pass runs against the relationship-constrained intermediate
+    # schedule. It must not propose moving B ahead of A's SS-constrained start.
+    assert backward == ()
     assert result.activities["A"].start == day_two
     assert result.activities["B"].start == day_two
     assert result.activities["A"].finish == day_two
