@@ -242,12 +242,11 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
         ),
     )
 
-    # The ScheduleOptions path reaches the same authoritative leveling
-    # engine and produces the expected two forward shifts. Final activity
-    # dates are intentionally verified by the scheduler's existing behavior
-    # tests rather than duplicated here; this regression targets option
-    # mapping and orchestration through the typed boundary.
-    assert len(forward) == 2
+    # The ScheduleOptions path reaches the authoritative leveling engine.
+    # A real one-working-day offset resolves the overload in one shift.
+    assert len(forward) == 1
+    assert forward[0].activity_id == "A"
+    assert forward[0].new_start == date(2026, 10, 2)
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
 
