@@ -145,7 +145,17 @@ def test_resource_list_preserves_ids_that_contain_commas():
     assert options.resource_list == ("RESOURCE,ZONE", "R2")
 
 
-@pytest.mark.parametrize("value", [(), ("R1", "R1"), ("R1", "   "), ("R1", 2)])
+@pytest.mark.parametrize(
+    "value",
+    [
+        (),
+        ("R1", "R1"),
+        ("R1", "   "),
+        (" R1",),
+        ("R1 ",),
+        ("R1", 2),
+    ],
+)
 def test_resource_list_rejects_empty_duplicate_or_invalid_members(value):
     with pytest.raises(ValueError, match="resource_list"):
         ScheduleOptions(resource_list=value)
