@@ -1086,3 +1086,12 @@ Status: **merged; exact-head CI verified**
 - Client Typecheck run **37935488069** (run #4436) passed.
 - PR #1365 squash-merged as **2a445b66a527e8fb7af97938f5f2eec2b17369e7**.
 - This certifies only the XER date/Decimal slice; Issue #1227 remains open for broader cross-format/field-family parity. No scheduling calculations or Shared Core semantics changed.
+
+
+### 2026-10-12 — P6 typed array conversion + ResourceList snapshot boundary (PRs #1382/#1383)
+
+- PR #1382 is merged as 131f98507ef39794e139ba4309ab254c9fc7e518. Exact implementation head 70ab582056d4478ba369abf35d4708416d886f66 passed ConstructionPM CI for Python 3.11, 3.12 and 3.13, and Client Typecheck. Generic string-array / object-id-array conversion preserves order, duplicates and empty arrays, and rejects scalar/non-string values without coercion.
+- PR #1383 is merged as 9aa67da9b3ea2be799b203acd725b156426b14ec. Exact implementation head 5cea1ccffb130629ed03d6d5897214faf4fb6371 passed ConstructionPM CI (Python 3.11/3.12/3.13), Client Typecheck and PostgreSQL checks.
+- ResourceList is now a tuple of resource IDs through ScheduleOptions and the leveling boundary; canonical snapshot arrays preserve IDs containing commas. Legacy comma-separated snapshot strings are accepted only at the materialization compatibility boundary and validated for blanks/duplicates.
+- These changes do not certify the Release 26 REST mapping or close Issue #1379. The field disposition remains pending where external wire representation is not proven. PriorityList still needs an explicit canonical item/sort-order contract and round-trip evidence through authoritative resource leveling.
+- Issue #1379 updated with merge evidence; keep open for the remaining PriorityList acceptance gate. Do not change Shared Core semantics speculatively.
