@@ -215,6 +215,10 @@ def schedule_with_resource_leveling(
             priorities=leveling_input.options.priorities,
             level_all_resources=leveling_input.options.level_all_resources,
             resource_ids=leveling_input.options.resource_ids,
+            protected_activity_ids=tuple(sorted({
+                shift.activity_id for shift in forward_shifts
+                if shift.shift_working_days > 0
+            })),
         )
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
