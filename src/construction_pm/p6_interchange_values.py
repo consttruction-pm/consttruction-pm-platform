@@ -139,7 +139,7 @@ class P6InterchangeTypedValue:
             else:
                 raise P6InterchangeValueError(f"UNSUPPORTED_DATA_TYPE:{kind}")
         except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
-            raise P6InterchangeValueError(f"INVALID_{kind.upper()}_VALUE") from exc
+            raise P6InterchangeValueError(f"INVALID_{kind.upper().replace('-', '_')}_VALUE") from exc
 
         result = cls(kind, value, unit, currency)
         result.validate()
