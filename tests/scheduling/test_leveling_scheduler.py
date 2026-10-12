@@ -312,21 +312,16 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     assert result.activities["A"].finish == date(2026, 10, 2)
     assert result.activities["B"].finish == date(2026, 10, 2)
     assert result.project_finish == date(2026, 10, 2)
-    final_daily_demand = {
-        activity.start: sum(
-            demand.units
-            for activity_input in _resource_leveling_input(
-                preserve=True, capacity_day_two="16"
-            ).forward_activities
-            for demand in activity_input.resource_demands
-            if activity_input.activity_id == activity.activity_id
-        )
-        for activity in result.activities.values()
-    }
-    assert final_daily_demand == {
-        date(2026, 10, 2): Decimal("16")
-    }
-    assert final_daily_demand[date(2026, 10, 2)] <= Decimal("16")
+    final_daily_demand = sum(
+        demand.units
+        for activity_input in _resource_leveling_input(
+            preserve=True, capacity_day_two="16"
+        ).forward_activities
+        for demand in activity_input.resource_demands
+        if result.activities[activity_input.activity_id].start == date(2026, 10, 2)
+    )
+    assert final_daily_demand == Decimal("16")
+    assert final_daily_demand <= Decimal("16")
     assert set(result.floats) == {"A", "B"}
     for activity_id, float_result in result.floats.items():
         early = result.early_activities[activity_id]
