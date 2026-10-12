@@ -250,3 +250,29 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
     assert len(forward) == 2
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
+
+
+
+def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> None:
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(ResourceLevelingError, match="UNKNOWN_RESOURCE"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            options=ScheduleOptions(
+                level_all_resources=True,
+                resource_list=("UNKNOWN",),
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
