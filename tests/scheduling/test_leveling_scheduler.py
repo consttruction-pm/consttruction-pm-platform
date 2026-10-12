@@ -292,12 +292,16 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     activities = (Activity("A", 1), Activity("B", 1))
     relationships = (Relationship("A", "B", RelationshipType.SS),)
 
+    capacity_day_two = Decimal("16")
+    leveling_input = _resource_leveling_input(
+        preserve=True, capacity_day_two=str(capacity_day_two)
+    )
     result, forward, backward = schedule_with_resource_leveling(
         activities,
         relationships,
         date(2026, 10, 1),
         resolver,
-        _resource_leveling_input(preserve=True, capacity_day_two="16"),
+        leveling_input,
     )
 
     # Day one is overloaded (16 units against capacity 8); after the SS-linked
@@ -312,16 +316,28 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     assert result.activities["A"].finish == date(2026, 10, 2)
     assert result.activities["B"].finish == date(2026, 10, 2)
     assert result.project_finish == date(2026, 10, 2)
-    final_daily_demand = sum(
-        demand.units
-        for activity_input in _resource_leveling_input(
-            preserve=True, capacity_day_two="16"
-        ).forward_activities
-        for demand in activity_input.resource_demands
-        if result.activities[activity_input.activity_id].start == date(2026, 10, 2)
+    final_daily_demand_by_day = {
+        day: sum(
+            demand.units
+            for activity_input in leveling_input.forward_activities
+            for demand in activity_input.resource_demands
+            if result.activities[activity_input.activity_id].start == day
+        )
+        for day in (date(2026, 10, 1), date(2026, 10, 2))
+    }
+    capacity_by_day = {
+        capacity.period: capacity.units
+        for capacity in leveling_input.capacities
+        if capacity.resource_id == "R1"
+    }
+    assert final_daily_demand_by_day == {
+        date(2026, 10, 1): Decimal("0"),
+        date(2026, 10, 2): Decimal("16"),
+    }
+    assert all(
+        final_daily_demand_by_day[day] <= capacity_by_day[day]
+        for day in final_daily_demand_by_day
     )
-    assert final_daily_demand == Decimal("16")
-    assert final_daily_demand <= Decimal("16")
     assert set(result.floats) == {"A", "B"}
     for activity_id, float_result in result.floats.items():
         early = result.early_activities[activity_id]
