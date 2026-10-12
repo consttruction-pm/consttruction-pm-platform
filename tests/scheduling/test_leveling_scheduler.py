@@ -101,7 +101,7 @@ from construction_pm.scheduling.resource_leveling import (
 )
 
 
-def _resource_leveling_input(*, preserve: bool) -> SchedulerLevelingInput:
+def _resource_leveling_input(*, preserve: bool, capacity_day_two: str = "8") -> SchedulerLevelingInput:
     demands = (
         ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A"),
         ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "B"),
@@ -116,7 +116,7 @@ def _resource_leveling_input(*, preserve: bool) -> SchedulerLevelingInput:
     )
     capacities = (
         ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
-        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal(capacity_day_two)),
     )
     return SchedulerLevelingInput(forward, backward, capacities, ResourceLevelingOptions(
         preserve_scheduled_early_and_late_dates=preserve, level_all_resources=True,
@@ -297,9 +297,11 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         relationships,
         date(2026, 10, 1),
         resolver,
-        _resource_leveling_input(preserve=True),
+        _resource_leveling_input(preserve=True, capacity_day_two="16"),
     )
 
+    # Day one is overloaded (16 units against capacity 8); after the SS-linked
+    # activities move together, day two explicitly has capacity for both (16).
     # Accepted leveling movement must flow back through the ordinary CPM scheduler.
     assert len(forward) == 1
     assert backward == ()
@@ -310,6 +312,21 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     assert result.activities["A"].finish == date(2026, 10, 2)
     assert result.activities["B"].finish == date(2026, 10, 2)
     assert result.project_finish == date(2026, 10, 2)
+    final_daily_demand = {
+        activity.start: sum(
+            demand.units
+            for activity_input in _resource_leveling_input(
+                preserve=True, capacity_day_two="16"
+            ).forward_activities
+            for demand in activity_input.resource_demands
+            if activity_input.activity_id == activity.activity_id
+        )
+        for activity in result.activities.values()
+    }
+    assert final_daily_demand == {
+        date(2026, 10, 2): Decimal("16")
+    }
+    assert final_daily_demand[date(2026, 10, 2)] <= Decimal("16")
     assert set(result.floats) == {"A", "B"}
     for activity_id, float_result in result.floats.items():
         early = result.early_activities[activity_id]
