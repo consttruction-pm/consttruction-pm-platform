@@ -1,3 +1,5 @@
+> **Historical snapshot notice (2026-10-12):** This file records the 2026-10-08 snapshot and its 59.41% figure is not the current certified progress. The live repository pointer is [CURRENT_MAIN_AUDIT_POINTER_2026-10-12.md](CURRENT_MAIN_AUDIT_POINTER_2026-10-12.md). Do not quote this document's SHA or percentage as current without a fresh weighted reconciliation.
+
 # Current-main Audit Pointer — 2026-10-08
 
 This document is the live governance pointer for the current repository integration state.
