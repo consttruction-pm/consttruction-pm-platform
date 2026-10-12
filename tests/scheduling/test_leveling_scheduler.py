@@ -250,3 +250,37 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
     assert len(forward) == 2
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
+
+
+
+def test_public_leveling_orchestration_applies_typed_priority_list() -> None:
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+        ScheduleOptions,
+    )
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=True),
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            priority_list=(
+                PriorityListItem("activity_id", PrioritySortOrder.DESCENDING),
+            ),
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [("B", 1)]
+    assert backward == ()
+    assert result.activities["A"].start == date(2026, 10, 1)
+    assert result.activities["B"].start == date(2026, 10, 2)
