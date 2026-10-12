@@ -159,8 +159,7 @@ def schedule_with_resource_leveling(
         )
 
     if selected_options.resource_list is not None:
-        requested = tuple(x.strip() for x in selected_options.resource_list.split(",") if x.strip())
-        if requested != leveling_input.options.resource_ids:
+        if selected_options.resource_list != leveling_input.options.resource_ids:
             raise ResourceLevelingError("LEVELING_RESOURCE_LIST_MISMATCH")
 
     from .schedule import schedule
