@@ -200,7 +200,7 @@ class ScheduleOptions:
         if self.resource_list is not None:
             if not isinstance(self.resource_list, tuple) or not self.resource_list:
                 raise ValueError("resource_list must be a non-empty tuple of resource IDs or None")
-            if any(not isinstance(item, str) or not item.strip() for item in self.resource_list):
+            if any(not isinstance(item, str) or not item.strip() or item != item.strip() for item in self.resource_list):
                 raise ValueError("resource_list must contain only non-empty resource IDs")
             if len(set(self.resource_list)) != len(self.resource_list):
                 raise ValueError("resource_list must not contain duplicate resource IDs")

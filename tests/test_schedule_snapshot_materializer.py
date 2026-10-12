@@ -857,7 +857,7 @@ def test_materializer_decodes_resource_list_array_and_preserves_commas_in_ids():
     assert result.schedule_input.schedule_options.resource_list == ("RESOURCE,ZONE", "R2")
 
 
-@pytest.mark.parametrize("value", [["R1", ""], ["R1", "R1"], [1], "R1,,R2"])
+@pytest.mark.parametrize("value", [["R1", ""], ["R1", "R1"], [" R1"], ["R1 "], [1], "R1,,R2"])
 def test_materializer_rejects_malformed_resource_list(value):
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)

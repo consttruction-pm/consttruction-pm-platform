@@ -216,7 +216,7 @@ def _resource_list(raw: Any) -> tuple[str, ...] | None:
         raw = items
     if not isinstance(raw, list) or not raw:
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
-    if any(not isinstance(item, str) or not item.strip() for item in raw):
+    if any(not isinstance(item, str) or not item.strip() or item != item.strip() for item in raw):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
     items = tuple(raw)
     if len(set(items)) != len(items):
