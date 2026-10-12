@@ -243,10 +243,38 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
     )
 
     # The ScheduleOptions path reaches the same authoritative leveling
-    # engine and produces the expected two forward shifts. Final activity
-    # dates are intentionally verified by the scheduler's existing behavior
-    # tests rather than duplicated here; this regression targets option
-    # mapping and orchestration through the typed boundary.
-    assert len(forward) == 2
+    # engine through the typed boundary. Only one activity needs to move
+    # because that single shift resolves the one-day resource overload.
+    assert len(forward) == 1
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
+
+def test_backward_resource_demands_shift_by_working_days_across_weekend() -> None:
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import (
+        _backward_activities_from_intermediate,
+    )
+
+    leveling_input = _resource_leveling_input(preserve=False)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    early = SimpleNamespace(start=date(2026, 10, 1), finish=date(2026, 10, 1))
+    late = SimpleNamespace(start=date(2026, 10, 5), finish=date(2026, 10, 5))
+
+    backward = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": early, "B": early},
+        late_schedule={"A": late, "B": late},
+        resolver=resolver,
+    )
+
+    # Thursday -> Monday is two working days. Resource demand on Thursday
+    # must move to Monday, not remain Thursday or land on Friday.
+    assert {
+        demand.period
+        for activity in backward
+        for demand in activity.resource_demands
+    } == {date(2026, 10, 5)}
+

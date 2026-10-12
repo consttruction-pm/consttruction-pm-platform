@@ -5,6 +5,7 @@ from datetime import date
 from typing import Iterable, Mapping
 
 from .constraints import ActivityConstraint, ConstraintType
+from .calendar import WorkingTimeResolver
 from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
@@ -87,7 +88,7 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
-    resolver: object,
+    resolver: WorkingTimeResolver,
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -109,7 +110,7 @@ def _backward_activities_from_intermediate(
                             resolver.working_days_between(
                                 forward_by_id[activity.activity_id].start,
                                 late.start,
-                            ),
+                            ) + 1,
                         ),
                         demand.units,
                         demand.activity_id,
@@ -135,6 +136,8 @@ def schedule_with_resource_leveling(
     calculation_context: object | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], object] | None = None,
     batch_scheduled_finish: date | None = None,
+    resource_calendar_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ):
     """Run resource leveling through the authoritative scheduler.
 
@@ -146,6 +149,24 @@ def schedule_with_resource_leveling(
     """
     if not isinstance(leveling_input, SchedulerLevelingInput):
         raise TypeError("leveling_input must be SchedulerLevelingInput")
+    if resource_calendar_resolvers is not None and (
+        not isinstance(resource_calendar_resolvers, Mapping)
+        or any(
+            not isinstance(resource_id, str) or not resource_id.strip()
+            or not isinstance(resource_resolver, WorkingTimeResolver)
+            for resource_id, resource_resolver in resource_calendar_resolvers.items()
+        )
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_CALENDAR_RESOLVER")
+    if activity_resolvers is not None and (
+        not isinstance(activity_resolvers, Mapping)
+        or any(
+            not isinstance(activity_id, str) or not activity_id.strip()
+            or not isinstance(activity_resolver, WorkingTimeResolver)
+            for activity_id, activity_resolver in activity_resolvers.items()
+        )
+    ):
+        raise ResourceLevelingError("INVALID_ACTIVITY_CALENDAR_RESOLVER")
     selected_options = options or ScheduleOptions()
     # ScheduleOptions is the public typed configuration surface. Map only its
     # already-authoritative leveling fields into the existing Shared Core input;
@@ -172,6 +193,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     forward_shifts = propose_forward_leveling(
@@ -184,10 +206,13 @@ def schedule_with_resource_leveling(
         priorities=leveling_input.options.priorities,
         level_all_resources=leveling_input.options.level_all_resources,
         resource_ids=leveling_input.options.resource_ids,
+        resource_calendar_resolvers=resource_calendar_resolvers,
+        activity_resolvers=activity_resolvers,
     )
     shifted_forward = apply_leveling_shifts(
         leveling_input.forward_activities, forward_shifts, resolver=resolver,
         allow_beyond_float=not leveling_input.options.level_within_float,
+        activity_resolvers=activity_resolvers,
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
 
@@ -197,6 +222,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
@@ -216,6 +242,8 @@ def schedule_with_resource_leveling(
             priorities=leveling_input.options.priorities,
             level_all_resources=leveling_input.options.level_all_resources,
             resource_ids=leveling_input.options.resource_ids,
+            resource_calendar_resolvers=resource_calendar_resolvers,
+            activity_resolvers=activity_resolvers,
         )
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
@@ -229,5 +257,6 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
     return result, forward_shifts, backward_shifts
