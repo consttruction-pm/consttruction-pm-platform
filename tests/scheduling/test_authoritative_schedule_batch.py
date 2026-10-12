@@ -541,6 +541,51 @@ def test_external_assignment_rejects_collision_with_other_projects_existing_leve
         )
 
 
+def test_assignment_without_activity_id_is_not_mistaken_for_selected_demand():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=True,
+        external_project_priority_limit=10,
+        calculate_float_based_on_finish_date=False,
+    )
+    local_demand = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, ()),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (local_demand,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), ()),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (local_demand,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    unbound_assignment = ExternalResourceAssignment(
+        project_id="P1",
+        resource_id="R1",
+        period=date(2026, 10, 1),
+        units=Decimal("1"),
+        activity_id=None,
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", date(2026, 10, 10), options=options),
+            snapshot("P2", date(2026, 10, 10), options=options, priority=5),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        resource_assignments=(unbound_assignment,),
+        leveling_input=leveling_input,
+    )
+    assert {execution.project_id for execution in result.projects} == {"P1", "P2"}
+
+
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     # Legacy ResourceDemand inputs use resource_id as the shared leveling key;
     # this test covers that path without project-scoped external assignments.

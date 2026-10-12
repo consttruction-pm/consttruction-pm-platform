@@ -393,12 +393,22 @@ def execute_authoritative_schedule_batch(
                 for demand in activity.resource_demands
             )
             for assignment in resource_assignment_list:
-                assignment_is_selected = any(
-                    demand.resource_id == assignment.resource_id
-                    and demand.period == assignment.period
-                    and demand.units == assignment.units
-                    and demand.activity_id == assignment.activity_id
-                    for demand in selected_demands
+                # An assignment without an activity cannot be merged into the
+                # leveling graph (demands_for routes by activity_id). Do not
+                # infer selection from a matching None-valued demand tuple:
+                # that can make a filtered-out project's assignment look selected.
+                if assignment.activity_id is None:
+                    continue
+                assignment_is_selected = (
+                    all_activity_projects.get(assignment.activity_id)
+                    == assignment.project_id
+                    and any(
+                        demand.resource_id == assignment.resource_id
+                        and demand.period == assignment.period
+                        and demand.units == assignment.units
+                        and demand.activity_id == assignment.activity_id
+                        for demand in selected_demands
+                    )
                 )
                 if not assignment_is_selected:
                     continue
