@@ -339,3 +339,30 @@ def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> No
                 preserve_scheduled_early_and_late_dates=True,
             ),
         )
+
+
+def test_public_forward_leveling_within_float_moves_by_one_working_day() -> None:
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=True),
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert forward[0].shift_working_days == 1
+    assert backward == ()
+    assert result.activities["A"].start == date(2026, 10, 2)
+    assert result.activities["B"].start == date(2026, 10, 1)
