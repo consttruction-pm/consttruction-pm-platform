@@ -303,8 +303,13 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     # Accepted leveling movement must flow back through the ordinary CPM scheduler.
     assert len(forward) == 1
     assert backward == ()
-    assert result.activities["B"].start >= result.activities["A"].start
-    assert result.project_finish == max(item.finish for item in result.activities.values())
+    # The accepted A shift must be propagated through the SS dependency by
+    # the ordinary CPM scheduler, not merely reflected in leveling metadata.
+    assert result.activities["A"].start == date(2026, 10, 2)
+    assert result.activities["B"].start == date(2026, 10, 2)
+    assert result.activities["A"].finish == date(2026, 10, 2)
+    assert result.activities["B"].finish == date(2026, 10, 2)
+    assert result.project_finish == date(2026, 10, 2)
     assert set(result.floats) == {"A", "B"}
     for activity_id, float_result in result.floats.items():
         early = result.early_activities[activity_id]
@@ -313,6 +318,11 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         assert float_result.early_finish == early.finish
         assert float_result.late_start == late.start
         assert float_result.late_finish == late.finish
+        assert float_result.total_float == 0
+        assert early.start == date(2026, 10, 2)
+        assert early.finish == date(2026, 10, 2)
+        assert late.start == date(2026, 10, 2)
+        assert late.finish == date(2026, 10, 2)
 
 
 def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> None:
