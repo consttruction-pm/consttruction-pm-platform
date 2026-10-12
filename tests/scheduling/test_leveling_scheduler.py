@@ -339,3 +339,58 @@ def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> No
                 preserve_scheduled_early_and_late_dates=True,
             ),
         )
+
+
+
+def test_public_leveling_priority_changes_deterministic_shift_order() -> None:
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+        ScheduleOptions,
+    )
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    base = _resource_leveling_input(preserve=True)
+
+    prioritized, prioritized_forward, prioritized_backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        base,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            priority_list=(
+                PriorityListItem("activity_id", PrioritySortOrder.DESCENDING),
+            ),
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+    defaulted, default_forward, default_backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        base,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    # This fixture needs one shift per activity to clear its demand profile.
+    # Priority controls deterministic order; it does not promise fewer shifts.
+    assert [shift.activity_id for shift in prioritized_forward] == ["B", "A"]
+    assert [shift.activity_id for shift in default_forward] == ["A", "B"]
+    assert prioritized_backward == ()
+    assert default_backward == ()
+    assert prioritized.activities["A"].start == date(2026, 10, 2)
+    assert prioritized.activities["B"].start == date(2026, 10, 2)
+    assert defaulted.activities["A"].start == date(2026, 10, 2)
+    assert defaulted.activities["B"].start == date(2026, 10, 2)
