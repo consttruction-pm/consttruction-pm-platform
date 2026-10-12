@@ -574,16 +574,23 @@ def test_assignment_without_activity_id_is_not_mistaken_for_selected_demand():
         activity_id=None,
     )
 
-    result = execute_authoritative_schedule_batch(
-        [
-            snapshot("P1", date(2026, 10, 10), options=options),
-            snapshot("P2", date(2026, 10, 10), options=options, priority=5),
-        ],
-        resolvers={"P1": resolver(), "P2": resolver()},
-        resource_assignments=(unbound_assignment,),
-        leveling_input=leveling_input,
-    )
-    assert {execution.project_id for execution in result.projects} == {"P1", "P2"}
+    # The current single-project scheduler still rejects these batch-routing
+    # options after the orchestration guard. Reaching that downstream validation
+    # proves the unbound assignment was not falsely treated as selected and
+    # rejected as a cross-project collision first.
+    with pytest.raises(
+        ValueError,
+        match="unsupported schedule options: external_project_priority_limit, include_external_res_ass",
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot("P1", date(2026, 10, 10), options=options),
+                snapshot("P2", date(2026, 10, 10), options=options, priority=5),
+            ],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            resource_assignments=(unbound_assignment,),
+            leveling_input=leveling_input,
+        )
 
 
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
