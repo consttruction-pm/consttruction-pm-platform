@@ -525,9 +525,13 @@ def propose_backward_leveling(
     priorities: tuple[LevelingPriority, ...] = (),
     level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (),
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingShift, ...]:
     """Propose deterministic backward leveling from late dates toward early dates.
 
+    Protected activities remain in the demand ledger but cannot be selected for
+    an additional backward shift. This lets orchestration retain a forward shift
+    while the backward pass resolves remaining overload against it.
     Relationship/CPM recalculation remains the authoritative scheduler boundary.
     """
     if not isinstance(resolver, WorkingTimeResolver):
@@ -548,6 +552,13 @@ def propose_backward_leveling(
         raise ResourceLevelingError("INVALID_RESOURCE_ID")
     if len(set(resource_ids)) != len(resource_ids):
         raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
+    if not isinstance(protected_activity_ids, tuple) or any(
+        not isinstance(activity_id, str) or not activity_id.strip()
+        for activity_id in protected_activity_ids
+    ):
+        raise ResourceLevelingError("INVALID_PROTECTED_ACTIVITY_IDS")
+    if len(set(protected_activity_ids)) != len(protected_activity_ids):
+        raise ResourceLevelingError("DUPLICATE_PROTECTED_ACTIVITY_ID")
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     allowed = {
@@ -607,6 +618,8 @@ def propose_backward_leveling(
         candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
             for activity in activity_list:
+                if activity.activity_id in protected_activity_ids:
+                    continue
                 current_shift = shifts[activity.activity_id]
                 max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
                 if -current_shift >= max_advance:
