@@ -194,9 +194,10 @@ def test_forward_leveling_can_consume_float_when_level_within_float_is_disabled(
         ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
     )
     shifts = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)
+    # Once A1's demand is moved to the next working day, it no longer
+    # overlaps A2 on the original date, so a second shift is unnecessary.
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [
         ("A1", 1, -1),
-        ("A2", 1, -1),
     ]
 
 
