@@ -6,8 +6,8 @@ permissions:
 on:
   push:
     branches: ["main"]
+  # Run the full matrix for stacked PRs targeting integration/foundation branches too.
   pull_request:
-    branches: ["main"]
 
 jobs:
   test:
