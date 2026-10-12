@@ -1303,3 +1303,11 @@ Status: **merged; exact-head CI verified**
 - ConstructionPM CI run `37989543171` and Client Typecheck run `37989543108` passed on the exact PR head.
 - PR #1366 squash-merged as `21722a2da2bd5af535774db478af528c147a62dc`.
 - Issue #1227 remains open; this is a narrow datetime integrity slice, not full cross-format P6 interchange certification. No scheduling or calculation semantics changed.
+
+
+### 2026-10-12 — P6 array interchange / ScheduleOptions ResourceList boundary
+
+- PR #1382 merged as 131f98507ef39794e139ba4309ab254c9fc7e518; exact-head ConstructionPM CI (Python 3.11/3.12/3.13) and Client Typecheck passed.
+- PR #1383 merged as 9aa67da9b3ea2be799b203acd725b156426b14ec; exact-head ConstructionPM CI, Client Typecheck and PostgreSQL checks passed.
+- ResourceList now preserves typed resource-ID arrays through snapshot materialization and the authoritative leveling boundary, including IDs containing commas; malformed arrays and malformed legacy CSV values are rejected. This closes the internal array/scalar mismatch but does not by itself certify the Oracle P6 REST wire mapping.
+- Issue #1379 remains open for PriorityList: canonical item encoding, sort_order omission/default policy, and round-trip evidence through the authoritative leveling path remain unresolved. The Release 26 disposition stays pending until external-contract and end-to-end evidence are complete.
