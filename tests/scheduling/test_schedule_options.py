@@ -69,7 +69,7 @@ def test_multi_project_and_resource_leveling_options_are_preserved():
         level_all_resources=True,
         level_within_float=True,
         over_allocation_percentage=12.5,
-        resource_list="R1,R2",
+        resource_list=("R1", "R2"),
         priority_list=priority_items,
         external_project_priority_limit=7,
         preserve_scheduled_early_and_late_dates=True,
@@ -81,7 +81,7 @@ def test_multi_project_and_resource_leveling_options_are_preserved():
     assert options.level_all_resources is True
     assert options.level_within_float is True
     assert options.over_allocation_percentage == 12.5
-    assert options.resource_list == "R1,R2"
+    assert options.resource_list == ("R1", "R2")
     assert options.priority_list == priority_items
     assert options.external_project_priority_limit == 7
     assert options.preserve_scheduled_early_and_late_dates is True
@@ -126,7 +126,7 @@ def test_numeric_p6_options_reject_invalid_ranges(field, value):
 
 def test_resource_list_rejects_blank_values():
     with pytest.raises(ValueError, match="resource_list"):
-        ScheduleOptions(resource_list="   ")
+        ScheduleOptions(resource_list=("R1", ""))
 
 
 
@@ -138,3 +138,14 @@ def test_recalculate_resource_costs_matches_p6_option_and_defaults_off():
 def test_recalculate_resource_costs_rejects_non_boolean_values():
     with pytest.raises(ValueError, match="recalculate_resource_costs"):
         ScheduleOptions(recalculate_resource_costs=1)
+
+
+def test_resource_list_preserves_ids_that_contain_commas():
+    options = ScheduleOptions(resource_list=("RESOURCE,ZONE", "R2"))
+    assert options.resource_list == ("RESOURCE,ZONE", "R2")
+
+
+@pytest.mark.parametrize("value", [(), ("R1", "R1"), ("R1", "   "), ("R1", 2)])
+def test_resource_list_rejects_empty_duplicate_or_invalid_members(value):
+    with pytest.raises(ValueError, match="resource_list"):
+        ScheduleOptions(resource_list=value)
