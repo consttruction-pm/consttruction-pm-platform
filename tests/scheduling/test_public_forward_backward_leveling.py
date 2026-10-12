@@ -176,3 +176,5 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
         assert float_result.early_finish == result.early_activities[activity_id].finish
         assert float_result.late_start == result.late_activities[activity_id].start
         assert float_result.late_finish == result.late_activities[activity_id].finish
+        assert float_result.total_float == 0
+        assert float_result.critical is True
