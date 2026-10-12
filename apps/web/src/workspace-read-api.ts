@@ -229,6 +229,9 @@ function validateReadEnvelope(
   if (snapshot.workspace.contract_version !== "workspace-control-room.v1") {
     throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
   }
+  if (!Array.isArray(snapshot.workspace.columns) || !Array.isArray(snapshot.workspace.activities)) {
+    throw new Error("INVALID_WORKSPACE_COLLECTION");
+  }
   if (
     !isRecord(snapshot.workspace.context) ||
     snapshot.workspace.context.tenant_id !== context.tenant_id ||
