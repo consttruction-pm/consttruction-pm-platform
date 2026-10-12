@@ -8,7 +8,9 @@ This is the live repository pointer for audit reporting. Historical audit snapsh
 - Default branch: `main`
 - Current main HEAD at this refresh: `6c18e6ff3410390075c70b57ea1b1d53224aa399`
 - Latest product-code baseline remains `488e683a8a65e4316cc14b106cda0989784372bc` (`fix(backend): serialize unconfigured workspace read errors`); commits after it on main are audit-documentation-only.
-- Current pointer commit: https://github.com/consttruction-pm/consttruction-pm-platform/commit/6c18e6ff3410390075c70b57ea1b1d53224aa399
+- Weighted matrix commit: https://github.com/consttruction-pm/consttruction-pm-platform/commit/d5fdf4024e7adbd34d2a672678bb3bc385001e6c
+
+This pointer refresh itself is documentation-only; use the product-code baseline above when determining whether implementation evidence changed.
 
 ## Weighted progress — reconciled against Jalal 3
 
@@ -18,6 +20,7 @@ This is the live repository pointer for audit reporting. Historical audit snapsh
 - Per-activity weight, completion fraction, contribution, and owner subtotal are recorded in [the 2026-10-12 reconciliation matrix](WEIGHTED_PROGRESS_RECONCILIATION_2026-10-12.md).
 - This is an implementation progress indicator, **not release readiness, production acceptance, or full P6 parity certification**.
 - The 2026-10-08 59.41% snapshot is superseded by the 2026-10-10 Jalal 3 workbook; older Jalal 1/2 percentages are not comparable because their scope/weights differ.
+- Activity-level weights, completion fractions, earned contribution, and owner subtotals are documented in [the 2026-10-12 reconciliation matrix](WEIGHTED_PROGRESS_RECONCILIATION_2026-10-12.md).
 - Open/unmerged PRs contribute zero incremental completion until merged and validated. PRs #1368, #1371, #1375 and #1376 remain open; no additional weight was credited for them.
 - The product-code tree has not changed since the `488e683...` baseline; subsequent main commits were documentation-only. The latest open PRs do not increase the current score.
 
