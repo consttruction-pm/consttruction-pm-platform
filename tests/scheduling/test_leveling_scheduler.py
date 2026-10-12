@@ -202,7 +202,7 @@ def test_schedule_options_map_all_authoritative_leveling_fields() -> None:
         level_within_float=True,
         min_float_to_preserve=2,
         over_allocation_percentage=12.5,
-        resource_list="R1, R2",
+        resource_list=("R1", "R2"),
         preserve_scheduled_early_and_late_dates=True,
     )
 
@@ -237,7 +237,7 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
             level_all_resources=True,
             level_within_float=True,
             min_float_to_preserve=0,
-            resource_list="R1",
+            resource_list=("R1",),
             preserve_scheduled_early_and_late_dates=True,
         ),
     )
