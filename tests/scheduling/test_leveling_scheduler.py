@@ -271,7 +271,7 @@ def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> No
             resolver,
             _resource_leveling_input(preserve=True),
             options=ScheduleOptions(
-                level_all_resources=True,
+                level_all_resources=False,
                 resource_list=("UNKNOWN",),
                 preserve_scheduled_early_and_late_dates=True,
             ),
