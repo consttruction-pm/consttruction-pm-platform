@@ -205,7 +205,7 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
             level_all_resources=True,
             level_within_float=True,
             over_allocation_percentage=12.5,
-            resource_list="R1,R2",
+            resource_list=("R1", "R2"),
             priority_list=(
                 __import__(
                     "construction_pm.scheduling.schedule_options",
@@ -242,7 +242,7 @@ def test_materializes_all_schedule_options_without_silent_field_loss():
     assert options.level_all_resources is True
     assert options.level_within_float is True
     assert options.over_allocation_percentage == 12.5
-    assert options.resource_list == "R1,R2"
+    assert options.resource_list == ("R1", "R2")
     assert options.priority_list is not None
     assert options.priority_list[0].field_name == "total_float"
     assert options.priority_list[0].sort_order.value == "DESCENDING"
@@ -826,3 +826,61 @@ def test_authoritative_schedule_rejects_non_integer_project_revision():
             activity_calendar_assignments=(),
             project_start=date(2026, 10, 1),
         )
+
+
+def test_materializer_decodes_resource_list_array_and_preserves_commas_in_ids():
+    cal = CalendarReference("CAL-RL", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RESOURCE-LIST-ARRAY",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(resource_list=("RESOURCE,ZONE", "R2")),
+        project_start=date(2026, 10, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=1, calendar_id="CAL-RL", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-10-01T08:00:00+00:00",
+        input_snapshot_id="S-RESOURCE-LIST-ARRAY", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 10, 1, 8, tzinfo=timezone.utc))
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["schedule_options"]["resource_list"] == ["RESOURCE,ZONE", "R2"]
+
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.schedule_options.resource_list == ("RESOURCE,ZONE", "R2")
+
+
+@pytest.mark.parametrize("value", [["R1", ""], ["R1", "R1"], [1], "R1,,R2"])
+def test_materializer_rejects_malformed_resource_list(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["resource_list"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_SCHEDULE_OPTION:resource_list"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_accepts_legacy_comma_separated_resource_list():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["resource_list"] = "R1,R2"
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    legacy = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
+    assert result.schedule_input.schedule_options.resource_list == ("R1", "R2")

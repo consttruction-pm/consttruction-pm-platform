@@ -144,3 +144,17 @@ def test_scheduler_leveling_boundary_rejects_unsupported_priority_field():
             capacities=capacities,
             options=options,
         )
+
+
+def test_scheduler_leveling_boundary_preserves_resource_ids_as_array_members():
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(resource_list=("R1,ZONE", "R2"))
+
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+    )
+
+    assert boundary.options.resource_ids == ("R1,ZONE", "R2")

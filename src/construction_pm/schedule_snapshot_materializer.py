@@ -198,6 +198,32 @@ def _finite_percent_complete(value: Any) -> float:
     return result
 
 
+def _resource_list(raw: Any) -> tuple[str, ...] | None:
+    """Decode canonical resource-ID arrays while accepting legacy comma strings.
+
+    Legacy strings are converted only at this interchange boundary. New
+    snapshots serialize the domain tuple as a JSON array and never split IDs
+    that legitimately contain commas.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        if not raw.strip():
+            raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
+        items = [item.strip() for item in raw.split(",")]
+        if any(not item for item in items):
+            raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
+        raw = items
+    if not isinstance(raw, list) or not raw:
+        raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
+    if any(not isinstance(item, str) or not item.strip() for item in raw):
+        raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
+    items = tuple(raw)
+    if len(set(items)) != len(items):
+        raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
+    return items
+
+
 def _schedule_options(value: Any) -> ScheduleOptions:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS")
@@ -307,7 +333,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             level_all_resources=_bool("level_all_resources"),
             level_within_float=_bool("level_within_float"),
             over_allocation_percentage=_finite_float(value.get("over_allocation_percentage", 0.0), "over_allocation_percentage"),
-            resource_list=value.get("resource_list"),
+            resource_list=_resource_list(value.get("resource_list")),
             priority_list=priority_list,
             external_project_priority_limit=_int("external_project_priority_limit", 0),
             preserve_scheduled_early_and_late_dates=_bool("preserve_scheduled_early_and_late_dates"),
