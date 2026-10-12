@@ -57,16 +57,34 @@ def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm()
         ),
     )
 
-    # Public options must reach both passes; backward leveling can advance the
-    # activity shifted forward, and final output must come from ordinary CPM.
+    # Public options must reach both passes. The forward pass moves A to day
+    # two; the backward pass advances B to day one. The final ordinary CPM
+    # schedule must preserve both movements without putting both demands on
+    # the same day.
     assert len(forward) == 1
+    assert forward[0].activity_id == "A"
     assert len(backward) == 1
+    assert backward[0].activity_id == "B"
     assert backward[0].advanced_days == 1
     assert {key: value.start for key, value in result.activities.items()} == {
-        "A": day_one,
+        "A": day_two,
         "B": day_one,
     }
-    assert result.project_finish == day_one
+    assert result.project_finish == day_two
+    final_demand_by_day = {
+        day: sum(
+            demand.units
+            for activity_id, demand in (("A", demands[0]), ("B", demands[1]))
+            if result.activities[activity_id].start == day
+        )
+        for day in (day_one, day_two)
+    }
+    capacity_by_day = {day_one: Decimal("8"), day_two: Decimal("8")}
+    assert final_demand_by_day == {
+        day_one: Decimal("8"),
+        day_two: Decimal("8"),
+    }
+    assert all(final_demand_by_day[day] <= capacity_by_day[day] for day in capacity_by_day)
     assert set(result.floats) == {"A", "B"}
     for activity_id, float_result in result.floats.items():
         assert float_result.early_start == result.early_activities[activity_id].start
