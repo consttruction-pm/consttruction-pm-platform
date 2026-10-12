@@ -229,7 +229,10 @@ function validateReadEnvelope(
   if (snapshot.workspace.contract_version !== "workspace-control-room.v1") {
     throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
   }
-  if (!Array.isArray(snapshot.workspace.columns) || !Array.isArray(snapshot.workspace.activities)) {
+  if (
+    !isRecordArray(snapshot.workspace.columns) ||
+    !isRecordArray(snapshot.workspace.activities)
+  ) {
     throw new Error("INVALID_WORKSPACE_COLLECTION");
   }
   if (
@@ -251,7 +254,7 @@ function validateReadEnvelope(
     snapshot.safety_observations,
     snapshot.punch_items,
   ];
-  if (requiredCollections.some((collection) => !Array.isArray(collection))) {
+  if (requiredCollections.some((collection) => !isRecordArray(collection))) {
     throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
 
@@ -268,7 +271,15 @@ function validateReadEnvelope(
     snapshot.procurement_commitments,
     snapshot.procurement_deliveries,
   ];
-  if (optionalCollections.some((collection) => collection !== undefined && !Array.isArray(collection))) {
+  if (
+    optionalCollections.some(
+      (collection) => collection !== undefined && !isRecordArray(collection),
+    )
+  ) {
     throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
+}
+
+function isRecordArray(value: unknown): value is readonly Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isRecord);
 }
