@@ -496,7 +496,10 @@ def test_missing_external_project_membership_is_explicit():
         )
 
 
-def test_external_assignment_rejects_collision_with_other_projects_existing_leveling_demand():
+@pytest.mark.parametrize("with_calendar_registry", [False, True])
+def test_external_assignment_rejects_collision_with_other_projects_existing_leveling_demand(
+    with_calendar_registry,
+):
     options = ScheduleOptions(
         level_all_resources=True,
         include_external_res_ass=True,
@@ -534,10 +537,13 @@ def test_external_assignment_rejects_collision_with_other_projects_existing_leve
             resolvers={"P1": resolver(), "P2": resolver()},
             resource_assignments=(assignment("P1", "R1"),),
             leveling_input=leveling_input,
+            calendar_registry=calendar_registry() if with_calendar_registry else None,
         )
 
 
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
+    # Legacy ResourceDemand inputs use resource_id as the shared leveling key;
+    # this test covers that path without project-scoped external assignments.
     options = ScheduleOptions(
         level_all_resources=True,
         include_external_res_ass=False,
