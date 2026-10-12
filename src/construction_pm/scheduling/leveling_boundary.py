@@ -112,10 +112,7 @@ def scheduler_leveling_input_from_options(
         level_within_float=options.level_within_float,
         min_float_to_preserve=Decimal(str(options.min_float_to_preserve)),
         over_allocation_percentage=Decimal(str(options.over_allocation_percentage)),
-        resource_ids=tuple(
-            item.strip() for item in options.resource_list.split(",")
-            if item.strip()
-        ) if options.resource_list else (),
+        resource_ids=options.resource_list or (),
         priorities=_map_priority_list(options),
     )
     return SchedulerLevelingInput(
