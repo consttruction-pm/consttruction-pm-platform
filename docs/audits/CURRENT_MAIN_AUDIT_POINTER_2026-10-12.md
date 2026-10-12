@@ -6,27 +6,29 @@ This is the live repository pointer for audit reporting. Historical audit snapsh
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Default branch: `main`
-- Main HEAD at audit time: `488e683a8a65e4316cc14b106cda0989784372bc`
-- Commit: `fix(backend): serialize unconfigured workspace read errors`
-- Commit timestamp: 2026-10-09T23:58:36Z
-- Commit page: https://github.com/consttruction-pm/consttruction-pm-platform/commit/488e683a8a65e4316cc14b106cda0989784372bc
+- Current main HEAD at this refresh: `6c18e6ff3410390075c70b57ea1b1d53224aa399`
+- Latest product-code baseline remains `488e683a8a65e4316cc14b106cda0989784372bc` (`fix(backend): serialize unconfigured workspace read errors`); commits after it on main are audit-documentation-only.
+- Current pointer commit: https://github.com/consttruction-pm/consttruction-pm-platform/commit/6c18e6ff3410390075c70b57ea1b1d53224aa399
 
-## Weighted progress — refresh required
+## Weighted progress — reconciled against Jalal 3
 
-- Governing baseline: Jalal 3, as recorded in the prior pointer.
-- Last recorded weighted snapshot: **59.41% complete / 40.59% remaining, dated 2026-10-08**.
-- **That percentage is historical, not certified as the 2026-10-12 current progress. Do not repeat it as a current figure.**
-- Current weighted percentage: **withheld pending reconciliation** of the approved Jalal 3 activity weights, duplicate/overlap handling, current-main evidence, and remaining-work statuses.
-- Open/unmerged PRs contribute zero incremental completion until merged and validated.
-- Counts of commits, PRs, issues, files, or code volume are not progress measures.
+- Governing source: Library workbook `جلال3_اصلاح_مبنای_پیشرفت_2026-10-10.xlsx`, sheet `جلال 3`, updated after GitHub reconciliation on 2026-10-10.
+- The workbook contains 23 weighted activities, weights sum to 100.00%, and its `S5:S27` weighted contribution values sum to **59.50**.
+- **Current Jalal 3 weighted implementation indicator: 59.50% complete / 40.50% remaining.**
+- Per-activity weight, completion fraction, contribution, and owner subtotal are recorded in [the 2026-10-12 reconciliation matrix](WEIGHTED_PROGRESS_RECONCILIATION_2026-10-12.md).
+- This is an implementation progress indicator, **not release readiness, production acceptance, or full P6 parity certification**.
+- The 2026-10-08 59.41% snapshot is superseded by the 2026-10-10 Jalal 3 workbook; older Jalal 1/2 percentages are not comparable because their scope/weights differ.
+- Open/unmerged PRs contribute zero incremental completion until merged and validated. PRs #1368, #1371, #1375 and #1376 remain open; no additional weight was credited for them.
+- The product-code tree has not changed since the `488e683...` baseline; subsequent main commits were documentation-only. The latest open PRs do not increase the current score.
 
 ## Current material acceptance gates
 
-1. **Web Beta runtime / workspace data** — Issue #1359: route and client contract exist, but authoritative persistence-backed workspace read-model composition and authenticated end-to-end evidence remain outstanding. Do not claim the static preview proves a working authenticated dashboard.
+1. **Web Beta runtime / workspace data** — Issue #1359: PR #1375 adds a useful authenticated API-composition test, but its fixture still uses `InMemoryWorkspaceReadProvider`; production authoritative workspace provider and deployed runtime evidence remain outstanding.
 2. **Canonical logo and homepage visual acceptance** — Issue #1327 / PR #1368: exact-head CI passed on the recorded PR SHA, but the PR remains open; source tests do not prove pixel-level match to the supplied reference or live deployment. Original reference images are not yet committed as binary assets in the repository.
-3. **Resource leveling / resource identity** — PR #1371 remains draft and open; its recorded PostgreSQL integration pass is not proof of the full scheduling test matrix. PR #1373's workflow change passed its own matrix but does not certify PR #1371's behavior.
-4. **P6 ScheduleOptions parity** — Issue #403 retains field-by-field semantic disposition, metadata classification, external-project option verification, and deterministic evidence requirements.
-5. **Weighted governance** — Issue #680 remains the governing reconciliation item. The historical 2026-10-01 master matrix and 2026-10-08 pointer are not substitutes for a refreshed weighted capability matrix.
+3. **Resource leveling / resource identity** — PR #1371 remains draft and open; its recorded PostgreSQL integration pass is not proof of the full scheduling test matrix. PR #1373's workflow change does not certify PR #1371 behavior.
+4. **P6 ScheduleOptions parity** — Issue #403 retains field-by-field semantic disposition, metadata classification, external-project option verification, and deterministic evidence requirements. PR #1376 improves typed array validation but explicitly does not resolve canonical `PriorityList`/`ResourceList` mapping.
+5. **Calendar exception precedence** — Issue #1284 is closed, but closure alone is not evidence. Its acceptance should be considered verified only if the production resolver wiring and tests are present on current main; do not infer this from issue state.
+6. **Weighted governance** — Issue #680 remains the governing reconciliation item; keep it open for continuing updates and evidence.
 
 ## Ownership / non-overlap
 
@@ -37,4 +39,4 @@ This is the live repository pointer for audit reporting. Historical audit snapsh
 
 ## Reporting rule
 
-Publish separate figures for (a) overall product scope, (b) Web Beta, (c) source implementation, and (d) Shared Core/P6 parity only when each has a traceable weighted matrix and evidence. Never infer any of these from a single domain percentage. Update this pointer only when the main SHA and evidence have been freshly checked.
+Publish separate figures for (a) overall product scope, (b) Web Beta, (c) source implementation, and (d) Shared Core/P6 parity only when each has a traceable weighted matrix and evidence. Never infer any of these from a single domain percentage. Recompute after each merge that changes a weighted capability; documentation-only commits do not change the capability score.
