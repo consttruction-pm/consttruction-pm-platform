@@ -384,13 +384,12 @@ def test_public_leveling_priority_changes_deterministic_shift_order() -> None:
         ),
     )
 
-    # This fixture needs one shift per activity to clear its demand profile.
-    # Priority controls deterministic order; it does not promise fewer shifts.
-    assert [shift.activity_id for shift in prioritized_forward] == ["B", "A"]
-    assert [shift.activity_id for shift in default_forward] == ["A", "B"]
+    # One shift removes the day-one overload; priority chooses which activity moves.
+    assert [shift.activity_id for shift in prioritized_forward] == ["B"]
+    assert [shift.activity_id for shift in default_forward] == ["A"]
     assert prioritized_backward == ()
     assert default_backward == ()
-    assert prioritized.activities["A"].start == date(2026, 10, 2)
+    assert prioritized.activities["A"].start == date(2026, 10, 1)
     assert prioritized.activities["B"].start == date(2026, 10, 2)
     assert defaulted.activities["A"].start == date(2026, 10, 2)
-    assert defaulted.activities["B"].start == date(2026, 10, 2)
+    assert defaulted.activities["B"].start == date(2026, 10, 1)
