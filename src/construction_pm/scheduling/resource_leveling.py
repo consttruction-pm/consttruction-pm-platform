@@ -20,6 +20,14 @@ class SortOrder(str, Enum):
 
 @dataclass(frozen=True)
 class ResourceDemand:
+    """Demand keyed by the legacy/global resource ID.
+
+    This value has no project-scoped resource identity. In batch leveling,
+    equal ``resource_id`` values therefore represent one shared resource; a
+    project-local resource that reuses an ID is ambiguous and must be rejected
+    at the orchestration boundary when it collides with an external assignment.
+    """
+
     resource_id: str
     period: date
     units: Decimal
