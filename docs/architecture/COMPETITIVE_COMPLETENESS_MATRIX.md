@@ -31,8 +31,8 @@ Foundation = architecture/specification exists; Implemented = source implementat
 | Site reality / visual progress | Missing product module | Photo/360/drone evidence and AI verification | B |
 | Risk | Schedule foundation | Enterprise risk register and quantitative analysis | A + B |
 | Portfolio control | Partial foundation | Executive multi-project control room | B |
-| AI copilot / agents | Architectural requirement | Grounded analysis, scenarios, actions and audit trail | B |
-| Natural-language scheduling | Not implemented | Query + scenario + explainable changes | B |
+| AI copilot / agents | Partial foundations: control-intelligence contracts, Smart Guide projections, schedule query and proposal/approval boundary exist; a complete production model/tool/execute/verify pipeline is not evidenced | Integrated V1 assistant with grounded analysis, project creation/import, authoritative calculations, controlled actions, personalization, reporting and audit | Gate A + B |
+| Natural-language scheduling | Typed query/scenario contracts exist; natural-language interpretation and integrated production assistant execution are not evidenced | Natural-language query, explainable scenario, approved execution and authoritative re-calculation | Gate A + B |
 | Predictive schedule risk | Not implemented | AI forecast/risk layer over Shared Core | B |
 | ERP/accounting integration | Contract direction | AP/AR/commitments/actuals/forecast interfaces | B |
 | Enterprise identity | Authorization boundary | SSO/SAML/OIDC and lifecycle | B |
@@ -47,6 +47,7 @@ Foundation = architecture/specification exists; Implemented = source implementat
 - Any P0 item still only planned.
 - A material competitor capability within scope has no implementation/integration decision.
 - AI decision features lack provenance, action controls or auditability.
+- The mandatory V1 AI Assistant does not pass every acceptance criterion in `docs/architecture/AI_ASSISTANT_V1_REQUIREMENTS.md`.
 - Web/Desktop/Mobile parity violates shared calculation authority.
 - Export/import or API contracts lose calculation-ready types.
 - Critical security, offline, performance, localization or data-integrity evidence is missing.
