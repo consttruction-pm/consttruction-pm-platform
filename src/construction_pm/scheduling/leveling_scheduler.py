@@ -113,6 +113,9 @@ def _backward_activities_from_intermediate(
                         ),
                         demand.units,
                         demand.activity_id,
+                        demand.resource_identity,
+                        demand.project_id,
+                        demand.tenant_id,
                     )
                     for demand in forward_by_id.get(activity.activity_id, activity).resource_demands
                 ),

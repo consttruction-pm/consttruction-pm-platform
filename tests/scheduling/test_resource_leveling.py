@@ -5,9 +5,14 @@ from decimal import Decimal
 
 import pytest
 
+from construction_pm.scheduling.resource_identity import (
+    ResourceIdentity,
+    ResourceIdentityScope,
+)
 from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     LevelingPriority,
+    LevelingShift,
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingError,
@@ -349,3 +354,103 @@ def test_backward_leveling_selected_resource_scope_keeps_other_activities_unchan
     assert shifts[0].new_start == day_one
     assert shifts[0].new_finish == day_one
     assert not ({"C", "D"} & {shift.activity_id for shift in shifts})
+
+
+def test_same_legacy_resource_id_in_different_project_scopes_is_not_aggregated():
+    period = date(2026, 10, 1)
+    demands = (
+        ResourceDemand("R1", period, Decimal("8"), "A1", project_id="P1", tenant_id="T1"),
+        ResourceDemand("R1", period, Decimal("8"), "A2", project_id="P2", tenant_id="T1"),
+    )
+    capacities = (
+        ResourceCapacity("R1", period, Decimal("8"), project_id="P1", tenant_id="T1"),
+        ResourceCapacity("R1", period, Decimal("8"), project_id="P2", tenant_id="T1"),
+    )
+
+    assert detect_over_allocations(demands, capacities) == ()
+
+
+def test_same_raw_id_with_distinct_project_local_identities_is_not_aggregated():
+    period = date(2026, 10, 1)
+    p1 = ResourceIdentity("canonical-p1-r1", "T1", ResourceIdentityScope.PROJECT_LOCAL, "P1")
+    p2 = ResourceIdentity("canonical-p2-r1", "T1", ResourceIdentityScope.PROJECT_LOCAL, "P2")
+    demands = (
+        ResourceDemand("R1", period, Decimal("8"), "A1", p1, "P1", "T1"),
+        ResourceDemand("R1", period, Decimal("8"), "A2", p2, "P2", "T1"),
+    )
+    capacities = (
+        ResourceCapacity("R1", period, Decimal("8"), p1, "P1", "T1"),
+        ResourceCapacity("R1", period, Decimal("8"), p2, "P2", "T1"),
+    )
+
+    assert detect_over_allocations(demands, capacities) == ()
+
+
+def test_explicit_shared_resource_identity_aggregates_across_projects_once():
+    period = date(2026, 10, 1)
+    shared = ResourceIdentity("canonical-shared-r1", "T1", ResourceIdentityScope.TENANT_SHARED)
+    demands = (
+        ResourceDemand("R1", period, Decimal("6"), "A1", shared, "P1", "T1"),
+        ResourceDemand("R1", period, Decimal("6"), "A2", shared, "P2", "T1"),
+    )
+    capacities = (ResourceCapacity("R1", period, Decimal("10"), shared, "P1", "T1"),)
+
+    result = detect_over_allocations(demands, capacities)
+
+    assert len(result) == 1
+    assert result[0].demand == Decimal("12")
+    assert result[0].base_capacity == Decimal("10")
+    assert result[0].excess == Decimal("2")
+    assert result[0].resource_identity == shared
+
+
+def test_explicit_resource_selection_rejects_ambiguous_legacy_code():
+    period = date(2026, 10, 1)
+    p1 = ResourceIdentity("canonical-p1-r1", "T1", ResourceIdentityScope.PROJECT_LOCAL, "P1")
+    p2 = ResourceIdentity("canonical-p2-r1", "T1", ResourceIdentityScope.PROJECT_LOCAL, "P2")
+    demands = (
+        ResourceDemand("R1", period, Decimal("1"), "A1", p1, "P1", "T1"),
+        ResourceDemand("R1", period, Decimal("1"), "A2", p2, "P2", "T1"),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="AMBIGUOUS_RESOURCE_ID"):
+        select_leveling_resources(demands, level_all_resources=False, resource_ids=("R1",))
+
+
+def test_reused_canonical_id_with_conflicting_scope_definition_is_rejected():
+    period = date(2026, 10, 1)
+    local = ResourceIdentity("same-canonical-id", "T1", ResourceIdentityScope.PROJECT_LOCAL, "P1")
+    shared = ResourceIdentity("same-canonical-id", "T1", ResourceIdentityScope.TENANT_SHARED)
+    demands = (
+        ResourceDemand("R1", period, Decimal("1"), "A1", local, "P1", "T1"),
+        ResourceDemand("R1", period, Decimal("1"), "A2", shared, "P2", "T1"),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="RESOURCE_IDENTITY_DEFINITION_MISMATCH"):
+        detect_over_allocations(demands, ())
+
+
+def test_identity_and_scope_survive_forward_leveling_demand_shifts():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    shared = ResourceIdentity("canonical-shared-r1", "T1", ResourceIdentityScope.TENANT_SHARED)
+    original = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("1"), "A1", shared, "P1", "T1"
+    )
+    activity = LevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), 2, (original,)
+    )
+    # Identity must survive an approved shift application round-trip.
+    shifted = apply_leveling_shifts(
+        (activity,),
+        (
+            LevelingShift(
+                "A1", 1, date(2026, 10, 2), date(2026, 10, 2), 1, 1
+            ),
+        ),
+        resolver=resolver,
+    )
+    assert shifted[0].resource_demands[0].resource_identity == shared
+    assert shifted[0].resource_demands[0].project_id == "P1"
+    assert shifted[0].resource_demands[0].tenant_id == "T1"
