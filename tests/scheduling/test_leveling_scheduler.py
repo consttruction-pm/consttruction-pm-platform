@@ -621,3 +621,64 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
         day_one,
         day_two,
     ]
+
+def test_public_backward_leveling_applies_overallocation_tolerance() -> None:
+    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        LevelingActivity,
+        ResourceCapacity,
+        ResourceDemand,
+        ResourceLevelingOptions,
+        SchedulerLevelingInput,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+    from construction_pm.scheduling.working_time import WorkingCalendar, WorkingTimeResolver
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    forward_demand = ResourceDemand("R1", day_one, Decimal("105"), "A")
+    backward_demand = ResourceDemand("R1", day_two, Decimal("105"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (forward_demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", day_one, day_one, day_two, day_two, (backward_demand,),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("100")),
+            ResourceCapacity("R1", day_two, Decimal("100")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1),),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=day_two,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            over_allocation_percentage=5.0,
+            preserve_scheduled_early_and_late_dates=False,
+        ),
+    )
+
+    # The 5% tolerance makes 105 units acceptable against capacity 100 in
+    # both passes. Without propagation to the backward proposer, A would be
+    # advanced from day two to day one to "resolve" a tolerated overload.
+    assert forward == ()
+    assert backward == ()
+    assert result.activities["A"].start == day_one
