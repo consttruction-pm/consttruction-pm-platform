@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 import json
+from pathlib import Path
 
 import pytest
 
@@ -215,3 +216,25 @@ def test_invalid_cubi_float_is_rejected_not_coerced():
             [cubi_result(total_float_hours=True)],
             scope=scope(),
         )
+
+def test_report_matches_versioned_shared_json_contract_shape():
+    contract_path = (
+        Path(__file__).parents[1]
+        / "shared"
+        / "contracts"
+        / "schedule-validation-report.v1.schema.json"
+    )
+    schema = json.loads(contract_path.read_text(encoding="utf-8"))
+    report = compare_xer_schedule_results(
+        xer_document(), [cubi_result()], scope=scope()
+    ).to_dict()
+
+    assert report["contract_version"] == schema["properties"]["contract_version"]["const"]
+    assert set(report) == set(schema["required"])
+    entry_contract = schema["properties"]["entries"]["items"]
+    assert all(set(entry) == set(entry_contract["required"]) for entry in report["entries"])
+    assert all(
+        entry["status"] in entry_contract["properties"]["status"]["enum"]
+        for entry in report["entries"]
+    )
+
