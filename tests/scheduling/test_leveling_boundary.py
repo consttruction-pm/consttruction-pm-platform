@@ -6,6 +6,10 @@ import pytest
 from construction_pm.scheduling.leveling_boundary import (
     scheduler_leveling_input_from_options,
 )
+from construction_pm.scheduling.resource_identity import (
+    ResourceIdentity,
+    ResourceIdentityScope,
+)
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -158,3 +162,36 @@ def test_scheduler_leveling_boundary_preserves_resource_ids_as_array_members():
     )
 
     assert boundary.options.resource_ids == ("R1,ZONE", "R2")
+
+
+def test_scheduler_leveling_boundary_rejects_same_label_with_mismatched_identity():
+    period = date(2026, 10, 5)
+    identity_p1 = ResourceIdentity(
+        "resource-p1", "tenant-1", ResourceIdentityScope.PROJECT_LOCAL, "P1"
+    )
+    identity_p2 = ResourceIdentity(
+        "resource-p2", "tenant-1", ResourceIdentityScope.PROJECT_LOCAL, "P2"
+    )
+    demand = ResourceDemand(
+        "R1", period, Decimal("1"), "A1", identity_p1, "P1", "tenant-1"
+    )
+    forward = (
+        LevelingActivity("A1", period, period, 0, (demand,)),
+    )
+    backward = (
+        BackwardLevelingActivity("A1", period, period, period, period, (demand,)),
+    )
+    capacity = ResourceCapacity(
+        "R1", period, Decimal("1"), identity_p2, "P2", "tenant-1"
+    )
+
+    with pytest.raises(
+        ResourceLevelingError,
+        match="RESOURCE_DEMAND_CAPACITY_IDENTITY_MISMATCH",
+    ):
+        SchedulerLevelingInput(
+            forward_activities=forward,
+            backward_activities=backward,
+            capacities=(capacity,),
+            options=ResourceLevelingOptions(),
+        )
