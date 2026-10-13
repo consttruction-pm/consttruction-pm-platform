@@ -568,3 +568,54 @@ def test_public_leveling_selected_resource_scope_keeps_other_activities_unchange
         {"A": day_one, "B": day_two},
         {"A": day_two, "B": day_one},
     )
+
+
+def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None:
+    from dataclasses import replace
+
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    base = _resource_leveling_input(preserve=True)
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=tuple(
+            replace(activity, total_float=2) for activity in base.forward_activities
+        ),
+        backward_activities=tuple(
+            replace(activity, late_start=day_three, late_finish=day_three)
+            for activity in base.backward_activities
+        ),
+        capacities=base.capacities,
+        options=base.options,
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 6),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            min_float_to_preserve=1,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    # Two days of total float with one day required to remain permits exactly
+    # one working-day move; the one-day-float case is separately tested as blocked.
+    assert len(forward) == 1
+    assert forward[0].shift_working_days == 1
+    assert forward[0].new_start == day_two
+    assert backward == ()
+    assert sorted(activity.start for activity in result.activities.values()) == [
+        day_one,
+        day_two,
+    ]
