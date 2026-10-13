@@ -8,6 +8,15 @@ Jalal 3 assigned only 3% to “Web AI Assistant / Smart Guide” and counted 20%
 
 This schedule restores the delivery order: **Website/Web first, desktop second, mobile postponed to V2**. Mobile-only V1 rows from Jalal 3 are removed from the V1 denominator; their weight is reassigned to web, AI, integration and release evidence. No open/unmerged PR receives progress credit.
 
+## Source-of-truth references and current evidence
+
+- Versioned semantic baseline: [`P6_26_4_PARITY_AND_NO_OMISSION.md`](../architecture/P6_26_4_PARITY_AND_NO_OMISSION.md).
+- Existing parity scorecard: [`P6_26_4_PARITY_SCORECARD_2026-09-28.md`](../architecture/P6_26_4_PARITY_SCORECARD_2026-09-28.md). Its recorded 44% is a separate parity-coverage measure, not interchangeable with Jalal 4's weighted delivery progress.
+- Existing parity timeline: [`P6_26_4_PARITY_TIMELINE_2026-09-28.md`](../roadmap/P6_26_4_PARITY_TIMELINE_2026-09-28.md).
+- Mandatory assistant acceptance: [`AI_ASSISTANT_V1_REQUIREMENTS.md`](../architecture/AI_ASSISTANT_V1_REQUIREMENTS.md) and implementation issue [#1423](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1423).
+- Governance changes are proposed in [PR #1424](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1424); this schedule is proposed in [PR #1425](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1425). Both remain unmerged as of this proposal's latest review.
+- The current Jalal 4 document commit has successful **Client Typecheck** and **ConstructionPM CI** workflow runs. These validate this documentation commit under those workflows only; they do not prove production assistant completion, parity certification, or release readiness.
+
 ## Measurement rules
 
 - Total planned weight = 100 points.
@@ -22,7 +31,7 @@ This schedule restores the delivery order: **Website/Web first, desktop second, 
 
 | # | Work package | Owner | Weight | Provisional completion | Earned points | Evidence / boundary |
 |---:|---|---|---:|---:|---:|---|
-| 1 | Shared Domain/Calculation Core + P6 semantic parity inventory | Jalal | 14 | 65% | 9.10 | Carry-forward from Jalal 3; refresh against the versioned 26.4 baseline and calculation-by-calculation fixtures |
+| 1 | Shared Domain/Calculation Core + P6 semantic parity inventory | Jalal | 14 | 65% | 9.10 | Carry-forward only; trace each applicable item against `P6_26_4_PARITY_AND_NO_OMISSION.md`, the existing scorecard, and calculation fixtures; do not treat the scorecard's 44% as this package's completion |
 | 2 | CPM/scheduling engine and schedule options | Jalal | 8 | 98% | 7.84 | Carry-forward; 98% is not a certification claim |
 | 3 | Calendar, Jalali/Gregorian dates, duration, lag and constraints | Jalal | 6 | 93% | 5.58 | Carry-forward; re-test versioned calendars and API boundaries |
 | 4 | Progress, float, out-of-sequence logic, EVM / earned schedule reconciliation | Jalal | 7 | 85% | 5.95 | Carry-forward; confirm reconciliation tests and calculation identities |
@@ -68,7 +77,8 @@ The approximate owner split is for capacity planning, not an additional progress
 - [ ] PR #1424 is merged or its requirements are reconciled in authoritative main documents.
 - [ ] No authoritative control document still defers the mandatory V1 assistant to P3.
 - [ ] AI work is tracked as a cross-layer capability, not only a Smart Guide UI task.
-- [ ] Each applicable P6 field/option/calculation has an explicit disposition and evidence link.
+- [ ] Each applicable reference item is traceable: version/section → canonical model/option → Shared Core implementation → regression fixture and expected output → test evidence → disposition; explicitly link the inventory to the approved 26.4 baseline and scorecard.
+- [ ] The 44% parity scorecard, Jalal 4's 56.50/100 provisional weighted indicator, and any feature-local completion percentages are kept as separate metrics with separate denominators.
 - [ ] No calculation is independently reimplemented in UI, API adapters or AI.
 - [ ] A real persisted project can be created/populated, calculated, changed under authorization, re-read and reported.
 - [ ] Rejected/unauthorized/stale proposals produce no authoritative mutation.
