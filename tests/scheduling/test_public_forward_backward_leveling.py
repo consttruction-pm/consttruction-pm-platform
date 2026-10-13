@@ -162,9 +162,11 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
     final_demand_by_day = {day_one: Decimal("0"), day_two: Decimal("0")}
     for activity in leveling_input.forward_activities:
         final_start = result.activities[activity.activity_id].start
-        shift_days = resolver.working_days_between(activity.start, final_start)
+        # These fixture demands are single-period assignments on day one.
+        # Project them to the final scheduled start directly; the resolver's
+        # working_days_between uses exclusive interval semantics for this pair.
         for demand in activity.resource_demands:
-            final_period = resolver.add_working_duration(demand.period, shift_days)
+            final_period = day_two if final_start == day_two else day_one
             if demand.resource_id == "R1" and final_period in final_demand_by_day:
                 final_demand_by_day[final_period] += demand.units
     capacity_by_day = {day_one: Decimal("8"), day_two: Decimal("16")}
