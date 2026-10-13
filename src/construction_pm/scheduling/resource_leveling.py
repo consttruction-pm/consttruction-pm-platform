@@ -17,10 +17,17 @@ class ResourceLevelingError(ValueError):
 ResourceKey = tuple[str, ...]
 
 
-def _resource_key(resource_id: str, identity: ResourceIdentity | None) -> ResourceKey:
-    if identity is None:
-        return ("LEGACY", resource_id)
-    return ("CANONICAL", identity.tenant_id, identity.resource_identity_id)
+def _resource_key(
+    resource_id: str,
+    identity: ResourceIdentity | None,
+    tenant_id: str | None,
+    project_id: str | None,
+) -> ResourceKey:
+    if identity is not None:
+        return ("CANONICAL", identity.tenant_id, identity.resource_identity_id)
+    if tenant_id is not None and project_id is not None:
+        return ("LEGACY_SCOPED", tenant_id, project_id, resource_id)
+    return ("LEGACY_GLOBAL", resource_id)
 
 
 def _validate_identity_definitions(items: Iterable[object]) -> None:
@@ -77,6 +84,7 @@ class ResourceDemand:
     activity_id: str | None = None
     resource_identity: ResourceIdentity | None = None
     project_id: str | None = None
+    tenant_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -88,16 +96,22 @@ class ResourceDemand:
         if self.activity_id is not None and (not isinstance(self.activity_id, str) or not self.activity_id.strip()):
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
         if self.resource_identity is None:
+            if (self.project_id is None) != (self.tenant_id is None):
+                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_TENANT_AND_PROJECT")
             if self.project_id is not None:
-                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_RESOURCE_IDENTITY")
+                if not self.project_id.strip() or not self.tenant_id.strip():
+                    raise ResourceLevelingError("INVALID_RESOURCE_SCOPE")
         else:
             if not isinstance(self.resource_identity, ResourceIdentity):
                 raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
-            if not isinstance(self.project_id, str) or not self.project_id.strip():
-                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_PROJECT")
+            if (
+                not isinstance(self.project_id, str) or not self.project_id.strip()
+                or not isinstance(self.tenant_id, str) or not self.tenant_id.strip()
+            ):
+                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_TENANT_AND_PROJECT")
             try:
                 self.resource_identity.validate_use(
-                    tenant_id=self.resource_identity.tenant_id,
+                    tenant_id=self.tenant_id,
                     project_id=self.project_id,
                 )
             except ResourceIdentityError as exc:
@@ -105,7 +119,9 @@ class ResourceDemand:
 
     @property
     def resource_key(self) -> ResourceKey:
-        return _resource_key(self.resource_id, self.resource_identity)
+        return _resource_key(
+            self.resource_id, self.resource_identity, self.tenant_id, self.project_id
+        )
 
 
 @dataclass(frozen=True)
@@ -115,6 +131,7 @@ class ResourceCapacity:
     units: Decimal
     resource_identity: ResourceIdentity | None = None
     project_id: str | None = None
+    tenant_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -124,16 +141,22 @@ class ResourceCapacity:
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
         if self.resource_identity is None:
+            if (self.project_id is None) != (self.tenant_id is None):
+                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_TENANT_AND_PROJECT")
             if self.project_id is not None:
-                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_RESOURCE_IDENTITY")
+                if not self.project_id.strip() or not self.tenant_id.strip():
+                    raise ResourceLevelingError("INVALID_RESOURCE_SCOPE")
         else:
             if not isinstance(self.resource_identity, ResourceIdentity):
                 raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
-            if not isinstance(self.project_id, str) or not self.project_id.strip():
-                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_PROJECT")
+            if (
+                not isinstance(self.project_id, str) or not self.project_id.strip()
+                or not isinstance(self.tenant_id, str) or not self.tenant_id.strip()
+            ):
+                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_TENANT_AND_PROJECT")
             try:
                 self.resource_identity.validate_use(
-                    tenant_id=self.resource_identity.tenant_id,
+                    tenant_id=self.tenant_id,
                     project_id=self.project_id,
                 )
             except ResourceIdentityError as exc:
@@ -141,7 +164,9 @@ class ResourceCapacity:
 
     @property
     def resource_key(self) -> ResourceKey:
-        return _resource_key(self.resource_id, self.resource_identity)
+        return _resource_key(
+            self.resource_id, self.resource_identity, self.tenant_id, self.project_id
+        )
 
 
 @dataclass(frozen=True)
@@ -337,6 +362,7 @@ def _shift_demands(
             d.activity_id,
             d.resource_identity,
             d.project_id,
+            d.tenant_id,
         )
         for d in demands
     )
@@ -652,6 +678,7 @@ def _shift_demands_backward(
             d.activity_id,
             d.resource_identity,
             d.project_id,
+            d.tenant_id,
         )
         for d in demands
     )
