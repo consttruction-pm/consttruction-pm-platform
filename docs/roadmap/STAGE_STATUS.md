@@ -1311,3 +1311,11 @@ Status: **merged; exact-head CI verified**
 - PR #1383 merged as 9aa67da9b3ea2be799b203acd725b156426b14ec; exact-head ConstructionPM CI, Client Typecheck and PostgreSQL checks passed.
 - ResourceList now preserves typed resource-ID arrays through snapshot materialization and the authoritative leveling boundary, including IDs containing commas; malformed arrays and malformed legacy CSV values are rejected. This closes the internal array/scalar mismatch but does not by itself certify the Oracle P6 REST wire mapping.
 - Issue #1379 remains open for PriorityList: canonical item encoding, sort_order omission/default policy, and round-trip evidence through the authoritative leveling path remain unresolved. The Release 26 disposition stays pending until external-contract and end-to-end evidence are complete.
+
+
+### Stage 33.3.5 — Authorization Integration Regression
+Status: **in progress — CI verification pending**
+- Verify the new authorization module and tests against the actual package layout and test conventions.
+- Add cross-tenant/project negative cases and unknown-role deny-by-default coverage.
+- Keep authentication-provider integration and HTTP route enforcement explicitly separate until concrete API wiring exists.
+- Do not claim security enforcement is production-complete from the policy helper alone.
