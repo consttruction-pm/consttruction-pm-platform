@@ -30,6 +30,24 @@ A requirement may be marked **Outside Scope** only with an explicit documented d
 
 The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
 
+
+## Principle 1B — Authoritative calculation conformity to the applicable P6 documentation
+
+For every calculation or calculation-affecting behavior within the defined P6-overlap scope, the applicable official Primavera P6 documentation for the release-versioned compatibility baseline is the normative semantic reference. This is a fundamental project rule, not a preference, optional enhancement, or AI prompt instruction.
+
+This includes, where applicable, scheduling dates and passes, relationships and lag/lead, calendars and time conversions, constraints, early/late dates, total/free float, critical-path/longest-path/multiple-float-path behavior, out-of-sequence progress treatment, data date, resource leveling, progress/actuals, baselines and summaries, EVM/Earned Schedule, assignment/resource calculations, costs, formulas, units, and calculation-affecting options.
+
+Mandatory controls:
+- Maintain a versioned semantic inventory linking every applicable calculation and calculation-affecting option to its authoritative documentation, canonical Shared Core implementation, test fixtures, import/export behavior and release disposition.
+- Implement semantics in the Shared Domain/Calculation Core only. UI, API adapters, repositories, external libraries and AI may call or present the authoritative result but must not redefine, approximate, silently replace or independently recalculate it.
+- Derive expected regression results from documented semantics, independently validated fixtures and/or controlled reference comparisons, not from the implementation under test alone.
+- Any ambiguity, version change, documented incompatibility or deliberate superset must have an explicit, reviewed decision with impact analysis and evidence. No silent simplification is allowed.
+- A screen, field, formula name, passing unit test or AI explanation is not proof of conformity by itself. Accepted behavior requires typed data semantics, persistence/replay where applicable, interoperability behavior and regression evidence.
+- AI may extract, explain and propose; it must invoke the authoritative calculation service for computed values. It must label predictions/assumptions separately and never claim that a computation succeeded unless the engine returned a verified result.
+- Release claims must state the tested reference baseline and remaining limitations. “100% compatible” must not be claimed until the complete applicable inventory has an accepted disposition and the conformance evidence passes.
+
+This rule governs every product release and takes precedence over schedule pressure, UI convenience and generic-model suggestions.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
@@ -43,6 +61,7 @@ This is a release target that must be demonstrated with evidence, not treated as
 - Each implemented capability must meet an agreed depth/quality bar, not only exist as a screen or placeholder.
 - Cross-domain workflows must connect Schedule, Progress, Cost, Resources, Documents, Contracts, Procurement, Field, Risk and AI where their business relationship requires it.
 - AI features must be construction-grounded, auditable and action-aware rather than generic chat-only features.
+- The production V1 AI Assistant is mandatory and cannot remain an architectural requirement or static UI; it must pass the acceptance gate in `docs/architecture/AI_ASSISTANT_V1_REQUIREMENTS.md`.
 - Release certification must include functional, calculation, interoperability, security, offline/online, performance, localization and usability evidence.
 - New market developments found before release become release-gate inputs; the roadmap must be re-ranked rather than allowing a stale benchmark to define completeness.
 
@@ -81,6 +100,19 @@ External libraries must not become an ungoverned second source of truth for P6 s
 ## Principle 6 — AI must be accountable
 
 AI results that influence project decisions must expose source context where available, distinguish facts from predictions, record the model/action context, preserve human approval for consequential changes and never silently mutate authoritative project data.
+
+
+## Principle 6A — Production AI Project Controls Assistant is mandatory in V1
+
+A capable, project-aware AI Assistant is a required V1 product capability and a release blocker. It must not be deferred to P3/post-V1, treated as a generic chat panel, or counted complete by static Smart Guide cards or contracts alone.
+
+For V1, the assistant must be integrated through real application services and support the released project lifecycle: interpret supported-language requests; understand the active authorized project context; ingest supported project files and structured inputs; propose and create project/WBS/activity/calendar/relationship data; invoke authoritative scheduling and applicable project-control calculations; analyze returned facts and exceptions; prepare, preview and execute authorized changes; generate charts, reports and exports from persisted results; and report verified outcomes and failures.
+
+The assistant must be grounded in scoped CUBI data, revision-aware and auditable. The server enforces user/project/tenant permissions on every operation. Consequential changes require explicit human approval according to policy. Rejection must produce no mutation. The assistant may not elevate access, fabricate a result, silently mutate authoritative data, or replace calculation authority.
+
+V1 assistant personalization must let the user configure supported language/terminology, explanation depth, report/output preferences, reusable workflows and allowed autonomy/approval policy without granting permissions beyond the user's existing authority.
+
+The normative implementation and acceptance specification is `docs/architecture/AI_ASSISTANT_V1_REQUIREMENTS.md`. Every release candidate must satisfy its integrated acceptance gate; incomplete criteria must be stated as limitations and block a claim of full/professional V1 readiness.
 
 ## Principle 7 — Typed interoperability
 
