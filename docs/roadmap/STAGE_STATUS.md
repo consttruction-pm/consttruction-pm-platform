@@ -1317,7 +1317,7 @@ Status: **merged; exact-head CI verified**
 Status: **60% — implementation slice added; exact-head CI and persistence/snapshot gates pending**
 - Added canonical identity and tenant/project scope fields to Shared Core ResourceDemand and ResourceCapacity while preserving legacy constructor compatibility.
 - Forward/backward leveling, over-allocation detection and diagnostics use identity-aware keys.
-- External resource assignments are tenant-scoped at the authoritative batch boundary; the P6 read adapter accepts explicit legacy-ID-to-canonical-identity bindings.
+- External resource assignments are tenant-scoped at the authoritative batch boundary; the resource read adapter accepts explicit legacy-ID-to-canonical-identity bindings.
 - Multi-project leveling rejects unscoped legacy demand/capacity rather than treating a raw resource ID as globally shared.
 - Added regression cases for distinct project-local identities with equal raw IDs, explicit shared identity aggregation, ambiguous selection, conflicting canonical definitions, shift preservation, adapter mapping, and rejection of unscoped multi-project input.
 - Remaining: authoritative storage/API identity binding, first-class snapshot and replay propagation, version-pinned resource-calendar resolution through CalendarResolverRegistry, shared-capacity deduplication, and exact-head CI/PostgreSQL verification.
