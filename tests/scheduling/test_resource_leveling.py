@@ -350,7 +350,7 @@ def test_backward_leveling_selected_resource_scope_keeps_other_activities_unchan
     assert shifts[0].new_finish == day_one
     assert not ({"C", "D"} & {shift.activity_id for shift in shifts})
 
-def test_priority_based_leveling_honors_descending_sort_order():
+def test_internal_numeric_activity_priority_honors_descending_sort_order():
     resolver = WorkingTimeResolver(
         WorkingCalendar(
             working_weekdays=frozenset({0, 1, 2, 3, 4}),
@@ -388,7 +388,8 @@ def test_priority_based_leveling_honors_descending_sort_order():
         ),
     )
 
-    # P6 defines descending Activity Priority as leveling higher-priority
-    # activities first; the higher value (2) is therefore shifted first.
+    # This verifies the internal numeric LevelingActivity.activity_priority
+    # sort key only. It is not a REST-conformance test for Activity.LevelingPriority,
+    # whose canonical Release 26 wire values are Top/High/Normal/Low/Lowest.
     assert shifts[0].activity_id == "A1"
 
