@@ -22,18 +22,22 @@ from construction_pm.scheduling.schedule_options import (
 def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm() -> None:
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
-    demands = (
+    forward_demands = (
         ResourceDemand("R1", day_one, Decimal("8"), "A"),
         ResourceDemand("R1", day_one, Decimal("8"), "B"),
     )
+    backward_demands = (
+        ResourceDemand("R1", day_two, Decimal("8"), "A"),
+        ResourceDemand("R1", day_two, Decimal("8"), "B"),
+    )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity("A", day_one, day_one, 1, (demands[0],), activity_priority=0),
-            LevelingActivity("B", day_one, day_one, 1, (demands[1],), activity_priority=1),
+            LevelingActivity("A", day_one, day_one, 1, (forward_demands[0],), activity_priority=0),
+            LevelingActivity("B", day_one, day_one, 1, (forward_demands[1],), activity_priority=1),
         ),
         backward_activities=(
-            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],), activity_priority=1),
-            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],), activity_priority=0),
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (backward_demands[0],), activity_priority=1),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (backward_demands[1],), activity_priority=0),
         ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("8")),
