@@ -231,12 +231,12 @@
     {
       "p6_field": "PriorityList",
       "status": "pending",
-      "reason": "The field registry uses string-array while the domain model uses ordered PriorityListItem objects; a documented lossless wire-to-domain adapter and round-trip/resource-leveling evidence are outstanding."
+      "reason": "The Release 26 REST schema exposes PriorityList as a scalar string, while the Integration API contract exposes String[]. The REST encoding into ordered PriorityListItem entries, including sort-order representation/defaults, is not established by the cited REST schema; a source-backed adapter and round-trip/resource-leveling evidence remain outstanding."
     },
     {
       "p6_field": "ResourceList",
       "status": "pending",
-      "reason": "The field registry uses string-array while the domain model stores a comma-delimited scalar; array-shaped canonical interchange payloads are not explicitly adapted and the scalar representation can be ambiguous for identifiers containing commas."
+      "reason": "The canonical Shared Core domain and snapshot path preserve ResourceList as an ordered tuple/JSON array, including resource IDs containing commas. The remaining gap is the external wire adapter: Release 26 REST exposes a scalar string while the Integration API exposes String[], and the cited REST schema does not establish a lossless encoding/escaping rule. Keep this field pending until a source-backed REST adapter and round-trip/resource-leveling evidence exist."
     }
   ]
 }
