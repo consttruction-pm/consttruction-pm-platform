@@ -517,7 +517,7 @@ def execute_authoritative_schedule_batch(
         if options.include_external_res_ass:
             resource_demands = select_batch_resource_assignments_for_scheduling(
                 batch,
-                resource_assignments,
+                resource_assignment_list,
                 scheduled_project_id=snapshot.project_id,
                 options=options,
             )
