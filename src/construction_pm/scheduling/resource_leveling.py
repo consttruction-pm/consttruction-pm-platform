@@ -99,7 +99,10 @@ class ResourceDemand:
             if (self.project_id is None) != (self.tenant_id is None):
                 raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_TENANT_AND_PROJECT")
             if self.project_id is not None:
-                if not self.project_id.strip() or not self.tenant_id.strip():
+                if (
+                    not isinstance(self.project_id, str) or not self.project_id.strip()
+                    or not isinstance(self.tenant_id, str) or not self.tenant_id.strip()
+                ):
                     raise ResourceLevelingError("INVALID_RESOURCE_SCOPE")
         else:
             if not isinstance(self.resource_identity, ResourceIdentity):
@@ -144,7 +147,10 @@ class ResourceCapacity:
             if (self.project_id is None) != (self.tenant_id is None):
                 raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_TENANT_AND_PROJECT")
             if self.project_id is not None:
-                if not self.project_id.strip() or not self.tenant_id.strip():
+                if (
+                    not isinstance(self.project_id, str) or not self.project_id.strip()
+                    or not isinstance(self.tenant_id, str) or not self.tenant_id.strip()
+                ):
                     raise ResourceLevelingError("INVALID_RESOURCE_SCOPE")
         else:
             if not isinstance(self.resource_identity, ResourceIdentity):
@@ -178,6 +184,8 @@ class OverAllocation:
     effective_capacity: Decimal
     excess: Decimal
     resource_identity: ResourceIdentity | None = None
+    tenant_id: str | None = None
+    project_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -248,6 +256,7 @@ def detect_over_allocations(
     demand_by_key: dict[tuple[ResourceKey, date], Decimal] = {}
     demand_labels: dict[tuple[ResourceKey, date], set[str]] = {}
     identities: dict[ResourceKey, ResourceIdentity] = {}
+    scopes: dict[ResourceKey, tuple[str | None, str | None]] = {}
     capacity_by_key: dict[tuple[ResourceKey, date], Decimal] = {}
     for item in demand_list:
         key = (item.resource_key, item.period)
@@ -255,6 +264,8 @@ def detect_over_allocations(
         demand_labels.setdefault(key, set()).add(item.resource_id)
         if item.resource_identity is not None:
             identities[item.resource_key] = item.resource_identity
+        elif item.tenant_id is not None and item.project_id is not None:
+            scopes.setdefault(item.resource_key, (item.tenant_id, item.project_id))
     for item in capacity_list:
         key = (item.resource_key, item.period)
         if key in capacity_by_key:
@@ -262,6 +273,8 @@ def detect_over_allocations(
         capacity_by_key[key] = item.units
         if item.resource_identity is not None:
             identities[item.resource_key] = item.resource_identity
+        elif item.tenant_id is not None and item.project_id is not None:
+            scopes.setdefault(item.resource_key, (item.tenant_id, item.project_id))
 
     result: list[OverAllocation] = []
     for resource_key, period in sorted(demand_by_key, key=lambda key: (key[1], key[0])):
@@ -280,6 +293,16 @@ def detect_over_allocations(
                     effective_capacity,
                     excess,
                     identities.get(resource_key),
+                    (
+                        identities[resource_key].tenant_id
+                        if resource_key in identities
+                        else scopes.get(resource_key, (None, None))[0]
+                    ),
+                    (
+                        identities[resource_key].project_id
+                        if resource_key in identities
+                        else scopes.get(resource_key, (None, None))[1]
+                    ),
                 )
             )
     return tuple(result)
