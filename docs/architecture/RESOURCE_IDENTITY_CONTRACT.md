@@ -84,3 +84,31 @@ No multi-project aggregation may key on display code or an ambiguous legacy `res
 - Shared Scheduling Core owns the canonical identity contract, validation, deterministic snapshot behavior, and demand/capacity semantics.
 - Persistence/API adapters own storage mapping, tenant/project authorization, legacy migration, and external-ID translation.
 - Presentation-only layers must not invent identity rules or calculate alternate resource capacity.
+
+
+## 8. Compatibility interpretation for resource and assignment semantics
+
+The domain model must distinguish these separate concepts:
+
+- **Resource master identity**: the stable resource being planned. It may be owned by one project or deliberately shared within an organization/tenant.
+- **Resource code/name**: identifiers intended for display, selection, grouping, or interchange. They may change and are not sufficient as the internal aggregation key.
+- **Resource hierarchy**: parent/child organization of resource records. Its parent keys must remain in the resource identity domain; it must not be confused with the WBS/WorkPackage hierarchy.
+- **Resource assignment identity**: one assignment of a resource or role to an activity. It carries its own identity and project/activity scope and references, rather than replacing, the resource master identity.
+- **Activity identity and WBS/WorkPackage membership**: activity-to-project and activity-to-WBS relationships stay independently validated; resource identity must not be inferred from activity IDs, WBS codes, names, or position in a hierarchy.
+
+### Calendar behavior boundary
+
+Resource calendar metadata and resource-leveling capacity are related but not interchangeable with an activity's own schedule calendar.
+
+- Resource capacity periods must be resolved through the version-pinned Shared Core calendar registry.
+- The resource identity used by demand/capacity aggregation must remain canonical after calendar resolution; resolving calendars by a project ID plus legacy resource ID and then storing them in a bare resource ID map is still lossy.
+- Activity start/finish calculation must continue to follow the configured activity type and existing Shared Scheduling semantics. Resource-calendar work in this issue must not make every activity resource-calendar-driven.
+- For resource-dependent activity semantics, assigned resource/role calendars may participate in the activity date calculation; for other activity types, preserve the assigned activity calendar rule.
+- Calendar version, calendar kind, and calendar system are part of the reference contract. A legacy ID-only calendar value must not silently bind to an arbitrary current version.
+
+### Migration and operations
+
+- Mapping an authoritative old catalog key to a canonical identity must be explicit, unique in its source namespace, tenant-safe, and auditable.
+- Promoting a project-local resource to a tenant-shared pool is a controlled identity migration. It must not mutate historical snapshots or silently merge other records with the same code.
+- Assignment replacement/import, replay, and batch leveling must preserve separate assignment identity and resource identity.
+- When identity is absent or ambiguous, reject the multi-project operation with a stable diagnostic rather than grouping on the legacy code.
