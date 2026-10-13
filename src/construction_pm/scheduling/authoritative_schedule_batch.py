@@ -122,6 +122,7 @@ def execute_authoritative_schedule_batch(
     tenants = {snapshot.tenant_id for snapshot in snapshot_list}
     if len(tenants) != 1:
         raise UnsupportedMultiProjectSchedulingError("MULTI_PROJECT_CROSS_TENANT_NOT_SUPPORTED")
+    batch_tenant_id = next(iter(tenants))
 
     if any(snapshot.mode is not AuthoritativeScheduleMode.DATE_BASED for snapshot in snapshot_list):
         raise UnsupportedMultiProjectSchedulingError("MULTI_PROJECT_TIME_AWARE_NOT_SUPPORTED")
@@ -150,6 +151,21 @@ def execute_authoritative_schedule_batch(
             all_activity_projects[activity.id] = snapshot.project_id
 
     external_relationship_list = tuple(external_relationships)
+    raw_resource_assignments = tuple(resource_assignments)
+    if any(not isinstance(item, ExternalResourceAssignment) for item in raw_resource_assignments):
+        raise UnsupportedMultiProjectSchedulingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
+    normalized_resource_assignments: list[ExternalResourceAssignment] = []
+    for assignment in raw_resource_assignments:
+        if assignment.tenant_id is not None and assignment.tenant_id != batch_tenant_id:
+            raise UnsupportedMultiProjectSchedulingError(
+                "CROSS_TENANT_RESOURCE_ASSIGNMENT_NOT_SUPPORTED"
+            )
+        normalized_resource_assignments.append(
+            assignment
+            if assignment.tenant_id is not None
+            else replace(assignment, tenant_id=batch_tenant_id)
+        )
+    resource_assignment_list = tuple(normalized_resource_assignments)
     activity_calendar_resolvers = None
     if calendar_registry is not None:
         activity_calendar_context = ActivityCalendarContext.from_snapshots(
@@ -245,7 +261,7 @@ def execute_authoritative_schedule_batch(
             selected_by_project[snapshot.project_id] = (
                 select_batch_resource_assignments_for_scheduling(
                     batch,
-                    resource_assignments,
+                    resource_assignment_list,
                     scheduled_project_id=snapshot.project_id,
                     options=snapshot.schedule_options,
                 )
@@ -312,10 +328,19 @@ def execute_authoritative_schedule_batch(
                 return tuple(
                     sorted(
                         {
-                            (d.resource_id, d.period, d.units, d.activity_id): d
+                            (
+                                d.resource_key,
+                                d.period,
+                                d.units,
+                                d.activity_id,
+                            ): d
                             for d in merged
                         }.values(),
-                        key=lambda d: (d.period, d.resource_id, d.activity_id or ""),
+                        key=lambda d: (
+                            d.period,
+                            d.resource_key,
+                            d.activity_id or "",
+                        ),
                     )
                 )
 
