@@ -3,13 +3,65 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Iterable
 
 from .calendar import WorkingTimeResolver
+from .resource_identity import ResourceIdentity, ResourceIdentityError
 from enum import Enum
 
 
 class ResourceLevelingError(ValueError):
     """Raised when a resource-leveling contract is invalid."""
+
+
+ResourceKey = tuple[str, ...]
+
+
+def _resource_key(resource_id: str, identity: ResourceIdentity | None) -> ResourceKey:
+    if identity is None:
+        return ("LEGACY", resource_id)
+    return ("CANONICAL", identity.tenant_id, identity.resource_identity_id)
+
+
+def _validate_identity_definitions(items: Iterable[object]) -> None:
+    """Reject reused canonical IDs with inconsistent ownership/scope metadata."""
+    definitions: dict[tuple[str, str], ResourceIdentity] = {}
+    for item in items:
+        identity = getattr(item, "resource_identity", None)
+        if identity is None:
+            continue
+        if not isinstance(identity, ResourceIdentity):
+            raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
+        definition_key = (identity.tenant_id, identity.resource_identity_id)
+        previous = definitions.get(definition_key)
+        if previous is not None and previous != identity:
+            raise ResourceLevelingError("RESOURCE_IDENTITY_DEFINITION_MISMATCH")
+        definitions[definition_key] = identity
+
+
+def _select_resource_keys(
+    demands: tuple["ResourceDemand", ...] | list["ResourceDemand"],
+    *,
+    level_all_resources: bool,
+    resource_ids: tuple[str, ...] = (),
+) -> set[ResourceKey]:
+    available_by_id: dict[str, set[ResourceKey]] = {}
+    all_keys: set[ResourceKey] = set()
+    for item in demands:
+        key = item.resource_key
+        all_keys.add(key)
+        available_by_id.setdefault(item.resource_id, set()).add(key)
+    if level_all_resources:
+        return all_keys
+    selected: set[ResourceKey] = set()
+    for resource_id in resource_ids:
+        matching = available_by_id.get(resource_id, set())
+        if not matching:
+            raise ResourceLevelingError("UNKNOWN_RESOURCE")
+        if len(matching) > 1:
+            raise ResourceLevelingError("AMBIGUOUS_RESOURCE_ID")
+        selected.update(matching)
+    return selected
 
 
 class SortOrder(str, Enum):
@@ -23,6 +75,8 @@ class ResourceDemand:
     period: date
     units: Decimal
     activity_id: str | None = None
+    resource_identity: ResourceIdentity | None = None
+    project_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -33,6 +87,25 @@ class ResourceDemand:
             raise ResourceLevelingError("INVALID_DEMAND_UNITS")
         if self.activity_id is not None and (not isinstance(self.activity_id, str) or not self.activity_id.strip()):
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.resource_identity is None:
+            if self.project_id is not None:
+                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_RESOURCE_IDENTITY")
+        else:
+            if not isinstance(self.resource_identity, ResourceIdentity):
+                raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
+            if not isinstance(self.project_id, str) or not self.project_id.strip():
+                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_PROJECT")
+            try:
+                self.resource_identity.validate_use(
+                    tenant_id=self.resource_identity.tenant_id,
+                    project_id=self.project_id,
+                )
+            except ResourceIdentityError as exc:
+                raise ResourceLevelingError(str(exc)) from exc
+
+    @property
+    def resource_key(self) -> ResourceKey:
+        return _resource_key(self.resource_id, self.resource_identity)
 
 
 @dataclass(frozen=True)
@@ -40,6 +113,8 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    resource_identity: ResourceIdentity | None = None
+    project_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -48,6 +123,25 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
+        if self.resource_identity is None:
+            if self.project_id is not None:
+                raise ResourceLevelingError("PROJECT_SCOPE_REQUIRES_RESOURCE_IDENTITY")
+        else:
+            if not isinstance(self.resource_identity, ResourceIdentity):
+                raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
+            if not isinstance(self.project_id, str) or not self.project_id.strip():
+                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_PROJECT")
+            try:
+                self.resource_identity.validate_use(
+                    tenant_id=self.resource_identity.tenant_id,
+                    project_id=self.project_id,
+                )
+            except ResourceIdentityError as exc:
+                raise ResourceLevelingError(str(exc)) from exc
+
+    @property
+    def resource_key(self) -> ResourceKey:
+        return _resource_key(self.resource_id, self.resource_identity)
 
 
 @dataclass(frozen=True)
@@ -58,6 +152,7 @@ class OverAllocation:
     base_capacity: Decimal
     effective_capacity: Decimal
     excess: Decimal
+    resource_identity: ResourceIdentity | None = None
 
 
 @dataclass(frozen=True)
@@ -99,10 +194,13 @@ class ResourceLevelingOptions:
             raise ResourceLevelingError("INVALID_RESOURCE_ID")
 
 
-def _capacity_map(capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity]) -> dict[tuple[str, date], Decimal]:
-    capacity_by_key: dict[tuple[str, date], Decimal] = {}
+def _capacity_map(
+    capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
+) -> dict[tuple[ResourceKey, date], Decimal]:
+    _validate_identity_definitions(capacities)
+    capacity_by_key: dict[tuple[ResourceKey, date], Decimal] = {}
     for item in capacities:
-        key = (item.resource_id, item.period)
+        key = (item.resource_key, item.period)
         if key in capacity_by_key:
             raise ResourceLevelingError("DUPLICATE_RESOURCE_CAPACITY")
         capacity_by_key[key] = item.units
@@ -118,24 +216,47 @@ def detect_over_allocations(
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
 
-    demand_by_key: dict[tuple[str, date], Decimal] = {}
-    capacity_by_key: dict[tuple[str, date], Decimal] = {}
-    for item in demands:
-        demand_by_key[(item.resource_id, item.period)] = demand_by_key.get((item.resource_id, item.period), Decimal("0")) + item.units
-    for item in capacities:
-        key = (item.resource_id, item.period)
+    demand_list = tuple(demands)
+    capacity_list = tuple(capacities)
+    _validate_identity_definitions(demand_list + capacity_list)
+
+    demand_by_key: dict[tuple[ResourceKey, date], Decimal] = {}
+    demand_labels: dict[tuple[ResourceKey, date], set[str]] = {}
+    identities: dict[ResourceKey, ResourceIdentity] = {}
+    capacity_by_key: dict[tuple[ResourceKey, date], Decimal] = {}
+    for item in demand_list:
+        key = (item.resource_key, item.period)
+        demand_by_key[key] = demand_by_key.get(key, Decimal("0")) + item.units
+        demand_labels.setdefault(key, set()).add(item.resource_id)
+        if item.resource_identity is not None:
+            identities[item.resource_key] = item.resource_identity
+    for item in capacity_list:
+        key = (item.resource_key, item.period)
         if key in capacity_by_key:
             raise ResourceLevelingError("DUPLICATE_RESOURCE_CAPACITY")
         capacity_by_key[key] = item.units
+        if item.resource_identity is not None:
+            identities[item.resource_key] = item.resource_identity
 
     result: list[OverAllocation] = []
-    for resource_id, period in sorted(demand_by_key, key=lambda key: (key[1], key[0])):
-        demand = demand_by_key[(resource_id, period)]
-        base_capacity = capacity_by_key.get((resource_id, period), Decimal("0"))
+    for resource_key, period in sorted(demand_by_key, key=lambda key: (key[1], key[0])):
+        key = (resource_key, period)
+        demand = demand_by_key[key]
+        base_capacity = capacity_by_key.get(key, Decimal("0"))
         effective_capacity = base_capacity * (Decimal("1") + over_allocation_percentage / Decimal("100"))
         excess = demand - effective_capacity
         if excess > 0:
-            result.append(OverAllocation(resource_id, period, demand, base_capacity, effective_capacity, excess))
+            result.append(
+                OverAllocation(
+                    min(demand_labels[key]),
+                    period,
+                    demand,
+                    base_capacity,
+                    effective_capacity,
+                    excess,
+                    identities.get(resource_key),
+                )
+            )
     return tuple(result)
 
 
@@ -145,13 +266,16 @@ def select_leveling_resources(
     level_all_resources: bool,
     resource_ids: tuple[str, ...] = (),
 ) -> tuple[str, ...]:
-    available = {item.resource_id for item in demands}
+    demand_list = tuple(demands)
+    _select_resource_keys(
+        demand_list,
+        level_all_resources=level_all_resources,
+        resource_ids=resource_ids,
+    )
+    available = {item.resource_id for item in demand_list}
     if level_all_resources:
         return tuple(sorted(available))
-    selected = tuple(sorted(set(resource_ids)))
-    if set(selected) - available:
-        raise ResourceLevelingError("UNKNOWN_RESOURCE")
-    return selected
+    return tuple(sorted(set(resource_ids)))
 
 @dataclass(frozen=True)
 class LevelingActivity:
@@ -206,7 +330,14 @@ def _shift_demands(
     resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
     return tuple(
-        ResourceDemand(d.resource_id, _shift_date_forward(d.period, shift_working_days, resolver), d.units, d.activity_id)
+        ResourceDemand(
+            d.resource_id,
+            _shift_date_forward(d.period, shift_working_days, resolver),
+            d.units,
+            d.activity_id,
+            d.resource_identity,
+            d.project_id,
+        )
         for d in demands
     )
 
@@ -290,22 +421,22 @@ def propose_forward_leveling_within_float(
             _priority_value(activity, priority.field_name)
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
-    selected_resources = set(
-        select_leveling_resources(
-            [d for a in activity_list for d in a.resource_demands],
-            level_all_resources=level_all_resources,
-            resource_ids=resource_ids,
-        )
+    all_demands = [d for a in activity_list for d in a.resource_demands]
+    _validate_identity_definitions(tuple(all_demands) + tuple(capacities))
+    selected_resource_keys = _select_resource_keys(
+        all_demands,
+        level_all_resources=level_all_resources,
+        resource_ids=resource_ids,
     )
     selected = {a.activity_id: 0 for a in activity_list}
     capacity_map = {
         key: units
         for key, units in _capacity_map(capacities).items()
-        if key[0] in selected_resources
+        if key[0] in selected_resource_keys
     }
 
-    def effective_capacity(resource_id: str, period: date) -> Decimal:
-        return capacity_map.get((resource_id, period), Decimal("0")) * (
+    def effective_capacity(resource_key: ResourceKey, period: date) -> Decimal:
+        return capacity_map.get((resource_key, period), Decimal("0")) * (
             Decimal("1") + over_allocation_percentage / Decimal("100")
         )
 
@@ -315,7 +446,7 @@ def propose_forward_leveling_within_float(
             out.extend(
                 demand
                 for demand in _shift_demands(activity.resource_demands, selected[activity.activity_id], resolver)
-                if demand.resource_id in selected_resources
+                if demand.resource_key in selected_resource_keys
             )
         return out
 
@@ -323,22 +454,30 @@ def propose_forward_leveling_within_float(
     while True:
         demands = current_demands()
         overloaded = [
-            (resource_id, period)
-            for resource_id, period in sorted({(d.resource_id, d.period) for d in demands if d.resource_id in selected_resources}, key=lambda x: (x[1], x[0]))
-            if sum((d.units for d in demands if d.resource_id == resource_id and d.period == period), Decimal("0"))
-            > effective_capacity(resource_id, period)
+            (resource_key, period)
+            for resource_key, period in sorted(
+                {(d.resource_key, d.period) for d in demands if d.resource_key in selected_resource_keys},
+                key=lambda item: (item[1], item[0]),
+            )
+            if sum(
+                (d.units for d in demands if d.resource_key == resource_key and d.period == period),
+                Decimal("0"),
+            ) > effective_capacity(resource_key, period)
         ]
         if not overloaded:
             break
 
         candidates: list[tuple[tuple, Decimal, str]] = []
-        for resource_id, period in overloaded:
+        for resource_key, period in overloaded:
             for activity in activity_list:
                 current_shift = selected[activity.activity_id]
                 if current_shift >= max(0, activity.total_float - min_float_to_preserve):
                     continue
                 shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
-                units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
+                units = sum(
+                    (d.units for d in shifted if d.resource_key == resource_key and d.period == period),
+                    Decimal("0"),
+                )
                 if units > 0:
                     priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
                     candidates.append((priority_key, -units, activity.activity_id))
@@ -511,6 +650,8 @@ def _shift_demands_backward(
             _shift_date_backward(d.period, shift_working_days, resolver),
             d.units,
             d.activity_id,
+            d.resource_identity,
+            d.project_id,
         )
         for d in demands
     )
@@ -569,22 +710,22 @@ def propose_backward_leveling(
         if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
-    selected_resources = set(
-        select_leveling_resources(
-            [d for a in activity_list for d in a.resource_demands],
-            level_all_resources=level_all_resources,
-            resource_ids=resource_ids,
-        )
+    all_demands = [d for a in activity_list for d in a.resource_demands]
+    _validate_identity_definitions(tuple(all_demands) + tuple(capacities))
+    selected_resource_keys = _select_resource_keys(
+        all_demands,
+        level_all_resources=level_all_resources,
+        resource_ids=resource_ids,
     )
     capacity_map = {
         key: units
         for key, units in _capacity_map(capacities).items()
-        if key[0] in selected_resources
+        if key[0] in selected_resource_keys
     }
     shifts = {a.activity_id: 0 for a in activity_list}
 
-    def effective_capacity(resource_id: str, period: date) -> Decimal:
-        return capacity_map.get((resource_id, period), Decimal("0")) * (
+    def effective_capacity(resource_key: ResourceKey, period: date) -> Decimal:
+        return capacity_map.get((resource_key, period), Decimal("0")) * (
             Decimal("1") + over_allocation_percentage / Decimal("100")
         )
 
@@ -594,7 +735,7 @@ def propose_backward_leveling(
             result.extend(
                 d for d in _shift_demands_backward(
                     activity.resource_demands, shifts[activity.activity_id], resolver
-                ) if d.resource_id in selected_resources
+                ) if d.resource_key in selected_resource_keys
             )
         return result
 
@@ -602,21 +743,21 @@ def propose_backward_leveling(
     while True:
         demands = current_demands()
         overloaded = [
-            (resource_id, period)
-            for resource_id, period in sorted(
-                {(d.resource_id, d.period) for d in demands},
+            (resource_key, period)
+            for resource_key, period in sorted(
+                {(d.resource_key, d.period) for d in demands if d.resource_key in selected_resource_keys},
                 key=lambda item: (item[1], item[0]),
             )
             if sum(
-                (d.units for d in demands if d.resource_id == resource_id and d.period == period),
+                (d.units for d in demands if d.resource_key == resource_key and d.period == period),
                 Decimal("0"),
-            ) > effective_capacity(resource_id, period)
+            ) > effective_capacity(resource_key, period)
         ]
         if not overloaded:
             break
 
         candidates: list[tuple[tuple, Decimal, str]] = []
-        for resource_id, period in overloaded:
+        for resource_key, period in overloaded:
             for activity in activity_list:
                 if activity.activity_id in protected_activity_ids:
                     continue
@@ -626,7 +767,7 @@ def propose_backward_leveling(
                     continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
                 units = sum(
-                    (d.units for d in current if d.resource_id == resource_id and d.period == period),
+                    (d.units for d in current if d.resource_key == resource_key and d.period == period),
                     Decimal("0"),
                 )
                 if units <= 0:
