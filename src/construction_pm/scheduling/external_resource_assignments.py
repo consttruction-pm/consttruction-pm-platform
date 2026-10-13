@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .schedule_batch import AuthoritativeScheduleBatch
     from .schedule_options import ScheduleOptions
 
+from .resource_identity import ResourceIdentity, ResourceIdentityError
 from .resource_leveling import ResourceDemand, ResourceLevelingError
 
 
@@ -21,10 +22,48 @@ class ExternalResourceAssignment:
     period: date
     units: Decimal
     activity_id: str | None = None
+    tenant_id: str | None = None
+    resource_identity: ResourceIdentity | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.project_id, str) or not self.project_id.strip():
+            raise ResourceLevelingError("INVALID_PROJECT_ID")
+        if not isinstance(self.resource_id, str) or not self.resource_id.strip():
+            raise ResourceLevelingError("INVALID_RESOURCE_ID")
+        if not isinstance(self.period, date):
+            raise ResourceLevelingError("INVALID_PERIOD")
+        if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
+            raise ResourceLevelingError("INVALID_DEMAND_UNITS")
+        if self.activity_id is not None and (
+            not isinstance(self.activity_id, str) or not self.activity_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.tenant_id is not None and (
+            not isinstance(self.tenant_id, str) or not self.tenant_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_TENANT_ID")
+        if self.resource_identity is not None:
+            if not isinstance(self.resource_identity, ResourceIdentity):
+                raise ResourceLevelingError("INVALID_RESOURCE_IDENTITY")
+            if self.tenant_id is None:
+                raise ResourceLevelingError("RESOURCE_IDENTITY_USE_REQUIRES_TENANT")
+            try:
+                self.resource_identity.validate_use(
+                    tenant_id=self.tenant_id,
+                    project_id=self.project_id,
+                )
+            except ResourceIdentityError as exc:
+                raise ResourceLevelingError(str(exc)) from exc
 
     def to_demand(self) -> ResourceDemand:
         return ResourceDemand(
-            self.resource_id, self.period, self.units, self.activity_id
+            resource_id=self.resource_id,
+            period=self.period,
+            units=self.units,
+            activity_id=self.activity_id,
+            resource_identity=self.resource_identity,
+            project_id=self.project_id if self.tenant_id is not None else None,
+            tenant_id=self.tenant_id,
         )
 
 
