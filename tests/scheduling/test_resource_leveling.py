@@ -303,3 +303,49 @@ def test_backward_leveling_priority_selects_activity_deterministically():
     assert shifts[0].advanced_days == 1
     assert shifts[0].new_start == day_one
     assert shifts[0].new_finish == day_one
+
+def test_backward_leveling_selected_resource_scope_keeps_other_activities_unchanged():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+        ),
+        BackwardLevelingActivity(
+            "C", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R2", day_two, Decimal("8"), "C"),),
+        ),
+        BackwardLevelingActivity(
+            "D", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R2", day_two, Decimal("8"), "D"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R2", day_one, Decimal("8")),
+        ResourceCapacity("R2", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        level_all_resources=False,
+        resource_ids=("R1",),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id in {"A", "B"}
+    assert shifts[0].shift_working_days == -1
+    assert shifts[0].new_start == day_one
+    assert shifts[0].new_finish == day_one
+    assert not ({"C", "D"} & {shift.activity_id for shift in shifts})
