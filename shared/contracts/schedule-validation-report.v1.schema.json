@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/schedule-validation-report.v1",
+  "title": "CUBI Schedule Validation Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "source_sha256",
+    "source_activity_count",
+    "cubi_activity_count",
+    "matched_activity_count",
+    "match_count",
+    "mismatch_count",
+    "not_comparable_count",
+    "missing_in_cubi_count",
+    "missing_in_source_count",
+    "entries"
+  ],
+  "properties": {
+    "contract_version": { "const": "schedule-validation-report.v1" },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_activity_count": { "type": "integer", "minimum": 0 },
+    "cubi_activity_count": { "type": "integer", "minimum": 0 },
+    "matched_activity_count": { "type": "integer", "minimum": 0 },
+    "match_count": { "type": "integer", "minimum": 0 },
+    "mismatch_count": { "type": "integer", "minimum": 0 },
+    "not_comparable_count": { "type": "integer", "minimum": 0 },
+    "missing_in_cubi_count": { "type": "integer", "minimum": 0 },
+    "missing_in_source_count": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activity_id",
+          "field_name",
+          "source_value",
+          "cubi_value",
+          "status",
+          "delta_hours",
+          "reason"
+        ],
+        "properties": {
+          "activity_id": { "type": "string", "minLength": 1 },
+          "field_name": { "type": "string", "minLength": 1 },
+          "source_value": { "type": ["string", "null"] },
+          "cubi_value": { "type": ["string", "null"] },
+          "status": {
+            "enum": [
+              "MATCH",
+              "MISMATCH",
+              "NOT_COMPARABLE",
+              "ONLY_SOURCE",
+              "ONLY_CUBI"
+            ]
+          },
+          "delta_hours": { "type": ["string", "null"] },
+          "reason": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
