@@ -15,12 +15,12 @@ Preserve resource identity and tenant/project scope throughout the Shared Core d
 - Over-allocation diagnostics preserve canonical identity and tenant/project scope.
 - ExternalResourceAssignment can carry canonical identity and scope; authoritative batch orchestration fills the batch tenant for legacy assignments and rejects cross-tenant assignment records.
 - Multi-project leveling rejects unscoped legacy demand/capacity with MULTI_PROJECT_RESOURCE_IDENTITY_REQUIRED rather than silently treating a raw resource ID as globally shared.
-- P6 read adapter supports an explicit mapping from (tenant_id, project_id, legacy resource_id) to ResourceIdentity and carries the resolved identity to demand/capacity.
+- resource read adapter supports an explicit mapping from (tenant_id, project_id, legacy resource_id) to ResourceIdentity and carries the resolved identity to demand/capacity.
 - Regression cases cover distinct project-local identities with equal raw IDs, explicit shared identity aggregation, ambiguous display-code selection, conflicting canonical definitions, shift preservation, adapter mapping, and rejection of unscoped multi-project input.
 
 ## Explicit limitations / remaining gates
 
-This slice is **not** the end-to-end completion of Issue #1347 or of resource-calendar parity.
+This slice is **not** the end-to-end completion of Issue #1347 or of resource-calendar consistency.
 
 - Resource master identity and legacy-ID binding persistence still need an authoritative storage/API contract and migration policy.
 - Canonical resource identity is not yet a first-class member of AuthoritativeScheduleInput resource-calendar assignments or snapshot materialization/replay.
@@ -38,4 +38,4 @@ This slice is **not** the end-to-end completion of Issue #1347 or of resource-ca
 - Project-local identity cannot be used by another project.
 - WBS/WorkPackage hierarchy, activity identity, resource master identity, and resource assignment identity remain distinct concepts.
 - Resource calendar metadata does not automatically replace an activity's assigned calendar; any activity-type-dependent calendar semantics must be defined in the authoritative Shared Core.
-- CPM forward/backward formulas, calendar arithmetic and P6 constraint semantics are unchanged by this slice.
+- CPM forward/backward formulas, calendar arithmetic and existing CPM constraint semantics are unchanged by this slice.
