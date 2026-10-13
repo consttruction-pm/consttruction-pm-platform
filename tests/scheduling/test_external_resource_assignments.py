@@ -8,6 +8,7 @@ from construction_pm.scheduling.external_resource_assignments import (
     select_resource_assignments_for_scheduling,
     select_batch_resource_assignments_for_scheduling,
 )
+from construction_pm.scheduling.resource_identity import ResourceIdentity, ResourceIdentityScope
 from construction_pm.scheduling.resource_leveling import ResourceLevelingError
 
 
@@ -201,3 +202,40 @@ def test_empty_external_assignment_generator_is_consumed_once_and_returns_no_dem
         external_project_priority_limit=0,
     )
     assert result == ()
+
+
+def test_external_assignment_preserves_explicit_canonical_identity():
+    identity = ResourceIdentity(
+        "canonical-shared-r1", "T1", ResourceIdentityScope.TENANT_SHARED
+    )
+    assignment = ExternalResourceAssignment(
+        project_id="P1",
+        resource_id="R1",
+        period=date(2026, 10, 1),
+        units=Decimal("2"),
+        activity_id="A1",
+        tenant_id="T1",
+        resource_identity=identity,
+    )
+
+    demand = assignment.to_demand()
+
+    assert demand.resource_identity == identity
+    assert demand.resource_key == ("CANONICAL", "T1", "canonical-shared-r1")
+    assert demand.project_id == "P1"
+    assert demand.tenant_id == "T1"
+
+
+def test_external_assignment_rejects_canonical_identity_without_tenant_context():
+    identity = ResourceIdentity(
+        "canonical-shared-r1", "T1", ResourceIdentityScope.TENANT_SHARED
+    )
+    with pytest.raises(ResourceLevelingError, match="RESOURCE_IDENTITY_USE_REQUIRES_TENANT"):
+        ExternalResourceAssignment(
+            project_id="P1",
+            resource_id="R1",
+            period=date(2026, 10, 1),
+            units=Decimal("2"),
+            activity_id="A1",
+            resource_identity=identity,
+        )
