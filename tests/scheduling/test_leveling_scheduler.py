@@ -457,3 +457,48 @@ def test_public_leveling_priority_changes_deterministic_shift_order() -> None:
     assert prioritized.activities["B"].start == date(2026, 10, 2)
     assert defaulted.activities["A"].start == date(2026, 10, 2)
     assert defaulted.activities["B"].start == date(2026, 10, 1)
+
+
+def test_public_leveling_orchestration_applies_overallocation_tolerance() -> None:
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    day_one = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("105"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 0, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_one, day_one, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day_one, Decimal("100")),),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1),),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 2),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            over_allocation_percentage=5.0,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    # A 5% tolerance raises the effective capacity from 100 to 105. This
+    # public-path assertion catches a mapping/orchestration regression that
+    # silently drops ScheduleOptions.over_allocation_percentage.
+    assert forward == ()
+    assert backward == ()
+    assert result.activities["A"].start == day_one
