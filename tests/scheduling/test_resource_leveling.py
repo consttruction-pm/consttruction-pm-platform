@@ -12,6 +12,7 @@ from construction_pm.scheduling.resource_identity import (
 from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     LevelingPriority,
+    LevelingShift,
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingError,
@@ -440,23 +441,14 @@ def test_identity_and_scope_survive_forward_leveling_demand_shifts():
     activity = LevelingActivity(
         "A1", date(2026, 10, 1), date(2026, 10, 1), 2, (original,)
     )
-    shift = propose_forward_leveling_within_float(
-        (activity,),
-        (ResourceCapacity("R1", date(2026, 10, 2), Decimal("1"), shared, "P1", "T1"),),
-        resolver=resolver,
-    )
-
-    # A single activity is not overloaded in its initial period; identity must
-    # nevertheless survive any approved shift application round-trip.
+    # Identity must survive an approved shift application round-trip.
     shifted = apply_leveling_shifts(
         (activity,),
-        (type("Shift", (), {
-            "activity_id": "A1",
-            "shift_working_days": 1,
-            "new_start": date(2026, 10, 2),
-            "new_finish": date(2026, 10, 2),
-            "consumed_float": 1,
-        })(),),
+        (
+            LevelingShift(
+                "A1", 1, date(2026, 10, 2), date(2026, 10, 2), 1, 1
+            ),
+        ),
         resolver=resolver,
     )
     assert shifted[0].resource_demands[0].resource_identity == shared
