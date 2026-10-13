@@ -23,6 +23,7 @@ from construction_pm.p6_resource_spread_repository import (
 )
 from construction_pm.resources.calendar import ResourceCalendar
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_identity import ResourceIdentity, ResourceIdentityScope
 from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceLevelingOptions
 
 
@@ -171,4 +172,85 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             calendars={"calendar-1": ResourceCalendar("calendar-1")},
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
+        )
+
+
+def test_adapter_maps_explicit_canonical_identity_to_demand_and_capacity():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+    assignment_repo.upsert(
+        P6ResourceAssignment(
+            scope, "a-1", "activity-1", "resource-1",
+            units=Decimal("8"), calendar_id="calendar-1",
+        )
+    )
+    period_repo.upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope, "a-1", "activity-1", "resource-1",
+            "2026-10-02", Decimal("6.25"), Decimal("0"),
+        )
+    )
+    identity = ResourceIdentity(
+        "canonical-resource-1",
+        "tenant-a",
+        ResourceIdentityScope.PROJECT_LOCAL,
+        "project-a",
+    )
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 3), 2)
+
+    result = build_scheduler_leveling_input(
+        read_api=api,
+        scope=scope,
+        auth_context=auth(),
+        forward_activities=(activity,),
+        backward_activities=(activity,),
+        calendars={
+            "calendar-1": ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("8.5")
+            )
+        },
+        periods=(date(2026, 10, 2),),
+        options=ResourceLevelingOptions(),
+        resource_identity_bindings={
+            ("tenant-a", "project-a", "resource-1"): identity,
+        },
+    )
+
+    demand = result.forward_activities[0].resource_demands[0]
+    capacity = result.capacities[0]
+    assert demand.resource_identity == identity
+    assert capacity.resource_identity == identity
+    assert (demand.tenant_id, demand.project_id) == ("tenant-a", "project-a")
+    assert (capacity.tenant_id, capacity.project_id) == ("tenant-a", "project-a")
+
+
+def test_adapter_rejects_identity_binding_from_another_tenant():
+    api, assignment_repo, _ = build_api()
+    scope = BackendScope("tenant-a", "project-a", 1)
+    assignment_repo.upsert(
+        P6ResourceAssignment(
+            scope, "a-1", "activity-1", "resource-1",
+            units=Decimal("1"), calendar_id="calendar-1",
+        )
+    )
+    wrong_tenant = ResourceIdentity(
+        "canonical-resource-1",
+        "tenant-b",
+        ResourceIdentityScope.TENANT_SHARED,
+    )
+    activity = LevelingActivity("activity-1", date(2026, 10, 1), date(2026, 10, 1), 1)
+
+    with pytest.raises(Exception, match="RESOURCE_IDENTITY_TENANT_MISMATCH"):
+        build_scheduler_leveling_input(
+            read_api=api,
+            scope=scope,
+            auth_context=auth(),
+            forward_activities=(activity,),
+            backward_activities=(activity,),
+            calendars={"calendar-1": ResourceCalendar("calendar-1")},
+            periods=(date(2026, 10, 1),),
+            options=ResourceLevelingOptions(),
+            resource_identity_bindings={
+                ("tenant-a", "project-a", "resource-1"): wrong_tenant,
+            },
         )
