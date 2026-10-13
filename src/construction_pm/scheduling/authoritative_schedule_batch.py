@@ -196,6 +196,30 @@ def execute_authoritative_schedule_batch(
             "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
         )
 
+    if len(snapshot_list) > 1 and leveling_input is not None:
+        batch_demands = tuple(
+            demand
+            for activity in (
+                *leveling_input.forward_activities,
+                *leveling_input.backward_activities,
+            )
+            for demand in activity.resource_demands
+        )
+        unscoped_demand = any(
+            demand.resource_identity is None
+            and (demand.tenant_id is None or demand.project_id is None)
+            for demand in batch_demands
+        )
+        unscoped_capacity = any(
+            capacity.resource_identity is None
+            and (capacity.tenant_id is None or capacity.project_id is None)
+            for capacity in leveling_input.capacities
+        )
+        if unscoped_demand or unscoped_capacity:
+            raise UnsupportedMultiProjectSchedulingError(
+                "MULTI_PROJECT_RESOURCE_IDENTITY_REQUIRED"
+            )
+
     relationship_settings = {
         snapshot.schedule_options.ignore_other_project_relationships
         for snapshot in snapshot_list
