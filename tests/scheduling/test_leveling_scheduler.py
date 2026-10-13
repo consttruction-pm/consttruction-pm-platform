@@ -623,17 +623,7 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
     ]
 
 def test_public_backward_leveling_applies_overallocation_tolerance() -> None:
-    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
-    from construction_pm.scheduling.resource_leveling import (
-        BackwardLevelingActivity,
-        LevelingActivity,
-        ResourceCapacity,
-        ResourceDemand,
-        ResourceLevelingOptions,
-        SchedulerLevelingInput,
-    )
     from construction_pm.scheduling.schedule_options import ScheduleOptions
-    from construction_pm.scheduling.working_time import WorkingCalendar, WorkingTimeResolver
 
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
