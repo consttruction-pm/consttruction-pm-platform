@@ -388,7 +388,7 @@ def test_priority_based_leveling_honors_descending_sort_order():
         ),
     )
 
-    # Descending priority makes the lower-priority value (1) lose the
-    # resource conflict; the higher-priority value (2) remains scheduled.
-    assert shifts[0].activity_id == "A2"
+    # P6 defines descending Activity Priority as leveling higher-priority
+    # activities first; the higher value (2) is therefore shifted first.
+    assert shifts[0].activity_id == "A1"
 
