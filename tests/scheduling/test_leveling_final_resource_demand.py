@@ -72,7 +72,7 @@ def test_linked_leveling_reconstructs_final_resource_demand_by_shifted_period() 
         final_start = result.activities[activity_input.activity_id].start
         displacement = resolver.working_days_between(activity_input.start, final_start)
         for demand in activity_input.resource_demands:
-            final_period = resolver.add_working_duration(demand.period, displacement)
+            final_period = resolver.add_working_duration(demand.period, displacement + 1)
             final_demand_by_resource_period[(demand.resource_id, final_period)] += demand.units
 
     capacity_by_resource_period = {
