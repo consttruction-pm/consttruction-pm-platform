@@ -613,6 +613,8 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
     # one working-day move; the one-day-float case is separately tested as blocked.
     assert len(forward) == 1
     assert forward[0].shift_working_days == 1
+    assert forward[0].consumed_float == 1
+    assert forward[0].remaining_float == 1
     assert forward[0].new_start == day_two
     assert backward == ()
     assert sorted(activity.start for activity in result.activities.values()) == [
