@@ -19,6 +19,8 @@ from construction_pm.scheduling.resource_leveling import (
     propose_forward_leveling_within_float,
     propose_forward_leveling,
     apply_leveling_shifts,
+    BackwardLevelingActivity,
+    propose_backward_leveling,
 )
 
 
@@ -265,3 +267,39 @@ def test_backward_leveling_rejects_duplicate_capacity():
     capacity = ResourceCapacity("R1", date(2026, 10, 1), Decimal("8"))
     with pytest.raises(ResourceLevelingError, match="DUPLICATE_RESOURCE_CAPACITY"):
         propose_backward_leveling((activity,), (capacity, capacity), resolver=resolver)
+
+
+def test_backward_leveling_priority_selects_activity_deterministically():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("activity_id", SortOrder.DESCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+    assert shifts[0].shift_working_days == -1
+    assert shifts[0].advanced_days == 1
+    assert shifts[0].new_start == day_one
+    assert shifts[0].new_finish == day_one
