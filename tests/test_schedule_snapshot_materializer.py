@@ -453,8 +453,6 @@ def test_materializer_rejects_non_string_priority_field_name():
     ):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
-
-
 def test_materializer_defaults_omitted_priority_sort_order_to_ascending():
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
@@ -504,6 +502,7 @@ def test_materializer_rejects_invalid_priority_sort_order(sort_order):
         match="INVALID_SCHEDULE_OPTION:priority_list",
     ):
         materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+
 
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
