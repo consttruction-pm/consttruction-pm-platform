@@ -502,3 +502,69 @@ def test_public_leveling_orchestration_applies_overallocation_tolerance() -> Non
     assert forward == ()
     assert backward == ()
     assert result.activities["A"].start == day_one
+
+
+def test_public_leveling_selected_resource_scope_keeps_other_activities_unchanged() -> None:
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    r1_a = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    r1_b = ResourceDemand("R1", day_one, Decimal("8"), "B")
+    r2_c = ResourceDemand("R2", day_one, Decimal("8"), "C")
+    r2_d = ResourceDemand("R2", day_one, Decimal("8"), "D")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (r1_a,)),
+            LevelingActivity("B", day_one, day_one, 1, (r1_b,)),
+            LevelingActivity("C", day_one, day_one, 1, (r2_c,)),
+            LevelingActivity("D", day_one, day_one, 1, (r2_d,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (r1_a,)),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (r1_b,)),
+            BackwardLevelingActivity("C", day_one, day_one, day_two, day_two, (r2_c,)),
+            BackwardLevelingActivity("D", day_one, day_one, day_two, day_two, (r2_d,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R2", day_one, Decimal("8")),
+            ResourceCapacity("R2", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=False,
+            resource_ids=("R1",),
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1), Activity("C", 1), Activity("D", 1)),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=False,
+            level_within_float=True,
+            resource_list=("R1",),
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert len(forward) == 1
+    assert forward[0].activity_id in {"A", "B"}
+    assert backward == ()
+    assert {activity_id: result.activities[activity_id].start for activity_id in ("C", "D")} == {
+        "C": day_one,
+        "D": day_one,
+    }
+    assert {activity_id: result.activities[activity_id].start for activity_id in ("A", "B")} in (
+        {"A": day_one, "B": day_two},
+        {"A": day_two, "B": day_one},
+    )
