@@ -91,13 +91,21 @@ def test_adapter_maps_authoritative_demand_and_calendar_capacity():
 
     assert isinstance(result, SchedulerLevelingInput)
     assert result.forward_activities[0].resource_demands[0].units == Decimal("6.25")
-    assert result.forward_activities[0].resource_demands[0].activity_id == "activity-1"
+    demand = result.forward_activities[0].resource_demands[0]
+    assert demand.activity_id == "activity-1"
+    assert demand.tenant_id == "tenant-a"
+    assert demand.project_id == "project-a"
+    assert demand.resource_key == (
+        "LEGACY_SCOPED", "tenant-a", "project-a", "resource-1"
+    )
     assert result.capacities == (
         result.capacities[0],
     )
     assert result.capacities[0].resource_id == "resource-1"
     assert result.capacities[0].period == date(2026, 10, 2)
     assert result.capacities[0].units == Decimal("8.5")
+    assert result.capacities[0].tenant_id == "tenant-a"
+    assert result.capacities[0].project_id == "project-a"
     assert result.forward_activities[0].resource_demands[0].units.as_tuple() == Decimal("6.25").as_tuple()
 
 
