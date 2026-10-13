@@ -8,6 +8,7 @@ from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
     LevelingActivity,
     ResourceCapacity,
     ResourceDemand,
@@ -31,7 +32,14 @@ def test_linked_leveling_reconstructs_final_resource_demand_by_shifted_period() 
             LevelingActivity("A", day_one, day_one, 1, (demand_a,)),
             LevelingActivity("B", day_one, day_one, 1, (demand_b,)),
         ),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", day_one, day_one, day_two, day_two, (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", day_one, day_one, day_two, day_two, (demand_b,)
+            ),
+        ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("8")),
             ResourceCapacity("R1", day_two, Decimal("16")),
