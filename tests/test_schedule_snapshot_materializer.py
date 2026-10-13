@@ -454,6 +454,57 @@ def test_materializer_rejects_non_string_priority_field_name():
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
+
+def test_materializer_defaults_omitted_priority_sort_order_to_ascending():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["priority_list"] = [{"field_name": "total_float"}]
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    candidate = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    result = materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+
+    priority = result.schedule_input.schedule_options.priority_list
+    assert priority is not None
+    assert len(priority) == 1
+    assert priority[0].field_name == "total_float"
+    assert priority[0].sort_order.value == "ASCENDING"
+
+
+@pytest.mark.parametrize("sort_order", [None, 1, "SIDEWAYS"])
+def test_materializer_rejects_invalid_priority_sort_order(sort_order):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["priority_list"] = [
+        {"field_name": "total_float", "sort_order": sort_order}
+    ]
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    candidate = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:priority_list",
+    ):
+        materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
     payload = snapshot.canonical_payload.replace('"system":"gregorian"', '"system":"invalid"')

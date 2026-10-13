@@ -240,6 +240,17 @@ def _schedule_options(value: Any) -> ScheduleOptions:
             raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{name}")
         return raw
 
+    def _priority_sort_order(item: dict[str, Any]) -> PrioritySortOrder:
+        raw = item.get("sort_order", PrioritySortOrder.ASCENDING.value)
+        if not isinstance(raw, str):
+            raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
+        try:
+            return PrioritySortOrder(raw)
+        except ValueError as exc:
+            raise SnapshotMaterializationError(
+                "INVALID_SCHEDULE_OPTION:priority_list"
+            ) from exc
+
     try:
         priority_payload = value.get("priority_list")
         if priority_payload is None:
@@ -252,10 +263,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                     field_name=_required_string(
                         item, "field_name", "INVALID_SCHEDULE_OPTION:priority_list"
                     ),
-                    sort_order=PrioritySortOrder(
-                        item.get("sort_order", PrioritySortOrder.ASCENDING.value)
-                    ) if isinstance(item.get("sort_order", PrioritySortOrder.ASCENDING.value), str)
-                    else (_ for _ in ()).throw(SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")),
+                    sort_order=_priority_sort_order(item),
                 )
                 for item in priority_payload
                 if isinstance(item, dict)

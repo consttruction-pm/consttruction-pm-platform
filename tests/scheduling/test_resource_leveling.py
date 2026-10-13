@@ -349,3 +349,47 @@ def test_backward_leveling_selected_resource_scope_keeps_other_activities_unchan
     assert shifts[0].new_start == day_one
     assert shifts[0].new_finish == day_one
     assert not ({"C", "D"} & {shift.activity_id for shift in shifts})
+
+def test_internal_numeric_activity_priority_honors_descending_sort_order():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            holidays=frozenset(),
+        )
+    )
+    activities = (
+        LevelingActivity(
+            "A1",
+            date(2026, 10, 1),
+            date(2026, 10, 1),
+            1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+            activity_priority=2,
+        ),
+        LevelingActivity(
+            "A2",
+            date(2026, 10, 1),
+            date(2026, 10, 1),
+            1,
+            (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),),
+            activity_priority=1,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(
+            LevelingPriority("Activity Priority", SortOrder.DESCENDING),
+        ),
+    )
+
+    # This verifies the internal numeric LevelingActivity.activity_priority
+    # sort key only. It is not a REST-conformance test for Activity.LevelingPriority,
+    # whose canonical Release 26 wire values are Top/High/Normal/Low/Lowest.
+    assert shifts[0].activity_id == "A1"
+
