@@ -798,3 +798,8 @@ Compatibility impact:
 - Regression: reverse input order for mismatched options and assert the same stable error.
 
 Implementation record: `docs/architecture/STAGE_33_4_66_SHARED_GRAPH_OPTION_CONSISTENCY.md`. Exact-head runtime CI is required before marking this work verified.
+
+
+## 39. Authorization Regression Gate — 2026-10-13
+
+Stage 33.3.4 establishes a provider-neutral Application authorization boundary. Effective identity and roles are supplied by the authentication layer; project authorization must carry tenant, project and user identity and use explicit permissions. Initial roles are a provisional baseline, not the final product role catalog. No authorization policy may enter or duplicate Shared Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations. The next gate is integration regression and runtime CI verification; implementation alone is not evidence of passing tests.
