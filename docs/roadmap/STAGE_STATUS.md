@@ -1311,3 +1311,14 @@ Status: **merged; exact-head CI verified**
 - PR #1383 merged as 9aa67da9b3ea2be799b203acd725b156426b14ec; exact-head ConstructionPM CI, Client Typecheck and PostgreSQL checks passed.
 - ResourceList now preserves typed resource-ID arrays through snapshot materialization and the authoritative leveling boundary, including IDs containing commas; malformed arrays and malformed legacy CSV values are rejected. This closes the internal array/scalar mismatch but does not by itself certify the Oracle P6 REST wire mapping.
 - Issue #1379 remains open for PriorityList: canonical item encoding, sort_order omission/default policy, and round-trip evidence through the authoritative leveling path remain unresolved. The Release 26 disposition stays pending until external-contract and end-to-end evidence are complete.
+
+
+### Stage 33.4.68 — Canonical Resource Identity in Shared Leveling
+Status: **60% — implementation slice added; exact-head CI and persistence/snapshot gates pending**
+- Added canonical identity and tenant/project scope fields to Shared Core ResourceDemand and ResourceCapacity while preserving legacy constructor compatibility.
+- Forward/backward leveling, over-allocation detection and diagnostics use identity-aware keys.
+- External resource assignments are tenant-scoped at the authoritative batch boundary; the P6 read adapter accepts explicit legacy-ID-to-canonical-identity bindings.
+- Multi-project leveling rejects unscoped legacy demand/capacity rather than treating a raw resource ID as globally shared.
+- Added regression cases for distinct project-local identities with equal raw IDs, explicit shared identity aggregation, ambiguous selection, conflicting canonical definitions, shift preservation, adapter mapping, and rejection of unscoped multi-project input.
+- Remaining: authoritative storage/API identity binding, first-class snapshot and replay propagation, version-pinned resource-calendar resolution through CalendarResolverRegistry, shared-capacity deduplication, and exact-head CI/PostgreSQL verification.
+- Keep PR #1353 and #1371 unmerged until branch drift, end-to-end acceptance, and independent review are resolved.
