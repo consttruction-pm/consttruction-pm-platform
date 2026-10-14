@@ -999,3 +999,75 @@ def test_materializer_accepts_legacy_comma_separated_resource_list():
     )
     result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
     assert result.schedule_input.schedule_options.resource_list == ("R1", "R2")
+
+
+def test_snapshot_round_trip_preserves_suspend_resume_dates() -> None:
+    cal = CalendarReference("CAL-SUSPEND", "1")
+    activity = Activity(
+        "A-SUSPEND",
+        3,
+        actual_start=date(2026, 10, 1),
+        suspend_date=date(2026, 10, 2),
+        resume_date=date(2026, 10, 5),
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-SUSPEND",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=3,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(activity,),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 10, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=3,
+        calendar_id="CAL-SUSPEND",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-10-01T08:00:00+00:00",
+        input_snapshot_id="S-SUSPEND",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 10, 1, 8, tzinfo=timezone.utc),
+    )
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["activities"][0]["suspend_date"] == "2026-10-02"
+    assert payload["activities"][0]["resume_date"] == "2026-10-05"
+
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    materialized = result.schedule_input.activities[0]
+    assert materialized.suspend_date == date(2026, 10, 2)
+    assert materialized.resume_date == date(2026, 10, 5)
+
+
+def test_materializer_normalizes_p6_datetime_suspend_fields_to_day_start() -> None:
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["actual_start"] = "2026-10-01"
+    payload["activities"][0]["suspend_date"] = "2026-10-02T16:35:00"
+    payload["activities"][0]["resume_date"] = "2026-10-05T09:30:00"
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    normalized = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    result = materialize_schedule_snapshot(normalized, CalendarResolverRegistry())
+    activity = result.schedule_input.activities[0]
+    # P6 semantics suspend/resume at the beginning of the entered date; the
+    # date-based Shared Core stores the local day boundary, not the entered time.
+    assert activity.suspend_date == date(2026, 10, 2)
+    assert activity.resume_date == date(2026, 10, 5)
