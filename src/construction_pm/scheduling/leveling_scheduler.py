@@ -225,10 +225,21 @@ def _validate_final_resource_load(
         leveling_input.capacities,
         over_allocation_percentage=leveling_input.options.over_allocation_percentage,
     )
+    # Capacity is an explicit period-based input. Dates without a capacity row
+    # are outside the caller's configured validation horizon; treating every
+    # absent row as zero makes unconstrained CPM late dates (which can be far in
+    # the future) look like new resource overloads even when no capacity was
+    # specified for those periods.
+    configured_capacity_periods = {
+        (capacity.resource_id, capacity.period)
+        for capacity in leveling_input.capacities
+        if capacity.resource_id in selected_resources
+    }
     worsened_overloads = tuple(
         overload
         for overload in overloads
-        if overload.excess > baseline_excess.get(
+        if (overload.resource_id, overload.period) in configured_capacity_periods
+        and overload.excess > baseline_excess.get(
             (overload.resource_id, overload.period), Decimal("0")
         )
     )
