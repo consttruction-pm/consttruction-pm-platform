@@ -90,6 +90,7 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
+    float_schedule: Mapping[str, object],
     resolver: object,
     protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
