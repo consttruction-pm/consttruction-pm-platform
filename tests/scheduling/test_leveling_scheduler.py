@@ -937,3 +937,64 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+
+
+def test_schedule_options_resource_list_is_authoritative_over_boundary_copy():
+    from dataclasses import replace
+
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    base = _resource_leveling_input(preserve=True)
+    # Simulate stale lower-level configuration. The public ScheduleOptions
+    # resource list is the authoritative value for this orchestration call.
+    stale_input = replace(
+        base,
+        options=replace(base.options, resource_ids=("R2",)),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        stale_input,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=False,
+            resource_list=("R1",),
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert backward == ()
+    assert result.activities["A"].start == date(2026, 10, 2)
+
+
+def test_schedule_options_rejects_empty_explicit_resource_selection():
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(ResourceLevelingError, match="LEVELING_RESOURCE_SELECTION_EMPTY"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            options=ScheduleOptions(
+                level_all_resources=False,
+                resource_list=None,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
