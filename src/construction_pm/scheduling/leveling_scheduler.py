@@ -96,6 +96,34 @@ def _backward_activities_from_intermediate(
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
         early = early_schedule[activity.activity_id]
         late = late_schedule[activity.activity_id]
+        forward_activity = forward_by_id.get(activity.activity_id, activity)
+        original_start = forward_by_id[activity.activity_id].start
+        if late.start > original_start:
+            displacement = resolver.working_days_between(original_start, late.start)
+        elif late.start < original_start:
+            displacement = -resolver.working_days_between(late.start, original_start)
+        else:
+            displacement = 0
+
+        shifted_demands: list[ResourceDemand] = []
+        for demand in forward_activity.resource_demands:
+            if displacement > 0:
+                shifted_period = resolver.add_working_duration(
+                    demand.period, displacement + 1
+                )
+            elif displacement < 0:
+                shifted_period = resolver.subtract_working_duration(
+                    demand.period, abs(displacement) + 1
+                )
+            else:
+                shifted_period = demand.period
+            shifted_demands.append(ResourceDemand(
+                demand.resource_id,
+                shifted_period,
+                demand.units,
+                demand.activity_id,
+            ))
+
         result.append(
             BackwardLevelingActivity(
                 activity_id=activity.activity_id,
@@ -103,21 +131,7 @@ def _backward_activities_from_intermediate(
                 early_finish=early.finish,
                 late_start=late.start,
                 late_finish=late.finish,
-                resource_demands=tuple(
-                    ResourceDemand(
-                        demand.resource_id,
-                        resolver.add_working_duration(
-                            demand.period,
-                            resolver.working_days_between(
-                                forward_by_id[activity.activity_id].start,
-                                late.start,
-                            ),
-                        ),
-                        demand.units,
-                        demand.activity_id,
-                    )
-                    for demand in forward_by_id.get(activity.activity_id, activity).resource_demands
-                ),
+                resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
             )
         )
