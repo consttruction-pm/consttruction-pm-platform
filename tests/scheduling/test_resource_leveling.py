@@ -485,3 +485,35 @@ def test_backward_leveling_rejects_priority_fields_without_distinct_schedule_dat
             resolver=resolver,
             priorities=(LevelingPriority(field_name, SortOrder.ASCENDING),),
         )
+
+
+def test_forward_leveling_rejects_duplicate_activity_ids():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
+
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        propose_forward_leveling_within_float((activity, activity), (), resolver=resolver)
+
+
+def test_backward_leveling_rejects_duplicate_activity_ids():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 2), date(2026, 10, 2)
+    )
+
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        propose_backward_leveling((activity, activity), (), resolver=resolver)
+
+
+def test_apply_leveling_shifts_rejects_duplicate_activity_ids():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
+
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        apply_leveling_shifts((activity, activity), (), resolver=resolver)
