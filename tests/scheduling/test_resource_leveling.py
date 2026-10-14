@@ -443,3 +443,14 @@ def test_apply_leveling_shifts_rejects_unknown_activity_id():
     )
     with pytest.raises(ResourceLevelingError, match="UNKNOWN_LEVELING_ACTIVITY"):
         apply_leveling_shifts((activity,), (unknown_shift,), resolver=resolver)
+
+def test_apply_leveling_shifts_rejects_inconsistent_remaining_float():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 3)
+    inconsistent_shift = LevelingShift(
+        "A1", 1, date(2026, 10, 2), date(2026, 10, 2), 1, 3
+    )
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
+        apply_leveling_shifts((activity,), (inconsistent_shift,), resolver=resolver)
