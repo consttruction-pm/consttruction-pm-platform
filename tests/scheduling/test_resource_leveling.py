@@ -918,6 +918,29 @@ def test_forward_leveling_rechecks_overloads_created_on_next_day_across_resource
         ("R2", day_three),
     }
 
+
+def test_forward_leveling_leaves_unresolvable_overallocation_visible_when_float_is_exhausted():
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A_FIXED", day, day, 0, (ResourceDemand("R1", day, Decimal("8"), "A_FIXED"),)),
+        LevelingActivity("B_FIXED", day, day, 0, (ResourceDemand("R1", day, Decimal("8"), "B_FIXED"),)),
+    )
+    capacities = (ResourceCapacity("R1", day, Decimal("8")),)
+
+    shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver)
+    remaining = detect_over_allocations(
+        [d for activity in activities for d in activity.resource_demands],
+        capacities,
+    )
+
+    assert shifts == ()
+    assert len(remaining) == 1
+    assert (remaining[0].resource_id, remaining[0].period) == ("R1", day)
+    assert remaining[0].demand == Decimal("16")
+    assert remaining[0].effective_capacity == Decimal("8")
+    assert remaining[0].excess == Decimal("8")
+
 def test_forward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
