@@ -90,6 +90,7 @@ def _backward_activities_from_intermediate(
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     resolver: object,
+    total_float_by_activity: Mapping[str, int] | None = None,
     protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
@@ -131,6 +132,13 @@ def _backward_activities_from_intermediate(
                 demand.activity_id,
             ))
 
+        if total_float_by_activity is not None:
+            if activity.activity_id not in total_float_by_activity:
+                raise ResourceLevelingError("MISSING_AUTHORITATIVE_TOTAL_FLOAT")
+            authoritative_total_float = total_float_by_activity[activity.activity_id]
+        else:
+            authoritative_total_float = activity.total_float
+
         result.append(
             BackwardLevelingActivity(
                 activity_id=activity.activity_id,
@@ -140,6 +148,7 @@ def _backward_activities_from_intermediate(
                 late_finish=late.finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
+                total_float=authoritative_total_float,
             )
         )
     return tuple(result)
@@ -389,6 +398,10 @@ def schedule_with_resource_leveling(
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
+            total_float_by_activity={
+                activity_id: float_result.total_float
+                for activity_id, float_result in intermediate.floats.items()
+            },
             protected_activity_ids=protected_activity_ids,
         )
         proposed_backward_shifts = propose_backward_leveling(
