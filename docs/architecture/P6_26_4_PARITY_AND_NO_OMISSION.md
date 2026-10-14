@@ -173,7 +173,7 @@ Source-derived rules:
 
 ### 5B. Relationship-lag calendar default — conformance gap requiring explicit disposition
 
-**Official source baseline:** P6 Professional Integration API Field Summary documents `RelationshipLagCalendar` choices and states that if no calendar is selected, the successor activity calendar is used: https://docs.oracle.com/cd/E75426_01/English/Integration/p6_pro_api_reference/FieldSummary.html . P6 Professional help also documents the four selectable modes (predecessor activity, successor activity, 24-hour, project default): https://docs.oracle.com/cd/F51303_01/client_help/en_US/choose_a_calendar_for_relationship_lag.htm
+**Official source baseline:** P6 Professional Help Version 26, “General tab - Schedule Options dialog box” documents the four selectable modes and explicitly states that if no calendar is selected, the Successor Activity Calendar is used: https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm . The P6 Professional API field summary also documents the four valid enum values: https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html
 
 **Current implementation observation:** `src/construction_pm/scheduling/schedule_options.py` initializes `ScheduleOptions.relationship_lag_calendar` to `RelationshipLagCalendar.PROJECT_DEFAULT`. This differs from the documented P6 fallback when the user has not explicitly selected a lag calendar.
 
