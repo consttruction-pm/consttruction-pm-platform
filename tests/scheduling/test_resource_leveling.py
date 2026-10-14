@@ -842,6 +842,39 @@ def test_apply_leveling_shifts_rejects_invalid_shift_fields(field, value):
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts((activity,), (malformed,), resolver=resolver)
 
+
+def test_forward_leveling_moves_all_demands_of_multiresource_activity_together():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    activities = (
+        LevelingActivity(
+            "A_MULTI", day_one, day_one, 1,
+            (
+                ResourceDemand("R1", day_one, Decimal("8"), "A_MULTI"),
+                ResourceDemand("R2", day_one, Decimal("8"), "A_MULTI"),
+            ),
+        ),
+        LevelingActivity("B_R1", day_one, day_one, 0, (ResourceDemand("R1", day_one, Decimal("8"), "B_R1"),)),
+        LevelingActivity("C_R2", day_one, day_one, 0, (ResourceDemand("R2", day_one, Decimal("8"), "C_R2"),)),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R2", day_one, Decimal("8")),
+        ResourceCapacity("R2", day_two, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver)
+
+    assert [(shift.activity_id, shift.shift_working_days) for shift in shifts] == [("A_MULTI", 1)]
+    moved = apply_leveling_shifts(activities, shifts, resolver=resolver)
+    moved_multi = next(activity for activity in moved if activity.activity_id == "A_MULTI")
+    assert {(d.resource_id, d.period) for d in moved_multi.resource_demands} == {
+        ("R1", day_two),
+        ("R2", day_two),
+    }
+
 def test_forward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
