@@ -452,6 +452,25 @@ def test_backward_leveling_rejects_duplicate_activity_ids():
         propose_backward_leveling((activity, activity), (), resolver=resolver)
 
 
+def test_backward_leveling_rejects_unknown_protected_activity_id():
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1", day, day, day, day,
+        (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNKNOWN_PROTECTED_ACTIVITY_ID"):
+        propose_backward_leveling(
+            (activity,),
+            (ResourceCapacity("R1", day, Decimal("8")),),
+            resolver=resolver,
+            protected_activity_ids=("MISSING",),
+        )
+
+
 def test_backward_leveling_rejects_duplicate_capacity():
     from construction_pm.scheduling.resource_leveling import BackwardLevelingActivity, propose_backward_leveling
 
