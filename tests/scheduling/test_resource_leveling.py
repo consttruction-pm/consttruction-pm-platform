@@ -373,6 +373,32 @@ def test_forward_leveling_wrapper_validates_inputs(activities, capacities, kwarg
         )
 
 
+@pytest.mark.parametrize("min_float_to_preserve", [None, "1", True, -1])
+def test_forward_leveling_wrapper_validates_minimum_float_before_synthetic_conversion(min_float_to_preserve):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    with pytest.raises(ResourceLevelingError, match="INVALID_MIN_FLOAT_TO_PRESERVE"):
+        propose_forward_leveling(
+            (),
+            (),
+            resolver=resolver,
+            level_within_float=False,
+            min_float_to_preserve=min_float_to_preserve,
+        )
+
+
+def test_forward_leveling_wrapper_validates_resolver_before_synthetic_conversion():
+    with pytest.raises(ResourceLevelingError, match="INVALID_WORKING_TIME_RESOLVER"):
+        propose_forward_leveling(
+            (),
+            (),
+            resolver=None,
+            level_within_float=False,
+            min_float_to_preserve=None,
+        )
+
+
 def test_forward_leveling_rejects_duplicate_activity_ids():
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
