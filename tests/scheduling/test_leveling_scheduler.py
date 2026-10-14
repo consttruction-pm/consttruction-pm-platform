@@ -950,3 +950,55 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+
+
+def test_backward_builder_keeps_forward_leveled_protected_demand_at_intermediate_date():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", thursday, Decimal("1"), "A")
+    demand_b = ResourceDemand("R1", thursday, Decimal("1"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", thursday, thursday, 4, (demand_a,)),
+            LevelingActivity("B", thursday, thursday, 4, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", thursday, thursday, monday, monday, (demand_a,)),
+            BackwardLevelingActivity("B", thursday, thursday, monday, monday, (demand_b,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("1")),
+            ResourceCapacity("R1", friday, Decimal("1")),
+            ResourceCapacity("R1", monday, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={
+            "A": SimpleNamespace(start=friday, finish=friday),
+            "B": SimpleNamespace(start=thursday, finish=thursday),
+        },
+        late_schedule={
+            "A": SimpleNamespace(start=monday, finish=monday),
+            "B": SimpleNamespace(start=monday, finish=monday),
+        },
+        resolver=resolver,
+        protected_activity_ids=("A",),
+    )
+    by_id = {activity.activity_id: activity for activity in built}
+
+    # A's forward move is already accepted, so its ledger occupies Friday.
+    # B is still a backward candidate and starts from its late-date profile.
+    assert by_id["A"].resource_demands[0].period == friday
+    assert by_id["B"].resource_demands[0].period == monday
