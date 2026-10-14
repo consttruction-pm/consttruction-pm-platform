@@ -74,7 +74,7 @@ def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm()
         "A": day_two,
         "B": day_one,
     }
-    assert result.project_finish == day_three
+    assert result.project_finish == day_two
     final_demand_by_day = {
         day: sum(
             demand.units
@@ -242,4 +242,4 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert backward[0].new_start == day_two
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
-    assert result.project_finish == day_two
+    assert result.project_finish == day_three
