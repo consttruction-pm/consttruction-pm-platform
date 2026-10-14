@@ -243,6 +243,43 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
+def test_shared_batch_exposes_residual_resource_overallocation_after_leveling():
+    options = ScheduleOptions(level_all_resources=True)
+    p1 = snapshot("P1", date(2026, 10, 10), options=options)
+    p2 = snapshot("P2", date(2026, 10, 10), options=options)
+    day = date(2026, 10, 1)
+    demand_a = ResourceDemand("R1", day, Decimal("1"), "P1-A")
+    demand_b = ResourceDemand("R1", day, Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", day, day, 0, (demand_a,)),
+        LevelingActivity("P2-A", day, day, 0, (demand_b,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", day, day, day, day, (demand_a,)),
+        BackwardLevelingActivity("P2-A", day, day, day, day, (demand_b,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(ResourceCapacity("R1", day, Decimal("1")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    assert len(result.resource_over_allocations) == 1
+    overload = result.resource_over_allocations[0]
+    assert overload.resource_id == "R1"
+    assert overload.period == day
+    assert overload.demand == Decimal("2")
+    assert overload.effective_capacity == Decimal("1")
+    assert overload.excess == Decimal("1")
+
+
 def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
     p1 = replace(
         snapshot("P1", date(2026, 10, 10)),
