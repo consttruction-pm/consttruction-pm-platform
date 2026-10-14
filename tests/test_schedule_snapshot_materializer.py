@@ -429,6 +429,40 @@ def test_materializer_rejects_duplicate_activity_calendar_assignment():
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
+@pytest.mark.parametrize(
+    "priority_list",
+    [
+        [],
+        {},
+        "total_float",
+        [None],
+        [{"field_name": "total_float"} , None],
+        [{"field_name": "   ", "sort_order": "ASCENDING"}],
+    ],
+)
+def test_materializer_rejects_malformed_priority_list_container_or_items(priority_list):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["priority_list"] = priority_list
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    candidate = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:priority_list",
+    ):
+        materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+
+
 def test_materializer_rejects_non_string_priority_field_name():
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
