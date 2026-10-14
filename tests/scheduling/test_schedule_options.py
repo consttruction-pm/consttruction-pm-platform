@@ -1,9 +1,11 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
 from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.schedule_options import (
+    MinimumFloatUnit,
     OutOfSequenceScheduleType,
     PriorityListItem,
     PrioritySortOrder,
@@ -149,3 +151,27 @@ def test_resource_list_preserves_ids_that_contain_commas():
 def test_resource_list_rejects_empty_duplicate_or_invalid_members(value):
     with pytest.raises(ValueError, match="resource_list"):
         ScheduleOptions(resource_list=value)
+
+
+def test_minimum_float_preserve_defaults_to_hours_and_supports_fractional_units():
+    options = ScheduleOptions(min_float_to_preserve=2.5)
+    assert options.min_float_to_preserve == 2.5
+    assert options.min_float_to_preserve_unit is MinimumFloatUnit.HOUR
+
+    explicit = ScheduleOptions(
+        min_float_to_preserve=Decimal("1.25"),
+        min_float_to_preserve_unit=MinimumFloatUnit.DAY,
+    )
+    assert explicit.min_float_to_preserve == Decimal("1.25")
+    assert explicit.min_float_to_preserve_unit is MinimumFloatUnit.DAY
+
+
+def test_minimum_float_preserve_rejects_non_finite_or_boolean_values():
+    for value in (True, float("nan"), float("inf"), -0.1, "2"):
+        with pytest.raises(ValueError, match="min_float_to_preserve"):
+            ScheduleOptions(min_float_to_preserve=value)
+
+
+def test_minimum_float_preserve_rejects_untyped_unit():
+    with pytest.raises(ValueError, match="min_float_to_preserve_unit"):
+        ScheduleOptions(min_float_to_preserve=2, min_float_to_preserve_unit="day")
