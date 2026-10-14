@@ -875,6 +875,49 @@ def test_forward_leveling_moves_all_demands_of_multiresource_activity_together()
         ("R2", day_two),
     }
 
+
+def test_forward_leveling_rechecks_overloads_created_on_next_day_across_resources():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    day_one, day_two, day_three = (date(2026, 10, day) for day in (1, 2, 5))
+    activities = (
+        LevelingActivity(
+            "A_MULTI", day_one, day_one, 2,
+            (
+                ResourceDemand("R1", day_one, Decimal("8"), "A_MULTI"),
+                ResourceDemand("R2", day_one, Decimal("8"), "A_MULTI"),
+            ),
+        ),
+        LevelingActivity(
+            "B_R1", day_one, day_two, 0,
+            (
+                ResourceDemand("R1", day_one, Decimal("8"), "B_R1"),
+                ResourceDemand("R1", day_two, Decimal("8"), "B_R1"),
+            ),
+        ),
+        LevelingActivity(
+            "C_R2", day_one, day_two, 0,
+            (
+                ResourceDemand("R2", day_one, Decimal("8"), "C_R2"),
+                ResourceDemand("R2", day_two, Decimal("8"), "C_R2"),
+            ),
+        ),
+    )
+    capacities = tuple(
+        ResourceCapacity(resource_id, period, Decimal("8"))
+        for resource_id in ("R1", "R2")
+        for period in (day_one, day_two, day_three)
+    )
+
+    shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver)
+
+    assert [(shift.activity_id, shift.shift_working_days) for shift in shifts] == [("A_MULTI", 2)]
+    moved = apply_leveling_shifts(activities, shifts, resolver=resolver)
+    moved_multi = next(activity for activity in moved if activity.activity_id == "A_MULTI")
+    assert {(d.resource_id, d.period) for d in moved_multi.resource_demands} == {
+        ("R1", day_three),
+        ("R2", day_three),
+    }
+
 def test_forward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
