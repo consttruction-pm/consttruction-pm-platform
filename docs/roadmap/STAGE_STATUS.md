@@ -1314,12 +1314,14 @@ Status: **merged; exact-head CI verified**
 
 
 ### Stage 33.3.5 — Authorization Integration Regression
-Status: **implementation + focused regression coverage added; full CI verification pending**
-- Verified that authorization scope validation rejects blank tenant/project/user identities and malformed role sets.
-- Added explicit unknown-role-only fail-closed coverage across every permission; mixed role sets remain additive by design.
-- Added a project-lifecycle regression proving a session from tenant B cannot open a project that exists only under tenant A, even when the project ID matches.
-- Added synchronization regression proving identical idempotency keys remain separately scoped by tenant and by project.
-- Existing integration checks cover viewer denial of scheduling, planner permissions, idempotent retry replay, and preservation of expected revision in mutation fingerprints.
-- Authentication-provider integration and HTTP route enforcement remain separate until concrete route wiring is verified; the policy helper alone is not a production security boundary.
-- No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial semantics changed.
-- Current relevant CI runs are triggered on the exact change heads; do not mark the stage complete until they finish successfully.
+Status: **implementation + HTTP enforcement regression added; exact-head CI pending**
+- AuthorizationContext rejects blank tenant/project/user identity and malformed role sets; unknown-only role sets deny every permission.
+- Project lifecycle regression proves a session from tenant B cannot open a project that exists only under tenant A, even when the project ID matches.
+- Sync idempotency regression proves same idempotency key is scoped independently by tenant and project.
+- Critical integration finding repaired: POST /api/v1/sync/mutations previously opened the project (read permission) but did not explicitly require project.write before dispatching the mutation gateway.
+- Added ProjectLifecycleService.authorize_project and ProjectLifecycleAPI.authorize_project so the application layer derives the project from authenticated session context and applies the shared permission policy.
+- Sync mutation route now requires Permission.PROJECT_WRITE before invoking the sync endpoint; an HTTP regression test verifies a viewer receives 403 and the application mutation handler is not called.
+- Existing tests cover retry replay/idempotency, expected-revision fingerprint, spoofed project context and stale revision behavior.
+- Authentication provider selection, production identity/session issuance, and complete authorization test coverage across every write route remain release gates; this narrow fix must not be described as complete platform security certification.
+- No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial calculation semantics changed.
+- Exact-head ConstructionPM CI, Client Typecheck and PostgreSQL sync workflow results must be reviewed before marking this stage complete.
