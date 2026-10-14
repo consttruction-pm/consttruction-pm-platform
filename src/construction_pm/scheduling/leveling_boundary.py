@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from .calendar import WorkingTimeResolver
 from .resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -12,7 +13,7 @@ from .resource_leveling import (
     ResourceLevelingOptions,
     SortOrder,
 )
-from .schedule_options import PrioritySortOrder, ScheduleOptions
+from .schedule_options import MinimumFloatUnit, PrioritySortOrder, ScheduleOptions
 
 
 @dataclass(frozen=True)
@@ -102,17 +103,35 @@ def scheduler_leveling_input_from_options(
     backward_activities: tuple[BackwardLevelingActivity, ...],
     capacities: tuple[ResourceCapacity, ...],
     options: ScheduleOptions,
+    resolver: WorkingTimeResolver | None = None,
 ) -> SchedulerLevelingInput:
     """Map typed ScheduleOptions into the existing Shared Core leveling options.
 
     The calculation engine remains the sole owner of the resource-leveling
     semantics; this function only establishes the scheduler input contract.
     """
+    minimum_float_value = Decimal(str(options.min_float_to_preserve))
+    if minimum_float_value == 0:
+        minimum_float_days = Decimal("0")
+    else:
+        if not isinstance(resolver, WorkingTimeResolver):
+            raise ResourceLevelingError("MINIMUM_FLOAT_REQUIRES_PROJECT_CALENDAR")
+        factors = resolver.calendar.time_period_factors
+        hours_per_unit = {
+            MinimumFloatUnit.HOUR: Decimal("1"),
+            MinimumFloatUnit.DAY: factors.hours_per_day,
+            MinimumFloatUnit.WEEK: factors.hours_per_week,
+            MinimumFloatUnit.MONTH: factors.hours_per_month,
+            MinimumFloatUnit.YEAR: factors.hours_per_year,
+        }[options.min_float_to_preserve_unit]
+        minimum_float_days = minimum_float_value * hours_per_unit / factors.hours_per_day
+
     leveling_options = ResourceLevelingOptions(
         preserve_scheduled_early_and_late_dates=options.preserve_scheduled_early_and_late_dates,
         level_all_resources=options.level_all_resources,
         level_within_float=options.level_within_float,
-        min_float_to_preserve=Decimal(str(options.min_float_to_preserve)),
+        # Internal ResourceLevelingOptions values are fractional working days.
+        min_float_to_preserve=minimum_float_days,
         over_allocation_percentage=Decimal(str(options.over_allocation_percentage)),
         resource_ids=options.resource_list or (),
         priorities=_map_priority_list(options),
