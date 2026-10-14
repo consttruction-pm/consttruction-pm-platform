@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from construction_pm.scheduling.leveling_boundary import (
+    SchedulerLevelingInput,
     scheduler_leveling_input_from_options,
 )
 from construction_pm.scheduling.resource_identity import (
@@ -16,6 +17,7 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingError,
+    ResourceLevelingOptions,
 )
 from construction_pm.scheduling.resource_leveling import SortOrder
 from construction_pm.scheduling.schedule_options import (
