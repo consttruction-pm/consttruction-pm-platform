@@ -1,6 +1,6 @@
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -486,7 +486,9 @@ def test_apply_leveling_shifts_rejects_malformed_shift_inputs(shifts):
         ("shift_working_days", 1.5),
         ("shift_working_days", -1),
         ("new_start", None),
+        ("new_start", datetime(2026, 10, 2, 8, 30)),
         ("new_finish", "2026-10-02"),
+        ("new_finish", datetime(2026, 10, 2, 8, 30)),
     ],
 )
 def test_apply_leveling_shifts_rejects_invalid_shift_fields(field, value):
