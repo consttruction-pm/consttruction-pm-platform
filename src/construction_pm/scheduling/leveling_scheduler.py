@@ -10,6 +10,7 @@ from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
     LevelingActivity,
+    LevelingPriority,
     LevelingShift,
     ResourceDemand,
     apply_leveling_shifts,
@@ -173,7 +174,7 @@ class _DescendingPriority:
 
 def _backward_leveling_priority_key(
     activity: BackwardLevelingActivity,
-    priorities: tuple[object, ...],
+    priorities: tuple[LevelingPriority, ...],
 ) -> tuple:
     """Mirror the proposal pass ordering when choosing a rollback candidate."""
     values = {
