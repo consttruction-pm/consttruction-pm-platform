@@ -233,6 +233,8 @@ def schedule_with_resource_leveling(
     activities = tuple(activities)
     relationships = tuple(relationships)
     constraints = tuple(constraints or ())
+    if not activities:
+        raise ResourceLevelingError("SCHEDULE_ACTIVITIES_EMPTY")
     scheduler_ids = [getattr(activity, "id", None) for activity in activities]
     if any(activity_id is None for activity_id in scheduler_ids):
         raise ResourceLevelingError("SCHEDULE_ACTIVITY_MISSING_ID")
