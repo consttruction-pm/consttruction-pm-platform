@@ -105,10 +105,10 @@ def _backward_activities_from_intermediate(
                     ResourceDemand(
                         demand.resource_id,
                         resolver.add_working_duration(
-                            demand.period,
+                            late.start,
                             resolver.working_days_between(
                                 forward_by_id[activity.activity_id].start,
-                                late.start,
+                                demand.period,
                             ),
                         ),
                         demand.units,
