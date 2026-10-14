@@ -106,6 +106,38 @@ def test_leveling_options_validate_typed_contract():
     assert options.priorities[0].field_name == "activity_id"
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "error"),
+    [
+        ({"resource_ids": None}, "INVALID_RESOURCE_ID"),
+        ({"resource_ids": ["R1"]}, "INVALID_RESOURCE_ID"),
+        ({"resource_ids": ([])}, "INVALID_RESOURCE_ID"),
+        ({"priorities": None}, "INVALID_LEVELING_PRIORITIES"),
+        ({"priorities": (None,)}, "INVALID_LEVELING_PRIORITIES"),
+    ],
+)
+def test_leveling_options_reject_malformed_collections(kwargs, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        ResourceLevelingOptions(**kwargs)
+
+
+@pytest.mark.parametrize("factory", [
+    lambda: LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 2), 1, None),
+    lambda: LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 2), 1, (None,)),
+    lambda: BackwardLevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 2),
+        date(2026, 10, 1), date(2026, 10, 2), None
+    ),
+    lambda: BackwardLevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 2),
+        date(2026, 10, 1), date(2026, 10, 2), (None,)
+    ),
+])
+def test_leveling_activities_reject_malformed_resource_demands(factory):
+    with pytest.raises(ResourceLevelingError, match="INVALID_RESOURCE_DEMANDS"):
+        factory()
+
+
 def test_negative_minimum_float_is_rejected():
     with pytest.raises(ResourceLevelingError, match="INVALID_MIN_FLOAT_TO_PRESERVE"):
         ResourceLevelingOptions(min_float_to_preserve=Decimal("-1"))
