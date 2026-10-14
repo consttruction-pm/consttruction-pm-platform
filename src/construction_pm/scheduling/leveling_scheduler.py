@@ -392,6 +392,10 @@ def schedule_with_resource_leveling(
     # the least-preferred shifted contributor and retry the complete schedule.
     # This is a bounded search: every retry removes one positive backward step.
     while True:
+        # A ResourceLevelingError raised by schedule() itself has no final
+        # schedule result to inspect; only final-ledger errors may trigger
+        # contributor-based backtracking below.
+        result = None
         try:
             result = schedule(
                 activities, relationships, project_start, resolver,
@@ -423,6 +427,10 @@ def schedule_with_resource_leveling(
                 if shift is not most_aggressive
             )
         except ResourceLevelingError as exc:
+            if result is None:
+                # schedule() failed before producing an authoritative result;
+                # this is not a final-ledger overload we can backtrack safely.
+                raise
             # A relationship may reject a successor's most aggressive move,
             # leaving an earlier predecessor move that pushes both demands
             # onto the same configured-capacity period. Use the final result
