@@ -1314,14 +1314,15 @@ Status: **merged; exact-head CI verified**
 
 
 ### Stage 33.3.5 — Authorization Integration Regression
-Status: **implementation + HTTP enforcement regression added; exact-head CI pending**
+Status: **implementation + focused route-level security regressions added; exact-head CI pending**
 - AuthorizationContext rejects blank tenant/project/user identity and malformed role sets; unknown-only role sets deny every permission.
 - Project lifecycle regression proves a session from tenant B cannot open a project that exists only under tenant A, even when the project ID matches.
-- Sync idempotency regression proves same idempotency key is scoped independently by tenant and project.
+- Sync idempotency regression proves the same idempotency key is independently scoped by tenant and project.
 - Critical integration finding repaired: POST /api/v1/sync/mutations previously opened the project (read permission) but did not explicitly require project.write before dispatching the mutation gateway.
-- Added ProjectLifecycleService.authorize_project and ProjectLifecycleAPI.authorize_project so the application layer derives the project from authenticated session context and applies the shared permission policy.
-- Sync mutation route now requires Permission.PROJECT_WRITE before invoking the sync endpoint; an HTTP regression test verifies a viewer receives 403 and the application mutation handler is not called.
-- Existing tests cover retry replay/idempotency, expected-revision fingerprint, spoofed project context and stale revision behavior.
-- Authentication provider selection, production identity/session issuance, and complete authorization test coverage across every write route remain release gates; this narrow fix must not be described as complete platform security certification.
+- Added ProjectLifecycleService.authorize_project and ProjectLifecycleAPI.authorize_project. Project scope and permission are now derived from one validated session snapshot to avoid role/context re-read inconsistency.
+- Sync mutation route requires Permission.PROJECT_WRITE before calling the endpoint factory; regression proves a viewer receives 403, the endpoint factory is not called, and the mutation handler remains untouched.
+- Existing tests cover authenticated project context, idempotent replay, expected-revision fingerprints, spoofed tenant/project scope and stale-revision behavior.
+- The route audit found the other project API calls in this router pass an AuthorizationContext to their backend API; this does not replace a future route-by-route production security audit.
+- Authentication provider/session issuance, complete permission matrix across all API writes and production deployment configuration remain release gates; this focused fix is not platform security certification.
 - No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial calculation semantics changed.
-- Exact-head ConstructionPM CI, Client Typecheck and PostgreSQL sync workflow results must be reviewed before marking this stage complete.
+- Exact-head ConstructionPM CI, Client Typecheck and PostgreSQL sync workflow results must be reviewed before this stage can be marked complete.
