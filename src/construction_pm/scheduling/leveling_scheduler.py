@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
@@ -19,34 +18,11 @@ from .resource_leveling import (
     propose_forward_leveling,
     ResourceLevelingError,
 )
-from .schedule_options import MinimumFloatUnit, ScheduleOptions
+from .schedule_options import ScheduleOptions
 from .leveling_boundary import (
     SchedulerLevelingInput,
     scheduler_leveling_input_from_options,
 )
-
-
-def _minimum_float_preservation_days(options: ScheduleOptions, resolver: object) -> Decimal:
-    """Convert a P6 minimum-float entry to fractional working days.
-
-    A unitless numeric entry is interpreted as hours. Explicit hour/day/week/
-    month/year units are converted with the project's calendar time-period
-    factors. Administrative-preference conversion is not yet represented by
-    this contract; the current Shared Core uses the project calendar factors.
-    """
-    calendar = getattr(resolver, "calendar", None)
-    factors = getattr(calendar, "time_period_factors", None)
-    if factors is None:
-        raise ResourceLevelingError("MINIMUM_FLOAT_REQUIRES_PROJECT_CALENDAR")
-    value = Decimal(str(options.min_float_to_preserve))
-    hours_per_unit = {
-        MinimumFloatUnit.HOUR: Decimal("1"),
-        MinimumFloatUnit.DAY: factors.hours_per_day,
-        MinimumFloatUnit.WEEK: factors.hours_per_week,
-        MinimumFloatUnit.MONTH: factors.hours_per_month,
-        MinimumFloatUnit.YEAR: factors.hours_per_year,
-    }[options.min_float_to_preserve_unit]
-    return value * hours_per_unit / factors.hours_per_day
 
 
 def forward_leveling_constraints(
@@ -365,16 +341,7 @@ def schedule_with_resource_leveling(
             backward_activities=leveling_input.backward_activities,
             capacities=leveling_input.capacities,
             options=selected_options,
-        )
-        converted_minimum_float = _minimum_float_preservation_days(
-            selected_options, resolver
-        )
-        leveling_input = replace(
-            leveling_input,
-            options=replace(
-                leveling_input.options,
-                min_float_to_preserve=converted_minimum_float,
-            ),
+            resolver=resolver,
         )
 
     if selected_options.resource_list is not None:
