@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime
 from typing import Iterable, Mapping
 
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
@@ -232,6 +232,68 @@ def _shifted_final_resource_demands(
     return tuple(shifted_demands)
 
 
+def _exclude_suspended_resource_demands(
+    leveling_input: SchedulerLevelingInput,
+    activities: tuple[object, ...],
+) -> SchedulerLevelingInput:
+    """Remove assignment-period demand during an activity's suspended interval.
+
+    Suspend and resume boundaries are beginning-of-day values. The interval is
+    therefore [suspend_date, resume_date); if there is no resume date yet, all
+    later time-phased demand is excluded. Resource capacity remains unchanged,
+    making the released capacity available to other scheduled activities.
+    """
+    suspension_by_activity: dict[str, tuple[date, date | None]] = {}
+    for activity in activities:
+        activity_id = getattr(activity, "id", None)
+        suspend_date = getattr(activity, "suspend_date", None)
+        resume_date = getattr(activity, "resume_date", None)
+        if suspend_date is None:
+            continue
+        if (
+            not isinstance(activity_id, str)
+            or not isinstance(suspend_date, date)
+            or isinstance(suspend_date, datetime)
+            or (
+                resume_date is not None
+                and (
+                    not isinstance(resume_date, date)
+                    or isinstance(resume_date, datetime)
+                )
+            )
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_SUSPEND_RESUME_DATES")
+        if resume_date is not None and resume_date <= suspend_date:
+            raise ResourceLevelingError("INVALID_ACTIVITY_SUSPEND_RESUME_DATES")
+        suspension_by_activity[activity_id] = (suspend_date, resume_date)
+
+    if not suspension_by_activity:
+        return leveling_input
+
+    def adjust(activity_slice: LevelingActivity | BackwardLevelingActivity):
+        window = suspension_by_activity.get(activity_slice.activity_id)
+        if window is None or not activity_slice.resource_demands:
+            return activity_slice
+        suspend_date, resume_date = window
+        filtered = tuple(
+            demand
+            for demand in activity_slice.resource_demands
+            if not (
+                suspend_date <= demand.period
+                and (resume_date is None or demand.period < resume_date)
+            )
+        )
+        if filtered == activity_slice.resource_demands:
+            return activity_slice
+        return replace(activity_slice, resource_demands=filtered)
+
+    return replace(
+        leveling_input,
+        forward_activities=tuple(adjust(item) for item in leveling_input.forward_activities),
+        backward_activities=tuple(adjust(item) for item in leveling_input.backward_activities),
+    )
+
+
 def _resource_overallocation_key(error: ResourceLevelingError) -> tuple[str, date] | None:
     """Read the deterministic resource/date identity from final-load validation."""
     parts = str(error).split(":")
@@ -342,6 +404,8 @@ def schedule_with_resource_leveling(
             capacities=leveling_input.capacities,
             options=selected_options,
         )
+
+    leveling_input = _exclude_suspended_resource_demands(leveling_input, activities)
 
     if selected_options.resource_list is not None:
         if selected_options.resource_list != leveling_input.options.resource_ids:
