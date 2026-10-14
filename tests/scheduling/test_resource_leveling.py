@@ -1018,3 +1018,32 @@ def test_unconstrained_forward_leveling_stops_when_resource_has_no_future_capaci
     assert propose_forward_leveling(
         (activity,), capacities, resolver=resolver, level_within_float=False
     ) == ()
+
+
+def test_unconstrained_forward_leveling_stops_after_insufficient_future_capacity():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1",
+        day_one,
+        day_one,
+        0,
+        (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("0")),
+        ResourceCapacity("R1", day_two, Decimal("4")),
+    )
+
+    shifts = propose_forward_leveling(
+        (activity,), capacities, resolver=resolver, level_within_float=False
+    )
+
+    # Use the available future slot, then stop when no later positive capacity
+    # exists instead of spending the default 10,000-day shift budget.
+    assert [(shift.activity_id, shift.shift_working_days, shift.new_start)] == [
+        ("A1", 1, day_two)
+    ]
