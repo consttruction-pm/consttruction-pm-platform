@@ -160,3 +160,27 @@ def test_linked_leveling_preserves_offsets_for_multi_period_resource_demand() ->
         units <= capacity_by_resource_period.get(key, Decimal("0"))
         for key, units in final_demand_by_resource_period.items()
     )
+
+
+def test_leveling_rejects_activity_missing_from_scheduler_input():
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day, Decimal("1"), "MISSING")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("MISSING", day, day, 0, (demand,)),),
+        backward_activities=(BackwardLevelingActivity(
+            "MISSING", day, day, day, day, (demand,),
+        ),),
+        capacities=(ResourceCapacity("R1", day, Decimal("1")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    with pytest.raises(ResourceLevelingError, match="LEVELING_ACTIVITY_NOT_IN_SCHEDULE:MISSING"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1),), (), day, resolver, leveling_input,
+        )
