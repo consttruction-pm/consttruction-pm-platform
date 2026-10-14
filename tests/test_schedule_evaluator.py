@@ -131,11 +131,18 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     snapshot, context = make_snapshot_and_context(options=options)
     demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
     demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
+    demand_b_second_period = ResourceDemand(
+        "R1", date(2026, 9, 22), Decimal("1"), "B"
+    )
     activity_a = LevelingActivity(
         "A", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_a,)
     )
     activity_b = LevelingActivity(
-        "B", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_b,)
+        "B",
+        date(2026, 9, 21),
+        date(2026, 9, 22),
+        1,
+        (demand_b, demand_b_second_period),
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(activity_a, activity_b),
@@ -157,13 +164,13 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     # The evaluator must surface overloads after final CPM propagation, not
     # merely return the leveling proposals. B is pushed to Sep 23 by A -> B,
     # where this fixture has no capacity entry (therefore effective capacity 0).
-    assert len(result.resource_over_allocations) == 1
-    overload = result.resource_over_allocations[0]
-    assert overload.resource_id == "R1"
-    assert overload.period == date(2026, 9, 23)
-    assert overload.demand == Decimal("1")
-    assert overload.effective_capacity == Decimal("0")
-    assert overload.excess == Decimal("1")
+    assert [
+        (item.resource_id, item.period, item.demand, item.effective_capacity, item.excess)
+        for item in result.resource_over_allocations
+    ] == [
+        ("R1", date(2026, 9, 23), Decimal("1"), Decimal("0"), Decimal("1")),
+        ("R1", date(2026, 9, 24), Decimal("1"), Decimal("0"), Decimal("1")),
+    ]
 
 
 def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input():
