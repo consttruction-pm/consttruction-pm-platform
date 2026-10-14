@@ -3,6 +3,8 @@ from decimal import Decimal
 
 import pytest
 
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.calendar_periods import CalendarTimePeriodFactors
 from construction_pm.scheduling.leveling_boundary import (
     scheduler_leveling_input_from_options,
 )
@@ -15,6 +17,7 @@ from construction_pm.scheduling.resource_leveling import (
 )
 from construction_pm.scheduling.resource_leveling import SortOrder
 from construction_pm.scheduling.schedule_options import (
+    MinimumFloatUnit,
     PriorityListItem,
     PrioritySortOrder,
     ScheduleOptions,
@@ -215,3 +218,54 @@ def test_scheduler_leveling_boundary_rejects_duplicate_backward_activity_ids():
             options=ScheduleOptions(),
         )
 
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected_days"),
+    [
+        (3, MinimumFloatUnit.HOUR, Decimal("0.4")),
+        (2, MinimumFloatUnit.DAY, Decimal("2")),
+        (1, MinimumFloatUnit.WEEK, Decimal("5")),
+        (1, MinimumFloatUnit.MONTH, Decimal("20")),
+        (1, MinimumFloatUnit.YEAR, Decimal("240")),
+    ],
+)
+def test_scheduler_leveling_boundary_converts_minimum_float_to_working_days(
+    value, unit, expected_days
+):
+    forward, backward, capacities = _slices()
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        time_period_factors=CalendarTimePeriodFactors(
+            hours_per_day=Decimal("7.5"),
+            hours_per_week=Decimal("37.5"),
+            hours_per_month=Decimal("150"),
+            hours_per_year=Decimal("1800"),
+        ),
+    ))
+    options = ScheduleOptions(
+        min_float_to_preserve=value,
+        min_float_to_preserve_unit=unit,
+    )
+
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+        resolver=resolver,
+    )
+
+    assert boundary.options.min_float_to_preserve == expected_days
+
+
+def test_scheduler_leveling_boundary_fails_closed_when_nonzero_float_has_no_calendar():
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(min_float_to_preserve=2)
+
+    with pytest.raises(ResourceLevelingError, match="MINIMUM_FLOAT_REQUIRES_PROJECT_CALENDAR"):
+        scheduler_leveling_input_from_options(
+            forward_activities=forward,
+            backward_activities=backward,
+            capacities=capacities,
+            options=options,
+        )
