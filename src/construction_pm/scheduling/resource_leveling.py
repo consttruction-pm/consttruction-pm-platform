@@ -183,7 +183,10 @@ class LevelingActivity:
             or self.finish < self.start
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
-        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
+        # Total float may legitimately be negative when imposed dates or
+        # constraints make the schedule late. Preserve that signed CPM value;
+        # final schedule float remains owned by the authoritative CPM pass.
+        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
@@ -453,7 +456,7 @@ def apply_leveling_shifts(
             activity_id=activity.activity_id,
             start=shift.new_start,
             finish=shift.new_finish,
-            total_float=max(0, activity.total_float - shift.consumed_float),
+            total_float=activity.total_float - shift.consumed_float,
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
             activity_priority=activity.activity_priority,
         ))
