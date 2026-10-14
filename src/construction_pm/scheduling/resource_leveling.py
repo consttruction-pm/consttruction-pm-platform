@@ -425,6 +425,14 @@ def propose_forward_leveling(
     """Propose deterministic forward leveling, optionally unconstrained by float."""
     if not isinstance(level_within_float, bool):
         raise ResourceLevelingError("INVALID_LEVEL_WITHIN_FLOAT")
+    if not isinstance(activities, (tuple, list)) or any(
+        not isinstance(activity, LevelingActivity) for activity in activities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_ACTIVITIES")
+    if not isinstance(capacities, (tuple, list)) or any(
+        not isinstance(capacity, ResourceCapacity) for capacity in capacities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_CAPACITIES")
     if isinstance(max_shift_working_days, bool) or not isinstance(max_shift_working_days, int) or max_shift_working_days < 0:
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
     if level_within_float:
