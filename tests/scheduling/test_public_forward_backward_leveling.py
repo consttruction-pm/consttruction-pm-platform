@@ -231,14 +231,15 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         ),
     )
 
-    # Backward leveling advances B from its Monday late window to Friday.
-    # The authoritative CPM pass retains A on Thursday and B on Friday, so the
-    # SS(0) relationship remains valid while the final resource load is checked.
+    # Both activities have a Monday late-date demand in this fixture, but
+    # capacity is available only on Thursday and Friday. The backward pass
+    # therefore advances both to Friday; the authoritative CPM pass preserves
+    # the SS(0) relationship and final resource demand fits Friday capacity.
     assert forward == ()
-    assert len(backward) == 1
-    assert backward[0].activity_id == "B"
-    assert backward[0].new_start == day_two
-    assert backward[0].advanced_days == 1
-    assert result.activities["A"].start == day_one
+    assert len(backward) == 2
+    assert {shift.activity_id for shift in backward} == {"A", "B"}
+    assert all(shift.new_start == day_two for shift in backward)
+    assert all(shift.advanced_days == 1 for shift in backward)
+    assert result.activities["A"].start == day_two
     assert result.activities["B"].start == day_two
-    assert result.project_finish == day_three
+    assert result.project_finish == day_two
