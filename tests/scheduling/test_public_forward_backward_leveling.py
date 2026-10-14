@@ -206,7 +206,7 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("16")),
-            ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("16")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
