@@ -4,11 +4,12 @@
 At release, the product must pass the evidence-based completeness/leadership gate defined in PRODUCT_PRINCIPLES.md. Team execution therefore includes continuous market monitoring, gap discovery and re-prioritization in addition to implementation.
 
 ## Authority order
-1. Principle 1: Primavera P6 + PMBOK alignment.
+1. Principle 1: shared scheduling/calculation compatibility baseline and PMBOK/PMI governance alignment.
 2. Principle 2: complete modern construction-management/project-controls coverage.
-3. Shared Core and domain integrity.
-4. Cross-client contracts and portability.
-5. UX and implementation convenience.
+3. Principle 8: global multilingual-by-design across all product layers, including AI, charts, timelines, reports and offline workflows.
+4. Shared Core and domain integrity; localized display must never create a second calculation authority or alter stored project semantics.
+5. Cross-client contracts, portability, language packs and consistent fallback behavior.
+6. UX and implementation convenience.
 
 ## Jalal — Shared Core, Project Controls Intelligence, Integration QA
 Jalal is an implementation developer, not only coordinator.
@@ -49,7 +50,7 @@ Primary ownership:
 - Field modules UI: daily log, attendance/timecard, equipment, issue/observation, inspection, quality, safety, punch list, photo/location capture.
 - Procurement/contract/document workflow UX.
 - Offline UX, sync/conflict presentation and client adapters.
-- Persian/English UI, RTL/LTR presentation and Jalali/Gregorian display.
+- All declared supported languages across UI, grids, Gantt/timeline, charts, reports, help and client-generated outputs; correct RTL/LTR, mixed-script rendering, and Jalali/Gregorian display without altering calculation semantics.
 - AI assistant UI, voice entry, Smart Guide and action-approval UX.
 
 Javad must not implement authoritative scheduling, Progress/EVM, Resource/Cost or financial formulas in clients.
@@ -73,6 +74,7 @@ Javad must not implement authoritative scheduling, Progress/EVM, Resource/Cost o
 5. Open PRs are not baseline until reconciled and runtime-validated.
 6. Client releases proceed Web -> Desktop -> Mobile, but independent contract/client work may run in parallel.
 7. New product domains are implemented against versioned contracts; they do not bypass Shared Core authority.
+8. Every PR declares affected languages/localization resources, language-pack and fallback behavior, RTL/LTR/layout/formatting impacts, and end-to-end tests; missing or mixed translations are not silently accepted.
 
 ## First execution wave
 - Jalal: P0 Shared Core/control-intelligence contracts + regression architecture.
