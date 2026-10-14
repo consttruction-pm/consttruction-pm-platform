@@ -571,6 +571,14 @@ def propose_backward_leveling(
     while the backward pass resolves remaining overload against it.
     Relationship/CPM recalculation remains the authoritative scheduler boundary.
     """
+    if not isinstance(activities, (tuple, list)) or any(
+        not isinstance(activity, BackwardLevelingActivity) for activity in activities
+    ):
+        raise ResourceLevelingError("INVALID_BACKWARD_LEVELING_ACTIVITIES")
+    if not isinstance(capacities, (tuple, list)) or any(
+        not isinstance(capacity, ResourceCapacity) for capacity in capacities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_CAPACITIES")
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
 
