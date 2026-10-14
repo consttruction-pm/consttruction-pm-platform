@@ -835,6 +835,9 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
 
     assert len(built) == 1
     assert built[0].resource_demands[0].period == day_two
+    # The original boundary activity omits Total Float; rollback ordering must
+    # use the authoritative CPM-enriched candidate produced by this builder.
+    assert built[0].total_float == 1
 
 
 
