@@ -33,7 +33,7 @@ from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelat
 from construction_pm.scheduling.relationships import RelationshipType
 
 
-def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
+def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions(), with_dependencies: bool = True):
     calendar = CalendarReference("CAL-1", "1")
     source = AuthoritativeScheduleInput(
         snapshot_id="S-H",
@@ -43,14 +43,18 @@ def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=calendar,
         activities=(Activity("A", 2), Activity("B", 1)),
-        relationships=(Relationship("A", "B"),),
+        relationships=(Relationship("A", "B"),) if with_dependencies else (),
         activity_calendar_assignments=(),
         constraints=(
-            ActivityConstraint(
-                "B",
-                ConstraintType.START_NO_EARLIER_THAN,
-                date(2026, 9, 23),
-            ),
+            (
+                ActivityConstraint(
+                    "B",
+                    ConstraintType.START_NO_EARLIER_THAN,
+                    date(2026, 9, 23),
+                ),
+            )
+            if with_dependencies
+            else ()
         ),
         schedule_options=options,
         project_start=date(2026, 9, 21),
@@ -128,7 +132,7 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
         level_all_resources=True,
         preserve_scheduled_early_and_late_dates=True,
     )
-    snapshot, context = make_snapshot_and_context(options=options)
+    snapshot, context = make_snapshot_and_context(options=options, with_dependencies=False)
     demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
     demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
     activity_a = LevelingActivity(
