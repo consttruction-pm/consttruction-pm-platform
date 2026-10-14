@@ -1,6 +1,4 @@
 from datetime import date
-from decimal import Decimal
-
 import pytest
 
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
