@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from typing import Iterable, Mapping
 
 from .constraints import ActivityConstraint, ConstraintType
@@ -217,7 +218,7 @@ def _validate_final_resource_load(
         overload
         for overload in overloads
         if overload.excess > baseline_excess.get(
-            (overload.resource_id, overload.period), type(overload.excess)("0")
+            (overload.resource_id, overload.period), Decimal("0")
         )
     )
     if worsened_overloads:
