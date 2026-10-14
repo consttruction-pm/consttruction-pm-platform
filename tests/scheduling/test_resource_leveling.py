@@ -267,6 +267,23 @@ def test_forward_leveling_rejects_duplicate_capacity():
         propose_forward_leveling_within_float((activity,), (capacity, capacity), resolver=resolver)
 
 
+@pytest.mark.parametrize(
+    ("activities", "capacities", "error"),
+    [
+        (None, (), "INVALID_BACKWARD_LEVELING_ACTIVITIES"),
+        ((None,), (), "INVALID_BACKWARD_LEVELING_ACTIVITIES"),
+        ((), None, "INVALID_LEVELING_CAPACITIES"),
+        ((), (None,), "INVALID_LEVELING_CAPACITIES"),
+    ],
+)
+def test_backward_leveling_validates_input_containers_and_members(activities, capacities, error):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    with pytest.raises(ResourceLevelingError, match=error):
+        propose_backward_leveling(activities, capacities, resolver=resolver)
+
+
 def test_backward_leveling_rejects_duplicate_activity_ids():
     day = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
