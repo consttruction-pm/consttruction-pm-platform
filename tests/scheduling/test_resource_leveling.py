@@ -335,6 +335,24 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
 
 
 
+@pytest.mark.parametrize(
+    ("activities", "capacities", "error"),
+    [
+        (None, (), "INVALID_LEVELING_ACTIVITIES"),
+        ((None,), (), "INVALID_LEVELING_ACTIVITIES"),
+        ((), None, "INVALID_LEVELING_CAPACITIES"),
+        ((), (None,), "INVALID_LEVELING_CAPACITIES"),
+    ],
+)
+def test_forward_leveling_validates_input_collections(activities, capacities, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        propose_forward_leveling_within_float(
+            activities,
+            capacities,
+            resolver=resolver(),
+        )
+
+
 def test_forward_leveling_rejects_duplicate_activity_ids():
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
