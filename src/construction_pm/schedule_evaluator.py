@@ -15,6 +15,11 @@ from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.resource_leveling import (
+    OverAllocation,
+    ResourceDemand,
+    detect_over_allocations,
+)
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
@@ -38,6 +43,7 @@ class ScheduleEvaluationResult:
     date_result: ScheduleResult | None = None
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
     time_result: TimeScheduleResult | None = None
+    resource_over_allocations: tuple[OverAllocation, ...] = ()
 
     @property
     def project_finish(self) -> date | datetime:
@@ -110,6 +116,7 @@ def _evaluate_materialized(
         if source.mode.value == "DATE_BASED":
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
             leveling_requested = _resource_leveling_requested(source.schedule_options)
+            resource_over_allocations: tuple[OverAllocation, ...] = ()
             if leveling_requested:
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
@@ -123,6 +130,9 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                )
+                resource_over_allocations = _final_resource_over_allocations(
+                    leveling_input, result, resolver
                 )
             else:
                 result = schedule(
@@ -138,7 +148,10 @@ def _evaluate_materialized(
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
-                _canonical_result(result),
+                {
+                    "schedule_result": _canonical_result(result),
+                    "resource_over_allocations": _canonical_result(resource_over_allocations),
+                } if leveling_requested else _canonical_result(result),
             )
             return ScheduleEvaluationResult(
                 snapshot_id=snapshot.snapshot_id,
@@ -149,6 +162,7 @@ def _evaluate_materialized(
                 project_revision=source.project_revision,
                 mode=source.mode.value,
                 date_result=result,
+                resource_over_allocations=resource_over_allocations,
             )
 
         activities = source.activities
@@ -195,6 +209,57 @@ def _evaluate_materialized(
         raise
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
+
+
+
+def _final_resource_over_allocations(
+    leveling_input: SchedulerLevelingInput,
+    result: ScheduleResult,
+    resolver: object,
+) -> tuple[OverAllocation, ...]:
+    """Reproject input demand slices onto final CPM dates and report residual overloads."""
+    projected: list[ResourceDemand] = []
+    final_activities = result.activities
+    for activity in leveling_input.forward_activities:
+        scheduled = final_activities.get(activity.activity_id)
+        if scheduled is None:
+            continue
+        offset = _working_day_offset(activity.start, scheduled.start, resolver)
+        for demand in activity.resource_demands:
+            period = demand.period
+            if offset > 0:
+                for _ in range(offset):
+                    period = resolver.next_working_day(period)
+            elif offset < 0:
+                for _ in range(-offset):
+                    period = resolver.previous_working_day(period)
+            projected.append(
+                ResourceDemand(demand.resource_id, period, demand.units, demand.activity_id)
+            )
+    return detect_over_allocations(
+        tuple(projected),
+        leveling_input.capacities,
+        over_allocation_percentage=leveling_input.options.over_allocation_percentage,
+    )
+
+
+def _working_day_offset(start: date, finish: date, resolver: object) -> int:
+    """Count signed working-day steps between scheduled activity start dates."""
+    if start == finish:
+        return 0
+    cursor = start
+    step = 1 if finish > start else -1
+    for offset in range(1, 10001):
+        cursor = (
+            resolver.next_working_day(cursor)
+            if step > 0
+            else resolver.previous_working_day(cursor)
+        )
+        if cursor == finish:
+            return step * offset
+        if (step > 0 and cursor > finish) or (step < 0 and cursor < finish):
+            break
+    raise ScheduleEvaluationError("RESOURCE_DEMAND_DATE_PROJECTION_FAILED")
 
 
 def _resource_leveling_requested(options: object) -> bool:
