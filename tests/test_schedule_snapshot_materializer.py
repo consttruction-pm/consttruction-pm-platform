@@ -8,7 +8,6 @@ import pytest
 from construction_pm.schedule_input_snapshot_repository import (
     ScheduleSnapshotPersistenceError,
     SQLiteScheduleInputSnapshotRepository,
-    ScheduleSnapshotPersistenceError,
     build_snapshot,
 )
 from construction_pm.schedule_snapshot_materializer import (
