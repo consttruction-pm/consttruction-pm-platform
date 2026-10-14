@@ -227,6 +227,12 @@ def schedule_with_resource_leveling(
     """
     if not isinstance(leveling_input, SchedulerLevelingInput):
         raise TypeError("leveling_input must be SchedulerLevelingInput")
+    # These inputs are reused by the initial, intermediate, and final CPM
+    # passes. Materialize iterables once so generator callers get identical
+    # behavior to tuple/list callers on every pass.
+    activities = tuple(activities)
+    relationships = tuple(relationships)
+    constraints = tuple(constraints or ())
     selected_options = options or ScheduleOptions()
     # ScheduleOptions is the public typed configuration surface. Map only its
     # already-authoritative leveling fields into the existing Shared Core input;
