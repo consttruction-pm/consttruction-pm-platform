@@ -257,7 +257,7 @@ def schedule_with_resource_leveling(
         # ScheduleOptions is the public authoritative configuration. Validate
         # resource selection before mapping it; do not compare it to the
         # boundary value after mapping, because that value has been overwritten.
-        if not selected_options.level_all_resources and selected_options.resource_list is None:
+        if not selected_options.level_all_resources and not selected_options.resource_list:
             raise ResourceLevelingError("LEVELING_RESOURCE_SELECTION_EMPTY")
         leveling_input = scheduler_leveling_input_from_options(
             forward_activities=leveling_input.forward_activities,
