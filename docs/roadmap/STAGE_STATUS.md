@@ -1314,8 +1314,12 @@ Status: **merged; exact-head CI verified**
 
 
 ### Stage 33.3.5 — Authorization Integration Regression
-Status: **in progress — CI verification pending**
-- Verify the new authorization module and tests against the actual package layout and test conventions.
-- Add cross-tenant/project negative cases and unknown-role deny-by-default coverage.
-- Keep authentication-provider integration and HTTP route enforcement explicitly separate until concrete API wiring exists.
-- Do not claim security enforcement is production-complete from the policy helper alone.
+Status: **implementation + focused regression coverage added; full CI verification pending**
+- Verified that authorization scope validation rejects blank tenant/project/user identities and malformed role sets.
+- Added explicit unknown-role-only fail-closed coverage across every permission; mixed role sets remain additive by design.
+- Added a project-lifecycle regression proving a session from tenant B cannot open a project that exists only under tenant A, even when the project ID matches.
+- Added synchronization regression proving identical idempotency keys remain separately scoped by tenant and by project.
+- Existing integration checks cover viewer denial of scheduling, planner permissions, idempotent retry replay, and preservation of expected revision in mutation fingerprints.
+- Authentication-provider integration and HTTP route enforcement remain separate until concrete route wiring is verified; the policy helper alone is not a production security boundary.
+- No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial semantics changed.
+- Current relevant CI runs are triggered on the exact change heads; do not mark the stage complete until they finish successfully.
