@@ -154,6 +154,16 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     assert result.date_result is not None
     assert len(result.date_result.activities) == 2
     assert len({item.start for item in result.date_result.activities.values()}) == 2
+    # The evaluator must surface overloads after final CPM propagation, not
+    # merely return the leveling proposals. B is pushed to Sep 23 by A -> B,
+    # where this fixture has no capacity entry (therefore effective capacity 0).
+    assert len(result.resource_over_allocations) == 1
+    overload = result.resource_over_allocations[0]
+    assert overload.resource_id == "R1"
+    assert overload.period == date(2026, 9, 23)
+    assert overload.demand == Decimal("1")
+    assert overload.effective_capacity == Decimal("0")
+    assert overload.excess == Decimal("1")
 
 
 def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input():
