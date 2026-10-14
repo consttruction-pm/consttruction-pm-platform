@@ -435,6 +435,10 @@ def propose_forward_leveling(
         raise ResourceLevelingError("INVALID_LEVELING_CAPACITIES")
     if isinstance(max_shift_working_days, bool) or not isinstance(max_shift_working_days, int) or max_shift_working_days < 0:
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
+    if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
+        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
+    if not isinstance(resolver, WorkingTimeResolver):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if level_within_float:
         return propose_forward_leveling_within_float(
             activities, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
