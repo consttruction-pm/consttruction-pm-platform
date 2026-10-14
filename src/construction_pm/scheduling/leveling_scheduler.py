@@ -91,6 +91,7 @@ def _backward_activities_from_intermediate(
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     resolver: object,
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -99,10 +100,20 @@ def _backward_activities_from_intermediate(
         late = late_schedule[activity.activity_id]
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
-        if late.start > original_start:
-            displacement = resolver.working_days_between(original_start, late.start)
-        elif late.start < original_start:
-            displacement = -resolver.working_days_between(late.start, original_start)
+        # Forward-leveled activities are protected from the backward pass.
+        # Their demand ledger must therefore remain anchored to the intermediate
+        # CPM start, not be projected to the unconstrained late window; otherwise
+        # the backward pass fails to see their real demand on the protected date
+        # and can move another activity into the same overloaded slot.
+        demand_anchor = (
+            early.start
+            if activity.activity_id in protected_activity_ids
+            else late.start
+        )
+        if demand_anchor > original_start:
+            displacement = resolver.working_days_between(original_start, demand_anchor)
+        elif demand_anchor < original_start:
+            displacement = -resolver.working_days_between(demand_anchor, original_start)
         else:
             displacement = 0
 
@@ -339,6 +350,10 @@ def schedule_with_resource_leveling(
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
+            protected_activity_ids=tuple(sorted({
+                shift.activity_id for shift in forward_shifts
+                if shift.shift_working_days > 0
+            })),
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
