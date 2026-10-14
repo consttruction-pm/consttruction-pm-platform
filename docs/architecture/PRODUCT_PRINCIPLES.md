@@ -30,6 +30,22 @@ A requirement may be marked **Outside Scope** only with an explicit documented d
 
 The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
 
+## Principle 1B — Calendar configuration and user-selected changes must travel with project export/import
+
+A project is not portable unless its complete effective calendar context is portable. Every project export/import, backup/restore, clone/template transfer and supported interchange workflow must preserve and round-trip:
+
+- The referenced calendar definitions and immutable/version-pinned identities, including the calendar system (Jalali/Gregorian), working-day/working-time kind, work periods, weekly patterns, holidays, exceptions, special dates and effective-from/version metadata.
+- The user's selected calendar for the project and each applicable activity, resource, relationship lag and other calendar-aware assignment, including explicit overrides, inheritance/source, precedence and the distinction between inherited defaults and user choices.
+- Every user-created or user-edited calendar change and its effective settings, not merely the built-in/default calendar or a calendar display name.
+- Calendar-related scheduling options, duration/lag interpretation settings, data date and the other calculation context required to reproduce results.
+- Stable IDs, version references, project/tenant scope, source metadata and any dependencies required to resolve those references safely.
+
+**Round-trip is mandatory:** export → import into a clean project/context → resolve the same selected/effective calendars and settings → recalculate through the one authoritative Shared Domain/Calculation Core → compare normalized inputs and results deterministically. Tests must prove that customized calendars and selections survive, including Jalali/Gregorian projects, resource/activity overrides, inherited calendars, holidays/exceptions, changed work hours, version conflicts and legacy packages.
+
+Never silently replace a missing, conflicting or unsupported custom calendar with a default. Reject the import or mark the affected data as an explicit blocking/unresolved import item requiring user resolution; preserve the original source package and report what could not be mapped. Display locale and language must not rewrite the stored calendar system or scheduling semantics.
+
+This is a release-blocking portability requirement, not an optional convenience. Calendar export/import must be covered by typed schemas, migration/version policy, audit history, user-facing import preview/errors, and regression tests for every supported project package/interchange format.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
