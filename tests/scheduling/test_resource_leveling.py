@@ -395,7 +395,7 @@ def test_forward_leveling_wrapper_validates_resolver_before_synthetic_conversion
             (),
             resolver=None,
             level_within_float=False,
-            min_float_to_preserve=None,
+            min_float_to_preserve=0,
         )
 
 
