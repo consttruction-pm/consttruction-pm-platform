@@ -817,3 +817,34 @@ Stage 33.3.4 establishes a provider-neutral Application authorization boundary. 
 - The rule does not alter Shared Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics.
 
 Implementation: `ProjectLifecycleService.authorize_project`, `ProjectLifecycleAPI.authorize_project`, and the sync mutation HTTP route. Regression must prove a viewer cannot submit a mutation and that the handler is not invoked. This is a focused security fix, not complete platform security certification.
+
+
+## 40. Canonical Resource Identity in Multi-Project Leveling — 2026-10-13
+
+This rule separates a resource's durable identity from its display/legacy code, project ownership, and assignment identity. It extends existing platform and scheduling boundaries without redefining the core CPM or calendar formulas.
+
+Mandatory rules:
+- A canonical resource identity is immutable and tenant-bound; its scope is explicitly TENANT_SHARED or PROJECT_LOCAL.
+- A project-local identity can only be used in its owning tenant/project. A tenant-shared identity can be used across projects in the same tenant only when an explicit authoritative mapping exists.
+- A raw resource ID, display code, name, external GUID or matching text does not by itself prove that two records are the same resource.
+- Resource master identity, resource assignment identity, activity identity, and WBS/WorkPackage hierarchy are separate concepts and must not be conflated.
+- ResourceDemand and ResourceCapacity must preserve canonical identity and tenant/project scope through aggregation, overload detection, forward/backward leveling, diagnostics, and output mapping.
+- Legacy resource constructors without scope remain usable for single-project compatibility only. A multi-project leveling request with unscoped demand or capacity fails closed rather than inferring globally shared identity.
+- Scoped legacy IDs are keyed by tenant + project + legacy ID until an authoritative mapping resolves them to a canonical identity. Intentional sharing requires a canonical TENANT_SHARED identity.
+- A multi-project demand and its capacity must resolve to the same canonical identity key. Capacity for a tenant-shared identity/period is counted once; duplicated capacity or conflicting version-pinned calendars fails closed.
+- Explicit legacy-ID bindings belong at the authoritative persistence/API adapter. Missing mappings must not be guessed by presentation or scheduling code.
+- Resource-calendar references remain version-pinned and must resolve through the single authoritative calendar registry. Resource-calendar metadata must not automatically replace the activity calendar for every activity type.
+- Every identity or assignment mapping change must retain tenant/project authorization, revision, audit and deterministic replay guarantees.
+
+Implementation record:
+- Stage document: docs/architecture/STAGE_33_4_74_CANONICAL_RESOURCE_IDENTITY_LEVELING.md
+- Tracking issue: #1347
+- Current status: partial implementation slice; exact-head CI, identity persistence, snapshot/materializer replay and full resource-calendar integration remain pending.
+- Do not merge PR #1353 or #1371 until branches are reconciled with current main, cross-project identity/capacity acceptance cases pass on the exact final head, and independent semantic review approves that head.
+
+Compatibility impact:
+- Scheduling formulas and calendar arithmetic: unchanged.
+- Shared Core: identity-aware demand/capacity grouping is strengthened; no second calculation engine is authorized.
+- Web/Desktop/Mobile: continue to consume the shared contracts and must not invent identity or capacity rules.
+- Persistence/API: canonical identity bindings, tenant/project checks and safe legacy migration remain required.
+- Regression: equal raw IDs with distinct project-local identities remain distinct; explicit shared identity aggregates against one capacity stream; missing, mismatched or conflicting mappings fail closed.
