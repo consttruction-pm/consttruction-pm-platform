@@ -1053,3 +1053,67 @@ def test_leveling_preserves_negative_total_float_as_signed_cpm_input():
         (activity,), (shift,), resolver=resolver, allow_beyond_float=True,
     )
     assert applied[0].total_float == -3
+
+
+def test_schedule_leveling_ignores_resource_demand_during_suspend_interval():
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    schedule_activities = (
+        Activity(
+            "A",
+            1,
+            actual_start=thursday,
+            suspend_date=friday,
+            resume_date=monday,
+        ),
+        Activity("B", 1),
+    )
+    demand_a_friday = ResourceDemand("R1", friday, Decimal("8"), "A")
+    demand_a_monday = ResourceDemand("R1", monday, Decimal("8"), "A")
+    demand_b_friday = ResourceDemand("R1", friday, Decimal("8"), "B")
+    forward = (
+        LevelingActivity("A", thursday, thursday, 0, (demand_a_friday, demand_a_monday)),
+        LevelingActivity("B", thursday, thursday, 0, (demand_b_friday,)),
+    )
+    backward = (
+        BackwardLevelingActivity("A", thursday, thursday, monday, monday, (demand_a_friday, demand_a_monday)),
+        BackwardLevelingActivity("B", thursday, thursday, monday, monday, (demand_b_friday,)),
+    )
+    capacities = (
+        ResourceCapacity("R1", friday, Decimal("8")),
+        ResourceCapacity("R1", monday, Decimal("8")),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=ResourceLevelingOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    result, forward_shifts, backward_shifts = schedule_with_resource_leveling(
+        schedule_activities,
+        (),
+        thursday,
+        resolver,
+        leveling_input,
+        project_finish=monday,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            level_within_float=False,
+        ),
+    )
+
+    assert forward_shifts == ()
+    assert backward_shifts == ()
+    assert result.activities["A"].start == thursday
+    assert result.activities["B"].start == thursday
