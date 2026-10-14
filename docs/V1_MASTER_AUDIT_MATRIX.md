@@ -73,13 +73,20 @@
 
 ## Localization and language packs
 
-| Area | Evidence | Status |
+| Area | Current-main evidence | Status |
 |---|---|---|
-| Shared language-pack infrastructure | Client-sync language manifest/resource/activation infrastructure exists. | Verified |
-| Web language-manager route | `apps/web/src/language-manager-route.ts` supports active pack, offline activation, update, rollback and error state. | Verified |
-| Workspace locale coverage | Current workspace navigation and rendering provide Persian/English plus RTL/LTR coverage; the product-wide all-language requirement remains a separate localization gap. | Gap |
-| All-language requirement | Product requirement is all-language UI/data with offline downloadable packs, RTL/LTR and typography support. Current workspace does not yet satisfy the all-language surface. | Gap |
-| README terminology | README still says “bilingual Persian/English”; this is stale relative to the current all-language requirement and should be corrected in a documentation-only follow-up. | Gap |
+| Shared language-pack infrastructure | `apps/client-sync/src/language.ts`, `shared/contracts/LANGUAGE_REGISTRY.schema.json` and the language-manager route provide registry/pack foundations. | Verified — infrastructure only |
+| Web language-manager route | `apps/web/src/language-manager-route.ts` supports active pack, offline activation, update, rollback and error state. | Verified — route only |
+| Workspace locale coverage | `apps/web/src/workspace-model.ts` still declares `WorkspaceLocale = "fa" | "en"`; `apps/web/src/main.ts` toggles only between those two languages. | Gap |
+| Landing-page locale coverage | `apps/web/src/landing.ts` still declares `LandingLocale = "en" | "fa"` and uses a two-entry copy map. | Gap |
+| Translation coverage validation | `src/construction_pm/i18n/translation_coverage.py` and `tests/i18n/test_translation_coverage.py` validate missing/orphan keys, but end-to-end hookup to all live application bundles and release gates must be verified. | In progress / Audit required |
+| All-language requirement | Principle 8 was merged through PR #1427 on 2026-10-14 (merge commit `bb1e14096be812b28ee72dabfaad87fd86ad195e`). Product-wide implementation remains incomplete. | Gap — implementation blocker #1428 |
+| Offline, RTL/LTR, formatting and data preservation | Registry/pack primitives exist; all-language workspace, grids, Gantt/timeline, charts, reports/exports, help and AI capability coverage are not yet proven end-to-end for every enabled language. | Gap — issue #1428 |
+| README terminology | Update the historical “bilingual” description to clarify current Persian/English workspace coverage and the still-open all-language implementation gap. | Documentation follow-up |
+
+### Current-main spot audit — 2026-10-14
+
+The governance requirement is merged, but the product is **not yet all-language complete**. The live Web model and landing page retain two-language unions and hard-coded branches. Track runtime implementation under issue #1428; do not mark a language as supported solely because the language registry, language selector or pack manager exists. Require bundle-level translation coverage and end-to-end validation of menus, forms, grid, Gantt/timeline, charts, calendars, reports/exports, help, offline states and the AI flows declared by the pack. Locale/display changes must not alter stored project semantics or Shared Core calculations.
 
 ## Help / documentation
 
