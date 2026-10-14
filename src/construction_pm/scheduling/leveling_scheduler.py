@@ -254,16 +254,17 @@ def schedule_with_resource_leveling(
     # already-authoritative leveling fields into the existing Shared Core input;
     # persistence/API adapters remain responsible for supplying demand/capacity.
     if options is not None:
+        # ScheduleOptions is the public authoritative configuration. Validate
+        # resource selection before mapping it; do not compare it to the
+        # boundary value after mapping, because that value has been overwritten.
+        if not selected_options.level_all_resources and selected_options.resource_list is None:
+            raise ResourceLevelingError("LEVELING_RESOURCE_SELECTION_EMPTY")
         leveling_input = scheduler_leveling_input_from_options(
             forward_activities=leveling_input.forward_activities,
             backward_activities=leveling_input.backward_activities,
             capacities=leveling_input.capacities,
             options=selected_options,
         )
-
-    if selected_options.resource_list is not None:
-        if selected_options.resource_list != leveling_input.options.resource_ids:
-            raise ResourceLevelingError("LEVELING_RESOURCE_LIST_MISMATCH")
 
     from .schedule import schedule
 
