@@ -131,6 +131,22 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
     ]
 
 
+@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+def test_scheduler_leveling_boundary_rejects_priority_fields_without_distinct_schedule_data(field_name):
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(
+        priority_list=(PriorityListItem(field_name, PrioritySortOrder.ASCENDING),),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        scheduler_leveling_input_from_options(
+            forward_activities=forward,
+            backward_activities=backward,
+            capacities=capacities,
+            options=options,
+        )
+
+
 def test_scheduler_leveling_boundary_rejects_unsupported_priority_field():
     forward, backward, capacities = _slices()
     options = ScheduleOptions(
