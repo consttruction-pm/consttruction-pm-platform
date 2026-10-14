@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Iterable, Mapping
 
-from .constraints import ActivityConstraint, ConstraintType
+from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
@@ -385,13 +385,49 @@ def schedule_with_resource_leveling(
         )
         final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
 
-    result = schedule(
-        activities, relationships, project_start, resolver,
-        project_finish=project_finish, constraints=final_constraints, options=base_options,
-        calculation_context=calculation_context,
-        relationship_lag_resolvers=relationship_lag_resolvers,
-        batch_scheduled_finish=batch_scheduled_finish,
-    )
+    # A backward proposal is generated against the intermediate CPM window,
+    # but a multi-step shift can still become infeasible when all exact-date
+    # constraints are applied together with relationship propagation. Validate
+    # the combined CPM schedule and roll back only the most aggressive proposed
+    # step for the activity named by the constraint violation. This preserves
+    # feasible earlier steps instead of failing the entire leveling run.
+    while True:
+        try:
+            result = schedule(
+                activities, relationships, project_start, resolver,
+                project_finish=project_finish, constraints=final_constraints, options=base_options,
+                calculation_context=calculation_context,
+                relationship_lag_resolvers=relationship_lag_resolvers,
+                batch_scheduled_finish=batch_scheduled_finish,
+            )
+            break
+        except ConstraintViolation as exc:
+            if not backward_shifts:
+                raise
+            message = str(exc)
+            activity_id = message.rsplit(" for ", 1)[-1] if " for " in message else ""
+            candidates = [
+                shift for shift in backward_shifts
+                if shift.activity_id == activity_id and shift.advanced_days > 0
+            ]
+            if not candidates:
+                raise
+            most_aggressive = max(candidates, key=lambda shift: shift.advanced_days)
+            backward_shifts = tuple(
+                shift for shift in backward_shifts
+                if shift is not most_aggressive
+            )
+            backward_ids = {
+                shift.activity_id for shift in backward_shifts if shift.advanced_days > 0
+            }
+            retained_forward = tuple(
+                shift for shift in forward_shifts if shift.activity_id not in backward_ids
+            )
+            final_constraints = (
+                tuple(constraints or ())
+                + forward_leveling_constraints(retained_forward)
+                + backward_leveling_exact_constraints(backward_shifts)
+            )
     _validate_final_resource_load(
         result=result,
         leveling_input=leveling_input,
