@@ -1048,3 +1048,57 @@ def test_unconstrained_forward_leveling_stops_after_insufficient_future_capacity
         (shift.activity_id, shift.shift_working_days, shift.new_start)
         for shift in shifts
     ] == [("A1", 1, day_two)]
+
+def test_multiresource_shift_can_fix_actionable_overload_while_preserving_residual_diagnostic():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "A_MULTI",
+            day_one,
+            day_one,
+            1,
+            (
+                ResourceDemand("R1", day_one, Decimal("8"), "A_MULTI"),
+                ResourceDemand("R2", day_one, Decimal("8"), "A_MULTI"),
+            ),
+        ),
+        LevelingActivity(
+            "B_FIXED",
+            day_one,
+            day_one,
+            0,
+            (ResourceDemand("R1", day_one, Decimal("8"), "B_FIXED"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R2", day_one, Decimal("0")),
+    )
+
+    shifts = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        level_within_float=False,
+    )
+
+    assert [(shift.activity_id, shift.shift_working_days, shift.new_start) for shift in shifts] == [
+        ("A_MULTI", 1, day_two)
+    ]
+    moved = apply_leveling_shifts(activities, shifts, resolver=resolver)
+    remaining = detect_over_allocations(
+        [d for activity in moved for d in activity.resource_demands],
+        capacities,
+    )
+
+    # R1's actionable overload is resolved, but R2's overload remains explicit:
+    # moving the activity cannot create capacity beyond R2's capacity horizon.
+    assert [(item.resource_id, item.period, item.demand, item.effective_capacity) for item in remaining] == [
+        ("R2", day_two, Decimal("8"), Decimal("0"))
+    ]
+
