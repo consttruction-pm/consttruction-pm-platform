@@ -275,6 +275,10 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+
+    activity_ids = [activity.activity_id for activity in activities]
+    if len(set(activity_ids)) != len(activity_ids):
+        raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
     if not isinstance(priorities, tuple) or any(not isinstance(priority, LevelingPriority) for priority in priorities):
@@ -536,6 +540,10 @@ def propose_backward_leveling(
     """
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+
+    activity_ids = [activity.activity_id for activity in activities]
+    if len(set(activity_ids)) != len(activity_ids):
+        raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if (
         not isinstance(over_allocation_percentage, Decimal)
         or not over_allocation_percentage.is_finite()
