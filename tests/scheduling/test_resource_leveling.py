@@ -563,6 +563,46 @@ def test_backward_leveling_activity_priority_respects_sort_order(sort_order, exp
     assert shifts[0].shift_working_days == -1
 
 
+def test_backward_leveling_is_deterministic_for_activity_and_resource_order():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    a = BackwardLevelingActivity(
+        "A", day_one, day_one, day_two, day_two,
+        (
+            ResourceDemand("R1", day_two, Decimal("8"), "A"),
+            ResourceDemand("R2", day_two, Decimal("8"), "A"),
+        ),
+    )
+    b = BackwardLevelingActivity(
+        "B", day_one, day_one, day_two, day_two,
+        (
+            ResourceDemand("R1", day_two, Decimal("8"), "B"),
+            ResourceDemand("R2", day_two, Decimal("8"), "B"),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R2", day_one, Decimal("8")),
+        ResourceCapacity("R2", day_two, Decimal("8")),
+    )
+
+    first = propose_backward_leveling((a, b), capacities, resolver=resolver)
+    second = propose_backward_leveling(
+        (b, a), tuple(reversed(capacities)), resolver=resolver
+    )
+
+    assert first == second
+    assert len(first) == 1
+    assert first[0].activity_id == "A"
+    assert first[0].shift_working_days == -1
+    assert first[0].new_start == day_one
+    assert first[0].new_finish == day_one
+
+
 def test_backward_leveling_respects_finish_window_when_start_window_is_wider():
     early_start = date(2026, 10, 1)
     early_finish = date(2026, 10, 2)
