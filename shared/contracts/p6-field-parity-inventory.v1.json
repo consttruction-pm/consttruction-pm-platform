@@ -1222,7 +1222,7 @@
       "subject_area": "ScheduleOptions",
       "p6_field": "MinFloatToPreserve",
       "display_name": "Minimum Float to Preserve",
-      "data_type": "integer",
+      "data_type": "double",
       "writable": true,
       "computed": false,
       "unit": null,
