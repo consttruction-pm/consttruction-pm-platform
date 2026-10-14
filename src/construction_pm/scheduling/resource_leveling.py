@@ -430,7 +430,14 @@ def apply_leveling_shifts(
             continue
         if shift.shift_working_days < 0 or (not allow_beyond_float and shift.shift_working_days > activity.total_float):
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
-        if shift.consumed_float != shift.shift_working_days:
+        if (
+            isinstance(shift.consumed_float, bool)
+            or not isinstance(shift.consumed_float, int)
+            or shift.consumed_float != shift.shift_working_days
+            or isinstance(shift.remaining_float, bool)
+            or not isinstance(shift.remaining_float, int)
+            or shift.remaining_float != activity.total_float - shift.consumed_float
+        ):
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
         expected_start = _shift_date_forward(activity.start, shift.shift_working_days, resolver)
         expected_finish = _shift_date_forward(activity.finish, shift.shift_working_days, resolver)
