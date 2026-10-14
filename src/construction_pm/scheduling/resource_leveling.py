@@ -122,6 +122,14 @@ def detect_over_allocations(
     *,
     over_allocation_percentage: Decimal = Decimal("0"),
 ) -> tuple[OverAllocation, ...]:
+    if not isinstance(demands, (tuple, list)) or any(
+        not isinstance(item, ResourceDemand) for item in demands
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_DEMANDS")
+    if not isinstance(capacities, (tuple, list)) or any(
+        not isinstance(item, ResourceCapacity) for item in capacities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_CAPACITIES")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
         raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
 
@@ -152,6 +160,17 @@ def select_leveling_resources(
     level_all_resources: bool,
     resource_ids: tuple[str, ...] = (),
 ) -> tuple[str, ...]:
+    if not isinstance(demands, (tuple, list)) or any(
+        not isinstance(item, ResourceDemand) for item in demands
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_DEMANDS")
+    if not isinstance(level_all_resources, bool):
+        raise ResourceLevelingError("INVALID_LEVEL_ALL_RESOURCES")
+    if not isinstance(resource_ids, tuple) or any(
+        not isinstance(resource_id, str) or not resource_id.strip()
+        for resource_id in resource_ids
+    ):
+        raise ResourceLevelingError("INVALID_RESOURCE_ID")
     available = {item.resource_id for item in demands}
     if level_all_resources:
         return tuple(sorted(available))
