@@ -216,13 +216,16 @@ def schedule_with_resource_leveling(
     calculation_context: object | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], object] | None = None,
     batch_scheduled_finish: date | None = None,
+    activity_resolvers: Mapping[str, object] | None = None,
 ):
     """Run resource leveling through the authoritative scheduler.
 
     Resource-leveling movement is converted to scheduler constraints; final
     relationships, calendars, constraints, early/late dates and floats are
-    recalculated by the normal CPM scheduler. When ScheduleOptions are supplied,
-    their supported resource-leveling fields are mapped into the existing typed
+    recalculated by the normal CPM scheduler. activity_resolvers applies to
+    these CPM recalculations; leveling proposal/application arithmetic continues
+    to use the project resolver. When ScheduleOptions are supplied, their
+    supported resource-leveling fields are mapped into the existing typed
     Shared Core boundary; no second leveling engine is created.
     """
     if not isinstance(leveling_input, SchedulerLevelingInput):
@@ -252,6 +255,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     forward_shifts = propose_forward_leveling(
@@ -277,6 +281,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
@@ -316,6 +321,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
     _validate_final_resource_load(
         result=result,

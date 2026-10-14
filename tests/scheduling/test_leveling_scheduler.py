@@ -834,3 +834,70 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
 
     assert len(built) == 1
     assert built[0].resource_demands[0].period == day_two
+
+
+from decimal import Decimal
+
+from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingOptions,
+)
+
+
+def test_resource_leveling_preserves_activity_calendar_resolvers_through_recalculation() -> None:
+    start = date(2026, 10, 2)  # Friday
+    monday = date(2026, 10, 5)
+    tuesday = date(2026, 10, 6)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    seven_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset(range(7)), holidays=frozenset(),
+    ))
+    # Both activities demand the same resource on Friday. Capacity forces A
+    # to move over the weekend; CPM recalculation must still use A's 7-day
+    # calendar and B's weekday calendar. Leveling movement itself intentionally
+    # uses the project resolver; activity_resolvers apply to CPM recalculation.
+    demand_a = (ResourceDemand("R1", start, Decimal("8"), "A"),)
+    demand_b = (ResourceDemand("R1", start, Decimal("8"), "B"),)
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", start, date(2026, 10, 3), 0, demand_a),
+            LevelingActivity("B", start, date(2026, 10, 5), 0, demand_b),
+        ),
+        backward_activities=(),
+        capacities=(
+            ResourceCapacity("R1", start, Decimal("8")),
+            ResourceCapacity("R1", monday, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 2), Activity("B", 2)),
+        (),
+        start,
+        project_resolver,
+        leveling_input,
+        project_finish=tuesday,
+        activity_resolvers={"A": seven_day_resolver, "B": project_resolver},
+    )
+
+    assert [(shift.activity_id, shift.shift_working_days, shift.new_start) for shift in forward] == [
+        ("A", 1, monday),
+    ]
+    assert backward == ()
+    assert result.activities["A"].start == monday
+    assert result.activities["A"].finish == tuesday
+    assert result.activities["B"].start == start
+    assert result.activities["B"].finish == monday
