@@ -15,7 +15,10 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
-from construction_pm.p6_resource_leveling_read_adapter import build_scheduler_leveling_input
+from construction_pm.p6_resource_leveling_read_adapter import (
+    P6ResourceLevelingReadAdapterError,
+    build_scheduler_leveling_input,
+)
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
@@ -248,7 +251,7 @@ def test_adapter_rejects_identity_binding_from_another_tenant():
     )
     activity = LevelingActivity("activity-1", date(2026, 10, 1), date(2026, 10, 1), 1)
 
-    with pytest.raises(Exception, match="RESOURCE_IDENTITY_TENANT_MISMATCH"):
+    with pytest.raises(P6ResourceLevelingReadAdapterError, match="RESOURCE_IDENTITY_TENANT_MISMATCH"):
         build_scheduler_leveling_input(
             read_api=api,
             scope=scope,
