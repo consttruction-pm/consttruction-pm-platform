@@ -649,6 +649,13 @@ def propose_backward_leveling(
                 max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
                 if -current_shift >= max_advance:
                     continue
+                # Never propose a backward move before the CPM early start.
+                # The exclusive working-day distance and the date-shift helper
+                # are intentionally separate operations; validate the actual
+                # candidate date so a boundary cannot be crossed by one day.
+                next_shift = current_shift - 1
+                if _shift_date_backward(activity.late_start, next_shift, resolver) < activity.early_start:
+                    continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
                 units = sum(
                     (d.units for d in current if d.resource_id == resource_id and d.period == period),
