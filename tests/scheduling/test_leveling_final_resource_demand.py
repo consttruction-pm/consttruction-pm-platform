@@ -184,3 +184,24 @@ def test_leveling_rejects_activity_missing_from_scheduler_input():
         schedule_with_resource_leveling(
             (Activity("A", 1),), (), day, resolver, leveling_input,
         )
+
+
+def test_leveling_rejects_duplicate_scheduler_activity_ids():
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", day, day, 0),),
+        backward_activities=(BackwardLevelingActivity("A", day, day, day, day),),
+        capacities=(),
+        options=ResourceLevelingOptions(),
+    )
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_SCHEDULE_ACTIVITY_ID"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("A", 2)), (), day, resolver, leveling_input,
+        )
