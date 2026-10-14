@@ -20,6 +20,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
     LevelingActivity,
     ResourceCapacity,
     ResourceDemand,
@@ -130,23 +131,39 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     )
     snapshot, context = make_snapshot_and_context(options=options)
     demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
-    demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
+    demand_b = ResourceDemand("R1", date(2026, 9, 23), Decimal("1"), "B")
     demand_b_second_period = ResourceDemand(
-        "R1", date(2026, 9, 22), Decimal("1"), "B"
+        "R1", date(2026, 9, 24), Decimal("1"), "B"
     )
     activity_a = LevelingActivity(
         "A", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_a,)
     )
     activity_b = LevelingActivity(
         "B",
+        date(2026, 9, 23),
+        date(2026, 9, 23),
+        1,
+        (demand_b, demand_b_second_period),
+    )
+    backward_a = BackwardLevelingActivity(
+        "A",
         date(2026, 9, 21),
         date(2026, 9, 22),
-        1,
+        date(2026, 9, 22),
+        date(2026, 9, 23),
+        (demand_a,),
+    )
+    backward_b = BackwardLevelingActivity(
+        "B",
+        date(2026, 9, 23),
+        date(2026, 9, 23),
+        date(2026, 9, 23),
+        date(2026, 9, 23),
         (demand_b, demand_b_second_period),
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(activity_a, activity_b),
-        backward_activities=(activity_a, activity_b),
+        backward_activities=(backward_a, backward_b),
         capacities=(ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
