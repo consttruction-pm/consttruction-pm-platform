@@ -521,6 +521,48 @@ def test_backward_leveling_priority_selects_activity_deterministically():
     assert shifts[0].new_start == day_one
     assert shifts[0].new_finish == day_one
 
+@pytest.mark.parametrize(
+    ("sort_order", "expected_activity_id"),
+    [
+        (SortOrder.ASCENDING, "A"),
+        (SortOrder.DESCENDING, "B"),
+    ],
+)
+def test_backward_leveling_activity_priority_respects_sort_order(sort_order, expected_activity_id):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_two, day_one, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+            activity_priority=1,
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_two, day_one, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+            activity_priority=2,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("Activity Priority", sort_order),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == expected_activity_id
+    assert shifts[0].shift_working_days == -1
+
+
 def test_backward_leveling_respects_finish_window_when_start_window_is_wider():
     early_start = date(2026, 10, 1)
     early_finish = date(2026, 10, 2)
