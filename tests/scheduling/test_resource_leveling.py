@@ -1102,3 +1102,53 @@ def test_multiresource_shift_can_fix_actionable_overload_while_preserving_residu
         ("R2", day_two, Decimal("8"), Decimal("0"))
     ]
 
+def test_backward_leveling_stops_when_resource_has_no_earlier_capacity():
+    early_day = date(2026, 10, 1)
+    late_day = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1",
+        early_day,
+        early_day,
+        late_day,
+        late_day,
+        (ResourceDemand("R1", late_day, Decimal("8"), "A1"),),
+    )
+    capacities = (ResourceCapacity("R1", late_day, Decimal("0")),)
+
+    # No earlier date has positive capacity, so consuming the available float
+    # cannot resolve this overload and should not move the activity at all.
+    assert propose_backward_leveling(
+        (activity,), capacities, resolver=resolver
+    ) == ()
+
+
+def test_backward_leveling_uses_last_earlier_capacity_then_stops():
+    early_day = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    late_day = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1",
+        early_day,
+        early_day,
+        late_day,
+        late_day,
+        (ResourceDemand("R1", late_day, Decimal("8"), "A1"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_two, Decimal("4")),
+        ResourceCapacity("R1", late_day, Decimal("0")),
+    )
+
+    shifts = propose_backward_leveling((activity,), capacities, resolver=resolver)
+
+    assert [
+        (shift.activity_id, shift.shift_working_days, shift.new_start)
+        for shift in shifts
+    ] == [("A1", -1, day_two)]
+
