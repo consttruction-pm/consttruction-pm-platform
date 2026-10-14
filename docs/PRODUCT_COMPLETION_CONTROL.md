@@ -54,8 +54,16 @@ If nothing is missing, do not code. Mark the capability verified and move to the
 - verify required CI triggers;
 - record exact merge evidence.
 
+### P0 — V1 AI Assistant release blocker
+- Deliver the production V1 AI Project Controls Assistant against `docs/architecture/AI_ASSISTANT_V1_REQUIREMENTS.md`.
+- Integrate model orchestration, grounded retrieval, real typed tools, project creation/import, authoritative calculations, report/visualization generation, action preview, approval/rejection, durable audit and server-enforced permissions.
+- Complete an end-to-end project-from-input acceptance scenario and negative authorization/revision tests.
+- Static Smart Guide/proposal cards, mocked providers, contracts, or a chat-only UI do not satisfy this gate.
+- Keep this lane parallel with core/API and Web completion, but do not defer it past V1.
+
 ### P1 — Web product completion
 Work in vertical slices, not isolated backend/client fragments:
+The P1 Web user journey must integrate with the mandatory V1 AI Assistant; develop its tool contracts and orchestration in parallel with foundational Web/API slices. The assistant's integrated acceptance is a P0 release gate. Do not wait until all Web screens are complete to start the assistant.
 
 1. Application shell, authentication and authorization.
 2. Project creation/opening and project settings.
@@ -80,13 +88,12 @@ Only after the Web path is usable:
 - offline mutation/sync;
 - cross-client parity.
 
-### P3 — advanced capabilities
-- AI assistant/guide;
-- voice entry;
-- intelligent document/OCR/search enhancements;
-- advanced automation and non-critical enhancements.
+### P3 — post-V1 enhancements only
+- Assistant capabilities explicitly classified as optional after V1 (for example advanced autonomous cross-project campaigns or experimental predictive workflows not required by the V1 acceptance matrix).
+- Additional voice, OCR, search and automation enhancements only when the supported V1 ingestion and accessibility requirements already pass.
+P3 must not be used to defer any mandatory AI Assistant acceptance criterion.
 
-P3 must not repeatedly interrupt an unfinished P1 workflow.
+Root-cause evidence behind this priority correction is recorded in `docs/audits/AI_ASSISTANT_V1_GAP_ANALYSIS_2026-10-13.md`.
 
 ## 5. Javad (Farmj22002)'s current mission
 
