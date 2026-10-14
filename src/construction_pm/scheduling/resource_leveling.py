@@ -420,6 +420,8 @@ def apply_leveling_shifts(
     shift_map = {s.activity_id: s for s in shifts}
     if len(shift_map) != len(shifts):
         raise ResourceLevelingError("DUPLICATE_LEVELING_SHIFT")
+    if set(shift_map) - set(activity_ids):
+        raise ResourceLevelingError("UNKNOWN_LEVELING_ACTIVITY")
     result: list[LevelingActivity] = []
     for activity in sorted(activities, key=lambda a: (a.start, a.activity_id)):
         shift = shift_map.get(activity.activity_id)
