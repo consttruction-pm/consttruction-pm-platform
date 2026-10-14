@@ -1019,7 +1019,11 @@ def test_backward_activity_builder_handles_missing_float_record():
 
 def test_backward_rollback_priority_key_uses_configured_total_float_before_activity_priority():
     from construction_pm.scheduling.leveling_scheduler import _backward_leveling_priority_key
-    from construction_pm.scheduling.resource_leveling import LevelingPriority, SortOrder
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        LevelingPriority,
+        SortOrder,
+    )
 
     day = date(2026, 10, 1)
     preferred_by_float = BackwardLevelingActivity(
