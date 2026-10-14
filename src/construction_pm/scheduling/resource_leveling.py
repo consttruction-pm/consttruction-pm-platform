@@ -93,10 +93,17 @@ class ResourceLevelingOptions:
             raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
         if not isinstance(self.over_allocation_percentage, Decimal) or not self.over_allocation_percentage.is_finite() or not 0 <= self.over_allocation_percentage <= 100:
             raise ResourceLevelingError("INVALID_OVER_ALLOCATION_PERCENTAGE")
+        if not isinstance(self.resource_ids, tuple) or any(
+            not isinstance(resource_id, str) or not resource_id.strip()
+            for resource_id in self.resource_ids
+        ):
+            raise ResourceLevelingError("INVALID_RESOURCE_ID")
         if len(set(self.resource_ids)) != len(self.resource_ids):
             raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
-        if any(not isinstance(resource_id, str) or not resource_id.strip() for resource_id in self.resource_ids):
-            raise ResourceLevelingError("INVALID_RESOURCE_ID")
+        if not isinstance(self.priorities, tuple) or any(
+            not isinstance(priority, LevelingPriority) for priority in self.priorities
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_PRIORITIES")
 
 
 def _capacity_map(capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity]) -> dict[tuple[str, date], Decimal]:
@@ -178,6 +185,10 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if not isinstance(self.resource_demands, tuple) or any(
+            not isinstance(demand, ResourceDemand) for demand in self.resource_demands
+        ):
+            raise ResourceLevelingError("INVALID_RESOURCE_DEMANDS")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -508,6 +519,10 @@ class BackwardLevelingActivity:
             isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if not isinstance(self.resource_demands, tuple) or any(
+            not isinstance(demand, ResourceDemand) for demand in self.resource_demands
+        ):
+            raise ResourceLevelingError("INVALID_RESOURCE_DEMANDS")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
