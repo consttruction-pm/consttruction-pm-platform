@@ -65,6 +65,33 @@ class SchedulerLevelingInput:
         ):
             raise ValueError("leveling capacity cannot be negative")
 
+        demand_slices = tuple(
+            demand
+            for activity in (*self.forward_activities, *self.backward_activities)
+            for demand in activity.resource_demands
+        )
+        capacity_keys = {
+            (capacity.resource_key, capacity.period)
+            for capacity in self.capacities
+        }
+        capacity_keys_by_legacy_label: dict[tuple[str, object], set[tuple[str, ...]]] = {}
+        for capacity in self.capacities:
+            capacity_keys_by_legacy_label.setdefault(
+                (capacity.resource_id, capacity.period), set()
+            ).add(capacity.resource_key)
+
+        for demand in demand_slices:
+            expected_key = (demand.resource_key, demand.period)
+            if expected_key in capacity_keys:
+                continue
+            conflicting_keys = capacity_keys_by_legacy_label.get(
+                (demand.resource_id, demand.period), set()
+            )
+            if conflicting_keys:
+                raise ResourceLevelingError(
+                    "RESOURCE_DEMAND_CAPACITY_IDENTITY_MISMATCH"
+                )
+
 
 def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]:
     """Map typed P6 PriorityList entries to the existing Shared Core contract."""
