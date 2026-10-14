@@ -802,3 +802,35 @@ def test_forward_leveling_preserves_ff_and_sf_positive_lags_in_final_cpm_dates()
         )
         assert predecessor.start == date(2026, 10, 2)
         assert successor.start >= required_start
+
+def test_resource_leveling_preserves_negative_lag_relationship_constraints() -> None:
+    from construction_pm.scheduling.relationships import (
+        Relationship,
+        RelationshipType,
+        successor_earliest_start,
+    )
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    for relationship_type in RelationshipType:
+        relationship = Relationship("A", "B", relationship_type, lag=-1)
+        result, _, _ = schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (relationship,),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            project_finish=date(2026, 10, 12),
+        )
+
+        predecessor = result.activities["A"]
+        successor = result.activities["B"]
+        required_start = successor_earliest_start(
+            relationship,
+            predecessor.start,
+            predecessor.finish,
+            duration=1,
+            resolver=resolver,
+        )
+        assert successor.start >= required_start, relationship_type
