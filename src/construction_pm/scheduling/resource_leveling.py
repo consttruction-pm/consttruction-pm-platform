@@ -730,7 +730,13 @@ def propose_backward_leveling(
                 if activity.activity_id in protected_activity_ids:
                     continue
                 current_shift = shifts[activity.activity_id]
-                max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
+                # The shift must stay inside both the start-date and finish-date
+                # windows; inconsistent windows must not pull the finish before its
+                # early finish merely because the start has more available float.
+                max_advance = min(
+                    _working_days_between(activity.early_start, activity.late_start, resolver),
+                    _working_days_between(activity.early_finish, activity.late_finish, resolver),
+                )
                 if -current_shift >= max_advance:
                     continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
