@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from .authorization import Permission
+
 from .project_lifecycle import ProjectContext, ProjectLifecycleService, ProjectSummary
 
 
@@ -49,6 +51,20 @@ class ProjectLifecycleAPI:
     ) -> ProjectContextResponse:
         return ProjectContextResponse(
             self._service.open_project(session_id, project_id, now=now)
+        )
+
+    def authorize_project(
+        self,
+        session_id: str,
+        project_id: str,
+        permission: Permission,
+        *,
+        now: datetime,
+    ) -> ProjectContextResponse:
+        return ProjectContextResponse(
+            self._service.authorize_project(
+                session_id, project_id, permission, now=now
+            )
         )
 
     def create_project(
