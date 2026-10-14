@@ -937,3 +937,44 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+
+
+def test_schedule_failure_before_final_result_is_not_backtracked(monkeypatch):
+    import importlib
+
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    schedule_module = importlib.import_module("construction_pm.scheduling.schedule")
+    real_schedule = schedule_module.schedule
+    calls = 0
+
+    def fail_on_final_schedule(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise ResourceLevelingError("SCHEDULE_FAILED_BEFORE_RESULT")
+        return real_schedule(*args, **kwargs)
+
+    monkeypatch.setattr(schedule_module, "schedule", fail_on_final_schedule)
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(
+        ResourceLevelingError,
+        match="^SCHEDULE_FAILED_BEFORE_RESULT$",
+    ):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            project_finish=date(2026, 10, 3),
+        )
+
+    assert calls == 3
