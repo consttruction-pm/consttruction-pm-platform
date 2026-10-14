@@ -739,6 +739,16 @@ def propose_backward_leveling(
 
         candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
+            # Moving demand into earlier dates with no positive capacity for
+            # this resource cannot resolve the overload. Stop spending an
+            # activity's available float after the resource's capacity horizon.
+            if not any(
+                capacity_resource_id == resource_id
+                and capacity_period < period
+                and units > 0
+                for (capacity_resource_id, capacity_period), units in capacity_map.items()
+            ):
+                continue
             for activity in activity_list:
                 if activity.activity_id in protected_activity_ids:
                     continue
