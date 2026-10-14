@@ -69,6 +69,22 @@ This requirement covers, at minimum:
 
 This principle applies across all supported languages, calendars, clients, project modules and AI workflows. Localization, display formatting and presentation must never change authoritative calculation inputs or results.
 
+
+### Mandatory pre-coding conformance gate — no implementation before semantic verification
+
+This is a required team workflow, not a recommendation. **Before writing or modifying production code for any project calculation, activity relationship, resource priority/leveling rule, calendar behavior, scheduling option, or numerical AI workflow, the author must complete and link a documentation-first conformance record.** A previously registered requirement is not satisfied merely because someone remembers it or a test currently passes.
+
+The record must contain, before implementation begins:
+1. Exact applicable official source document, product/version, section/URL and access/review date. For P6-overlap behavior, use the applicable official release-versioned P6 documentation; do not substitute a blog, intuition, prior code, or an AI-generated summary.
+2. The source-derived rule in plain language, including priority order, tie-breakers, relationship/constraint interaction, calendar/time interpretation, relevant options and known exceptions.
+3. A source-to-rule-to-code/test mapping in the internal calculation conformance matrix, with status marked **VERIFIED BEFORE CODING** only after review. If the source is ambiguous or unavailable, mark **UNVERIFIED / BLOCKED** and do not implement a guessed rule.
+4. At least one documented reference case and boundary/regression cases, including interactions with predecessor/successor relationships, constraints, resource availability/capacity, forward/backward passes and final recalculation when applicable.
+5. A reviewer other than the author confirms that the rule and interpretation match the cited source before production implementation is approved.
+
+**Pull-request enforcement:** every PR touching calculation, relationships, resource priority/leveling, calendars, constraints, schedule outputs or AI numerical results must include a “Documentation-first conformance” section with source/version/section, rule summary, matrix row or linked issue, test IDs, reviewer, and any unresolved differences. CI/review must block merge when this evidence is absent, when implementation precedes the source review, or when final schedule/relationship/resource-load validation is not demonstrated. Test-fixture-only changes must explicitly say “no semantic change” and identify the existing contract they preserve.
+
+The implementer must not start by coding a plausible algorithm and search for a source afterward. If a defect is discovered after coding, stop feature expansion, reconstruct the documented rule first, then correct implementation and tests against that rule. Team leads must return nonconforming PRs without treating schedule pressure as an exception. This gate applies equally to every team member, AI coding agent and subcontracted contributor.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
