@@ -205,8 +205,12 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
             BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demands[1],), activity_priority=0),
         ),
         capacities=(
-            ResourceCapacity("R1", day_one, Decimal("16")),
+            # The late-window demand overlaps on Monday (the project-finish
+            # boundary); one activity must move backward to Friday. Keep
+            # Thursday capacity for the final CPM schedule's A demand.
+            ResourceCapacity("R1", day_one, Decimal("8")),
             ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_three, Decimal("8")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
