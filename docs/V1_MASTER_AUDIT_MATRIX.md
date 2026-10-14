@@ -82,7 +82,7 @@
 | Translation coverage validation | `src/construction_pm/i18n/translation_coverage.py` and `tests/i18n/test_translation_coverage.py` validate missing/orphan keys, but end-to-end hookup to all live application bundles and release gates must be verified. | In progress / Audit required |
 | All-language requirement | Principle 8 was merged through PR #1427 on 2026-10-14 (merge commit `bb1e14096be812b28ee72dabfaad87fd86ad195e`). Product-wide implementation remains incomplete. | Gap — implementation blocker #1428 |
 | Offline, RTL/LTR, formatting and data preservation | Registry/pack primitives exist; all-language workspace, grids, Gantt/timeline, charts, reports/exports, help and AI capability coverage are not yet proven end-to-end for every enabled language. | Gap — issue #1428 |
-| README terminology | Update the historical “bilingual” description to clarify current Persian/English workspace coverage and the still-open all-language implementation gap. | Documentation follow-up |
+| README terminology | README now distinguishes current Persian/English workspace coverage from the still-open all-language implementation gap. | Corrected in PR #1431; all-language runtime remains a Gap |
 
 ### Current-main spot audit — 2026-10-14
 
