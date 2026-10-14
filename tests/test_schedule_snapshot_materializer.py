@@ -27,7 +27,7 @@ from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import MinimumFloatUnit, ScheduleOptions
 from construction_pm.scheduling.time_duration import TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity
 
@@ -999,3 +999,49 @@ def test_materializer_accepts_legacy_comma_separated_resource_list():
     )
     result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
     assert result.schedule_input.schedule_options.resource_list == ("R1", "R2")
+
+
+def test_snapshot_materializer_preserves_fractional_minimum_float_and_unit() -> None:
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["min_float_to_preserve"] = "2.5"
+    payload["schedule_options"]["min_float_to_preserve_unit"] = "week"
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    typed = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    materialized = materialize_schedule_snapshot(typed, CalendarResolverRegistry())
+    assert materialized.schedule_input.schedule_options.min_float_to_preserve == Decimal("2.5")
+    assert (
+        materialized.schedule_input.schedule_options.min_float_to_preserve_unit
+        is MinimumFloatUnit.WEEK
+    )
+
+
+def test_snapshot_materializer_defaults_legacy_minimum_float_unit_to_hours() -> None:
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["min_float_to_preserve"] = 2
+    payload["schedule_options"].pop("min_float_to_preserve_unit", None)
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    legacy = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    materialized = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
+    assert materialized.schedule_input.schedule_options.min_float_to_preserve == Decimal("2")
+    assert (
+        materialized.schedule_input.schedule_options.min_float_to_preserve_unit
+        is MinimumFloatUnit.HOUR
+    )
