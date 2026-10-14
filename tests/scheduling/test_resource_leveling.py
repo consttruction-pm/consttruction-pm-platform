@@ -243,6 +243,18 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
 
 
 
+def test_forward_leveling_rejects_duplicate_activity_ids():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        propose_forward_leveling_within_float((activity, activity), (), resolver=resolver)
+
+
 def test_forward_leveling_rejects_duplicate_capacity():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activity = LevelingActivity(
@@ -252,6 +264,19 @@ def test_forward_leveling_rejects_duplicate_capacity():
     capacity = ResourceCapacity("R1", date(2026, 10, 1), Decimal("8"))
     with pytest.raises(ResourceLevelingError, match="DUPLICATE_RESOURCE_CAPACITY"):
         propose_forward_leveling_within_float((activity,), (capacity, capacity), resolver=resolver)
+
+
+def test_backward_leveling_rejects_duplicate_activity_ids():
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1", day, day, day, day,
+        (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        propose_backward_leveling((activity, activity), (), resolver=resolver)
 
 
 def test_backward_leveling_rejects_duplicate_capacity():
