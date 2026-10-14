@@ -354,6 +354,54 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         assert late.finish == date(2026, 10, 2)
 
 
+def test_linked_leveling_rejects_overallocation_reintroduced_by_cpm_relationships():
+    import pytest
+
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", day_one, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (demand_a,)),
+            LevelingActivity("B", day_one, day_one, 1, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand_a,)),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demand_b,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (Relationship("A", "B", RelationshipType.SS),),
+            day_one,
+            resolver,
+            leveling_input,
+            options=ScheduleOptions(
+                level_all_resources=True,
+                level_within_float=True,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
+
+
 def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> None:
     import pytest
 
