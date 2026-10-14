@@ -99,3 +99,16 @@ def test_project_admin_can_create_project():
     )
     assert context.project_id == "project-new"
     assert context.revision == 0
+
+
+def test_cross_tenant_project_is_not_discoverable_even_with_matching_project_id():
+    now, original_session = make_session()
+    session = AuthenticatedSession(
+        session_id=original_session.session_id,
+        user_id=original_session.user_id,
+        tenant_id="tenant-b",
+        roles=original_session.roles,
+        expires_at=original_session.expires_at,
+    )
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"):
+        make_service(session).open_project("session-a", "project-a", now=now)
