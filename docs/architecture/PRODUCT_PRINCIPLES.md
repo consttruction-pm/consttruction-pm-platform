@@ -46,6 +46,29 @@ Never silently replace a missing, conflicting or unsupported custom calendar wit
 
 This is a release-blocking portability requirement, not an optional convenience. Calendar export/import must be covered by typed schemas, migration/version policy, audit history, user-facing import preview/errors, and regression tests for every supported project package/interchange format.
 
+## Principle 1C — Mandatory documented conformance for every project calculation
+
+**Every calculation that can affect a CUBI project result must have a documented, authoritative semantic baseline and must be verified against it. For behavior overlapping Primavera P6, the applicable official, release-versioned P6 documentation is the mandatory compatibility baseline. This rule is foundational and may not be waived for implementation convenience, AI-generated results, UI differences, performance optimization, refactoring, test repair, or release pressure.**
+
+This requirement covers, at minimum:
+- CPM forward/backward passes; early/late dates; total/free float and critical-path definitions; project finish; open ends; constraints; actual dates; data date; progress-scheduling options; baselines and schedule comparison.
+- All relationship types (FS/SS/FF/SF), lag/lead interpretation and calendars; working-time/duration conversion; Jalali/Gregorian date handling; calendars, exceptions and assignments.
+- Resource demand/capacity, resource leveling, resource-driven criticality and the final schedule after relationship/constraint propagation.
+- Progress, physical percent complete, earned value/earned schedule, performance indices, forecasts, cost/resource assignment calculations, cash flow, commitments, payment, claims and delay analysis wherever the product's behavior overlaps a documented P6 capability.
+- Any additional project formulas, rollups, summaries, scenario comparisons, risk/forecast calculations and AI-produced numerical conclusions. Where P6 is not the applicable authority for a domain, identify and version the correct domain specification/approved business rule; never invent semantics or imply P6 defines a domain it does not cover.
+
+### Required evidence and implementation rules
+
+1. Maintain an internal, version-controlled **calculation conformance matrix** linking each calculation/option/field to its source document and version, the exact rule and assumptions, Shared Core implementation, reference examples, boundary cases, regression tests and verification status.
+2. Keep one authoritative Shared Domain/Calculation Core. UI, API, database adapters, reports, charts, imports/exports, desktop clients and the AI assistant must call or faithfully expose that same authority; no parallel or client-specific calculation engine may silently diverge.
+3. Verify outputs against documented examples and independently derived fixtures, including calendars, relationship combinations, constraints, progress states, resource limits, rounding/precision, time zones and locale changes where applicable. Test deterministic replay and input/output round trips where relevant.
+4. Never make a test pass by weakening valid constraints or final validation, hiding overloads, extending fixtures to mask a defect, changing expected values without source evidence, or returning a partial/invalid calculation as successful. A proposed resource-leveling move is not accepted until the final CPM recalculation, all constraints, linked activities and final demand/capacity ledger agree.
+5. If source semantics are ambiguous, unavailable, version-mismatched or not yet tested, label the affected behavior **UNVERIFIED / RELEASE BLOCKER** until resolved. Do not claim complete compatibility or parity based solely on passing CI, a matching screen/field name, or a proposal result.
+6. Refresh the applicable official references and conformance matrix at each release gate. Record intentional differences as explicit, approved deviations with impact, migration/interoperability implications and tests; no silent deviations or omissions.
+7. Keep internal conformance evidence separate from the customer-facing product: this principle does not authorize Oracle/Primavera names, logos, URLs, or source indications in CUBI's UI, branding, help, or customer-facing documentation.
+
+This principle applies across all supported languages, calendars, clients, project modules and AI workflows. Localization, display formatting and presentation must never change authoritative calculation inputs or results.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
