@@ -233,6 +233,17 @@ def schedule_with_resource_leveling(
     activities = tuple(activities)
     relationships = tuple(relationships)
     constraints = tuple(constraints or ())
+    scheduler_activity_ids = {getattr(activity, "id", None) for activity in activities}
+    leveling_activity_ids = {
+        activity.activity_id for activity in leveling_input.forward_activities
+    }
+    if None in scheduler_activity_ids or not leveling_activity_ids.issubset(scheduler_activity_ids):
+        unknown_ids = sorted(leveling_activity_ids - scheduler_activity_ids)
+        if unknown_ids:
+            raise ResourceLevelingError(
+                "LEVELING_ACTIVITY_NOT_IN_SCHEDULE:" + ",".join(unknown_ids)
+            )
+        raise ResourceLevelingError("SCHEDULE_ACTIVITY_MISSING_ID")
     selected_options = options or ScheduleOptions()
     # ScheduleOptions is the public typed configuration surface. Map only its
     # already-authoritative leveling fields into the existing Shared Core input;
