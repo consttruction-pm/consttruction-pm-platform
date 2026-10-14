@@ -205,8 +205,13 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
             BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demands[1],), activity_priority=0),
         ),
         capacities=(
+            # This test isolates backward leveling: Thursday capacity covers
+            # both initial demands, while the projected late-window demands
+            # overlap on Monday and require one activity to move to Friday.
             ResourceCapacity("R1", day_one, Decimal("16")),
             ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_three, Decimal("8")),
+            ResourceCapacity("R1", date(2026, 10, 6), Decimal("8")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
@@ -223,6 +228,8 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         day_one,
         resolver,
         leveling_input,
+        # Monday is the project-finish boundary. This gives the activities
+        # a Monday late date; one backward working-day shift should target Friday.
         project_finish=day_three,
         options=ScheduleOptions(
             level_all_resources=True,
@@ -243,7 +250,6 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
     assert result.project_finish == day_three
-
 
 def test_backward_pass_keeps_forward_protected_demand_at_intermediate_date() -> None:
     day_one = date(2026, 10, 1)  # Thursday
@@ -303,3 +309,4 @@ def test_backward_pass_keeps_forward_protected_demand_at_intermediate_date() -> 
     }
     capacity = {day_one: Decimal("8"), day_two: Decimal("8"), day_three: Decimal("8")}
     assert all(final_demand[day] <= capacity[day] for day in capacity)
+
