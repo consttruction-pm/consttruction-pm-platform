@@ -353,6 +353,26 @@ def test_forward_leveling_validates_input_collections(activities, capacities, er
         )
 
 
+@pytest.mark.parametrize(
+    ("activities", "capacities", "kwargs", "error"),
+    [
+        (None, (), {}, "INVALID_LEVELING_ACTIVITIES"),
+        ((None,), (), {}, "INVALID_LEVELING_ACTIVITIES"),
+        ((), None, {}, "INVALID_LEVELING_CAPACITIES"),
+        ((), (None,), {}, "INVALID_LEVELING_CAPACITIES"),
+        (None, (), {"level_within_float": True}, "INVALID_LEVELING_ACTIVITIES"),
+    ],
+)
+def test_forward_leveling_wrapper_validates_inputs(activities, capacities, kwargs, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        propose_forward_leveling(
+            activities,
+            capacities,
+            resolver=WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())),
+            **kwargs,
+        )
+
+
 def test_forward_leveling_rejects_duplicate_activity_ids():
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
