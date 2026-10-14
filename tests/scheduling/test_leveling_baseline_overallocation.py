@@ -52,3 +52,33 @@ def test_final_validation_allows_unresolved_baseline_overload_without_new_worsen
         leveling_input=leveling_input,
         resolver=resolver,
     )
+
+def test_final_validation_ignores_periods_without_configured_capacity():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            holidays=frozenset(),
+        )
+    )
+    demand = ResourceDemand("R1", day_one, Decimal("1"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (demand,)),
+        ),
+        backward_activities=(),
+        capacities=(ResourceCapacity("R1", day_one, Decimal("1")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    # The demand moves to a period for which the caller supplied no capacity
+    # row. That period is outside the configured capacity horizon, not a
+    # zero-capacity period.
+    _validate_final_resource_load(
+        result=SimpleNamespace(
+            activities={"A": SimpleNamespace(start=day_two)}
+        ),
+        leveling_input=leveling_input,
+        resolver=resolver,
+    )
