@@ -61,16 +61,19 @@ def test_scheduler_leveling_boundary_maps_p6_options_without_calculating_dates()
         preserve_scheduled_early_and_late_dates=False,
     )
 
+    resolver = WorkingTimeResolver(WorkingCalendar())
     boundary = scheduler_leveling_input_from_options(
         forward_activities=forward,
         backward_activities=backward,
         capacities=capacities,
         options=options,
+        resolver=resolver,
     )
 
     assert boundary.options.level_all_resources is True
     assert boundary.options.level_within_float is True
-    assert boundary.options.min_float_to_preserve == Decimal("1")
+    # The omitted unit is hours, converted using the default 8-hour working day.
+    assert boundary.options.min_float_to_preserve == Decimal("0.125")
     assert boundary.options.over_allocation_percentage == Decimal("25")
     assert boundary.options.preserve_scheduled_early_and_late_dates is False
     assert boundary.forward_activities[0].start == date(2026, 10, 5)
