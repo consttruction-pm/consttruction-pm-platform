@@ -786,7 +786,13 @@ def propose_backward_leveling(
                 advanced_days=-next_shift,
             )
         )
-    return tuple(result)
+    # Return one cumulative shift per activity, matching the forward pass contract.
+    # The loop may advance the same activity more than once while resolving several
+    # overloaded periods; exposing every intermediate step would create duplicate IDs.
+    final_shifts: dict[str, BackwardLevelingShift] = {}
+    for shift in result:
+        final_shifts[shift.activity_id] = shift
+    return tuple(final_shifts.values())
 
 
 def resolve_leveling_passes(*, preserve_scheduled_early_and_late_dates: bool) -> tuple[str, ...]:
