@@ -175,7 +175,13 @@ class LevelingActivity:
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
-        if not isinstance(self.start, date) or not isinstance(self.finish, date) or self.finish < self.start:
+        if (
+            not isinstance(self.start, date)
+            or isinstance(self.start, datetime)
+            or not isinstance(self.finish, date)
+            or isinstance(self.finish, datetime)
+            or self.finish < self.start
+        ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
@@ -471,7 +477,7 @@ class BackwardLevelingActivity:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
-        if any(not isinstance(value, date) for value in dates):
+        if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if self.early_finish < self.early_start or self.late_finish < self.late_start:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
