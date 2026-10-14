@@ -20,6 +20,7 @@ from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    ResourceCalendarAssignment,
 )
 from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
@@ -935,3 +936,76 @@ def test_materializer_accepts_legacy_comma_separated_resource_list():
     )
     result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
     assert result.schedule_input.schedule_options.resource_list == ("R1", "R2")
+
+
+
+def test_materializer_round_trips_resource_calendar_assignments_in_snapshot_hash():
+    cal = CalendarReference("RESOURCE-CAL", "v2", system=CalendarSystem.JALALI)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RESOURCE-CALENDAR",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=5,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("PROJECT-CAL", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        resource_calendar_assignments=(
+            ResourceCalendarAssignment("tenant:T-1/resource:R-7", cal),
+        ),
+        project_start=date(2026, 10, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=5, calendar_id="PROJECT-CAL",
+        calendar_version="1", rules_version="rules-1", engine_version="engine-1",
+        timezone="UTC", calculation_timestamp="2026-10-01T08:00:00+00:00",
+        input_snapshot_id="S-RESOURCE-CALENDAR", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 10, 1, 8, tzinfo=timezone.utc))
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["resource_calendar_assignments"][0]["calendar"]["system"] == "jalali"
+
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.resource_calendar_assignments == (
+        ResourceCalendarAssignment("tenant:T-1/resource:R-7", cal),
+    )
+    assert result.schedule_input.snapshot_hash == source.snapshot_hash
+
+
+def test_materializer_accepts_legacy_snapshot_without_resource_calendar_assignments():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload.pop("resource_calendar_assignments", None)
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    legacy = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
+    assert result.schedule_input.resource_calendar_assignments == ()
+
+
+@pytest.mark.parametrize(
+    ("assignments", "error"),
+    [
+        ([{"resource_id": "R-1", "calendar": {"calendar_id": "C", "calendar_version": "1"}}] * 2,
+         "DUPLICATE_RESOURCE_CALENDAR_ASSIGNMENT"),
+        ([{"resource_id": " ", "calendar": {"calendar_id": "C", "calendar_version": "1"}}],
+         "INVALID_RESOURCE_CALENDAR_ASSIGNMENT"),
+        ({"resource_id": "R-1"}, "INVALID_RESOURCE_CALENDAR_ASSIGNMENTS"),
+    ],
+)
+def test_materializer_rejects_invalid_resource_calendar_assignments(assignments, error):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_calendar_assignments"] = assignments
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match=error):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
