@@ -6,7 +6,7 @@ from dataclasses import asdict
 from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
 
-from ..application.authorization import AuthorizationError
+from ..application.authorization import AuthorizationError, Permission
 from ..change_claim_api import (
     ChangeClaimAPI, ChangeClaimCreateRequest, ChangeClaimReadRequest,
     P0_CHANGE_CLAIM_API_VERSION,
@@ -294,7 +294,9 @@ class ProjectLifecycleHttpRoutes:
                 if not isinstance(payload.get("payload", {}), dict):
                     return self._error(400, "SYNC_REQUEST_INVALID", "error.request.invalid")
                 try:
-                    context = self._api.open_project(session_id, payload["project_id"], now=now).context
+                    context = self._api.authorize_project(
+                        session_id, payload["project_id"], Permission.PROJECT_WRITE, now=now
+                    ).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                         return self._error(403, str(exc), "error.authorization.denied")
