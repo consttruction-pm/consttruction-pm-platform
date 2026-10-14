@@ -137,6 +137,10 @@ def _validate_final_resource_load(
     for activity_id, activity_input in forward_by_id.items():
         final_activity = final_activities.get(activity_id)
         if final_activity is None:
+            if activity_input.resource_demands:
+                raise ResourceLevelingError(
+                    f"FINAL_SCHEDULE_MISSING_ACTIVITY:{activity_id}"
+                )
             continue
         if final_activity.start >= activity_input.start:
             shift_days = resolver.working_days_between(
