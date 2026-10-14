@@ -90,6 +90,7 @@ def _backward_activities_from_intermediate(
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     resolver: object,
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -98,10 +99,16 @@ def _backward_activities_from_intermediate(
         late = late_schedule[activity.activity_id]
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
-        if late.start > original_start:
-            displacement = resolver.working_days_between(original_start, late.start)
-        elif late.start < original_start:
-            displacement = -resolver.working_days_between(late.start, original_start)
+        # A forward-leveled activity is protected from another backward move.
+        # Its demand must therefore stay anchored to the intermediate CPM date,
+        # not be projected to its later CPM late date.
+        demand_anchor = (
+            early.start if activity.activity_id in protected_activity_ids else late.start
+        )
+        if demand_anchor > original_start:
+            displacement = resolver.working_days_between(original_start, demand_anchor)
+        elif demand_anchor < original_start:
+            displacement = -resolver.working_days_between(demand_anchor, original_start)
         else:
             displacement = 0
 
@@ -304,6 +311,10 @@ def schedule_with_resource_leveling(
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
     final_constraints = forward_constraints
     if not leveling_input.options.preserve_scheduled_early_and_late_dates:
+        protected_activity_ids = tuple(sorted({
+            shift.activity_id for shift in forward_shifts
+            if shift.shift_working_days > 0
+        }))
         backward_activities = _backward_activities_from_intermediate(
             leveling_input,
             # Backward candidates must respect the CPM early dates after forward
@@ -312,6 +323,7 @@ def schedule_with_resource_leveling(
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
+            protected_activity_ids=protected_activity_ids,
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
@@ -321,10 +333,7 @@ def schedule_with_resource_leveling(
             priorities=leveling_input.options.priorities,
             level_all_resources=leveling_input.options.level_all_resources,
             resource_ids=leveling_input.options.resource_ids,
-            protected_activity_ids=tuple(sorted({
-                shift.activity_id for shift in forward_shifts
-                if shift.shift_working_days > 0
-            })),
+            protected_activity_ids=protected_activity_ids,
         )
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
