@@ -222,7 +222,7 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         day_one,
         resolver,
         leveling_input,
-        project_finish=day_two,
+        project_finish=date(2026, 10, 3),
         options=ScheduleOptions(
             level_all_resources=True,
             preserve_scheduled_early_and_late_dates=False,
@@ -242,6 +242,6 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_one
     assert result.activities["A"].start <= result.activities["B"].start
-    assert result.project_finish == day_two
+    assert result.project_finish == date(2026, 10, 3)
     assert result.activities["A"].finish == day_one
     assert result.activities["B"].finish == day_one
