@@ -632,11 +632,7 @@ def propose_backward_leveling(
                 {(d.resource_id, d.period) for d in demands},
                 key=lambda item: (item[1], item[0]),
             )
-            # Missing capacity rows are outside the caller-configured
-            # validation horizon, not zero-capacity periods. Keep the proposal
-            # pass consistent with final resource-load validation.
-            if (resource_id, period) in capacity_map
-            and sum(
+            if sum(
                 (d.units for d in demands if d.resource_id == resource_id and d.period == period),
                 Decimal("0"),
             ) > effective_capacity(resource_id, period)
