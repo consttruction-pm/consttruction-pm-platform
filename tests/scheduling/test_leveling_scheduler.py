@@ -622,6 +622,29 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
         day_two,
     ]
 
+
+def test_backward_leveling_does_not_move_fs_successor_before_predecessor() -> None:
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    base = _resource_leveling_input(preserve=False)
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.FS),),
+        date(2026, 10, 1),
+        resolver,
+        base,
+        project_finish=date(2026, 10, 8),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert all(shift.activity_id != "A" for shift in backward)
+    assert result.activities["A"].start == date(2026, 10, 2)
+    assert result.activities["B"].start >= resolver.next_working_day(result.activities["A"].finish)
+
+
 def test_public_backward_leveling_applies_overallocation_tolerance() -> None:
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
