@@ -130,6 +130,26 @@ A language is not considered supported merely because a selector or a few transl
 
 Every feature PR must state which localization resources, languages, layouts and tests it affects. A missing translation, broken RTL/LTR layout, untranslated generated output, or language-dependent change to calculation results is a defect and release blocker for the affected supported language. Language coverage must be re-audited at each release gate.
 
+## Principle 9 — Search-engine discoverability without hidden or deceptive content
+
+**Search Engine Optimization (SEO) is a mandatory design and release principle for every public, indexable CUBI website page.** SEO must improve discovery and accurately explain the page to people and search engines without weakening visual quality, accessibility, performance, privacy, security, or trust.
+
+### Mandatory requirements
+
+- **People-first content:** each public page must have a clear purpose and useful, original content that accurately represents its visible product, feature, service, or guidance. Use natural language and relevant construction/project-controls terminology; prohibit keyword stuffing, doorway pages, fabricated claims, and mass-produced low-value pages.
+- **No hidden SEO text:** never hide keywords or links using background-matching colors, zero opacity, tiny fonts, off-screen positioning, image overlays, or search-engine-only content. Search engines and users must not be intentionally served materially different content to manipulate rankings. Visually hidden text is permitted only for legitimate accessibility needs, such as screen-reader labels, not SEO manipulation.
+- **Semantic page structure:** use one clear primary heading where appropriate, logical heading hierarchy, descriptive page titles, useful meta descriptions, semantic HTML, descriptive internal-link text, meaningful image alt text, and crawlable links. Metadata and structured data must match the page's actual visible content.
+- **Technical SEO:** maintain clean, stable URLs; appropriate canonical URLs; valid XML sitemaps; deliberate robots/noindex rules; correct redirects and status codes; secure HTTPS; mobile usability; accessible rendering; and performance/Core Web Vitals monitoring. Do not index private workspaces, tenant data, account pages, or confidential project information.
+- **Structured data:** use valid, relevant Schema.org markup where it genuinely describes the page (for example, Organization, SoftwareApplication, WebSite, BreadcrumbList, or Article as applicable). Do not mark up hidden, invented, misleading, or unsupported ratings, prices, reviews, features, or relationships. Structured data does not guarantee enhanced search results.
+- **Multilingual SEO:** use distinct, stable URLs for each public language version; implement reciprocal and self-referencing `hreflang` annotations or an equivalent supported sitemap strategy; set the correct page language and text direction; provide genuine language-specific content; and let users switch languages without forced, crawler-blocking redirects. SEO localization must comply with Principle 8 and must not alter project data or calculations.
+- **Page-type policy:** public marketing, product, feature, pricing, educational and help pages may be indexed when useful and ready. Authenticated workspaces, project records, search results with sensitive data, internal previews, duplicate variants and staging environments must have deliberate access and indexing controls.
+- **Design consistency:** SEO content must fit CUBI's calm, professional, data-first visual system. Use concise visible sections, expandable FAQs when useful, accessible labels and contextual links. Do not compromise layout or conceal content to make a page appear cleaner.
+- **Measurement and governance:** maintain a page-level SEO checklist and monitor crawl/index status, broken links, canonical/hreflang correctness, metadata duplication, structured-data validity, accessibility and performance. Every new or materially changed public page must be reviewed before release.
+
+### Acceptance and release gate
+
+A public page is not SEO-ready merely because metadata exists. Acceptance requires: accurate and useful visible content; unique title and description appropriate to the page; semantic structure; working crawlable links; correct indexability/canonical behavior; valid language alternates where applicable; no hidden SEO manipulation; no leakage of private project data; and relevant automated or manual checks for performance, accessibility, structured data and crawl/index configuration. SEO must never override privacy, security, accessibility, multilingual integrity or product truthfulness.
+
 ## Release Gate
 
 Every release candidate must pass two sequential product gates:
