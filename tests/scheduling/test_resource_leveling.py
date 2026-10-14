@@ -1,6 +1,6 @@
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -536,3 +536,17 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 
     with pytest.raises(ResourceLevelingError, match="UNKNOWN_LEVELING_SHIFT_ACTIVITY"):
         apply_leveling_shifts((), (shift,), resolver=resolver)
+
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [
+        lambda period: ResourceDemand("R1", period, Decimal("1")),
+        lambda period: ResourceCapacity("R1", period, Decimal("1")),
+    ],
+    ids=["resource-demand", "resource-capacity"],
+)
+def test_resource_periods_reject_datetime_values(factory):
+    with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
+        factory(datetime(2026, 10, 1, 12, 0))
