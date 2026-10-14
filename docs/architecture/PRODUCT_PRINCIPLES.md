@@ -86,6 +86,34 @@ AI results that influence project decisions must expose source context where ava
 
 Dates, durations, decimals, currencies, quantities, IDs, versions, revisions and statuses must be represented as typed contracts. Excel, Project, API and offline packages must preserve calculation-ready types.
 
+## Principle 8 — Global multilingual-by-design experience across every product layer
+
+**Multilingual support is a foundational product requirement, not an optional UI translation task.** Every design, architecture, implementation, test, documentation update and release decision must account for every language supported by CUBI, across every surface and workflow. The language catalogue must be extensible without redesign and must not be limited by hard-coded language assumptions.
+
+### Mandatory coverage
+
+- **Navigation and interaction:** every menu, submenu, ribbon, tab, command, button, tooltip, dialog, field label, placeholder, validation message, error, notification, permission prompt, onboarding step and settings screen.
+- **Planning and visual controls:** Gantt charts, timelines, networks, WBS trees, calendars, resource histograms, curves, dashboards, maps, chart axes, legends, annotations, data labels, status names, hover details, filters, grouping, sorting, table/grid columns and context menus.
+- **Project information and outputs:** project names and descriptions, WBS/activity/resource/document/contract records, user-defined fields and values where localization is applicable, templates, imports, exports, reports, A4 print layouts, PDFs, spreadsheets, help content and user-facing technical documentation.
+- **AI assistant:** language selection and detection, prompts, answers, reasoning summaries, voice input/output where supported, transcription, file/document extraction, clarifying questions, proposed actions, approval/rejection flows, citations/source labels, uncertainty statements, audit summaries and all failure/fallback messages. The assistant must respect the user's permissions and preserve the underlying project meaning and calculation authority in every language.
+- **All client and service layers:** Web first, Desktop, and Mobile when delivered; API contracts, background jobs, emails, offline workflows, cached content, synchronization/conflict messages and server-generated documents must not introduce untranslated or inconsistent behavior.
+
+### Required localization architecture
+
+- Use stable language-neutral IDs/keys and centralized localization resources; do not hard-code user-facing strings in client, server, chart, report, or AI workflows.
+- Support language-specific pluralization, grammatical forms, collation, search, sorting, text expansion, fonts, line wrapping, accessibility names and locale-aware formatting of dates, numbers, decimal separators, currencies, units and percentages.
+- Support both left-to-right (LTR) and right-to-left (RTL) layouts, bidirectional/mixed-script text, and appropriate fonts. Layout direction and display locale must not alter stored values or Shared Core calculations.
+- Keep language, locale, time zone, calendar system and calculation settings distinct. Display conversion/localization must never silently change stored project data, scheduling semantics, dates, durations, currency values or authoritative calculations.
+- Provide versioned, downloadable/offline language packs for supported offline workflows; keep language fallback explicit and visible rather than silently mixing languages.
+- Preserve original user-authored project content. Translation or transliteration of project data must be explicit, reversible where applicable, and must not overwrite the source text without authorization.
+- AI responses, imports, OCR/document extraction and external integrations must report unsupported-language limitations clearly. They must never fabricate a translation or silently discard content.
+
+### Acceptance and release gate
+
+A language is not considered supported merely because a selector or a few translated labels exist. Each declared supported language must pass end-to-end coverage for navigation, forms, grids, Gantt/timeline, charts, calendars, reports/print/export, help, offline behavior, accessibility, RTL/LTR layout where applicable, AI input/output and error/approval flows. Tests must include long strings, plural forms, localized dates/numbers, mixed scripts, language switching during a project session, and round-trip preservation of project data.
+
+Every feature PR must state which localization resources, languages, layouts and tests it affects. A missing translation, broken RTL/LTR layout, untranslated generated output, or language-dependent change to calculation results is a defect and release blocker for the affected supported language. Language coverage must be re-audited at each release gate.
+
 ## Release Gate
 
 Every release candidate must pass two sequential product gates:
