@@ -228,10 +228,9 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         day_one,
         resolver,
         leveling_input,
-        # Keep a full working-day late window after Monday so the backward
-        # pass can advance a Monday late start to Friday without inventing a
-        # target earlier than the predecessor's SS-constrained start.
-        project_finish=date(2026, 10, 6),
+        # Monday is the project-finish boundary. This gives the activities
+        # a Monday late date; one backward working-day shift should target Friday.
+        project_finish=day_three,
         options=ScheduleOptions(
             level_all_resources=True,
             preserve_scheduled_early_and_late_dates=False,
