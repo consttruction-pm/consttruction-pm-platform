@@ -877,3 +877,42 @@ def test_resource_leveling_preserves_chained_relationships_after_forward_shift()
     assert result.activities["B"].start == date(2026, 10, 2)
     assert result.activities["C"].start >= date(2026, 10, 5)
 
+def test_backward_leveling_keeps_chained_relationships_valid_in_final_schedule() -> None:
+    from construction_pm.scheduling.relationships import (
+        Relationship,
+        RelationshipType,
+        successor_earliest_start,
+    )
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    relationships = (
+        Relationship("A", "B", RelationshipType.FS, lag=1),
+        Relationship("B", "C", RelationshipType.SS, lag=0),
+    )
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1), Activity("C", 1)),
+        relationships,
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=False, capacity_day_two="8"),
+        project_finish=date(2026, 10, 12),
+    )
+
+    # The backward pass may advance eligible work, but the final CPM run must
+    # keep every successor at or after the lower bound of its relationship.
+    assert forward
+    for relationship in relationships:
+        predecessor = result.activities[relationship.predecessor_id]
+        successor = result.activities[relationship.successor_id]
+        required_start = successor_earliest_start(
+            relationship,
+            predecessor.start,
+            predecessor.finish,
+            duration=1,
+            resolver=resolver,
+        )
+        assert successor.start >= required_start, relationship
+    assert set(result.activities) == {"A", "B", "C"}
+
