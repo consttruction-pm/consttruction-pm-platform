@@ -189,13 +189,39 @@ def _validate_final_resource_load(
     scoped_demands = tuple(
         demand for demand in shifted_demands if demand.resource_id in selected_resources
     )
+    # Compare against the unshifted demand ledger. A configured float floor can
+    # intentionally prevent any movement, leaving an existing overload in place;
+    # that is different from CPM relationship propagation creating or worsening
+    # an overload after leveling. Reject only overloads whose excess increased.
+    baseline_demands = tuple(
+        demand
+        for activity in leveling_input.forward_activities
+        for demand in activity.resource_demands
+        if demand.resource_id in selected_resources
+    )
+    baseline_overloads = detect_over_allocations(
+        baseline_demands,
+        leveling_input.capacities,
+        over_allocation_percentage=leveling_input.options.over_allocation_percentage,
+    )
+    baseline_excess = {
+        (overload.resource_id, overload.period): overload.excess
+        for overload in baseline_overloads
+    }
     overloads = detect_over_allocations(
         scoped_demands,
         leveling_input.capacities,
         over_allocation_percentage=leveling_input.options.over_allocation_percentage,
     )
-    if overloads:
-        first = overloads[0]
+    worsened_overloads = tuple(
+        overload
+        for overload in overloads
+        if overload.excess > baseline_excess.get(
+            (overload.resource_id, overload.period), type(overload.excess)("0")
+        )
+    )
+    if worsened_overloads:
+        first = worsened_overloads[0]
         raise ResourceLevelingError(
             "FINAL_RESOURCE_OVERALLOCATION:"
             f"{first.resource_id}:{first.period.isoformat()}:"
