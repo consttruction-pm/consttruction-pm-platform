@@ -1014,3 +1014,30 @@ def test_backward_activity_builder_handles_missing_float_record():
 
     assert len(built) == 1
     assert built[0].total_float is None
+
+
+
+def test_backward_rollback_priority_key_uses_configured_total_float_before_activity_priority():
+    from construction_pm.scheduling.leveling_scheduler import _backward_leveling_priority_key
+    from construction_pm.scheduling.resource_leveling import LevelingPriority, SortOrder
+
+    day = date(2026, 10, 1)
+    preferred_by_float = BackwardLevelingActivity(
+        "A", day, day, date(2026, 10, 5), date(2026, 10, 5),
+        activity_priority=90, total_float=1,
+    )
+    lower_priority_number_but_worse_float = BackwardLevelingActivity(
+        "B", day, day, date(2026, 10, 8), date(2026, 10, 8),
+        activity_priority=1, total_float=5,
+    )
+    priorities = (
+        LevelingPriority("total_float", SortOrder.ASCENDING),
+        LevelingPriority("activity_priority", SortOrder.ASCENDING),
+    )
+
+    # The proposal ordering prefers A because Total Float is the first criterion,
+    # even though B has the numerically smaller activity_priority. Rollback uses
+    # max(key), so B must sort after A and be selected as the less-preferred row.
+    assert _backward_leveling_priority_key(preferred_by_float, priorities) < (
+        _backward_leveling_priority_key(lower_priority_number_but_worse_float, priorities)
+    )
