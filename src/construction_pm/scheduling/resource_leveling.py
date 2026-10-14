@@ -596,7 +596,12 @@ def propose_backward_leveling(
         "early_finish", "total_float",
     }
     for priority in priorities:
-        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+        field_name = priority.field_name.strip().lower().replace(" ", "_")
+        if field_name not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if field_name == "total_float" and any(
+            activity.total_float is None for activity in activity_list
+        ):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
