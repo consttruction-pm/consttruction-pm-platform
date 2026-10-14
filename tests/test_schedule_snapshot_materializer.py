@@ -530,7 +530,7 @@ def test_materializer_preserves_priority_list_order_and_explicit_sort_directions
     )
     context = CalculationContext(
         project_id="P-1", project_version=1, calendar_id=cal.calendar_id,
-        calendar_version=cal.version, rules_version="rules-1", engine_version="engine-1",
+        calendar_version=cal.calendar_version, rules_version="rules-1", engine_version="engine-1",
         timezone="UTC", calculation_timestamp="2026-10-01T08:00:00+00:00",
         input_snapshot_id="S-PRIORITY-ROUNDTRIP", tenant_id="T-1",
     )
