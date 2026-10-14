@@ -387,6 +387,7 @@ def propose_forward_leveling_within_float(
             if not any(
                 capacity_resource_id == resource_id
                 and capacity_period > period
+                and resolver.is_working_day(capacity_period)
                 and units > 0
                 for (capacity_resource_id, capacity_period), units in capacity_map.items()
             ):
@@ -745,6 +746,7 @@ def propose_backward_leveling(
             if not any(
                 capacity_resource_id == resource_id
                 and capacity_period < period
+                and resolver.is_working_day(capacity_period)
                 and units > 0
                 for (capacity_resource_id, capacity_period), units in capacity_map.items()
             ):
