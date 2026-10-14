@@ -171,6 +171,14 @@ Source-derived rules:
 
 **Disposition:** `GAP / IMPLEMENTATION BLOCKED PENDING INDEPENDENT SEMANTIC REVIEW`. Hasan's follow-up is tracked in Issue #1447. Before production changes, record the canonical source-derived field/type mappings, ordering rules for numeric/text/blank values, tie-break behavior, and tests for multiple configured priorities. Add end-to-end cases proving that priority chooses only among eligible activities and that FS/SS/FF/SF dependencies, constraints, the final CPM pass and final resource capacity validation remain authoritative. Do not label the complete priority list P6-conformant until all applicable fields and ordering behavior are tested.
 
+### 5B. Relationship-lag calendar default — conformance gap requiring explicit disposition
+
+**Official source baseline:** P6 Professional Integration API Field Summary documents `RelationshipLagCalendar` choices and states that if no calendar is selected, the successor activity calendar is used: https://docs.oracle.com/cd/E75426_01/English/Integration/p6_pro_api_reference/FieldSummary.html . P6 Professional help also documents the four selectable modes (predecessor activity, successor activity, 24-hour, project default): https://docs.oracle.com/cd/F51303_01/client_help/en_US/choose_a_calendar_for_relationship_lag.htm
+
+**Current implementation observation:** `src/construction_pm/scheduling/schedule_options.py` initializes `ScheduleOptions.relationship_lag_calendar` to `RelationshipLagCalendar.PROJECT_DEFAULT`. This differs from the documented P6 fallback when the user has not explicitly selected a lag calendar.
+
+**Disposition:** `GAP / REVIEW REQUIRED`, not silently accepted as parity. Determine whether CUBI's default is intended to be an explicit product-specific setting or the P6-compatible “not selected” state. If compatibility is intended, distinguish “unset/default-to-successor-calendar” from explicit `PROJECT_DEFAULT`; add mixed-calendar FS/SS/FF/SF + positive/negative lag regression cases. Do not change the default by intuition: record the approved semantic decision first, then update implementation and tests. Relationship lag units/calendar conversion must be tested together with final CPM propagation.
+
 ### 6. Import/export completeness
 
 The interchange layer is a first-class domain boundary, not a spreadsheet helper.
