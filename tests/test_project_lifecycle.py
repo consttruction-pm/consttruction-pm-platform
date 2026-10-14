@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from construction_pm.application.authorization import default_project_policy
+from construction_pm.application.authorization import AuthorizationError, Permission, default_project_policy
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     ProjectLifecycleError,
@@ -112,3 +112,25 @@ def test_cross_tenant_project_is_not_discoverable_even_with_matching_project_id(
     )
     with pytest.raises(ProjectLifecycleError, match="PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"):
         make_service(session).open_project("session-a", "project-a", now=now)
+
+
+def test_authorize_project_uses_one_validated_session_snapshot():
+    class CountingSessions(Sessions):
+        def __init__(self, session):
+            super().__init__(session)
+            self.calls = 0
+
+        def get(self, session_id):
+            self.calls += 1
+            return super().get(session_id)
+
+    now, session = make_session(roles=frozenset({"viewer"}))
+    sessions = CountingSessions(session)
+    service = ProjectLifecycleService(sessions, Projects(), default_project_policy())
+
+    with pytest.raises(AuthorizationError, match="permission=project.write"):
+        service.authorize_project(
+            "session-a", "project-a", Permission.PROJECT_WRITE, now=now
+        )
+
+    assert sessions.calls == 1
