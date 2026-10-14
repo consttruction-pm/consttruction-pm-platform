@@ -916,3 +916,36 @@ def test_backward_leveling_keeps_chained_relationships_valid_in_final_schedule()
         assert successor.start >= required_start, relationship
     assert set(result.activities) == {"A", "B", "C"}
 
+def test_leveling_forwards_activity_resolver_to_scheduler() -> None:
+    shared = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    saturday = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4, 5}), holidays=frozenset(),
+    ))
+    leveling = SchedulerLevelingInput(
+        forward_activities=(),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+    constraint = ActivityConstraint(
+        "B", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 3)
+    )
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        shared,
+        leveling,
+        project_finish=date(2026, 10, 5),
+        constraints=(constraint,),
+        activity_resolvers={"B": saturday},
+    )
+    assert result.activities["B"].start == date(2026, 10, 3)
+    assert forward == ()
+    assert backward == ()
+
