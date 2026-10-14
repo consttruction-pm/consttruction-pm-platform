@@ -855,6 +855,38 @@ def test_forward_leveling_skips_zero_float_activity_and_shifts_activity_with_ava
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("B_FLOAT", 1, 0)]
 
 
+
+def test_backward_leveling_returns_one_cumulative_shift_per_activity():
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = tuple(
+        BackwardLevelingActivity(
+            activity_id,
+            date(2026, 10, 1),
+            date(2026, 10, 3),
+            date(2026, 10, 1),
+            date(2026, 10, 3),
+            2,
+            (ResourceDemand("R1", date(2026, 10, 3), Decimal("8"), activity_id),),
+        )
+        for activity_id in ("A1", "A2", "A3")
+    )
+    capacities = tuple(
+        ResourceCapacity("R1", date(2026, 10, day), Decimal("8"))
+        for day in (1, 2, 3)
+    )
+
+    shifts = propose_backward_leveling(activities, capacities, resolver=resolver)
+
+    assert len({shift.activity_id for shift in shifts}) == len(shifts)
+    assert {shift.activity_id: shift.shift_working_days for shift in shifts} == {
+        "A1": -2,
+        "A2": -1,
+    }
+    assert {shift.activity_id: shift.advanced_days for shift in shifts} == {
+        "A1": 2,
+        "A2": 1,
+    }
+
 def test_backward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
