@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -495,9 +495,16 @@ def test_explicit_shared_resource_leveling_runs_once_for_the_batch_graph():
     leveling_input = SchedulerLevelingInput(
         forward_activities=forward,
         backward_activities=backward,
-        capacities=(
-            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1"), shared, "P1", "tenant"),
-            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1"), shared, "P1", "tenant"),
+        capacities=tuple(
+            ResourceCapacity(
+                "R1",
+                date(2026, 10, 1) + timedelta(days=offset),
+                Decimal("1"),
+                shared,
+                "P1",
+                "tenant",
+            )
+            for offset in range(10)
         ),
         options=leveling_options,
     )
@@ -537,11 +544,17 @@ def test_project_local_resources_with_same_raw_id_do_not_conflict_across_project
         BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p1,)),
         BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p2,)),
     )
-    capacities = (
-        ResourceCapacity("R1", date(2026, 10, 1), Decimal("1"), local_p1, "P1", "tenant"),
-        ResourceCapacity("R1", date(2026, 10, 2), Decimal("1"), local_p1, "P1", "tenant"),
-        ResourceCapacity("R1", date(2026, 10, 1), Decimal("1"), local_p2, "P2", "tenant"),
-        ResourceCapacity("R1", date(2026, 10, 2), Decimal("1"), local_p2, "P2", "tenant"),
+    capacities = tuple(
+        ResourceCapacity(
+            "R1",
+            date(2026, 10, 1) + timedelta(days=offset),
+            Decimal("1"),
+            identity,
+            project_id,
+            "tenant",
+        )
+        for identity, project_id in ((local_p1, "P1"), (local_p2, "P2"))
+        for offset in range(10)
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=forward,
