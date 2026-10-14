@@ -560,8 +560,22 @@ def schedule_with_resource_leveling(
                     ),
                 )
             else:
-                # With no explicit rows, keep deterministic fallback behavior.
-                rollback_id = max(candidate_ids)
+                # Preserve the legacy fallback when no ordered priority rows
+                # were configured: prefer retaining the lower numeric activity
+                # priority, with activity ID as the deterministic tie-breaker.
+                priority_by_id = {
+                    activity.activity_id: activity.activity_priority
+                    for activity in leveling_input.backward_activities
+                }
+                rollback_id = max(
+                    candidate_ids,
+                    key=lambda activity_id: (
+                        priority_by_id.get(activity_id)
+                        if priority_by_id.get(activity_id) is not None
+                        else 0,
+                        activity_id,
+                    ),
+                )
             most_aggressive = max(
                 (shift for shift in candidates if shift.activity_id == rollback_id),
                 key=lambda shift: shift.advanced_days,
