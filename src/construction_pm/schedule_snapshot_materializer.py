@@ -145,6 +145,27 @@ def _date(value: Any) -> date:
     return result
 
 
+def _activity_day(value: Any, field_name: str) -> date:
+    """Read a date-based suspend/resume boundary at the beginning of its day.
+
+    P6 suspend/resume fields can be serialized as ISO dates or ISO datetimes.
+    In the date-based scheduling core, the time portion is intentionally
+    normalized to the specified local calendar day because P6 applies these
+    boundaries at the beginning of that day.
+    """
+    if not isinstance(value, str):
+        raise SnapshotMaterializationError(f"INVALID_ACTIVITY_{field_name.upper()}")
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+        except ValueError as exc:
+            raise SnapshotMaterializationError(
+                f"INVALID_ACTIVITY_{field_name.upper()}"
+            ) from exc
+
+
 def _datetime(value: Any) -> datetime:
     if not isinstance(value, str):
         raise SnapshotMaterializationError("INVALID_DATETIME")
@@ -431,6 +452,16 @@ def _materialize_payload(
                     status,
                     activity_type,
                     status_code,
+                    suspend_date=(
+                        _activity_day(item["suspend_date"], "suspend_date")
+                        if item.get("suspend_date") is not None
+                        else None
+                    ),
+                    resume_date=(
+                        _activity_day(item["resume_date"], "resume_date")
+                        if item.get("resume_date") is not None
+                        else None
+                    ),
                 )
             )
         else:

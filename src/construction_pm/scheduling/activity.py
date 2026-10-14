@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 
+from .activity_suspend_resume import validate_activity_suspend_resume
+
 
 class PercentCompleteType(str, Enum):
     DURATION = "DURATION"
@@ -82,6 +84,10 @@ class Activity:
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
     name: str = ""
+    # Date-based P6 suspend/resume boundaries occur at the beginning of a day.
+    # Appended fields preserve the existing positional construction contract.
+    suspend_date: date | None = None
+    resume_date: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -130,3 +136,23 @@ class Activity:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
             raise ValueError("completed activities must have 100 percent_complete")
+        for field_name, value in (
+            ("suspend_date", self.suspend_date),
+            ("resume_date", self.resume_date),
+        ):
+            if value is not None and (
+                not isinstance(value, date) or isinstance(value, datetime)
+            ):
+                raise TypeError(f"{field_name} must be a date or None")
+        if self.suspend_date is not None or self.resume_date is not None:
+            if self.activity_type not in (
+                ActivityType.TASK_DEPENDENT,
+                ActivityType.RESOURCE_DEPENDENT,
+            ):
+                raise ValueError("suspend/resume dates require a task- or resource-dependent activity")
+        validate_activity_suspend_resume(
+            actual_start=self.actual_start,
+            actual_finish=self.actual_finish,
+            suspend_date=self.suspend_date,
+            resume_date=self.resume_date,
+        )
