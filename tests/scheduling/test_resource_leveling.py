@@ -1152,3 +1152,41 @@ def test_backward_leveling_uses_last_earlier_capacity_then_stops():
         for shift in shifts
     ] == [("A1", -1, day_two)]
 
+def test_forward_leveling_ignores_weekend_capacity_unreachable_on_working_calendar():
+    day_one = date(2026, 10, 1)
+    saturday = date(2026, 10, 3)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1", day_one, day_one, 1,
+        (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("0")),
+        ResourceCapacity("R1", saturday, Decimal("8")),
+    )
+
+    assert propose_forward_leveling(
+        (activity,), capacities, resolver=resolver, level_within_float=False
+    ) == ()
+
+
+def test_backward_leveling_ignores_weekend_capacity_unreachable_on_working_calendar():
+    early_day = date(2026, 10, 1)
+    saturday = date(2026, 10, 3)
+    late_day = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1", early_day, early_day, late_day, late_day,
+        (ResourceDemand("R1", late_day, Decimal("8"), "A1"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", saturday, Decimal("8")),
+        ResourceCapacity("R1", late_day, Decimal("0")),
+    )
+
+    assert propose_backward_leveling((activity,), capacities, resolver=resolver) == ()
+
