@@ -463,3 +463,25 @@ def test_internal_numeric_activity_priority_honors_descending_sort_order():
     # whose canonical Release 26 wire values are Top/High/Normal/Low/Lowest.
     assert shifts[0].activity_id == "A1"
 
+
+
+@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+def test_backward_leveling_rejects_priority_fields_without_distinct_schedule_data(field_name):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+        date(2026, 10, 2),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_backward_leveling(
+            (activity,),
+            (),
+            resolver=resolver,
+            priorities=(LevelingPriority(field_name, SortOrder.ASCENDING),),
+        )
