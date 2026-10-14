@@ -24,6 +24,18 @@ from construction_pm.scheduling.resource_leveling import (
 )
 
 
+
+@pytest.mark.parametrize("resource_ids", [["R1"], ["R1", "R1"], [None], ([],)])
+def test_resource_leveling_options_rejects_invalid_resource_id_collections(resource_ids):
+    with pytest.raises(ResourceLevelingError):
+        ResourceLevelingOptions(resource_ids=resource_ids)
+
+
+@pytest.mark.parametrize("priorities", [[LevelingPriority("activity_id", SortOrder.ASCENDING)], (None,)])
+def test_resource_leveling_options_rejects_invalid_priority_collections(priorities):
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_PRIORITIES"):
+        ResourceLevelingOptions(priorities=priorities)
+
 def test_detect_over_allocation_is_deterministic_and_sorted():
     demands = [
         ResourceDemand("R2", date(2026, 10, 2), Decimal("8")),
