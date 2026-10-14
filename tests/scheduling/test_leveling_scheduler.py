@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_scheduler import (
     backward_leveling_constraints,
@@ -98,6 +100,8 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingOptions,
+    ResourceLevelingError,
+    propose_forward_leveling,
 )
 
 
@@ -259,28 +263,36 @@ def test_public_leveling_orchestration_preserves_configured_minimum_float() -> N
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
-    result, forward, backward = schedule_with_resource_leveling(
-        (Activity("A", 1), Activity("B", 1)),
-        (),
-        date(2026, 10, 1),
-        resolver,
-        _resource_leveling_input(preserve=True),
-        project_finish=date(2026, 10, 3),
-        options=ScheduleOptions(
-            level_all_resources=True,
-            level_within_float=True,
-            min_float_to_preserve=1,
-            preserve_scheduled_early_and_late_dates=True,
-        ),
-    )
+    leveling_input = _resource_leveling_input(preserve=True)
 
-    # Each activity has one day of total float in the leveling input. Preserving
-    # one day leaves no movement allowance, so the engine must not shift either
-    # activity merely to remove the resource overload.
-    assert forward == ()
-    assert backward == ()
-    assert result.activities["A"].start == date(2026, 10, 1)
-    assert result.activities["B"].start == date(2026, 10, 1)
+    # Each activity has one day of total float. Preserving one day leaves no
+    # movement allowance, so the proposal must not shift either activity.
+    assert propose_forward_leveling(
+        leveling_input.forward_activities,
+        leveling_input.capacities,
+        resolver=resolver,
+        level_within_float=True,
+        min_float_to_preserve=1,
+        level_all_resources=True,
+    ) == ()
+
+    # The orchestration must still enforce the final capacity contract rather
+    # than returning an overloaded schedule when no feasible move is allowed.
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            leveling_input,
+            project_finish=date(2026, 10, 3),
+            options=ScheduleOptions(
+                level_all_resources=True,
+                level_within_float=True,
+                min_float_to_preserve=1,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
 
 
 
