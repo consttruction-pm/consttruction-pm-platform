@@ -901,3 +901,39 @@ def test_backward_activity_builder_shifts_resource_demands_across_holiday():
     )
 
     assert built[0].resource_demands[0].period == monday
+
+
+def test_final_resource_validation_shifts_backward_demands_across_holiday_and_weekend():
+    from types import SimpleNamespace
+
+    import pytest
+
+    from construction_pm.scheduling.leveling_scheduler import _validate_final_resource_load
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    thursday = date(2026, 10, 1)
+    friday_holiday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({friday_holiday}),
+    ))
+    demand = ResourceDemand("R1", monday, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", monday, monday, 1, (demand,)),),
+        backward_activities=(),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("0")),
+            ResourceCapacity("R1", monday, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    # Monday -> Thursday is one working-day displacement because Friday is
+    # a holiday and the weekend is non-working; the demand must land Thursday.
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        _validate_final_resource_load(
+            result=SimpleNamespace(activities={"A": SimpleNamespace(start=thursday)}),
+            leveling_input=leveling_input,
+            resolver=resolver,
+        )
