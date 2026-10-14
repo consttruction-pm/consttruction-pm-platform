@@ -551,3 +551,45 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
+
+
+def test_forward_leveling_does_not_consume_fractional_preserved_float():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A",
+        day_one,
+        day_one,
+        2,
+        (ResourceDemand("R1", day_one, Decimal("8"), "A"),),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("0")),
+        ResourceCapacity("R1", day_two, Decimal("0")),
+        ResourceCapacity("R1", day_three, Decimal("8")),
+    )
+
+    bounded = propose_forward_leveling_within_float(
+        (activity,),
+        capacities,
+        resolver=resolver,
+        min_float_to_preserve=Decimal("0.375"),
+    )
+    unbounded = propose_forward_leveling_within_float(
+        (activity,),
+        capacities,
+        resolver=resolver,
+        min_float_to_preserve=Decimal("0"),
+    )
+
+    # 0.375 working day is three hours with an eight-hour day. The proposal may
+    # consume one whole day from a two-day float, but not the second day.
+    assert len(bounded) == 1
+    assert bounded[0].shift_working_days == 1
+    assert bounded[0].remaining_float == 1
+    assert len(unbounded) == 1
+    assert unbounded[0].shift_working_days == 2
