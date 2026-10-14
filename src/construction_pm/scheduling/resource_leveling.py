@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from .calendar import WorkingTimeResolver
@@ -433,7 +433,9 @@ def apply_leveling_shifts(
             or not isinstance(shift.shift_working_days, int)
             or shift.shift_working_days < 0
             or not isinstance(shift.new_start, date)
+            or isinstance(shift.new_start, datetime)
             or not isinstance(shift.new_finish, date)
+            or isinstance(shift.new_finish, datetime)
         ):
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
     shift_map = {s.activity_id: s for s in shifts}
