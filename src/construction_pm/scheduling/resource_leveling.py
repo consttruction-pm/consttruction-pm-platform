@@ -382,8 +382,8 @@ def propose_forward_leveling_within_float(
         candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
             # Moving demand into dates with no positive capacity for this resource
-            # cannot resolve this overload. Avoid burning the unconstrained shift
-            # budget on a resource whose capacity horizon has already ended.
+            # cannot resolve this overload. Avoid consuming the activity's shift
+            # allowance after this resource's capacity horizon has ended.
             if not any(
                 capacity_resource_id == resource_id
                 and capacity_period > period
