@@ -41,6 +41,10 @@ class SchedulerLevelingInput:
 
         forward_ids = {item.activity_id for item in self.forward_activities}
         backward_ids = {item.activity_id for item in self.backward_activities}
+        if len(forward_ids) != len(self.forward_activities):
+            raise ValueError("duplicate forward activity IDs")
+        if len(backward_ids) != len(self.backward_activities):
+            raise ValueError("duplicate backward activity IDs")
         if forward_ids != backward_ids:
             raise ValueError("forward and backward leveling activity sets must match")
 
