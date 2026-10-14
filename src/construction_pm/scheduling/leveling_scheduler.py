@@ -12,6 +12,8 @@ from .resource_leveling import (
     LevelingShift,
     ResourceDemand,
     apply_leveling_shifts,
+    detect_over_allocations,
+    select_leveling_resources,
     propose_backward_leveling,
     propose_forward_leveling,
     ResourceLevelingError,
@@ -120,6 +122,50 @@ def _backward_activities_from_intermediate(
             )
         )
     return tuple(result)
+
+
+def _validate_final_resource_load(
+    *,
+    result: object,
+    leveling_input: SchedulerLevelingInput,
+    resolver: object,
+) -> None:
+    """Reject a CPM result whose dependency propagation reintroduces overloads."""
+    forward_by_id = {activity.activity_id: activity for activity in leveling_input.forward_activities}
+    final_activities = getattr(result, "activities", {})
+    shifted_demands: list[ResourceDemand] = []
+    for activity_id, activity_input in forward_by_id.items():
+        final_activity = final_activities.get(activity_id)
+        if final_activity is None:
+            continue
+        shift_days = resolver.working_days_between(activity_input.start, final_activity.start)
+        for demand in activity_input.resource_demands:
+            shifted_demands.append(ResourceDemand(
+                resource_id=demand.resource_id,
+                period=resolver.add_working_duration(demand.period, shift_days),
+                units=demand.units,
+                activity_id=activity_id,
+            ))
+    selected_resources = set(select_leveling_resources(
+        shifted_demands,
+        level_all_resources=leveling_input.options.level_all_resources,
+        resource_ids=leveling_input.options.resource_ids,
+    ))
+    scoped_demands = tuple(
+        demand for demand in shifted_demands if demand.resource_id in selected_resources
+    )
+    overloads = detect_over_allocations(
+        scoped_demands,
+        leveling_input.capacities,
+        over_allocation_percentage=leveling_input.options.over_allocation_percentage,
+    )
+    if overloads:
+        first = overloads[0]
+        raise ResourceLevelingError(
+            "FINAL_RESOURCE_OVERALLOCATION:"
+            f"{first.resource_id}:{first.period.isoformat()}:"
+            f"demand={first.demand}:capacity={first.effective_capacity}"
+        )
 
 
 def schedule_with_resource_leveling(
@@ -235,5 +281,10 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+    )
+    _validate_final_resource_load(
+        result=result,
+        leveling_input=leveling_input,
+        resolver=resolver,
     )
     return result, forward_shifts, backward_shifts
