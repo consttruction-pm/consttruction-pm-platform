@@ -5,6 +5,7 @@ from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeReso
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingPriority,
+    ResourceLevelingError,
     ResourceCapacity,
     ResourceDemand,
     SortOrder,
