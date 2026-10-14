@@ -538,6 +538,7 @@ def test_schedule_query_http_route_rejects_invalid_result_contract():
 class SyncHandler:
     def __init__(self):
         self.calls = []
+        self.endpoint_factory_calls = 0
 
     def handle(self, mutation):
         self.calls.append(mutation)
@@ -554,10 +555,14 @@ def sync_routes(*, roles=frozenset({"project_admin"})):
     ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
     handler = SyncHandler()
     endpoint = VersionedSyncEndpoint(ApplicationSyncGateway("t1", "p1", handler))
+    def endpoint_factory(_tenant, _project):
+        handler.endpoint_factory_calls += 1
+        return endpoint
+
     routes = ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
-        sync_endpoint_factory=lambda _tenant, _project: endpoint,
+        sync_endpoint_factory=endpoint_factory,
     )
     return routes, handler
 
@@ -583,6 +588,7 @@ def test_authenticated_sync_mutation_uses_project_context_and_idempotency_header
     assert result["contract_version"] == "sync-outcome.v1"
     assert result["disposition"] == "acknowledged"
     assert handler.calls[0].project_id == "p1"
+    assert handler.endpoint_factory_calls == 1
 
 
 def test_authenticated_sync_rejects_missing_idempotency_header_and_cross_scope():
@@ -1982,3 +1988,4 @@ def test_authenticated_sync_mutation_requires_project_write_permission():
     assert status == 403
     assert json.loads(raw)["code"] == "authorization denied for permission=project.write"
     assert handler.calls == []
+    assert handler.endpoint_factory_calls == 0
