@@ -307,6 +307,14 @@ def propose_forward_leveling_within_float(
     resource_ids: tuple[str, ...] = (),
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule."""
+    if not isinstance(activities, (tuple, list)) or any(
+        not isinstance(activity, LevelingActivity) for activity in activities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_ACTIVITIES")
+    if not isinstance(capacities, (tuple, list)) or any(
+        not isinstance(capacity, ResourceCapacity) for capacity in capacities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_CAPACITIES")
     if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
         raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
     if not isinstance(resolver, WorkingTimeResolver):
