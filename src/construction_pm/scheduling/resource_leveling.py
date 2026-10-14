@@ -569,8 +569,8 @@ def propose_backward_leveling(
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     allowed = {
-        "activity_id", "activity_priority", "early_start", "planned_start",
-        "early_finish", "planned_finish", "total_float",
+        "activity_id", "activity_priority", "early_start",
+        "early_finish", "total_float",
     }
     for priority in priorities:
         if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
@@ -642,9 +642,7 @@ def propose_backward_leveling(
                     "activity_id": activity.activity_id,
                     "activity_priority": activity.activity_priority,
                     "early_start": activity.early_start,
-                    "planned_start": activity.early_start,
                     "early_finish": activity.early_finish,
-                    "planned_finish": activity.early_finish,
                     "total_float": max_advance,
                 }
                 key: list[tuple[int, object]] = []
