@@ -231,15 +231,11 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         ),
     )
 
-    # Both demands are initially on day one. The valid Monday project finish
-    # creates a real late window; the backward proposal advances B's late start
-    # to Friday. The final CPM reschedule keeps A on Thursday and B on Friday;
-    # this respects SS because B does not start before A.
+    # The authoritative CPM pass already constrains B to Friday for SS(0)
+    # when A starts Thursday. A resource-only backward proposal that pins B to
+    # Thursday is rejected; no backward move is needed to satisfy capacity.
     assert forward == ()
-    assert len(backward) == 1
-    assert backward[0].activity_id == "B"
-    assert backward[0].advanced_days == 1
-    assert backward[0].new_start == day_two
+    assert backward == ()
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
     assert result.project_finish == day_three
