@@ -1,4 +1,5 @@
 from datetime import date
+
 import pytest
 
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
