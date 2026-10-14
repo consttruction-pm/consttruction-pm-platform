@@ -418,3 +418,16 @@ def test_internal_numeric_activity_priority_honors_descending_sort_order():
     # whose canonical Release 26 wire values are Top/High/Normal/Low/Lowest.
     assert shifts[0].activity_id == "A1"
 
+def test_apply_leveling_shifts_rejects_duplicate_activity_ids():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 1),
+        1,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
+        apply_leveling_shifts((activity, activity), (), resolver=resolver)
