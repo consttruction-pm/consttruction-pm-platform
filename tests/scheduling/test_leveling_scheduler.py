@@ -836,20 +836,6 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
     assert built[0].resource_demands[0].period == day_two
 
 
-from decimal import Decimal
-
-from construction_pm.scheduling.activity import Activity
-from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
-from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
-from construction_pm.scheduling.resource_leveling import (
-    BackwardLevelingActivity,
-    LevelingActivity,
-    ResourceCapacity,
-    ResourceDemand,
-    ResourceLevelingOptions,
-)
-
 
 def test_resource_leveling_preserves_activity_calendar_resolvers_through_recalculation() -> None:
     start = date(2026, 10, 2)  # Friday
