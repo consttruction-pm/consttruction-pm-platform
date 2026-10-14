@@ -981,3 +981,36 @@ def test_schedule_failure_before_final_result_is_not_backtracked(monkeypatch):
         )
 
     assert calls == 3
+
+def test_backward_activity_builder_handles_missing_float_record():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day_one, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        float_schedule={},
+        resolver=resolver,
+    )
+
+    assert len(built) == 1
+    assert built[0].total_float is None
