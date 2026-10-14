@@ -773,3 +773,31 @@ def test_public_backward_leveling_applies_overallocation_tolerance() -> None:
     assert forward == ()
     assert backward == ()
     assert result.activities["A"].start == day_one
+
+
+def test_final_resource_validation_rejects_missing_scheduled_activity_with_demands():
+    from types import SimpleNamespace
+
+    import pytest
+
+    from construction_pm.scheduling.leveling_scheduler import _validate_final_resource_load
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", day, day, 1, (demand,)),),
+        backward_activities=(),
+        capacities=(ResourceCapacity("R1", day, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="FINAL_SCHEDULE_MISSING_ACTIVITY:A"):
+        _validate_final_resource_load(
+            result=SimpleNamespace(activities={}),
+            leveling_input=leveling_input,
+            resolver=resolver,
+        )
