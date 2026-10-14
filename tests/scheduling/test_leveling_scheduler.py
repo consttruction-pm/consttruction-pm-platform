@@ -975,7 +975,8 @@ def test_schedule_options_resource_list_is_authoritative_over_boundary_copy():
     assert result.activities["A"].start == date(2026, 10, 2)
 
 
-def test_schedule_options_rejects_empty_explicit_resource_selection():
+@pytest.mark.parametrize("resource_list", [None, ()])
+def test_schedule_options_rejects_empty_explicit_resource_selection(resource_list):
     import pytest
 
     from construction_pm.scheduling.resource_leveling import ResourceLevelingError
@@ -994,7 +995,7 @@ def test_schedule_options_rejects_empty_explicit_resource_selection():
             _resource_leveling_input(preserve=True),
             options=ScheduleOptions(
                 level_all_resources=False,
-                resource_list=None,
+                resource_list=resource_list,
                 preserve_scheduled_early_and_late_dates=True,
             ),
         )
