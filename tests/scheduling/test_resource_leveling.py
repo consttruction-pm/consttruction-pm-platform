@@ -841,3 +841,28 @@ def test_apply_leveling_shifts_rejects_invalid_shift_fields(field, value):
     malformed = LevelingShift(**values)
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts((activity,), (malformed,), resolver=resolver)
+
+def test_forward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        LevelingActivity("A_ZERO", day_one, day_one, 0, (ResourceDemand("R1", day_one, Decimal("8"), "A_ZERO"),)),
+        LevelingActivity("B_FLOAT", day_one, day_one, 1, (ResourceDemand("R1", day_one, Decimal("8"), "B_FLOAT"),)),
+    )
+    capacities = (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("8")))
+    shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver)
+    assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("B_FLOAT", 1, 0)]
+
+
+def test_backward_leveling_skips_zero_float_activity_and_shifts_activity_with_available_float():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
+    activities = (
+        BackwardLevelingActivity("A_ZERO", day_two, day_two, day_two, day_two, (ResourceDemand("R1", day_two, Decimal("8"), "A_ZERO"),)),
+        BackwardLevelingActivity("B_FLOAT", day_one, day_one, day_two, day_two, (ResourceDemand("R1", day_two, Decimal("8"), "B_FLOAT"),)),
+    )
+    capacities = (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("8")))
+    shifts = propose_backward_leveling(activities, capacities, resolver=resolver)
+    assert [(s.activity_id, s.shift_working_days, s.new_start, s.new_finish) for s in shifts] == [("B_FLOAT", -1, day_one, day_one)]
