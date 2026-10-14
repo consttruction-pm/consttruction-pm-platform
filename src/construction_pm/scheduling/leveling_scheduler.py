@@ -18,6 +18,7 @@ from .resource_leveling import (
     propose_backward_leveling,
     propose_forward_leveling,
     ResourceLevelingError,
+    SortOrder,
 )
 from .schedule_options import ScheduleOptions
 from .leveling_boundary import (
@@ -150,6 +151,53 @@ def _backward_activities_from_intermediate(
             )
         )
     return tuple(result)
+
+
+
+class _DescendingPriority:
+    """Reverse ordering for a single descending priority criterion."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, _DescendingPriority):
+            return NotImplemented
+        return other.value < self.value
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _DescendingPriority) and self.value == other.value
+
+
+def _backward_leveling_priority_key(
+    activity: BackwardLevelingActivity,
+    priorities: tuple[object, ...],
+) -> tuple:
+    """Mirror the proposal pass ordering when choosing a rollback candidate."""
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": activity.activity_priority,
+        "early_start": activity.early_start,
+        "early_finish": activity.early_finish,
+        "total_float": activity.total_float,
+    }
+    parts: list[tuple[int, object]] = []
+    for priority in priorities:
+        field_name = priority.field_name.strip().lower().replace(" ", "_")
+        if field_name not in values:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        value = values[field_name]
+        if value is None:
+            parts.append((1, ""))
+        elif priority.sort_order is SortOrder.ASCENDING:
+            parts.append((0, value))
+        else:
+            parts.append((0, _DescendingPriority(value)))
+    # The proposal pass uses Activity ID as the deterministic final tie-breaker.
+    parts.append((0, activity.activity_id))
+    return tuple(parts)
 
 
 def _validate_final_resource_load(
@@ -494,23 +542,26 @@ def schedule_with_resource_leveling(
             ]
             if not candidates:
                 raise exc
-            # Lower activity_priority values are preferred when priorities are
-            # ascending; backtrack a higher-numbered contributor first so the
-            # preferred activity can retain its feasible backward placement.
-            priority_by_id = {
-                activity.activity_id: activity.activity_priority
+            # Roll back the least-preferred contributor according to the same
+            # complete ordered criteria used to propose backward shifts. Looking
+            # only at activity_priority here can contradict Total Float, dates,
+            # or any earlier criterion in the configured priority list.
+            backward_by_id = {
+                activity.activity_id: activity
                 for activity in leveling_input.backward_activities
             }
             candidate_ids = {shift.activity_id for shift in candidates}
-            rollback_id = max(
-                candidate_ids,
-                key=lambda activity_id: (
-                    priority_by_id.get(activity_id)
-                    if priority_by_id.get(activity_id) is not None
-                    else 0,
-                    activity_id,
-                ),
-            )
+            if leveling_input.options.priorities:
+                rollback_id = max(
+                    candidate_ids,
+                    key=lambda activity_id: _backward_leveling_priority_key(
+                        backward_by_id[activity_id],
+                        leveling_input.options.priorities,
+                    ),
+                )
+            else:
+                # With no explicit rows, keep deterministic fallback behavior.
+                rollback_id = max(candidate_ids)
             most_aggressive = max(
                 (shift for shift in candidates if shift.activity_id == rollback_id),
                 key=lambda shift: shift.advanced_days,
