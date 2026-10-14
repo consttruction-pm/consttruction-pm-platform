@@ -474,3 +474,35 @@ def test_apply_leveling_shifts_rejects_malformed_shift_inputs(shifts):
     activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFTS"):
         apply_leveling_shifts((activity,), shifts, resolver=resolver)
+
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("activity_id", None),
+        ("activity_id", " "),
+        ("shift_working_days", True),
+        ("shift_working_days", 1.5),
+        ("shift_working_days", -1),
+        ("new_start", None),
+        ("new_finish", "2026-10-02"),
+    ],
+)
+def test_apply_leveling_shifts_rejects_invalid_shift_fields(field, value):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 3)
+    values = {
+        "activity_id": "A1",
+        "shift_working_days": 1,
+        "new_start": date(2026, 10, 2),
+        "new_finish": date(2026, 10, 2),
+        "consumed_float": 1,
+        "remaining_float": 2,
+    }
+    values[field] = value
+    malformed = LevelingShift(**values)
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
+        apply_leveling_shifts((activity,), (malformed,), resolver=resolver)
