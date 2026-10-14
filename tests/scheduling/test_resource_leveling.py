@@ -25,6 +25,36 @@ from construction_pm.scheduling.resource_leveling import (
 )
 
 
+@pytest.mark.parametrize(
+    "factory",
+    [
+        lambda: ResourceDemand("R1", datetime(2026, 10, 1, 8, 30), Decimal("1")),
+        lambda: ResourceCapacity("R1", datetime(2026, 10, 1, 8, 30), Decimal("1")),
+        lambda: LevelingActivity("A1", datetime(2026, 10, 1, 8, 30), date(2026, 10, 2), 1),
+        lambda: LevelingActivity("A1", date(2026, 10, 1), datetime(2026, 10, 2, 8, 30), 1),
+        lambda: BackwardLevelingActivity(
+            "A1", datetime(2026, 10, 1, 8, 30), date(2026, 10, 2),
+            date(2026, 10, 1), date(2026, 10, 2)
+        ),
+        lambda: BackwardLevelingActivity(
+            "A1", date(2026, 10, 1), datetime(2026, 10, 2, 8, 30),
+            date(2026, 10, 1), date(2026, 10, 2)
+        ),
+        lambda: BackwardLevelingActivity(
+            "A1", date(2026, 10, 1), date(2026, 10, 2),
+            datetime(2026, 10, 1, 8, 30), date(2026, 10, 2)
+        ),
+        lambda: BackwardLevelingActivity(
+            "A1", date(2026, 10, 1), date(2026, 10, 2),
+            date(2026, 10, 1), datetime(2026, 10, 2, 8, 30)
+        ),
+    ],
+)
+def test_date_only_resource_leveling_fields_reject_datetime(factory):
+    with pytest.raises(ResourceLevelingError):
+        factory()
+
+
 def test_detect_over_allocation_is_deterministic_and_sorted():
     demands = [
         ResourceDemand("R2", date(2026, 10, 2), Decimal("8")),
