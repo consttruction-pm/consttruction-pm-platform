@@ -10,6 +10,7 @@ from typing import Mapping
 
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import MaterializedScheduleInput, materialize_schedule_snapshot
+from .scheduling.calendar import WorkingTimeResolver
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
@@ -215,7 +216,7 @@ def _evaluate_materialized(
 def _final_resource_over_allocations(
     leveling_input: SchedulerLevelingInput,
     result: ScheduleResult,
-    resolver: object,
+    resolver: WorkingTimeResolver,
 ) -> tuple[OverAllocation, ...]:
     """Reproject input demand slices onto final CPM dates and report residual overloads."""
     projected: list[ResourceDemand] = []
@@ -243,7 +244,7 @@ def _final_resource_over_allocations(
     )
 
 
-def _working_day_offset(start: date, finish: date, resolver: object) -> int:
+def _working_day_offset(start: date, finish: date, resolver: WorkingTimeResolver) -> int:
     """Count signed working-day steps between scheduled activity start dates."""
     if start == finish:
         return 0
