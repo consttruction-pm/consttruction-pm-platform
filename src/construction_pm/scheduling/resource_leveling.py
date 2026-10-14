@@ -668,6 +668,9 @@ def propose_backward_leveling(
         raise ResourceLevelingError("INVALID_PROTECTED_ACTIVITY_IDS")
     if len(set(protected_activity_ids)) != len(protected_activity_ids):
         raise ResourceLevelingError("DUPLICATE_PROTECTED_ACTIVITY_ID")
+    unknown_protected_ids = set(protected_activity_ids) - set(activity_ids)
+    if unknown_protected_ids:
+        raise ResourceLevelingError("UNKNOWN_PROTECTED_ACTIVITY_ID")
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     allowed = {
