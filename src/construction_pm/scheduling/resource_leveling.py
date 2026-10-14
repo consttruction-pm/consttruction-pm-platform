@@ -678,7 +678,7 @@ def propose_backward_leveling(
                     "activity_priority": activity.activity_priority,
                     "early_start": activity.early_start,
                     "early_finish": activity.early_finish,
-                    "total_float": max_advance,
+                    "total_float": activity.total_float,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
