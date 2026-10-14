@@ -865,7 +865,6 @@ def test_backward_leveling_returns_one_cumulative_shift_per_activity():
             date(2026, 10, 3),
             date(2026, 10, 1),
             date(2026, 10, 3),
-            2,
             (ResourceDemand("R1", date(2026, 10, 3), Decimal("8"), activity_id),),
         )
         for activity_id in ("A1", "A2", "A3")
