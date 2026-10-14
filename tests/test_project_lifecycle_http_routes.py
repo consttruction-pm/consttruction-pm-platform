@@ -543,10 +543,10 @@ class SyncHandler:
         self.calls.append(mutation)
 
 
-def sync_routes():
+def sync_routes(*, roles=frozenset({"project_admin"})):
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
     session = AuthenticatedSession(
-        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+        "s1", "u1", "t1", roles, now + timedelta(hours=1)
     )
     service = __import__(
         "construction_pm.application.project_lifecycle",
@@ -1960,3 +1960,25 @@ def test_authenticated_relationship_http_delete_rejects_stale_and_missing_revisi
     )
     assert status == 400
     assert json.loads(raw)["code"] == "P6_RELATIONSHIP_REQUEST_INVALID"
+
+
+def test_authenticated_sync_mutation_requires_project_write_permission():
+    r, handler = sync_routes(roles=frozenset({"viewer"}))
+    body = {
+        "contract_version": "sync-mutation.v1",
+        "mutation_id": "m-viewer",
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "expected_revision": 2,
+        "operation": "update_activity",
+        "payload": {"activity_id": "A-1"},
+        "idempotency_key": "idem-viewer",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/v1/sync/mutations", cookies={"cp_session": "s1"},
+        headers={"Idempotency-Key": "idem-viewer"}, body=json.dumps(body).encode(),
+    )
+
+    assert status == 403
+    assert json.loads(raw)["code"] == "authorization denied for permission=project.write"
+    assert handler.calls == []
