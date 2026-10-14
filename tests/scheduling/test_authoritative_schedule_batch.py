@@ -467,12 +467,19 @@ def test_missing_external_project_membership_is_explicit():
 
 
 def test_shared_resource_leveling_runs_once_for_the_batch_graph():
+    # This case verifies one shared batch-wide forward leveling pass.
+    # Keep backward leveling out of scope: its late window extends to Oct 10,
+    # while this fixture intentionally defines capacity only for Oct 1 and 2.
     options = ScheduleOptions(
         level_all_resources=True,
         include_external_res_ass=False,
         calculate_float_based_on_finish_date=False,
+        preserve_scheduled_early_and_late_dates=True,
     )
-    leveling_options = ResourceLevelingOptions(level_all_resources=True)
+    leveling_options = ResourceLevelingOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
     demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
     demand_p2 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
     forward = (
