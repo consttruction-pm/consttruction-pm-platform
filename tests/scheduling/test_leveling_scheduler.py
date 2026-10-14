@@ -354,6 +354,59 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         assert late.finish == date(2026, 10, 2)
 
 
+def test_final_resource_validation_shifts_demands_by_signed_working_days():
+    from types import SimpleNamespace
+
+    import pytest
+
+    from construction_pm.scheduling.leveling_scheduler import _validate_final_resource_load
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", thursday, thursday, 1, (demand,)),),
+        backward_activities=(),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("8")),
+            ResourceCapacity("R1", friday, Decimal("0")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    # Thursday -> Friday must shift the demand to Friday (not leave it on Thursday).
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        _validate_final_resource_load(
+            result=SimpleNamespace(activities={"A": SimpleNamespace(start=friday)}),
+            leveling_input=leveling_input,
+            resolver=resolver,
+        )
+
+    # A backward move from Monday to Friday must be supported and shift Monday's
+    # demand back to Friday rather than raising from a reversed date interval.
+    monday_demand = ResourceDemand("R1", monday, Decimal("8"), "A")
+    backward_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", monday, monday, 1, (monday_demand,)),),
+        backward_activities=(),
+        capacities=(
+            ResourceCapacity("R1", friday, Decimal("0")),
+            ResourceCapacity("R1", monday, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        _validate_final_resource_load(
+            result=SimpleNamespace(activities={"A": SimpleNamespace(start=friday)}),
+            leveling_input=backward_input,
+            resolver=resolver,
+        )
+
+
 def test_linked_leveling_rejects_overallocation_reintroduced_by_cpm_relationships():
     import pytest
 
