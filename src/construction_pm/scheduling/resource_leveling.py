@@ -278,6 +278,9 @@ def propose_forward_leveling_within_float(
     resource_ids: tuple[str, ...] = (),
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule."""
+    activity_ids = [activity.activity_id for activity in activities]
+    if len(set(activity_ids)) != len(activity_ids):
+        raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
         raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
     if not isinstance(resolver, WorkingTimeResolver):
@@ -415,6 +418,9 @@ def apply_leveling_shifts(
     """Apply accepted forward shifts using the caller's authoritative calendar."""
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+    activity_ids = [activity.activity_id for activity in activities]
+    if len(set(activity_ids)) != len(activity_ids):
+        raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if not isinstance(allow_beyond_float, bool):
         raise ResourceLevelingError("INVALID_ALLOW_BEYOND_FLOAT")
     shift_map = {s.activity_id: s for s in shifts}
@@ -543,6 +549,9 @@ def propose_backward_leveling(
     """
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+    activity_ids = [activity.activity_id for activity in activities]
+    if len(set(activity_ids)) != len(activity_ids):
+        raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if (
         not isinstance(over_allocation_percentage, Decimal)
         or not over_allocation_percentage.is_finite()
