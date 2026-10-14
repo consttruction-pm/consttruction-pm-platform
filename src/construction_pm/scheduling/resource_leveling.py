@@ -475,10 +475,17 @@ class BackwardLevelingActivity:
     late_finish: date
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    # Authoritative schedule float under the configured Start/Finish/Smaller basis.
+    # It is separate from the number of working days between early and late starts.
+    total_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.total_float is not None and (
+            isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -593,9 +600,17 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "total_float",
     }
-    for priority in priorities:
-        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+    normalized_priorities = tuple(
+        priority.field_name.strip().lower().replace(" ", "_")
+        for priority in priorities
+    )
+    for field_name in normalized_priorities:
+        if field_name not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+    if "total_float" in normalized_priorities and any(
+        activity.total_float is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_AUTHORITATIVE_TOTAL_FLOAT")
 
     selected_resources = set(
         select_leveling_resources(
@@ -664,7 +679,9 @@ def propose_backward_leveling(
                     "activity_priority": activity.activity_priority,
                     "early_start": activity.early_start,
                     "early_finish": activity.early_finish,
-                    "total_float": max_advance,
+                    # Priority value is the configured authoritative CPM float,
+                    # not the early-to-late start-date movement window.
+                    "total_float": activity.total_float,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
