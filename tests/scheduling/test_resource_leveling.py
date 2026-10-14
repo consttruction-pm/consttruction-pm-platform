@@ -996,3 +996,25 @@ def test_backward_leveling_skips_zero_float_activity_and_shifts_activity_with_av
     capacities = (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("8")))
     shifts = propose_backward_leveling(activities, capacities, resolver=resolver)
     assert [(s.activity_id, s.shift_working_days, s.new_start, s.new_finish) for s in shifts] == [("B_FLOAT", -1, day_one, day_one)]
+
+
+
+def test_unconstrained_forward_leveling_stops_when_resource_has_no_future_capacity():
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1",
+        day,
+        day,
+        0,
+        (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+    )
+    capacities = (ResourceCapacity("R1", day, Decimal("0")),)
+
+    # The default unconstrained shift budget is 10,000 working days. With no
+    # positive future capacity, shifting cannot resolve this resource overload.
+    assert propose_forward_leveling(
+        (activity,), capacities, resolver=resolver, level_within_float=False
+    ) == ()
