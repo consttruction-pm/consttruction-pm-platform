@@ -414,6 +414,14 @@ def apply_leveling_shifts(
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(allow_beyond_float, bool):
         raise ResourceLevelingError("INVALID_ALLOW_BEYOND_FLOAT")
+    if not isinstance(activities, (tuple, list)) or any(
+        not isinstance(activity, LevelingActivity) for activity in activities
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_ACTIVITIES")
+    if not isinstance(shifts, (tuple, list)) or any(
+        not isinstance(shift, LevelingShift) for shift in shifts
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_SHIFTS")
     activity_ids = [activity.activity_id for activity in activities]
     if len(set(activity_ids)) != len(activity_ids):
         raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
