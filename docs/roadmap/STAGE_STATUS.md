@@ -1326,3 +1326,13 @@ Status: **implementation + focused route-level security regressions added; exact
 - Authentication provider/session issuance, complete permission matrix across all API writes and production deployment configuration remain release gates; this focused fix is not platform security certification.
 - No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial calculation semantics changed.
 - Exact-head ConstructionPM CI, Client Typecheck and PostgreSQL sync workflow results must be reviewed before this stage can be marked complete.
+
+
+### Stage 33.3.4 — Application/API Authorization Boundary
+Status: **implemented; runtime verification pending**
+- Added a provider-neutral role-to-permission policy in `src/construction_pm/application/authorization.py`.
+- Added a versioned authorization contract schema at `shared/contracts/authorization.schema.json`.
+- Added regression tests for viewer/planner permissions, deny behavior, tenant/project context and contract shape.
+- This does not authenticate users by itself and must be wired to the trusted identity/session layer before production use.
+- No Scheduling/P6, Progress/EVM, Resource/Cost or calendar calculation logic changed.
+- Next: Stage 33.3.5 integration regression, inspect the actual API enforcement points, then verify the complete test workflow.
