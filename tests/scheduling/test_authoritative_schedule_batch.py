@@ -487,8 +487,16 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
         forward_activities=forward,
         backward_activities=backward,
         capacities=(
+            # The batch finish boundary is Oct 10 (Saturday, normalized to
+            # Friday Oct 9). Backward leveling may move demand anywhere in
+            # this working-day window, so provide capacity for each candidate.
             ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
             ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 5), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 6), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 7), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 8), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 10, 9), Decimal("1")),
         ),
         options=leveling_options,
     )
