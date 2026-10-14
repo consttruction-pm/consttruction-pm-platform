@@ -10,6 +10,7 @@ from .p6_resource_assignment_repository import P6ResourceAssignment
 from .p6_resource_capacity_contract import build_resource_capacity_slices
 from .p6_resource_read_api import P6ResourceReadAPI
 from .resources.calendar import ResourceCalendar
+from .scheduling.resource_identity import ResourceIdentity, ResourceIdentityError
 from .scheduling.leveling_boundary import SchedulerLevelingInput
 from .scheduling.resource_leveling import (
     BackwardLevelingActivity,
@@ -64,6 +65,7 @@ def build_scheduler_leveling_input(
     calendars: Mapping[str, ResourceCalendar],
     periods: Sequence[date],
     options: ResourceLevelingOptions,
+    resource_identity_bindings: Mapping[tuple[str, str, str], ResourceIdentity] | None = None,
 ) -> SchedulerLevelingInput:
     """Adapt authoritative resource read data into the existing Shared Core boundary.
 
@@ -74,6 +76,25 @@ def build_scheduler_leveling_input(
     calculation is performed here.
     """
     scope.validate()
+    identity_bindings = resource_identity_bindings or {}
+
+    def identity_for(resource_id: str) -> ResourceIdentity | None:
+        identity = identity_bindings.get(
+            (scope.tenant_id, scope.project_id, resource_id)
+        )
+        if identity is None:
+            return None
+        if not isinstance(identity, ResourceIdentity):
+            raise P6ResourceLevelingReadAdapterError("INVALID_RESOURCE_IDENTITY_BINDING")
+        try:
+            identity.validate_use(
+                tenant_id=scope.tenant_id,
+                project_id=scope.project_id,
+            )
+        except ResourceIdentityError as exc:
+            raise P6ResourceLevelingReadAdapterError(str(exc)) from exc
+        return identity
+
     assignments_dto = read_api.list_assignments(scope, auth_context=auth_context)
     periods_dto = read_api.list_assignment_periods(scope, auth_context=auth_context)
 
@@ -134,6 +155,9 @@ def build_scheduler_leveling_input(
                 period=period_date,
                 units=period["units"],
                 activity_id=activity_id,
+                resource_identity=identity_for(resource_id),
+                project_id=scope.project_id,
+                tenant_id=scope.tenant_id,
             )
         )
 
@@ -159,7 +183,14 @@ def build_scheduler_leveling_input(
         capacity_periods,
     )
     capacities = tuple(
-        ResourceCapacity(item.resource_id, item.period, item.units)
+        ResourceCapacity(
+            resource_id=item.resource_id,
+            period=item.period,
+            units=item.units,
+            resource_identity=identity_for(item.resource_id),
+            project_id=scope.project_id,
+            tenant_id=scope.tenant_id,
+        )
         for item in capacity_slices
     )
 
