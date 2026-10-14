@@ -183,3 +183,62 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
         assert float_result.late_finish == result.late_activities[activity_id].finish
         assert float_result.total_float == 0
         assert float_result.critical is True
+
+
+def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() -> None:
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+
+    day_one = date(2026, 10, 1)  # Thursday
+    day_two = date(2026, 10, 2)  # Friday
+    day_three = date(2026, 10, 5)  # Monday: working day, not Saturday
+    demands = (
+        ResourceDemand("R1", day_one, Decimal("8"), "A"),
+        ResourceDemand("R1", day_one, Decimal("8"), "B"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (demands[0],), activity_priority=1),
+            LevelingActivity("B", day_one, day_one, 1, (demands[1],), activity_priority=0),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_three, day_three, (demands[0],), activity_priority=1),
+            BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demands[1],), activity_priority=0),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("16")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.SS),),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=day_three,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=False,
+            priority_list=(PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),),
+        ),
+    )
+
+    # Both demands are initially on day one. The valid Monday project finish
+    # creates a real late window; the mapped late demand lands on Friday,
+    # where capacity is insufficient, so B must advance to Thursday.
+    assert forward == ()
+    assert len(backward) == 1
+    assert backward[0].activity_id == "B"
+    assert backward[0].advanced_days == 1
+    assert backward[0].new_start == day_one
+    assert result.activities["A"].start == day_one
+    assert result.activities["B"].start == day_one
+    assert result.project_finish == day_one
