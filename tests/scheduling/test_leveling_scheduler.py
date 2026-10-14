@@ -867,3 +867,37 @@ def test_backward_activity_builder_shifts_demands_across_weekend():
     )
 
     assert built[0].resource_demands[0].period == monday
+
+
+def test_backward_activity_builder_shifts_resource_demands_across_holiday():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    friday_holiday = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}),
+        holidays=frozenset({friday_holiday}),
+    ))
+    demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", thursday, thursday, 2, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", thursday, thursday, monday, monday, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", monday, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=thursday, finish=thursday)},
+        late_schedule={"A": SimpleNamespace(start=monday, finish=monday)},
+        resolver=resolver,
+    )
+
+    assert built[0].resource_demands[0].period == monday
