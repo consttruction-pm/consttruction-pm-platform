@@ -180,13 +180,10 @@ def _violated_backward_upper_bound_activity(
     return activity_id if activity_id in selected_activity_ids else None
 
 
-def _validate_final_resource_load(
-    *,
-    result: object,
-    leveling_input: SchedulerLevelingInput,
-    resolver: object,
-) -> None:
-    """Reject a CPM result whose dependency propagation reintroduces overloads."""
+def _shifted_final_resource_demands(
+    *, result: object, leveling_input: SchedulerLevelingInput, resolver: object,
+) -> tuple[ResourceDemand, ...]:
+    """Translate the supplied time-phased slices to the final CPM start dates."""
     forward_by_id = {activity.activity_id: activity for activity in leveling_input.forward_activities}
     final_activities = getattr(result, "activities", {})
     shifted_demands: list[ResourceDemand] = []
@@ -223,6 +220,40 @@ def _validate_final_resource_load(
                 units=demand.units,
                 activity_id=activity_id,
             ))
+    return tuple(shifted_demands)
+
+
+def _resource_overallocation_key(error: ResourceLevelingError) -> tuple[str, date] | None:
+    """Read the deterministic resource/date identity from final-load validation."""
+    parts = str(error).split(":")
+    if not parts or parts[0] != "FINAL_RESOURCE_OVERALLOCATION":
+        return None
+    period_index = next((
+        index for index, part in enumerate(parts)
+        if len(part) == 10 and part[4:5] == "-" and part[7:8] == "-"
+    ), None)
+    if period_index is None or period_index < 2:
+        return None
+    try:
+        period = date.fromisoformat(parts[period_index])
+    except ValueError:
+        return None
+    resource_id = ":".join(parts[1:period_index])
+    if not resource_id:
+        return None
+    return resource_id, period
+
+
+def _validate_final_resource_load(
+    *,
+    result: object,
+    leveling_input: SchedulerLevelingInput,
+    resolver: object,
+) -> None:
+    """Reject a CPM result whose dependency propagation reintroduces overloads."""
+    shifted_demands = _shifted_final_resource_demands(
+        result=result, leveling_input=leveling_input, resolver=resolver,
+    )
     selected_resources = set(select_leveling_resources(
         shifted_demands,
         level_all_resources=leveling_input.options.level_all_resources,
@@ -406,7 +437,6 @@ def schedule_with_resource_leveling(
                     relationship_lag_resolvers=relationship_lag_resolvers,
                     batch_scheduled_finish=batch_scheduled_finish,
                 )
-                break
             except ConstraintViolation as exc:
                 violated_id = _violated_backward_upper_bound_activity(exc, backward_ids)
                 if violated_id is None:
@@ -417,6 +447,54 @@ def schedule_with_resource_leveling(
                     if step < current_limit
                 ]
                 advance_limits[violated_id] = max(previous_steps) if previous_steps else 0
+                continue
+
+            try:
+                _validate_final_resource_load(
+                    result=result,
+                    leveling_input=leveling_input,
+                    resolver=resolver,
+                )
+                break
+            except ResourceLevelingError as exc:
+                overload_key = _resource_overallocation_key(exc)
+                if overload_key is None:
+                    raise
+                shifted_demands = _shifted_final_resource_demands(
+                    result=result, leveling_input=leveling_input, resolver=resolver,
+                )
+                overloaded_ids = {
+                    demand.activity_id
+                    for demand in shifted_demands
+                    if demand.activity_id is not None
+                    and (demand.resource_id, demand.period) == overload_key
+                }
+                candidates = [
+                    shift for shift in backward_shifts
+                    if shift.activity_id in overloaded_ids
+                ]
+                if not candidates:
+                    raise
+
+                # Backtrack the latest-selected accepted movement that contributes
+                # to this overload first. This preserves earlier-priority decisions
+                # while allowing the CPM result to keep a valid resource profile.
+                proposal_position = {
+                    (shift.activity_id, shift.advanced_days): index
+                    for index, shift in enumerate(proposed_backward_shifts)
+                }
+                rollback = max(
+                    candidates,
+                    key=lambda shift: proposal_position.get(
+                        (shift.activity_id, shift.advanced_days), -1
+                    ),
+                )
+                current_limit = advance_limits.get(rollback.activity_id, 0)
+                previous_steps = [
+                    step for step in proposed_advances.get(rollback.activity_id, ())
+                    if step < current_limit
+                ]
+                advance_limits[rollback.activity_id] = max(previous_steps) if previous_steps else 0
     else:
         result = schedule(
             activities, relationships, project_start, resolver,
@@ -425,9 +503,9 @@ def schedule_with_resource_leveling(
             relationship_lag_resolvers=relationship_lag_resolvers,
             batch_scheduled_finish=batch_scheduled_finish,
         )
-    _validate_final_resource_load(
-        result=result,
-        leveling_input=leveling_input,
-        resolver=resolver,
-    )
+        _validate_final_resource_load(
+            result=result,
+            leveling_input=leveling_input,
+            resolver=resolver,
+        )
     return result, forward_shifts, backward_shifts
