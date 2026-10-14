@@ -163,6 +163,30 @@ def schedule_with_resource_leveling(
         if selected_options.resource_list != leveling_input.options.resource_ids:
             raise ResourceLevelingError("LEVELING_RESOURCE_LIST_MISMATCH")
 
+    # The current resource-leveling proposal engine performs all demand-date
+    # shifts with one resolver. Do not silently apply that shared calendar to a
+    # demand-bearing activity whose CPM calendar differs; the ordinary CPM
+    # passes can be activity-calendar-aware, but the leveling proposal itself is
+    # not yet calendar-aware per activity.
+    demand_activity_ids = {
+        activity.activity_id
+        for activity in (*leveling_input.forward_activities, *leveling_input.backward_activities)
+        if activity.resource_demands
+    }
+    shared_calendar = getattr(resolver, "calendar", None)
+    if activity_resolvers and shared_calendar is not None:
+        shared_snapshot = shared_calendar.canonical_snapshot()
+        for activity_id in sorted(demand_activity_ids):
+            activity_resolver = activity_resolvers.get(activity_id)
+            activity_calendar = getattr(activity_resolver, "calendar", None)
+            if (
+                activity_calendar is not None
+                and activity_calendar.canonical_snapshot() != shared_snapshot
+            ):
+                raise ResourceLevelingError(
+                    "MIXED_ACTIVITY_CALENDARS_NOT_SUPPORTED_FOR_RESOURCE_LEVELING"
+                )
+
     from .schedule import schedule
 
     base_options = _schedule_options_without_leveling(selected_options)
