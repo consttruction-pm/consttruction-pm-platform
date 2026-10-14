@@ -227,9 +227,7 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "activity_id": activity.activity_id,
         "activity_priority": activity.activity_priority,
         "early_start": activity.start,
-        "planned_start": activity.start,
         "early_finish": activity.finish,
-        "planned_finish": activity.finish,
         "total_float": activity.total_float,
     }
     if normalized not in values:
