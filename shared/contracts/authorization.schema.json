@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/authorization/v1",
+  "title": "Application Authorization Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "tenant_id", "project_id", "user_id", "roles", "permission"],
+  "properties": {
+    "contract_version": {"const": "authorization.v1"},
+    "tenant_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "user_id": {"type": "string", "minLength": 1},
+    "roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "permission": {"enum": ["project.read", "project.write", "project.schedule", "project.admin"]}
+  }
+}
