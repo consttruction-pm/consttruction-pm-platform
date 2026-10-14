@@ -74,7 +74,9 @@ def test_public_options_run_forward_and_backward_leveling_then_recalculate_cpm()
         "A": day_two,
         "B": day_one,
     }
-    assert result.project_finish == day_two
+    # The project finish remains the configured Monday finish (Oct 5), even
+    # though both activities are leveled onto Friday (Oct 2).
+    assert result.project_finish == day_three
     final_demand_by_day = {
         day: sum(
             demand.units
