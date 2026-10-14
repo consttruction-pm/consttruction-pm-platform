@@ -829,6 +829,7 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
         late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
@@ -863,6 +864,7 @@ def test_backward_activity_builder_shifts_demands_across_weekend():
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=thursday, finish=thursday)},
         late_schedule={"A": SimpleNamespace(start=monday, finish=monday)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
@@ -897,6 +899,7 @@ def test_backward_activity_builder_shifts_resource_demands_across_holiday():
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=thursday, finish=thursday)},
         late_schedule={"A": SimpleNamespace(start=monday, finish=monday)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
