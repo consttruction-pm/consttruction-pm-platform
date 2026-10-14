@@ -244,10 +244,12 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
 
 
 def test_shared_batch_exposes_residual_resource_overallocation_after_leveling():
-    options = ScheduleOptions(level_all_resources=True)
-    p1 = snapshot("P1", date(2026, 10, 10), options=options)
-    p2 = snapshot("P2", date(2026, 10, 10), options=options)
+    # Zero float prevents movement, so this test isolates diagnostic reporting
+    # rather than depending on how far the leveling engine can shift activities.
+    options = ScheduleOptions(level_all_resources=True, level_within_float=True)
     day = date(2026, 10, 1)
+    p1 = snapshot("P1", day, options=options)
+    p2 = snapshot("P2", day, options=options)
     demand_a = ResourceDemand("R1", day, Decimal("1"), "P1-A")
     demand_b = ResourceDemand("R1", day, Decimal("1"), "P2-A")
     forward = (
