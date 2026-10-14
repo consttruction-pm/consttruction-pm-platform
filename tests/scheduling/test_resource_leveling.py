@@ -55,6 +55,20 @@ def test_date_only_resource_leveling_fields_reject_datetime(factory):
         factory()
 
 
+@pytest.mark.parametrize(
+    ("demands", "capacities", "error"),
+    [
+        (None, (), "INVALID_RESOURCE_DEMANDS"),
+        ((None,), (), "INVALID_RESOURCE_DEMANDS"),
+        ((), None, "INVALID_LEVELING_CAPACITIES"),
+        ((), (None,), "INVALID_LEVELING_CAPACITIES"),
+    ],
+)
+def test_detect_over_allocations_validates_inputs(demands, capacities, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        detect_over_allocations(demands, capacities)
+
+
 def test_detect_over_allocation_is_deterministic_and_sorted():
     demands = [
         ResourceDemand("R2", date(2026, 10, 2), Decimal("8")),
@@ -141,6 +155,21 @@ def test_leveling_activities_reject_malformed_resource_demands(factory):
 def test_negative_minimum_float_is_rejected():
     with pytest.raises(ResourceLevelingError, match="INVALID_MIN_FLOAT_TO_PRESERVE"):
         ResourceLevelingOptions(min_float_to_preserve=Decimal("-1"))
+
+
+@pytest.mark.parametrize(
+    ("demands", "kwargs", "error"),
+    [
+        (None, {"level_all_resources": True}, "INVALID_RESOURCE_DEMANDS"),
+        ((None,), {"level_all_resources": True}, "INVALID_RESOURCE_DEMANDS"),
+        ((), {"level_all_resources": "yes"}, "INVALID_LEVEL_ALL_RESOURCES"),
+        ((), {"level_all_resources": False, "resource_ids": ["R1"]}, "INVALID_RESOURCE_ID"),
+        ((), {"level_all_resources": False, "resource_ids": (None,)}, "INVALID_RESOURCE_ID"),
+    ],
+)
+def test_select_leveling_resources_validates_inputs(demands, kwargs, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        select_leveling_resources(demands, **kwargs)
 
 
 def test_select_leveling_resources_is_deterministic_for_all_resources():
