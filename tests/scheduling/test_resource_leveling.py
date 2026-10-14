@@ -122,6 +122,64 @@ def test_propose_forward_leveling_consumes_only_allowed_float_and_preserves_mini
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [("A1", 1, 1)]
 
 
+
+def test_forward_leveling_rechecks_all_resources_after_each_shift():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    activities = (
+        LevelingActivity(
+            "A1", day_one, day_one, 3,
+            (
+                ResourceDemand("R1", day_one, Decimal("8"), "A1"),
+                ResourceDemand("R2", day_one, Decimal("8"), "A1"),
+            ),
+        ),
+        LevelingActivity(
+            "A2", day_one, day_one, 3,
+            (ResourceDemand("R1", day_one, Decimal("8"), "A2"),),
+        ),
+        LevelingActivity(
+            "A3", day_two, day_two, 3,
+            (ResourceDemand("R2", day_two, Decimal("8"), "A3"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R1", day_three, Decimal("8")),
+        ResourceCapacity("R2", day_one, Decimal("8")),
+        ResourceCapacity("R2", day_two, Decimal("8")),
+        ResourceCapacity("R2", day_three, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver
+    )
+
+    assert [(shift.activity_id, shift.shift_working_days) for shift in shifts] == [
+        ("A1", 2)
+    ]
+    shifted_demands = [
+        demand
+        for activity in activities
+        for demand in (
+            ResourceDemand(
+                demand.resource_id,
+                resolver.next_working_day(resolver.next_working_day(demand.period))
+                if demand.activity_id == "A1"
+                else demand.period,
+                demand.units,
+                demand.activity_id,
+            )
+            for demand in activity.resource_demands
+        )
+    ]
+    assert not detect_over_allocations(shifted_demands, capacities)
+
 def test_propose_forward_leveling_is_deterministic_for_input_order():
     a1 = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 2, (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),))
     a2 = LevelingActivity("A2", date(2026, 10, 1), date(2026, 10, 1), 2, (ResourceDemand("R1", date(2026, 10, 1), Decimal("4"), "A2"),))
