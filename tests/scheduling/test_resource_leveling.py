@@ -8,6 +8,7 @@ import pytest
 from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     LevelingPriority,
+    LevelingShift,
     ResourceCapacity,
     ResourceDemand,
     ResourceLevelingError,
@@ -437,9 +438,7 @@ def test_apply_leveling_shifts_rejects_unknown_activity_id():
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
     )
     activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
-    unknown_shift = __import__(
-        "construction_pm.scheduling.resource_leveling", fromlist=["LevelingShift"]
-    ).LevelingShift(
+    unknown_shift = LevelingShift(
         "MISSING", 1, date(2026, 10, 2), date(2026, 10, 2), 1, 0
     )
     with pytest.raises(ResourceLevelingError, match="UNKNOWN_LEVELING_ACTIVITY"):
