@@ -801,3 +801,36 @@ def test_final_resource_validation_rejects_missing_scheduled_activity_with_deman
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+
+def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 2, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day_one, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        resolver=resolver,
+    )
+
+    assert len(built) == 1
+    assert built[0].resource_demands[0].period == day_two
