@@ -67,3 +67,14 @@ def test_tenant_and_project_context_are_preserved() -> None:
     assert context.tenant_id == "tenant-42"
     assert context.project_id == "project-99"
     assert context.user_id == "user-7"
+
+
+def test_unknown_only_role_denies_every_permission_by_default() -> None:
+    policy = default_project_policy()
+    context = AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"unknown-role"}))
+
+    for permission in Permission:
+        assert not policy.is_allowed(context, permission)
+
+    with pytest.raises(AuthorizationError):
+        policy.require(context, Permission.PROJECT_READ)
