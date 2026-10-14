@@ -129,6 +129,20 @@ class ProjectLifecycleService:
         self._policy.require(auth, Permission.PROJECT_READ)
         return context
 
+    def authorize_project(
+        self,
+        session_id: str,
+        project_id: str,
+        permission: Permission,
+        *,
+        now: datetime,
+    ) -> ProjectContext:
+        """Resolve a project from the authenticated session and enforce a permission."""
+        session = self.session(session_id, now=now)
+        context = self.open_project(session_id, project_id, now=now)
+        self._policy.require(context.authorization_context(session.roles), permission)
+        return context
+
     def create_project(
         self,
         session_id: str,
