@@ -454,3 +454,23 @@ def test_apply_leveling_shifts_rejects_inconsistent_remaining_float():
     )
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts((activity,), (inconsistent_shift,), resolver=resolver)
+
+
+
+@pytest.mark.parametrize("activities", [(None,), (object(),), None, "A1"])
+def test_apply_leveling_shifts_rejects_malformed_activity_inputs(activities):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_ACTIVITIES"):
+        apply_leveling_shifts(activities, (), resolver=resolver)
+
+
+@pytest.mark.parametrize("shifts", [(None,), (object(),), None, "A1"])
+def test_apply_leveling_shifts_rejects_malformed_shift_inputs(shifts):
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
+    with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFTS"):
+        apply_leveling_shifts((activity,), shifts, resolver=resolver)
