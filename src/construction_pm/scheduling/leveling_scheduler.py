@@ -146,7 +146,7 @@ def _backward_activities_from_intermediate(
                 late_finish=late.finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
-                total_float=getattr(float_schedule[activity.activity_id], "total_float", None),
+                total_float=getattr(float_schedule.get(activity.activity_id), "total_float", None),
             )
         )
     return tuple(result)
