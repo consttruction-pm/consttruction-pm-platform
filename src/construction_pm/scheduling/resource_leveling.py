@@ -44,7 +44,7 @@ class ResourceCapacity:
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
             raise ResourceLevelingError("INVALID_RESOURCE_ID")
-        if not isinstance(self.period, date):
+        if not isinstance(self.period, date) or isinstance(self.period, datetime):
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
