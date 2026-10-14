@@ -17,7 +17,13 @@ from .project_relationships import resolve_project_relationships
 from .schedule import ScheduleResult, schedule
 from .leveling_boundary import SchedulerLevelingInput
 from .leveling_scheduler import schedule_with_resource_leveling
-from .resource_leveling import BackwardLevelingActivity, LevelingActivity, ResourceDemand
+from .resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    OverAllocation,
+    ResourceDemand,
+    detect_over_allocations,
+)
 from .schedule_batch import AuthoritativeScheduleBatch
 
 
@@ -33,6 +39,28 @@ _BATCH_ROUTING_OPTION_FIELDS = frozenset({
     "resource_list",
     "priority_list",
 })
+
+
+
+def _working_day_offset(start, finish, resolver: WorkingTimeResolver) -> int:
+    """Count signed working-day steps between two dates on the batch calendar."""
+    if start == finish:
+        return 0
+    step = 1 if finish > start else -1
+    cursor = start
+    for offset in range(1, 10001):
+        cursor = (
+            resolver.next_working_day(cursor)
+            if step > 0
+            else resolver.previous_working_day(cursor)
+        )
+        if cursor == finish:
+            return step * offset
+        if (step > 0 and cursor > finish) or (step < 0 and cursor < finish):
+            break
+    raise UnsupportedMultiProjectSchedulingError(
+        "MULTI_PROJECT_RESOURCE_DEMAND_DATE_PROJECTION_FAILED"
+    )
 
 
 def _validate_shared_graph_schedule_options(snapshot_list: tuple) -> None:
@@ -80,6 +108,7 @@ class AuthoritativeScheduleBatchExecution:
 
     batch: AuthoritativeScheduleBatch
     projects: tuple[AuthoritativeProjectScheduleExecution, ...]
+    resource_over_allocations: tuple[OverAllocation, ...] = ()
 
     def project(self, project_id: str) -> AuthoritativeProjectScheduleExecution:
         for execution in self.projects:
@@ -369,6 +398,30 @@ def execute_authoritative_schedule_batch(
                 options=snapshot_list[0].schedule_options,
                 batch_scheduled_finish=batch_finish,
             )
+            final_demands: list[ResourceDemand] = []
+            for activity in rebased_forward:
+                scheduled = final_result.activities.get(activity.activity_id)
+                if scheduled is None:
+                    continue
+                offset = _working_day_offset(activity.start, scheduled.start, resolver)
+                for demand in activity.resource_demands:
+                    period = demand.period
+                    for _ in range(abs(offset)):
+                        period = (
+                            resolver.next_working_day(period)
+                            if offset > 0
+                            else resolver.previous_working_day(period)
+                        )
+                    final_demands.append(
+                        ResourceDemand(
+                            demand.resource_id, period, demand.units, demand.activity_id
+                        )
+                    )
+            final_over_allocations = detect_over_allocations(
+                tuple(final_demands),
+                merged_input.capacities,
+                over_allocation_percentage=merged_input.options.over_allocation_percentage,
+            )
             for snapshot in snapshot_list:
                 owned_ids = {activity.id for activity in snapshot.activities}
                 project_activities = {
@@ -407,7 +460,9 @@ def execute_authoritative_schedule_batch(
                     )
                 )
             return AuthoritativeScheduleBatchExecution(
-                batch=batch, projects=tuple(executions)
+                batch=batch,
+                projects=tuple(executions),
+                resource_over_allocations=final_over_allocations,
             )
 
         project_options = replace(
