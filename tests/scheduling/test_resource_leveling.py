@@ -563,6 +563,38 @@ def test_backward_leveling_activity_priority_respects_sort_order(sort_order, exp
     assert shifts[0].shift_working_days == -1
 
 
+@pytest.mark.parametrize("capacities", [(), (ResourceCapacity("R1", date(2026, 10, 1), Decimal("0")),)])
+def test_forward_leveling_stops_when_capacity_is_missing_or_zero_and_float_is_exhausted(capacities):
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1", day, day, 0,
+        (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+    )
+
+    assert propose_forward_leveling_within_float(
+        (activity,), capacities, resolver=resolver
+    ) == ()
+
+
+@pytest.mark.parametrize("capacities", [(), (ResourceCapacity("R1", date(2026, 10, 1), Decimal("0")),)])
+def test_backward_leveling_stops_when_capacity_is_missing_or_zero_and_float_is_exhausted(capacities):
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A1", day, day, day, day,
+        (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+    )
+
+    assert propose_backward_leveling(
+        (activity,), capacities, resolver=resolver
+    ) == ()
+
+
 def test_backward_leveling_is_deterministic_for_activity_and_resource_order():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
