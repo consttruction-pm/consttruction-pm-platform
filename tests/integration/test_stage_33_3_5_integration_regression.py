@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pytest
 
@@ -119,3 +119,26 @@ def test_stale_revision_identity_is_preserved_in_mutation_fingerprint() -> None:
     changed = _mutation(5)
 
     assert mutation_fingerprint(first) != mutation_fingerprint(changed)
+
+
+@pytest.mark.parametrize(
+    ("tenant_id", "project_id"),
+    [("tenant-2", "project-1"), ("tenant-1", "project-2")],
+)
+def test_same_idempotency_key_isolated_by_tenant_and_project(
+    tenant_id: str, project_id: str
+) -> None:
+    persistence = _Persistence()
+    delegate = _Delegate()
+    executor = AtomicSyncExecutor(persistence, _Tx(), delegate)
+
+    original = _mutation()
+    scoped = replace(original, tenant_id=tenant_id, project_id=project_id)
+
+    first = executor.submit(original)
+    second = executor.submit(scoped)
+
+    assert first.disposition is SyncDisposition.ACKNOWLEDGED
+    assert second.disposition is SyncDisposition.ACKNOWLEDGED
+    assert delegate.calls == 2
+    assert len(persistence.records) == 2
