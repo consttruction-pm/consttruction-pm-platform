@@ -547,9 +547,13 @@ def schedule_with_resource_leveling(
             # complete ordered criteria used to propose backward shifts. Looking
             # only at activity_priority here can contradict Total Float, dates,
             # or any earlier criterion in the configured priority list.
+            # Use the CPM-enriched candidates from the intermediate schedule.
+            # The original boundary inputs may not carry authoritative Total Float;
+            # using them here would silently discard the first configured criterion
+            # during rollback even though proposal selection used it correctly.
             backward_by_id = {
                 activity.activity_id: activity
-                for activity in leveling_input.backward_activities
+                for activity in backward_activities
             }
             candidate_ids = {shift.activity_id for shift in candidates}
             if leveling_input.options.priorities:
