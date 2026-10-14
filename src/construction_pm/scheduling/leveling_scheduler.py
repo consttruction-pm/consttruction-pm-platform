@@ -138,11 +138,28 @@ def _validate_final_resource_load(
         final_activity = final_activities.get(activity_id)
         if final_activity is None:
             continue
-        shift_days = resolver.working_days_between(activity_input.start, final_activity.start)
+        if final_activity.start >= activity_input.start:
+            shift_days = resolver.working_days_between(
+                activity_input.start, final_activity.start
+            )
+        else:
+            shift_days = -resolver.working_days_between(
+                final_activity.start, activity_input.start
+            )
         for demand in activity_input.resource_demands:
+            if shift_days > 0:
+                shifted_period = resolver.add_working_duration(
+                    demand.period, shift_days + 1
+                )
+            elif shift_days < 0:
+                shifted_period = resolver.subtract_working_duration(
+                    demand.period, abs(shift_days) + 1
+                )
+            else:
+                shifted_period = demand.period
             shifted_demands.append(ResourceDemand(
                 resource_id=demand.resource_id,
-                period=resolver.add_working_duration(demand.period, shift_days),
+                period=shifted_period,
                 units=demand.units,
                 activity_id=activity_id,
             ))
