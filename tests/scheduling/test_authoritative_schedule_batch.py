@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -14,6 +14,10 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleMode,
 )
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_identity import (
+    ResourceIdentity,
+    ResourceIdentityScope,
+)
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -466,15 +470,20 @@ def test_missing_external_project_membership_is_explicit():
         )
 
 
-def test_shared_resource_leveling_runs_once_for_the_batch_graph():
+def test_explicit_shared_resource_leveling_runs_once_for_the_batch_graph():
     options = ScheduleOptions(
         level_all_resources=True,
         include_external_res_ass=False,
         calculate_float_based_on_finish_date=False,
     )
     leveling_options = ResourceLevelingOptions(level_all_resources=True)
-    demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
-    demand_p2 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
+    shared = ResourceIdentity("canonical-r1", "tenant", ResourceIdentityScope.TENANT_SHARED)
+    demand_p1 = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("1"), "P1-A", shared, "P1", "tenant"
+    )
+    demand_p2 = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("1"), "P2-A", shared, "P2", "tenant"
+    )
     forward = (
         LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p1,)),
         LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p2,)),
@@ -486,9 +495,16 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     leveling_input = SchedulerLevelingInput(
         forward_activities=forward,
         backward_activities=backward,
-        capacities=(
-            ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),
-            ResourceCapacity("R1", date(2026, 10, 2), Decimal("1")),
+        capacities=tuple(
+            ResourceCapacity(
+                "R1",
+                date(2026, 10, 1) + timedelta(days=offset),
+                Decimal("1"),
+                shared,
+                "P1",
+                "tenant",
+            )
+            for offset in range(10)
         ),
         options=leveling_options,
     )
@@ -503,6 +519,99 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
+
+
+def test_project_local_resources_with_same_raw_id_do_not_conflict_across_projects():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=False,
+        calculate_float_based_on_finish_date=False,
+    )
+    leveling_options = ResourceLevelingOptions(level_all_resources=True)
+    local_p1 = ResourceIdentity("canonical-p1-r1", "tenant", ResourceIdentityScope.PROJECT_LOCAL, "P1")
+    local_p2 = ResourceIdentity("canonical-p2-r1", "tenant", ResourceIdentityScope.PROJECT_LOCAL, "P2")
+    demand_p1 = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("1"), "P1-A", local_p1, "P1", "tenant"
+    )
+    demand_p2 = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("1"), "P2-A", local_p2, "P2", "tenant"
+    )
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p1,)),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p1,)),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p2,)),
+    )
+    capacities = tuple(
+        ResourceCapacity(
+            "R1",
+            date(2026, 10, 1) + timedelta(days=offset),
+            Decimal("1"),
+            identity,
+            project_id,
+            "tenant",
+        )
+        for identity, project_id in ((local_p1, "P1"), (local_p2, "P2"))
+        for offset in range(10)
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=leveling_options,
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", date(2026, 10, 10), options=options),
+            snapshot("P2", date(2026, 10, 10), options=options),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    assert p1.start == p2.start == date(2026, 10, 1)
+    assert p1.finish == p2.finish == date(2026, 10, 1)
+
+
+def test_multi_project_leveling_rejects_unscoped_legacy_resource_ids():
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=False,
+        calculate_float_based_on_finish_date=False,
+    )
+    demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p1,)),
+        LevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), 10, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p1,)),
+        BackwardLevelingActivity("P2-A", date(2026, 10, 1), date(2026, 10, 1), date(2026, 10, 10), date(2026, 10, 10), (demand_p2,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(ResourceCapacity("R1", date(2026, 10, 1), Decimal("1")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_RESOURCE_IDENTITY_REQUIRED",
+    ):
+        execute_authoritative_schedule_batch(
+            [
+                snapshot("P1", date(2026, 10, 10), options=options),
+                snapshot("P2", date(2026, 10, 10), options=options),
+            ],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            leveling_input=leveling_input,
+        )
 
 
 @pytest.mark.parametrize(
