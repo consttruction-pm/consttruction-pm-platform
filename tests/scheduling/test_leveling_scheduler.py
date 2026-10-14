@@ -1002,3 +1002,49 @@ def test_backward_builder_keeps_forward_leveled_protected_demand_at_intermediate
     # B is still a backward candidate and starts from its late-date profile.
     assert by_id["A"].resource_demands[0].period == friday
     assert by_id["B"].resource_demands[0].period == monday
+
+
+def test_leveling_preserves_negative_total_float_as_signed_cpm_input():
+    from construction_pm.scheduling.resource_leveling import (
+        apply_leveling_shifts,
+        propose_forward_leveling_within_float,
+        LevelingShift,
+    )
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
+    activity = LevelingActivity("A", thursday, thursday, -2, (demand,))
+
+    # A negative CPM float is valid input, but the within-float pass must not
+    # invent movement allowance from a negative value.
+    assert activity.total_float == -2
+    proposed = propose_forward_leveling_within_float(
+        (activity,),
+        (
+            ResourceCapacity("R1", thursday, Decimal("0")),
+            ResourceCapacity("R1", friday, Decimal("8")),
+        ),
+        resolver=resolver,
+        min_float_to_preserve=0,
+        level_all_resources=True,
+    )
+    assert proposed == ()
+
+    # An explicitly allowed beyond-float move preserves signed provenance in
+    # this proposal model rather than clamping a negative value to zero.
+    shift = LevelingShift(
+        activity_id="A",
+        shift_working_days=1,
+        new_start=friday,
+        new_finish=friday,
+        consumed_float=1,
+        remaining_float=-3,
+    )
+    applied = apply_leveling_shifts(
+        (activity,), (shift,), resolver=resolver, allow_beyond_float=True,
+    )
+    assert applied[0].total_float == -3
