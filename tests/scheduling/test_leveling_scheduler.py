@@ -994,14 +994,19 @@ def test_backward_builder_keeps_forward_leveled_protected_demand_at_intermediate
             "B": SimpleNamespace(start=monday, finish=monday),
         },
         resolver=resolver,
+        total_float_by_activity={"A": -2, "B": 1},
         protected_activity_ids=("A",),
     )
     by_id = {activity.activity_id: activity for activity in built}
 
     # A's forward move is already accepted, so its ledger occupies Friday.
     # B is still a backward candidate and starts from its late-date profile.
+    # The configured CPM float is also propagated without substituting the
+    # early-to-late start-date movement window.
     assert by_id["A"].resource_demands[0].period == friday
     assert by_id["B"].resource_demands[0].period == monday
+    assert by_id["A"].total_float == -2
+    assert by_id["B"].total_float == 1
 
 
 def test_leveling_preserves_negative_total_float_as_signed_cpm_input():
