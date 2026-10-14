@@ -834,3 +834,46 @@ def test_resource_leveling_preserves_negative_lag_relationship_constraints() -> 
             resolver=resolver,
         )
         assert successor.start >= required_start, relationship_type
+
+def test_resource_leveling_preserves_chained_relationships_after_forward_shift() -> None:
+    from construction_pm.scheduling.relationships import (
+        Relationship,
+        RelationshipType,
+        successor_earliest_start,
+    )
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    relationships = (
+        Relationship("A", "B", RelationshipType.SS, lag=0),
+        Relationship("B", "C", RelationshipType.FS, lag=1),
+    )
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1), Activity("C", 1)),
+        relationships,
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=True, capacity_day_two="16"),
+        project_finish=date(2026, 10, 12),
+    )
+
+    # A's resource-driven shift must propagate through B's SS link and then
+    # through C's FS +1 lag, while the final result remains a valid CPM schedule.
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert backward == ()
+    for relationship in relationships:
+        predecessor = result.activities[relationship.predecessor_id]
+        successor = result.activities[relationship.successor_id]
+        required_start = successor_earliest_start(
+            relationship,
+            predecessor.start,
+            predecessor.finish,
+            duration=1,
+            resolver=resolver,
+        )
+        assert successor.start >= required_start, relationship
+    assert result.activities["A"].start == date(2026, 10, 2)
+    assert result.activities["B"].start == date(2026, 10, 2)
+    assert result.activities["C"].start >= date(2026, 10, 5)
+
