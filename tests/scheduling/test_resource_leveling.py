@@ -517,3 +517,22 @@ def test_apply_leveling_shifts_rejects_duplicate_activity_ids():
 
     with pytest.raises(ResourceLevelingError, match="DUPLICATE_ACTIVITY_ID"):
         apply_leveling_shifts((activity, activity), (), resolver=resolver)
+
+
+def test_apply_leveling_shifts_rejects_unknown_activity_ids():
+    from construction_pm.scheduling.resource_leveling import LevelingShift
+
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    shift = LevelingShift(
+        "MISSING",
+        1,
+        date(2026, 10, 2),
+        date(2026, 10, 2),
+        1,
+        0,
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNKNOWN_LEVELING_SHIFT_ACTIVITY"):
+        apply_leveling_shifts((), (shift,), resolver=resolver)
