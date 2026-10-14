@@ -975,3 +975,25 @@ def test_resource_leveling_rejects_mixed_calendar_for_demand_activity():
             _resource_leveling_input(preserve=True),
             activity_resolvers={"B": weekend_calendar},
         )
+
+
+def test_resource_leveling_accepts_equivalent_activity_calendar_for_demand_activity():
+    shared = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    equivalent = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        shared,
+        _resource_leveling_input(preserve=True),
+        activity_resolvers={"B": equivalent},
+    )
+
+    assert len(forward) == 1
+    assert backward == ()
+    assert set(result.activities) == {"A", "B"}
