@@ -174,3 +174,44 @@ def test_scheduler_leveling_boundary_preserves_resource_ids_as_array_members():
     )
 
     assert boundary.options.resource_ids == ("R1,ZONE", "R2")
+
+def test_scheduler_leveling_boundary_rejects_duplicate_forward_activity_ids():
+    forward, backward, capacities = _slices()
+    duplicate_forward = forward + (
+        LevelingActivity(
+            activity_id="A1",
+            start=date(2026, 10, 6),
+            finish=date(2026, 10, 6),
+            total_float=3,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="duplicate forward activity IDs"):
+        scheduler_leveling_input_from_options(
+            forward_activities=duplicate_forward,
+            backward_activities=backward,
+            capacities=capacities,
+            options=ScheduleOptions(),
+        )
+
+
+def test_scheduler_leveling_boundary_rejects_duplicate_backward_activity_ids():
+    forward, backward, capacities = _slices()
+    duplicate_backward = backward + (
+        BackwardLevelingActivity(
+            activity_id="A1",
+            early_start=date(2026, 10, 5),
+            early_finish=date(2026, 10, 5),
+            late_start=date(2026, 10, 8),
+            late_finish=date(2026, 10, 8),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="duplicate backward activity IDs"):
+        scheduler_leveling_input_from_options(
+            forward_activities=forward,
+            backward_activities=duplicate_backward,
+            capacities=capacities,
+            options=ScheduleOptions(),
+        )
+
