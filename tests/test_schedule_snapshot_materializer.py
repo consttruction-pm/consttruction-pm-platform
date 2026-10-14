@@ -2,6 +2,7 @@ import json
 import hashlib
 import sqlite3
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 import pytest
 
