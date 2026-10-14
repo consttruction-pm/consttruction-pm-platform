@@ -949,3 +949,29 @@ def test_leveling_forwards_activity_resolver_to_scheduler() -> None:
     assert forward == ()
     assert backward == ()
 
+
+
+def test_resource_leveling_rejects_mixed_calendar_for_demand_activity():
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    shared = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    weekend_calendar = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(
+        ResourceLevelingError,
+        match="MIXED_ACTIVITY_CALENDARS_NOT_SUPPORTED_FOR_RESOURCE_LEVELING",
+    ):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            shared,
+            _resource_leveling_input(preserve=True),
+            activity_resolvers={"B": weekend_calendar},
+        )
