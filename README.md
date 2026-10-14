@@ -17,7 +17,7 @@ A web-ready construction project management platform designed as a structured re
 1. Primavera P6 logic is the baseline for overlapping scheduling/project-control behavior.
 2. Shared Domain/Calculation Core must remain independent from UI, Windows, PostgreSQL, filesystem and authentication.
 3. API/Application/Repository boundaries are mandatory for web readiness.
-4. Project-specific calendars, calculation settings, rules and context must travel with project export/import.
+4. Project-specific calendars, calculation settings, rules and context must travel with project export/import, including every user-selected calendar, user-created/edited calendar change, per-activity/resource/lag assignment, inheritance/override and version-pinned definition; export/import must round-trip them and must never silently fall back to a default calendar.
 5. Excel/Project exports must use typed numeric/date/duration fields.
 6. Every calculation must be deterministic and testable.
 7. Audit/revision history is append-only for effective project changes.
