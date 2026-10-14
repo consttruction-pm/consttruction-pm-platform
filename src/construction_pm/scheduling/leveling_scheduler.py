@@ -362,6 +362,7 @@ def schedule_with_resource_leveling(
             # move that violates a relationship newly activated by a forward shift.
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
+            float_schedule=intermediate.floats,
             resolver=resolver,
             protected_activity_ids=tuple(sorted({
                 shift.activity_id for shift in forward_shifts
