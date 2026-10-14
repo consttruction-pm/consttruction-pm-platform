@@ -425,6 +425,17 @@ def apply_leveling_shifts(
     activity_ids = [activity.activity_id for activity in activities]
     if len(set(activity_ids)) != len(activity_ids):
         raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
+    for shift in shifts:
+        if (
+            not isinstance(shift.activity_id, str)
+            or not shift.activity_id.strip()
+            or isinstance(shift.shift_working_days, bool)
+            or not isinstance(shift.shift_working_days, int)
+            or shift.shift_working_days < 0
+            or not isinstance(shift.new_start, date)
+            or not isinstance(shift.new_finish, date)
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
     shift_map = {s.activity_id: s for s in shifts}
     if len(shift_map) != len(shifts):
         raise ResourceLevelingError("DUPLICATE_LEVELING_SHIFT")
