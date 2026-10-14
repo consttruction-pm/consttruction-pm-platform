@@ -803,3 +803,17 @@ Implementation record: `docs/architecture/STAGE_33_4_66_SHARED_GRAPH_OPTION_CONS
 ## 39. Authorization Regression Gate — 2026-10-13
 
 Stage 33.3.4 establishes a provider-neutral Application authorization boundary. Effective identity and roles are supplied by the authentication layer; project authorization must carry tenant, project and user identity and use explicit permissions. Initial roles are a provisional baseline, not the final product role catalog. No authorization policy may enter or duplicate Shared Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations. The next gate is integration regression and runtime CI verification; implementation alone is not evidence of passing tests.
+
+
+### 38.1. Sync Mutation Write Authorization — 2026-10-14
+
+**Required shared rule:** Every mutation sent to `POST /api/v1/sync/mutations` must be authorized at the Application/API boundary before it reaches the synchronization gateway.
+
+- Resolve tenant, user and project identity from the authenticated session and authorized project repository, not from caller-controlled payload/header values.
+- Opening a project proves read access only; it does not imply write permission.
+- Require `project.write` before dispatching the generic sync mutation. A denied mutation returns a stable 403 authorization error and must not invoke the mutation handler or create a business-effect/idempotency record.
+- Preserve the existing tenant/project/idempotency-key scope, expected-revision conflict behavior and deterministic retry semantics.
+- Web, Desktop and Mobile use the same Application authorization boundary; no client-side permission check may replace server-side enforcement.
+- The rule does not alter Shared Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics.
+
+Implementation: `ProjectLifecycleService.authorize_project`, `ProjectLifecycleAPI.authorize_project`, and the sync mutation HTTP route. Regression must prove a viewer cannot submit a mutation and that the handler is not invoked. This is a focused security fix, not complete platform security certification.
