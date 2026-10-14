@@ -110,10 +110,9 @@ class ProjectLifecycleService:
         session = self.session(session_id, now=now)
         return self._projects.list_for_user(session.tenant_id, session.user_id)
 
-    def open_project(
-        self, session_id: str, project_id: str, *, now: datetime
+    def _open_project_for_session(
+        self, session: AuthenticatedSession, project_id: str
     ) -> ProjectContext:
-        session = self.session(session_id, now=now)
         project = self._projects.get_for_user(
             session.tenant_id, project_id, session.user_id
         )
@@ -125,9 +124,16 @@ class ProjectLifecycleService:
             revision=project.revision,
             user_id=session.user_id,
         )
-        auth = context.authorization_context(session.roles)
-        self._policy.require(auth, Permission.PROJECT_READ)
+        self._policy.require(
+            context.authorization_context(session.roles), Permission.PROJECT_READ
+        )
         return context
+
+    def open_project(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> ProjectContext:
+        session = self.session(session_id, now=now)
+        return self._open_project_for_session(session, project_id)
 
     def authorize_project(
         self,
@@ -137,9 +143,9 @@ class ProjectLifecycleService:
         *,
         now: datetime,
     ) -> ProjectContext:
-        """Resolve a project from the authenticated session and enforce a permission."""
+        """Resolve scope once from the authenticated session, then enforce permission."""
         session = self.session(session_id, now=now)
-        context = self.open_project(session_id, project_id, now=now)
+        context = self._open_project_for_session(session, project_id)
         self._policy.require(context.authorization_context(session.roles), permission)
         return context
 
