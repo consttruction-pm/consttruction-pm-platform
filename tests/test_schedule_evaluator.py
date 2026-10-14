@@ -20,6 +20,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
     LevelingActivity,
     ResourceCapacity,
     ResourceDemand,
@@ -33,7 +34,11 @@ from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelat
 from construction_pm.scheduling.relationships import RelationshipType
 
 
-def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
+def make_snapshot_and_context(
+    *,
+    options: ScheduleOptions = ScheduleOptions(),
+    independent_activities: bool = False,
+):
     calendar = CalendarReference("CAL-1", "1")
     source = AuthoritativeScheduleInput(
         snapshot_id="S-H",
@@ -43,9 +48,9 @@ def make_snapshot_and_context(*, options: ScheduleOptions = ScheduleOptions()):
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=calendar,
         activities=(Activity("A", 2), Activity("B", 1)),
-        relationships=(Relationship("A", "B"),),
+        relationships=() if independent_activities else (Relationship("A", "B"),),
         activity_calendar_assignments=(),
-        constraints=(
+        constraints=() if independent_activities else (
             ActivityConstraint(
                 "B",
                 ConstraintType.START_NO_EARLIER_THAN,
@@ -128,18 +133,26 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
         level_all_resources=True,
         preserve_scheduled_early_and_late_dates=True,
     )
-    snapshot, context = make_snapshot_and_context(options=options)
+    snapshot, context = make_snapshot_and_context(options=options, independent_activities=True)
     demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
     demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
     activity_a = LevelingActivity(
-        "A", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_a,)
+        "A", date(2026, 9, 21), date(2026, 9, 22), 0, (demand_a,)
     )
     activity_b = LevelingActivity(
-        "B", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_b,)
+        "B", date(2026, 9, 21), date(2026, 9, 21), 1, (demand_b,)
+    )
+    backward_a = BackwardLevelingActivity(
+        "A", date(2026, 9, 21), date(2026, 9, 22),
+        date(2026, 9, 21), date(2026, 9, 22), (demand_a,)
+    )
+    backward_b = BackwardLevelingActivity(
+        "B", date(2026, 9, 21), date(2026, 9, 21),
+        date(2026, 9, 22), date(2026, 9, 22), (demand_b,)
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(activity_a, activity_b),
-        backward_activities=(activity_a, activity_b),
+        backward_activities=(backward_a, backward_b),
         capacities=(ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
