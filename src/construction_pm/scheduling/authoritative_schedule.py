@@ -78,12 +78,12 @@ class AuthoritativeScheduleInput:
     activities: tuple[Activity | TimeActivity, ...]
     relationships: tuple[Relationship | TimeRelationship, ...]
     activity_calendar_assignments: tuple[ActivityCalendarAssignment, ...]
-    resource_calendar_assignments: tuple[ResourceCalendarAssignment, ...] = ()
     constraints: tuple[ActivityConstraint, ...] = ()
     schedule_options: ScheduleOptions = ScheduleOptions()
     project_start: date | datetime | None = None
     project_finish: date | datetime | None = None
     project_leveling_priority: int = 10
+    resource_calendar_assignments: tuple[ResourceCalendarAssignment, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
