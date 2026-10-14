@@ -349,7 +349,7 @@ def test_forward_leveling_validates_input_collections(activities, capacities, er
         propose_forward_leveling_within_float(
             activities,
             capacities,
-            resolver=resolver(),
+            resolver=WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())),
         )
 
 
