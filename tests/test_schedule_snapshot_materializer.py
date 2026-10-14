@@ -505,6 +505,70 @@ def test_materializer_rejects_invalid_priority_sort_order(sort_order):
     ):
         materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
 
+
+def test_materializer_preserves_priority_list_order_and_explicit_sort_directions():
+    from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder
+
+    cal = CalendarReference("CAL-PRIORITY-ROUNDTRIP", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-PRIORITY-ROUNDTRIP",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal,
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(
+            priority_list=(
+                PriorityListItem("total_float", PrioritySortOrder.DESCENDING),
+                PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
+            ),
+        ),
+        project_start=date(2026, 10, 1),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=1, calendar_id=cal.calendar_id,
+        calendar_version=cal.version, rules_version="rules-1", engine_version="engine-1",
+        timezone="UTC", calculation_timestamp="2026-10-01T08:00:00+00:00",
+        input_snapshot_id="S-PRIORITY-ROUNDTRIP", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 10, 1, 8, tzinfo=timezone.utc)
+    )
+
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    priorities = result.schedule_input.schedule_options.priority_list
+
+    assert priorities == (
+        PriorityListItem("total_float", PrioritySortOrder.DESCENDING),
+        PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
+    )
+
+
+def test_materializer_rejects_empty_priority_list_instead_of_silently_defaulting():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["priority_list"] = []
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    candidate = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:priority_list",
+    ):
+        materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
     payload = snapshot.canonical_payload.replace('"system":"gregorian"', '"system":"invalid"')
