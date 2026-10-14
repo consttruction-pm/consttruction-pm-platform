@@ -384,7 +384,7 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", thursday, thursday, 1, (demand,)),),
-        backward_activities=(BackwardLevelingActivity("A", thursday, thursday, friday, friday, (demand,)),)
+        backward_activities=(BackwardLevelingActivity("A", thursday, thursday, friday, friday, (demand,)),),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("8")),
             ResourceCapacity("R1", friday, Decimal("0")),
@@ -803,7 +803,7 @@ def test_final_resource_validation_rejects_missing_scheduled_activity_with_deman
     demand = ResourceDemand("R1", day, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", day, day, 1, (demand,)),),
-        backward_activities=(BackwardLevelingActivity("A", day, day, day, day, (demand,)),)
+        backward_activities=(BackwardLevelingActivity("A", day, day, day, day, (demand,)),),
         capacities=(ResourceCapacity("R1", day, Decimal("8")),),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
@@ -934,7 +934,7 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
     demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (demand,)),),
-        backward_activities=(BackwardLevelingActivity("A", monday, monday, monday, monday, (demand,)),)
+        backward_activities=(BackwardLevelingActivity("A", monday, monday, monday, monday, (demand,)),),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),
