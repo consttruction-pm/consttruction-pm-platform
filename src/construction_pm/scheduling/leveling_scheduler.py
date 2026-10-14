@@ -109,10 +109,13 @@ def _backward_activities_from_intermediate(
                             resolver.working_days_between(
                                 forward_by_id[activity.activity_id].start,
                                 late.start,
-                            ),
+                            ) + 1,
                         ),
                         demand.units,
                         demand.activity_id,
+                        demand.resource_identity,
+                        demand.project_id,
+                        demand.tenant_id,
                     )
                     for demand in forward_by_id.get(activity.activity_id, activity).resource_demands
                 ),
