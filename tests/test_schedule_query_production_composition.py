@@ -196,3 +196,97 @@ def test_production_composition_wires_backend_p0_workspace_control_room():
         "project_id": "P-1",
         "project_revision": 9,
     }
+
+
+def test_production_composition_uses_real_backend_p0_api_for_workspace_read():
+    """Exercise the authenticated WSGI route with the real API/service boundary."""
+    from construction_pm.backend_p0.api import BackendP0API, BackendP0ApplicationService
+    from construction_pm.backend_p0.persistence import SQLiteBackendP0Repository
+    from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+    from construction_pm.backend_p0.workspace_read import (
+        WORKSPACE_CONTROL_ROOM_READ_VERSION,
+        InMemoryWorkspaceReadProvider,
+        WorkspaceControlRoomReadService,
+    )
+
+    conn = sqlite3.connect(":memory:")
+    try:
+        now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+        scope = BackendScope("T-1", "P-1", 9)
+        read_snapshot = {
+            "contract_version": WORKSPACE_CONTROL_ROOM_READ_VERSION,
+            "context": {"tenant_id": "T-1", "project_id": "P-1", "revision": 9},
+            "workspace": {
+                "contract_version": "workspace-control-room.v1",
+                "context": {"tenant_id": "T-1", "project_id": "P-1", "revision": 9},
+                "columns": [],
+                "activities": [],
+            },
+            "field_daily_logs": [],
+            "field_issues": [],
+            "field_timecards": [],
+            "equipment_status_reports": [],
+            "inspections": [],
+            "quality_records": [],
+            "safety_observations": [],
+            "punch_items": [],
+        }
+        repository = SQLiteBackendP0Repository(conn)
+        backend_service = BackendP0ApplicationService(
+            repository,
+            SQLiteTransactionManager(conn),
+            default_project_policy(),
+        )
+        read_service = WorkspaceControlRoomReadService(
+            InMemoryWorkspaceReadProvider({("T-1", "P-1", 9): read_snapshot}),
+            default_project_policy(),
+            procurement_repository=repository,
+        )
+        backend_api = BackendP0API(backend_service, read_service)
+        snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+        context_repo = SQLiteCalculationContextRepository(conn)
+        registry = CalendarResolverRegistry(
+            day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+        )
+        app = build_project_lifecycle_wsgi_app(
+            lifecycle_api=_lifecycle_api(now),
+            snapshot_repository=snapshot_repo,
+            calendar_registry_factory=lambda: registry,
+            calculation_context_repository=context_repo,
+            authorization_policy=default_project_policy(),
+            backend_p0_api=backend_api,
+            clock=type("Clock", (), {"now": lambda self: now})(),
+        )
+
+        status_line: list[str] = []
+        result: list[bytes] = []
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "PATH_INFO": "/api/v1/workspace/control-room/read",
+            "HTTP_COOKIE": "cp_session=s1",
+            "HTTP_X_TENANT_ID": "T-1",
+            "HTTP_X_PROJECT_ID": "P-1",
+            "HTTP_X_PROJECT_REVISION": "9",
+            "CONTENT_LENGTH": "0",
+            "wsgi.input": BytesIO(b""),
+        }
+
+        def start_response(status: str, headers: list[tuple[str, str]]) -> None:
+            status_line.append(status)
+
+        result.extend(app(environ, start_response))
+        payload_out = json.loads(b"".join(result))
+
+        assert status_line == ["200 OK"]
+        assert payload_out["contract_version"] == WORKSPACE_CONTROL_ROOM_READ_VERSION
+        assert payload_out["context"] == {
+            "tenant_id": "T-1",
+            "project_id": "P-1",
+            "revision": 9,
+        }
+        assert payload_out["workspace"]["columns"] == []
+        assert payload_out["workspace"]["activities"] == []
+        assert payload_out["procurement_quotes"] == []
+    finally:
+        conn.close()
+
