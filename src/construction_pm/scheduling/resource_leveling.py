@@ -175,6 +175,7 @@ class LevelingActivity:
     # The scheduler fills these from its current CPM result before proposals.
     late_start: date | None = None
     late_finish: date | None = None
+    free_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -200,6 +201,10 @@ class LevelingActivity:
                 not isinstance(value, date) or isinstance(value, datetime)
             ):
                 raise ResourceLevelingError("INVALID_ACTIVITY_LATE_DATE")
+        if self.free_float is not None and (
+            isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -249,12 +254,13 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "early_finish": activity.finish,
         "late_start": activity.late_start,
         "late_finish": activity.late_finish,
+        "free_float": activity.free_float,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
@@ -456,6 +462,7 @@ def propose_forward_leveling(
             a.activity_priority,
             a.late_start,
             a.late_finish,
+            a.free_float,
         )
         for a in activities
     )
@@ -514,6 +521,7 @@ def apply_leveling_shifts(
             activity_priority=activity.activity_priority,
             late_start=activity.late_start,
             late_finish=activity.late_finish,
+            free_float=activity.free_float,
         ))
     return tuple(result)
 
@@ -533,12 +541,17 @@ class BackwardLevelingActivity:
     # Authoritative schedule float under the configured Start/Finish/Smaller basis.
     # It is separate from the number of working days between early and late starts.
     total_float: int | None = None
+    free_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
         if self.total_float is not None and (
             isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if self.free_float is not None and (
+            isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
@@ -577,7 +590,7 @@ def backward_leveling_priority_key(
     """
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish", "total_float",
+        "early_finish", "late_start", "late_finish", "free_float", "total_float",
     }
     values = {
         "activity_id": activity.activity_id,
@@ -586,6 +599,7 @@ def backward_leveling_priority_key(
         "early_finish": activity.early_finish,
         "late_start": activity.late_start,
         "late_finish": activity.late_finish,
+        "free_float": activity.free_float,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
@@ -594,6 +608,8 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
+        if normalized == "free_float" and value is None:
+            raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
         elif normalized == "activity_id":
@@ -702,7 +718,7 @@ def propose_backward_leveling(
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish", "total_float",
+        "early_finish", "late_start", "late_finish", "free_float", "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
@@ -715,6 +731,10 @@ def propose_backward_leveling(
         activity.total_float is None for activity in activity_list
     ):
         raise ResourceLevelingError("MISSING_AUTHORITATIVE_TOTAL_FLOAT")
+    if "free_float" in normalized_priorities and any(
+        activity.free_float is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
     selected_resources = set(
         select_leveling_resources(
