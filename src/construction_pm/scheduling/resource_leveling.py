@@ -664,7 +664,7 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
-        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration"} and value is None:
+        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration"} and value is None:
             raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
@@ -776,7 +776,7 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "original_or_planned_duration", "total_float",
+        "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
