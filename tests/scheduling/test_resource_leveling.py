@@ -240,18 +240,31 @@ def test_late_finish_priority_uses_authoritative_cpm_late_date():
             late_finish=day_two,
         ),
     )
-    capacities = (ResourceCapacity("R1", day_one, Decimal("8")),)
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+    priority = (LevelingPriority("late_finish", SortOrder.ASCENDING),)
 
     shifts = propose_forward_leveling_within_float(
         activities,
         capacities,
         resolver=resolver,
-        priorities=(LevelingPriority("late_finish", SortOrder.ASCENDING),),
+        priorities=priority,
+    )
+    unconstrained = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        level_within_float=False,
+        priorities=priority,
     )
 
     # The configured late-finish row wins over the conflicting Activity Priority
     # values and over demand-size tie-breaking: A2 has the earlier CPM late finish.
+    # Both the within-float and unconstrained paths must preserve/use those dates.
     assert [shift.activity_id for shift in shifts] == ["A2"]
+    assert [shift.activity_id for shift in unconstrained] == ["A2"]
 
 
 def test_late_start_priority_fails_closed_when_cpm_value_is_missing():
