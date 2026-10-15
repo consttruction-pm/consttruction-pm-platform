@@ -304,6 +304,19 @@ def execute_authoritative_schedule_batch(
                 for demands in selected_by_project.values()
                 for demand in demands
             )
+            snapshot_by_project_id = {
+                snapshot.project_id: snapshot for snapshot in snapshot_list
+            }
+            priority_snapshots_by_activity_id = {}
+            for activity_id in sorted(activity_ids):
+                project_id = all_activity_projects.get(activity_id)
+                project_snapshot = snapshot_by_project_id.get(project_id)
+                if project_snapshot is None:
+                    raise UnsupportedMultiProjectSchedulingError(
+                        "MULTI_PROJECT_PLANNED_START_SOURCE_MISSING:" + activity_id
+                    )
+                priority_snapshots_by_activity_id[activity_id] = project_snapshot
+
             def demands_for(activity_id: str, existing: Iterable[ResourceDemand]) -> tuple[ResourceDemand, ...]:
                 merged = tuple(existing) + tuple(
                     demand for demand in selected_demands
@@ -325,6 +338,9 @@ def execute_authoritative_schedule_batch(
                     start=initial.activities[activity.activity_id].start,
                     finish=initial.activities[activity.activity_id].finish,
                     total_float=initial.floats[activity.activity_id].total_float,
+                    project_planned_start=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_start,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
@@ -343,6 +359,9 @@ def execute_authoritative_schedule_batch(
                     early_finish=early[activity.activity_id].finish,
                     late_start=late[activity.activity_id].start,
                     late_finish=late[activity.activity_id].finish,
+                    project_planned_start=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_start,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
