@@ -837,6 +837,63 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
 
 
 
+def test_resource_leveling_preserves_activity_calendar_resolvers_through_recalculation() -> None:
+    start = date(2026, 10, 2)  # Friday
+    monday = date(2026, 10, 5)
+    tuesday = date(2026, 10, 6)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    seven_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset(range(7)), holidays=frozenset(),
+    ))
+    # Both activities demand the same resource on Friday. Capacity forces A
+    # to move over the weekend; CPM recalculation must still use A's 7-day
+    # calendar and B's weekday calendar. Leveling movement itself intentionally
+    # uses the project resolver; activity_resolvers apply to CPM recalculation.
+    demand_a = (ResourceDemand("R1", start, Decimal("8"), "A"),)
+    demand_b = (ResourceDemand("R1", start, Decimal("8"), "B"),)
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", start, date(2026, 10, 3), 0, demand_a),
+            LevelingActivity("B", start, date(2026, 10, 5), 0, demand_b),
+        ),
+        # The boundary requires matching activity IDs even though this fixture
+        # preserves early/late dates and therefore does not run backward leveling.
+        backward_activities=(
+            BackwardLevelingActivity("A", start, date(2026, 10, 3), start, date(2026, 10, 3), demand_a),
+            BackwardLevelingActivity("B", start, date(2026, 10, 5), start, date(2026, 10, 5), demand_b),
+        ),
+        capacities=(
+            ResourceCapacity("R1", start, Decimal("8")),
+            ResourceCapacity("R1", monday, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 2), Activity("B", 2)),
+        (),
+        start,
+        project_resolver,
+        leveling_input,
+        project_finish=tuesday,
+        activity_resolvers={"A": seven_day_resolver, "B": project_resolver},
+    )
+
+    assert [(shift.activity_id, shift.shift_working_days, shift.new_start) for shift in forward] == [
+        ("A", 1, monday),
+    ]
+    assert backward == ()
+    assert result.activities["A"].start == monday
+    assert result.activities["A"].finish == tuesday
+    assert result.activities["B"].start == start
+    assert result.activities["B"].finish == monday
+
+
 def test_backward_activity_builder_shifts_demands_across_weekend():
     from types import SimpleNamespace
 
