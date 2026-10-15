@@ -257,33 +257,32 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
 
 
 def test_public_leveling_orchestration_preserves_configured_minimum_float() -> None:
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
-    result, forward, backward = schedule_with_resource_leveling(
-        (Activity("A", 1), Activity("B", 1)),
-        (),
-        date(2026, 10, 1),
-        resolver,
-        _resource_leveling_input(preserve=True),
-        project_finish=date(2026, 10, 3),
-        options=ScheduleOptions(
-            level_all_resources=True,
-            level_within_float=True,
-            min_float_to_preserve=1,
-            preserve_scheduled_early_and_late_dates=True,
-        ),
-    )
-
-    # Each activity has one day of total float in the leveling input. Preserving
-    # one day leaves no movement allowance, so the engine must not shift either
-    # activity merely to remove the resource overload.
-    assert forward == ()
-    assert backward == ()
-    assert result.activities["A"].start == date(2026, 10, 1)
-    assert result.activities["B"].start == date(2026, 10, 1)
+    # Both activities demand 8 units on day one, but capacity is only 8.
+    # Preserving one day of float leaves no legal shift, so the final-load guard
+    # must reject this infeasible schedule instead of silently accepting overload.
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            project_finish=date(2026, 10, 3),
+            options=ScheduleOptions(
+                level_all_resources=True,
+                level_within_float=True,
+                min_float_to_preserve=1,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
 
 
 
