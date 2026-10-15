@@ -116,6 +116,7 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
             PriorityListItem("late_start", PrioritySortOrder.DESCENDING),
             PriorityListItem("free_float", PrioritySortOrder.ASCENDING),
             PriorityListItem("remaining_duration", PrioritySortOrder.ASCENDING),
+            PriorityListItem("original_or_planned_duration", PrioritySortOrder.ASCENDING),
             PriorityListItem("activity_priority", PrioritySortOrder.DESCENDING),
             PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
         ),
@@ -134,6 +135,7 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
         ("late_start", SortOrder.DESCENDING),
         ("free_float", SortOrder.ASCENDING),
         ("remaining_duration", SortOrder.ASCENDING),
+        ("original_or_planned_duration", SortOrder.ASCENDING),
         ("activity_priority", SortOrder.DESCENDING),
         ("activity_id", SortOrder.ASCENDING),
     ]
