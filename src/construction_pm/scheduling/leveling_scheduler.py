@@ -161,6 +161,7 @@ def _backward_activities_from_intermediate(
                 free_float=authoritative_free_float,
                 remaining_duration=forward_activity.remaining_duration,
                 planned_duration=forward_activity.planned_duration,
+                original_duration=forward_activity.original_duration,
             )
         )
     return tuple(result)
@@ -413,6 +414,11 @@ def schedule_with_resource_leveling(
             planned_duration=getattr(
                 scheduler_activity_by_id[activity.activity_id],
                 "duration",
+                None,
+            ),
+            original_duration=getattr(
+                scheduler_activity_by_id[activity.activity_id],
+                "original_duration",
                 None,
             ),
         )
