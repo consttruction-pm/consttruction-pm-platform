@@ -736,7 +736,8 @@ def propose_backward_leveling(
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish", "free_float", "total_float",
+        "early_finish", "late_start", "late_finish", "free_float",
+        "remaining_duration", "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
