@@ -112,6 +112,8 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
     options = ScheduleOptions(
         priority_list=(
             PriorityListItem("total_float", PrioritySortOrder.ASCENDING),
+            PriorityListItem("late_finish", PrioritySortOrder.ASCENDING),
+            PriorityListItem("late_start", PrioritySortOrder.DESCENDING),
             PriorityListItem("activity_priority", PrioritySortOrder.DESCENDING),
             PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
         ),
@@ -126,6 +128,8 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
 
     assert [(item.field_name, item.sort_order) for item in boundary.options.priorities] == [
         ("total_float", SortOrder.ASCENDING),
+        ("late_finish", SortOrder.ASCENDING),
+        ("late_start", SortOrder.DESCENDING),
         ("activity_priority", SortOrder.DESCENDING),
         ("activity_id", SortOrder.ASCENDING),
     ]
