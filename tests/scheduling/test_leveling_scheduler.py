@@ -7,9 +7,15 @@ from construction_pm.scheduling.leveling_scheduler import (
     merge_leveling_constraints,
 )
 from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
     BackwardLevelingShift,
     LevelingShift,
+    ResourceDemand,
+    ResourceCapacity,
+    ResourceLevelingOptions,
 )
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
 
 def test_forward_leveling_becomes_start_lower_bound() -> None:
@@ -921,7 +927,9 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
     demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity("A", monday, monday, monday, monday, (demand,)),
+        ),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),
