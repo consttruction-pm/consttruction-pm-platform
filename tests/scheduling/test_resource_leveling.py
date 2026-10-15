@@ -219,6 +219,59 @@ def test_priority_based_leveling_uses_configured_priority_before_demand_size():
     assert shifts[0].activity_id == "A2"
 
 
+def test_late_finish_priority_uses_authoritative_cpm_late_date():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "A1", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+            activity_priority=0,
+            late_finish=day_three,
+        ),
+        LevelingActivity(
+            "A2", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("4"), "A2"),),
+            activity_priority=99,
+            late_finish=day_two,
+        ),
+    )
+    capacities = (ResourceCapacity("R1", day_one, Decimal("8")),)
+
+    shifts = propose_forward_leveling_within_float(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("late_finish", SortOrder.ASCENDING),),
+    )
+
+    # The configured late-finish row wins over the conflicting Activity Priority
+    # values and over demand-size tie-breaking: A2 has the earlier CPM late finish.
+    assert [shift.activity_id for shift in shifts] == ["A2"]
+
+
+def test_late_start_priority_fails_closed_when_cpm_value_is_missing():
+    day_one = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1", day_one, day_one, 1,
+        (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
+        propose_forward_leveling_within_float(
+            (activity,),
+            (),
+            resolver=resolver,
+            priorities=(LevelingPriority("late_start", SortOrder.ASCENDING),),
+        )
+
+
 def test_priority_tie_falls_back_to_activity_id():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activities = (
