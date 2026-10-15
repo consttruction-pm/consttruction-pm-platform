@@ -250,6 +250,8 @@
       "activity_priority",
       "early_start",
       "early_finish",
+      "late_start",
+      "late_finish",
       "total_float"
     ],
     "documented_p6_professional_priority_fields": [
@@ -275,8 +277,8 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Current engine accepts only five fields; free_float, late_finish, late_start, original_or_planned_duration, planned_finish, project_planned_start, project_priority, and remaining_duration are not represented in the current LevelingActivity priority resolver.",
-        "status": "documented_gap"
+        "detail": "Current resolver supports seven fields: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish and Total Float. Remaining fields not yet represented in the resolver are free_float, original_or_planned_duration, planned_finish, project_planned_start, project_priority and remaining_duration.",
+        "status": "partially_implemented_pending_acceptance"
       },
       {
         "gap": "hierarchy-sort",
@@ -285,7 +287,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "A regression now covers numeric/alphabetic Activity ID ordering and a separate backward-leveling regression covers conflict between Total Float and Activity Priority. Remaining acceptance must cover multiple ordered criteria across forward/backward proposal and rollback, all applicable priority values, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
+        "detail": "Regression coverage now targets numeric/alphabetic Activity ID order, an ordered Total Float vs Activity Priority conflict during backward rollback, and CPM-derived Late Finish priority in forward/backward leveling. Remaining acceptance must cover broader multi-field precedence across all 7 implemented and 6 missing values, full sort-direction semantics, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -295,7 +297,7 @@
       "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
       "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html"
     ],
-    "compatibility_rule": "Do not silently accept unsupported priority fields or claim full P6 PriorityList parity. Current Version 26 sources establish ordered-row precedence, number/alphabetic/blank Activity ID order and default Activity ID; keep all eight missing fields, Hierarchy sort, and source-backed wire-round-trip gaps explicit until each has a supported data source and regression evidence.",
+    "compatibility_rule": "The open scheduling PR implements CPM-derived Late Start/Late Finish priority values in both forward and backward candidate selection and uses the same ordered comparator during backward overload rollback. These two fields remain pending acceptance until exact-head CI and semantic review pass. Do not silently accept the six missing priority fields or Hierarchy sort, and do not claim full P6 PriorityList parity while the REST/interchange round-trip is unverified.",
     "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
     "documented_rules": [
       {
