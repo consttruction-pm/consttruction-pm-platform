@@ -145,6 +145,9 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
             # The authoritative CPM schedule constrains B to start on Sep 23;
             # final-load validation needs capacity at that actual scheduled date.
             ResourceCapacity("R1", date(2026, 9, 23), Decimal("1")),
+            # The authoritative CPM result places B on Sep 25 after its
+            # start constraint and duration are propagated; validate that date.
+            ResourceCapacity("R1", date(2026, 9, 25), Decimal("1")),
         ),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
