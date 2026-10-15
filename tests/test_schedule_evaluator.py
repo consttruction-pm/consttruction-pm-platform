@@ -140,7 +140,12 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     leveling_input = SchedulerLevelingInput(
         forward_activities=(activity_a, activity_b),
         backward_activities=(activity_a, activity_b),
-        capacities=(ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),),
+        capacities=(
+            ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),
+            # The authoritative CPM schedule constrains B to start on Sep 23;
+            # final-load validation needs capacity at that actual scheduled date.
+            ResourceCapacity("R1", date(2026, 9, 23), Decimal("1")),
+        ),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
 
