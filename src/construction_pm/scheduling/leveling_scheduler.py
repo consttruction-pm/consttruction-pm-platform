@@ -426,11 +426,10 @@ def schedule_with_resource_leveling(
                 "original_duration",
                 None,
             ),
-            project_planned_start=(
-                activity.project_planned_start
-                if activity.project_planned_start is not None
-                else project_start
-            ),
+            # Do not substitute the current schedule calculation start for the
+            # distinct Project Planned Start priority value. Missing source data
+            # must fail closed in the priority comparator.
+            project_planned_start=activity.project_planned_start,
         )
         for activity in leveling_input.forward_activities
     )
