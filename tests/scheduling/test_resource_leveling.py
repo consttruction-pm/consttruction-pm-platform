@@ -973,7 +973,7 @@ def test_backward_remaining_duration_priority_beats_activity_priority():
     assert len(shifts) == 1
     assert shifts[0].activity_id == "B"
 
-def test_original_or_planned_duration_priority_uses_planned_activity_duration():
+def test_original_duration_priority_uses_distinct_activity_field():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     resolver = WorkingTimeResolver(
@@ -984,20 +984,22 @@ def test_original_or_planned_duration_priority_uses_planned_activity_duration():
             "A1", day_one, day_one, 2,
             (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
             activity_priority=99,
-            planned_duration=1,
+            planned_duration=9,
+            original_duration=1,
         ),
         LevelingActivity(
             "A2", day_one, day_one, 2,
             (ResourceDemand("R1", day_one, Decimal("4"), "A2"),),
             activity_priority=1,
-            planned_duration=3,
+            planned_duration=1,
+            original_duration=3,
         ),
     )
     capacities = (
         ResourceCapacity("R1", day_one, Decimal("8")),
         ResourceCapacity("R1", day_two, Decimal("8")),
     )
-    priority = (LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),)
+    priority = (LevelingPriority("original_duration", SortOrder.ASCENDING),)
 
     within_float = propose_forward_leveling_within_float(
         activities, capacities, resolver=resolver, priorities=priority,
@@ -1027,7 +1029,7 @@ def test_original_or_planned_duration_priority_fails_closed_when_missing():
         )
 
 
-def test_backward_original_duration_priority_uses_shorter_planned_duration():
+def test_backward_original_duration_priority_uses_original_duration():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1038,12 +1040,12 @@ def test_backward_original_duration_priority_uses_shorter_planned_duration():
         BackwardLevelingActivity(
             "A", day_one, day_one, day_two, day_two,
             (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
-            activity_priority=99, total_float=5, planned_duration=1,
+            activity_priority=99, total_float=5, planned_duration=3, original_duration=1,
         ),
         BackwardLevelingActivity(
             "B", day_one, day_one, day_three, day_three,
             (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
-            activity_priority=1, total_float=1, planned_duration=3,
+            activity_priority=1, total_float=1, planned_duration=1, original_duration=3,
         ),
     )
     capacities = (
@@ -1053,7 +1055,7 @@ def test_backward_original_duration_priority_uses_shorter_planned_duration():
 
     shifts = propose_backward_leveling(
         activities, capacities, resolver=resolver,
-        priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
+        priorities=(LevelingPriority("original_duration", SortOrder.ASCENDING),),
     )
 
     assert len(shifts) == 1
