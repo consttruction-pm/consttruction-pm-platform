@@ -401,7 +401,7 @@ def propose_forward_leveling_within_float(
                 shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
                 units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
                 if units > 0:
-                    priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
+                    priority_key = _priority_sort_key(activity, priorities)
                     candidates.append((priority_key, -units, activity.activity_id))
         if not candidates:
             break
@@ -596,12 +596,21 @@ def backward_leveling_priority_key(
         value = values[normalized]
         if value is None:
             parts.append((1, ""))
+        elif normalized == "activity_id":
+            category, comparable = _activity_id_value_key(str(value))
+            ordered_value = (
+                comparable
+                if priority.sort_order is SortOrder.ASCENDING
+                else _Descending(comparable)
+            )
+            parts.append((category, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
             parts.append((0, value))
         else:
             parts.append((0, _Descending(value)))
-    # Activity ID remains the deterministic final tie-breaker.
-    parts.append((0, activity.activity_id))
+    # Use the documented Activity ID comparator for the deterministic final tie-breaker.
+    id_category, id_value = _activity_id_value_key(activity.activity_id)
+    parts.append((id_category, id_value))
     return tuple(parts)
 
 
