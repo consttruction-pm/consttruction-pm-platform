@@ -9,9 +9,11 @@ from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
     LevelingActivity,
+    LevelingPriority,
     LevelingShift,
     ResourceDemand,
     apply_leveling_shifts,
+    backward_leveling_priority_key,
     detect_over_allocations,
     select_leveling_resources,
     propose_backward_leveling,
@@ -174,6 +176,25 @@ def _select_backward_shift_frontier(
         if current is None or shift.advanced_days > current.advanced_days:
             selected[shift.activity_id] = shift
     return tuple(selected[key] for key in sorted(selected))
+
+
+def _select_backward_rollback_candidate(
+    candidates: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift],
+    *,
+    backward_activities: tuple[BackwardLevelingActivity, ...],
+    priorities: tuple[LevelingPriority, ...],
+) -> BackwardLevelingShift:
+    """Roll back the lowest-preference contributor under the configured order."""
+    activity_by_id = {item.activity_id: item for item in backward_activities}
+    missing_ids = {shift.activity_id for shift in candidates} - set(activity_by_id)
+    if not candidates or missing_ids:
+        raise ResourceLevelingError("INVALID_BACKWARD_ROLLBACK_CANDIDATES")
+    return max(
+        candidates,
+        key=lambda shift: backward_leveling_priority_key(
+            activity_by_id[shift.activity_id], priorities
+        ),
+    )
 
 
 def _violated_backward_upper_bound_activity(
@@ -489,18 +510,13 @@ def schedule_with_resource_leveling(
                 if not candidates:
                     raise
 
-                # Backtrack the latest-selected accepted movement that contributes
-                # to this overload first. This preserves earlier-priority decisions
-                # while allowing the CPM result to keep a valid resource profile.
-                proposal_position = {
-                    (shift.activity_id, shift.advanced_days): index
-                    for index, shift in enumerate(proposed_backward_shifts)
-                }
-                rollback = max(
+                # Roll back the lowest-preference contributor under the same
+                # ordered criteria used by the backward proposal pass. Proposal
+                # chronology alone can disagree with the configured priority list.
+                rollback = _select_backward_rollback_candidate(
                     candidates,
-                    key=lambda shift: proposal_position.get(
-                        (shift.activity_id, shift.advanced_days), -1
-                    ),
+                    backward_activities=backward_activities,
+                    priorities=leveling_input.options.priorities,
                 )
                 current_limit = advance_limits.get(rollback.activity_id, 0)
                 previous_steps = [
