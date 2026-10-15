@@ -809,6 +809,85 @@ def test_public_leveling_supports_authoritative_remaining_duration_priority() ->
     assert result.activities["B"].start == thursday
 
 
+def test_public_leveling_supports_original_or_planned_duration_priority() -> None:
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        LevelingActivity,
+        ResourceCapacity,
+        ResourceDemand,
+        ResourceLevelingOptions,
+    )
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+        ScheduleOptions,
+    )
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", thursday, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", thursday, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", thursday, thursday, 2, (demand_a,), activity_priority=99),
+            LevelingActivity("B", thursday, friday, 1, (demand_b,), activity_priority=1),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", thursday, thursday, monday, monday, (demand_a,),
+            ),
+            BackwardLevelingActivity(
+                "B", thursday, friday, friday, monday, (demand_b,),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("8")),
+            ResourceCapacity("R1", friday, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 2)),
+        (),
+        thursday,
+        resolver,
+        leveling_input,
+        project_finish=monday,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            preserve_scheduled_early_and_late_dates=True,
+            priority_list=(
+                PriorityListItem(
+                    "original_or_planned_duration",
+                    PrioritySortOrder.ASCENDING,
+                ),
+            ),
+        ),
+    )
+
+    # The scheduler's planned durations (1 day for A, 2 for B) supply this
+    # priority value. A has the less favorable activity-priority metadata, but
+    # the shorter planned duration takes precedence because it is the first row.
+    assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
+        ("A", 1),
+    ]
+    assert backward == ()
+    assert result.activities["A"].start == friday
+    assert result.activities["B"].start == thursday
+
+
 def test_public_leveling_orchestration_applies_overallocation_tolerance() -> None:
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
