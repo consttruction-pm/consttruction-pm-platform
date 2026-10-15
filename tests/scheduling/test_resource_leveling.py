@@ -827,3 +827,103 @@ def test_backward_free_float_priority_beats_conflicting_activity_priority():
     assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
+def test_remaining_duration_priority_uses_activity_model_value_in_forward_passes():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "A1", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+            activity_priority=99,
+            remaining_duration=1,
+        ),
+        LevelingActivity(
+            "A2", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("4"), "A2"),),
+            activity_priority=1,
+            remaining_duration=2,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+    priority = (LevelingPriority("remaining_duration", SortOrder.ASCENDING),)
+
+    within_float = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver, priorities=priority,
+    )
+    unconstrained = propose_forward_leveling(
+        activities, capacities, resolver=resolver, level_within_float=False,
+        priorities=priority,
+    )
+
+    assert [shift.activity_id for shift in within_float] == ["A1"]
+    assert [shift.activity_id for shift in unconstrained] == ["A1"]
+
+
+def test_remaining_duration_priority_fails_closed_when_activity_value_is_missing():
+    day_one = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1", day_one, day_one, 1,
+        (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
+        propose_forward_leveling_within_float(
+            (activity,), (), resolver=resolver,
+            priorities=(LevelingPriority("remaining_duration", SortOrder.ASCENDING),),
+        )
+
+
+def test_backward_remaining_duration_priority_selects_shorter_remaining_work():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A",
+            early_start=day_one,
+            early_finish=day_one,
+            late_start=day_two,
+            late_finish=day_two,
+            resource_demands=(ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+            activity_priority=99,
+            total_float=5,
+            remaining_duration=1,
+        ),
+        BackwardLevelingActivity(
+            "B",
+            early_start=day_one,
+            early_finish=day_one,
+            late_start=day_three,
+            late_finish=day_three,
+            resource_demands=(ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+            activity_priority=1,
+            total_float=1,
+            remaining_duration=2,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("remaining_duration", SortOrder.ASCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
+    assert shifts[0].advanced_days == 1
+
