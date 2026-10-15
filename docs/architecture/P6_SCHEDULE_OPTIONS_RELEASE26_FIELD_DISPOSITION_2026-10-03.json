@@ -275,8 +275,8 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Current engine accepts only five fields; free_float, late_finish, late_start, original_or_planned_duration, planned_finish, project_planned_start, project_priority, and remaining_duration are not represented in the current LevelingActivity priority resolver.",
-        "status": "documented_gap"
+        "detail": "Current mainline engine accepts five fields: activity_id, activity_priority, early_start, early_finish, and total_float. PR #1457 has a pending implementation for late_finish and late_start, not yet part of accepted mainline coverage. The remaining uncovered fields are free_float, original_or_planned_duration, planned_finish, project_planned_start, project_priority, and remaining_duration. Do not treat open PR implementation as accepted parity.",
+        "status": "documented_gap_with_two_candidate_fields_pending_review"
       },
       {
         "gap": "hierarchy-sort",
@@ -285,7 +285,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "A regression now covers numeric/alphabetic Activity ID ordering and a separate backward-leveling regression covers conflict between Total Float and Activity Priority. Remaining acceptance must cover multiple ordered criteria across forward/backward proposal and rollback, all applicable priority values, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
+        "detail": "Regression evidence covers numeric/alphabetic Activity ID ordering and a Total Float versus Activity Priority conflict for backward rollback; PR #1457 additionally adds late-date priority mapping tests. Remaining acceptance must cover multiple ordered criteria in forward/backward proposal and rollback, all accepted priority values, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -295,7 +295,7 @@
       "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
       "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html"
     ],
-    "compatibility_rule": "Do not silently accept unsupported priority fields or claim full P6 PriorityList parity. Current Version 26 sources establish ordered-row precedence, number/alphabetic/blank Activity ID order and default Activity ID; keep all eight missing fields, Hierarchy sort, and source-backed wire-round-trip gaps explicit until each has a supported data source and regression evidence.",
+    "compatibility_rule": "Do not silently accept unsupported priority fields or claim full Release 26 PriorityList parity. Current mainline coverage is five fields; late_start/late_finish are candidate coverage in Draft PR #1457 only. The remaining six fields, Hierarchy sort, multi-field behavior, and source-backed wire round-trip stay explicitly blocked until supported values, independent review, and regression evidence exist.",
     "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
     "documented_rules": [
       {
@@ -313,6 +313,16 @@
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
         "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
       }
-    ]
+    ],
+    "pending_pr_implementation": {
+      "pull_request": 1457,
+      "url": "https://github.com/consttruction-pm/consttruction-pm-platform/pull/1457",
+      "status": "draft_pending_exact_head_ci_and_independent_semantic_review",
+      "fields": [
+        "late_start",
+        "late_finish"
+      ],
+      "detail": "PR #1457 adds authoritative late_start/late_finish values to LevelingActivity, resolves them from CPM late dates, maps them through PriorityList, and adds mapping tests. Do not count these as accepted/current release coverage until the PR's final head passes the complete CI matrix, the change is merged, and the independent Version 26 semantic review is recorded."
+    }
   }
 }
