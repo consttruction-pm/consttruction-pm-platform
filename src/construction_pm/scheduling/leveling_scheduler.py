@@ -159,6 +159,7 @@ def _backward_activities_from_intermediate(
                 activity_priority=activity.activity_priority,
                 total_float=authoritative_total_float,
                 free_float=authoritative_free_float,
+                remaining_duration=forward_activity.remaining_duration,
             )
         )
     return tuple(result)
@@ -352,6 +353,10 @@ def schedule_with_resource_leveling(
     if len(set(scheduler_ids)) != len(scheduler_ids):
         raise ResourceLevelingError("DUPLICATE_SCHEDULE_ACTIVITY_ID")
     scheduler_activity_ids = set(scheduler_ids)
+    scheduler_activity_by_id = {
+        getattr(activity, "id"): activity
+        for activity in activities
+    }
     leveling_activity_ids = {
         activity.activity_id for activity in leveling_input.forward_activities
     }
@@ -397,6 +402,11 @@ def schedule_with_resource_leveling(
             late_start=initial_late[activity.activity_id].start,
             late_finish=initial_late[activity.activity_id].finish,
             free_float=initial.floats[activity.activity_id].free_float,
+            remaining_duration=getattr(
+                scheduler_activity_by_id[activity.activity_id],
+                "remaining_duration",
+                None,
+            ),
         )
         for activity in leveling_input.forward_activities
     )
