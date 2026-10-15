@@ -217,6 +217,11 @@
       "field": "data_date",
       "category": "shared_core_project_context",
       "status": "project-level_context_not_a_current_release26_rest_ScheduleOptions_field"
+    },
+    {
+      "field": "min_float_to_preserve_unit",
+      "category": "shared_core_companion_input",
+      "status": "internal unit companion for MinFloatToPreserve; the cited current Release 26 REST ScheduleOptions schema defines MinFloatToPreserve but not a separate unit property"
     }
   ],
   "summary": {
@@ -224,7 +229,7 @@
     "current_rest_calculation_core": 24,
     "current_rest_api_metadata": 8,
     "historical_integration_extension": 1,
-    "internal_only_shared_core_fields": 2,
+    "internal_only_shared_core_fields": 3,
     "registry_coverage_required": "32/32"
   },
   "open_mapping_gaps": [

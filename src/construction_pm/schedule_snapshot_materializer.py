@@ -32,6 +32,7 @@ from .scheduling.schedule import (
     TotalFloatCalculationType,
 )
 from .scheduling.schedule_options import (
+    MinimumFloatUnit,
     OutOfSequenceScheduleType,
     PriorityListItem,
     PrioritySortOrder,
@@ -305,7 +306,16 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                 "multiple_float_paths_ending_activity_short_name"
             ),
             multiple_float_paths_use_total_float=_bool("multiple_float_paths_use_total_float", True),
-            min_float_to_preserve=_int("min_float_to_preserve", 0),
+            min_float_to_preserve=_decimal(value.get("min_float_to_preserve", 0)),
+            min_float_to_preserve_unit=MinimumFloatUnit(
+                _required_string(
+                    value,
+                    "min_float_to_preserve_unit",
+                    "INVALID_SCHEDULE_OPTION:min_float_to_preserve_unit",
+                )
+                if "min_float_to_preserve_unit" in value
+                else MinimumFloatUnit.HOUR.value
+            ),
             out_of_sequence_schedule_type=OutOfSequenceScheduleType(
                 _required_string(
                     value,

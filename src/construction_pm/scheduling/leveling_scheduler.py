@@ -341,6 +341,7 @@ def schedule_with_resource_leveling(
             backward_activities=leveling_input.backward_activities,
             capacities=leveling_input.capacities,
             options=selected_options,
+            resolver=resolver,
         )
 
     if selected_options.resource_list is not None:
@@ -363,7 +364,7 @@ def schedule_with_resource_leveling(
         leveling_input.capacities,
         resolver=resolver,
         level_within_float=leveling_input.options.level_within_float,
-        min_float_to_preserve=int(leveling_input.options.min_float_to_preserve),
+        min_float_to_preserve=leveling_input.options.min_float_to_preserve,
         over_allocation_percentage=leveling_input.options.over_allocation_percentage,
         priorities=leveling_input.options.priorities,
         level_all_resources=leveling_input.options.level_all_resources,

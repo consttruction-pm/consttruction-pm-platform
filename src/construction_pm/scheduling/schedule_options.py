@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-import math
+from decimal import Decimal, InvalidOperation
 from enum import Enum
+import math
 
 from .calendar_context import RelationshipLagCalendar
 
@@ -11,6 +12,20 @@ from .calendar_context import RelationshipLagCalendar
 class ScheduleMode(str, Enum):
     EARLIEST = "EARLIEST"
     ALAP = "ALAP"
+
+
+class MinimumFloatUnit(str, Enum):
+    """Display/input unit for the P6 Preserve Minimum Float option.
+
+    A bare numeric value defaults to HOURS, consistent with the reference
+    dialog's rule that an omitted unit is interpreted as hours.
+    """
+
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
 
 
 class TotalFloatCalculationType(str, Enum):
@@ -83,7 +98,8 @@ class ScheduleOptions:
     multiple_float_paths_ending_activity_object_id: str | None = None
     multiple_float_paths_ending_activity_short_name: str | None = None
     multiple_float_paths_use_total_float: bool = True
-    min_float_to_preserve: int = 0
+    min_float_to_preserve: int | float | Decimal = 0
+    min_float_to_preserve_unit: MinimumFloatUnit = MinimumFloatUnit.HOUR
     out_of_sequence_schedule_type: OutOfSequenceScheduleType = (
         OutOfSequenceScheduleType.RETAINED_LOGIC
     )
@@ -158,11 +174,17 @@ class ScheduleOptions:
             raise ValueError("multiple_float_paths_ending_activity_short_name must be a non-empty string")
 
         if isinstance(self.min_float_to_preserve, bool) or not isinstance(
-            self.min_float_to_preserve, int
+            self.min_float_to_preserve, (int, float, Decimal)
         ):
-            raise ValueError("min_float_to_preserve must be an integer")
-        if self.min_float_to_preserve < 0:
-            raise ValueError("min_float_to_preserve must be non-negative")
+            raise ValueError("min_float_to_preserve must be a numeric duration")
+        try:
+            minimum_float_value = Decimal(str(self.min_float_to_preserve))
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("min_float_to_preserve must be finite and non-negative") from exc
+        if not minimum_float_value.is_finite() or minimum_float_value < 0:
+            raise ValueError("min_float_to_preserve must be finite and non-negative")
+        if not isinstance(self.min_float_to_preserve_unit, MinimumFloatUnit):
+            raise ValueError("min_float_to_preserve_unit must be a MinimumFloatUnit")
 
         if not isinstance(
             self.out_of_sequence_schedule_type, OutOfSequenceScheduleType

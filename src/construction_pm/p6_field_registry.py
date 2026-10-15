@@ -192,7 +192,7 @@ _ROWS = (
     ("schedule_options.level_within_float","ScheduleOptions","LevelWithinFloat","Level Within Float","boolean",True,False,None),
     ("schedule_options.make_open_ended_activities_critical","ScheduleOptions","MakeOpenEndedActivitiesCritical","Make Open-Ended Activities Critical","boolean",True,False,None),
     ("schedule_options.maximum_multiple_float_paths","ScheduleOptions","MaximumMultipleFloatPaths","Maximum Multiple Float Paths","integer",True,False,None),
-    ("schedule_options.min_float_to_preserve","ScheduleOptions","MinFloatToPreserve","Minimum Float to Preserve","integer",True,False,None),
+    ("schedule_options.min_float_to_preserve","ScheduleOptions","MinFloatToPreserve","Minimum Float to Preserve","double",True,False,None),
     ("schedule_options.multiple_float_paths_enabled","ScheduleOptions","MultipleFloatPathsEnabled","Multiple Float Paths Enabled","boolean",True,False,None),
     ("schedule_options.multiple_float_paths_ending_activity_object_id","ScheduleOptions","MultipleFloatPathsEndingActivityObjectId","Multiple Float Paths Ending Activity","object-id",True,False,None),
     ("schedule_options.multiple_float_paths_ending_activity_short_name","ScheduleOptions","MultipleFloatPathsEndingActivityShortName","Multiple Float Paths Ending Activity Short Name","string",True,False,None),

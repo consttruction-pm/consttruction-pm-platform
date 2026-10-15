@@ -207,16 +207,21 @@ def test_schedule_options_map_all_authoritative_leveling_fields() -> None:
         preserve_scheduled_early_and_late_dates=True,
     )
 
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
     mapped = scheduler_leveling_input_from_options(
         forward_activities=base.forward_activities,
         backward_activities=base.backward_activities,
         capacities=base.capacities,
         options=options,
+        resolver=resolver,
     )
 
     assert mapped.options.level_all_resources is True
     assert mapped.options.level_within_float is True
-    assert mapped.options.min_float_to_preserve == Decimal("2")
+    # A unitless P6 value defaults to hours: 2 h / 8 h per workday = 0.25 days.
+    assert mapped.options.min_float_to_preserve == Decimal("0.25")
     assert mapped.options.over_allocation_percentage == Decimal("12.5")
     assert mapped.options.resource_ids == ("R1", "R2")
     assert mapped.options.preserve_scheduled_early_and_late_dates is True

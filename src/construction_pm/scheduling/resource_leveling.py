@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING
 
 from .calendar import WorkingTimeResolver
 from enum import Enum
@@ -275,12 +275,25 @@ class _Descending:
         return isinstance(other, _Descending) and self.value == other.value
 
 
+def _minimum_float_decimal(value: object) -> Decimal:
+    """Normalize a numeric minimum-float threshold without losing fractions."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
+    try:
+        result = Decimal(str(value))
+    except (ValueError, ArithmeticError) as exc:
+        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE") from exc
+    if not result.is_finite() or result < 0:
+        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
+    return result
+
+
 def propose_forward_leveling_within_float(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
     *,
     resolver: WorkingTimeResolver,
-    min_float_to_preserve: int = 0,
+    min_float_to_preserve: int | float | Decimal = 0,
     over_allocation_percentage: Decimal = Decimal("0"),
     priorities: tuple[LevelingPriority, ...] = (),
     level_all_resources: bool = True,
@@ -290,8 +303,7 @@ def propose_forward_leveling_within_float(
     activity_ids = [activity.activity_id for activity in activities]
     if len(set(activity_ids)) != len(activity_ids):
         raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
-    if isinstance(min_float_to_preserve, bool) or not isinstance(min_float_to_preserve, int) or min_float_to_preserve < 0:
-        raise ResourceLevelingError("INVALID_MIN_FLOAT_TO_PRESERVE")
+    minimum_float = _minimum_float_decimal(min_float_to_preserve)
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
@@ -354,7 +366,14 @@ def propose_forward_leveling_within_float(
         for resource_id, period in overloaded:
             for activity in activity_list:
                 current_shift = selected[activity.activity_id]
-                if current_shift >= max(0, activity.total_float - min_float_to_preserve):
+                # Moves are whole working days in this date-based engine. Floor
+                # the remaining movement allowance so a fractional preserved
+                # float (for example 3 hours of an 8-hour day) is not consumed.
+                maximum_shift = max(
+                    0,
+                    int(Decimal(activity.total_float) - minimum_float),
+                )
+                if current_shift >= maximum_shift:
                     continue
                 shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
                 units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
@@ -389,7 +408,7 @@ def propose_forward_leveling(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
     *, resolver: WorkingTimeResolver, level_within_float: bool = False,
-    min_float_to_preserve: int = 0, over_allocation_percentage: Decimal = Decimal("0"),
+    min_float_to_preserve: int | float | Decimal = 0, over_allocation_percentage: Decimal = Decimal("0"),
     priorities: tuple[LevelingPriority, ...] = (), level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (), max_shift_working_days: int = 10000,
 ) -> tuple[LevelingShift, ...]:
@@ -398,16 +417,20 @@ def propose_forward_leveling(
         raise ResourceLevelingError("INVALID_LEVEL_WITHIN_FLOAT")
     if isinstance(max_shift_working_days, bool) or not isinstance(max_shift_working_days, int) or max_shift_working_days < 0:
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
+    minimum_float = _minimum_float_decimal(min_float_to_preserve)
     if level_within_float:
         return propose_forward_leveling_within_float(
-            activities, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
+            activities, capacities, resolver=resolver, min_float_to_preserve=minimum_float,
             over_allocation_percentage=over_allocation_percentage, priorities=priorities,
             level_all_resources=level_all_resources, resource_ids=resource_ids,
         )
+    synthetic_float_allowance = max_shift_working_days + int(
+        minimum_float.to_integral_value(rounding=ROUND_CEILING)
+    )
     synthetic = tuple(LevelingActivity(a.activity_id, a.start, a.finish,
-        max_shift_working_days + min_float_to_preserve, a.resource_demands, a.activity_priority) for a in activities)
+        synthetic_float_allowance, a.resource_demands, a.activity_priority) for a in activities)
     shifts = propose_forward_leveling_within_float(
-        synthetic, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
+        synthetic, capacities, resolver=resolver, min_float_to_preserve=minimum_float,
         over_allocation_percentage=over_allocation_percentage, priorities=priorities,
         level_all_resources=level_all_resources, resource_ids=resource_ids,
     )
