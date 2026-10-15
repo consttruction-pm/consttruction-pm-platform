@@ -93,6 +93,7 @@ def _backward_activities_from_intermediate(
     late_schedule: Mapping[str, object],
     resolver: object,
     total_float_by_activity: Mapping[str, int] | None = None,
+    free_float_by_activity: Mapping[str, int] | None = None,
     protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
@@ -140,6 +141,12 @@ def _backward_activities_from_intermediate(
             authoritative_total_float = total_float_by_activity[activity.activity_id]
         else:
             authoritative_total_float = activity.total_float
+        if free_float_by_activity is not None:
+            if activity.activity_id not in free_float_by_activity:
+                raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+            authoritative_free_float = free_float_by_activity[activity.activity_id]
+        else:
+            authoritative_free_float = activity.free_float
 
         result.append(
             BackwardLevelingActivity(
@@ -151,6 +158,7 @@ def _backward_activities_from_intermediate(
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
                 total_float=authoritative_total_float,
+                free_float=authoritative_free_float,
             )
         )
     return tuple(result)
@@ -383,17 +391,18 @@ def schedule_with_resource_leveling(
     # authoritative CPM result as the rest of the scheduling outputs. Never
     # infer the late dates from the leveling movement window.
     initial_late = initial.late_activities or initial.activities
-    forward_activities_with_late_dates = tuple(
+    forward_activities_with_cpm_priority_values = tuple(
         replace(
             activity,
             late_start=initial_late[activity.activity_id].start,
             late_finish=initial_late[activity.activity_id].finish,
+            free_float=initial.floats[activity.activity_id].free_float,
         )
         for activity in leveling_input.forward_activities
     )
     leveling_input = replace(
         leveling_input,
-        forward_activities=forward_activities_with_late_dates,
+        forward_activities=forward_activities_with_cpm_priority_values,
     )
 
     forward_shifts = propose_forward_leveling(
@@ -438,6 +447,10 @@ def schedule_with_resource_leveling(
             resolver=resolver,
             total_float_by_activity={
                 activity_id: float_result.total_float
+                for activity_id, float_result in intermediate.floats.items()
+            },
+            free_float_by_activity={
+                activity_id: float_result.free_float
                 for activity_id, float_result in intermediate.floats.items()
             },
             protected_activity_ids=protected_activity_ids,
