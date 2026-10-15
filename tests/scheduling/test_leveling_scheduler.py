@@ -1053,3 +1053,56 @@ def test_leveling_preserves_negative_total_float_as_signed_cpm_input():
         (activity,), (shift,), resolver=resolver, allow_beyond_float=True,
     )
     assert applied[0].total_float == -3
+
+
+def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> None:
+    from construction_pm.scheduling.leveling_scheduler import (
+        _select_backward_rollback_candidate,
+    )
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        BackwardLevelingShift,
+        LevelingPriority,
+        SortOrder,
+    )
+
+    day_1 = date(2026, 10, 1)
+    day_2 = date(2026, 10, 2)
+    day_3 = date(2026, 10, 5)
+
+    # Activity Priority conflicts with Total Float. Under the configured first
+    # criterion (Total Float ascending), A is preferred and B is the candidate
+    # that must be rolled back, regardless of the activity_priority values.
+    a = BackwardLevelingActivity(
+        activity_id="A",
+        early_start=day_1,
+        early_finish=day_1,
+        late_start=day_3,
+        late_finish=day_3,
+        activity_priority=99,
+        total_float=1,
+    )
+    b = BackwardLevelingActivity(
+        activity_id="B",
+        early_start=day_1,
+        early_finish=day_1,
+        late_start=day_3,
+        late_finish=day_3,
+        activity_priority=1,
+        total_float=5,
+    )
+    candidates = (
+        BackwardLevelingShift("A", -1, day_2, day_2, 1),
+        BackwardLevelingShift("B", -1, day_2, day_2, 1),
+    )
+
+    rollback = _select_backward_rollback_candidate(
+        candidates,
+        backward_activities=(a, b),
+        priorities=(
+            LevelingPriority("total_float", SortOrder.ASCENDING),
+        ),
+    )
+
+    assert rollback.activity_id == "B"
+
