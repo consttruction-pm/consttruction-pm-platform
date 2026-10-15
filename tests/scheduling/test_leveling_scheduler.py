@@ -399,7 +399,14 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     monday_demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     backward_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (monday_demand,)),),
-        backward_activities=(),
+        # SchedulerLevelingInput requires identical forward/backward activity
+        # sets, even when this focused validation case only exercises a backward
+        # final-date displacement.
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", monday, monday, monday, monday, (monday_demand,)
+            ),
+        ),
         capacities=(
             ResourceCapacity("R1", friday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),
