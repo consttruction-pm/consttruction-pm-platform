@@ -1013,7 +1013,7 @@ def test_original_duration_priority_uses_distinct_activity_field():
     assert [shift.activity_id for shift in unconstrained] == ["A1"]
 
 
-def test_original_or_planned_duration_priority_fails_closed_when_missing():
+def test_original_duration_priority_fails_closed_when_missing():
     day_one = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
@@ -1025,7 +1025,7 @@ def test_original_or_planned_duration_priority_fails_closed_when_missing():
     with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
         propose_forward_leveling_within_float(
             (activity,), (), resolver=resolver,
-            priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
+            priorities=(LevelingPriority("original_duration", SortOrder.ASCENDING),),
         )
 
 
