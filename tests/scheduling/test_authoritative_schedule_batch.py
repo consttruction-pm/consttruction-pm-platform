@@ -39,12 +39,21 @@ from construction_pm.scheduling.schedule_options import (
     OutOfSequenceScheduleType,
     ScheduleMode,
     ScheduleOptions,
+    PriorityListItem,
+    PrioritySortOrder,
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
 )
 
 
-def snapshot(project_id, finish, *, options=None, priority=10):
+def snapshot(
+    project_id,
+    finish,
+    *,
+    options=None,
+    priority=10,
+    project_start=date(2026, 10, 1),
+):
     reference = CalendarReference('CAL', '1')
     return AuthoritativeScheduleInput(
         snapshot_id=f's-{project_id}',
@@ -60,7 +69,7 @@ def snapshot(project_id, finish, *, options=None, priority=10):
             ActivityCalendarAssignment(f'{project_id}-A', reference),
         ),
         project_finish=finish,
-        project_start=date(2026, 10, 1),
+        project_start=project_start,
         schedule_options=options or ScheduleOptions(),
     )
 
@@ -503,6 +512,66 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
+
+
+
+def test_batch_project_planned_start_priority_uses_each_project_snapshot():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+        priority_list=(
+            PriorityListItem("project_planned_start", PrioritySortOrder.ASCENDING),
+        ),
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", day_one, day_one, 2, (demand_p1,)),
+        LevelingActivity("P2-A", day_one, day_one, 2, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity(
+            "P1-A", day_one, day_one, day_three, day_three, (demand_p1,),
+        ),
+        BackwardLevelingActivity(
+            "P2-A", day_one, day_one, day_three, day_three, (demand_p2,),
+        ),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot(
+                "P1", day_three, options=options, project_start=day_one,
+            ),
+            snapshot(
+                "P2", day_three, options=options, project_start=day_two,
+            ),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    # The batch schedules both root activities from the shared earliest date,
+    # but the priority value itself must remain each owning project's snapshot
+    # Planned Start, not the shared min(project_start) passed to the CPM engine.
+    assert p1.start == day_two
+    assert p2.start == day_one
+    assert p2.finish < p1.start
+
 
 
 @pytest.mark.parametrize(
