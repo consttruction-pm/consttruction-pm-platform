@@ -78,17 +78,18 @@ def test_historical_and_internal_schedule_fields_are_not_misclassified_as_releas
     ]
 
     internal_fields = {item["field"] for item in data["internal_only_fields"]}
-    assert internal_fields == {"mode", "data_date"}
+    assert internal_fields == {"mode", "data_date", "min_float_to_preserve_unit"}
 
 
 def test_release26_registry_mapping_matches_declared_schedule_options_contract_surface() -> None:
     data = _load()
     p6_names = {item["p6_field"] for item in data["current_rest_fields"]}
 
+    internal_fields = {item["field"] for item in data["internal_only_fields"]}
     dataclass_names = {
         item.name
         for item in dataclass_fields(ScheduleOptions)
-        if item.name not in {"mode", "data_date"}
+        if item.name not in internal_fields
     }
     registry_names = {
         field.p6_field
