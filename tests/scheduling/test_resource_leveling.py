@@ -943,3 +943,33 @@ def test_backward_remaining_duration_priority_selects_shorter_remaining_work():
     assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
+def test_backward_remaining_duration_priority_beats_activity_priority():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+            activity_priority=99, total_float=5, remaining_duration=5,
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+            activity_priority=1, total_float=1, remaining_duration=2,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+    shifts = propose_backward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("remaining_duration", SortOrder.ASCENDING),),
+    )
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+
