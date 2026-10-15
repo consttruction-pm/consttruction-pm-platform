@@ -279,8 +279,8 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Current-main-based implementation candidate in PR #1457 supports nine fields: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, and Total Float. CPM-derived Late Start/Late Finish and Free Float come from authoritative CPM outputs; Remaining Duration comes from the activity model. The remaining four documented values not yet represented in the resolver are original_or_planned_duration, planned_finish, project_planned_start, and project_priority.",
-        "status": "partially_implemented_pending_exact_head_ci_and_semantic_review"
+        "detail": "Nine priority values are mapped through the typed boundary and resolver: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, and Total Float. Four values remain unimplemented end-to-end: Original/Planned Duration (the Activity model exposes duration but no distinct source-backed original/planned-duration value), Planned Finish (no baseline/planned finish identity in the current activity scheduling contract), Project Planned Start (project-level planned-start context is not available to the leveling comparator), and Project Priority (no authoritative project-priority input is present). Do not alias current CPM dates/duration to baseline or project-level semantics without a versioned source-backed contract.",
+        "status": "partially_implemented_pending_acceptance"
       },
       {
         "gap": "hierarchy-sort",
@@ -313,7 +313,7 @@
         "status": "verified_release_26"
       },
       {
-        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary exposes nine field values and two sort directions; four documented fields and Hierarchy remain unimplemented.",
+        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary exposes nine field values and two sort directions; four fields whose authoritative data contracts are not yet modeled, plus Hierarchy sort, remain unimplemented.",
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
         "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
       }
