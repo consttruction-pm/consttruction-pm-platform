@@ -254,35 +254,48 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
 
 
 def test_public_leveling_orchestration_preserves_configured_minimum_float() -> None:
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import (
+        ResourceLevelingError,
+        propose_forward_leveling,
+    )
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
-    result, forward, backward = schedule_with_resource_leveling(
-        (Activity("A", 1), Activity("B", 1)),
-        (),
-        date(2026, 10, 1),
-        resolver,
-        _resource_leveling_input(preserve=True),
-        project_finish=date(2026, 10, 3),
-        options=ScheduleOptions(
-            level_all_resources=True,
-            level_within_float=True,
-            min_float_to_preserve=1,
-            preserve_scheduled_early_and_late_dates=True,
-        ),
+    leveling_input = _resource_leveling_input(preserve=True)
+
+    # One preserved day of float leaves no movement allowance. Verify that
+    # the proposal itself does not move either activity.
+    proposal = propose_forward_leveling(
+        leveling_input.forward_activities,
+        leveling_input.capacities,
+        resolver=resolver,
+        level_within_float=True,
+        min_float_to_preserve=1,
+        level_all_resources=True,
     )
+    assert proposal == ()
 
-    # Each activity has one day of total float in the leveling input. Preserving
-    # one day leaves no movement allowance, so the engine must not shift either
-    # activity merely to remove the resource overload.
-    assert forward == ()
-    assert backward == ()
-    assert result.activities["A"].start == date(2026, 10, 1)
-    assert result.activities["B"].start == date(2026, 10, 1)
-
-
+    # The same infeasible demand (16 units vs capacity 8) must not be returned
+    # as a successful schedule when preserving float prevents any shift.
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            leveling_input,
+            project_finish=date(2026, 10, 3),
+            options=ScheduleOptions(
+                level_all_resources=True,
+                level_within_float=True,
+                min_float_to_preserve=1,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
 
 def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() -> None:
     from construction_pm.scheduling.relationships import Relationship, RelationshipType
@@ -371,7 +384,7 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", thursday, thursday, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(BackwardLevelingActivity("A", thursday, thursday, thursday, thursday, (demand,)),),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("8")),
             ResourceCapacity("R1", friday, Decimal("0")),
@@ -392,7 +405,7 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     monday_demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     backward_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (monday_demand,)),),
-        backward_activities=(),
+        backward_activities=(BackwardLevelingActivity("A", monday, monday, monday, monday, (monday_demand,)),),
         capacities=(
             ResourceCapacity("R1", friday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),
@@ -790,7 +803,7 @@ def test_final_resource_validation_rejects_missing_scheduled_activity_with_deman
     demand = ResourceDemand("R1", day, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", day, day, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(BackwardLevelingActivity("A", day, day, day, day, (demand,)),),
         capacities=(ResourceCapacity("R1", day, Decimal("8")),),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
@@ -921,7 +934,7 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
     demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(BackwardLevelingActivity("A", monday, monday, monday, monday, (demand,)),),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),

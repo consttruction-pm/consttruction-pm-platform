@@ -205,8 +205,13 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
             BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demands[1],), activity_priority=0),
         ),
         capacities=(
+            # This test isolates backward leveling: Thursday capacity covers
+            # both initial demands, while the projected late-window demands
+            # overlap on Monday and require one activity to move to Friday.
             ResourceCapacity("R1", day_one, Decimal("16")),
             ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_three, Decimal("8")),
+            ResourceCapacity("R1", date(2026, 10, 6), Decimal("8")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
@@ -223,6 +228,8 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         day_one,
         resolver,
         leveling_input,
+        # Monday is the project-finish boundary. This gives the activities
+        # a Monday late date; one backward working-day shift should target Friday.
         project_finish=day_three,
         options=ScheduleOptions(
             level_all_resources=True,
@@ -243,3 +250,63 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
     assert result.project_finish == day_three
+
+def test_backward_pass_keeps_forward_protected_demand_at_intermediate_date() -> None:
+    day_one = date(2026, 10, 1)  # Thursday
+    day_two = date(2026, 10, 2)  # Friday
+    day_three = date(2026, 10, 5)  # Monday
+    demand_a = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", day_one, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 2, (demand_a,), activity_priority=0),
+            LevelingActivity("B", day_one, day_one, 2, (demand_b,), activity_priority=1),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_three, day_three, (demand_a,), activity_priority=0),
+            BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demand_b,), activity_priority=1),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_three, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=day_three,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=False,
+            priority_list=(PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),),
+        ),
+    )
+
+    # A is forward-leveled to Friday and protected during the backward pass.
+    # Its demand must remain on Friday, not be projected to its Monday late date.
+    # Otherwise the backward pass incorrectly moves B to Friday, creating a
+    # final overload that the authoritative CPM/load validation must reject.
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert backward == ()
+    assert result.activities["A"].start == day_two
+    assert result.activities["B"].start == day_one
+    final_demand = {
+        day_one: Decimal("8"),
+        day_two: Decimal("8"),
+        day_three: Decimal("0"),
+    }
+    capacity = {day_one: Decimal("8"), day_two: Decimal("8"), day_three: Decimal("8")}
+    assert all(final_demand[day] <= capacity[day] for day in capacity)
+
