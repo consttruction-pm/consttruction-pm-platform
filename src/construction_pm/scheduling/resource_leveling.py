@@ -510,6 +510,44 @@ class BackwardLevelingShift:
     advanced_days: int
 
 
+def backward_leveling_priority_key(
+    activity: BackwardLevelingActivity,
+    priorities: tuple[LevelingPriority, ...],
+) -> tuple:
+    """Return the same ordered priority key used by backward proposals.
+
+    Keeping proposal selection and overload rollback on this one comparator
+    prevents a retry from silently reverting to Activity Priority when the
+    configured first criterion is Total Float, Early Start, or another field.
+    """
+    allowed = {
+        "activity_id", "activity_priority", "early_start",
+        "early_finish", "total_float",
+    }
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": activity.activity_priority,
+        "early_start": activity.early_start,
+        "early_finish": activity.early_finish,
+        "total_float": activity.total_float,
+    }
+    parts: list[tuple[int, object]] = []
+    for priority in priorities:
+        normalized = priority.field_name.strip().lower().replace(" ", "_")
+        if normalized not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        value = values[normalized]
+        if value is None:
+            parts.append((1, ""))
+        elif priority.sort_order is SortOrder.ASCENDING:
+            parts.append((0, value))
+        else:
+            parts.append((0, _Descending(value)))
+    # Activity ID remains the deterministic final tie-breaker.
+    parts.append((0, activity.activity_id))
+    return tuple(parts)
+
+
 def _working_days_between(start: date, end: date, resolver: WorkingTimeResolver) -> int:
     if end < start:
         raise ResourceLevelingError("INVALID_DATE_ORDER")
@@ -674,26 +712,11 @@ def propose_backward_leveling(
                 )
                 if units <= 0:
                     continue
-                values = {
-                    "activity_id": activity.activity_id,
-                    "activity_priority": activity.activity_priority,
-                    "early_start": activity.early_start,
-                    "early_finish": activity.early_finish,
-                    # Priority value is the configured authoritative CPM float,
-                    # not the early-to-late start-date movement window.
-                    "total_float": activity.total_float,
-                }
-                key: list[tuple[int, object]] = []
-                for priority in priorities:
-                    value = values[priority.field_name.strip().lower().replace(" ", "_")]
-                    if value is None:
-                        key.append((1, ""))
-                    elif priority.sort_order is SortOrder.ASCENDING:
-                        key.append((0, value))
-                    else:
-                        key.append((0, _Descending(value)))
-                key.append((0, activity.activity_id))
-                candidates.append((tuple(key), -units, activity.activity_id))
+                candidates.append((
+                    backward_leveling_priority_key(activity, priorities),
+                    -units,
+                    activity.activity_id,
+                ))
 
         if not candidates:
             break
