@@ -318,6 +318,87 @@
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
         "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
       }
-    ]
+    ],
+    "implementation_path_review_2026_10_16": {
+      "reviewed_branch": "fix/backward-leveling-rebased-main-2026-10-16",
+      "reviewed_paths": [
+        {
+          "path": "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
+          "finding": "The typed boundary accepts internal field identifiers planned_duration and original_duration separately and rejects original_or_planned_duration. This avoids an unverified alias but does not by itself implement the single documented Original/Planned Duration criterion.",
+          "required_acceptance": "Define the source-backed resolver for the documented combined criterion, then test each activity state and missing-source case through the public scheduling boundary and round-trip adapters."
+        },
+        {
+          "path": "src/construction_pm/scheduling/leveling_scheduler.py",
+          "finding": "The scheduler enriches leveling inputs from scheduler-owned activity data: planned_duration is copied from Activity.duration, original_duration from Activity.original_duration, late dates and Free Float from the CPM pass, and Project Planned Start from the leveling input field.",
+          "required_acceptance": "Prove each value's authoritative source and persistence/import/export path. Project Planned Start is only safe once its project-level provenance is established; a populated field alone is not provenance evidence."
+        },
+        {
+          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value",
+          "finding": "The internal comparator can read planned_duration and original_duration independently, while Planned Finish and Project Priority are not represented by distinct values in the inspected leveling model. The sort enum represents ascending/descending only.",
+          "required_acceptance": "Do not count internal helper values as documented-field parity. Add distinct source-backed model fields for Planned Finish and Project Priority, plus a documented Hierarchy sort representation, before claiming complete priority coverage."
+        }
+      ],
+      "acceptance_gate_matrix": [
+        {
+          "gate": "documented_original_or_planned_duration",
+          "status": "blocked_pending_semantics_and_adapter",
+          "evidence_required": [
+            "Versioned source rule defining when Original Duration versus Planned Duration supplies the priority value",
+            "Tests for not-started, in-progress, completed, and missing original-duration data where source semantics apply",
+            "REST/interchange/storage round-trip with no silent alias or value substitution"
+          ]
+        },
+        {
+          "gate": "planned_finish",
+          "status": "blocked_missing_distinct_value",
+          "evidence_required": [
+            "Authoritative planned-finish source in the project/activity model",
+            "Forward and backward priority tests including ascending, descending, and tied values"
+          ]
+        },
+        {
+          "gate": "project_priority",
+          "status": "blocked_missing_distinct_value",
+          "evidence_required": [
+            "Authoritative project-priority source and cross-project semantics",
+            "Mixed-field precedence tests and persistence/round-trip evidence"
+          ]
+        },
+        {
+          "gate": "project_planned_start",
+          "status": "partial_provenance_unverified",
+          "evidence_required": [
+            "Trace from authoritative project planned-start field through API/import and storage to both leveling directions",
+            "Fail-closed behavior when the source value is absent"
+          ]
+        },
+        {
+          "gate": "hierarchy_sort",
+          "status": "blocked_not_represented",
+          "evidence_required": [
+            "Typed Hierarchy sort mode restricted to documented hierarchical fields",
+            "WBS/parent-child precedence tests, including stable ties and both leveling directions"
+          ]
+        },
+        {
+          "gate": "prioritylist_resourcelist_wire_round_trip",
+          "status": "blocked_external_encoding_unverified",
+          "evidence_required": [
+            "Source-backed Release 26 REST encoding and escaping rules distinct from Integration API array schema",
+            "Lossless ordered round-trip tests for priority entries, sort directions/defaults, and resource IDs containing commas"
+          ]
+        },
+        {
+          "gate": "exact_head_release_gates",
+          "status": "blocked_until_reconciled_and_rerun",
+          "evidence_required": [
+            "Branch ancestry reconciled with main",
+            "ConstructionPM CI, Client Typecheck, PostgreSQL Integration, and PostgreSQL Sync State Integration confirmed on one exact final SHA",
+            "Independent semantic review of backward leveling and final CPM/resource-capacity invariants"
+          ]
+        }
+      ],
+      "policy": "An internal value, green CI, or mergeable GitHub state is not sufficient evidence of documented field parity. Keep the pull request Draft while any gate above is blocked; do not infer semantics from similarly named fields."
+    }
   }
 }
