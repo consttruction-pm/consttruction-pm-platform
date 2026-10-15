@@ -379,6 +379,23 @@ def schedule_with_resource_leveling(
         batch_scheduled_finish=batch_scheduled_finish,
     )
 
+    # Late Start / Late Finish leveling priorities must come from the same
+    # authoritative CPM result as the rest of the scheduling outputs. Never
+    # infer the late dates from the leveling movement window.
+    initial_late = initial.late_activities or initial.activities
+    forward_activities_with_late_dates = tuple(
+        replace(
+            activity,
+            late_start=initial_late[activity.activity_id].start,
+            late_finish=initial_late[activity.activity_id].finish,
+        )
+        for activity in leveling_input.forward_activities
+    )
+    leveling_input = replace(
+        leveling_input,
+        forward_activities=forward_activities_with_late_dates,
+    )
+
     forward_shifts = propose_forward_leveling(
         leveling_input.forward_activities,
         leveling_input.capacities,
