@@ -183,7 +183,10 @@ class LevelingActivity:
             or self.finish < self.start
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
-        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
+        # Total float may legitimately be negative when imposed dates or
+        # constraints make the schedule late. Preserve that signed CPM value;
+        # final schedule float remains owned by the authoritative CPM pass.
+        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
@@ -453,7 +456,7 @@ def apply_leveling_shifts(
             activity_id=activity.activity_id,
             start=shift.new_start,
             finish=shift.new_finish,
-            total_float=max(0, activity.total_float - shift.consumed_float),
+            total_float=activity.total_float - shift.consumed_float,
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
             activity_priority=activity.activity_priority,
         ))
@@ -472,10 +475,17 @@ class BackwardLevelingActivity:
     late_finish: date
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    # Authoritative schedule float under the configured Start/Finish/Smaller basis.
+    # It is separate from the number of working days between early and late starts.
+    total_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.total_float is not None and (
+            isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -498,6 +508,44 @@ class BackwardLevelingShift:
     new_start: date
     new_finish: date
     advanced_days: int
+
+
+def backward_leveling_priority_key(
+    activity: BackwardLevelingActivity,
+    priorities: tuple[LevelingPriority, ...],
+) -> tuple:
+    """Return the same ordered priority key used by backward proposals.
+
+    Keeping proposal selection and overload rollback on this one comparator
+    prevents a retry from silently reverting to Activity Priority when the
+    configured first criterion is Total Float, Early Start, or another field.
+    """
+    allowed = {
+        "activity_id", "activity_priority", "early_start",
+        "early_finish", "total_float",
+    }
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": activity.activity_priority,
+        "early_start": activity.early_start,
+        "early_finish": activity.early_finish,
+        "total_float": activity.total_float,
+    }
+    parts: list[tuple[int, object]] = []
+    for priority in priorities:
+        normalized = priority.field_name.strip().lower().replace(" ", "_")
+        if normalized not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        value = values[normalized]
+        if value is None:
+            parts.append((1, ""))
+        elif priority.sort_order is SortOrder.ASCENDING:
+            parts.append((0, value))
+        else:
+            parts.append((0, _Descending(value)))
+    # Activity ID remains the deterministic final tie-breaker.
+    parts.append((0, activity.activity_id))
+    return tuple(parts)
 
 
 def _working_days_between(start: date, end: date, resolver: WorkingTimeResolver) -> int:
@@ -590,9 +638,17 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "total_float",
     }
-    for priority in priorities:
-        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+    normalized_priorities = tuple(
+        priority.field_name.strip().lower().replace(" ", "_")
+        for priority in priorities
+    )
+    for field_name in normalized_priorities:
+        if field_name not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+    if "total_float" in normalized_priorities and any(
+        activity.total_float is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_AUTHORITATIVE_TOTAL_FLOAT")
 
     selected_resources = set(
         select_leveling_resources(
@@ -656,24 +712,11 @@ def propose_backward_leveling(
                 )
                 if units <= 0:
                     continue
-                values = {
-                    "activity_id": activity.activity_id,
-                    "activity_priority": activity.activity_priority,
-                    "early_start": activity.early_start,
-                    "early_finish": activity.early_finish,
-                    "total_float": max_advance,
-                }
-                key: list[tuple[int, object]] = []
-                for priority in priorities:
-                    value = values[priority.field_name.strip().lower().replace(" ", "_")]
-                    if value is None:
-                        key.append((1, ""))
-                    elif priority.sort_order is SortOrder.ASCENDING:
-                        key.append((0, value))
-                    else:
-                        key.append((0, _Descending(value)))
-                key.append((0, activity.activity_id))
-                candidates.append((tuple(key), -units, activity.activity_id))
+                candidates.append((
+                    backward_leveling_priority_key(activity, priorities),
+                    -units,
+                    activity.activity_id,
+                ))
 
         if not candidates:
             break
