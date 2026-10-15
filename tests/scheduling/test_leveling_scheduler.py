@@ -7,15 +7,9 @@ from construction_pm.scheduling.leveling_scheduler import (
     merge_leveling_constraints,
 )
 from construction_pm.scheduling.resource_leveling import (
-    BackwardLevelingActivity,
     BackwardLevelingShift,
     LevelingShift,
-    ResourceDemand,
-    ResourceCapacity,
-    ResourceLevelingOptions,
 )
-from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
-from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 
 
 def test_forward_leveling_becomes_start_lower_bound() -> None:
@@ -955,3 +949,157 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+def test_backward_builder_keeps_forward_leveled_protected_demand_at_intermediate_date():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", thursday, Decimal("1"), "A")
+    demand_b = ResourceDemand("R1", thursday, Decimal("1"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", thursday, thursday, 4, (demand_a,)),
+            LevelingActivity("B", thursday, thursday, 4, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", thursday, thursday, monday, monday, (demand_a,)),
+            BackwardLevelingActivity("B", thursday, thursday, monday, monday, (demand_b,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("1")),
+            ResourceCapacity("R1", friday, Decimal("1")),
+            ResourceCapacity("R1", monday, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={
+            "A": SimpleNamespace(start=friday, finish=friday),
+            "B": SimpleNamespace(start=thursday, finish=thursday),
+        },
+        late_schedule={
+            "A": SimpleNamespace(start=monday, finish=monday),
+            "B": SimpleNamespace(start=monday, finish=monday),
+        },
+        resolver=resolver,
+        total_float_by_activity={"A": -2, "B": 1},
+        protected_activity_ids=("A",),
+    )
+    by_id = {activity.activity_id: activity for activity in built}
+
+    # A's forward move is already accepted, so its ledger occupies Friday.
+    # B is still a backward candidate and starts from its late-date profile.
+    # The configured CPM float is also propagated without substituting the
+    # early-to-late start-date movement window.
+    assert by_id["A"].resource_demands[0].period == friday
+    assert by_id["B"].resource_demands[0].period == monday
+    assert by_id["A"].total_float == -2
+    assert by_id["B"].total_float == 1
+
+
+def test_leveling_preserves_negative_total_float_as_signed_cpm_input():
+    from construction_pm.scheduling.resource_leveling import (
+        apply_leveling_shifts,
+        propose_forward_leveling_within_float,
+        LevelingShift,
+    )
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
+    activity = LevelingActivity("A", thursday, thursday, -2, (demand,))
+
+    # A negative CPM float is valid input, but the within-float pass must not
+    # invent movement allowance from a negative value.
+    assert activity.total_float == -2
+    proposed = propose_forward_leveling_within_float(
+        (activity,),
+        (
+            ResourceCapacity("R1", thursday, Decimal("0")),
+            ResourceCapacity("R1", friday, Decimal("8")),
+        ),
+        resolver=resolver,
+        min_float_to_preserve=0,
+        level_all_resources=True,
+    )
+    assert proposed == ()
+
+    # An explicitly allowed beyond-float move preserves signed provenance in
+    # this proposal model rather than clamping a negative value to zero.
+    shift = LevelingShift(
+        activity_id="A",
+        shift_working_days=1,
+        new_start=friday,
+        new_finish=friday,
+        consumed_float=1,
+        remaining_float=-3,
+    )
+    applied = apply_leveling_shifts(
+        (activity,), (shift,), resolver=resolver, allow_beyond_float=True,
+    )
+    assert applied[0].total_float == -3
+
+
+def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> None:
+    from construction_pm.scheduling.leveling_scheduler import (
+        _select_backward_rollback_candidate,
+    )
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        BackwardLevelingShift,
+        LevelingPriority,
+        SortOrder,
+    )
+
+    day_1 = date(2026, 10, 1)
+    day_2 = date(2026, 10, 2)
+    day_3 = date(2026, 10, 5)
+
+    # Activity Priority conflicts with Total Float. Under the configured first
+    # criterion (Total Float ascending), A is preferred and B is the candidate
+    # that must be rolled back, regardless of the activity_priority values.
+    a = BackwardLevelingActivity(
+        activity_id="A",
+        early_start=day_1,
+        early_finish=day_1,
+        late_start=day_3,
+        late_finish=day_3,
+        activity_priority=99,
+        total_float=1,
+    )
+    b = BackwardLevelingActivity(
+        activity_id="B",
+        early_start=day_1,
+        early_finish=day_1,
+        late_start=day_3,
+        late_finish=day_3,
+        activity_priority=1,
+        total_float=5,
+    )
+    candidates = (
+        BackwardLevelingShift("A", -1, day_2, day_2, 1),
+        BackwardLevelingShift("B", -1, day_2, day_2, 1),
+    )
+
+    rollback = _select_backward_rollback_candidate(
+        candidates,
+        backward_activities=(a, b),
+        priorities=(
+            LevelingPriority("total_float", SortOrder.ASCENDING),
+        ),
+    )
+
+    assert rollback.activity_id == "B"
+
