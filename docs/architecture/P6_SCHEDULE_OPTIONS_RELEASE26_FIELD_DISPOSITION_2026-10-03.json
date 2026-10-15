@@ -254,7 +254,7 @@
       "late_finish",
       "free_float",
       "remaining_duration",
-      "original_duration",
+      "project_planned_start",
       "total_float"
     ],
     "documented_p6_professional_priority_fields": [
@@ -280,7 +280,7 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Ten priority values are represented in the typed boundary/resolver: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, Original Duration, and Total Float. Original Duration is now a distinct optional Activity model input; it is not aliased to Activity.duration/planned_duration. Its import/storage/interchange adapters still need source-backed population and lossless round-trip tests. Planned Finish (no baseline/planned finish identity), Project Planned Start (no project-level planned-start context), and Project Priority (no authoritative project-priority input) remain unavailable end-to-end. The ambiguous original_or_planned_duration alias is rejected rather than guessed.",
+        "detail": "Ten of the 13 documented P6 priority fields are mapped through the typed boundary/resolver: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, Project Planned Start, and Total Float. The code now has a distinct optional internal Activity.original_duration value, but the documented PriorityList field is Original/Planned Duration; mapping that external field is deliberately still blocked because the exact context-dependent source semantics and import/storage/interchange contract are not established. The ambiguous original_or_planned_duration alias is rejected rather than guessed. Planned Finish and Project Priority also remain unavailable end-to-end.",
         "status": "partially_implemented_pending_acceptance"
       },
       {
@@ -290,7 +290,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "Regression coverage targets numeric/alphabetic Activity ID ordering, ordered Total Float vs Activity Priority during backward rollback, CPM-derived Late Finish and Free Float priorities, Remaining Duration from explicit activity data, and Original Duration from its distinct model field (including contrast with planned duration). Remaining acceptance must cover broader multi-field precedence across the ten represented values and three unavailable end-to-end values, all sort-direction/tie combinations, source-backed original-duration import/storage/interchange, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic backward retry results.",
+        "detail": "Regression coverage targets numeric/alphabetic Activity ID ordering, ordered Total Float vs Activity Priority during backward rollback, CPM-derived Late Start/Late Finish and Free Float priorities, Remaining Duration from explicit activity data, and separate internal Original Duration data contrasted with planned duration. Project Planned Start is now represented in the leveling input and propagated to forward/backward priorities. Remaining acceptance must cover the documented Original/Planned Duration semantics and wire mapping, Planned Finish and Project Priority, broader mixed-field precedence across ten mapped and three unmapped P6 fields, all sort-direction/tie combinations, source-backed import/storage/interchange round-trip, project-level planned-start provenance, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic backward retry results.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -300,7 +300,7 @@
       "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
       "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html"
     ],
-    "compatibility_rule": "The open PR #1457 candidate adds CPM-derived Late Start/Late Finish/Free Float, model-derived Remaining Duration, and a distinct optional Original Duration input; Activity.duration is not substituted for Original Duration. The ambiguous original_or_planned_duration alias is rejected fail-closed. Latest exact-head CI must be checked after these model/priority changes. Independent semantic review remains required. Do not silently accept Planned Finish, Project Planned Start, Project Priority, or Hierarchy sort, and do not claim full PriorityList parity while import/storage/wire round-trip acceptance is unverified.",
+    "compatibility_rule": "The open PR #1457 candidate currently maps ten of the thirteen documented P6 priority fields, including Project Planned Start. It stores Original Duration separately from Activity.duration, but intentionally rejects the documented original_or_planned_duration priority alias until its exact source semantics and interchange mapping are verified. Exact-head CI is queued/in progress after the latest model/test changes. Independent semantic review remains required. Do not claim full PriorityList parity while Original/Planned Duration, Planned Finish, Project Priority, Hierarchy sort, and source-backed import/storage/wire round-trip acceptance remain unresolved.",
     "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
     "documented_rules": [
       {
@@ -314,7 +314,7 @@
         "status": "verified_release_26"
       },
       {
-        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary represents ten priority values and two sort directions; Planned Finish, Project Planned Start, Project Priority and Hierarchy remain gaps, and Original Duration still needs verified adapter/round-trip coverage.",
+        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary maps ten documented priority fields; Original/Planned Duration, Planned Finish, Project Priority and Hierarchy remain gaps. A separate internal Original Duration value does not by itself satisfy the documented Original/Planned Duration priority contract.",
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
         "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
       }
