@@ -160,6 +160,7 @@ def _backward_activities_from_intermediate(
                 total_float=authoritative_total_float,
                 free_float=authoritative_free_float,
                 remaining_duration=forward_activity.remaining_duration,
+                planned_duration=forward_activity.planned_duration,
             )
         )
     return tuple(result)
@@ -405,6 +406,13 @@ def schedule_with_resource_leveling(
             remaining_duration=getattr(
                 scheduler_activity_by_id[activity.activity_id],
                 "remaining_duration",
+                None,
+            ),
+            # Activity.duration is the date-based Shared Core's planned-duration
+            # input; do not reconstruct it from inclusive calendar dates.
+            planned_duration=getattr(
+                scheduler_activity_by_id[activity.activity_id],
+                "duration",
                 None,
             ),
         )
