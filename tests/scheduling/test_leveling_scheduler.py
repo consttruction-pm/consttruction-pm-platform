@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_scheduler import (
     backward_leveling_constraints,
@@ -377,7 +379,9 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     demand = ResourceDemand("R1", thursday, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", thursday, thursday, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity("A", thursday, thursday, monday, monday, (demand,)),
+        ),
         capacities=(
             ResourceCapacity("R1", thursday, Decimal("8")),
             ResourceCapacity("R1", friday, Decimal("0")),
@@ -398,7 +402,9 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
     monday_demand = ResourceDemand("R1", monday, Decimal("8"), "A")
     backward_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", monday, monday, 1, (monday_demand,)),),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity("A", monday, monday, monday, monday, (monday_demand,)),
+        ),
         capacities=(
             ResourceCapacity("R1", friday, Decimal("0")),
             ResourceCapacity("R1", monday, Decimal("8")),
@@ -796,7 +802,9 @@ def test_final_resource_validation_rejects_missing_scheduled_activity_with_deman
     demand = ResourceDemand("R1", day, Decimal("8"), "A")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(LevelingActivity("A", day, day, 1, (demand,)),),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity("A", day, day, day, day, (demand,)),
+        ),
         capacities=(ResourceCapacity("R1", day, Decimal("8")),),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
@@ -944,4 +952,74 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             result=SimpleNamespace(activities={"A": SimpleNamespace(start=thursday)}),
             leveling_input=leveling_input,
             resolver=resolver,
+        )
+
+
+
+def test_schedule_options_resource_list_is_authoritative_over_boundary_copy():
+    from dataclasses import replace
+
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    base = _resource_leveling_input(preserve=True)
+    # Simulate stale lower-level configuration. The public ScheduleOptions
+    # resource list is the authoritative value for this orchestration call.
+    stale_input = replace(
+        base,
+        options=replace(base.options, resource_ids=("R2",)),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        stale_input,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=False,
+            resource_list=("R1",),
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["A"]
+    assert backward == ()
+    assert result.activities["A"].start == date(2026, 10, 2)
+
+
+def test_schedule_options_rejects_missing_explicit_resource_selection():
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(ResourceLevelingError, match="LEVELING_RESOURCE_SELECTION_EMPTY"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            options=ScheduleOptions(
+                level_all_resources=False,
+                resource_list=None,
+                preserve_scheduled_early_and_late_dates=True,
+            ),
+        )
+
+
+def test_schedule_options_rejects_empty_resource_list_at_contract_boundary():
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    with pytest.raises(ValueError, match="resource_list must be a non-empty tuple"):
+        ScheduleOptions(
+            level_all_resources=False,
+            resource_list=(),
+            preserve_scheduled_early_and_late_dates=True,
         )
