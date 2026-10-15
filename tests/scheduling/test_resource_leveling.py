@@ -307,7 +307,8 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     result = apply_leveling_shifts(activities, (shift,), resolver=resolver, allow_beyond_float=True)
     assert result[0].start == shift.new_start
     assert result[0].finish == shift.new_finish
-    assert result[0].total_float == 0
+    # Applying a one-day shift beyond zero float preserves signed provenance.
+    assert result[0].total_float == -1
     assert shift.remaining_float == -1
     assert result[1].activity_id == "A2"
 
