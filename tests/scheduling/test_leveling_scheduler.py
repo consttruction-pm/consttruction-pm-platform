@@ -809,7 +809,7 @@ def test_public_leveling_supports_authoritative_remaining_duration_priority() ->
     assert result.activities["B"].start == thursday
 
 
-def test_public_leveling_supports_original_or_planned_duration_priority() -> None:
+def test_public_leveling_supports_explicit_original_duration_priority() -> None:
     from construction_pm.scheduling.activity import Activity
     from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
     from construction_pm.scheduling.resource_leveling import (
@@ -858,7 +858,7 @@ def test_public_leveling_supports_original_or_planned_duration_priority() -> Non
     )
 
     result, forward, backward = schedule_with_resource_leveling(
-        (Activity("A", 1), Activity("B", 2)),
+        (Activity("A", 1, original_duration=1), Activity("B", 2, original_duration=2)),
         (),
         thursday,
         resolver,
@@ -870,16 +870,15 @@ def test_public_leveling_supports_original_or_planned_duration_priority() -> Non
             preserve_scheduled_early_and_late_dates=True,
             priority_list=(
                 PriorityListItem(
-                    "original_or_planned_duration",
+                    "original_duration",
                     PrioritySortOrder.ASCENDING,
                 ),
             ),
         ),
     )
 
-    # The scheduler's planned durations (1 day for A, 2 for B) supply this
-    # priority value. A has the less favorable activity-priority metadata, but
-    # the shorter planned duration takes precedence because it is the first row.
+    # The explicit Original Duration inputs (1 day for A, 2 for B) supply this
+    # priority value; current Activity.duration is not used as a substitute.
     assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
         ("A", 1),
     ]
