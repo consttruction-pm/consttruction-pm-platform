@@ -162,6 +162,11 @@ def _backward_activities_from_intermediate(
                 remaining_duration=forward_activity.remaining_duration,
                 planned_duration=forward_activity.planned_duration,
                 original_duration=forward_activity.original_duration,
+                project_planned_start=(
+                    activity.project_planned_start
+                    if activity.project_planned_start is not None
+                    else forward_activity.project_planned_start
+                ),
             )
         )
     return tuple(result)
@@ -420,6 +425,11 @@ def schedule_with_resource_leveling(
                 scheduler_activity_by_id[activity.activity_id],
                 "original_duration",
                 None,
+            ),
+            project_planned_start=(
+                activity.project_planned_start
+                if activity.project_planned_start is not None
+                else project_start
             ),
         )
         for activity in leveling_input.forward_activities
