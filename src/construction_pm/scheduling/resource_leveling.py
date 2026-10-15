@@ -419,8 +419,19 @@ def propose_forward_leveling(
             over_allocation_percentage=over_allocation_percentage, priorities=priorities,
             level_all_resources=level_all_resources, resource_ids=resource_ids,
         )
-    synthetic = tuple(LevelingActivity(a.activity_id, a.start, a.finish,
-        max_shift_working_days + min_float_to_preserve, a.resource_demands, a.activity_priority) for a in activities)
+    synthetic = tuple(
+        LevelingActivity(
+            a.activity_id,
+            a.start,
+            a.finish,
+            max_shift_working_days + min_float_to_preserve,
+            a.resource_demands,
+            a.activity_priority,
+            a.late_start,
+            a.late_finish,
+        )
+        for a in activities
+    )
     shifts = propose_forward_leveling_within_float(
         synthetic, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
         over_allocation_percentage=over_allocation_percentage, priorities=priorities,
@@ -474,6 +485,8 @@ def apply_leveling_shifts(
             total_float=activity.total_float - shift.consumed_float,
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
             activity_priority=activity.activity_priority,
+            late_start=activity.late_start,
+            late_finish=activity.late_finish,
         ))
     return tuple(result)
 
