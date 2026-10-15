@@ -253,6 +253,7 @@
       "late_start",
       "late_finish",
       "free_float",
+      "remaining_duration",
       "total_float"
     ],
     "documented_p6_professional_priority_fields": [
@@ -278,7 +279,7 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Current resolver supports eight priority values: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, and Total Float. Remaining fields not yet represented are original_or_planned_duration, planned_finish, project_planned_start, project_priority, and remaining_duration.",
+        "detail": "The public typed boundary and resolver support nine priority values: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, and Total Float. Remaining fields not yet represented end-to-end are Original/Planned Duration, Planned Finish, Project Planned Start, and Project Priority.",
         "status": "partially_implemented_pending_acceptance"
       },
       {
@@ -288,7 +289,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "Regression coverage targets numeric/alphabetic Activity ID order, ordered Total Float vs Activity Priority conflict during backward rollback, CPM-derived Late Finish priority, and CPM-derived Free Float priority in forward/backward leveling. Remaining acceptance must cover broader multi-field precedence across all 8 implemented and 5 missing values, full sort-direction semantics, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
+        "detail": "Regression coverage targets numeric/alphabetic Activity ID order, ordered Total Float vs Activity Priority conflict during backward rollback, CPM-derived Late Finish and Free Float priorities, and explicit Remaining Duration priority with missing-value fail-closed behavior. Remaining acceptance must cover broader multi-field precedence across all 9 implemented and 4 missing values, full sort-direction semantics, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic tie behavior.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -298,7 +299,7 @@
       "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
       "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html"
     ],
-    "compatibility_rule": "The open scheduling PR implements CPM-derived Late Start/Late Finish and Free Float priority values in forward/backward candidate selection, and uses the same ordered comparator during backward overload rollback. The latest candidate passed exact-head ConstructionPM CI on Python 3.11/3.12/3.13, Client Typecheck, and PostgreSQL Integration. Independent semantic review is still required. Do not silently accept the five missing priority fields or Hierarchy sort, and do not claim full P6 PriorityList parity while REST/interchange round-trip remains unverified.",
+    "compatibility_rule": "The open scheduling PR implements CPM-derived Late Start/Late Finish and Free Float priority values plus explicit Remaining Duration in forward/backward candidate selection, and uses the same ordered comparator during backward overload rollback. The previous exact-head candidate passed ConstructionPM CI on Python 3.11/3.12/3.13, Client Typecheck, and PostgreSQL Integration; new Remaining Duration regression tests are now pending exact-head CI. Independent semantic review is still required. Do not silently accept the four missing priority fields or Hierarchy sort, and do not claim full P6 PriorityList parity while REST/interchange round-trip remains unverified.",
     "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
     "documented_rules": [
       {
@@ -312,7 +313,7 @@
         "status": "verified_release_26"
       },
       {
-        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core exposes only five field values and two sort directions.",
+        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary exposes nine field values and two sort directions; four documented fields and Hierarchy remain unimplemented.",
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
         "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
       }
