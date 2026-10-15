@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from .calendar import WorkingTimeResolver
 from enum import Enum
@@ -259,19 +259,46 @@ def _priority_value(activity: LevelingActivity, field_name: str):
     return value
 
 
+def _activity_id_value_key(value: str) -> tuple[int, object]:
+    """Order activity IDs like the documented leveler: numeric, alphabetic, blank."""
+    normalized = value.strip()
+    if not normalized:
+        return (2, "")
+    try:
+        numeric_value = Decimal(normalized)
+    except (InvalidOperation, ValueError):
+        return (1, normalized.casefold())
+    if numeric_value.is_finite():
+        return (0, numeric_value)
+    return (1, normalized.casefold())
+
+
 def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
     """Return a deterministic P6-style leveling priority key."""
     parts: list[tuple[int, object]] = []
     for priority in priorities:
+        normalized_field = priority.field_name.strip().lower().replace(" ", "_")
         value = _priority_value(activity, priority.field_name)
-        if value is None:
-            parts.append((1, ""))
+        if value is None or (isinstance(value, str) and not value.strip()):
+            parts.append((2, ""))
+        elif normalized_field == "activity_id":
+            category, comparable = _activity_id_value_key(str(value))
+            ordered_value = (
+                comparable
+                if priority.sort_order is SortOrder.ASCENDING
+                else _Descending(comparable)
+            )
+            # Keep numeric/alphabetic/blank categories ordered in either sort
+            # direction; reverse only the values within each category.
+            parts.append((category, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
             parts.append((0, value))
         else:
             parts.append((0, _Descending(value)))
-    # Oracle documents Activity ID as the deterministic conflict tie-breaker.
-    parts.append((0, activity.activity_id))
+
+    # Activity ID is the deterministic final tie-breaker even without priority rows.
+    id_category, id_value = _activity_id_value_key(activity.activity_id)
+    parts.append((id_category, id_value))
     return tuple(parts)
 
 
