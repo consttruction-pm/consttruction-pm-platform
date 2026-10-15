@@ -293,3 +293,73 @@ test("workspace read client rejects document revision drift", async () => {
   if (result.ok) throw new Error("expected stale document scope error");
   assert.equal(result.error.code, "STALE_DOCUMENT_SCOPE");
 });
+
+
+test("workspace read client rejects missing nested workspace collections with a stable error", async () => {
+  for (const workspace of [
+    { ...workspaceSnapshot().workspace, columns: null },
+    { ...workspaceSnapshot().workspace, activities: null },
+  ]) {
+    const transport = new StubTransport({
+      ok: true,
+      data: {
+        ...workspaceSnapshot(),
+        workspace,
+      } as never,
+    });
+
+    const result = await new WorkspaceReadClient(transport).load(context);
+
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("expected invalid workspace collection error");
+    assert.equal(result.error.code, "INVALID_WORKSPACE_COLLECTION");
+  }
+});
+
+
+test("workspace read client rejects malformed entries before hydration", async () => {
+  const base = workspaceSnapshot();
+  const cases = [
+    {
+      data: {
+        ...base,
+        workspace: { ...base.workspace, columns: [null] },
+      },
+      code: "INVALID_WORKSPACE_COLLECTION",
+    },
+    {
+      data: {
+        ...base,
+        workspace: { ...base.workspace, activities: [null] },
+      },
+      code: "INVALID_WORKSPACE_COLLECTION",
+    },
+    {
+      data: {
+        ...base,
+        field_issues: [null],
+      },
+      code: "INVALID_WORKSPACE_READ_COLLECTION",
+    },
+    {
+      data: {
+        ...base,
+        documents: [null],
+      },
+      code: "INVALID_WORKSPACE_READ_COLLECTION",
+    },
+  ];
+
+  for (const item of cases) {
+    const transport = new StubTransport({
+      ok: true,
+      data: item.data as never,
+    });
+
+    const result = await new WorkspaceReadClient(transport).load(context);
+
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("expected malformed collection entry error");
+    assert.equal(result.error.code, item.code);
+  }
+});

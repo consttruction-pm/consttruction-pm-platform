@@ -230,6 +230,12 @@ function validateReadEnvelope(
     throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
   }
   if (
+    !isRecordArray(snapshot.workspace.columns) ||
+    !isRecordArray(snapshot.workspace.activities)
+  ) {
+    throw new Error("INVALID_WORKSPACE_COLLECTION");
+  }
+  if (
     !isRecord(snapshot.workspace.context) ||
     snapshot.workspace.context.tenant_id !== context.tenant_id ||
     snapshot.workspace.context.project_id !== context.project_id ||
@@ -248,7 +254,7 @@ function validateReadEnvelope(
     snapshot.safety_observations,
     snapshot.punch_items,
   ];
-  if (requiredCollections.some((collection) => !Array.isArray(collection))) {
+  if (requiredCollections.some((collection) => !isRecordArray(collection))) {
     throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
 
@@ -265,7 +271,15 @@ function validateReadEnvelope(
     snapshot.procurement_commitments,
     snapshot.procurement_deliveries,
   ];
-  if (optionalCollections.some((collection) => collection !== undefined && !Array.isArray(collection))) {
+  if (
+    optionalCollections.some(
+      (collection) => collection !== undefined && !isRecordArray(collection),
+    )
+  ) {
     throw new Error("INVALID_WORKSPACE_READ_COLLECTION");
   }
+}
+
+function isRecordArray(value: unknown): value is readonly Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isRecord);
 }
