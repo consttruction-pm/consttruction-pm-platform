@@ -279,13 +279,12 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
         "original_duration": activity.original_duration,
-        "original_or_planned_duration": activity.original_duration,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
@@ -644,7 +643,7 @@ def backward_leveling_priority_key(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "original_or_planned_duration", "total_float",
+        "total_float",
     }
     values = {
         "activity_id": activity.activity_id,
@@ -657,7 +656,6 @@ def backward_leveling_priority_key(
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
         "original_duration": activity.original_duration,
-        "original_or_planned_duration": activity.original_duration,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
@@ -804,7 +802,7 @@ def propose_backward_leveling(
     ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if any(
-        field in normalized_priorities for field in ("original_duration", "original_or_planned_duration")
+        field in normalized_priorities for field in ("original_duration",)
     ) and any(activity.original_duration is None for activity in activity_list):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
