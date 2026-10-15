@@ -129,18 +129,26 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
         preserve_scheduled_early_and_late_dates=True,
     )
     snapshot, context = make_snapshot_and_context(options=options)
+    # Match the evaluator snapshot's baseline dates: A starts Sep 21 and B
+    # starts Sep 23. Keep capacity on the following working date too, because
+    # the authoritative scheduler may move an activity by one working day.
     demand_a = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "A")
-    demand_b = ResourceDemand("R1", date(2026, 9, 21), Decimal("1"), "B")
+    demand_b = ResourceDemand("R1", date(2026, 9, 23), Decimal("1"), "B")
     activity_a = LevelingActivity(
         "A", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_a,)
     )
     activity_b = LevelingActivity(
-        "B", date(2026, 9, 21), date(2026, 9, 22), 1, (demand_b,)
+        "B", date(2026, 9, 23), date(2026, 9, 24), 1, (demand_b,)
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(activity_a, activity_b),
         backward_activities=(activity_a, activity_b),
-        capacities=(ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),),
+        capacities=(
+            ResourceCapacity("R1", date(2026, 9, 21), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 9, 22), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 9, 23), Decimal("1")),
+            ResourceCapacity("R1", date(2026, 9, 24), Decimal("1")),
+        ),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
 

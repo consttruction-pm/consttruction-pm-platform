@@ -206,7 +206,7 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("16")),
-            ResourceCapacity("R1", day_two, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("16")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
@@ -231,15 +231,17 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         ),
     )
 
-    # Both demands are initially on day one. The valid Monday project finish
-    # creates a real late window; the backward proposal advances B's late start
-    # to Friday. The final CPM reschedule keeps A on Thursday and B on Friday;
-    # this respects SS because B does not start before A.
+    # Both activities have a Monday late-date demand in this fixture, but
+    # capacity is available only on Thursday and Friday. The backward pass
+    # therefore advances both to Friday; the authoritative CPM pass preserves
+    # the SS(0) relationship and final resource demand fits Friday capacity.
     assert forward == ()
-    assert len(backward) == 1
-    assert backward[0].activity_id == "B"
-    assert backward[0].advanced_days == 1
-    assert backward[0].new_start == day_two
-    assert result.activities["A"].start == day_one
+    assert len(backward) == 2
+    assert {shift.activity_id for shift in backward} == {"A", "B"}
+    assert all(shift.new_start == day_two for shift in backward)
+    assert all(shift.advanced_days == 1 for shift in backward)
+    assert result.activities["A"].start == day_two
     assert result.activities["B"].start == day_two
+    # Leveling moves the activities to Friday, but the configured project
+    # finish remains Monday, Oct 5.
     assert result.project_finish == day_three

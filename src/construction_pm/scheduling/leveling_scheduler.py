@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import date
 from typing import Iterable, Mapping
 
-from .constraints import ActivityConstraint, ConstraintType
+from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
@@ -313,7 +313,7 @@ def schedule_with_resource_leveling(
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
         )
-        backward_shifts = propose_backward_leveling(
+        proposed_backward_shifts = propose_backward_leveling(
             backward_activities,
             leveling_input.capacities,
             resolver=resolver,
@@ -326,11 +326,55 @@ def schedule_with_resource_leveling(
                 if shift.shift_working_days > 0
             })),
         )
-        backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
+
+        # A resource proposal is not necessarily CPM-feasible. Test each
+        # incremental candidate through the authoritative scheduler before
+        # retaining it, so an SS/FS/FF/SF dependency or an existing constraint
+        # can veto a move without invalidating the remaining feasible moves.
+        # Catch only typed constraint infeasibility; malformed input, cycles,
+        # and unrelated scheduler errors must continue to surface.
+        accepted_backward: list[BackwardLevelingShift] = []
+        for candidate in proposed_backward_shifts:
+            trial_backward = tuple((*accepted_backward, candidate))
+            trial_backward_ids = {
+                shift.activity_id for shift in trial_backward
+                if shift.advanced_days > 0
+            }
+            trial_forward = tuple(
+                shift for shift in forward_shifts
+                if shift.activity_id not in trial_backward_ids
+            )
+            trial_constraints = (
+                tuple(constraints or ())
+                + forward_leveling_constraints(trial_forward)
+                + backward_leveling_exact_constraints(trial_backward)
+            )
+            try:
+                schedule(
+                    activities, relationships, project_start, resolver,
+                    project_finish=project_finish, constraints=trial_constraints,
+                    options=base_options,
+                    calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
+                    batch_scheduled_finish=batch_scheduled_finish,
+                )
+            except ConstraintViolation:
+                continue
+            accepted_backward.append(candidate)
+
+        backward_shifts = tuple(accepted_backward)
+        backward_ids = {
+            shift.activity_id for shift in backward_shifts
+            if shift.advanced_days > 0
+        }
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
         )
-        final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
+        final_constraints = (
+            tuple(constraints or ())
+            + forward_leveling_constraints(retained_forward)
+            + backward_leveling_exact_constraints(backward_shifts)
+        )
 
     result = schedule(
         activities, relationships, project_start, resolver,
