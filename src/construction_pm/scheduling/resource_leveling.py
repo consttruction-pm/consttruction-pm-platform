@@ -178,6 +178,7 @@ class LevelingActivity:
     free_float: int | None = None
     remaining_duration: int | None = None
     planned_duration: int | None = None
+    original_duration: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -219,6 +220,12 @@ class LevelingActivity:
             or self.planned_duration < 0
         ):
             raise ResourceLevelingError("INVALID_PLANNED_DURATION")
+        if self.original_duration is not None and (
+            isinstance(self.original_duration, bool)
+            or not isinstance(self.original_duration, int)
+            or self.original_duration < 0
+        ):
+            raise ResourceLevelingError("INVALID_ORIGINAL_DURATION")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -261,8 +268,6 @@ def _shift_demands(
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
     normalized = field_name.strip().lower().replace(" ", "_")
-    if normalized in {"original_duration", "original_or_planned_duration"}:
-        normalized = "planned_duration"
     values = {
         "activity_id": activity.activity_id,
         "activity_priority": activity.activity_priority,
@@ -273,12 +278,14 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "free_float": activity.free_float,
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
+        "original_duration": activity.original_duration,
+        "original_or_planned_duration": activity.original_duration,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
@@ -483,6 +490,7 @@ def propose_forward_leveling(
             a.free_float,
             a.remaining_duration,
             a.planned_duration,
+            a.original_duration,
         )
         for a in activities
     )
@@ -544,6 +552,7 @@ def apply_leveling_shifts(
             free_float=activity.free_float,
             remaining_duration=activity.remaining_duration,
             planned_duration=activity.planned_duration,
+            original_duration=activity.original_duration,
         ))
     return tuple(result)
 
@@ -566,6 +575,7 @@ class BackwardLevelingActivity:
     free_float: int | None = None
     remaining_duration: int | None = None
     planned_duration: int | None = None
+    original_duration: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -590,6 +600,12 @@ class BackwardLevelingActivity:
             or self.planned_duration < 0
         ):
             raise ResourceLevelingError("INVALID_PLANNED_DURATION")
+        if self.original_duration is not None and (
+            isinstance(self.original_duration, bool)
+            or not isinstance(self.original_duration, int)
+            or self.original_duration < 0
+        ):
+            raise ResourceLevelingError("INVALID_ORIGINAL_DURATION")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -640,8 +656,8 @@ def backward_leveling_priority_key(
         "free_float": activity.free_float,
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
-        "original_duration": activity.planned_duration,
-        "original_or_planned_duration": activity.planned_duration,
+        "original_duration": activity.original_duration,
+        "original_or_planned_duration": activity.original_duration,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
@@ -783,10 +799,13 @@ def propose_backward_leveling(
         activity.remaining_duration is None for activity in activity_list
     ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    if "planned_duration" in normalized_priorities and any(
+        activity.planned_duration is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if any(
-        field in normalized_priorities for field in
-        ("planned_duration", "original_duration", "original_or_planned_duration")
-    ) and any(activity.planned_duration is None for activity in activity_list):
+        field in normalized_priorities for field in ("original_duration", "original_or_planned_duration")
+    ) and any(activity.original_duration is None for activity in activity_list):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
     selected_resources = set(
