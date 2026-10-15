@@ -171,6 +171,10 @@ class LevelingActivity:
     total_float: int
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    # Authoritative late dates for the configured P6 leveling-priority rows.
+    # The scheduler fills these from its current CPM result before proposals.
+    late_start: date | None = None
+    late_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -190,6 +194,12 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        for field_name in ("late_start", "late_finish"):
+            value = getattr(self, field_name)
+            if value is not None and (
+                not isinstance(value, date) or isinstance(value, datetime)
+            ):
+                raise ResourceLevelingError("INVALID_ACTIVITY_LATE_DATE")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -237,11 +247,16 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "activity_priority": activity.activity_priority,
         "early_start": activity.start,
         "early_finish": activity.finish,
+        "late_start": activity.late_start,
+        "late_finish": activity.late_finish,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
-    return values[normalized]
+    value = values[normalized]
+    if normalized in {"late_start", "late_finish"} and value is None:
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    return value
 
 
 def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
@@ -522,13 +537,15 @@ def backward_leveling_priority_key(
     """
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "total_float",
+        "early_finish", "late_start", "late_finish", "total_float",
     }
     values = {
         "activity_id": activity.activity_id,
         "activity_priority": activity.activity_priority,
         "early_start": activity.early_start,
         "early_finish": activity.early_finish,
+        "late_start": activity.late_start,
+        "late_finish": activity.late_finish,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
