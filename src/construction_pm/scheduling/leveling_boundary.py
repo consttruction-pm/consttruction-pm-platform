@@ -82,6 +82,7 @@ def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]
         "early_finish",
         "late_start",
         "late_finish",
+        "free_float",
         "total_float",
     }
     priorities: list[LevelingPriority] = []
