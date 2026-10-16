@@ -206,8 +206,8 @@ class ScheduleOptions:
                 raise ValueError("resource_list must not contain duplicate resource IDs")
 
         if self.priority_list is not None:
-            if not isinstance(self.priority_list, tuple) or not self.priority_list:
-                raise ValueError("priority_list must be a non-empty tuple of PriorityListItem or None")
+            if not isinstance(self.priority_list, tuple):
+                raise ValueError("priority_list must be a tuple of PriorityListItem or None")
             if not all(isinstance(item, PriorityListItem) for item in self.priority_list):
                 raise ValueError("priority_list must contain only PriorityListItem values")
 
