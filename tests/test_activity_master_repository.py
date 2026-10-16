@@ -10,7 +10,7 @@ from construction_pm.activity_master_repository import (
     ActivityPersistenceError,
     SQLiteActivityMasterRepository,
 )
-from construction_pm.scheduling.activity import PercentCompleteType
+from construction_pm.scheduling.activity import ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.time_duration import DurationUnit
 
 
@@ -23,6 +23,7 @@ def activity(
     duration: str = "2",
     expected_finish: date | None = None,
     planned_finish: date | None = None,
+    leveling_priority: ActivityLevelingPriority | None = None,
 ) -> ActivityMaster:
     return ActivityMaster(
         scope(revision),
@@ -33,6 +34,7 @@ def activity(
         0,
         expected_finish,
         planned_finish=planned_finish,
+        leveling_priority=leveling_priority,
     )
 
 
@@ -193,9 +195,50 @@ def test_activity_master_migrates_existing_table_for_planned_finish():
         for row in connection.execute("PRAGMA table_info(activity_master)").fetchall()
     }
     assert "planned_finish" in columns
+    assert "leveling_priority" in columns
 
     planned_finish = date(2026, 9, 28)
-    stored = repo.save(activity(planned_finish=planned_finish))
+    stored = repo.save(
+        activity(
+            planned_finish=planned_finish,
+            leveling_priority=ActivityLevelingPriority.LOWEST,
+        )
+    )
     assert repo.get(scope(), "A-1") == stored
     assert stored.planned_finish == planned_finish
+    assert stored.leveling_priority is ActivityLevelingPriority.LOWEST
+
+def test_activity_master_persists_activity_leveling_priority():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(
+        activity(leveling_priority=ActivityLevelingPriority.TOP)
+    )
+    restored = repo.get(scope(), "A-1")
+
+    assert stored.leveling_priority is ActivityLevelingPriority.TOP
+    assert restored.leveling_priority is ActivityLevelingPriority.TOP
+    assert repo.list(scope())[0].leveling_priority is ActivityLevelingPriority.TOP
+    assert restored == stored
+
+
+def test_activity_master_updates_activity_leveling_priority_with_revision():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(activity(leveling_priority=ActivityLevelingPriority.HIGH))
+
+    updated = repo.save(
+        activity(leveling_priority=ActivityLevelingPriority.LOW),
+        expected_revision=1,
+    )
+
+    assert updated.record_revision == 2
+    assert updated.leveling_priority is ActivityLevelingPriority.LOW
+    assert repo.get(scope(), "A-1") == updated
+
+
+def test_activity_master_rejects_invalid_activity_leveling_priority():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ActivityPersistenceError, match="INVALID_LEVELING_PRIORITY"):
+        repo.save(activity(leveling_priority="Top"))
+
+
 
