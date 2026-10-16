@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from typing import Iterable, Mapping
 
-from .constraints import ActivityConstraint, ConstraintType
+from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
     LevelingActivity,
+    LevelingPriority,
     LevelingShift,
     ResourceDemand,
     apply_leveling_shifts,
@@ -17,6 +19,7 @@ from .resource_leveling import (
     propose_backward_leveling,
     propose_forward_leveling,
     ResourceLevelingError,
+    SortOrder,
 )
 from .schedule_options import ScheduleOptions
 from .leveling_boundary import (
@@ -89,7 +92,9 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
+    float_schedule: Mapping[str, object],
     resolver: object,
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -98,10 +103,20 @@ def _backward_activities_from_intermediate(
         late = late_schedule[activity.activity_id]
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
-        if late.start > original_start:
-            displacement = resolver.working_days_between(original_start, late.start)
-        elif late.start < original_start:
-            displacement = -resolver.working_days_between(late.start, original_start)
+        # Forward-leveled activities are protected from the backward pass.
+        # Their demand ledger must therefore remain anchored to the intermediate
+        # CPM start, not be projected to the unconstrained late window; otherwise
+        # the backward pass fails to see their real demand on the protected date
+        # and can move another activity into the same overloaded slot.
+        demand_anchor = (
+            early.start
+            if activity.activity_id in protected_activity_ids
+            else late.start
+        )
+        if demand_anchor > original_start:
+            displacement = resolver.working_days_between(original_start, demand_anchor)
+        elif demand_anchor < original_start:
+            displacement = -resolver.working_days_between(demand_anchor, original_start)
         else:
             displacement = 0
 
@@ -133,9 +148,57 @@ def _backward_activities_from_intermediate(
                 late_finish=late.finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
+                total_float=getattr(float_schedule.get(activity.activity_id), "total_float", None),
             )
         )
     return tuple(result)
+
+
+
+class _DescendingPriority:
+    """Reverse ordering for a single descending priority criterion."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, _DescendingPriority):
+            return NotImplemented
+        return other.value < self.value
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _DescendingPriority) and self.value == other.value
+
+
+def _backward_leveling_priority_key(
+    activity: BackwardLevelingActivity,
+    priorities: tuple[LevelingPriority, ...],
+) -> tuple:
+    """Mirror the proposal pass ordering when choosing a rollback candidate."""
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": activity.activity_priority,
+        "early_start": activity.early_start,
+        "early_finish": activity.early_finish,
+        "total_float": activity.total_float,
+    }
+    parts: list[tuple[int, object]] = []
+    for priority in priorities:
+        field_name = priority.field_name.strip().lower().replace(" ", "_")
+        if field_name not in values:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        value = values[field_name]
+        if value is None:
+            parts.append((1, ""))
+        elif priority.sort_order is SortOrder.ASCENDING:
+            parts.append((0, value))
+        else:
+            parts.append((0, _DescendingPriority(value)))
+    # The proposal pass uses Activity ID as the deterministic final tie-breaker.
+    parts.append((0, activity.activity_id))
+    return tuple(parts)
 
 
 def _validate_final_resource_load(
@@ -189,13 +252,50 @@ def _validate_final_resource_load(
     scoped_demands = tuple(
         demand for demand in shifted_demands if demand.resource_id in selected_resources
     )
+    # Compare against the unshifted demand ledger. A configured float floor can
+    # intentionally prevent any movement, leaving an existing overload in place;
+    # that is different from CPM relationship propagation creating or worsening
+    # an overload after leveling. Reject only overloads whose excess increased.
+    baseline_demands = tuple(
+        demand
+        for activity in leveling_input.forward_activities
+        for demand in activity.resource_demands
+        if demand.resource_id in selected_resources
+    )
+    baseline_overloads = detect_over_allocations(
+        baseline_demands,
+        leveling_input.capacities,
+        over_allocation_percentage=leveling_input.options.over_allocation_percentage,
+    )
+    baseline_excess = {
+        (overload.resource_id, overload.period): overload.excess
+        for overload in baseline_overloads
+    }
     overloads = detect_over_allocations(
         scoped_demands,
         leveling_input.capacities,
         over_allocation_percentage=leveling_input.options.over_allocation_percentage,
     )
-    if overloads:
-        first = overloads[0]
+    # Capacity is an explicit period-based input. Dates without a capacity row
+    # are outside the caller's configured validation horizon; treating every
+    # absent row as zero makes unconstrained CPM late dates (which can be far in
+    # the future) look like new resource overloads even when no capacity was
+    # specified for those periods.
+    configured_capacity_periods = {
+        (capacity.resource_id, capacity.period)
+        for capacity in leveling_input.capacities
+        if capacity.resource_id in selected_resources
+    }
+    worsened_overloads = tuple(
+        overload
+        for overload in overloads
+        if (overload.resource_id, overload.period) in configured_capacity_periods
+        and overload.excess > baseline_excess.get(
+            (overload.resource_id, overload.period), Decimal("0")
+        )
+    )
+    if worsened_overloads:
+        first = worsened_overloads[0]
         raise ResourceLevelingError(
             "FINAL_RESOURCE_OVERALLOCATION:"
             f"{first.resource_id}:{first.period.isoformat()}:"
@@ -311,7 +411,12 @@ def schedule_with_resource_leveling(
             # move that violates a relationship newly activated by a forward shift.
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
+            float_schedule=intermediate.floats,
             resolver=resolver,
+            protected_activity_ids=tuple(sorted({
+                shift.activity_id for shift in forward_shifts
+                if shift.shift_working_days > 0
+            })),
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
@@ -332,16 +437,168 @@ def schedule_with_resource_leveling(
         )
         final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
 
-    result = schedule(
-        activities, relationships, project_start, resolver,
-        project_finish=project_finish, constraints=final_constraints, options=base_options,
-        calculation_context=calculation_context,
-        relationship_lag_resolvers=relationship_lag_resolvers,
-        batch_scheduled_finish=batch_scheduled_finish,
-    )
-    _validate_final_resource_load(
-        result=result,
-        leveling_input=leveling_input,
-        resolver=resolver,
-    )
+    # Backward proposals are only provisional until the authoritative CPM
+    # schedule and its final resource ledger both accept them. If a successor
+    # cannot honor an aggressive date, reduce that step first. If CPM then
+    # propagates another shifted activity into a resource overload, backtrack
+    # the least-preferred shifted contributor and retry the complete schedule.
+    # This is a bounded search: every retry removes one positive backward step.
+    while True:
+        # A ResourceLevelingError raised by schedule() itself has no final
+        # schedule result to inspect; only final-ledger errors may trigger
+        # contributor-based backtracking below.
+        result = None
+        try:
+            result = schedule(
+                activities, relationships, project_start, resolver,
+                project_finish=project_finish, constraints=final_constraints, options=base_options,
+                calculation_context=calculation_context,
+                relationship_lag_resolvers=relationship_lag_resolvers,
+                batch_scheduled_finish=batch_scheduled_finish,
+            )
+            _validate_final_resource_load(
+                result=result,
+                leveling_input=leveling_input,
+                resolver=resolver,
+            )
+            break
+        except ConstraintViolation as exc:
+            if not backward_shifts:
+                raise
+            message = str(exc)
+            activity_id = message.rsplit(" for ", 1)[-1] if " for " in message else ""
+            candidates = [
+                shift for shift in backward_shifts
+                if shift.activity_id == activity_id and shift.advanced_days > 0
+            ]
+            if not candidates:
+                raise
+            most_aggressive = max(candidates, key=lambda shift: shift.advanced_days)
+            backward_shifts = tuple(
+                shift for shift in backward_shifts
+                if shift is not most_aggressive
+            )
+        except ResourceLevelingError as exc:
+            if result is None:
+                # schedule() failed before producing an authoritative result;
+                # this is not a final-ledger overload we can backtrack safely.
+                raise
+            # A relationship may reject a successor's most aggressive move,
+            # leaving an earlier predecessor move that pushes both demands
+            # onto the same configured-capacity period. Use the final result
+            # to identify contributors to that exact overload and backtrack
+            # the least-preferred contributor instead of returning an invalid
+            # ledger or weakening final validation.
+            parts = str(exc).split(":")
+            if (
+                len(parts) < 4
+                or parts[0] != "FINAL_RESOURCE_OVERALLOCATION"
+                or not backward_shifts
+            ):
+                raise
+            resource_id = parts[1]
+            try:
+                overloaded_period = date.fromisoformat(parts[2])
+            except ValueError:
+                raise exc
+
+            final_activities = getattr(result, "activities", {})
+            contributing_ids: set[str] = set()
+            forward_by_id = {
+                activity.activity_id: activity
+                for activity in leveling_input.forward_activities
+            }
+            for activity_id, activity_input in forward_by_id.items():
+                final_activity = final_activities.get(activity_id)
+                if final_activity is None:
+                    continue
+                if final_activity.start >= activity_input.start:
+                    shift_days = resolver.working_days_between(
+                        activity_input.start, final_activity.start
+                    )
+                else:
+                    shift_days = -resolver.working_days_between(
+                        final_activity.start, activity_input.start
+                    )
+                for demand in activity_input.resource_demands:
+                    if demand.resource_id != resource_id:
+                        continue
+                    if shift_days > 0:
+                        shifted_period = resolver.add_working_duration(
+                            demand.period, shift_days + 1
+                        )
+                    elif shift_days < 0:
+                        shifted_period = resolver.subtract_working_duration(
+                            demand.period, abs(shift_days) + 1
+                        )
+                    else:
+                        shifted_period = demand.period
+                    if shifted_period == overloaded_period:
+                        contributing_ids.add(activity_id)
+                        break
+
+            candidates = [
+                shift for shift in backward_shifts
+                if shift.activity_id in contributing_ids and shift.advanced_days > 0
+            ]
+            if not candidates:
+                raise exc
+            # Roll back the least-preferred contributor according to the same
+            # complete ordered criteria used to propose backward shifts. Looking
+            # only at activity_priority here can contradict Total Float, dates,
+            # or any earlier criterion in the configured priority list.
+            # Use the CPM-enriched candidates from the intermediate schedule.
+            # The original boundary inputs may not carry authoritative Total Float;
+            # using them here would silently discard the first configured criterion
+            # during rollback even though proposal selection used it correctly.
+            backward_by_id = {
+                activity.activity_id: activity
+                for activity in backward_activities
+            }
+            candidate_ids = {shift.activity_id for shift in candidates}
+            if leveling_input.options.priorities:
+                rollback_id = max(
+                    candidate_ids,
+                    key=lambda activity_id: _backward_leveling_priority_key(
+                        backward_by_id[activity_id],
+                        leveling_input.options.priorities,
+                    ),
+                )
+            else:
+                # Preserve the legacy fallback when no ordered priority rows
+                # were configured: prefer retaining the lower numeric activity
+                # priority, with activity ID as the deterministic tie-breaker.
+                priority_by_id = {
+                    activity.activity_id: activity.activity_priority
+                    for activity in leveling_input.backward_activities
+                }
+                rollback_id = max(
+                    candidate_ids,
+                    key=lambda activity_id: (
+                        priority_by_id.get(activity_id)
+                        if priority_by_id.get(activity_id) is not None
+                        else 0,
+                        activity_id,
+                    ),
+                )
+            most_aggressive = max(
+                (shift for shift in candidates if shift.activity_id == rollback_id),
+                key=lambda shift: shift.advanced_days,
+            )
+            backward_shifts = tuple(
+                shift for shift in backward_shifts
+                if shift is not most_aggressive
+            )
+
+        backward_ids = {
+            shift.activity_id for shift in backward_shifts if shift.advanced_days > 0
+        }
+        retained_forward = tuple(
+            shift for shift in forward_shifts if shift.activity_id not in backward_ids
+        )
+        final_constraints = (
+            tuple(constraints or ())
+            + forward_leveling_constraints(retained_forward)
+            + backward_leveling_exact_constraints(backward_shifts)
+        )
     return result, forward_shifts, backward_shifts

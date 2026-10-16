@@ -343,6 +343,7 @@ def execute_authoritative_schedule_batch(
                     early_finish=early[activity.activity_id].finish,
                     late_start=late[activity.activity_id].start,
                     late_finish=late[activity.activity_id].finish,
+                    total_float=initial.floats[activity.activity_id].total_float,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
