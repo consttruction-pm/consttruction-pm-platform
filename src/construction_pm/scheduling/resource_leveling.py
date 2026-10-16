@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from .activity import ActivityLevelingPriority
 from .calendar import WorkingTimeResolver
 from enum import Enum
 
@@ -15,6 +16,15 @@ class ResourceLevelingError(ValueError):
 class SortOrder(str, Enum):
     ASCENDING = "ASCENDING"
     DESCENDING = "DESCENDING"
+
+
+_ACTIVITY_LEVELING_PRIORITY_RANK = {
+    ActivityLevelingPriority.TOP: 0,
+    ActivityLevelingPriority.HIGH: 1,
+    ActivityLevelingPriority.NORMAL: 2,
+    ActivityLevelingPriority.LOW: 3,
+    ActivityLevelingPriority.LOWEST: 4,
+}
 
 
 @dataclass(frozen=True)
@@ -182,6 +192,7 @@ class LevelingActivity:
     project_planned_start: date | None = None
     project_priority: int | None = None
     planned_finish: date | None = None
+    activity_leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -245,6 +256,10 @@ class LevelingActivity:
             or isinstance(self.planned_finish, datetime)
         ):
             raise ResourceLevelingError("INVALID_PLANNED_FINISH")
+        if self.activity_leveling_priority is not None and not isinstance(
+            self.activity_leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_LEVELING_PRIORITY")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -301,12 +316,13 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
         "planned_finish": activity.planned_finish,
+        "activity_leveling_priority": activity.activity_leveling_priority,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
@@ -343,16 +359,20 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             # Keep numeric/alphabetic/blank categories ordered in either sort
             # direction; reverse only the values within each category.
             parts.append((category, ordered_value))
-        elif normalized_field == "project_priority":
-            # P6 priority-list order determines which project receives resource
-            # precedence first (1=highest, 100=lowest). This helper ranks move
-            # candidates, so its key is inverse to service precedence:
-            # ascending serves the higher-rank project first and moves the lower
-            # rank on conflict; descending has the opposite effect.
+        elif normalized_field == "activity_leveling_priority":
+            rank = _ACTIVITY_LEVELING_PRIORITY_RANK[value]
             ordered_value = (
-                _Descending(value)
+                rank
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(rank)
+            )
+            parts.append((0, ordered_value))
+        elif normalized_field == "project_priority":
+            # Project Leveling Priority is numeric: 1=highest, 100=lowest.
+            ordered_value = (
+                value
+                if priority.sort_order is SortOrder.ASCENDING
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -527,6 +547,7 @@ def propose_forward_leveling(
             a.project_planned_start,
             a.project_priority,
             a.planned_finish,
+            a.activity_leveling_priority,
         )
         for a in activities
     )
@@ -592,6 +613,7 @@ def apply_leveling_shifts(
             project_planned_start=activity.project_planned_start,
             project_priority=activity.project_priority,
             planned_finish=activity.planned_finish,
+            activity_leveling_priority=activity.activity_leveling_priority,
         ))
     return tuple(result)
 
@@ -618,6 +640,7 @@ class BackwardLevelingActivity:
     project_planned_start: date | None = None
     project_priority: int | None = None
     planned_finish: date | None = None
+    activity_leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -664,6 +687,10 @@ class BackwardLevelingActivity:
             or isinstance(self.planned_finish, datetime)
         ):
             raise ResourceLevelingError("INVALID_PLANNED_FINISH")
+        if self.activity_leveling_priority is not None and not isinstance(
+            self.activity_leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_LEVELING_PRIORITY")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -702,7 +729,8 @@ def backward_leveling_priority_key(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "planned_finish", "total_float",
+        "project_planned_start", "project_priority", "planned_finish",
+        "activity_leveling_priority", "total_float",
     }
     values = {
         "activity_id": activity.activity_id,
@@ -718,6 +746,7 @@ def backward_leveling_priority_key(
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
         "planned_finish": activity.planned_finish,
+        "activity_leveling_priority": activity.activity_leveling_priority,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
@@ -726,7 +755,7 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
-        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish"} and value is None:
+        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
             raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
@@ -738,14 +767,19 @@ def backward_leveling_priority_key(
                 else _Descending(comparable)
             )
             parts.append((category, ordered_value))
-        elif normalized == "project_priority":
-            # Candidate ranking is inverse to allocation precedence: with ASC,
-            # the project at rank 1 is served first, so rank 100 is the first
-            # candidate to move; DESC reverses this preference.
+        elif normalized == "activity_leveling_priority":
+            rank = _ACTIVITY_LEVELING_PRIORITY_RANK[value]
             ordered_value = (
-                _Descending(value)
+                rank
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(rank)
+            )
+            parts.append((0, ordered_value))
+        elif normalized == "project_priority":
+            ordered_value = (
+                value
+                if priority.sort_order is SortOrder.ASCENDING
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -848,7 +882,8 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "planned_finish", "total_float",
+        "project_planned_start", "project_priority", "planned_finish",
+        "activity_leveling_priority", "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
@@ -887,6 +922,10 @@ def propose_backward_leveling(
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if "planned_finish" in normalized_priorities and any(
         activity.planned_finish is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    if "activity_leveling_priority" in normalized_priorities and any(
+        activity.activity_leveling_priority is None for activity in activity_list
     ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
