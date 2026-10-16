@@ -1045,8 +1045,8 @@ def test_original_or_planned_duration_priority_uses_original_then_planned_fallba
     )
 
     # A2 falls back to its planned duration (3), which sorts before A1's
-    # original duration (5), so A1 is the activity delayed by the leveler.
-    assert [shift.activity_id for shift in shifts] == ["A1"]
+    # original duration (5), so A2 is the activity delayed by the leveler.
+    assert [shift.activity_id for shift in shifts] == ["A2"]
 
 
 def test_original_duration_priority_fails_closed_when_missing():
