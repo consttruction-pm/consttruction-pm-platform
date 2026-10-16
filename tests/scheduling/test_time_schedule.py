@@ -896,3 +896,44 @@ def test_free_float_is_zero_when_total_float_is_negative_and_relationship_is_vio
     assert result["A"].total_float_value == Decimal("-1")
     assert result["A"].free_float_value == Decimal("0")
     assert result["A"].free_float_hours == Decimal("0")
+
+def test_backward_validation_uses_explicit_project_lag_calendar_over_context_default():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+    }
+    calendar = lambda intervals: TimeAwareWorkingTimeResolver(
+        WorkingTimeCalendar(daily_intervals={i: intervals for i in range(5)})
+    )
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": calendar(((time(6), time(18)),)),
+        "predecessor@1": calendar(((time(8), time(17)),)),
+        "successor@1": calendar(((time(7), time(11)), (time(12), time(16)))),
+    })
+    predecessor_context = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["predecessor"],
+        relationship_lag=refs["successor"],
+    )
+    successor_context = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["successor"],
+        relationship_lag=refs["successor"],
+    )
+    result = time_schedule(
+        [
+            TimeActivity("A", TimeQuantity.working_hours(3), predecessor_context),
+            TimeActivity("B", TimeQuantity.working_hours(1), successor_context),
+        ],
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
+        registry,
+        options=TimeScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PROJECT_DEFAULT
+        ),
+    )
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
+
