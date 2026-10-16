@@ -1422,3 +1422,56 @@ def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> N
 
     assert rollback.activity_id == "B"
 
+
+
+
+def test_backward_ss_candidate_is_rolled_back_when_it_violates_relationship_and_overload_remains() -> None:
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    # Forward leveling moves A to day two; the SS relationship then propagates
+    # B to day two as well. A backward candidate that pins B to day one would
+    # violate SS while A remains on day two. Since neither day can host both
+    # demands, the scheduler must reject the candidate and report infeasibility
+    # rather than return a relationship-invalid or overloaded result.
+    demand_a = ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", date(2026, 10, 1), date(2026, 10, 1), 2, (demand_a,)),
+            LevelingActivity("B", date(2026, 10, 1), date(2026, 10, 1), 2, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", date(2026, 10, 1), date(2026, 10, 1),
+                date(2026, 10, 2), date(2026, 10, 2),
+                (ResourceDemand("R1", date(2026, 10, 2), Decimal("8"), "A"),),
+            ),
+            BackwardLevelingActivity(
+                "B", date(2026, 10, 1), date(2026, 10, 1),
+                date(2026, 10, 2), date(2026, 10, 2),
+                (ResourceDemand("R1", date(2026, 10, 2), Decimal("8"), "B"),),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (Relationship("A", "B", RelationshipType.SS),),
+            date(2026, 10, 1),
+            resolver,
+            leveling_input,
+            project_finish=date(2026, 10, 3),
+        )
