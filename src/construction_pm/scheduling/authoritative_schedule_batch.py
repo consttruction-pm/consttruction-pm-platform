@@ -169,8 +169,8 @@ def execute_authoritative_schedule_batch(
     has_leveling_options = any(
         snapshot.schedule_options.level_all_resources
         or snapshot.schedule_options.level_within_float
-        or snapshot.schedule_options.resource_list
-        or snapshot.schedule_options.priority_list
+        or snapshot.schedule_options.resource_list is not None
+        or snapshot.schedule_options.priority_list is not None
         or snapshot.schedule_options.min_float_to_preserve
         or snapshot.schedule_options.over_allocation_percentage
         for snapshot in snapshot_list
