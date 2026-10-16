@@ -438,6 +438,7 @@ def test_public_backward_ss_conflict_rolls_back_incompatible_candidate(monkeypat
     assert sum((demand.units for demand in final_demands), Decimal("0")) <= Decimal("16")
 
 def test_public_leveling_maps_activity_leveling_priority_from_activity():
+    assert Activity("DEFAULT", 1).leveling_priority is ActivityLevelingPriority.NORMAL
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
