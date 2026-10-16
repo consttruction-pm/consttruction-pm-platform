@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timezone
+import hashlib
 from dataclasses import replace
 from decimal import Decimal
 
@@ -258,3 +259,16 @@ def test_evaluator_checks_snapshot_hash_before_calendar_context():
 
     with pytest.raises(ScheduleEvaluationError, match="SNAPSHOT_HASH_MISMATCH"):
         evaluate_schedule_snapshot(tampered_snapshot, context, registry())
+
+
+@pytest.mark.parametrize("payload", ["[]", "null", '"not-an-object"'])
+def test_evaluator_rejects_non_object_json_snapshot_payload(payload):
+    snapshot, context = make_snapshot_and_context()
+    malformed_shape_snapshot = replace(
+        snapshot,
+        canonical_payload=payload,
+        snapshot_hash=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+    )
+
+    with pytest.raises(ScheduleEvaluationError, match="INVALID_SNAPSHOT_PAYLOAD"):
+        evaluate_schedule_snapshot(malformed_shape_snapshot, context, registry())
