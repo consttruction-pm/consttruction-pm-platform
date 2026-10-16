@@ -180,6 +180,7 @@ def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input
         ("project_version", 8),
         ("project_id", "OTHER"),
         ("tenant_id", "OTHER"),
+        ("tenant_id", None),
     ],
 )
 def test_evaluator_rejects_context_scope_mismatch(field, value):
