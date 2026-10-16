@@ -14,7 +14,6 @@ from construction_pm.persisted_schedule_input_materializer import (
 )
 from construction_pm.schedule_input_snapshot_repository import (
     SQLiteScheduleInputSnapshotRepository,
-    ScheduleSnapshotPersistenceError,
 )
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
