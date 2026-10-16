@@ -689,3 +689,41 @@ def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_cale
     )
     start = datetime(2026, 9, 22, 23, tzinfo=timezone.utc)
     assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3, tzinfo=timezone.utc)
+
+def test_time_backward_pass_rejects_constraint_for_unknown_activity():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    constraint = TimeActivityConstraint(
+        "MISSING",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
+    )
+    with pytest.raises(ValueError, match="constraint references an unknown activity"):
+        time_backward_pass(
+            [activity],
+            [],
+            early,
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+            [constraint],
+        )
+
+
+def test_time_backward_pass_rejects_duplicate_activity_ids():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        time_backward_pass(
+            [activity, activity],
+            [],
+            early,
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+        )
+
