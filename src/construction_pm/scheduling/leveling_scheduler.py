@@ -167,6 +167,11 @@ def _backward_activities_from_intermediate(
                     if activity.project_planned_start is not None
                     else forward_activity.project_planned_start
                 ),
+                project_priority=(
+                    activity.project_priority
+                    if activity.project_priority is not None
+                    else forward_activity.project_priority
+                ),
             )
         )
     return tuple(result)
