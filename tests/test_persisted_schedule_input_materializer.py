@@ -400,3 +400,23 @@ def test_date_schedule_materializer_rejects_non_calendar_activity_value():
             activity_metadata=metadata,
             activity_calendars=calendars,
         )
+
+
+def test_date_schedule_materializer_rejects_project_finish_before_start():
+    scope, activities, relationships, metadata, calendars = _setup()
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="PROJECT_FINISH_BEFORE_START",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-INVERTED-DATES",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+            project_start=date(2026, 10, 10),
+            project_finish=date(2026, 10, 9),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+        )
