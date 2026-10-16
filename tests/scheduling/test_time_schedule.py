@@ -860,3 +860,39 @@ def test_free_float_preserves_fractional_working_hour_slack():
 
     assert result["A"].total_float_value == Decimal("1.5")
     assert result["A"].free_float_value == Decimal("1.5")
+
+
+def test_free_float_is_zero_when_total_float_is_negative_and_relationship_is_violated():
+    ctx = context()
+    start = datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
+    resolver = registry().time_resolvers["site@1"]
+    early_a_finish = resolver.add_working_hours(start, 2)
+    late_a_start = datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    late_a_finish = resolver.add_working_hours(late_a_start, 2)
+    successor_start = datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    successor_finish = resolver.add_working_hours(successor_start, 1)
+
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = {
+        "A": TimeScheduledActivity("A", start, early_a_finish, activities[0].duration),
+        "B": TimeScheduledActivity("B", successor_start, successor_finish, activities[1].duration),
+    }
+    late = {
+        "A": TimeScheduledActivity("A", late_a_start, late_a_finish, activities[0].duration),
+        "B": early["B"],
+    }
+
+    result = calculate_time_floats(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS)],
+        early,
+        late,
+        registry(),
+    )
+
+    assert result["A"].total_float_value == Decimal("-1")
+    assert result["A"].free_float_value == Decimal("0")
+    assert result["A"].free_float_hours == Decimal("0")
