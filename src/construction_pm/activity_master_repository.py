@@ -38,7 +38,7 @@ class ActivityMaster:
     percent_complete: float | None = None
     percent_complete_type: PercentCompleteType = PercentCompleteType.DURATION
     planned_finish: date | datetime | None = None
-    leveling_priority: ActivityLevelingPriority | None = None
+    leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
 
     def validate(self) -> None:
         self.scope.validate()
@@ -56,9 +56,7 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_EXPECTED_FINISH")
         if self.planned_finish is not None and not isinstance(self.planned_finish, (date, datetime)):
             raise ActivityPersistenceError("INVALID_PLANNED_FINISH")
-        if self.leveling_priority is not None and not isinstance(
-            self.leveling_priority, ActivityLevelingPriority
-        ):
+        if not isinstance(self.leveling_priority, ActivityLevelingPriority):
             raise ActivityPersistenceError("INVALID_LEVELING_PRIORITY")
         if self.actual_finish is not None and not isinstance(self.actual_finish, (date, datetime)):
             raise ActivityPersistenceError("INVALID_ACTUAL_FINISH")
@@ -92,7 +90,7 @@ class ActivityMaster:
             self.percent_complete,
             self.percent_complete_type.value,
             None if self.planned_finish is None else self.planned_finish.isoformat(),
-            None if self.leveling_priority is None else self.leveling_priority.value,
+            self.leveling_priority.value,
         )
 
 
@@ -152,9 +150,10 @@ def _decode_planned_finish(value: object) -> date | datetime | None:
         raise ActivityPersistenceError("INVALID_STORED_PLANNED_FINISH") from exc
 
 
-def _decode_activity_leveling_priority(value: object) -> ActivityLevelingPriority | None:
+def _decode_activity_leveling_priority(value: object) -> ActivityLevelingPriority:
+    # P6 defaults an activity's leveling priority to Normal unless overridden.
     if value is None:
-        return None
+        return ActivityLevelingPriority.NORMAL
     try:
         return ActivityLevelingPriority.from_p6_value(str(value))
     except ValueError as exc:
@@ -196,7 +195,7 @@ class SQLiteActivityMasterRepository:
             actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT,
             percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
             record_revision INTEGER NOT NULL, expected_finish TEXT, planned_finish TEXT,
-            leveling_priority TEXT,
+            leveling_priority TEXT NOT NULL DEFAULT 'Normal',
             PRIMARY KEY (tenant_id, project_id, activity_id))""")
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(activity_master)").fetchall()}
         if "expected_finish" not in columns:
@@ -204,7 +203,12 @@ class SQLiteActivityMasterRepository:
         if "planned_finish" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN planned_finish TEXT")
         if "leveling_priority" not in columns:
-            self.connection.execute("ALTER TABLE activity_master ADD COLUMN leveling_priority TEXT")
+            self.connection.execute(
+                "ALTER TABLE activity_master ADD COLUMN leveling_priority TEXT NOT NULL DEFAULT 'Normal'"
+            )
+        self.connection.execute(
+            "UPDATE activity_master SET leveling_priority='Normal' WHERE leveling_priority IS NULL"
+        )
         if "actual_finish" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN actual_finish TEXT")
         if "remaining_duration" not in columns:
@@ -242,7 +246,7 @@ class SQLiteActivityMasterRepository:
                  stored.record_revision,
                  None if stored.expected_finish is None else stored.expected_finish.isoformat(),
                  None if stored.planned_finish is None else stored.planned_finish.isoformat(),
-                 None if stored.leveling_priority is None else stored.leveling_priority.value))
+                 stored.leveling_priority.value))
             self.connection.commit()
             return stored
         current = _from_row(activity.scope, row[:13])
@@ -263,7 +267,7 @@ class SQLiteActivityMasterRepository:
              stored.record_revision,
              None if stored.expected_finish is None else stored.expected_finish.isoformat(),
              None if stored.planned_finish is None else stored.planned_finish.isoformat(),
-             None if stored.leveling_priority is None else stored.leveling_priority.value,
+             stored.leveling_priority.value,
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
         if update_cursor.rowcount != 1:
             self.connection.rollback()
@@ -304,10 +308,21 @@ class PostgresActivityMasterRepository:
             "actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT, "
             "percent_complete DOUBLE PRECISION, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION', "
             "record_revision BIGINT NOT NULL, expected_finish TEXT, planned_finish TEXT, "
-            "leveling_priority TEXT, PRIMARY KEY (tenant_id, project_id, activity_id))")
+            "leveling_priority TEXT NOT NULL DEFAULT 'Normal', PRIMARY KEY (tenant_id, project_id, activity_id))")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS expected_finish TEXT")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS planned_finish TEXT")
-        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS leveling_priority TEXT")
+        self.connection.execute(
+            "ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS leveling_priority TEXT NOT NULL DEFAULT 'Normal'"
+        )
+        self.connection.execute(
+            "ALTER TABLE activity_master ALTER COLUMN leveling_priority SET DEFAULT 'Normal'"
+        )
+        self.connection.execute(
+            "UPDATE activity_master SET leveling_priority='Normal' WHERE leveling_priority IS NULL"
+        )
+        self.connection.execute(
+            "ALTER TABLE activity_master ALTER COLUMN leveling_priority SET NOT NULL"
+        )
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS actual_finish TEXT")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS remaining_duration INTEGER")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS remaining_start TEXT")
@@ -337,7 +352,7 @@ class PostgresActivityMasterRepository:
                  revision,
                  None if activity.expected_finish is None else activity.expected_finish.isoformat(),
                  None if activity.planned_finish is None else activity.planned_finish.isoformat(),
-                 None if activity.leveling_priority is None else activity.leveling_priority.value))
+                 activity.leveling_priority.value))
             return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority)
         current = _from_row(activity.scope, row[:13])
         if int(row[13]) != activity.scope.project_revision:
@@ -357,7 +372,7 @@ class PostgresActivityMasterRepository:
              revision,
              None if activity.expected_finish is None else activity.expected_finish.isoformat(),
              None if activity.planned_finish is None else activity.planned_finish.isoformat(),
-             None if activity.leveling_priority is None else activity.leveling_priority.value,
+             activity.leveling_priority.value,
              activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, current.record_revision))
         return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority)
 
