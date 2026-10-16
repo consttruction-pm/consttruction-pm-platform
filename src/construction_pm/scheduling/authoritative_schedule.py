@@ -138,6 +138,8 @@ class AuthoritativeScheduleInput:
                 not isinstance(self.project_finish, date) or isinstance(self.project_finish, datetime)
             ):
                 raise ValueError("DATE_BASED project_finish must be a date")
+            if self.project_finish is not None and self.project_finish < self.project_start:
+                raise ValueError("project_finish must not be before project_start")
         else:
             if not all(isinstance(item, TimeActivity) for item in self.activities):
                 raise ValueError("TIME_AWARE snapshot requires time-aware activities")
@@ -152,6 +154,8 @@ class AuthoritativeScheduleInput:
                     raise ValueError("TIME_AWARE project_finish must be a datetime")
                 if self.project_finish.tzinfo is None or self.project_finish.utcoffset() is None:
                     raise ValueError("TIME_AWARE project_finish must include a timezone")
+                if self.project_finish < self.project_start:
+                    raise ValueError("project_finish must not be before project_start")
 
         if isinstance(self.project_leveling_priority, bool) or not isinstance(self.project_leveling_priority, int) or not 1 <= self.project_leveling_priority <= 100:
             raise ValueError("project_leveling_priority must be between 1 and 100")
