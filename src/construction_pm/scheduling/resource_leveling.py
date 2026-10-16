@@ -344,13 +344,15 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             # direction; reverse only the values within each category.
             parts.append((category, ordered_value))
         elif normalized_field == "project_priority":
-            # Release 26 defines 1 as the highest Project Leveling Priority
-            # and 100 as the lowest. Therefore ascending must sort the integer
-            # rank naturally; descending reverses it.
+            # P6 priority-list order determines which project receives resource
+            # precedence first (1=highest, 100=lowest). This helper ranks move
+            # candidates, so its key is inverse to service precedence:
+            # ascending serves the higher-rank project first and moves the lower
+            # rank on conflict; descending has the opposite effect.
             ordered_value = (
-                value
+                _Descending(value)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(value)
+                else value
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -737,12 +739,13 @@ def backward_leveling_priority_key(
             )
             parts.append((category, ordered_value))
         elif normalized == "project_priority":
-            # The authoritative Project Leveling Priority range is 1=highest
-            # through 100=lowest, so the sort direction applies to numeric rank.
+            # Candidate ranking is inverse to allocation precedence: with ASC,
+            # the project at rank 1 is served first, so rank 100 is the first
+            # candidate to move; DESC reverses this preference.
             ordered_value = (
-                value
+                _Descending(value)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(value)
+                else value
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
