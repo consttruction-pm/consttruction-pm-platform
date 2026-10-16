@@ -174,7 +174,7 @@ def test_forward_leveling_rechecks_all_resources_after_each_shift():
     )
 
     assert [(shift.activity_id, shift.shift_working_days) for shift in shifts] == [
-        ("A1", 2)
+        ("A2", 1)
     ]
     shifted_demands = [
         demand
@@ -182,8 +182,8 @@ def test_forward_leveling_rechecks_all_resources_after_each_shift():
         for demand in (
             ResourceDemand(
                 demand.resource_id,
-                resolver.next_working_day(resolver.next_working_day(demand.period))
-                if demand.activity_id == "A1"
+                resolver.next_working_day(demand.period)
+                if demand.activity_id == "A2"
                 else demand.period,
                 demand.units,
                 demand.activity_id,
@@ -327,7 +327,7 @@ def test_propose_forward_leveling_can_limit_to_selected_resources():
     )
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")), ResourceCapacity("R2", date(2026, 10, 1), Decimal("8")))
     shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver, level_all_resources=False, resource_ids=("R1",))
-    assert shifts[0].activity_id == "A1"
+    assert shifts[0].activity_id == "A2"
 
 
 def test_propose_forward_leveling_rejects_unknown_selected_resource():
@@ -348,10 +348,9 @@ def test_forward_leveling_can_consume_float_when_level_within_float_is_disabled(
         ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
     )
     shifts = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)
-    # Once A1's demand is moved to the next working day, it no longer
-    # overlaps A2 on the original date, so a second shift is unnecessary.
+    # A retains precedence by numeric Activity ID; B is the movement candidate.
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [
-        ("A1", 1, -1),
+        ("A2", 1, -1),
     ]
 
 
@@ -387,12 +386,14 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts(activities, (shift,), resolver=resolver)
     result = apply_leveling_shifts(activities, (shift,), resolver=resolver, allow_beyond_float=True)
-    assert result[0].start == shift.new_start
-    assert result[0].finish == shift.new_finish
+    by_id = {activity.activity_id: activity for activity in result}
+    assert by_id[shift.activity_id].start == shift.new_start
+    assert by_id[shift.activity_id].finish == shift.new_finish
     # Applying a one-day shift beyond zero float preserves signed provenance.
-    assert result[0].total_float == -1
+    assert by_id[shift.activity_id].total_float == -1
     assert shift.remaining_float == -1
-    assert result[1].activity_id == "A2"
+    assert by_id["A1"].start == date(2026, 10, 1)
+    assert by_id["A2"].start == date(2026, 10, 2)
 
 
 
@@ -683,7 +684,7 @@ def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
 
-def test_activity_id_priority_uses_p6_numeric_then_alphabetic_order():
+def test_activity_id_priority_uses_inverse_p6_order_for_movement_candidates():
     from construction_pm.scheduling.resource_leveling import _priority_sort_key
 
     day = date(2026, 10, 1)
@@ -695,7 +696,7 @@ def test_activity_id_priority_uses_p6_numeric_then_alphabetic_order():
     )
 
     ordered = sorted(activities, key=lambda activity: _priority_sort_key(activity, ()))
-    assert [activity.activity_id for activity in ordered] == ["2", "10", "A10", "A2"]
+    assert [activity.activity_id for activity in ordered] == ["10", "2", "A2", "A10"]
 
 
 def test_explicit_activity_id_priority_reverses_values_without_reversing_p6_categories():
