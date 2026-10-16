@@ -68,6 +68,19 @@ No contributor should treat a ChatGPT conversation or ChatGPT-local working envi
 
 The authoritative implementation is the repository state; the authoritative automated verification is the applicable GitHub/Codex/CI/runtime evidence.
 
+### 5A. Mandatory documentation-first P6 semantics gate
+
+Before changing production code for P6-overlap calculations or scheduling behavior (including relationships, resource leveling/priority, calendar semantics, constraints, CPM/float, or AI-generated numerical outputs), the author must complete the following in this order:
+
+1. Cite the official, versioned source, product/profile, exact section or field, and direct URL.
+2. Add the source-derived rule, edge cases and any unspecified behavior to the versioned calculation-conformance matrix.
+3. Link the affected canonical Shared Core contract and regression tests to that rule.
+4. Obtain independent semantic review from someone other than the interpretation/code author, and record approval on the issue or PR before production implementation begins.
+5. If any necessary source semantics are unclear, mark the item `UNVERIFIED`/`BLOCKED`; do not guess, substitute defaults, or implement speculative behavior.
+6. Include a “Documentation-first conformance” section in every related PR with source/version, matrix entry, reviewer disposition, code/test trace, exact-head CI evidence, and residual blockers. Test-only changes must explicitly say that production semantics are unchanged.
+
+This gate applies to every human contributor and AI coding agent. Passing CI alone does not establish P6 parity. Missing source evidence or independent sign-off blocks merge/release acceptance. See `docs/architecture/PRODUCT_PRINCIPLES.md` Principle 1C and Issue #1447.
+
 ### 6. Completion gate
 
 Before a stage is marked complete:
