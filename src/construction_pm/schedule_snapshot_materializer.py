@@ -565,6 +565,8 @@ def _materialize_payload(
                 Relationship(predecessor_id, successor_id, rel_type, int(lag_value))
             )
         else:
+            if unit is not DurationUnit.WORKING_HOUR:
+                raise SnapshotMaterializationError("TIME_AWARE_LAG_MUST_BE_WORKING_HOURS")
             relationships.append(
                 TimeRelationship(
                     predecessor_id,
