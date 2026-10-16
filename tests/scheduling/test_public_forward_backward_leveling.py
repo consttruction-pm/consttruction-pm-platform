@@ -483,7 +483,8 @@ def test_public_leveling_maps_activity_leveling_priority_from_activity():
             ),
         ),
     )
-    assert [shift.activity_id for shift in forward] == ["TOP"]
+    assert [shift.activity_id for shift in forward] == ["LOWEST"]
     assert backward == ()
-    assert result.activities["TOP"].start == day_two
+    assert result.activities["TOP"].start == day_one
+    assert result.activities["LOWEST"].start == day_two
 
