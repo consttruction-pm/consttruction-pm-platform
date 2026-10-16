@@ -207,8 +207,7 @@ class SQLiteActivityMasterRepository:
                  stored.record_revision,
                  None if stored.expected_finish is None else stored.expected_finish.isoformat()))
             if owns_transaction:
-                if owns_transaction:
-            self.connection.commit()
+                self.connection.commit()
             return stored
         current = _from_row(activity.scope, row[:11])
         if int(row[11]) != activity.scope.project_revision:
@@ -232,7 +231,8 @@ class SQLiteActivityMasterRepository:
             if owns_transaction:
                 self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
