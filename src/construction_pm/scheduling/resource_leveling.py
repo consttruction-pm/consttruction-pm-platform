@@ -360,19 +360,25 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             # direction; reverse only the values within each category.
             parts.append((category, ordered_value))
         elif normalized_field == "activity_leveling_priority":
+            # P6's configured priority determines who receives resource
+            # precedence. This tuple ranks the activity selected for movement,
+            # so the lower-precedence activity is the earlier candidate.
             rank = _ACTIVITY_LEVELING_PRIORITY_RANK[value]
             ordered_value = (
-                rank
+                _Descending(rank)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(rank)
+                else rank
             )
             parts.append((0, ordered_value))
         elif normalized_field == "project_priority":
-            # Project Leveling Priority is numeric: 1=highest, 100=lowest.
+            # This comparator ranks activities to MOVE, not activities to serve.
+            # Since 1 is the highest project priority, ascending allocation
+            # precedence means moving the lower-priority (larger-rank) activity
+            # first when capacity is contested. Descending reverses that choice.
             ordered_value = (
-                value
+                _Descending(value)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(value)
+                else value
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -768,18 +774,20 @@ def backward_leveling_priority_key(
             )
             parts.append((category, ordered_value))
         elif normalized == "activity_leveling_priority":
+            # Reverse the allocation order because this key selects the activity
+            # to move: Top is protected ahead of Lowest under ascending settings.
             rank = _ACTIVITY_LEVELING_PRIORITY_RANK[value]
             ordered_value = (
-                rank
+                _Descending(rank)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(rank)
+                else rank
             )
             parts.append((0, ordered_value))
         elif normalized == "project_priority":
             ordered_value = (
-                value
+                _Descending(value)
                 if priority.sort_order is SortOrder.ASCENDING
-                else _Descending(value)
+                else value
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
