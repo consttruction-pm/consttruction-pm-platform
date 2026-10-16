@@ -43,7 +43,7 @@ class ActivityMaster:
 
     def validate(self) -> None:
         self.scope.validate()
-        if not self.activity_id.strip():
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         if not isinstance(self.duration_value, Decimal) or not self.duration_value.is_finite():
             raise ActivityPersistenceError("INVALID_DURATION_VALUE")
