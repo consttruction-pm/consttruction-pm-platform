@@ -103,7 +103,7 @@ class Activity:
     name: str = ""
     original_duration: int | None = None
     planned_finish: date | None = None
-    leveling_priority: ActivityLevelingPriority | None = None
+    leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -158,10 +158,8 @@ class Activity:
             or isinstance(self.planned_finish, datetime)
         ):
             raise TypeError("planned_finish must be a date or None")
-        if self.leveling_priority is not None and not isinstance(
-            self.leveling_priority, ActivityLevelingPriority
-        ):
-            raise TypeError("leveling_priority must be ActivityLevelingPriority or None")
+        if not isinstance(self.leveling_priority, ActivityLevelingPriority):
+            raise TypeError("leveling_priority must be ActivityLevelingPriority")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
