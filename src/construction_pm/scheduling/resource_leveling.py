@@ -302,10 +302,6 @@ def _shift_demands(
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
     normalized = field_name.strip().lower().replace(" ", "_")
-    # The P6 label is product/schema-dependent. Until the importer contract is
-    # verified, do not silently collapse Original Duration and Planned Duration.
-    if normalized == "original_or_planned_duration":
-        raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     values = {
         "activity_id": activity.activity_id,
         "activity_priority": activity.activity_priority,
@@ -788,9 +784,6 @@ def backward_leveling_priority_key(
     parts: list[tuple[int, object]] = []
     for priority in priorities:
         normalized = priority.field_name.strip().lower().replace(" ", "_")
-        # Do not infer the product-specific P6 combined-duration mapping.
-        if normalized == "original_or_planned_duration":
-            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
