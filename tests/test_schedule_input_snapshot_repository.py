@@ -5,6 +5,12 @@ import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 
+from construction_pm.schedule_snapshot_materializer import (
+    SnapshotMaterializationError,
+    _finite_float,
+    _finite_percent_complete,
+)
+
 from construction_pm.schedule_input_snapshot_repository import (
     PostgresScheduleInputSnapshotRepository,
     ScheduleSnapshotPersistenceError,
@@ -647,3 +653,19 @@ def test_sqlite_failed_identity_migration_rolls_back_write_transaction():
     persisted = repo.get(legacy.scope, legacy.snapshot_id)
     assert persisted == legacy
 
+
+
+def test_snapshot_numeric_overflow_is_normalized_to_materialization_error():
+    huge_integer = 10**10000
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:critical_activity_float_threshold",
+    ):
+        _finite_float(huge_integer, "critical_activity_float_threshold")
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_PERCENT_COMPLETE",
+    ):
+        _finite_percent_complete(huge_integer)
