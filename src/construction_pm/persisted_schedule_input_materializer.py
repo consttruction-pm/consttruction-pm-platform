@@ -198,10 +198,10 @@ def persist_materialized_schedule_input(
         raise PersistedScheduleInputMaterializationError("INVALID_CALCULATION_CONTEXT")
     if not isinstance(created_at, datetime):
         raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_TIMESTAMP")
-    if not isinstance(snapshot_repository, ScheduleInputSnapshotRepository):
-        # Protocols are structural, so runtime isinstance checks would be misleading.
-        if not callable(getattr(snapshot_repository, "save", None)):
-            raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_REPOSITORY")
+    # ScheduleInputSnapshotRepository is a structural Protocol; validate the
+    # required operation without an unsupported runtime isinstance check.
+    if not callable(getattr(snapshot_repository, "save", None)):
+        raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_REPOSITORY")
     try:
         snapshot = build_snapshot(schedule_input, context, created_at)
         return snapshot_repository.save(snapshot)
