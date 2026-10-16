@@ -393,7 +393,7 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             "early_start", "early_finish", "late_start", "late_finish",
             "planned_finish", "project_planned_start", "free_float",
             "remaining_duration", "planned_duration", "original_duration",
-            "total_float",
+            "original_or_planned_duration", "total_float",
         }:
             # The configured row determines processing precedence. Since this
             # key selects the activity to delay, use the inverse order:
@@ -762,7 +762,7 @@ def backward_leveling_priority_key(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "planned_finish",
+        "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish",
         "activity_leveling_priority", "total_float",
     }
     values = {
@@ -776,6 +776,11 @@ def backward_leveling_priority_key(
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
         "original_duration": activity.original_duration,
+        "original_or_planned_duration": (
+            activity.original_duration
+            if activity.original_duration is not None
+            else activity.planned_duration
+        ),
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
         "planned_finish": activity.planned_finish,
@@ -788,7 +793,7 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
-        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
+        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
             raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
@@ -821,7 +826,7 @@ def backward_leveling_priority_key(
             "early_start", "early_finish", "late_start", "late_finish",
             "planned_finish", "project_planned_start", "free_float",
             "remaining_duration", "planned_duration", "original_duration",
-            "total_float",
+            "original_or_planned_duration", "total_float",
         }:
             ordered_value = (
                 _Descending(value)
@@ -930,7 +935,7 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "planned_finish",
+        "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish",
         "activity_leveling_priority", "total_float",
     }
     normalized_priorities = tuple(
@@ -959,6 +964,11 @@ def propose_backward_leveling(
     if any(
         field in normalized_priorities for field in ("original_duration",)
     ) and any(activity.original_duration is None for activity in activity_list):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    if "original_or_planned_duration" in normalized_priorities and any(
+        activity.original_duration is None and activity.planned_duration is None
+        for activity in activity_list
+    ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if "project_planned_start" in normalized_priorities and any(
         activity.project_planned_start is None for activity in activity_list
