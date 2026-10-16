@@ -51,9 +51,13 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_DURATION_VALUE")
         if not isinstance(self.duration_unit, DurationUnit):
             raise ActivityPersistenceError("INVALID_DURATION_UNIT")
-        if self.actual_start is not None and not isinstance(self.actual_start, (date, datetime)):
+        if self.actual_start is not None and (
+            not isinstance(self.actual_start, date) or isinstance(self.actual_start, datetime)
+        ):
             raise ActivityPersistenceError("INVALID_ACTUAL_START")
-        if self.expected_finish is not None and not isinstance(self.expected_finish, (date, datetime)):
+        if self.expected_finish is not None and (
+            not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)
+        ):
             raise ActivityPersistenceError("INVALID_EXPECTED_FINISH")
         if self.planned_finish is not None and (
             not isinstance(self.planned_finish, date) or isinstance(self.planned_finish, datetime)
@@ -69,12 +73,16 @@ class ActivityMaster:
             or self.original_duration < 0
         ):
             raise ActivityPersistenceError("INVALID_ORIGINAL_DURATION")
-        if self.actual_finish is not None and not isinstance(self.actual_finish, (date, datetime)):
+        if self.actual_finish is not None and (
+            not isinstance(self.actual_finish, date) or isinstance(self.actual_finish, datetime)
+        ):
             raise ActivityPersistenceError("INVALID_ACTUAL_FINISH")
         if self.remaining_duration is not None:
             if isinstance(self.remaining_duration, bool) or not isinstance(self.remaining_duration, int) or self.remaining_duration < 0:
                 raise ActivityPersistenceError("INVALID_REMAINING_DURATION")
-        if self.remaining_start is not None and not isinstance(self.remaining_start, (date, datetime)):
+        if self.remaining_start is not None and (
+            not isinstance(self.remaining_start, date) or isinstance(self.remaining_start, datetime)
+        ):
             raise ActivityPersistenceError("INVALID_REMAINING_START")
         if self.percent_complete is not None:
             if isinstance(self.percent_complete, bool) or not isinstance(self.percent_complete, (int, float)):
