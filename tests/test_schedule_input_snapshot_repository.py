@@ -525,3 +525,27 @@ def test_snapshot_validate_rejects_unknown_calculation_identity_version():
         match="INVALID_CALCULATION_IDENTITY_VERSION",
     ):
         candidate.validate()
+
+
+def test_snapshot_rejects_mismatched_calculation_calendar_context():
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-OTHER",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-1",
+        tenant_id="T-1",
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_CALENDAR_MISMATCH",
+    ):
+        build_snapshot(
+            make_input(),
+            context,
+            datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+        )
