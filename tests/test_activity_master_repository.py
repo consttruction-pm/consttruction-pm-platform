@@ -315,3 +315,14 @@ def test_activity_master_rejects_invalid_original_duration(value):
     with pytest.raises(ActivityPersistenceError, match="INVALID_ORIGINAL_DURATION"):
         repo.save(activity(original_duration=value))
 
+@pytest.mark.parametrize("activity_id", [None, 7, "   "])
+def test_activity_master_rejects_invalid_identifier_without_incidental_exception(activity_id):
+    record = ActivityMaster(
+        scope(),
+        activity_id,
+        Decimal("2"),
+        DurationUnit.WORKING_DAY,
+    )
+    with pytest.raises(ActivityPersistenceError, match="INVALID_ACTIVITY_ID"):
+        record.validate()
+
