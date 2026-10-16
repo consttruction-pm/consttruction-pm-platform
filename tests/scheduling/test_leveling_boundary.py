@@ -119,6 +119,7 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
             PriorityListItem("original_duration", PrioritySortOrder.ASCENDING),
             PriorityListItem("project_planned_start", PrioritySortOrder.ASCENDING),
             PriorityListItem("project_priority", PrioritySortOrder.ASCENDING),
+            PriorityListItem("planned_finish", PrioritySortOrder.ASCENDING),
             PriorityListItem("activity_priority", PrioritySortOrder.DESCENDING),
             PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
         ),
@@ -140,12 +141,13 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
         ("original_duration", SortOrder.ASCENDING),
         ("project_planned_start", SortOrder.ASCENDING),
         ("project_priority", SortOrder.ASCENDING),
+        ("planned_finish", SortOrder.ASCENDING),
         ("activity_priority", SortOrder.DESCENDING),
         ("activity_id", SortOrder.ASCENDING),
     ]
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+@pytest.mark.parametrize("field_name", ["planned_start"])
 def test_scheduler_leveling_boundary_rejects_priority_fields_without_distinct_schedule_data(field_name):
     forward, backward, capacities = _slices()
     options = ScheduleOptions(
