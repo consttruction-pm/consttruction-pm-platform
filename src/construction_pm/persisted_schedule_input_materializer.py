@@ -41,7 +41,7 @@ class ActivityScheduleMetadata:
     status_code: ActivityStatusCode
 
     def validate(self) -> None:
-        if not isinstance(self.name, str):
+        if not isinstance(self.name, str) or not self.name.strip():
             raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_NAME")
         if not isinstance(self.status, ActivityStatus):
             raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_STATUS")
@@ -74,7 +74,15 @@ def materialize_date_schedule_input_from_masters(
     fail closed. Resource demand/capacity remains a separate typed input to the
     resource-leveling evaluator and is intentionally not fabricated here.
     """
+    if not isinstance(scope, BackendScope):
+        raise PersistedScheduleInputMaterializationError("INVALID_SCOPE")
     scope.validate()
+    if not isinstance(snapshot_id, str) or not snapshot_id.strip():
+        raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_ID")
+    if not isinstance(activity_metadata, Mapping):
+        raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_METADATA_MAPPING")
+    if not isinstance(activity_calendars, Mapping):
+        raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_CALENDAR_MAPPING")
     if isinstance(project_start, datetime) or not isinstance(project_start, date):
         raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_START")
     if project_finish is not None and (
@@ -133,6 +141,8 @@ def materialize_date_schedule_input_from_masters(
         isinstance(item, ActivityConstraint) for item in constraints
     ):
         raise PersistedScheduleInputMaterializationError("INVALID_CONSTRAINTS")
+    if any(item.activity_id not in activity_ids for item in constraints):
+        raise PersistedScheduleInputMaterializationError("CONSTRAINT_ACTIVITY_NOT_FOUND")
 
     return AuthoritativeScheduleInput(
         snapshot_id=snapshot_id,
