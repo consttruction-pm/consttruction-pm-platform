@@ -94,6 +94,7 @@ class SQLiteConstraintMasterRepository:
         self.connection.commit()
 
     def save(self, constraint: ConstraintMaster, expected_revision: int | None = None) -> ConstraintMaster:
+        owns_transaction = not self.connection.in_transaction
         constraint.validate()
         if expected_revision is not None and (
             isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0
@@ -123,6 +124,8 @@ class SQLiteConstraintMasterRepository:
                     stored.constraint_date.isoformat(), stored.record_revision,
                 ),
             )
+            if owns_transaction:
+                if owns_transaction:
             self.connection.commit()
             return stored
 
@@ -156,7 +159,8 @@ class SQLiteConstraintMasterRepository:
             ),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            if owns_transaction:
+                self.connection.rollback()
             raise ConstraintPersistenceError("REVISION_CONFLICT")
         self.connection.commit()
         return stored
