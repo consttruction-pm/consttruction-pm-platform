@@ -141,6 +141,16 @@ def materialize_date_schedule_input_from_masters(
 
     if not isinstance(project_calendar, CalendarReference):
         raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_CALENDAR")
+    if project_calendar.kind != "working-day":
+        raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_CALENDAR_KIND")
+    if any(calendar.kind != "working-day" for calendar in activity_calendars.values()):
+        raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_CALENDAR_KIND")
+    if (
+        isinstance(project_leveling_priority, bool)
+        or not isinstance(project_leveling_priority, int)
+        or not 1 <= project_leveling_priority <= 100
+    ):
+        raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_LEVELING_PRIORITY")
     if not isinstance(schedule_options, ScheduleOptions):
         raise PersistedScheduleInputMaterializationError("INVALID_SCHEDULE_OPTIONS")
     if not isinstance(constraints, tuple) or not all(
