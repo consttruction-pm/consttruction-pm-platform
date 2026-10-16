@@ -39,7 +39,7 @@ class ActivityMaster:
     percent_complete_type: PercentCompleteType = PercentCompleteType.DURATION
     planned_finish: date | datetime | None = None
 
-    def validate(self) -> None
+    def validate(self) -> None:
         self.scope.validate()
         if not self.activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
