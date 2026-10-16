@@ -71,6 +71,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ConstraintMaster:
 
 class SQLiteConstraintMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
@@ -91,7 +92,8 @@ class SQLiteConstraintMasterRepository:
             "CREATE INDEX IF NOT EXISTS idx_constraint_master_revision "
             "ON constraint_master(tenant_id, project_id, project_revision, constraint_id)"
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, constraint: ConstraintMaster, expected_revision: int | None = None) -> ConstraintMaster:
         owns_transaction = not self.connection.in_transaction
