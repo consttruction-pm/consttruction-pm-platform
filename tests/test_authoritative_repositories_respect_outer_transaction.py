@@ -111,3 +111,25 @@ def test_activity_constraint_and_snapshot_writes_commit_with_outer_transaction()
     assert activities.get(scope, "A-1") is not None
     assert constraints.get(scope, "C-1") is not None
     assert snapshots.get(scope, "S-1") is not None
+
+def test_repository_initialization_preserves_caller_owned_transaction():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("BEGIN IMMEDIATE")
+
+    SQLiteActivityMasterRepository(connection)
+    SQLiteConstraintMasterRepository(connection)
+    SQLiteScheduleInputSnapshotRepository(connection)
+
+    assert connection.in_transaction
+    connection.rollback()
+    tables = {
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    assert not {
+        "activity_master",
+        "constraint_master",
+        "schedule_input_snapshot",
+    } & tables
