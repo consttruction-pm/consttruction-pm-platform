@@ -344,13 +344,13 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             # direction; reverse only the values within each category.
             parts.append((category, ordered_value))
         elif normalized_field == "project_priority":
-            # Project Leveling Priority uses 1=highest and 100=lowest.
-            # Ascending levels lower-priority projects first, so reverse numeric
-            # rank only for this documented priority criterion.
+            # Release 26 defines 1 as the highest Project Leveling Priority
+            # and 100 as the lowest. Therefore ascending must sort the integer
+            # rank naturally; descending reverses it.
             ordered_value = (
-                _Descending(value)
+                value
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -737,12 +737,12 @@ def backward_leveling_priority_key(
             )
             parts.append((category, ordered_value))
         elif normalized == "project_priority":
-            # Project Leveling Priority is 1=highest and 100=lowest. Preserve
-            # the documented sort mode rather than sorting raw rank naturally.
+            # The authoritative Project Leveling Priority range is 1=highest
+            # through 100=lowest, so the sort direction applies to numeric rank.
             ordered_value = (
-                _Descending(value)
+                value
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
