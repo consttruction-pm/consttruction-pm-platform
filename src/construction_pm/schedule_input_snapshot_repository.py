@@ -269,6 +269,7 @@ class SQLiteScheduleInputSnapshotRepository:
         snapshot_id: str,
         context: CalculationContext,
     ) -> ScheduleInputSnapshot:
+        owns_transaction = not self.connection.in_transaction
         snapshot = self.get(scope, snapshot_id)
         if snapshot is None:
             raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
