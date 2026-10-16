@@ -278,9 +278,21 @@ def calculate_time_floats(
     registry: CalendarResolverRegistry,
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeFloatActivity]:
-    activity_map = {a.id: a for a in activities}
+    activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware float calculation requires at least one activity")
+    activity_map = {a.id: a for a in activity_list}
+    if len(activity_map) != len(activity_list):
+        raise ValueError("activity ids must be unique")
+    expected_ids = set(activity_map)
+    if set(early) != expected_ids or set(late) != expected_ids:
+        raise ValueError("early and late schedules must contain every activity and no extras")
+
+    relationship_list = list(relationships)
     outgoing = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
+    for rel in relationship_list:
+        if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
+            raise ValueError("relationship references an unknown activity")
         outgoing[rel.predecessor_id].append(rel)
 
     result: dict[str, TimeFloatActivity] = {}
