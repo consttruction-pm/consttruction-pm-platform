@@ -513,6 +513,29 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
 
+    # Verify capacity against the final combined graph, not just the fact that
+    # the two project activities ended up on different dates.
+    final_demand_by_day = {
+        day: sum(
+            (Decimal("1") for activity in (p1, p2) if activity.start == day),
+            Decimal("0"),
+        )
+        for day in (date(2026, 10, 1), date(2026, 10, 2))
+    }
+    capacity_by_day = {
+        capacity.period: capacity.units
+        for capacity in leveling_input.capacities
+        if capacity.resource_id == "R1"
+    }
+    assert final_demand_by_day == {
+        date(2026, 10, 1): Decimal("1"),
+        date(2026, 10, 2): Decimal("1"),
+    }
+    assert all(
+        final_demand_by_day[day] <= capacity_by_day[day]
+        for day in final_demand_by_day
+    )
+
 
 
 def test_batch_project_planned_start_priority_uses_each_project_snapshot():
