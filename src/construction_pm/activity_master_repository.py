@@ -183,6 +183,7 @@ class SQLiteActivityMasterRepository:
         self.connection.commit()
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
+        owns_transaction = not self.connection.in_transaction
         activity.validate()
         if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
@@ -205,6 +206,8 @@ class SQLiteActivityMasterRepository:
                  stored.percent_complete_type.value,
                  stored.record_revision,
                  None if stored.expected_finish is None else stored.expected_finish.isoformat()))
+            if owns_transaction:
+                if owns_transaction:
             self.connection.commit()
             return stored
         current = _from_row(activity.scope, row[:11])
@@ -226,7 +229,8 @@ class SQLiteActivityMasterRepository:
              None if stored.expected_finish is None else stored.expected_finish.isoformat(),
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
         if update_cursor.rowcount != 1:
-            self.connection.rollback()
+            if owns_transaction:
+                self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
         self.connection.commit()
         return stored
