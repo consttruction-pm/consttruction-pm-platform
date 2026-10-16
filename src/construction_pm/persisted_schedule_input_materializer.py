@@ -171,14 +171,6 @@ def materialize_date_schedule_input_from_masters(
     )
 
 
-__all__ = [
-    "ActivityScheduleMetadata",
-    "PersistedScheduleInputMaterializationError",
-    "materialize_date_schedule_input_from_masters",
-    "persist_materialized_schedule_input",
-]
-
-
 def persist_materialized_schedule_input(
     *,
     schedule_input: AuthoritativeScheduleInput,
@@ -210,3 +202,10 @@ def persist_materialized_schedule_input(
     except (TypeError, ValueError) as exc:
         raise PersistedScheduleInputMaterializationError("SCHEDULE_SNAPSHOT_PERSISTENCE_FAILED") from exc
 
+
+__all__ = [
+    "ActivityScheduleMetadata",
+    "PersistedScheduleInputMaterializationError",
+    "materialize_date_schedule_input_from_masters",
+    "persist_materialized_schedule_input",
+]
