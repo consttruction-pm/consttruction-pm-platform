@@ -46,9 +46,11 @@ The official sources above support the UI/API label distinction and the five-val
 
 ## Verification snapshot
 
-- Candidate: PR #1457 (Draft, unmerged).
-- Previously green candidate head: `4fa88f27a5b93952131aba0012cd6b20918f2609`; ConstructionPM CI run `38843858193` reported Python 3.11, 3.12 and 3.13 each **2,609 passed / 90 skipped / 1 warning**, Client Typecheck `38843858224` passed, and PostgreSQL Integration `38843858201` passed.
-- A subsequent test-only commit introduced an invalid fixture that attempted to construct a `LevelingActivity` with an empty identifier. On exact head `fcab7fffa5ffba34aeeff33614e76fa08cc01f06`, ConstructionPM CI failed in all three Python versions at `test_activity_id_fallback_orders_numeric_alphabetic_then_blank_deterministically`; the model correctly rejected the invalid identity with `INVALID_ACTIVITY_ID`.
-- This follow-up replaces that invalid fixture with coverage for numeric-before-alphabetic ordering using valid IDs and an explicit test that empty activity IDs are rejected. The matrix also distinguishes the source's generic “blank values” wording from the domain identity contract. No production calculation behavior is changed by this correction.
-- CI must rerun on the resulting exact head; keep Draft unless ConstructionPM CI, Client Typecheck and PostgreSQL Integration all pass.
-- No independent semantic approval is recorded yet. The matrix remains **PARTIAL / NOT CERTIFIED** until independent review and each applicable round-trip/priority edge-case gate is closed.
+- Candidate: PR #1457 (Draft, unmerged), branch `fix/backward-leveling-rebased-main-2026-10-16`.
+- Exact candidate head inspected before this documentation update: `0c6117f9c194b81017615debce93f5cba23ea04a`; base `main` SHA: `db85785a9896c8bd8aa635248fbcf1d4dad73c3f`.
+- Exact-head GitHub Actions reported completed/success for all three checks on that candidate: ConstructionPM CI run `38844389341`, Client Typecheck run `38844389449`, and PostgreSQL Integration run `38844389514`.
+- The earlier failing fixture run on `fcab7fffa5ffba34aeeff33614e76fa08cc01f06` and the earlier green run on `4fa88f27a5b93952131aba0012cd6b20918f2609` are historical and are not the current candidate verification snapshot.
+- The PR description also contains a stale “Latest exact-head verification” entry naming `c403a72e5fbb4091120967c13ddcc0917913df36`; it must not be treated as the current candidate head.
+- These successful workflows verify the tested code paths only. They do not establish P6 scheduling parity, resolve the REST scalar-string encoding for `PriorityList`/`ResourceList`, or replace independent semantic review.
+- The current PR head has green checks, but this document-only follow-up will create a new head and therefore requires fresh exact-head checks. Keep Draft and unmerged until the integration-path, wire-contract, priority mapping, and independent-review gates are evidenced.
+- No independent semantic approval is recorded. The matrix remains **PARTIAL / NOT CERTIFIED**.
