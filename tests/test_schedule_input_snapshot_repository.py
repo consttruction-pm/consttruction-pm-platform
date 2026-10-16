@@ -549,3 +549,30 @@ def test_snapshot_rejects_mismatched_calculation_calendar_context():
             context,
             datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
         )
+
+def test_sqlite_legacy_snapshot_migration_rejects_missing_tenant_binding():
+    from dataclasses import replace
+
+    tenantless_context = CalculationContext(
+        **{**make_context().to_dict(), "tenant_id": None}
+    )
+    v2_snapshot = build_snapshot(
+        make_input(), tenantless_context,
+        datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    legacy_snapshot = replace(
+        v2_snapshot,
+        calculation_identity=tenantless_context.legacy_calculation_identity,
+        calculation_identity_version=1,
+    )
+    repo = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+    repo.save(legacy_snapshot)
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        repo.migrate_calculation_identity(
+            legacy_snapshot.scope, legacy_snapshot.snapshot_id, tenantless_context
+        )
+
