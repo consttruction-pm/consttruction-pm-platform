@@ -560,14 +560,14 @@ def test_public_leveling_priority_changes_deterministic_shift_order() -> None:
     )
 
     # One shift removes the day-one overload; priority chooses which activity moves.
-    assert [shift.activity_id for shift in prioritized_forward] == ["B"]
-    assert [shift.activity_id for shift in default_forward] == ["A"]
+    assert [shift.activity_id for shift in prioritized_forward] == ["A"]
+    assert [shift.activity_id for shift in default_forward] == ["B"]
     assert prioritized_backward == ()
     assert default_backward == ()
-    assert prioritized.activities["A"].start == date(2026, 10, 1)
-    assert prioritized.activities["B"].start == date(2026, 10, 2)
-    assert defaulted.activities["A"].start == date(2026, 10, 2)
-    assert defaulted.activities["B"].start == date(2026, 10, 1)
+    assert prioritized.activities["A"].start == date(2026, 10, 2)
+    assert prioritized.activities["B"].start == date(2026, 10, 1)
+    assert defaulted.activities["A"].start == date(2026, 10, 1)
+    assert defaulted.activities["B"].start == date(2026, 10, 2)
 
 
 def test_public_leveling_supports_authoritative_late_finish_priority() -> None:
@@ -636,15 +636,14 @@ def test_public_leveling_supports_authoritative_late_finish_priority() -> None:
         ),
     )
 
-    # The CPM pass gives A an earlier late finish than independent activity B.
-    # The resolver must use those authoritative dates instead of guessing from
-    # the input activity order, priority number, or resource-demand size.
+    # The CPM pass gives A an earlier Late Finish, so it receives processing
+    # precedence; later-finishing B is the movement candidate.
     assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
-        ("A", 1),
+        ("B", 1),
     ]
     assert backward == ()
-    assert result.activities["A"].start == friday
-    assert result.activities["B"].start == thursday
+    assert result.activities["A"].start == thursday
+    assert result.activities["B"].start == friday
     assert result.activities["C"].start == monday
 
 
@@ -720,15 +719,14 @@ def test_public_leveling_supports_authoritative_free_float_priority() -> None:
         ),
     )
 
-    # CPM gives A one working day of free float because C is held until Monday;
-    # terminal activity B has zero free float. The authoritative Free Float row
-    # therefore moves B to Friday without moving A or violating A -> C.
+    # B has zero Free Float and gets processing precedence under ASC. A has
+    # greater Free Float, making A the movement candidate without violating A -> C.
     assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
-        ("B", 1),
+        ("A", 1),
     ]
     assert backward == ()
-    assert result.activities["A"].start == thursday
-    assert result.activities["B"].start == friday
+    assert result.activities["A"].start == friday
+    assert result.activities["B"].start == thursday
     assert result.activities["C"].start == monday
 
 
@@ -800,15 +798,14 @@ def test_public_leveling_supports_authoritative_remaining_duration_priority() ->
         ),
     )
 
-    # Remaining Duration is sourced from the scheduler Activity model. The
-    # shorter remaining-work activity A is chosen even though its priority
-    # number is less favorable than B's.
+    # Remaining Duration is sourced from the scheduler Activity model. ASC
+    # processes shorter A first, so longer B is the movement candidate.
     assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
-        ("A", 1),
+        ("B", 1),
     ]
     assert backward == ()
-    assert result.activities["A"].start == friday
-    assert result.activities["B"].start == thursday
+    assert result.activities["A"].start == thursday
+    assert result.activities["B"].start == friday
 
 
 def test_public_leveling_supports_explicit_original_duration_priority() -> None:
@@ -879,14 +876,14 @@ def test_public_leveling_supports_explicit_original_duration_priority() -> None:
         ),
     )
 
-    # The explicit Original Duration inputs (1 day for A, 2 for B) supply this
-    # priority value; current Activity.duration is not used as a substitute.
+    # The explicit Original Duration values (1 day for A, 2 for B) are used;
+    # ASC processes shorter A first and moves longer B.
     assert [(shift.activity_id, shift.shift_working_days) for shift in forward] == [
-        ("A", 1),
+        ("B", 1),
     ]
     assert backward == ()
-    assert result.activities["A"].start == friday
-    assert result.activities["B"].start == thursday
+    assert result.activities["A"].start == thursday
+    assert result.activities["B"].start == friday
 
 
 def test_public_leveling_orchestration_applies_overallocation_tolerance() -> None:
@@ -1388,9 +1385,8 @@ def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> N
     day_2 = date(2026, 10, 2)
     day_3 = date(2026, 10, 5)
 
-    # Activity Priority conflicts with Total Float. Under the configured first
-    # criterion (Total Float ascending), A is preferred and B is the candidate
-    # that must be rolled back, regardless of the activity_priority values.
+    # Activity Priority conflicts with Total Float. ASC processes lower-float A
+    # first, so rollback removes A movement and retains B's lower-precedence move.
     a = BackwardLevelingActivity(
         activity_id="A",
         early_start=day_1,
@@ -1422,7 +1418,7 @@ def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> N
         ),
     )
 
-    assert rollback.activity_id == "B"
+    assert rollback.activity_id == "A"
 
 
 
