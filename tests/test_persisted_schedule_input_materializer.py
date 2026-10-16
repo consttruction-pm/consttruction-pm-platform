@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import sqlite3
 
@@ -10,7 +10,13 @@ from construction_pm.persisted_schedule_input_materializer import (
     ActivityScheduleMetadata,
     PersistedScheduleInputMaterializationError,
     materialize_date_schedule_input_from_masters,
+    persist_materialized_schedule_input,
 )
+from construction_pm.schedule_input_snapshot_repository import (
+    SQLiteScheduleInputSnapshotRepository,
+    ScheduleSnapshotPersistenceError,
+)
+from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
 from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar_context import CalendarReference
@@ -180,4 +186,84 @@ def test_materializer_rejects_constraints_for_unknown_activity():
             constraints=(
                 ActivityConstraint("MISSING", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2)),
             ),
+        )
+
+
+
+def test_materialized_schedule_input_persists_as_immutable_snapshot():
+    scope, activities, relationships, metadata, calendars = _setup()
+    project_calendar = CalendarReference("CAL-PROJECT", "v3")
+    schedule_input = materialize_date_schedule_input_from_masters(
+        scope=scope,
+        snapshot_id="SNAP-4",
+        project_calendar=project_calendar,
+        project_start=date(2026, 10, 1),
+        activity_repository=activities,
+        relationship_repository=relationships,
+        activity_metadata=metadata,
+        activity_calendars=calendars,
+    )
+    now = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    context = CalculationContext(
+        project_id=scope.project_id,
+        project_version=scope.project_revision,
+        calendar_id=project_calendar.calendar_id,
+        calendar_version=project_calendar.calendar_version,
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="SNAP-4",
+        tenant_id=scope.tenant_id,
+    )
+    repository = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+
+    saved = persist_materialized_schedule_input(
+        schedule_input=schedule_input,
+        context=context,
+        created_at=now,
+        snapshot_repository=repository,
+    )
+
+    assert saved.snapshot_id == "SNAP-4"
+    assert saved.scope == scope
+    assert repository.get(scope, "SNAP-4") == saved
+
+
+def test_snapshot_persistence_rejects_mismatched_context_id():
+    scope, activities, relationships, metadata, calendars = _setup()
+    schedule_input = materialize_date_schedule_input_from_masters(
+        scope=scope,
+        snapshot_id="SNAP-4",
+        project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+        project_start=date(2026, 10, 1),
+        activity_repository=activities,
+        relationship_repository=relationships,
+        activity_metadata=metadata,
+        activity_calendars=calendars,
+    )
+    now = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    context = CalculationContext(
+        project_id=scope.project_id,
+        project_version=scope.project_revision,
+        calendar_id="CAL-PROJECT",
+        calendar_version="v3",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="WRONG-SNAPSHOT",
+        tenant_id=scope.tenant_id,
+    )
+    repository = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="SCHEDULE_SNAPSHOT_PERSISTENCE_FAILED",
+    ):
+        persist_materialized_schedule_input(
+            schedule_input=schedule_input,
+            context=context,
+            created_at=now,
+            snapshot_repository=repository,
         )
