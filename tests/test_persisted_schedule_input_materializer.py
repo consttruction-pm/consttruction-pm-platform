@@ -320,3 +320,63 @@ def test_persisted_master_snapshot_round_trips_through_snapshot_materializer():
     assert restored.relationships[0].successor_id == "A-2"
     assert restored.relationships[0].lag == 1
     assert len(restored.activity_calendar_assignments) == 2
+
+
+@pytest.mark.parametrize("priority", [0, 101, True, 1.5])
+def test_date_schedule_materializer_rejects_invalid_project_leveling_priority(priority):
+    scope, activities, relationships, metadata, calendars = _setup()
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="INVALID_PROJECT_LEVELING_PRIORITY",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-INVALID-PRIORITY",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+            project_start=date(2026, 10, 1),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+            project_leveling_priority=priority,
+        )
+
+
+def test_date_schedule_materializer_rejects_time_aware_project_calendar():
+    scope, activities, relationships, metadata, calendars = _setup()
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="INVALID_PROJECT_CALENDAR_KIND",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-WRONG-CALENDAR-KIND",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3", kind="working-time"),
+            project_start=date(2026, 10, 1),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+        )
+
+
+def test_date_schedule_materializer_rejects_time_aware_activity_calendar():
+    scope, activities, relationships, metadata, calendars = _setup()
+    calendars["A-2"] = CalendarReference("CAL-2", "v1", kind="working-time")
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="INVALID_ACTIVITY_CALENDAR_KIND",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-WRONG-ACTIVITY-CALENDAR-KIND",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+            project_start=date(2026, 10, 1),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+        )
