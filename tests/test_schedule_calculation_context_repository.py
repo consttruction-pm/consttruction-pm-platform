@@ -77,6 +77,17 @@ def test_context_save_rejects_immutable_conflict():
         repo.save(changed)
 
 
+def test_persisted_context_rejects_missing_tenant_binding():
+    context = CalculationContext(
+        **{**make_context().to_dict(), "tenant_id": None}
+    )
+    with pytest.raises(
+        CalculationContextPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        build_persisted_context(scope(), context)
+
+
 def test_context_get_rejects_scope_revision_mismatch():
     repo = SQLiteCalculationContextRepository(sqlite3.connect(":memory:"))
     repo.save(build_persisted_context(scope(), make_context()))
