@@ -15,6 +15,7 @@ from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    ResourceCalendarAssignment,
 )
 from .scheduling.calendar_context import (
     CalendarReference,
@@ -371,6 +372,20 @@ def _materialize_payload(
             raise SnapshotMaterializationError("DUPLICATE_ACTIVITY_CALENDAR_ASSIGNMENT")
         assignment_refs[activity_id] = _calendar(_required(item, "calendar"))
 
+    resource_assignments_payload = payload.get("resource_calendar_assignments", [])
+    if not isinstance(resource_assignments_payload, list):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_CALENDAR_ASSIGNMENTS")
+    resource_assignment_refs: dict[str, CalendarReference] = {}
+    for item in resource_assignments_payload:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_CALENDAR_ASSIGNMENT")
+        resource_id = _required_string(
+            item, "resource_id", "INVALID_RESOURCE_CALENDAR_ASSIGNMENT"
+        )
+        if resource_id in resource_assignment_refs:
+            raise SnapshotMaterializationError("DUPLICATE_RESOURCE_CALENDAR_ASSIGNMENT")
+        resource_assignment_refs[resource_id] = _calendar(_required(item, "calendar"))
+
     activities: list[Activity | TimeActivity] = []
     for item in _required(payload, "activities"):
         if not isinstance(item, dict):
@@ -559,6 +574,10 @@ def _materialize_payload(
         ActivityCalendarAssignment(activity_id, reference)
         for activity_id, reference in sorted(assignment_refs.items())
     )
+    resource_assignments = tuple(
+        ResourceCalendarAssignment(resource_id, reference)
+        for resource_id, reference in sorted(resource_assignment_refs.items())
+    )
 
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
@@ -575,6 +594,7 @@ def _materialize_payload(
         activities=activities_tuple,
         relationships=relationships_tuple,
         activity_calendar_assignments=assignments,
+        resource_calendar_assignments=resource_assignments,
         constraints=constraints,
         schedule_options=_schedule_options(_required(payload, "schedule_options")),
         project_start=(
