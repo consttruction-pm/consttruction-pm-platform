@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import date
 from typing import Iterable, Mapping
 
+from .activity import ActivityStatus
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
@@ -171,6 +172,11 @@ def _backward_activities_from_intermediate(
                     activity.project_priority
                     if activity.project_priority is not None
                     else forward_activity.project_priority
+                ),
+                planned_finish=(
+                    activity.planned_finish
+                    if activity.planned_finish is not None
+                    else forward_activity.planned_finish
                 ),
             )
         )
@@ -408,6 +414,25 @@ def schedule_with_resource_leveling(
     # authoritative CPM result as the rest of the scheduling outputs. Never
     # infer the late dates from the leveling movement window.
     initial_late = initial.late_activities or initial.activities
+    initial_early = initial.early_activities or initial.activities
+
+    def _planned_finish_priority_value(activity: LevelingActivity) -> date | None:
+        scheduler_activity = scheduler_activity_by_id[activity.activity_id]
+        explicit = getattr(scheduler_activity, "planned_finish", None)
+        if explicit is not None:
+            return explicit
+        if activity.planned_finish is not None:
+            return activity.planned_finish
+        if (
+            getattr(scheduler_activity, "status", None) is ActivityStatus.NOT_STARTED
+            and getattr(scheduler_activity, "actual_start", None) is None
+            and getattr(scheduler_activity, "actual_finish", None) is None
+        ):
+            return initial_early[activity.activity_id].finish
+        # Planned Finish does not get silently replaced with Early/Late Finish
+        # after an activity has started. Missing source values remain unsupported.
+        return None
+
     forward_activities_with_cpm_priority_values = tuple(
         replace(
             activity,
@@ -435,6 +460,7 @@ def schedule_with_resource_leveling(
             # distinct Project Planned Start priority value. Missing source data
             # must fail closed in the priority comparator.
             project_planned_start=activity.project_planned_start,
+            planned_finish=_planned_finish_priority_value(activity),
         )
         for activity in leveling_input.forward_activities
     )
