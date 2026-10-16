@@ -312,7 +312,7 @@ class SQLiteActivityMasterRepository:
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
@@ -415,6 +415,6 @@ class PostgresActivityMasterRepository:
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
