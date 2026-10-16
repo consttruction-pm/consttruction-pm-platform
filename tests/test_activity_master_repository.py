@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 import sqlite3
@@ -57,6 +58,23 @@ def test_activity_master_rejects_datetime_planned_finish():
     invalid = activity(planned_finish=datetime(2026, 9, 28, 15, 30))
 
     with pytest.raises(ActivityPersistenceError, match="INVALID_PLANNED_FINISH"):
+        repo.save(invalid)
+
+
+@pytest.mark.parametrize(
+    ("field", "error_code"),
+    [
+        ("actual_start", "INVALID_ACTUAL_START"),
+        ("expected_finish", "INVALID_EXPECTED_FINISH"),
+        ("actual_finish", "INVALID_ACTUAL_FINISH"),
+        ("remaining_start", "INVALID_REMAINING_START"),
+    ],
+)
+def test_activity_master_rejects_datetime_for_date_only_fields(field, error_code):
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    invalid = replace(activity(), **{field: datetime(2026, 9, 28, 15, 30)})
+
+    with pytest.raises(ActivityPersistenceError, match=error_code):
         repo.save(invalid)
 
 
