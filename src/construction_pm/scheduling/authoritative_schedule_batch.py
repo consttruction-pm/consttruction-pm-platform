@@ -175,9 +175,17 @@ def execute_authoritative_schedule_batch(
         or snapshot.schedule_options.over_allocation_percentage
         for snapshot in snapshot_list
     )
-    if has_leveling_options and len(snapshot_list) > 1 and leveling_input is None:
+    if has_leveling_options and leveling_input is None:
+        if len(snapshot_list) > 1:
+            raise UnsupportedMultiProjectSchedulingError(
+                "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+            )
         raise UnsupportedMultiProjectSchedulingError(
-            "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+            "SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+        )
+    if len(snapshot_list) == 1 and leveling_input is not None:
+        raise UnsupportedMultiProjectSchedulingError(
+            "SINGLE_PROJECT_LEVELING_INPUT_NOT_SUPPORTED_BY_BATCH"
         )
 
     relationship_settings = {
