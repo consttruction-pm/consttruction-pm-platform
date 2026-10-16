@@ -1056,3 +1056,22 @@ def test_materializer_rejects_invalid_original_duration(value):
     ):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
+
+
+
+def test_schedule_options_materializer_preserves_explicitly_empty_arrays():
+    from construction_pm.schedule_snapshot_materializer import _schedule_options
+
+    options = _schedule_options({"resource_list": [], "priority_list": []})
+
+    assert options.resource_list == ()
+    assert options.priority_list == ()
+
+
+def test_schedule_options_materializer_keeps_null_distinct_from_empty_arrays():
+    from construction_pm.schedule_snapshot_materializer import _schedule_options
+
+    options = _schedule_options({"resource_list": None, "priority_list": None})
+
+    assert options.resource_list is None
+    assert options.priority_list is None
