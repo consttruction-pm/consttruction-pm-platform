@@ -399,6 +399,65 @@
         }
       ],
       "policy": "An internal value, green CI, or mergeable GitHub state is not sufficient evidence of documented field parity. Keep the pull request Draft while any gate above is blocked; do not infer semantics from similarly named fields."
+    },
+    "ci_baseline_failure_observation_2026_10_16": {
+      "tested_commit": "4faad5f84642b7fd383788e02e6b58e7bed3b46f",
+      "workflow_run_id": 38826621369,
+      "workflow": "ConstructionPM CI",
+      "conclusion": "failure",
+      "matrix": [
+        {
+          "python": "3.11",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.12",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.13",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        }
+      ],
+      "failures": [
+        {
+          "test": "tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph",
+          "error": "FINAL_RESOURCE_OVERALLOCATION:R1:2026-10-02:demand=2:capacity=1.0",
+          "implication": "The final schedule returned by the shared batch graph still overloads a selected resource despite the leveling boundary's final validation."
+        },
+        {
+          "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
+          "error": "ConstraintViolation: start no later than constraint violated for B",
+          "implication": "The public backward-leveling route attempts a move that is rejected by the scheduler's upper-bound constraint validation."
+        }
+      ],
+      "attribution_check": {
+        "docs_branch_diff_scope": "Only the field-disposition JSON differs from main in the compare result.",
+        "identical_source_files_verified": [
+          "src/construction_pm/scheduling/leveling_scheduler.py",
+          "src/construction_pm/scheduling/authoritative_schedule_batch.py",
+          "tests/scheduling/test_authoritative_schedule_batch.py",
+          "tests/scheduling/test_public_forward_backward_leveling.py"
+        ],
+        "status": "baseline_main_failure_not_introduced_by_documentation_change",
+        "caveat": "Do not assume the feature branch is clear merely because older exact-head CI passed; rerun these regression tests on the reconciled final SHA."
+      },
+      "client_typecheck": "success",
+      "postgres_sync_state_integration": "not evidenced by this documentation commit's visible run set",
+      "release_decision": "BLOCKED",
+      "recorded_in": [
+        "PR #1458 comment 6204814217",
+        "PR #1457 comment 6204817686"
+      ]
     }
   }
 }
