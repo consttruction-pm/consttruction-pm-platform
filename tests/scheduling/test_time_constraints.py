@@ -71,3 +71,20 @@ def test_mandatory_finish_is_exact_on_both_early_and_late_paths_when_feasible():
     )
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
     assert result.late_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+
+
+def test_finish_constraint_normalizes_target_as_finish_during_break():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    result = time_schedule(
+        [activity],
+        [],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        registry(),
+        [TimeActivityConstraint(
+            "A", TimeConstraintType.FINISH_NO_LATER_THAN,
+            datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc),
+        )],
+    )
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
