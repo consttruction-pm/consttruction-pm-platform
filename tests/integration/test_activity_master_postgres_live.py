@@ -39,6 +39,7 @@ def _source_activity(scope: BackendScope) -> ActivityMaster:
         date(2026, 9, 25),
         37.5,
         PercentCompleteType.PHYSICAL,
+        planned_finish=date(2026, 9, 28),
     )
 
 
@@ -66,6 +67,7 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.remaining_start == date(2026, 9, 25)
         assert restored.percent_complete == 37.5
         assert restored.percent_complete_type is PercentCompleteType.PHYSICAL
+        assert restored.planned_finish == date(2026, 9, 28)
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -102,12 +104,14 @@ def test_postgres_activity_master_updates_all_progress_state():
             date(2026, 9, 27),
             62.5,
             PercentCompleteType.UNITS,
+            planned_finish=date(2026, 10, 4),
         )
         saved = repo.save(updated, expected_revision=1)
         connection.commit()
 
         assert saved.record_revision == 2
         assert repo.get(scope, "A-PROGRESS") == saved
+        assert saved.planned_finish == date(2026, 10, 4)
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
