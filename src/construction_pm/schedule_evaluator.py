@@ -83,6 +83,8 @@ def evaluate_schedule_snapshot(
     # build_snapshot guard, so identity equality alone is not sufficient.
     try:
         snapshot_payload = json.loads(snapshot.canonical_payload)
+        if not isinstance(snapshot_payload, dict):
+            raise ScheduleEvaluationError("INVALID_SNAPSHOT_PAYLOAD")
         project_calendar = snapshot_payload.get("project_calendar")
         snapshot_calendar_id = project_calendar.get("calendar_id") if isinstance(project_calendar, dict) else None
         snapshot_calendar_version = project_calendar.get("calendar_version") if isinstance(project_calendar, dict) else None
