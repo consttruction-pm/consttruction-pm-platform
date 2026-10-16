@@ -13,7 +13,7 @@ from construction_pm.scheduling.resource_leveling import (
 )
 
 
-def test_backward_leveling_advances_lower_precedence_activity_using_working_calendar():
+def test_backward_leveling_advances_activity_from_late_date_using_working_calendar():
     resolver = WorkingTimeResolver(
         WorkingCalendar(
             working_weekdays=frozenset({0, 1, 2, 3, 4}),
@@ -51,12 +51,11 @@ def test_backward_leveling_advances_lower_precedence_activity_using_working_cale
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A2"
+    assert shifts[0].activity_id == "A1"
     assert shifts[0].shift_working_days == -1
     assert shifts[0].new_start == date(2026, 10, 2)
     assert shifts[0].new_finish == date(2026, 10, 2)
     assert shifts[0].advanced_days == 1
-
 
 def test_backward_leveling_is_calendar_aware_over_weekend():
     resolver = WorkingTimeResolver(
@@ -146,8 +145,7 @@ def test_backward_leveling_total_float_priority_uses_authoritative_cpm_float():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A"
-
+    assert shifts[0].activity_id == "B"
 
 def test_backward_total_float_priority_requires_authoritative_float_value():
     import pytest
