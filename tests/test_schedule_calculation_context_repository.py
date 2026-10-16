@@ -174,3 +174,11 @@ def test_postgres_context_round_trip(postgres_dsn):
         connection.execute("TRUNCATE TABLE schedule_calculation_context")
         connection.commit()
         connection.close()
+
+
+@pytest.mark.parametrize("project_version", [True, 7.5, "7"])
+def test_calculation_context_rejects_non_integer_project_version(project_version):
+    with pytest.raises(ValueError, match="project_version must be an integer"):
+        CalculationContext(
+            **{**make_context().to_dict(), "project_version": project_version}
+        )
