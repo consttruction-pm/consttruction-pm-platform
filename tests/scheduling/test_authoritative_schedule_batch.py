@@ -457,13 +457,15 @@ def test_combined_external_boundary_options_are_deterministic():
     assert [d.resource_id for d in first.project('P1').resource_demands] == ['R1', 'R2']
 
 
-def test_unsupported_multi_project_resource_leveling_never_silently_falls_back():
-    with pytest.raises(ValueError, match='unsupported schedule options') as exc:
+def test_single_project_resource_leveling_without_executor_is_rejected_explicitly():
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
         execute_authoritative_schedule_batch(
             [snapshot('P1', date(2026, 10, 10), options=ScheduleOptions(level_all_resources=True))],
             resolvers={'P1': resolver()},
         )
-    assert 'level_all_resources' in str(exc.value)
 
 
 def test_missing_external_project_membership_is_explicit():
