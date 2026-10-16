@@ -601,3 +601,49 @@ def test_sqlite_legacy_snapshot_migration_rejects_missing_tenant_binding():
             legacy_snapshot.scope, legacy_snapshot.snapshot_id, tenantless_context
         )
 
+def test_sqlite_failed_identity_migration_rolls_back_write_transaction():
+    from dataclasses import replace
+
+    context = make_context(
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        actor_id="actor-legacy",
+        request_id="request-legacy",
+        idempotency_key="idem-legacy",
+    )
+    current = build_snapshot(
+        make_input(), context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    legacy = replace(
+        current,
+        calculation_identity=context.legacy_calculation_identity,
+        calculation_identity_version=1,
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(legacy)
+
+    class IgnoreMigrationUpdate:
+        def execute(self, sql, parameters=()):
+            if sql.startswith("UPDATE schedule_input_snapshot SET calculation_identity="):
+                return connection.execute(
+                    "UPDATE schedule_input_snapshot SET calculation_identity=calculation_identity WHERE 0"
+                )
+            return connection.execute(sql, parameters)
+
+        def rollback(self):
+            return connection.rollback()
+
+        def commit(self):
+            return connection.commit()
+
+    repo.connection = IgnoreMigrationUpdate()
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_IDENTITY_MIGRATION_CONFLICT",
+    ):
+        repo.migrate_calculation_identity(legacy.scope, legacy.snapshot_id, context)
+
+    assert not connection.in_transaction
+    persisted = repo.get(legacy.scope, legacy.snapshot_id)
+    assert persisted == legacy
+
