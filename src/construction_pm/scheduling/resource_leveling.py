@@ -181,6 +181,7 @@ class LevelingActivity:
     original_duration: int | None = None
     project_planned_start: date | None = None
     project_priority: int | None = None
+    planned_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -239,6 +240,11 @@ class LevelingActivity:
             or not 1 <= self.project_priority <= 100
         ):
             raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
+        if self.planned_finish is not None and (
+            not isinstance(self.planned_finish, date)
+            or isinstance(self.planned_finish, datetime)
+        ):
+            raise ResourceLevelingError("INVALID_PLANNED_FINISH")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -294,12 +300,13 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "original_duration": activity.original_duration,
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
+        "planned_finish": activity.planned_finish,
         "total_float": activity.total_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
@@ -517,6 +524,7 @@ def propose_forward_leveling(
             a.original_duration,
             a.project_planned_start,
             a.project_priority,
+            a.planned_finish,
         )
         for a in activities
     )
@@ -581,6 +589,7 @@ def apply_leveling_shifts(
             original_duration=activity.original_duration,
             project_planned_start=activity.project_planned_start,
             project_priority=activity.project_priority,
+            planned_finish=activity.planned_finish,
         ))
     return tuple(result)
 
@@ -606,6 +615,7 @@ class BackwardLevelingActivity:
     original_duration: int | None = None
     project_planned_start: date | None = None
     project_priority: int | None = None
+    planned_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -647,6 +657,11 @@ class BackwardLevelingActivity:
             or not 1 <= self.project_priority <= 100
         ):
             raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
+        if self.planned_finish is not None and (
+            not isinstance(self.planned_finish, date)
+            or isinstance(self.planned_finish, datetime)
+        ):
+            raise ResourceLevelingError("INVALID_PLANNED_FINISH")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -685,7 +700,7 @@ def backward_leveling_priority_key(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "total_float",
+        "project_planned_start", "project_priority", "planned_finish", "total_float",
     }
     values = {
         "activity_id": activity.activity_id,
@@ -700,6 +715,7 @@ def backward_leveling_priority_key(
         "original_duration": activity.original_duration,
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
+        "planned_finish": activity.planned_finish,
         "total_float": activity.total_float,
     }
     parts: list[tuple[int, object]] = []
@@ -708,7 +724,7 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
-        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority"} and value is None:
+        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish"} and value is None:
             raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
@@ -829,7 +845,7 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "project_priority", "total_float",
+        "project_planned_start", "project_priority", "planned_finish", "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
@@ -864,6 +880,10 @@ def propose_backward_leveling(
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if "project_priority" in normalized_priorities and any(
         activity.project_priority is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    if "planned_finish" in normalized_priorities and any(
+        activity.planned_finish is None for activity in activity_list
     ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
