@@ -313,6 +313,13 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "remaining_duration": activity.remaining_duration,
         "planned_duration": activity.planned_duration,
         "original_duration": activity.original_duration,
+        # P6 exposes a single "Original or Planned Duration" criterion:
+        # prefer the original value when present, otherwise use planned duration.
+        "original_or_planned_duration": (
+            activity.original_duration
+            if activity.original_duration is not None
+            else activity.planned_duration
+        ),
         "project_planned_start": activity.project_planned_start,
         "project_priority": activity.project_priority,
         "planned_finish": activity.planned_finish,
@@ -322,7 +329,7 @@ def _priority_value(activity: LevelingActivity, field_name: str):
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     value = values[normalized]
-    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
+    if normalized in {"late_start", "late_finish", "free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     return value
 
