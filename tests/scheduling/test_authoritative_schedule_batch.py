@@ -717,6 +717,9 @@ def test_explicit_empty_leveling_lists_require_batch_leveling_input(option_name)
     first = snapshot("P1", date(2026, 10, 10), options=options)
     second = snapshot("P2", date(2026, 10, 20), options=options)
 
+    # The guard must reject the explicit option before trying to execute an
+    # external project edge through the shared graph.
+    external_edge = Relationship("P1-A", "P2-A", RelationshipType.FS)
     with pytest.raises(
         UnsupportedMultiProjectSchedulingError,
         match="MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
@@ -724,5 +727,6 @@ def test_explicit_empty_leveling_lists_require_batch_leveling_input(option_name)
         execute_authoritative_schedule_batch(
             [first, second],
             resolvers={"P1": resolver(), "P2": resolver()},
+            external_relationships=(external_edge,),
         )
 
