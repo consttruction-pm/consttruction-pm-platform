@@ -1,4 +1,5 @@
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.activity import ActivityLevelingPriority
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -1151,7 +1152,7 @@ def test_backward_project_planned_start_priority_uses_explicit_project_date():
     assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
-def test_project_priority_ascending_moves_lower_rank_forward_candidate():
+def test_project_priority_ascending_levels_higher_rank_first_forward():
     day_one = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
@@ -1185,7 +1186,7 @@ def test_project_priority_ascending_moves_lower_rank_forward_candidate():
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["LOW"]
+    assert [shift.activity_id for shift in within_float] == ["HIGH"]
     assert [shift.activity_id for shift in unconstrained] == ["LOW"]
 
 
@@ -1202,7 +1203,7 @@ def test_project_priority_priority_fails_closed_when_missing_forward():
         )
 
 
-def test_project_priority_ascending_moves_lower_rank_backward_candidate():
+def test_project_priority_ascending_levels_higher_rank_first_backward():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1232,8 +1233,8 @@ def test_project_priority_ascending_moves_lower_rank_backward_candidate():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LOW"
-    assert shifts[0].new_start == day_one
+    assert shifts[0].activity_id == "HIGH"
+    assert shifts[0].new_start == day_two
 
 
 def test_project_priority_priority_fails_closed_when_missing_backward():
@@ -1354,7 +1355,7 @@ def test_planned_finish_priority_fails_closed_when_backward_value_missing():
             priorities=(LevelingPriority("planned_finish", SortOrder.ASCENDING),),
         )
 
-def test_project_priority_descending_reverses_rank_for_forward_candidate():
+def test_project_priority_descending_levels_lower_rank_first_forward():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     resolver = WorkingTimeResolver(
@@ -1382,10 +1383,10 @@ def test_project_priority_descending_reverses_rank_for_forward_candidate():
         priorities=(LevelingPriority("project_priority", SortOrder.DESCENDING),),
     )
 
-    assert [shift.activity_id for shift in shifts] == ["HIGH"]
+    assert [shift.activity_id for shift in shifts] == ["LOW"]
 
 
-def test_project_priority_descending_reverses_rank_for_backward_candidate():
+def test_project_priority_descending_levels_lower_rank_first_backward():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1415,6 +1416,100 @@ def test_project_priority_descending_reverses_rank_for_backward_candidate():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "HIGH"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "LOW"
+    assert shifts[0].new_start == day_one
+
+def test_activity_leveling_priority_accepts_only_documented_p6_values():
+    assert tuple(priority.value for priority in ActivityLevelingPriority) == (
+        "Top", "High", "Normal", "Low", "Lowest",
+    )
+    assert ActivityLevelingPriority.from_p6_value("Top") is ActivityLevelingPriority.TOP
+    with pytest.raises(ValueError, match="unsupported P6 Activity.LevelingPriority"):
+        ActivityLevelingPriority.from_p6_value("Critical")
+
+
+@pytest.mark.parametrize(
+    ("sort_order", "expected_activity"),
+    (
+        (SortOrder.ASCENDING, "TOP"),
+        (SortOrder.DESCENDING, "LOWEST"),
+    ),
+)
+def test_activity_leveling_priority_orders_forward_candidates(sort_order, expected_activity):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "TOP", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "TOP"),),
+            activity_leveling_priority=ActivityLevelingPriority.TOP,
+        ),
+        LevelingActivity(
+            "LOWEST", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "LOWEST"),),
+            activity_leveling_priority=ActivityLevelingPriority.LOWEST,
+        ),
+    )
+    shifts = propose_forward_leveling_within_float(
+        activities,
+        (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("8"))),
+        resolver=resolver,
+        priorities=(LevelingPriority("activity_leveling_priority", sort_order),),
+    )
+    assert [shift.activity_id for shift in shifts] == [expected_activity]
+
+
+@pytest.mark.parametrize(
+    ("sort_order", "expected_activity", "expected_start"),
+    (
+        (SortOrder.ASCENDING, "TOP", date(2026, 10, 1)),
+        (SortOrder.DESCENDING, "LOWEST", date(2026, 10, 1)),
+    ),
+)
+def test_activity_leveling_priority_orders_backward_candidates(sort_order, expected_activity, expected_start):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "TOP", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "TOP"),),
+            total_float=2, activity_leveling_priority=ActivityLevelingPriority.TOP,
+        ),
+        BackwardLevelingActivity(
+            "LOWEST", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_two, Decimal("8"), "LOWEST"),),
+            total_float=2, activity_leveling_priority=ActivityLevelingPriority.LOWEST,
+        ),
+    )
+    shifts = propose_backward_leveling(
+        activities,
+        (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("8"))),
+        resolver=resolver,
+        priorities=(LevelingPriority("activity_leveling_priority", sort_order),),
+    )
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == expected_activity
+    assert shifts[0].new_start == expected_start
+
+
+def test_activity_leveling_priority_fails_closed_when_missing():
+    day_one = date(2026, 10, 1)
+    activity = LevelingActivity(
+        "MISSING", day_one, day_one, 1,
+        (ResourceDemand("R1", day_one, Decimal("8"), "MISSING"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
+        propose_forward_leveling_within_float(
+            (activity,),
+            (ResourceCapacity("R1", day_one, Decimal("1")),),
+            resolver=WorkingTimeResolver(WorkingCalendar()),
+            priorities=(LevelingPriority("activity_leveling_priority", SortOrder.ASCENDING),),
+        )
 
