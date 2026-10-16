@@ -65,7 +65,7 @@ class PersistedCalculationContext:
             or self.context.project_version != self.scope.project_revision
         ):
             raise CalculationContextPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
-        if self.context.tenant_id is not None and self.context.tenant_id != self.scope.tenant_id:
+        if self.context.tenant_id != self.scope.tenant_id:
             raise CalculationContextPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
         _validate_sha(self.context_sha256, "INVALID_CONTEXT_SHA256")
         _validate_sha(self.calculation_identity, "INVALID_CALCULATION_IDENTITY")
