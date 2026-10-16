@@ -1151,7 +1151,7 @@ def test_backward_project_planned_start_priority_uses_explicit_project_date():
     assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
-def test_project_priority_ascending_levels_lower_priority_project_first_forward():
+def test_project_priority_ascending_levels_higher_priority_project_first_forward():
     day_one = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
@@ -1182,8 +1182,8 @@ def test_project_priority_ascending_levels_lower_priority_project_first_forward(
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["LOW"]
-    assert [shift.activity_id for shift in unconstrained] == ["LOW"]
+    assert [shift.activity_id for shift in within_float] == ["HIGH"]
+    assert [shift.activity_id for shift in unconstrained] == ["HIGH"]
 
 
 def test_project_priority_priority_fails_closed_when_missing_forward():
@@ -1199,7 +1199,7 @@ def test_project_priority_priority_fails_closed_when_missing_forward():
         )
 
 
-def test_project_priority_ascending_levels_lower_priority_project_first_backward():
+def test_project_priority_ascending_levels_higher_priority_project_first_backward():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1229,8 +1229,8 @@ def test_project_priority_ascending_levels_lower_priority_project_first_backward
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LOW"
-    assert shifts[0].new_start == day_one
+    assert shifts[0].activity_id == "HIGH"
+    assert shifts[0].new_start == day_two
 
 
 def test_project_priority_priority_fails_closed_when_missing_backward():
@@ -1350,4 +1350,68 @@ def test_planned_finish_priority_fails_closed_when_backward_value_missing():
             resolver=WorkingTimeResolver(WorkingCalendar()),
             priorities=(LevelingPriority("planned_finish", SortOrder.ASCENDING),),
         )
+
+def test_project_priority_descending_levels_lower_priority_project_first_forward():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "LOW", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "LOW"),),
+            project_priority=100,
+        ),
+        LevelingActivity(
+            "HIGH", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("4"), "HIGH"),),
+            project_priority=1,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("project_priority", SortOrder.DESCENDING),),
+    )
+
+    assert [shift.activity_id for shift in shifts] == ["LOW"]
+
+
+def test_project_priority_descending_levels_lower_priority_project_first_backward():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "LOW", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "LOW"),),
+            total_float=2, project_priority=100,
+        ),
+        BackwardLevelingActivity(
+            "HIGH", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_two, Decimal("8"), "HIGH"),),
+            total_float=2, project_priority=1,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("project_priority", SortOrder.DESCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "LOW"
+    assert shifts[0].new_start == day_one
 
