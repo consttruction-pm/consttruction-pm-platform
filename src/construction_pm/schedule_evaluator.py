@@ -212,7 +212,7 @@ def _evaluate_materialized(
         )
     except ScheduleEvaluationError:
         raise
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, OverflowError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
 
 
