@@ -55,7 +55,11 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_ACTUAL_START")
         if self.expected_finish is not None and not isinstance(self.expected_finish, (date, datetime)):
             raise ActivityPersistenceError("INVALID_EXPECTED_FINISH")
-        if self.planned_finish is not None and not isinstance(self.planned_finish, (date, datetime)):
+        if self.planned_finish is not None and (
+            not isinstance(self.planned_finish, date) or isinstance(self.planned_finish, datetime)
+        ):
+            # The DATE_BASED Shared Core contract stores Planned Finish as a date.
+            # Reject datetime explicitly: datetime subclasses date in Python.
             raise ActivityPersistenceError("INVALID_PLANNED_FINISH")
         if not isinstance(self.leveling_priority, ActivityLevelingPriority):
             raise ActivityPersistenceError("INVALID_LEVELING_PRIORITY")
