@@ -161,6 +161,8 @@ def time_backward_pass(
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware backward pass requires at least one activity")
     _validate_project_calendar_context(activity_list)
     activity_map = {a.id: a for a in activity_list}
     if len(activity_map) != len(activity_list):
@@ -380,6 +382,8 @@ def time_schedule(
     options: TimeScheduleOptions | None = None,
 ) -> TimeScheduleResult:
     activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware schedule requires at least one activity")
     _validate_project_calendar_context(activity_list)
     relationship_list = list(relationships)
     constraint_list = list(constraints)
