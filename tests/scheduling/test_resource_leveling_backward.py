@@ -6,12 +6,14 @@ import pytest
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
+    LevelingActivity,
     LevelingPriority,
     ResourceLevelingError,
     ResourceCapacity,
     ResourceDemand,
     SortOrder,
     propose_backward_leveling,
+    propose_forward_leveling,
 )
 
 
@@ -186,10 +188,7 @@ def test_combined_original_or_planned_duration_priority_fails_closed_until_mappi
     )
     priority = (LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),)
 
-    forward_activity = __import__(
-        "construction_pm.scheduling.resource_leveling",
-        fromlist=["LevelingActivity"],
-    ).LevelingActivity(
+    forward_activity = LevelingActivity(
         activity_id="A",
         start=day_one,
         finish=day_one,
@@ -199,7 +198,6 @@ def test_combined_original_or_planned_duration_priority_fails_closed_until_mappi
         planned_duration=5,
     )
     with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        from construction_pm.scheduling.resource_leveling import propose_forward_leveling
         propose_forward_leveling(
             (forward_activity,),
             (ResourceCapacity("R1", day_one, Decimal("0")),),
