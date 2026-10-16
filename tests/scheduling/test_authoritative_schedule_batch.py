@@ -730,3 +730,39 @@ def test_explicit_empty_leveling_lists_require_batch_leveling_input(option_name)
             external_relationships=(external_edge,),
         )
 
+def test_single_project_leveling_options_are_rejected_in_batch_without_executor():
+    configured = snapshot(
+        "P1",
+        date(2026, 10, 10),
+        options=ScheduleOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
+        execute_authoritative_schedule_batch(
+            [configured],
+            resolvers={"P1": resolver()},
+        )
+
+
+def test_single_project_leveling_input_is_not_silently_ignored_by_batch():
+    configured = snapshot("P1", date(2026, 10, 10))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_LEVELING_INPUT_NOT_SUPPORTED_BY_BATCH",
+    ):
+        execute_authoritative_schedule_batch(
+            [configured],
+            resolvers={"P1": resolver()},
+            leveling_input=leveling_input,
+        )
+
