@@ -41,6 +41,7 @@ def _source_activity(scope: BackendScope) -> ActivityMaster:
         PercentCompleteType.PHYSICAL,
         planned_finish=date(2026, 9, 28),
         leveling_priority=ActivityLevelingPriority.TOP,
+        original_duration=14,
     )
 
 
@@ -70,6 +71,7 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.percent_complete_type is PercentCompleteType.PHYSICAL
         assert restored.planned_finish == date(2026, 9, 28)
         assert restored.leveling_priority is ActivityLevelingPriority.TOP
+        assert restored.original_duration == 14
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -108,11 +110,13 @@ def test_postgres_activity_master_updates_all_progress_state():
             PercentCompleteType.UNITS,
             planned_finish=date(2026, 10, 4),
             leveling_priority=ActivityLevelingPriority.LOWEST,
+            original_duration=18,
         )
         saved = repo.save(updated, expected_revision=1)
         connection.commit()
 
         assert saved.record_revision == 2
+        assert saved.original_duration == 18
         assert repo.get(scope, "A-PROGRESS") == saved
         assert saved.planned_finish == date(2026, 10, 4)
         assert saved.leveling_priority is ActivityLevelingPriority.LOWEST
