@@ -1123,3 +1123,22 @@ def test_materializer_preserves_time_aware_constraints():
     assert len(result.schedule_input.constraints) == 1
     assert isinstance(result.schedule_input.constraints[0], TimeActivityConstraint)
     assert result.schedule_input.constraints[0].target.isoformat() == "2026-09-21T10:00:00+00:00"
+
+@pytest.mark.parametrize("unit", ["working-day", "calendar-day"])
+def test_time_aware_materializer_rejects_non_working_hour_lags(unit):
+    snapshot = make_time_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["relationships"] = [{
+        "predecessor_id": "A",
+        "successor_id": "A",
+        "type": "FS",
+        "lag": {"value": "1", "unit": unit},
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="TIME_AWARE_LAG_MUST_BE_WORKING_HOURS"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
