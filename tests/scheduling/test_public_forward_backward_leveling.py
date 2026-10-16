@@ -356,6 +356,8 @@ def test_public_leveling_does_not_infer_planned_finish_after_activity_started():
 
 def test_public_backward_ss_conflict_rolls_back_incompatible_candidate(monkeypatch):
     import construction_pm.scheduling.leveling_scheduler as leveling_scheduler_module
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.resource_leveling import BackwardLevelingShift
 
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
