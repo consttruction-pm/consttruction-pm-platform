@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 import sqlite3
 
@@ -50,6 +50,14 @@ def test_activity_master_round_trip_and_revision():
     updated = repo.save(activity(duration="3"), expected_revision=1)
     assert updated.record_revision == 2
     assert updated.duration_value == Decimal("3")
+
+
+def test_activity_master_rejects_datetime_planned_finish():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    invalid = activity(planned_finish=datetime(2026, 9, 28, 15, 30))
+
+    with pytest.raises(ActivityPersistenceError, match="INVALID_PLANNED_FINISH"):
+        repo.save(invalid)
 
 
 def test_activity_master_rejects_stale_update():
