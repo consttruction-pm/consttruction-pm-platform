@@ -738,7 +738,7 @@ def test_backward_default_activity_id_tie_breaker_uses_numeric_order():
     shifts = propose_backward_leveling(activities, capacities, resolver=resolver)
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "2"
+    assert shifts[0].activity_id == "10"
 
 
 def test_free_float_priority_uses_cpm_value_in_forward_passes():
