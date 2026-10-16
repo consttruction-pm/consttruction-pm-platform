@@ -45,6 +45,25 @@ class ActivityType(str, Enum):
             raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
 
 
+class ActivityLevelingPriority(str, Enum):
+    """P6's distinct activity resource-leveling priority field."""
+
+    TOP = "Top"
+    HIGH = "High"
+    NORMAL = "Normal"
+    LOW = "Low"
+    LOWEST = "Lowest"
+
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityLevelingPriority":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported P6 Activity.LevelingPriority value: {value!r}"
+            ) from exc
+
+
 class ActivityStatusCode(str, Enum):
     """P6 Activity.StatusCode semantic values."""
 
@@ -84,6 +103,7 @@ class Activity:
     name: str = ""
     original_duration: int | None = None
     planned_finish: date | None = None
+    leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -138,6 +158,10 @@ class Activity:
             or isinstance(self.planned_finish, datetime)
         ):
             raise TypeError("planned_finish must be a date or None")
+        if self.leveling_priority is not None and not isinstance(
+            self.leveling_priority, ActivityLevelingPriority
+        ):
+            raise TypeError("leveling_priority must be ActivityLevelingPriority or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
