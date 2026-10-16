@@ -639,3 +639,53 @@ def test_shared_graph_allows_project_routing_options_to_differ_when_not_used_glo
     )
 
     assert {item.project_id for item in result.projects} == {"P1", "P2"}
+
+
+def test_batch_project_priority_uses_each_authoritative_project_snapshot():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+        priority_list=(
+            PriorityListItem("project_priority", PrioritySortOrder.ASCENDING),
+        ),
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("P1-A", day_one, day_one, 2, (demand_p1,)),
+            LevelingActivity("P2-A", day_one, day_one, 2, (demand_p2,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "P1-A", day_one, day_one, day_three, day_three, (demand_p1,),
+            ),
+            BackwardLevelingActivity(
+                "P2-A", day_one, day_one, day_three, day_three, (demand_p2,),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+            ResourceCapacity("R1", day_three, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", day_three, options=options, priority=100),
+            snapshot("P2", day_three, options=options, priority=1),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    assert p1.start == day_two
+    assert p2.start == day_one
+
