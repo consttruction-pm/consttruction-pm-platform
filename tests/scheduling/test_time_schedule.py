@@ -825,3 +825,38 @@ def test_free_float_search_handles_slack_beyond_10000_working_hours():
 
     assert result["A"].total_float_value == Decimal("10001")
     assert result["A"].free_float_value == Decimal("10001")
+
+
+def test_free_float_preserves_fractional_working_hour_slack():
+    ctx = context()
+    cal_resolver = registry().time_resolvers["site@1"]
+    start = datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    early_a_finish = cal_resolver.add_working_hours(start, 1)
+    late_a_start = cal_resolver.add_working_hours(start, Decimal("1.5"))
+    late_a_finish = cal_resolver.add_working_hours(late_a_start, 1)
+    successor_start = cal_resolver.add_working_hours(start, Decimal("2.5"))
+    successor_finish = cal_resolver.add_working_hours(successor_start, 1)
+
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = {
+        "A": TimeScheduledActivity("A", start, early_a_finish, activities[0].duration),
+        "B": TimeScheduledActivity("B", successor_start, successor_finish, activities[1].duration),
+    }
+    late = {
+        "A": TimeScheduledActivity("A", late_a_start, late_a_finish, activities[0].duration),
+        "B": early["B"],
+    }
+
+    result = calculate_time_floats(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS)],
+        early,
+        late,
+        registry(),
+    )
+
+    assert result["A"].total_float_value == Decimal("1.5")
+    assert result["A"].free_float_value == Decimal("1.5")
