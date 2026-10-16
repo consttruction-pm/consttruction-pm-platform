@@ -72,3 +72,30 @@ def test_adapter_rejects_invalid_relationship_endpoints(predecessor_id, successo
 
     with pytest.raises(RelationshipMasterScheduleAdapterError, match="INVALID_RELATIONSHIP_MASTER"):
         relationship_master_to_date_relationship(source)
+
+
+def test_persisted_relationship_round_trips_through_schedule_adapter():
+    import sqlite3
+
+    from construction_pm.relationship_master_repository import SQLiteRelationshipMasterRepository
+
+    scope = BackendScope("T-1", "P-1", 3)
+    source = _relationship(
+        scope=scope,
+        relationship_type=RelationshipType.FF,
+        lag_value=Decimal("-1"),
+    )
+    repository = SQLiteRelationshipMasterRepository(sqlite3.connect(":memory:"))
+    saved = repository.save(source)
+
+    restored_records = repository.list(scope)
+
+    assert len(restored_records) == 1
+    restored = restored_records[0]
+    assert restored.relationship_id == "REL-1"
+    assert restored.record_revision == saved.record_revision
+    result = relationship_master_to_date_relationship(restored)
+    assert result.predecessor_id == "A-1"
+    assert result.successor_id == "A-2"
+    assert result.type is RelationshipType.FF
+    assert result.lag == -1
