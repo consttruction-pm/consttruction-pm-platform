@@ -156,6 +156,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
 
 class SQLiteActivityMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
@@ -180,7 +181,8 @@ class SQLiteActivityMasterRepository:
         if "percent_complete_type" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_master_revision ON activity_master(tenant_id, project_id, project_revision, activity_id)")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         owns_transaction = not self.connection.in_transaction
