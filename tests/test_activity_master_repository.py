@@ -174,3 +174,28 @@ def test_activity_master_updates_planned_finish_with_revision():
     assert updated.planned_finish == date(2026, 9, 29)
     assert repo.get(scope(), "A-1") == updated
 
+def test_activity_master_migrates_existing_table_for_planned_finish():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+            activity_id TEXT NOT NULL, duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
+            actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT,
+            percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+            record_revision INTEGER NOT NULL, expected_finish TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id))"""
+    )
+    connection.commit()
+
+    repo = SQLiteActivityMasterRepository(connection)
+    columns = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(activity_master)").fetchall()
+    }
+    assert "planned_finish" in columns
+
+    planned_finish = date(2026, 9, 28)
+    stored = repo.save(activity(planned_finish=planned_finish))
+    assert repo.get(scope(), "A-1") == stored
+    assert stored.planned_finish == planned_finish
+
