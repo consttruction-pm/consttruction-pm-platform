@@ -748,3 +748,44 @@ def test_time_schedule_rejects_empty_activity_list():
             registry(),
         )
 
+
+
+def test_calculate_time_floats_rejects_unknown_relationship_endpoint():
+    ctx = context()
+    activities = [TimeActivity("A", TimeQuantity.working_hours(1), ctx)]
+    early = time_forward_pass(
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="relationship references an unknown activity"):
+        calculate_time_floats(
+            activities,
+            [TimeRelationship("A", "MISSING", RelationshipType.FS)],
+            early,
+            early,
+            registry(),
+        )
+
+
+def test_calculate_time_floats_rejects_incomplete_schedule_mappings():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = time_forward_pass(
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="early and late schedules must contain every activity"):
+        calculate_time_floats(activities, [], {"A": early["A"]}, early, registry())
+
+
+def test_calculate_time_floats_rejects_duplicate_activity_ids():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        calculate_time_floats(
+            [activity, activity], [], early, early, registry()
+        )
