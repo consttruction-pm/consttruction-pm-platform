@@ -221,7 +221,7 @@ def _resource_list(raw: Any) -> tuple[str, ...] | None:
         if any(not item for item in items):
             raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
         raw = items
-    if not isinstance(raw, list) or not raw:
+    if not isinstance(raw, list):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
     if any(not isinstance(item, str) or not item.strip() or item != item.strip() for item in raw):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
@@ -263,7 +263,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
         if priority_payload is None:
             priority_list = None
         else:
-            if not isinstance(priority_payload, list) or not priority_payload:
+            if not isinstance(priority_payload, list):
                 raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
             priority_list = tuple(
                 PriorityListItem(
