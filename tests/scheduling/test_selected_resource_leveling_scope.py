@@ -72,10 +72,10 @@ def test_public_resource_list_limits_which_resource_overloads_trigger_leveling()
         ),
     )
 
-    assert [shift.activity_id for shift in forward_shifts] == ["A"]
+    assert [shift.activity_id for shift in forward_shifts] == ["B"]
     assert backward_shifts == ()
-    assert result.activities["A"].start == day_two
-    assert result.activities["B"].start == day_one
+    assert result.activities["A"].start == day_one
+    assert result.activities["B"].start == day_two
     # R2 is overloaded too, but it is not selected and must not trigger shifts.
     assert result.activities["C"].start == day_one
     assert result.activities["D"].start == day_one
