@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-"""Fail-closed adapter from persisted Activity Master to date-based scheduler input.
+"""Bounded adapter for scheduling fields stored in ActivityMaster.
 
-This adapter deliberately supports only the DATE_BASED core model. TIME_AWARE
-records need a separate adapter that preserves timezone-aware datetimes and
-TimeQuantity values; this module never truncates them to dates.
+This adapter deliberately supports only the DATE_BASED core model and maps only
+fields present in ActivityMaster. Activity name/status/type, relationships,
+calendars, constraints, and resource assignments live outside this record and
+must be joined by an application-layer materializer before production use.
+TIME_AWARE records need a separate adapter; this module never truncates them.
 """
 
 from datetime import date, datetime
@@ -38,10 +40,12 @@ def _whole_working_days(value: Decimal, unit: DurationUnit, field: str) -> int:
 
 
 def activity_master_to_date_activity(record: ActivityMaster) -> Activity:
-    """Convert one persisted record to the date-based Activity model without loss.
+    """Map the supported fields from one record to a date-based Activity.
 
-    Unsupported units, fractional working days, and datetime values are rejected
-    rather than rounded, converted using an assumed calendar, or truncated.
+    This is not a complete project-activity materializer: fields absent from
+    ActivityMaster take the Activity model defaults and must be supplied by the
+    caller's broader persistence adapter when authoritative. Unsupported units,
+    fractional working days, and datetime values are rejected rather than rounded.
     """
     try:
         record.validate()
