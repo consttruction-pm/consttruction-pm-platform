@@ -235,15 +235,17 @@ def test_scheduler_leveling_boundary_rejects_duplicate_backward_activity_ids():
 
 
 
-def test_scheduler_leveling_boundary_rejects_ambiguous_original_or_planned_duration_alias():
+def test_scheduler_leveling_boundary_maps_p6_original_or_planned_duration_alias():
     forward, backward, capacities = _slices()
     options = ScheduleOptions(
         priority_list=(PriorityListItem("original_or_planned_duration", PrioritySortOrder.ASCENDING),),
     )
-    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        scheduler_leveling_input_from_options(
-            forward_activities=forward,
-            backward_activities=backward,
-            capacities=capacities,
-            options=options,
-        )
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+    )
+    assert [(item.field_name, item.sort_order) for item in boundary.options.priorities] == [
+        ("original_or_planned_duration", SortOrder.ASCENDING),
+    ]
