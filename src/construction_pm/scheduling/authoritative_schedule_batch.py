@@ -341,6 +341,9 @@ def execute_authoritative_schedule_batch(
                     project_planned_start=priority_snapshots_by_activity_id[
                         activity.activity_id
                     ].project_start,
+                    project_priority=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_leveling_priority,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
@@ -362,6 +365,9 @@ def execute_authoritative_schedule_batch(
                     project_planned_start=priority_snapshots_by_activity_id[
                         activity.activity_id
                     ].project_start,
+                    project_priority=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_leveling_priority,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
