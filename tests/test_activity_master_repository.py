@@ -241,5 +241,40 @@ def test_activity_master_rejects_invalid_activity_leveling_priority():
     with pytest.raises(ActivityPersistenceError, match="INVALID_LEVELING_PRIORITY"):
         repo.save(activity(leveling_priority="Top"))
 
+def test_activity_master_migrates_null_legacy_leveling_priority_to_normal():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+            activity_id TEXT NOT NULL, duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
+            actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT,
+            percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+            record_revision INTEGER NOT NULL, expected_finish TEXT, planned_finish TEXT,
+            leveling_priority TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id))"""
+    )
+    connection.execute(
+        """INSERT INTO activity_master (
+            tenant_id, project_id, project_revision, activity_id, duration_value, duration_unit,
+            actual_start, actual_finish, remaining_duration, remaining_start, percent_complete,
+            percent_complete_type, record_revision, expected_finish, planned_finish, leveling_priority
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "T-1", "P-1", 7, "A-LEGACY", "2", DurationUnit.WORKING_DAY.value,
+            "2026-09-21", None, None, None, None,
+            PercentCompleteType.DURATION.value, 1, None, None, None,
+        ),
+    )
+    connection.commit()
 
+    repo = SQLiteActivityMasterRepository(connection)
+    restored = repo.get(scope(), "A-LEGACY")
+
+    assert restored is not None
+    assert restored.leveling_priority is ActivityLevelingPriority.NORMAL
+    stored_value = connection.execute(
+        "SELECT leveling_priority FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+        ("T-1", "P-1", "A-LEGACY"),
+    ).fetchone()[0]
+    assert stored_value == "Normal"
 
