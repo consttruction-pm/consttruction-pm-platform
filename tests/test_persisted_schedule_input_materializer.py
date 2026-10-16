@@ -14,6 +14,7 @@ from construction_pm.persisted_schedule_input_materializer import (
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
 from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar_context import CalendarReference
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -131,4 +132,52 @@ def test_materializer_rejects_relationships_with_missing_activity_endpoint():
             relationship_repository=relationships,
             activity_metadata=metadata,
             activity_calendars=calendars,
+        )
+
+
+
+def test_materializer_rejects_blank_activity_name():
+    scope, activities, relationships, metadata, calendars = _setup()
+    metadata["A-1"] = ActivityScheduleMetadata(
+        name="   ",
+        status=metadata["A-1"].status,
+        activity_type=metadata["A-1"].activity_type,
+        status_code=metadata["A-1"].status_code,
+    )
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="INVALID_ACTIVITY_NAME",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-4",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+            project_start=date(2026, 10, 1),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+        )
+
+
+def test_materializer_rejects_constraints_for_unknown_activity():
+    scope, activities, relationships, metadata, calendars = _setup()
+
+    with pytest.raises(
+        PersistedScheduleInputMaterializationError,
+        match="CONSTRAINT_ACTIVITY_NOT_FOUND",
+    ):
+        materialize_date_schedule_input_from_masters(
+            scope=scope,
+            snapshot_id="SNAP-4",
+            project_calendar=CalendarReference("CAL-PROJECT", "v3"),
+            project_start=date(2026, 10, 1),
+            activity_repository=activities,
+            relationship_repository=relationships,
+            activity_metadata=metadata,
+            activity_calendars=calendars,
+            constraints=(
+                ActivityConstraint("MISSING", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2)),
+            ),
         )
