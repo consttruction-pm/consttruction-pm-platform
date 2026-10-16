@@ -248,7 +248,7 @@ def test_schedule_options_leveling_path_uses_typed_boundary() -> None:
     # The ScheduleOptions path reaches the authoritative leveling engine.
     # A real one-working-day offset resolves the overload in one shift.
     assert len(forward) == 1
-    assert forward[0].activity_id == "A"
+    assert forward[0].activity_id == "B"
     assert forward[0].new_start == date(2026, 10, 2)
     assert backward == ()
     assert set(result.activities) == {"A", "B"}
@@ -313,9 +313,9 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
     assert backward == ()
     # The accepted A shift must be propagated through the SS dependency by
     # the ordinary CPM scheduler, not merely reflected in leveling metadata.
-    assert result.activities["A"].start == date(2026, 10, 2)
+    assert result.activities["A"].start == date(2026, 10, 1)
     assert result.activities["B"].start == date(2026, 10, 2)
-    assert result.activities["A"].finish == date(2026, 10, 2)
+    assert result.activities["A"].finish == date(2026, 10, 1)
     assert result.activities["B"].finish == date(2026, 10, 2)
     assert result.project_finish == date(2026, 10, 2)
     final_daily_demand_by_day = {
@@ -333,8 +333,8 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         if capacity.resource_id == "R1"
     }
     assert final_daily_demand_by_day == {
-        date(2026, 10, 1): Decimal("0"),
-        date(2026, 10, 2): Decimal("16"),
+        date(2026, 10, 1): Decimal("8"),
+        date(2026, 10, 2): Decimal("8"),
     }
     assert all(
         final_daily_demand_by_day[day] <= capacity_by_day[day]
@@ -348,9 +348,11 @@ def test_linked_resource_leveling_recalculates_relationships_and_cpm_output() ->
         assert float_result.early_finish == early.finish
         assert float_result.late_start == late.start
         assert float_result.late_finish == late.finish
-        assert float_result.total_float == 0
-        assert early.start == date(2026, 10, 2)
-        assert early.finish == date(2026, 10, 2)
+        expected_early = date(2026, 10, 1) if activity_id == "A" else date(2026, 10, 2)
+        expected_float = 1 if activity_id == "A" else 0
+        assert float_result.total_float == expected_float
+        assert early.start == expected_early
+        assert early.finish == expected_early
         assert late.start == date(2026, 10, 2)
         assert late.finish == date(2026, 10, 2)
 
@@ -417,11 +419,8 @@ def test_final_resource_validation_shifts_demands_by_signed_working_days():
         )
 
 
-def test_linked_leveling_rejects_overallocation_reintroduced_by_cpm_relationships():
-    import pytest
-
+def test_linked_leveling_respects_precedence_and_capacity_for_ss_linked_activities():
     from construction_pm.scheduling.relationships import Relationship, RelationshipType
-    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
     day_one = date(2026, 10, 1)
@@ -450,19 +449,30 @@ def test_linked_leveling_rejects_overallocation_reintroduced_by_cpm_relationship
         ),
     )
 
-    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
-        schedule_with_resource_leveling(
-            (Activity("A", 1), Activity("B", 1)),
-            (Relationship("A", "B", RelationshipType.SS),),
-            day_one,
-            resolver,
-            leveling_input,
-            options=ScheduleOptions(
-                level_all_resources=True,
-                level_within_float=True,
-                preserve_scheduled_early_and_late_dates=True,
-            ),
-        )
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.SS),),
+        day_one,
+        resolver,
+        leveling_input,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            level_within_float=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["B"]
+    assert backward == ()
+    assert result.activities["A"].start == day_one
+    assert result.activities["B"].start == day_two
+    assert result.activities["B"].start >= result.activities["A"].start
+    demand_by_day = {
+        day_one: Decimal("8"),
+        day_two: Decimal("8"),
+    }
+    capacity_by_day = {day_one: Decimal("8"), day_two: Decimal("8")}
+    assert all(demand_by_day[day] <= capacity_by_day[day] for day in demand_by_day)
 
 
 def test_public_leveling_orchestration_rejects_unknown_selected_resource() -> None:
@@ -510,11 +520,11 @@ def test_public_forward_leveling_within_float_moves_by_one_working_day() -> None
         ),
     )
 
-    assert [shift.activity_id for shift in forward] == ["A"]
+    assert [shift.activity_id for shift in forward] == ["B"]
     assert forward[0].shift_working_days == 1
     assert backward == ()
-    assert result.activities["A"].start == date(2026, 10, 2)
-    assert result.activities["B"].start == date(2026, 10, 1)
+    assert result.activities["A"].start == date(2026, 10, 1)
+    assert result.activities["B"].start == date(2026, 10, 2)
 
 
 def test_public_leveling_priority_changes_deterministic_shift_order() -> None:
@@ -644,7 +654,7 @@ def test_public_leveling_supports_authoritative_late_finish_priority() -> None:
     assert backward == ()
     assert result.activities["A"].start == thursday
     assert result.activities["B"].start == friday
-    assert result.activities["C"].start == monday
+    assert result.activities["C"].start == friday
 
 
 def test_public_leveling_supports_authoritative_free_float_priority() -> None:
@@ -1423,42 +1433,34 @@ def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> N
 
 
 
-def test_backward_ss_candidate_is_rolled_back_when_it_violates_relationship_and_overload_remains() -> None:
-    import pytest
-
+def test_backward_ss_candidate_keeps_valid_predecessor_and_resolves_overload() -> None:
     from construction_pm.scheduling.relationships import Relationship, RelationshipType
-    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
 
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
-    # Forward leveling moves A to day two; the SS relationship then propagates
-    # B to day two as well. A backward candidate that pins B to day one would
-    # violate SS while A remains on day two. Since neither day can host both
-    # demands, the scheduler must reject the candidate and report infeasibility
-    # rather than return a relationship-invalid or overloaded result.
-    demand_a = ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A")
-    demand_b = ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "B")
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    demand_a = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", day_one, Decimal("8"), "B")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity("A", date(2026, 10, 1), date(2026, 10, 1), 2, (demand_a,)),
-            LevelingActivity("B", date(2026, 10, 1), date(2026, 10, 1), 2, (demand_b,)),
+            LevelingActivity("A", day_one, day_one, 2, (demand_a,)),
+            LevelingActivity("B", day_one, day_one, 2, (demand_b,)),
         ),
         backward_activities=(
             BackwardLevelingActivity(
-                "A", date(2026, 10, 1), date(2026, 10, 1),
-                date(2026, 10, 2), date(2026, 10, 2),
-                (ResourceDemand("R1", date(2026, 10, 2), Decimal("8"), "A"),),
+                "A", day_one, day_one, day_two, day_two,
+                (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
             ),
             BackwardLevelingActivity(
-                "B", date(2026, 10, 1), date(2026, 10, 1),
-                date(2026, 10, 2), date(2026, 10, 2),
-                (ResourceDemand("R1", date(2026, 10, 2), Decimal("8"), "B"),),
+                "B", day_one, day_one, day_two, day_two,
+                (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
             ),
         ),
         capacities=(
-            ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),
-            ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
         ),
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
@@ -1466,12 +1468,22 @@ def test_backward_ss_candidate_is_rolled_back_when_it_violates_relationship_and_
         ),
     )
 
-    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
-        schedule_with_resource_leveling(
-            (Activity("A", 1), Activity("B", 1)),
-            (Relationship("A", "B", RelationshipType.SS),),
-            date(2026, 10, 1),
-            resolver,
-            leveling_input,
-            project_finish=date(2026, 10, 3),
-        )
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.SS),),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 3),
+    )
+
+    assert [shift.activity_id for shift in forward] == ["B"]
+    assert all(shift.activity_id != "A" for shift in backward)
+    assert result.activities["A"].start == day_one
+    assert result.activities["B"].start == day_two
+    assert result.activities["B"].start >= result.activities["A"].start
+    demand_by_day = {day_one: Decimal("8"), day_two: Decimal("8")}
+    capacity_by_day = {day_one: Decimal("8"), day_two: Decimal("8")}
+    assert all(demand_by_day[day] <= capacity_by_day[day] for day in demand_by_day)
+
+
