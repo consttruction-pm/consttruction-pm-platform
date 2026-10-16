@@ -543,60 +543,69 @@
       "note": "This exact head includes the legacy-null to Normal migration regression. Import/materializer provenance and wire round-trip remain open despite green code and database checks."
     },
     "docs_branch_latest_ci_observation_2026_10_16": {
-      "tested_commit": "785993095709abf8c935996105ab3a230de0c852",
-      "workflow_run_id": 38831846161,
+      "tested_commit": "570c2dfd20427f20bc9c331a0293539fb45bc9f5",
+      "workflow_run_id": 38832048544,
       "workflow": "ConstructionPM CI",
       "conclusion": "failure",
       "matrix": [
         {
           "python": "3.11",
-          "passed": 2525,
-          "failed": 3,
+          "passed": 2526,
+          "failed": 2,
           "skipped": 90,
           "warnings": 1
         },
         {
           "python": "3.12",
-          "passed": 2525,
-          "failed": 3,
+          "passed": 2526,
+          "failed": 2,
           "skipped": 90,
           "warnings": 1
         },
         {
           "python": "3.13",
-          "passed": 2525,
-          "failed": 3,
+          "passed": 2526,
+          "failed": 2,
           "skipped": 90,
           "warnings": 1
         }
       ],
       "failures": [
         {
-          "test": "tests/p6/test_schedule_priority_compatibility_audit_20261016.py::test_release26_priority_audit_records_normal_default_and_import_roundtrip_limit",
-          "error": "KeyError: 'activity_leveling_priority'",
-          "status": "audit_document_omitted_a_gate_that_the_test_expected",
-          "disposition": "being_corrected_in_a_follow-up_audit-json commit; rerun CI on the new SHA"
-        },
-        {
           "test": "tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph",
           "error": "FINAL_RESOURCE_OVERALLOCATION:R1:2026-10-02:demand=2:capacity=1.0",
-          "status": "current_mainline_baseline_failure",
-          "disposition": "not introduced by audit changes; implementation PR #1457 has a passing fix on its tested feature head"
+          "attribution": "current_mainline_scheduling_baseline",
+          "disposition": "Not introduced by the audit JSON/test; the scheduling implementation PR #1457 contains a passing fix on its separately tested head."
         },
         {
           "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
           "error": "ConstraintViolation: start no later than constraint violated for B",
-          "status": "current_mainline_baseline_failure",
-          "disposition": "not introduced by audit changes; implementation PR #1457 has a passing fix on its tested feature head"
+          "attribution": "current_mainline_scheduling_baseline",
+          "disposition": "Not introduced by the audit JSON/test; the scheduling implementation PR #1457 contains the backward candidate/rollback handling on its separately tested head."
         }
       ],
-      "attribution_check": {
-        "docs_branch_diff_scope": "At the tested SHA, both the field-disposition JSON and a scoped audit-test file differ from main; the two scheduling implementation/test files in the baseline failures remain current-main copies.",
-        "baseline_failures_not_introduced_by_audit": true
+      "superseded_observation": {
+        "commit": "785993095709abf8c935996105ab3a230de0c852",
+        "failure": "KeyError: 'activity_leveling_priority' in the newly added audit test",
+        "status": "fixed_by_adding_activity_leveling_priority_acceptance_gate",
+        "note": "The latest test run no longer reports the audit-test KeyError; both remaining failures are scheduling baseline failures."
       },
-      "client_typecheck": "success",
+      "attribution_check": {
+        "docs_branch_diff_scope": "Audit JSON plus a scoped audit-test file differ from main; the implementation/test files involved in the two remaining failures are unchanged from current main.",
+        "status": "two_remaining_failures_are_mainline_baseline_not_introduced_by_audit_changes"
+      },
+      "client_typecheck": {
+        "run_id": 38832048586,
+        "conclusion": "success",
+        "clients": [
+          "desktop",
+          "web",
+          "mobile",
+          "client-sync"
+        ]
+      },
       "release_decision": "BLOCKED",
-      "note": "The KeyError is a documentation-test contract mismatch that is addressed by adding the missing gate. The two scheduling failures remain separate mainline baseline failures and must not be suppressed."
+      "note": "Do not suppress these two tests or declare the documentation branch green. PR #1457 has the feature fix and has passed its own latest exact-head CI; maintainers still need to decide how to validate/merge the audit relative to that implementation."
     }
   }
 }
