@@ -126,6 +126,11 @@ def build_snapshot(
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
     if schedule_input.snapshot_id != context.input_snapshot_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
+    if (
+        schedule_input.project_calendar.calendar_id != context.calendar_id
+        or schedule_input.project_calendar.calendar_version != context.calendar_version
+    ):
+        raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_CALENDAR_MISMATCH")
     payload = schedule_input.canonical_json()
     return ScheduleInputSnapshot(
         scope=BackendScope(
