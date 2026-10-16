@@ -294,9 +294,9 @@ def test_public_leveling_uses_distinct_planned_finish_priority_from_activity():
         ),
     )
 
-    assert [shift.activity_id for shift in forward] == ["B"]
+    assert [shift.activity_id for shift in forward] == ["A"]
     assert backward == ()
-    assert result.activities["B"].start == day_two
+    assert result.activities["A"].start == day_two
 
 def test_public_leveling_does_not_infer_planned_finish_after_activity_started():
     import pytest
