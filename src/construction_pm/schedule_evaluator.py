@@ -68,6 +68,8 @@ def evaluate_schedule_snapshot(
     authoritative leveling seam when the application supplies its already
     mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
     """
+    if hashlib.sha256(snapshot.canonical_payload.encode("utf-8")).hexdigest() != snapshot.snapshot_hash:
+        raise ScheduleEvaluationError("SNAPSHOT_HASH_MISMATCH")
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ScheduleEvaluationError("INPUT_SNAPSHOT_ID_MISMATCH")
     if calculation_context.project_id != snapshot.scope.project_id:
