@@ -727,3 +727,24 @@ def test_time_backward_pass_rejects_duplicate_activity_ids():
             registry(),
         )
 
+def test_time_backward_pass_rejects_empty_activity_list():
+    with pytest.raises(ValueError, match="time-aware backward pass requires at least one activity"):
+        time_backward_pass(
+            [],
+            [],
+            {},
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+        )
+
+
+def test_time_schedule_rejects_empty_activity_list():
+    with pytest.raises(ValueError, match="time-aware schedule requires at least one activity"):
+        time_schedule(
+            [],
+            [],
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            None,
+            registry(),
+        )
+
