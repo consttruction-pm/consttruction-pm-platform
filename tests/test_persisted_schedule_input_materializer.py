@@ -15,10 +15,11 @@ from construction_pm.persisted_schedule_input_materializer import (
 from construction_pm.schedule_input_snapshot_repository import (
     SQLiteScheduleInputSnapshotRepository,
 )
+from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
 from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
-from construction_pm.scheduling.calendar_context import CalendarReference
+from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -266,3 +267,56 @@ def test_snapshot_persistence_rejects_mismatched_context_id():
             created_at=now,
             snapshot_repository=repository,
         )
+
+
+def test_persisted_master_snapshot_round_trips_through_snapshot_materializer():
+    scope, activities, relationships, metadata, calendars = _setup()
+    project_calendar = CalendarReference("CAL-PROJECT", "v3")
+    schedule_input = materialize_date_schedule_input_from_masters(
+        scope=scope,
+        snapshot_id="SNAP-ROUNDTRIP",
+        project_calendar=project_calendar,
+        project_start=date(2026, 10, 1),
+        activity_repository=activities,
+        relationship_repository=relationships,
+        activity_metadata=metadata,
+        activity_calendars=calendars,
+    )
+    now = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
+    context = CalculationContext(
+        project_id=scope.project_id,
+        project_version=scope.project_revision,
+        calendar_id=project_calendar.calendar_id,
+        calendar_version=project_calendar.calendar_version,
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="SNAP-ROUNDTRIP",
+        tenant_id=scope.tenant_id,
+    )
+    repository = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+    persist_materialized_schedule_input(
+        schedule_input=schedule_input,
+        context=context,
+        created_at=now,
+        snapshot_repository=repository,
+    )
+
+    restored_snapshot = repository.get(scope, "SNAP-ROUNDTRIP")
+    assert restored_snapshot is not None
+    restored = materialize_schedule_snapshot(
+        restored_snapshot,
+        CalendarResolverRegistry(),
+    ).schedule_input
+
+    assert restored.snapshot_id == "SNAP-ROUNDTRIP"
+    assert [(item.id, item.name, item.duration) for item in restored.activities] == [
+        ("A-1", "Activity A-1", 2),
+        ("A-2", "Activity A-2", 3),
+    ]
+    assert len(restored.relationships) == 1
+    assert restored.relationships[0].predecessor_id == "A-1"
+    assert restored.relationships[0].successor_id == "A-2"
+    assert restored.relationships[0].lag == 1
+    assert len(restored.activity_calendar_assignments) == 2
