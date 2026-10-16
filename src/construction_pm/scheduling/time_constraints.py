@@ -151,6 +151,10 @@ def validate_time_late_window(
         if item.activity_id != activity.id:
             continue
         target = _normalized_target(item, resolver)
+        if item.type is TimeConstraintType.START_NO_EARLIER_THAN and start < target:
+            raise TimeConstraintViolation(f"late start no earlier than violated for {activity.id}")
+        if item.type is TimeConstraintType.FINISH_NO_EARLIER_THAN and finish < target:
+            raise TimeConstraintViolation(f"late finish no earlier than violated for {activity.id}")
         if item.type is TimeConstraintType.START_NO_LATER_THAN and start > target:
             raise TimeConstraintViolation(f"late start no later than violated for {activity.id}")
         if item.type is TimeConstraintType.FINISH_NO_LATER_THAN and finish > target:
