@@ -132,3 +132,24 @@ def test_calendar_aware_working_day_adapter_preserves_timezone():
     assert resolver.add_duration(value, duration).tzinfo is timezone.utc
     assert resolver.subtract_duration(value, duration).tzinfo is timezone.utc
     assert resolver.add_lag(value, LagQuantity.working_days(1)).tzinfo is timezone.utc
+
+
+def test_calendar_aware_working_day_subtract_lag_preserves_timezone_for_signed_lags():
+    from datetime import timezone
+
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.time_duration import LagQuantity
+    from construction_pm.scheduling.time_unit_resolver import CalendarAwareResolver
+
+    resolver = CalendarAwareResolver(
+        CalendarReference("day", "1", kind="working-day"),
+        WorkingTimeResolver(WorkingCalendar()),
+    )
+    event = datetime(2026, 9, 21, 9, tzinfo=timezone.utc)
+
+    positive_result = resolver.subtract_lag(event, LagQuantity.working_days(1))
+    negative_result = resolver.subtract_lag(event, LagQuantity.working_days(-1))
+
+    assert positive_result.tzinfo is timezone.utc
+    assert negative_result.tzinfo is timezone.utc
