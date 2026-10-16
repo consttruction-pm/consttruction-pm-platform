@@ -272,3 +272,17 @@ def test_evaluator_rejects_non_object_json_snapshot_payload(payload):
 
     with pytest.raises(ScheduleEvaluationError, match="INVALID_SNAPSHOT_PAYLOAD"):
         evaluate_schedule_snapshot(malformed_shape_snapshot, context, registry())
+
+
+def test_evaluator_normalizes_arithmetic_overflow(monkeypatch):
+    import construction_pm.schedule_evaluator as evaluator_module
+
+    snapshot, context = make_snapshot_and_context()
+
+    def overflow_schedule(**kwargs):
+        raise OverflowError("datetime arithmetic overflow")
+
+    monkeypatch.setattr(evaluator_module, "schedule", overflow_schedule)
+
+    with pytest.raises(ScheduleEvaluationError, match="SCHEDULE_EVALUATION_FAILED"):
+        evaluate_schedule_snapshot(snapshot, context, registry())
