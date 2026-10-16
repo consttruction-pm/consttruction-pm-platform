@@ -71,6 +71,12 @@ jobs:
           sed -i 's#\./styles\.css#./styles.css#' "${{ github.workspace }}/_site/index.html"
           sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
           sed -i 's#\./dist/landing-entry\.js#../dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/app/index.html"
+          # The app/workspace entry is not a public marketing page: give it distinct metadata
+          # and prevent indexing while leaving the route crawlable so search engines can see noindex.
+          sed -i 's#<title>.*</title>#<title>CUBI Platform | Workspace</title>#' "${{ github.workspace }}/_site/app/index.html"
+          sed -i 's#<meta name="description" content="[^"]*" />#<meta name="description" content="CUBI Platform workspace." />#' "${{ github.workspace }}/_site/app/index.html"
+          sed -i 's#<meta name="robots" content="[^"]*" />#<meta name="robots" content="noindex,nofollow" />#' "${{ github.workspace }}/_site/app/index.html"
+          sed -i '/<link rel="canonical"/d; /<meta property="og:/d; /<meta name="twitter:/d; /<script type="application\/ld+json">/,/<\/script>/d' "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/index.html"
           test -f "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
@@ -87,6 +93,12 @@ jobs:
           grep -q 'app/' "${{ github.workspace }}/_site/dist/web/src/landing.js"
           grep -q 'cubi-platform-logo-primary.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
           ! grep -q 'cubi-platform-logo-primary-dark.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
+          grep -q '<title>CUBI Platform | Workspace</title>' "${{ github.workspace }}/_site/app/index.html"
+          grep -q '<meta name="robots" content="noindex,nofollow" />' "${{ github.workspace }}/_site/app/index.html"
+          grep -q '<link rel="canonical"' "${{ github.workspace }}/_site/index.html"
+          ! grep -q 'rel="canonical"' "${{ github.workspace }}/_site/app/index.html"
+          ! grep -q 'name="robots" content="index,follow' "${{ github.workspace }}/_site/app/index.html"
+          ! grep -q 'application/ld+json' "${{ github.workspace }}/_site/app/index.html"
           echo "Pages artifact ready: $(find "${{ github.workspace }}/_site" -type f | wc -l) files"
 
       - name: Upload Pages artifact
