@@ -76,6 +76,21 @@ def evaluate_schedule_snapshot(
         raise ScheduleEvaluationError("PROJECT_REVISION_MISMATCH")
     if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleEvaluationError("TENANT_ID_MISMATCH")
+    # Validate the context against the calendar embedded in the immutable payload
+    # as well as against the stored identity. Older snapshots may predate the
+    # build_snapshot guard, so identity equality alone is not sufficient.
+    try:
+        snapshot_payload = json.loads(snapshot.canonical_payload)
+        project_calendar = snapshot_payload.get("project_calendar")
+        snapshot_calendar_id = project_calendar.get("calendar_id") if isinstance(project_calendar, dict) else None
+        snapshot_calendar_version = project_calendar.get("calendar_version") if isinstance(project_calendar, dict) else None
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SNAPSHOT_PAYLOAD") from exc
+    if (
+        calculation_context.calendar_id != snapshot_calendar_id
+        or calculation_context.calendar_version != snapshot_calendar_version
+    ):
+        raise ScheduleEvaluationError("CALCULATION_CONTEXT_CALENDAR_MISMATCH")
     if snapshot.calculation_identity_version == 2:
         identity_matches = (
             calculation_context.calculation_identity == snapshot.calculation_identity
