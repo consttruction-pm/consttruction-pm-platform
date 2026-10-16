@@ -83,6 +83,7 @@ class Activity:
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
     name: str = ""
     original_duration: int | None = None
+    planned_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -132,6 +133,11 @@ class Activity:
             raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):
             raise TypeError("expected_finish must be a date or None")
+        if self.planned_finish is not None and (
+            not isinstance(self.planned_finish, date)
+            or isinstance(self.planned_finish, datetime)
+        ):
+            raise TypeError("planned_finish must be a date or None")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
