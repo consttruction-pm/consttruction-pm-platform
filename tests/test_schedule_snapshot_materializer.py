@@ -1072,3 +1072,29 @@ def test_schedule_options_materializer_keeps_null_distinct_from_empty_arrays():
 
     assert options.resource_list is None
     assert options.priority_list is None
+
+def test_snapshot_materializer_preserves_explicitly_empty_leveling_arrays():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["resource_list"] = []
+    payload["schedule_options"]["priority_list"] = []
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    explicit_empty = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    result = materialize_schedule_snapshot(explicit_empty, CalendarResolverRegistry())
+    options = result.schedule_input.schedule_options
+
+    assert options.resource_list == ()
+    assert options.resource_list is not None
+    assert options.priority_list == ()
+    assert options.priority_list is not None
+
