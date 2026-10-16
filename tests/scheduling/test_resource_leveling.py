@@ -1675,21 +1675,31 @@ def test_equivalent_numeric_activity_ids_have_deterministic_forward_and_backward
 
 
 
-def test_activity_id_fallback_orders_numeric_alphabetic_then_blank_deterministically():
+def test_activity_id_fallback_orders_numeric_before_alphabetic_deterministically():
     from construction_pm.scheduling.resource_leveling import _priority_sort_key
 
     day = date(2026, 10, 1)
     activities = (
-        LevelingActivity("", day, day, 0),
         LevelingActivity("ABC", day, day, 0),
         LevelingActivity("10", day, day, 0),
         LevelingActivity("2", day, day, 0),
         LevelingActivity("abc", day, day, 0),
     )
+    expected = ["2", "10", "ABC", "abc"]
 
-    # The documented category order is numeric, alphabetic, then blank.
-    # Case-folding and original spelling provide deterministic ties in the
-    # alphabetic category; blank IDs remain last regardless of input order.
-    expected = ["2", "10", "ABC", "abc", ""]
-    assert [item.activity_id for item in sorted(activities, key=lambda item: _priority_sort_key(item, ()))] == expected
-    assert [item.activity_id for item in sorted(reversed(activities), key=lambda item: _priority_sort_key(item, ()))] == expected
+    assert [
+        item.activity_id
+        for item in sorted(activities, key=lambda item: _priority_sort_key(item, ()))
+    ] == expected
+    assert [
+        item.activity_id
+        for item in sorted(reversed(activities), key=lambda item: _priority_sort_key(item, ()))
+    ] == expected
+
+
+def test_leveling_activity_rejects_blank_id_before_priority_sorting():
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    day = date(2026, 10, 1)
+    with pytest.raises(ResourceLevelingError, match="INVALID_ACTIVITY_ID"):
+        LevelingActivity("", day, day, 0)
