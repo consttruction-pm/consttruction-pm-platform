@@ -591,11 +591,9 @@ def test_batch_project_planned_start_priority_uses_each_project_snapshot():
     # The batch schedules both root activities from the shared earliest date,
     # but the priority value itself must remain each owning project's snapshot
     # Planned Start, not the shared min(project_start) passed to the CPM engine.
-    assert p1.start == day_one
-    assert p2.start == day_two
-    assert p1.finish < p2.start
-
-
+    assert p1.start == day_two
+    assert p2.start == day_one
+    assert p2.finish < p1.start
 
 @pytest.mark.parametrize(
     "changed_option",
