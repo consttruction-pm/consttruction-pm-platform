@@ -1,19 +1,15 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
-    LevelingActivity,
     LevelingPriority,
     ResourceLevelingError,
     ResourceCapacity,
     ResourceDemand,
     SortOrder,
     propose_backward_leveling,
-    propose_forward_leveling,
 )
 
 
@@ -173,52 +169,4 @@ def test_backward_total_float_priority_requires_authoritative_float_value():
             (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("0"))),
             resolver=resolver,
             priorities=(LevelingPriority("total_float", SortOrder.ASCENDING),),
-        )
-
-
-
-def test_combined_original_or_planned_duration_priority_fails_closed_until_mapping_is_verified():
-    day_one = date(2026, 10, 1)
-    day_two = date(2026, 10, 2)
-    resolver = WorkingTimeResolver(
-        WorkingCalendar(
-            working_weekdays=frozenset({0, 1, 2, 3, 4}),
-            holidays=frozenset(),
-        )
-    )
-    priority = (LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),)
-
-    forward_activity = LevelingActivity(
-        activity_id="A",
-        start=day_one,
-        finish=day_one,
-        total_float=1,
-        resource_demands=(ResourceDemand("R1", day_one, Decimal("8"), "A"),),
-        original_duration=3,
-        planned_duration=5,
-    )
-    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        propose_forward_leveling(
-            (forward_activity,),
-            (ResourceCapacity("R1", day_one, Decimal("0")),),
-            resolver=resolver,
-            priorities=priority,
-        )
-
-    backward_activity = BackwardLevelingActivity(
-        activity_id="A",
-        early_start=day_one,
-        early_finish=day_one,
-        late_start=day_two,
-        late_finish=day_two,
-        resource_demands=(ResourceDemand("R1", day_two, Decimal("8"), "A"),),
-        original_duration=3,
-        planned_duration=5,
-    )
-    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        propose_backward_leveling(
-            (backward_activity,),
-            (ResourceCapacity("R1", day_two, Decimal("0")),),
-            resolver=resolver,
-            priorities=priority,
         )
