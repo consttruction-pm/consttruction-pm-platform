@@ -101,6 +101,31 @@ def test_snapshot_requires_matching_calculation_context():
         build_snapshot(make_input("S-1"), make_context("S-2"), datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
 
 
+
+
+def test_snapshot_rejects_missing_calculation_context_tenant():
+    tenantless_context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-1",
+        tenant_id=None,
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        build_snapshot(
+            make_input(),
+            tenantless_context,
+            datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+        )
+
 def test_snapshot_rejects_mismatched_calculation_context_tenant():
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_CONTEXT_TENANT_MISMATCH"):
         build_snapshot(
