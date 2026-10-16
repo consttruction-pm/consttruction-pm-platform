@@ -1703,3 +1703,23 @@ def test_leveling_activity_rejects_blank_id_before_priority_sorting():
     day = date(2026, 10, 1)
     with pytest.raises(ResourceLevelingError, match="INVALID_ACTIVITY_ID"):
         LevelingActivity("", day, day, 0)
+
+
+def test_backward_leveling_rejects_missing_total_float_when_priority_is_configured():
+    from construction_pm.scheduling.resource_leveling import backward_leveling_priority_key
+
+    day = date(2026, 10, 1)
+    activity = BackwardLevelingActivity(
+        activity_id="A1",
+        early_start=day,
+        early_finish=day,
+        late_start=date(2026, 10, 2),
+        late_finish=date(2026, 10, 2),
+        total_float=None,
+    )
+
+    with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
+        backward_leveling_priority_key(
+            activity,
+            (LevelingPriority("total_float", SortOrder.ASCENDING),),
+        )
