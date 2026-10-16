@@ -23,7 +23,7 @@ def activity(
     duration: str = "2",
     expected_finish: date | None = None,
     planned_finish: date | None = None,
-    leveling_priority: ActivityLevelingPriority | None = None,
+    leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL,
 ) -> ActivityMaster:
     return ActivityMaster(
         scope(revision),
@@ -42,6 +42,7 @@ def test_activity_master_round_trip_and_revision():
     repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
     stored = repo.save(activity())
     assert stored.record_revision == 1
+    assert stored.leveling_priority is ActivityLevelingPriority.NORMAL
     assert repo.get(scope(), "A-1") == stored
 
     updated = repo.save(activity(duration="3"), expected_revision=1)
