@@ -1584,3 +1584,54 @@ def test_backward_original_or_planned_duration_fails_closed_when_both_values_mis
             priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
         )
 
+
+
+def test_priority_rows_are_lexicographic_and_first_row_takes_precedence():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    earlier_priority = LevelingActivity(
+        activity_id="10",
+        start=date(2026, 10, 1),
+        finish=date(2026, 10, 1),
+        total_float=1,
+        late_finish=date(2026, 10, 10),
+    )
+    later_priority = LevelingActivity(
+        activity_id="2",
+        start=date(2026, 10, 1),
+        finish=date(2026, 10, 1),
+        total_float=2,
+        late_finish=date(2026, 10, 2),
+    )
+    priorities = (
+        LevelingPriority("total_float", SortOrder.ASCENDING),
+        LevelingPriority("late_finish", SortOrder.ASCENDING),
+    )
+
+    # The first configured row wins even when the second row points the other way.
+    assert _priority_sort_key(earlier_priority, priorities) < _priority_sort_key(
+        later_priority, priorities
+    )
+
+
+def test_activity_id_is_deterministic_tie_breaker_after_configured_priority_rows():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    activity_2 = LevelingActivity(
+        activity_id="2",
+        start=date(2026, 10, 1),
+        finish=date(2026, 10, 1),
+        total_float=3,
+    )
+    activity_10 = LevelingActivity(
+        activity_id="10",
+        start=date(2026, 10, 1),
+        finish=date(2026, 10, 1),
+        total_float=3,
+    )
+    priorities = (LevelingPriority("total_float", SortOrder.ASCENDING),)
+
+    # P6 documents Activity ID as the conflict tie-breaker; numeric IDs sort numerically.
+    assert _priority_sort_key(activity_2, priorities) < _priority_sort_key(
+        activity_10, priorities
+    )
