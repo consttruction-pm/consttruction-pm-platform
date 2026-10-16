@@ -178,6 +178,11 @@ def _backward_activities_from_intermediate(
                     if activity.planned_finish is not None
                     else forward_activity.planned_finish
                 ),
+                activity_leveling_priority=(
+                    activity.activity_leveling_priority
+                    if activity.activity_leveling_priority is not None
+                    else forward_activity.activity_leveling_priority
+                ),
             )
         )
     return tuple(result)
@@ -461,6 +466,14 @@ def schedule_with_resource_leveling(
             # must fail closed in the priority comparator.
             project_planned_start=activity.project_planned_start,
             planned_finish=_planned_finish_priority_value(activity),
+            activity_leveling_priority=(
+                getattr(
+                    scheduler_activity_by_id[activity.activity_id],
+                    "leveling_priority",
+                    None,
+                )
+                or activity.activity_leveling_priority
+            ),
         )
         for activity in leveling_input.forward_activities
     )
