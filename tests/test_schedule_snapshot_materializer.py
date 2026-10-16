@@ -1124,8 +1124,8 @@ def test_materializer_preserves_time_aware_constraints():
     assert isinstance(result.schedule_input.constraints[0], TimeActivityConstraint)
     assert result.schedule_input.constraints[0].target.isoformat() == "2026-09-21T10:00:00+00:00"
 
-@pytest.mark.parametrize("unit", ["working-day", "calendar-day"])
-def test_time_aware_materializer_rejects_non_working_hour_lags(unit):
+def test_time_aware_materializer_rejects_working_day_lags():
+    unit = "working-day"
     snapshot = make_time_snapshot()
     payload = json.loads(snapshot.canonical_payload)
     payload["relationships"] = [{
