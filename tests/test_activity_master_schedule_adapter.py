@@ -84,3 +84,69 @@ def test_adapter_maps_activity_master_after_persistence_round_trip():
     assert activity.original_duration == 6
     assert activity.leveling_priority is ActivityLevelingPriority.HIGH
 
+
+def test_persisted_activity_flows_through_snapshot_materialization():
+    import sqlite3
+
+    from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+    from construction_pm.schedule_input_snapshot_repository import (
+        SQLiteScheduleInputSnapshotRepository,
+        build_snapshot,
+    )
+    from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
+    from construction_pm.scheduling.authoritative_schedule import (
+        AuthoritativeScheduleInput,
+        AuthoritativeScheduleMode,
+    )
+    from construction_pm.scheduling.calculation_context import CalculationContext
+    from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+
+    connection = sqlite3.connect(":memory:")
+    source = _record()
+    activity_repository = SQLiteActivityMasterRepository(connection)
+    activity_repository.save(source)
+    restored = activity_repository.get(source.scope, source.activity_id)
+    assert restored is not None
+
+    calendar = CalendarReference("CAL-1", "1")
+    schedule_input = AuthoritativeScheduleInput(
+        snapshot_id="S-ADAPTER-ROUND-TRIP",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=3,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(activity_master_to_date_activity(restored),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 2),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=3,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-11-02T08:00:00+00:00",
+        input_snapshot_id="S-ADAPTER-ROUND-TRIP",
+        tenant_id="T-1",
+    )
+    snapshot_repository = SQLiteScheduleInputSnapshotRepository(connection)
+    snapshot_repository.save(
+        build_snapshot(schedule_input, context, datetime(2026, 11, 2, 8, tzinfo=timezone.utc))
+    )
+    stored_snapshot = snapshot_repository.get(source.scope, schedule_input.snapshot_id)
+    assert stored_snapshot is not None
+
+    materialized = materialize_schedule_snapshot(stored_snapshot, CalendarResolverRegistry())
+    restored_activity = materialized.schedule_input.activities[0]
+    assert restored_activity.id == "A-1"
+    assert restored_activity.duration == 4
+    assert restored_activity.planned_finish == date(2026, 11, 6)
+    assert restored_activity.original_duration == 6
+    assert restored_activity.leveling_priority is ActivityLevelingPriority.HIGH
+    assert restored_activity.percent_complete == 25.0
+    assert restored_activity.percent_complete_type is PercentCompleteType.PHYSICAL
+
