@@ -243,15 +243,18 @@
     "audit_date": "2026-10-16",
     "current_implementation_files": [
       "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
-      "src/construction_pm/scheduling/resource_leveling.py::_priority_value",
-      "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value",
+      "src/construction_pm/scheduling/resource_leveling.py::_priority_value and priority comparators",
+      "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value and Activity.leveling_priority propagation",
       "src/construction_pm/scheduling/authoritative_schedule_batch.py::execute_authoritative_schedule_batch",
-      "src/construction_pm/scheduling/activity.py::Activity.planned_finish",
-      "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish"
+      "src/construction_pm/scheduling/activity.py::Activity.planned_finish and Activity.leveling_priority",
+      "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish and ActivityMaster.leveling_priority",
+      "tests/scheduling/test_resource_leveling.py::priority direction and fail-closed tests",
+      "tests/test_activity_master_repository.py::priority round-trip, default and migration tests",
+      "tests/integration/test_activity_master_postgres_live.py::priority storage and update tests"
     ],
     "current_supported_fields": [
       "activity_id",
-      "activity_priority",
+      "activity_leveling_priority",
       "early_finish",
       "early_start",
       "free_float",
@@ -265,7 +268,7 @@
     ],
     "documented_p6_professional_priority_fields": [
       "activity_id",
-      "activity_priority",
+      "activity_leveling_priority",
       "early_finish",
       "early_start",
       "free_float",
@@ -286,7 +289,7 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Twelve of the 13 documented P6 priority fields now have distinct internal value/comparator paths through the typed boundary and leveling core: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Planned Finish, Project Planned Start, Project Priority, Remaining Duration, and Total Float. Planned Finish is now a distinct optional Shared Scheduling Activity field and forward/backward leveling criterion; the scheduler preserves explicit values, only computes a fallback for unstarted activities, and fails closed rather than aliasing Early/Late Finish after start. ActivityMaster SQLite/PostgreSQL storage and additive schema migrations were added with round-trip/update tests. Project Priority is mapped from the authoritative project-leveling-priority field into the multi-project leveling input and has forward/backward tests. These are core/storage results, not complete end-to-end certification: canonical XER/REST import materialization into ActivityMaster and onward into schedule Activity is still not demonstrated losslessly. The documented Original/Planned Duration criterion remains blocked because its context-dependent source semantics and external adapter contract are not established; the ambiguous original_or_planned_duration alias remains rejected.",
+        "detail": "Twelve of the 13 documented P6 priority criteria now have distinct internal value/comparator paths through the typed boundary and leveling core: Activity ID, Activity Leveling Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Planned Finish, Project Planned Start, Project Priority, Remaining Duration, and Total Float. The documented Activity Leveling Priority is a string enum (Top/High/Normal/Low/Lowest), not the separate internal numeric activity_priority field. It propagates through the scheduling Activity model and ActivityMaster storage; the documented default Normal is applied to new and legacy-null records. Planned Finish is distinct; explicit values are preserved, and a CPM fallback is permitted only for unstarted activities with no actual dates. Project Priority comes from the authoritative project-leveling-priority snapshot (1 highest through 100 lowest). Core and persistence support are not complete end-to-end certification: canonical XER/REST import materialization into ActivityMaster and onward into the schedule Activity is still not demonstrated losslessly. Original/Planned Duration remains blocked because its context-dependent source semantics and external adapter contract are not established; the ambiguous original_or_planned_duration alias remains rejected.",
         "status": "partially_implemented_pending_import_roundtrip_and_semantic_acceptance"
       },
       {
@@ -296,7 +299,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "Regression coverage now includes Project Priority (ascending semantics, authoritative cross-project snapshot sourcing, missing-value fail-closed) and Planned Finish (forward/backward ordering, missing-value fail-closed, public scheduling from a distinct Activity field, preservation rules for started activities, SQLite migration/persistence/update, and PostgreSQL storage/update integration). Remaining acceptance must cover descending-direction and tie behavior for all applicable criteria, the Original/Planned Duration state-dependent resolver, Hierarchy sort, full XER/REST → canonical model → ActivityMaster → Shared Core schedule materialization round-trip, lossless REST/interchange PriorityList/ResourceList encoding/escaping, project-level planned-start provenance, broader mixed-field precedence, and deterministic backward retry acceptance.",
+        "detail": "Regression coverage includes Project Priority in both directions and the authoritative multi-project snapshot path; Activity Leveling Priority enum values, documented Normal default, ascending/descending selection, public scheduler propagation, and SQLite/PostgreSQL persistence; and Planned Finish ordering, fail-closed behavior after activity start, public scheduler sourcing, and storage/migration. Remaining acceptance must cover Original/Planned Duration resolution, stable ties and mixed-field precedence for every documented criterion, Hierarchy sort, canonical XER/REST → ActivityMaster → Shared Core import/materializer round-trip, lossless REST/interchange PriorityList/ResourceList encoding and escaping, Project Planned Start provenance, and deterministic backward retry acceptance.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -304,9 +307,12 @@
       "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm",
       "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm",
       "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
-      "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html"
+      "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html",
+      "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+      "https://docs.oracle.com/cd/F51301_01/p6help/en/44352.htm",
+      "https://docs.oracle.com/cd/F51301_01/p6help/en/7974.htm"
     ],
-    "compatibility_rule": "The open PR #1457 candidate currently maps ten of the thirteen documented P6 priority fields, including Project Planned Start. It stores Original Duration separately from Activity.duration, but intentionally rejects the documented original_or_planned_duration priority alias until its exact source semantics and interchange mapping are verified. Exact-head CI is queued/in progress after the latest model/test changes. Independent semantic review remains required. Do not claim full PriorityList parity while Original/Planned Duration, Planned Finish, Project Priority, Hierarchy sort, and source-backed import/storage/wire round-trip acceptance remain unresolved.",
+    "compatibility_rule": "The current PR #1457 implements 12 of the 13 documented P6 priority criteria internally; Original/Planned Duration remains unresolved. The documented Activity Leveling Priority is the Top/High/Normal/Low/Lowest enum and defaults to Normal; the separate numeric activity_priority field is not a substitute. Planned Finish and Project Priority have distinct core and persistence paths, but canonical import/materializer provenance and lossless external PriorityList/ResourceList round-trip are not yet certified. Keep the feature PR Draft until the remaining source-backed gates and independent semantic review pass.",
     "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
     "documented_rules": [
       {
@@ -320,9 +326,9 @@
         "status": "verified_release_26"
       },
       {
-        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The current Shared Core boundary maps ten documented priority fields; Original/Planned Duration, Planned Finish, Project Priority and Hierarchy remain gaps. A separate internal Original Duration value does not by itself satisfy the documented Original/Planned Duration priority contract.",
+        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The internal model and leveling comparators now represent 12 criteria, including Activity Leveling Priority (Top/High/Normal/Low/Lowest), Planned Finish, and Project Priority. Original/Planned Duration remains blocked until the context-dependent source rule and adapter mapping are proven.",
         "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
-        "status": "documented_gap_until_all_fields_and_hierarchy_are_supported"
+        "status": "partially_implemented_12_of_13; hierarchy_and_wire_roundtrip_pending"
       }
     ],
     "implementation_path_review_2026_10_16": {
@@ -330,23 +336,23 @@
       "reviewed_paths": [
         {
           "path": "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
-          "finding": "The typed boundary now accepts distinct planned_finish and project_priority criteria, alongside the previously supported values. It deliberately rejects original_or_planned_duration because that combined contract has not been source-resolved.",
+          "finding": "The typed boundary accepts distinct activity_leveling_priority, planned_finish, and project_priority criteria alongside earlier criteria. Activity Leveling Priority uses its own enum; the separate numeric internal activity_priority is not treated as equivalent. The ambiguous original_or_planned_duration label remains rejected.",
           "required_acceptance": "Implement the source-backed Original/Planned Duration resolver; add public tests for state-dependent selection, all directions and stable ties; then verify canonical wire round-trip."
         },
         {
-          "path": "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value",
-          "finding": "For Planned Finish, the scheduler preserves an explicit Activity.planned_finish. If absent, it uses the initial early CPM finish only for a not-started activity with no actual start/finish. It does not silently substitute Early/Late Finish for a started activity; missing values fail closed when this priority is selected. Project Priority is propagated from the authoritative project snapshot into both forward and backward criteria.",
-          "required_acceptance": "Verify values through authoritative REST/XER import and ActivityMaster-to-schedule materialization; add descending, tie, progress-state and full end-to-end round-trip acceptance."
+          "path": "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value and Activity.leveling_priority propagation",
+          "finding": "The scheduler preserves explicit Planned Finish and only uses initial CPM Early Finish as a calculated fallback for unstarted activities with no actual dates. Started activities do not silently alias missing Planned Finish. Activity Leveling Priority is propagated from Activity.leveling_priority; the documented default is Normal. Project Priority is propagated from each authoritative project snapshot.",
+          "required_acceptance": "Verify field values through authoritative REST/XER import and ActivityMaster-to-schedule materialization; add end-to-end round-trip evidence, progress-state checks and independent semantic review."
         },
         {
-          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value and backward_leveling_priority_key",
-          "finding": "Planned Finish is a distinct date value and uses earlier/later date ordering. Project Priority is a distinct 1–100 value; code maps 1 as highest and 100 as lowest, with special ordering so ascending levels lower-priority projects first. Missing values fail closed.",
-          "required_acceptance": "Add descending-direction, multi-field precedence and tie acceptance for both leveling directions; independently compare with the cited Release 26 definitions."
+          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value, _priority_sort_key, and backward_leveling_priority_key",
+          "finding": "Activity Leveling Priority is a distinct Top/High/Normal/Low/Lowest enum; Project Priority is a distinct 1–100 value where 1 is highest and 100 lowest. Since this comparator selects activities to move, it is inverse to allocation precedence, moving lower-precedence contributors first under contention. Missing values on direct leveling slices fail closed.",
+          "required_acceptance": "Complete mixed-field precedence and tie acceptance for both directions and compare each documented criterion to versioned Release 26 definitions."
         },
         {
-          "path": "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish",
-          "finding": "ActivityMaster now validates and round-trips Planned Finish in SQLite and PostgreSQL, adds columns safely for existing stores, and preserves the value on update. Exact-head integration tests pass.",
-          "required_acceptance": "Connect and test the authoritative XER/REST import path to ActivityMaster and the canonical scheduling Activity without lossy aliases; preserve unknown/manual values and prove restart/reload behavior."
+          "path": "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish and ActivityMaster.leveling_priority",
+          "finding": "ActivityMaster validates and round-trips Planned Finish and Activity Leveling Priority in SQLite and PostgreSQL. Existing schemas receive additive columns; legacy NULL Activity Leveling Priority values become the source-defined Normal default. Exact-head database integration and legacy-null migration tests are present.",
+          "required_acceptance": "Connect and test the authoritative XER/REST import path to ActivityMaster and the canonical scheduling Activity without lossy aliases; preserve unknown/manual values and prove restart/reload/export round-trip."
         }
       ],
       "acceptance_gate_matrix": [
@@ -407,13 +413,15 @@
         },
         {
           "gate": "exact_head_release_gates",
-          "status": "exact_head_core_ci_green_semantic_and_wire_review_pending",
+          "status": "latest exact-head CI green; semantic and wire gates remain open",
           "evidence_required": [
-            "Feature branch compared with main: 82 ahead, 0 behind at tested code head",
-            "Exact-head ConstructionPM CI, Client Typecheck, and PostgreSQL Integration on SHA 576eb32fb25ec17c2daf15bccb9e6cf86fd80ffa (all passed)",
-            "PostgreSQL Sync State Integration remains unevidenced in the PR-triggered run set; confirm whether maintainers require it for this scheduling-only PR",
-            "Independent semantic review, remaining Original/Planned Duration and Hierarchy acceptance, plus full REST/interchange round-trip",
-            "Run all required gates again after any later change"
+            "Feature branch compared with main: 110 ahead, 0 behind on SHA 2ae621f96b536df2e921d3e77dadb168ca33e959",
+            "ConstructionPM CI run 38831431237 passed on Python 3.11/3.12/3.13; each 2,583 passed, 90 skipped, 1 warning",
+            "Client Typecheck run 38831431130 passed for desktop, web, mobile and client-sync",
+            "PostgreSQL Integration run 38831431341 passed",
+            "PostgreSQL Sync State Integration remains absent from the PR-triggered run set; confirm whether maintainers require it for this scheduling-only PR",
+            "Independent semantic review, Original/Planned Duration and Hierarchy acceptance, plus full REST/interchange round-trip",
+            "Run all required gates again after any later code change"
           ]
         }
       ],
@@ -477,6 +485,51 @@
         "PR #1458 comment 6204814217",
         "PR #1457 comment 6204817686"
       ]
+    },
+    "current_exact_head_ci_2026_10_16": {
+      "head_sha": "2ae621f96b536df2e921d3e77dadb168ca33e959",
+      "branch": "fix/backward-leveling-rebased-main-2026-10-16",
+      "branch_ahead_by": 110,
+      "branch_behind_by": 0,
+      "construction_pm_ci": {
+        "run_id": 38831431237,
+        "conclusion": "success",
+        "python_matrix": [
+          {
+            "python": "3.11",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          },
+          {
+            "python": "3.12",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          },
+          {
+            "python": "3.13",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          }
+        ]
+      },
+      "client_typecheck": {
+        "run_id": 38831431130,
+        "conclusion": "success",
+        "clients": [
+          "desktop",
+          "web",
+          "mobile",
+          "client-sync"
+        ]
+      },
+      "postgresql_integration": {
+        "run_id": 38831431341,
+        "conclusion": "success"
+      },
+      "note": "This exact head includes the legacy-null to Normal migration regression. Import/materializer provenance and wire round-trip remain open despite green code and database checks."
     }
   }
 }
