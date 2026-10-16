@@ -76,7 +76,7 @@ def evaluate_schedule_snapshot(
         raise ScheduleEvaluationError("PROJECT_ID_MISMATCH")
     if calculation_context.project_version != snapshot.scope.project_revision:
         raise ScheduleEvaluationError("PROJECT_REVISION_MISMATCH")
-    if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
+    if calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleEvaluationError("TENANT_ID_MISMATCH")
     # Validate the context against the calendar embedded in the immutable payload
     # as well as against the stored identity. Older snapshots may predate the
