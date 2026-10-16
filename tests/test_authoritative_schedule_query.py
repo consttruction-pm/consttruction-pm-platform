@@ -1,5 +1,7 @@
 from datetime import date, datetime, timezone
 import sqlite3
+
+import pytest
 from unittest.mock import patch
 
 from construction_pm.application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
@@ -406,3 +408,20 @@ def test_query_ignores_client_calculation_metadata_when_persisted_context_exists
         calculation_context=spoofed,
     )
     assert answer.data["project_finish"] == "2026-09-22"
+
+
+def test_authoritative_schedule_input_rejects_project_finish_before_start():
+    with pytest.raises(ValueError, match="project_finish must not be before project_start"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-INVERTED",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=1,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=CalendarReference("CAL-1", "1"),
+            activities=(Activity("A", 1),),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 10, 10),
+            project_finish=date(2026, 10, 9),
+        )
