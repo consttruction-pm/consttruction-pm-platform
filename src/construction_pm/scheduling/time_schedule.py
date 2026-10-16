@@ -163,10 +163,14 @@ def time_backward_pass(
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
     activity_map = {a.id: a for a in activity_list}
+    if len(activity_map) != len(activity_list):
+        raise ValueError("activity ids must be unique")
     if set(activity_map) != set(early):
         raise ValueError("early schedule must contain every activity")
     relationship_list = list(relationships)
     constraint_list = list(constraints)
+    if any(item.activity_id not in activity_map for item in constraint_list):
+        raise ValueError("constraint references an unknown activity")
     outgoing: dict[str, list[TimeRelationship]] = {a.id: [] for a in activity_list}
     incoming_count = {a.id: 0 for a in activity_list}
     successors: dict[str, list[str]] = {a.id: [] for a in activity_list}
