@@ -1428,6 +1428,8 @@ def test_backward_rollback_uses_lowest_preference_from_full_priority_list() -> N
 
 
 def test_backward_ss_candidate_is_rolled_back_when_it_violates_relationship_and_overload_remains() -> None:
+    import pytest
+
     from construction_pm.scheduling.relationships import Relationship, RelationshipType
     from construction_pm.scheduling.resource_leveling import ResourceLevelingError
 
