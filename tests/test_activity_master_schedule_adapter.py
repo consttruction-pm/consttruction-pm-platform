@@ -64,3 +64,23 @@ def test_adapter_rejects_datetime_fields_in_date_based_mode(field):
 
     with pytest.raises(ActivityMasterScheduleAdapterError, match=f"TIME_AWARE_VALUE_NOT_SUPPORTED:{field}"):
         activity_master_to_date_activity(record)
+
+def test_adapter_maps_activity_master_after_persistence_round_trip():
+    import sqlite3
+
+    from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+
+    source = _record()
+    repository = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    repository.save(source)
+    restored = repository.get(source.scope, source.activity_id)
+
+    assert restored is not None
+    activity = activity_master_to_date_activity(restored)
+
+    assert activity.id == source.activity_id
+    assert activity.duration == 4
+    assert activity.planned_finish == date(2026, 11, 6)
+    assert activity.original_duration == 6
+    assert activity.leveling_priority is ActivityLevelingPriority.HIGH
+
