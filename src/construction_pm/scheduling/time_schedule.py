@@ -338,7 +338,7 @@ def calculate_time_floats(
                     # Measure slack by delaying the predecessor and checking the
                     # relationship event in the authoritative lag calendar.
                     delay = Decimal("0")
-                    for _ in range(10000):
+                    while True:
                         delay_quantity = (
                             TimeQuantity.working_hours(delay)
                             if activity.duration.unit is DurationUnit.WORKING_HOUR
