@@ -204,6 +204,7 @@ def _validate_snapshot_context(
     snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
 ) -> None:
+    snapshot.validate()
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ValueError("INPUT_SNAPSHOT_ID_MISMATCH")
     if calculation_context.project_id != snapshot.scope.project_id:
