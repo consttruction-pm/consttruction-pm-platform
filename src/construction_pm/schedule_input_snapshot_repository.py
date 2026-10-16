@@ -95,7 +95,7 @@ def _validate_migration_context(
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
     if context.project_id != snapshot.scope.project_id or context.project_version != snapshot.scope.project_revision:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
-    if context.tenant_id is not None and context.tenant_id != snapshot.scope.tenant_id:
+    if context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
     if snapshot.calculation_identity_version != 1:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_ALREADY_MIGRATED")
