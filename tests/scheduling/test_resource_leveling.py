@@ -1635,3 +1635,41 @@ def test_activity_id_is_deterministic_tie_breaker_after_configured_priority_rows
     assert _priority_sort_key(activity_2, priorities) < _priority_sort_key(
         activity_10, priorities
     )
+
+def test_equivalent_numeric_activity_ids_have_deterministic_forward_and_backward_ties():
+    from construction_pm.scheduling.resource_leveling import (
+        _priority_sort_key,
+        backward_leveling_priority_key,
+    )
+
+    day = date(2026, 10, 1)
+    forward = (
+        LevelingActivity("2", day, day, 0),
+        LevelingActivity("02", day, day, 0),
+    )
+    backward = (
+        BackwardLevelingActivity("2", day, day, day, day),
+        BackwardLevelingActivity("02", day, day, day, day),
+    )
+    explicit_id_priority = (LevelingPriority("activity_id", SortOrder.ASCENDING),)
+
+    for priorities in ((), explicit_id_priority):
+        expected_forward = ["02", "2"]
+        expected_backward = ["02", "2"]
+        assert [
+            item.activity_id
+            for item in sorted(forward, key=lambda item: _priority_sort_key(item, priorities))
+        ] == expected_forward
+        assert [
+            item.activity_id
+            for item in sorted(reversed(forward), key=lambda item: _priority_sort_key(item, priorities))
+        ] == expected_forward
+        assert [
+            item.activity_id
+            for item in sorted(backward, key=lambda item: backward_leveling_priority_key(item, priorities))
+        ] == expected_backward
+        assert [
+            item.activity_id
+            for item in sorted(reversed(backward), key=lambda item: backward_leveling_priority_key(item, priorities))
+        ] == expected_backward
+
