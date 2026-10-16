@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_scheduler import (
     backward_leveling_constraints,
