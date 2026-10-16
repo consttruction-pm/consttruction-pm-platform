@@ -190,6 +190,8 @@ def time_forward_pass(
         raise ValueError("activity network contains a cycle")
 
     constraint_list = list(constraints)
+    if any(item.activity_id not in activity_map for item in constraint_list):
+        raise ValueError("constraint references an unknown activity")
     result: dict[str, TimeScheduledActivity] = {}
     for activity_id in order:
         activity = activity_map[activity_id]
