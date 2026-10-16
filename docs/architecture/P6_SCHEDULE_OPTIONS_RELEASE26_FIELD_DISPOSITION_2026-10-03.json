@@ -423,6 +423,17 @@
             "Independent semantic review, Original/Planned Duration and Hierarchy acceptance, plus full REST/interchange round-trip",
             "Run all required gates again after any later code change"
           ]
+        },
+        {
+          "gate": "activity_leveling_priority",
+          "status": "partial_core_storage_default_and_ci_green_import_materializer_roundtrip_unverified",
+          "evidence_required": [
+            "Release 26 Activity.LevelingPriority accepts only Top, High, Normal, Low and Lowest; Normal is the documented default unless overridden",
+            "Forward/backward direction tests and public scheduler propagation",
+            "SQLite/PostgreSQL storage, update, legacy-null migration and canonical enum validation",
+            "Prove canonical REST/XER import/materialization to ActivityMaster and onward to schedule Activity, plus lossless export round-trip",
+            "Complete mixed-field precedence/tie acceptance and independent Release 26 semantic review"
+          ]
         }
       ],
       "policy": "An internal value or green CI is not sufficient evidence of full documented parity. Keep the feature pull request Draft while any semantic, provenance, round-trip or independent-review gate remains blocked. Do not infer semantics from similarly named fields."
@@ -530,6 +541,62 @@
         "conclusion": "success"
       },
       "note": "This exact head includes the legacy-null to Normal migration regression. Import/materializer provenance and wire round-trip remain open despite green code and database checks."
+    },
+    "docs_branch_latest_ci_observation_2026_10_16": {
+      "tested_commit": "785993095709abf8c935996105ab3a230de0c852",
+      "workflow_run_id": 38831846161,
+      "workflow": "ConstructionPM CI",
+      "conclusion": "failure",
+      "matrix": [
+        {
+          "python": "3.11",
+          "passed": 2525,
+          "failed": 3,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.12",
+          "passed": 2525,
+          "failed": 3,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.13",
+          "passed": 2525,
+          "failed": 3,
+          "skipped": 90,
+          "warnings": 1
+        }
+      ],
+      "failures": [
+        {
+          "test": "tests/p6/test_schedule_priority_compatibility_audit_20261016.py::test_release26_priority_audit_records_normal_default_and_import_roundtrip_limit",
+          "error": "KeyError: 'activity_leveling_priority'",
+          "status": "audit_document_omitted_a_gate_that_the_test_expected",
+          "disposition": "being_corrected_in_a_follow-up_audit-json commit; rerun CI on the new SHA"
+        },
+        {
+          "test": "tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph",
+          "error": "FINAL_RESOURCE_OVERALLOCATION:R1:2026-10-02:demand=2:capacity=1.0",
+          "status": "current_mainline_baseline_failure",
+          "disposition": "not introduced by audit changes; implementation PR #1457 has a passing fix on its tested feature head"
+        },
+        {
+          "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
+          "error": "ConstraintViolation: start no later than constraint violated for B",
+          "status": "current_mainline_baseline_failure",
+          "disposition": "not introduced by audit changes; implementation PR #1457 has a passing fix on its tested feature head"
+        }
+      ],
+      "attribution_check": {
+        "docs_branch_diff_scope": "At the tested SHA, both the field-disposition JSON and a scoped audit-test file differ from main; the two scheduling implementation/test files in the baseline failures remain current-main copies.",
+        "baseline_failures_not_introduced_by_audit": true
+      },
+      "client_typecheck": "success",
+      "release_decision": "BLOCKED",
+      "note": "The KeyError is a documentation-test contract mismatch that is addressed by adding the missing gate. The two scheduling failures remain separate mainline baseline failures and must not be suppressed."
     }
   }
 }
