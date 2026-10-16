@@ -243,18 +243,24 @@
     "audit_date": "2026-10-16",
     "current_implementation_files": [
       "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
-      "src/construction_pm/scheduling/resource_leveling.py::_priority_value"
+      "src/construction_pm/scheduling/resource_leveling.py::_priority_value",
+      "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value",
+      "src/construction_pm/scheduling/authoritative_schedule_batch.py::execute_authoritative_schedule_batch",
+      "src/construction_pm/scheduling/activity.py::Activity.planned_finish",
+      "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish"
     ],
     "current_supported_fields": [
       "activity_id",
       "activity_priority",
-      "early_start",
       "early_finish",
-      "late_start",
-      "late_finish",
+      "early_start",
       "free_float",
-      "remaining_duration",
+      "late_finish",
+      "late_start",
+      "planned_finish",
       "project_planned_start",
+      "project_priority",
+      "remaining_duration",
       "total_float"
     ],
     "documented_p6_professional_priority_fields": [
@@ -280,8 +286,8 @@
     "known_gaps": [
       {
         "gap": "priority-field-coverage",
-        "detail": "Ten of the 13 documented P6 priority fields are mapped through the typed boundary/resolver: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Remaining Duration, Project Planned Start, and Total Float. The code now has a distinct optional internal Activity.original_duration value, but the documented PriorityList field is Original/Planned Duration; mapping that external field is deliberately still blocked because the exact context-dependent source semantics and import/storage/interchange contract are not established. The ambiguous original_or_planned_duration alias is rejected rather than guessed. Planned Finish and Project Priority also remain unavailable end-to-end.",
-        "status": "partially_implemented_pending_acceptance"
+        "detail": "Twelve of the 13 documented P6 priority fields now have distinct internal value/comparator paths through the typed boundary and leveling core: Activity ID, Activity Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Planned Finish, Project Planned Start, Project Priority, Remaining Duration, and Total Float. Planned Finish is now a distinct optional Shared Scheduling Activity field and forward/backward leveling criterion; the scheduler preserves explicit values, only computes a fallback for unstarted activities, and fails closed rather than aliasing Early/Late Finish after start. ActivityMaster SQLite/PostgreSQL storage and additive schema migrations were added with round-trip/update tests. Project Priority is mapped from the authoritative project-leveling-priority field into the multi-project leveling input and has forward/backward tests. These are core/storage results, not complete end-to-end certification: canonical XER/REST import materialization into ActivityMaster and onward into schedule Activity is still not demonstrated losslessly. The documented Original/Planned Duration criterion remains blocked because its context-dependent source semantics and external adapter contract are not established; the ambiguous original_or_planned_duration alias remains rejected.",
+        "status": "partially_implemented_pending_import_roundtrip_and_semantic_acceptance"
       },
       {
         "gap": "hierarchy-sort",
@@ -290,7 +296,7 @@
       },
       {
         "gap": "multi-field-precedence-and-wire-roundtrip",
-        "detail": "Regression coverage targets numeric/alphabetic Activity ID ordering, ordered Total Float vs Activity Priority during backward rollback, CPM-derived Late Start/Late Finish and Free Float priorities, Remaining Duration from explicit activity data, and separate internal Original Duration data contrasted with planned duration. Project Planned Start is now represented in the leveling input and propagated to forward/backward priorities. Remaining acceptance must cover the documented Original/Planned Duration semantics and wire mapping, Planned Finish and Project Priority, broader mixed-field precedence across ten mapped and three unmapped P6 fields, all sort-direction/tie combinations, source-backed import/storage/interchange round-trip, project-level planned-start provenance, lossless REST/interchange -> ScheduleOptions -> Shared Core round-trip, and deterministic backward retry results.",
+        "detail": "Regression coverage now includes Project Priority (ascending semantics, authoritative cross-project snapshot sourcing, missing-value fail-closed) and Planned Finish (forward/backward ordering, missing-value fail-closed, public scheduling from a distinct Activity field, preservation rules for started activities, SQLite migration/persistence/update, and PostgreSQL storage/update integration). Remaining acceptance must cover descending-direction and tie behavior for all applicable criteria, the Original/Planned Duration state-dependent resolver, Hierarchy sort, full XER/REST → canonical model → ActivityMaster → Shared Core schedule materialization round-trip, lossless REST/interchange PriorityList/ResourceList encoding/escaping, project-level planned-start provenance, broader mixed-field precedence, and deterministic backward retry acceptance.",
         "status": "partially_implemented_pending_acceptance"
       }
     ],
@@ -324,18 +330,23 @@
       "reviewed_paths": [
         {
           "path": "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
-          "finding": "The typed boundary accepts internal field identifiers planned_duration and original_duration separately and rejects original_or_planned_duration. This avoids an unverified alias but does not by itself implement the single documented Original/Planned Duration criterion.",
-          "required_acceptance": "Define the source-backed resolver for the documented combined criterion, then test each activity state and missing-source case through the public scheduling boundary and round-trip adapters."
+          "finding": "The typed boundary now accepts distinct planned_finish and project_priority criteria, alongside the previously supported values. It deliberately rejects original_or_planned_duration because that combined contract has not been source-resolved.",
+          "required_acceptance": "Implement the source-backed Original/Planned Duration resolver; add public tests for state-dependent selection, all directions and stable ties; then verify canonical wire round-trip."
         },
         {
-          "path": "src/construction_pm/scheduling/leveling_scheduler.py",
-          "finding": "The scheduler enriches leveling inputs from scheduler-owned activity data: planned_duration is copied from Activity.duration, original_duration from Activity.original_duration, late dates and Free Float from the CPM pass, and Project Planned Start from the leveling input field.",
-          "required_acceptance": "Prove each value's authoritative source and persistence/import/export path. Project Planned Start is only safe once its project-level provenance is established; a populated field alone is not provenance evidence."
+          "path": "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value",
+          "finding": "For Planned Finish, the scheduler preserves an explicit Activity.planned_finish. If absent, it uses the initial early CPM finish only for a not-started activity with no actual start/finish. It does not silently substitute Early/Late Finish for a started activity; missing values fail closed when this priority is selected. Project Priority is propagated from the authoritative project snapshot into both forward and backward criteria.",
+          "required_acceptance": "Verify values through authoritative REST/XER import and ActivityMaster-to-schedule materialization; add descending, tie, progress-state and full end-to-end round-trip acceptance."
         },
         {
-          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value",
-          "finding": "The internal comparator can read planned_duration and original_duration independently, while Planned Finish and Project Priority are not represented by distinct values in the inspected leveling model. The sort enum represents ascending/descending only.",
-          "required_acceptance": "Do not count internal helper values as documented-field parity. Add distinct source-backed model fields for Planned Finish and Project Priority, plus a documented Hierarchy sort representation, before claiming complete priority coverage."
+          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value and backward_leveling_priority_key",
+          "finding": "Planned Finish is a distinct date value and uses earlier/later date ordering. Project Priority is a distinct 1–100 value; code maps 1 as highest and 100 as lowest, with special ordering so ascending levels lower-priority projects first. Missing values fail closed.",
+          "required_acceptance": "Add descending-direction, multi-field precedence and tie acceptance for both leveling directions; independently compare with the cited Release 26 definitions."
+        },
+        {
+          "path": "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish",
+          "finding": "ActivityMaster now validates and round-trips Planned Finish in SQLite and PostgreSQL, adds columns safely for existing stores, and preserves the value on update. Exact-head integration tests pass.",
+          "required_acceptance": "Connect and test the authoritative XER/REST import path to ActivityMaster and the canonical scheduling Activity without lossy aliases; preserve unknown/manual values and prove restart/reload behavior."
         }
       ],
       "acceptance_gate_matrix": [
@@ -350,18 +361,24 @@
         },
         {
           "gate": "planned_finish",
-          "status": "blocked_missing_distinct_value",
+          "status": "partial_core_and_storage_ci_green_import_materializer_unverified",
           "evidence_required": [
-            "Authoritative planned-finish source in the project/activity model",
-            "Forward and backward priority tests including ascending, descending, and tied values"
+            "Keep Planned Finish distinct from Early Finish and Late Finish, based on versioned Release 26 field semantics",
+            "Verify an explicitly supplied value is preserved; compute the fallback from initial early CPM finish only for an unstarted activity",
+            "After activity start, do not silently replace a missing Planned Finish with Early/Late Finish; fail closed when that priority is selected",
+            "Forward/backward priority direction, tie, and missing-value tests",
+            "SQLite/PostgreSQL schema migration and read/write/update round-trip (now covered on the feature branch)",
+            "End-to-end REST/XER import -> canonical activity/master persistence -> scheduling path and export round-trip"
           ]
         },
         {
           "gate": "project_priority",
-          "status": "blocked_missing_distinct_value",
+          "status": "partial_core_and_batch_mapping_ci_green_wire_roundtrip_pending",
           "evidence_required": [
-            "Authoritative project-priority source and cross-project semantics",
-            "Mixed-field precedence tests and persistence/round-trip evidence"
+            "Authoritative project-leveling priority source in range 1–100, with 1 highest and 100 lowest",
+            "Distinct value through forward/backward leveling and multi-project batch snapshot mapping (unit/integration tests added)",
+            "Ascending and descending behavior, row precedence, ties, missing values, persistence and lossless REST/interchange round-trip",
+            "Independent semantic review against versioned Release 26 documentation"
           ]
         },
         {
@@ -390,15 +407,17 @@
         },
         {
           "gate": "exact_head_release_gates",
-          "status": "blocked_until_reconciled_and_rerun",
+          "status": "exact_head_core_ci_green_semantic_and_wire_review_pending",
           "evidence_required": [
-            "Branch ancestry reconciled with main",
-            "ConstructionPM CI, Client Typecheck, PostgreSQL Integration, and PostgreSQL Sync State Integration confirmed on one exact final SHA",
-            "Independent semantic review of backward leveling and final CPM/resource-capacity invariants"
+            "Feature branch compared with main: 82 ahead, 0 behind at tested code head",
+            "Exact-head ConstructionPM CI, Client Typecheck, and PostgreSQL Integration on SHA 576eb32fb25ec17c2daf15bccb9e6cf86fd80ffa (all passed)",
+            "PostgreSQL Sync State Integration remains unevidenced in the PR-triggered run set; confirm whether maintainers require it for this scheduling-only PR",
+            "Independent semantic review, remaining Original/Planned Duration and Hierarchy acceptance, plus full REST/interchange round-trip",
+            "Run all required gates again after any later change"
           ]
         }
       ],
-      "policy": "An internal value, green CI, or mergeable GitHub state is not sufficient evidence of documented field parity. Keep the pull request Draft while any gate above is blocked; do not infer semantics from similarly named fields."
+      "policy": "An internal value or green CI is not sufficient evidence of full documented parity. Keep the feature pull request Draft while any semantic, provenance, round-trip or independent-review gate remains blocked. Do not infer semantics from similarly named fields."
     },
     "ci_baseline_failure_observation_2026_10_16": {
       "tested_commit": "4faad5f84642b7fd383788e02e6b58e7bed3b46f",
