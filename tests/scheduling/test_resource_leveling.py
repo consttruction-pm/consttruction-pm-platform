@@ -1014,6 +1014,41 @@ def test_original_duration_priority_uses_distinct_activity_field():
     assert [shift.activity_id for shift in unconstrained] == ["A1"]
 
 
+def test_original_or_planned_duration_priority_uses_original_then_planned_fallback():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "A1", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "A1"),),
+            planned_duration=1,
+            original_duration=5,
+        ),
+        LevelingActivity(
+            "A2", day_one, day_one, 2,
+            (ResourceDemand("R1", day_one, Decimal("8"), "A2"),),
+            planned_duration=3,
+            original_duration=None,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
+    )
+
+    # A2 falls back to its planned duration (3), which sorts before A1's
+    # original duration (5), so A1 is the activity delayed by the leveler.
+    assert [shift.activity_id for shift in shifts] == ["A1"]
+
+
 def test_original_duration_priority_fails_closed_when_missing():
     day_one = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
