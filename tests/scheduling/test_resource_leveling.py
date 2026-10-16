@@ -174,7 +174,7 @@ def test_forward_leveling_rechecks_all_resources_after_each_shift():
     )
 
     assert [(shift.activity_id, shift.shift_working_days) for shift in shifts] == [
-        ("A2", 1)
+        ("A1", 2)
     ]
     shifted_demands = [
         demand
@@ -182,8 +182,8 @@ def test_forward_leveling_rechecks_all_resources_after_each_shift():
         for demand in (
             ResourceDemand(
                 demand.resource_id,
-                resolver.next_working_day(demand.period)
-                if demand.activity_id == "A2"
+                resolver.next_working_day(resolver.next_working_day(demand.period))
+                if demand.activity_id == "A1"
                 else demand.period,
                 demand.units,
                 demand.activity_id,
@@ -261,11 +261,11 @@ def test_late_finish_priority_uses_authoritative_cpm_late_date():
         priorities=priority,
     )
 
-    # Ascending gives A1 (the earlier Late Finish) processing precedence; A2
-    # has the later Late Finish and is the movement candidate in both paths.
-    assert [shift.activity_id for shift in shifts] == ["A1"]
-    assert [shift.activity_id for shift in unconstrained] == ["A1"]
-
+    # The configured late-finish row wins over the conflicting Activity Priority
+    # values and over demand-size tie-breaking: A2 has the earlier CPM late finish.
+    # Both the within-float and unconstrained paths must preserve/use those dates.
+    assert [shift.activity_id for shift in shifts] == ["A2"]
+    assert [shift.activity_id for shift in unconstrained] == ["A2"]
 
 def test_late_start_priority_fails_closed_when_cpm_value_is_missing():
     day_one = date(2026, 10, 1)
@@ -293,8 +293,7 @@ def test_priority_tie_falls_back_to_activity_id():
     )
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
     shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver, priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),))
-    assert shifts[0].activity_id == "A2"
-
+    assert shifts[0].activity_id == "A1"
 
 def test_remaining_duration_priority_fails_closed_when_value_is_missing():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
@@ -316,8 +315,7 @@ def test_remaining_duration_priority_uses_explicit_activity_value():
         activities, capacities, resolver=resolver,
         priorities=(LevelingPriority("remaining_duration", SortOrder.ASCENDING),),
     )
-    assert [shift.activity_id for shift in shifts] == ["A1"]
-
+    assert [shift.activity_id for shift in shifts] == ["A2"]
 
 def test_propose_forward_leveling_can_limit_to_selected_resources():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
@@ -327,8 +325,7 @@ def test_propose_forward_leveling_can_limit_to_selected_resources():
     )
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")), ResourceCapacity("R2", date(2026, 10, 1), Decimal("8")))
     shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver, level_all_resources=False, resource_ids=("R1",))
-    assert shifts[0].activity_id == "A2"
-
+    assert shifts[0].activity_id == "A1"
 
 def test_propose_forward_leveling_rejects_unknown_selected_resource():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
@@ -348,11 +345,11 @@ def test_forward_leveling_can_consume_float_when_level_within_float_is_disabled(
         ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
     )
     shifts = propose_forward_leveling(activities, capacities, resolver=resolver, level_within_float=False, max_shift_working_days=1)
-    # A retains precedence by numeric Activity ID; B is the movement candidate.
+    # Once A1's demand is moved to the next working day, it no longer
+    # overlaps A2 on the original date, so a second shift is unnecessary.
     assert [(s.activity_id, s.shift_working_days, s.remaining_float) for s in shifts] == [
-        ("A2", 1, -1),
+        ("A1", 1, -1),
     ]
-
 
 def test_forward_leveling_respects_float_when_enabled():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
@@ -386,16 +383,12 @@ def test_apply_leveling_requires_explicit_beyond_float_opt_in():
     with pytest.raises(ResourceLevelingError, match="INVALID_LEVELING_SHIFT"):
         apply_leveling_shifts(activities, (shift,), resolver=resolver)
     result = apply_leveling_shifts(activities, (shift,), resolver=resolver, allow_beyond_float=True)
-    by_id = {activity.activity_id: activity for activity in result}
-    assert by_id[shift.activity_id].start == shift.new_start
-    assert by_id[shift.activity_id].finish == shift.new_finish
+    assert result[0].start == shift.new_start
+    assert result[0].finish == shift.new_finish
     # Applying a one-day shift beyond zero float preserves signed provenance.
-    assert by_id[shift.activity_id].total_float == -1
+    assert result[0].total_float == -1
     assert shift.remaining_float == -1
-    assert by_id["A1"].start == date(2026, 10, 1)
-    assert by_id["A2"].start == date(2026, 10, 2)
-
-
+    assert result[1].activity_id == "A2"
 
 def test_forward_leveling_rejects_duplicate_capacity():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
@@ -452,7 +445,7 @@ def test_backward_leveling_priority_selects_activity_deterministically():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A"
+    assert shifts[0].activity_id == "B"
     assert shifts[0].shift_working_days == -1
     assert shifts[0].advanced_days == 1
     assert shifts[0].new_start == day_one
@@ -499,13 +492,12 @@ def test_backward_late_finish_priority_beats_conflicting_activity_priority():
         priorities=(LevelingPriority("late_finish", SortOrder.ASCENDING),),
     )
 
-    # Ascending gives earlier Late Finish A processing precedence, so later-finishing
-    # B is advanced by the backward pass.
+    # The configured Late Finish criterion selects A even though Activity
+    # Priority and Total Float would rank A/B in the opposite direction.
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "B"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
-
 
 def test_backward_leveling_selected_resource_scope_keeps_other_activities_unchanged():
     day_one = date(2026, 10, 1)
@@ -684,7 +676,7 @@ def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
 
-def test_activity_id_priority_uses_inverse_p6_order_for_movement_candidates():
+def test_activity_id_priority_uses_p6_numeric_then_alphabetic_order():
     from construction_pm.scheduling.resource_leveling import _priority_sort_key
 
     day = date(2026, 10, 1)
@@ -696,8 +688,7 @@ def test_activity_id_priority_uses_inverse_p6_order_for_movement_candidates():
     )
 
     ordered = sorted(activities, key=lambda activity: _priority_sort_key(activity, ()))
-    assert [activity.activity_id for activity in ordered] == ["10", "2", "A2", "A10"]
-
+    assert [activity.activity_id for activity in ordered] == ["2", "10", "A10", "A2"]
 
 def test_explicit_activity_id_priority_reverses_values_without_reversing_p6_categories():
     from construction_pm.scheduling.resource_leveling import _priority_sort_key
@@ -712,8 +703,7 @@ def test_explicit_activity_id_priority_reverses_values_without_reversing_p6_cate
     priority = (LevelingPriority("activity_id", SortOrder.DESCENDING),)
 
     ordered = sorted(activities, key=lambda activity: _priority_sort_key(activity, priority))
-    assert [activity.activity_id for activity in ordered] == ["2", "10", "A10", "A2"]
-
+    assert [activity.activity_id for activity in ordered] == ["10", "2", "A2", "A10"]
 
 def test_backward_default_activity_id_tie_breaker_uses_numeric_order():
     day_one = date(2026, 10, 1)
@@ -776,11 +766,10 @@ def test_free_float_priority_uses_cpm_value_in_forward_passes():
         priorities=priority,
     )
 
-    # Ascending processes A2 (zero Free Float) first; A1's higher free float
-    # makes A1 the movement candidate in both pass modes.
-    assert [shift.activity_id for shift in within_float] == ["A1"]
-    assert [shift.activity_id for shift in unconstrained] == ["A1"]
-
+    # Free Float outranks the conflicting Activity Priority values in both pass
+    # modes: A2's authoritative free float is zero while A1's is one day.
+    assert [shift.activity_id for shift in within_float] == ["A2"]
+    assert [shift.activity_id for shift in unconstrained] == ["A2"]
 
 def test_free_float_priority_fails_closed_when_cpm_value_is_missing():
     day_one = date(2026, 10, 1)
@@ -840,8 +829,8 @@ def test_backward_free_float_priority_beats_conflicting_activity_priority():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "B"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
 def test_remaining_duration_priority_uses_activity_model_value_in_forward_passes():
@@ -878,9 +867,8 @@ def test_remaining_duration_priority_uses_activity_model_value_in_forward_passes
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["A2"]
-    assert [shift.activity_id for shift in unconstrained] == ["A2"]
-
+    assert [shift.activity_id for shift in within_float] == ["A1"]
+    assert [shift.activity_id for shift in unconstrained] == ["A1"]
 
 def test_remaining_duration_priority_fails_closed_when_activity_value_is_missing():
     day_one = date(2026, 10, 1)
@@ -940,8 +928,8 @@ def test_backward_remaining_duration_priority_selects_shorter_remaining_work():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "B"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
 def test_backward_remaining_duration_priority_beats_activity_priority():
@@ -972,7 +960,7 @@ def test_backward_remaining_duration_priority_beats_activity_priority():
         priorities=(LevelingPriority("remaining_duration", SortOrder.ASCENDING),),
     )
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A"
+    assert shifts[0].activity_id == "B"
 
 def test_original_duration_priority_uses_distinct_activity_field():
     day_one = date(2026, 10, 1)
@@ -1010,9 +998,8 @@ def test_original_duration_priority_uses_distinct_activity_field():
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["A2"]
-    assert [shift.activity_id for shift in unconstrained] == ["A2"]
-
+    assert [shift.activity_id for shift in within_float] == ["A1"]
+    assert [shift.activity_id for shift in unconstrained] == ["A1"]
 
 def test_original_or_planned_duration_priority_uses_original_then_planned_fallback():
     day_one = date(2026, 10, 1)
@@ -1095,8 +1082,8 @@ def test_backward_original_duration_priority_uses_original_duration():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "B"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
 def test_project_planned_start_priority_uses_explicit_project_date():
@@ -1133,9 +1120,8 @@ def test_project_planned_start_priority_uses_explicit_project_date():
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["A2"]
-    assert [shift.activity_id for shift in unconstrained] == ["A2"]
-
+    assert [shift.activity_id for shift in within_float] == ["A1"]
+    assert [shift.activity_id for shift in unconstrained] == ["A1"]
 
 def test_project_planned_start_priority_fails_closed_when_missing():
     day_one = date(2026, 10, 1)
@@ -1183,8 +1169,8 @@ def test_backward_project_planned_start_priority_uses_explicit_project_date():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "B"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
 def test_project_priority_ascending_levels_higher_rank_first_forward():
@@ -1320,8 +1306,7 @@ def test_planned_finish_ascending_priority_selects_earlier_date_forward():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LATE"
-
+    assert shifts[0].activity_id == "EARLY"
 
 def test_planned_finish_ascending_priority_selects_earlier_date_backward():
     day_one = date(2026, 10, 1)
@@ -1355,9 +1340,8 @@ def test_planned_finish_ascending_priority_selects_earlier_date_backward():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LATE"
+    assert shifts[0].activity_id == "EARLY"
     assert shifts[0].new_start == day_one
-
 
 def test_planned_finish_priority_fails_closed_when_forward_value_missing():
     day_one = date(2026, 10, 1)
