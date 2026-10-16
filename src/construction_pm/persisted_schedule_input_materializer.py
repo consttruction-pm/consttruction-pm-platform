@@ -95,6 +95,8 @@ def materialize_date_schedule_input_from_masters(
         isinstance(project_finish, datetime) or not isinstance(project_finish, date)
     ):
         raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_FINISH")
+    if project_finish is not None and project_finish < project_start:
+        raise PersistedScheduleInputMaterializationError("PROJECT_FINISH_BEFORE_START")
 
     activity_rows = tuple(activity_repository.list(scope))
     relationship_rows = tuple(relationship_repository.list(scope))
