@@ -787,7 +787,7 @@ def backward_leveling_priority_key(
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         value = values[normalized]
-        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority"} and value is None:
+        if normalized in {"free_float", "remaining_duration", "planned_duration", "original_duration", "original_or_planned_duration", "project_planned_start", "project_priority", "planned_finish", "activity_leveling_priority", "total_float"} and value is None:
             raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
         if value is None:
             parts.append((1, ""))
