@@ -252,8 +252,16 @@ def time_backward_pass(
                 CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
             )
         else:
-            lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
-            lag_resolver = resolve_calendar_aware(registry, lag_reference)
+            lag_reference = lag_context.relationship_lag_reference(
+                predecessor_context.effective_activity(),
+                relationship_lag_calendar,
+            )
+            if lag_reference is None:
+                lag_resolver = CalendarAwareResolver(
+                    CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
+                )
+            else:
+                lag_resolver = resolve_calendar_aware(registry, lag_reference)
         required = {
             RelationshipType.FS: _inverse_lag(successor.start, rel.lag, lag_resolver),
             RelationshipType.SS: _inverse_lag(successor.start, rel.lag, lag_resolver),
