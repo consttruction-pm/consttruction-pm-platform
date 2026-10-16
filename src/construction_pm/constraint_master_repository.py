@@ -125,8 +125,7 @@ class SQLiteConstraintMasterRepository:
                 ),
             )
             if owns_transaction:
-                if owns_transaction:
-            self.connection.commit()
+                self.connection.commit()
             return stored
 
         if int(row[4]) != constraint.scope.project_revision:
@@ -162,7 +161,8 @@ class SQLiteConstraintMasterRepository:
             if owns_transaction:
                 self.connection.rollback()
             raise ConstraintPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, constraint_id: str) -> ConstraintMaster | None:
