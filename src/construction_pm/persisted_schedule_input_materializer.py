@@ -14,6 +14,12 @@ from typing import Mapping
 from .activity_master_repository import ActivityMasterRepository
 from .backend_p0.models import BackendScope
 from .relationship_master_repository import RelationshipMasterRepository
+from .schedule_input_snapshot_repository import (
+    ScheduleInputSnapshot,
+    ScheduleInputSnapshotRepository,
+    build_snapshot,
+)
+from .scheduling.calculation_context import CalculationContext
 from .activity_master_schedule_adapter import activity_master_to_date_activity
 from .schedule_relationship_adapter import relationship_master_to_date_relationship
 from .scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
@@ -169,4 +175,38 @@ __all__ = [
     "ActivityScheduleMetadata",
     "PersistedScheduleInputMaterializationError",
     "materialize_date_schedule_input_from_masters",
+    "persist_materialized_schedule_input",
 ]
+
+
+def persist_materialized_schedule_input(
+    *,
+    schedule_input: AuthoritativeScheduleInput,
+    context: CalculationContext,
+    created_at: datetime,
+    snapshot_repository: ScheduleInputSnapshotRepository,
+) -> ScheduleInputSnapshot:
+    """Persist a materialized schedule input as an immutable, hash-validated snapshot.
+
+    Context/scope/snapshot-ID mismatches are rejected by the shared snapshot
+    builder. Repository validation and immutable-ID conflict rules remain the
+    final persistence boundary; this helper does not run schedule calculations.
+    """
+    if not isinstance(schedule_input, AuthoritativeScheduleInput):
+        raise PersistedScheduleInputMaterializationError("INVALID_AUTHORITATIVE_SCHEDULE_INPUT")
+    if not isinstance(context, CalculationContext):
+        raise PersistedScheduleInputMaterializationError("INVALID_CALCULATION_CONTEXT")
+    if not isinstance(created_at, datetime):
+        raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_TIMESTAMP")
+    if not isinstance(snapshot_repository, ScheduleInputSnapshotRepository):
+        # Protocols are structural, so runtime isinstance checks would be misleading.
+        if not callable(getattr(snapshot_repository, "save", None)):
+            raise PersistedScheduleInputMaterializationError("INVALID_SNAPSHOT_REPOSITORY")
+    try:
+        snapshot = build_snapshot(schedule_input, context, created_at)
+        return snapshot_repository.save(snapshot)
+    except PersistedScheduleInputMaterializationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise PersistedScheduleInputMaterializationError("SCHEDULE_SNAPSHOT_PERSISTENCE_FAILED") from exc
+
