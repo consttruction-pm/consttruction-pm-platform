@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timezone
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -236,3 +237,14 @@ def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
     assert result.time_activities == result.time_result.early_activities
     assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
     assert result.time_result.floats['B'].total_float_hours == Decimal('2')
+
+
+def test_evaluator_rejects_context_calendar_mismatch_before_replay():
+    snapshot, context = make_snapshot_and_context()
+    mismatched_context = replace(context, calendar_id="CAL-OTHER")
+
+    with pytest.raises(
+        ScheduleEvaluationError,
+        match="CALCULATION_CONTEXT_CALENDAR_MISMATCH",
+    ):
+        evaluate_schedule_snapshot(snapshot, mismatched_context, registry())
