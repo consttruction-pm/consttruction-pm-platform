@@ -60,7 +60,7 @@ def test_linked_leveling_reconstructs_final_resource_demand_by_shifted_period() 
 
     assert len(forward) == 1
     assert backward == ()
-    assert result.activities["A"].start == day_two
+    assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
 
     # Reconstruct demand from each demand's own period and the activity's
@@ -79,7 +79,10 @@ def test_linked_leveling_reconstructs_final_resource_demand_by_shifted_period() 
         (capacity.resource_id, capacity.period): capacity.units
         for capacity in leveling_input.capacities
     }
-    assert dict(final_demand_by_resource_period) == {("R1", day_two): Decimal("16")}
+    assert dict(final_demand_by_resource_period) == {
+        ("R1", day_one): Decimal("8"),
+        ("R1", day_two): Decimal("8"),
+    }
     assert all(
         units <= capacity_by_resource_period.get(key, Decimal("0"))
         for key, units in final_demand_by_resource_period.items()
@@ -134,7 +137,7 @@ def test_linked_leveling_preserves_offsets_for_multi_period_resource_demand() ->
 
     assert len(forward) == 1
     assert backward == ()
-    assert result.activities["A"].start == day_two
+    assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
 
     # Each activity has demand in two distinct periods. Moving its start by
@@ -153,8 +156,9 @@ def test_linked_leveling_preserves_offsets_for_multi_period_resource_demand() ->
         for capacity in leveling_input.capacities
     }
     assert dict(final_demand_by_resource_period) == {
+        ("R1", day_one): Decimal("8"),
         ("R1", day_two): Decimal("16"),
-        ("R1", day_three): Decimal("16"),
+        ("R1", day_three): Decimal("8"),
     }
     assert all(
         units <= capacity_by_resource_period.get(key, Decimal("0"))
