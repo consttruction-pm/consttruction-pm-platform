@@ -167,6 +167,18 @@ def test_postgres_context_round_trip(postgres_dsn):
         record = build_persisted_context(scope(), make_context())
         with connection.transaction():
             assert repo.save(record) == record
+            # A repeated identical write must remain idempotent after the
+            # conflict-safe INSERT path is taken.
+            assert repo.save(record) == record
+            changed_context = CalculationContext(
+                **{**make_context().to_dict(), "actor_id": "actor-2"}
+            )
+            changed = build_persisted_context(scope(), changed_context)
+            with pytest.raises(
+                CalculationContextPersistenceError,
+                match="CONTEXT_IMMUTABLE_CONFLICT",
+            ):
+                repo.save(changed)
         loaded = repo.get(scope(), "S-1", expected_calculation_identity=record.calculation_identity)
         assert loaded == record
     finally:
