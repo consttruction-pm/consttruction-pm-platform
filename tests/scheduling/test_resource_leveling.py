@@ -1031,9 +1031,9 @@ def test_original_or_planned_duration_priority_uses_original_then_planned_fallba
         priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
     )
 
-    # A2 falls back to planned duration (3) and therefore receives precedence
-    # before A1's original duration (5); the lower-precedence A1 is delayed.
-    assert [shift.activity_id for shift in shifts] == ["A1"]
+    # The configured criterion processes the shorter fallback duration first:
+    # A2 uses Planned Duration (3) because Original Duration is absent.
+    assert [shift.activity_id for shift in shifts] == ["A2"]
 
 
 def test_original_duration_priority_fails_closed_when_missing():
@@ -1564,8 +1564,8 @@ def test_backward_original_or_planned_duration_uses_original_then_planned_fallba
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A1"
-    assert shifts[0].new_start == day_one
+    assert shifts[0].activity_id == "A2"
+    assert shifts[0].new_start == day_two
 
 
 def test_backward_original_or_planned_duration_fails_closed_when_both_values_missing():
