@@ -410,7 +410,7 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
 
     # With no priority rows, Activity ID is the default leveling order.
     id_category, id_value = _activity_id_value_key(activity.activity_id)
-    parts.append((id_category, id_value, activity.activity_id.casefold(), activity.activity_id))
+    parts.append((id_category, (id_value, activity.activity_id.casefold(), activity.activity_id)))
     return tuple(parts)
 
 
@@ -833,7 +833,7 @@ def backward_leveling_priority_key(
         else:
             parts.append((0, _Descending(value)))
     id_category, id_value = _activity_id_value_key(activity.activity_id)
-    parts.append((id_category, id_value, activity.activity_id.casefold(), activity.activity_id))
+    parts.append((id_category, (id_value, activity.activity_id.casefold(), activity.activity_id)))
     return tuple(parts)
 
 
