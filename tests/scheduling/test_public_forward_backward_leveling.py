@@ -354,3 +354,84 @@ def test_public_leveling_does_not_infer_planned_finish_after_activity_started():
             ),
         )
 
+def test_public_backward_ss_conflict_rolls_back_incompatible_candidate(monkeypatch):
+    import construction_pm.scheduling.leveling_scheduler as leveling_scheduler_module
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    demands = (
+        ResourceDemand("R1", day_one, Decimal("8"), "A"),
+        ResourceDemand("R1", day_one, Decimal("8"), "B"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 2, (demands[0],)),
+            LevelingActivity("B", day_one, day_one, 2, (demands[1],)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_three, day_three, (demands[0],)),
+            BackwardLevelingActivity("B", day_one, day_one, day_three, day_three, (demands[1],)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("16")),
+            ResourceCapacity("R1", day_two, Decimal("16")),
+            ResourceCapacity("R1", day_three, Decimal("0")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    # The deepest B move would pin B to Thursday while the SS predecessor A is
+    # pinned to Friday. The public scheduler must reject that candidate, reduce
+    # B's advance limit to the previous feasible step and recalculate CPM.
+    proposals = (
+        BackwardLevelingShift("A", -1, day_two, day_two, 1),
+        BackwardLevelingShift("B", -1, day_two, day_two, 1),
+        BackwardLevelingShift("B", -2, day_one, day_one, 2),
+    )
+    monkeypatch.setattr(
+        leveling_scheduler_module,
+        "propose_backward_leveling",
+        lambda *args, **kwargs: proposals,
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.SS),),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=day_three,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=False,
+        ),
+    )
+
+    assert forward == ()
+    assert {shift.activity_id: shift.advanced_days for shift in backward} == {
+        "A": 1,
+        "B": 1,
+    }
+    assert result.activities["A"].start == day_two
+    assert result.activities["B"].start == day_two
+    assert result.activities["B"].start >= result.activities["A"].start
+
+    # The public scheduler's final capacity gate has passed. Also verify the
+    # resulting demand ledger explicitly against the same capacity window.
+    from construction_pm.scheduling.leveling_scheduler import _shifted_final_resource_demands
+
+    final_demands = _shifted_final_resource_demands(
+        result=result,
+        leveling_input=leveling_input,
+        resolver=resolver,
+    )
+    assert all(demand.period == day_two for demand in final_demands)
+    assert sum((demand.units for demand in final_demands), Decimal("0")) <= Decimal("16")
+
