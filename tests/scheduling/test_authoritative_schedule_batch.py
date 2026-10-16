@@ -709,7 +709,7 @@ def test_batch_project_priority_uses_each_authoritative_project_snapshot():
 
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
-    # Ascending priority processes rank 1 first; P2 gets the first available slot.
-    assert p1.start == day_one
-    assert p2.start == day_two
+    # Rank 1 keeps the first available slot; the lower-ranked project moves.
+    assert p1.start == day_two
+    assert p2.start == day_one
 
