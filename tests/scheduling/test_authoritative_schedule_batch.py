@@ -711,3 +711,18 @@ def test_batch_project_priority_uses_each_authoritative_project_snapshot():
     assert p1.start == day_two
     assert p2.start == day_one
 
+@pytest.mark.parametrize("option_name", ["resource_list", "priority_list"])
+def test_explicit_empty_leveling_lists_require_batch_leveling_input(option_name):
+    options = ScheduleOptions(**{option_name: ()})
+    first = snapshot("P1", date(2026, 10, 10), options=options)
+    second = snapshot("P2", date(2026, 10, 20), options=options)
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
+        execute_authoritative_schedule_batch(
+            [first, second],
+            resolvers={"P1": resolver(), "P2": resolver()},
+        )
+
