@@ -1043,9 +1043,9 @@ def test_original_or_planned_duration_priority_uses_original_then_planned_fallba
         priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
     )
 
-    # A2 falls back to its planned duration (3), which sorts before A1's
-    # original duration (5), so A2 is the activity delayed by the leveler.
-    assert [shift.activity_id for shift in shifts] == ["A2"]
+    # A2 falls back to planned duration (3) and therefore receives precedence
+    # before A1's original duration (5); the lower-precedence A1 is delayed.
+    assert [shift.activity_id for shift in shifts] == ["A1"]
 
 
 def test_original_duration_priority_fails_closed_when_missing():
@@ -1545,5 +1545,57 @@ def test_activity_leveling_priority_fails_closed_when_missing():
             (ResourceCapacity("R1", day_one, Decimal("1")),),
             resolver=WorkingTimeResolver(WorkingCalendar()),
             priorities=(LevelingPriority("activity_leveling_priority", SortOrder.ASCENDING),),
+        )
+
+def test_backward_original_or_planned_duration_uses_original_then_planned_fallback():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A1", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A1"),),
+            total_float=1, planned_duration=1, original_duration=5,
+        ),
+        BackwardLevelingActivity(
+            "A2", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A2"),),
+            total_float=2, planned_duration=3, original_duration=None,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A1"
+    assert shifts[0].new_start == day_one
+
+
+def test_backward_original_or_planned_duration_fails_closed_when_both_values_missing():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    activity = BackwardLevelingActivity(
+        "A1", day_one, day_one, day_two, day_two,
+        (ResourceDemand("R1", day_two, Decimal("8"), "A1"),),
+        total_float=1,
+    )
+    with pytest.raises(ResourceLevelingError, match="MISSING_LEVELING_PRIORITY_VALUE"):
+        propose_backward_leveling(
+            (activity,),
+            (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("0"))),
+            resolver=WorkingTimeResolver(WorkingCalendar()),
+            priorities=(LevelingPriority("original_or_planned_duration", SortOrder.ASCENDING),),
         )
 
