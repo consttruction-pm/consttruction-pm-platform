@@ -18,7 +18,12 @@ def scope(revision: int = 7) -> BackendScope:
     return BackendScope("T-1", "P-1", revision)
 
 
-def activity(revision: int = 7, duration: str = "2", expected_finish: date | None = None) -> ActivityMaster:
+def activity(
+    revision: int = 7,
+    duration: str = "2",
+    expected_finish: date | None = None,
+    planned_finish: date | None = None,
+) -> ActivityMaster:
     return ActivityMaster(
         scope(revision),
         "A-1",
@@ -27,6 +32,7 @@ def activity(revision: int = 7, duration: str = "2", expected_finish: date | Non
         date(2026, 9, 21),
         0,
         expected_finish,
+        planned_finish=planned_finish,
     )
 
 
@@ -142,3 +148,29 @@ def test_activity_master_preserves_progress_state_on_update():
 
     assert saved.record_revision == 2
     assert repo.get(scope(), "A-UPDATE") == saved
+
+def test_activity_master_persists_planned_finish():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    planned_finish = date(2026, 9, 28)
+
+    stored = repo.save(activity(planned_finish=planned_finish))
+    restored = repo.get(scope(), "A-1")
+
+    assert stored.planned_finish == planned_finish
+    assert restored.planned_finish == planned_finish
+    assert restored == stored
+
+
+def test_activity_master_updates_planned_finish_with_revision():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(activity(planned_finish=date(2026, 9, 28)))
+
+    updated = repo.save(
+        activity(planned_finish=date(2026, 9, 29)),
+        expected_revision=1,
+    )
+
+    assert updated.record_revision == 2
+    assert updated.planned_finish == date(2026, 9, 29)
+    assert repo.get(scope(), "A-1") == updated
+
