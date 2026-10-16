@@ -349,7 +349,7 @@ def _activity_id_value_key(value: str) -> tuple[int, object]:
 
 
 def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
-    """Return the movement-candidate key inverse to documented processing precedence."""
+    """Return the configured resource-leveling processing order."""
     parts: list[tuple[int, object]] = []
     for priority in priorities:
         normalized_field = priority.field_name.strip().lower().replace(" ", "_")
@@ -358,13 +358,12 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             parts.append((2, ""))
         elif normalized_field == "activity_id":
             category, comparable = _activity_id_value_key(str(value))
-            # The source defines processing precedence for Activity IDs. This
-            # algorithm chooses the activity to delay, so reverse values within
-            # each documented numeric/alphabetic/blank category.
+            # The source-defined order is numeric, alphabetic, then blank;
+            # Ascending/Descending controls values within each category.
             ordered_value = (
-                _Descending(comparable)
+                comparable
                 if priority.sort_order is SortOrder.ASCENDING
-                else comparable
+                else _Descending(comparable)
             )
             parts.append((category, ordered_value))
         elif normalized_field == "activity_leveling_priority":
@@ -395,13 +394,10 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
             "remaining_duration", "planned_duration", "original_duration",
             "original_or_planned_duration", "total_float",
         }:
-            # The configured row determines processing precedence. Since this
-            # key selects the activity to delay, use the inverse order:
-            # later dates, longer durations, or more float move first for ASC.
             ordered_value = (
-                _Descending(value)
+                value
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
@@ -412,10 +408,9 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
         else:
             parts.append((0, _Descending(value)))
 
-    # Activity ID is the deterministic final tie-breaker; values are reversed
-    # because this key chooses the candidate that will be delayed.
+    # With no priority rows, Activity ID is the default leveling order.
     id_category, id_value = _activity_id_value_key(activity.activity_id)
-    parts.append((id_category, _Descending(id_value)))
+    parts.append((id_category, id_value))
     return tuple(parts)
 
 
@@ -752,11 +747,10 @@ def backward_leveling_priority_key(
     activity: BackwardLevelingActivity,
     priorities: tuple[LevelingPriority, ...],
 ) -> tuple:
-    """Return the movement-candidate key inverse to source processing precedence.
+    """Return the configured resource-leveling processing order.
 
-    Proposal selection takes the minimum key to choose a backward movement.
-    Rollback takes the maximum key so a conflicting higher-precedence movement
-    is undone first and the configured resource precedence is retained.
+    Proposal selection uses the minimum key for deterministic processing order.
+    Rollback uses the maximum key to undo the lowest-preference movement first.
     """
     allowed = {
         "activity_id", "activity_priority", "early_start",
@@ -800,9 +794,9 @@ def backward_leveling_priority_key(
         elif normalized == "activity_id":
             category, comparable = _activity_id_value_key(str(value))
             ordered_value = (
-                _Descending(comparable)
+                comparable
                 if priority.sort_order is SortOrder.ASCENDING
-                else comparable
+                else _Descending(comparable)
             )
             parts.append((category, ordered_value))
         elif normalized == "activity_leveling_priority":
@@ -829,19 +823,17 @@ def backward_leveling_priority_key(
             "original_or_planned_duration", "total_float",
         }:
             ordered_value = (
-                _Descending(value)
+                value
                 if priority.sort_order is SortOrder.ASCENDING
-                else value
+                else _Descending(value)
             )
             parts.append((0, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
             parts.append((0, value))
         else:
             parts.append((0, _Descending(value)))
-    # Activity ID tie-breaking is reversed because the movement key selects
-    # the activity that will be advanced backward.
     id_category, id_value = _activity_id_value_key(activity.activity_id)
-    parts.append((id_category, _Descending(id_value)))
+    parts.append((id_category, id_value))
     return tuple(parts)
 
 
