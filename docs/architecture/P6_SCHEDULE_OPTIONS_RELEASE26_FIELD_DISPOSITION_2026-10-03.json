@@ -543,8 +543,8 @@
       "note": "This exact head includes the legacy-null to Normal migration regression. Import/materializer provenance and wire round-trip remain open despite green code and database checks."
     },
     "docs_branch_latest_ci_observation_2026_10_16": {
-      "tested_commit": "570c2dfd20427f20bc9c331a0293539fb45bc9f5",
-      "workflow_run_id": 38832048544,
+      "tested_commit": "4b945a5184b04867ddb430fdceff48b981cebfe1",
+      "workflow_run_id": 38832201449,
       "workflow": "ConstructionPM CI",
       "conclusion": "failure",
       "matrix": [
@@ -581,21 +581,21 @@
           "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
           "error": "ConstraintViolation: start no later than constraint violated for B",
           "attribution": "current_mainline_scheduling_baseline",
-          "disposition": "Not introduced by the audit JSON/test; the scheduling implementation PR #1457 contains the backward candidate/rollback handling on its separately tested head."
+          "disposition": "Not introduced by the audit JSON/test; the implementation PR #1457 contains backward candidate/rollback handling on its separately tested head."
         }
       ],
       "superseded_observation": {
         "commit": "785993095709abf8c935996105ab3a230de0c852",
         "failure": "KeyError: 'activity_leveling_priority' in the newly added audit test",
         "status": "fixed_by_adding_activity_leveling_priority_acceptance_gate",
-        "note": "The latest test run no longer reports the audit-test KeyError; both remaining failures are scheduling baseline failures."
+        "note": "The latest CI run no longer reports an audit-test KeyError; both remaining failures are scheduling baseline failures."
       },
       "attribution_check": {
-        "docs_branch_diff_scope": "Audit JSON plus a scoped audit-test file differ from main; the implementation/test files involved in the two remaining failures are unchanged from current main.",
+        "docs_branch_diff_scope": "The audit JSON and scoped audit-test file differ from main; the implementation/test files involved in the two remaining failures remain current-main copies.",
         "status": "two_remaining_failures_are_mainline_baseline_not_introduced_by_audit_changes"
       },
       "client_typecheck": {
-        "run_id": 38832048586,
+        "run_id": 38832201440,
         "conclusion": "success",
         "clients": [
           "desktop",
@@ -605,7 +605,7 @@
         ]
       },
       "release_decision": "BLOCKED",
-      "note": "Do not suppress these two tests or declare the documentation branch green. PR #1457 has the feature fix and has passed its own latest exact-head CI; maintainers still need to decide how to validate/merge the audit relative to that implementation."
+      "note": "Do not suppress the two scheduling tests or declare the documentation branch green. The feature fix is on PR #1457 and its separately tested exact head passed all required PR-triggered gates."
     }
   }
 }
