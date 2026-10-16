@@ -290,6 +290,10 @@ class SQLiteScheduleInputSnapshotRepository:
             ),
         )
         if updated.rowcount != 1:
+            # This repository commits successful migrations itself. Keep the
+            # same transaction boundary on the failed compare-and-swap path so
+            # callers are not left with an open SQLite write transaction.
+            self.connection.rollback()
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
         self.connection.commit()
         migrated = self.get(scope, snapshot_id)
