@@ -829,7 +829,7 @@ def propose_backward_leveling(
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "free_float",
         "remaining_duration", "planned_duration", "original_duration",
-        "project_planned_start", "total_float",
+        "project_planned_start", "project_priority", "total_float",
     }
     normalized_priorities = tuple(
         priority.field_name.strip().lower().replace(" ", "_")
@@ -860,6 +860,10 @@ def propose_backward_leveling(
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
     if "project_planned_start" in normalized_priorities and any(
         activity.project_planned_start is None for activity in activity_list
+    ):
+        raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
+    if "project_priority" in normalized_priorities and any(
+        activity.project_priority is None for activity in activity_list
     ):
         raise ResourceLevelingError("MISSING_LEVELING_PRIORITY_VALUE")
 
