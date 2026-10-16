@@ -16,7 +16,7 @@ from .backend_p0.models import BackendScope
 from .relationship_master_repository import RelationshipMasterRepository
 from .activity_master_schedule_adapter import activity_master_to_date_activity
 from .schedule_relationship_adapter import relationship_master_to_date_relationship
-from .scheduling.activity import ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType
+from .scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
