@@ -10,7 +10,7 @@ TimeQuantity values; this module never truncates them to dates.
 from datetime import date, datetime
 from decimal import Decimal
 
-from .activity_master_repository import ActivityMaster, ActivityPersistenceError
+from .activity_master_repository import ActivityMaster
 from .scheduling.activity import Activity
 from .scheduling.time_duration import DurationUnit
 
