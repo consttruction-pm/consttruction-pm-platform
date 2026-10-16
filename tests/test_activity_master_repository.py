@@ -24,6 +24,7 @@ def activity(
     expected_finish: date | None = None,
     planned_finish: date | None = None,
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL,
+    original_duration: int | None = None,
 ) -> ActivityMaster:
     return ActivityMaster(
         scope(revision),
@@ -35,6 +36,7 @@ def activity(
         expected_finish,
         planned_finish=planned_finish,
         leveling_priority=leveling_priority,
+        original_duration=original_duration,
     )
 
 
@@ -197,17 +199,20 @@ def test_activity_master_migrates_existing_table_for_planned_finish():
     }
     assert "planned_finish" in columns
     assert "leveling_priority" in columns
+    assert "original_duration" in columns
 
     planned_finish = date(2026, 9, 28)
     stored = repo.save(
         activity(
             planned_finish=planned_finish,
             leveling_priority=ActivityLevelingPriority.LOWEST,
+            original_duration=14,
         )
     )
     assert repo.get(scope(), "A-1") == stored
     assert stored.planned_finish == planned_finish
     assert stored.leveling_priority is ActivityLevelingPriority.LOWEST
+    assert stored.original_duration == 14
 
 def test_activity_master_persists_activity_leveling_priority():
     repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
@@ -277,4 +282,36 @@ def test_activity_master_migrates_null_legacy_leveling_priority_to_normal():
         ("T-1", "P-1", "A-LEGACY"),
     ).fetchone()[0]
     assert stored_value == "Normal"
+
+def test_activity_master_persists_original_duration_independently_of_planned_duration():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    stored = repo.save(activity(duration="2", original_duration=14))
+    restored = repo.get(scope(), "A-1")
+
+    assert stored.duration_value == Decimal("2")
+    assert stored.original_duration == 14
+    assert restored.original_duration == 14
+    assert restored == stored
+    assert repo.list(scope())[0].original_duration == 14
+
+
+def test_activity_master_updates_original_duration_with_revision():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(activity(original_duration=14))
+
+    updated = repo.save(
+        activity(original_duration=9),
+        expected_revision=1,
+    )
+
+    assert updated.record_revision == 2
+    assert updated.original_duration == 9
+    assert repo.get(scope(), "A-1") == updated
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5])
+def test_activity_master_rejects_invalid_original_duration(value):
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ActivityPersistenceError, match="INVALID_ORIGINAL_DURATION"):
+        repo.save(activity(original_duration=value))
 
