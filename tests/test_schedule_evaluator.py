@@ -248,3 +248,12 @@ def test_evaluator_rejects_context_calendar_mismatch_before_replay():
         match="CALCULATION_CONTEXT_CALENDAR_MISMATCH",
     ):
         evaluate_schedule_snapshot(snapshot, mismatched_context, registry())
+
+
+def test_evaluator_checks_snapshot_hash_before_calendar_context():
+    snapshot, context = make_snapshot_and_context()
+    tampered_payload = snapshot.canonical_payload.replace('"calendar_id":"CAL-1"', '"calendar_id":"CAL-OTHER"', 1)
+    tampered_snapshot = replace(snapshot, canonical_payload=tampered_payload)
+
+    with pytest.raises(ScheduleEvaluationError, match="SNAPSHOT_HASH_MISMATCH"):
+        evaluate_schedule_snapshot(tampered_snapshot, context, registry())
