@@ -1151,7 +1151,7 @@ def test_backward_project_planned_start_priority_uses_explicit_project_date():
     assert shifts[0].new_start == day_one
     assert shifts[0].advanced_days == 1
 
-def test_project_priority_ascending_levels_higher_priority_project_first_forward():
+def test_project_priority_ascending_moves_lower_rank_forward_candidate():
     day_one = date(2026, 10, 1)
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
@@ -1174,6 +1174,9 @@ def test_project_priority_ascending_levels_higher_priority_project_first_forward
     )
     priority = (LevelingPriority("project_priority", SortOrder.ASCENDING),)
 
+    # Rank 1 receives resource precedence first; the lower-ranked project is
+    # selected as the movement candidate under conflict.
+
     within_float = propose_forward_leveling_within_float(
         activities, capacities, resolver=resolver, priorities=priority,
     )
@@ -1182,8 +1185,8 @@ def test_project_priority_ascending_levels_higher_priority_project_first_forward
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["HIGH"]
-    assert [shift.activity_id for shift in unconstrained] == ["HIGH"]
+    assert [shift.activity_id for shift in within_float] == ["LOW"]
+    assert [shift.activity_id for shift in unconstrained] == ["LOW"]
 
 
 def test_project_priority_priority_fails_closed_when_missing_forward():
@@ -1199,7 +1202,7 @@ def test_project_priority_priority_fails_closed_when_missing_forward():
         )
 
 
-def test_project_priority_ascending_levels_higher_priority_project_first_backward():
+def test_project_priority_ascending_moves_lower_rank_backward_candidate():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1229,8 +1232,8 @@ def test_project_priority_ascending_levels_higher_priority_project_first_backwar
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "HIGH"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "LOW"
+    assert shifts[0].new_start == day_one
 
 
 def test_project_priority_priority_fails_closed_when_missing_backward():
@@ -1351,7 +1354,7 @@ def test_planned_finish_priority_fails_closed_when_backward_value_missing():
             priorities=(LevelingPriority("planned_finish", SortOrder.ASCENDING),),
         )
 
-def test_project_priority_descending_levels_lower_priority_project_first_forward():
+def test_project_priority_descending_reverses_rank_for_forward_candidate():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     resolver = WorkingTimeResolver(
@@ -1379,10 +1382,10 @@ def test_project_priority_descending_levels_lower_priority_project_first_forward
         priorities=(LevelingPriority("project_priority", SortOrder.DESCENDING),),
     )
 
-    assert [shift.activity_id for shift in shifts] == ["LOW"]
+    assert [shift.activity_id for shift in shifts] == ["HIGH"]
 
 
-def test_project_priority_descending_levels_lower_priority_project_first_backward():
+def test_project_priority_descending_reverses_rank_for_backward_candidate():
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
     day_three = date(2026, 10, 5)
@@ -1412,6 +1415,6 @@ def test_project_priority_descending_levels_lower_priority_project_first_backwar
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LOW"
-    assert shifts[0].new_start == day_one
+    assert shifts[0].activity_id == "HIGH"
+    assert shifts[0].new_start == day_two
 
