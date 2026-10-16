@@ -554,7 +554,7 @@ def test_materializer_preserves_priority_list_order_and_explicit_sort_directions
     )
 
 
-def test_materializer_rejects_empty_priority_list_instead_of_silently_defaulting():
+def test_materializer_preserves_explicitly_empty_priority_list():
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
     payload["schedule_options"]["priority_list"] = []
@@ -570,11 +570,8 @@ def test_materializer_rejects_empty_priority_list_instead_of_silently_defaulting
         snapshot.created_at,
     )
 
-    with pytest.raises(
-        SnapshotMaterializationError,
-        match="INVALID_SCHEDULE_OPTION:priority_list",
-    ):
-        materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+    result = materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+    assert result.schedule_input.schedule_options.priority_list == ()
 
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
