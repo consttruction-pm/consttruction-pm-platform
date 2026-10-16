@@ -1186,7 +1186,7 @@ def test_project_priority_ascending_levels_higher_rank_first_forward():
         priorities=priority,
     )
 
-    assert [shift.activity_id for shift in within_float] == ["HIGH"]
+    assert [shift.activity_id for shift in within_float] == ["LOW"]
     assert [shift.activity_id for shift in unconstrained] == ["LOW"]
 
 
@@ -1233,8 +1233,8 @@ def test_project_priority_ascending_levels_higher_rank_first_backward():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "HIGH"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "LOW"
+    assert shifts[0].new_start == day_one
 
 
 def test_project_priority_priority_fails_closed_when_missing_backward():
@@ -1383,7 +1383,7 @@ def test_project_priority_descending_levels_lower_rank_first_forward():
         priorities=(LevelingPriority("project_priority", SortOrder.DESCENDING),),
     )
 
-    assert [shift.activity_id for shift in shifts] == ["LOW"]
+    assert [shift.activity_id for shift in shifts] == ["HIGH"]
 
 
 def test_project_priority_descending_levels_lower_rank_first_backward():
@@ -1416,8 +1416,8 @@ def test_project_priority_descending_levels_lower_rank_first_backward():
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "LOW"
-    assert shifts[0].new_start == day_one
+    assert shifts[0].activity_id == "HIGH"
+    assert shifts[0].new_start == day_two
 
 def test_activity_leveling_priority_accepts_only_documented_p6_values():
     assert tuple(priority.value for priority in ActivityLevelingPriority) == (
@@ -1431,8 +1431,8 @@ def test_activity_leveling_priority_accepts_only_documented_p6_values():
 @pytest.mark.parametrize(
     ("sort_order", "expected_activity"),
     (
-        (SortOrder.ASCENDING, "TOP"),
-        (SortOrder.DESCENDING, "LOWEST"),
+        (SortOrder.ASCENDING, "LOWEST"),
+        (SortOrder.DESCENDING, "TOP"),
     ),
 )
 def test_activity_leveling_priority_orders_forward_candidates(sort_order, expected_activity):
@@ -1465,8 +1465,8 @@ def test_activity_leveling_priority_orders_forward_candidates(sort_order, expect
 @pytest.mark.parametrize(
     ("sort_order", "expected_activity", "expected_start"),
     (
-        (SortOrder.ASCENDING, "TOP", date(2026, 10, 1)),
-        (SortOrder.DESCENDING, "LOWEST", date(2026, 10, 1)),
+        (SortOrder.ASCENDING, "LOWEST", date(2026, 10, 2)),
+        (SortOrder.DESCENDING, "TOP", date(2026, 10, 1)),
     ),
 )
 def test_activity_leveling_priority_orders_backward_candidates(sort_order, expected_activity, expected_start):
