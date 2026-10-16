@@ -1673,3 +1673,23 @@ def test_equivalent_numeric_activity_ids_have_deterministic_forward_and_backward
             for item in sorted(reversed(backward), key=lambda item: backward_leveling_priority_key(item, priorities))
         ] == expected_backward
 
+
+
+def test_activity_id_fallback_orders_numeric_alphabetic_then_blank_deterministically():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity("", day, day, 0),
+        LevelingActivity("ABC", day, day, 0),
+        LevelingActivity("10", day, day, 0),
+        LevelingActivity("2", day, day, 0),
+        LevelingActivity("abc", day, day, 0),
+    )
+
+    # The documented category order is numeric, alphabetic, then blank.
+    # Case-folding and original spelling provide deterministic ties in the
+    # alphabetic category; blank IDs remain last regardless of input order.
+    expected = ["2", "10", "ABC", "abc", ""]
+    assert [item.activity_id for item in sorted(activities, key=lambda item: _priority_sort_key(item, ()))] == expected
+    assert [item.activity_id for item in sorted(reversed(activities), key=lambda item: _priority_sort_key(item, ()))] == expected
