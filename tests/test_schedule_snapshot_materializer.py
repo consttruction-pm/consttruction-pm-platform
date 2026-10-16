@@ -37,6 +37,7 @@ from construction_pm.scheduling.constraints import ActivityConstraint, Constrain
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity
+from construction_pm.scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 
 
 def test_materializer_rejects_invalid_date_and_datetime_values():
@@ -1098,3 +1099,27 @@ def test_snapshot_materializer_preserves_explicitly_empty_leveling_arrays():
     assert options.priority_list == ()
     assert options.priority_list is not None
 
+
+
+def test_materializer_preserves_time_aware_constraints():
+    snapshot = make_time_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["constraints"] = [{
+        "activity_id": "A",
+        "type": TimeConstraintType.START_NO_EARLIER_THAN.value,
+        "target": "2026-09-21T10:00:00+00:00",
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    with_constraint = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    result = materialize_schedule_snapshot(with_constraint, CalendarResolverRegistry())
+
+    assert len(result.schedule_input.constraints) == 1
+    assert isinstance(result.schedule_input.constraints[0], TimeActivityConstraint)
+    assert result.schedule_input.constraints[0].target.isoformat() == "2026-09-21T10:00:00+00:00"
