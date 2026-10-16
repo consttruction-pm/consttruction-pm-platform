@@ -88,3 +88,38 @@ def test_finish_constraint_normalizes_target_as_finish_during_break():
         )],
     )
     assert result.late_activities["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+
+@pytest.mark.parametrize(
+    ("constraint_type", "expected_early_finish", "expected_late_finish"),
+    [
+        (
+            TimeConstraintType.FINISH_NO_EARLIER_THAN,
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        ),
+        (
+            TimeConstraintType.MANDATORY_FINISH,
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+        ),
+    ],
+)
+def test_finish_constraints_normalize_break_target_as_finish(
+    constraint_type, expected_early_finish, expected_late_finish
+):
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    result = time_schedule(
+        [activity],
+        [],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        registry(),
+        [TimeActivityConstraint(
+            "A", constraint_type,
+            datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc),
+        )],
+    )
+    assert result.early_activities["A"].finish == expected_early_finish
+    assert result.late_activities["A"].finish == expected_late_finish
+
