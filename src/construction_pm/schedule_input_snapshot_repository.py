@@ -178,6 +178,7 @@ class SQLiteScheduleInputSnapshotRepository:
         self.connection.commit()
 
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot:
+        owns_transaction = not self.connection.in_transaction
         snapshot.validate()
         existing = self.connection.execute(
             "SELECT snapshot_hash,canonical_payload,calculation_identity,"
@@ -215,7 +216,8 @@ class SQLiteScheduleInputSnapshotRepository:
                 snapshot.created_at.isoformat(), snapshot.record_revision,
             ),
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return snapshot
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
