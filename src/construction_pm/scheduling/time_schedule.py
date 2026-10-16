@@ -389,6 +389,10 @@ def calculate_time_floats(
                         limits.append(Decimal(low) / microseconds_per_hour)
             free = min(limits) if limits else Decimal("0")
 
+        # Free float is non-negative by definition. In an infeasible schedule,
+        # the relationship check above reports zero available delay; do not let a
+        # negative total float turn that zero into a negative free float.
+        bounded_free = min(max(total, Decimal("0")), free)
         result[activity_id] = TimeFloatActivity(
             activity_id=activity_id,
             early_start=e.start,
@@ -396,9 +400,9 @@ def calculate_time_floats(
             late_start=l.start,
             late_finish=l.finish,
             total_float_hours=total if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
-            free_float_hours=min(total, free) if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+            free_float_hours=bounded_free if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
             total_float_value=total,
-            free_float_value=min(total, free),
+            free_float_value=bounded_free,
             float_unit=activity.duration.unit,
             critical=total <= 0,
         )
