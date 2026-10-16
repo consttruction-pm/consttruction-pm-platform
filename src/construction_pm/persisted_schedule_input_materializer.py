@@ -143,6 +143,11 @@ def materialize_date_schedule_input_from_masters(
         raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_CALENDAR")
     if project_calendar.kind != "working-day":
         raise PersistedScheduleInputMaterializationError("INVALID_PROJECT_CALENDAR_KIND")
+    if any(
+        not isinstance(calendar, CalendarReference)
+        for calendar in activity_calendars.values()
+    ):
+        raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_CALENDAR")
     if any(calendar.kind != "working-day" for calendar in activity_calendars.values()):
         raise PersistedScheduleInputMaterializationError("INVALID_ACTIVITY_CALENDAR_KIND")
     if (
