@@ -288,7 +288,8 @@ class SQLiteScheduleInputSnapshotRepository:
         )
         if updated.rowcount != 1:
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         migrated = self.get(scope, snapshot_id)
         if migrated is None:
             raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
