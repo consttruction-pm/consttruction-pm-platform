@@ -176,6 +176,9 @@ def test_composite_leveling_read_holds_one_outer_sqlite_transaction():
             scope, "a-1", "activity-1", "resource-1", "2026-10-02", Decimal("1"), Decimal("0")
         )
     )
+    # Direct repository setup uses sqlite's implicit transaction; close it so
+    # the API call below must own and close its outer read transaction.
+    api.assignment_service.transaction_manager.connection.commit()
 
     original_list = period_repo.list
     observed = []
