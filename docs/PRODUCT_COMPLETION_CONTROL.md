@@ -80,13 +80,22 @@ Only after the Web path is usable:
 - offline mutation/sync;
 - cross-client parity.
 
-### P3 — advanced capabilities
-- AI assistant/guide;
-- voice entry;
-- intelligent document/OCR/search enhancements;
-- advanced automation and non-critical enhancements.
+## Cross-cutting V1 release requirements — mandatory, staged delivery
 
-P3 must not repeatedly interrupt an unfinished P1 workflow.
+These are release requirements, not optional P3 enhancements. Their implementation must be staged behind a stable, persisted product path, but contract/design work may proceed in parallel.
+
+- **Production AI Project Controls Assistant (#1423):** natural-language and supported project-file intake, validation/preview, typed approved tools, user-controlled project/tenant/operation permissions, preview/approval/rejection, audit, authoritative Shared Core calculation, fresh-read verification, and reports/charts/Gantt from real persisted results. Voice/file intake required by the V1 assistant belongs to this scope.
+- **All-language localization (#1428 and Help Center #607):** registry-driven UI, project data, help and AI workflows across all Web surfaces; no two-language-only hard-coded ceiling; preserve RTL/LTR and Jalali/Gregorian behavior.
+- **Page-level SEO and language indexing (#1436):** page-specific titles/descriptions, canonical and hreflang handling, sitemap/indexing and clear separation between public marketing pages and the private app workspace.
+- **Durable V1 reliability (#1439):** command-level Undo/Redo, project-version restore, and verified backup/recovery are separate acceptance tracks; passing one does not imply the others are complete.
+
+The production AI workflow must use real application services and the same authoritative Shared Core—not a separate scheduler or a direct privileged database writer. These dependencies are sequencing constraints, not permission to defer mandatory V1 acceptance.
+
+### P3 — optional advanced enhancements after V1 gates
+- OCR/search enhancements beyond the supported project-file intake required for the V1 assistant;
+- independent advanced automation and other non-critical enhancements.
+
+P3 must not repeatedly interrupt unfinished critical P0/V1 workflows.
 
 ## 5. Javad (Farmj22002)'s current mission
 
