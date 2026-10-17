@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.activity_master_repository import (
     ActivityMaster,
     ActivityPersistenceError,
@@ -142,3 +143,31 @@ def test_activity_master_preserves_progress_state_on_update():
 
     assert saved.record_revision == 2
     assert repo.get(scope(), "A-UPDATE") == saved
+
+
+
+def test_activity_master_save_participates_in_application_transaction():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(conn)
+    tx = SQLiteTransactionManager(conn)
+
+    with pytest.raises(RuntimeError, match="abort use case"):
+        with tx.transaction():
+            repo.save(activity())
+            raise RuntimeError("abort use case")
+
+    assert repo.get(scope(), "A-1") is None
+
+
+def test_activity_master_update_does_not_commit_application_transaction():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(conn)
+    repo.save(activity())
+    tx = SQLiteTransactionManager(conn)
+
+    with pytest.raises(RuntimeError, match="abort use case"):
+        with tx.transaction():
+            repo.save(activity(duration="5"), expected_revision=1)
+            raise RuntimeError("abort use case")
+
+    assert repo.get(scope(), "A-1").duration_value == Decimal("2")
