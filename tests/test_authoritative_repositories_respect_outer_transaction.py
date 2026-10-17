@@ -185,3 +185,42 @@ def test_relationship_and_calculation_context_initialization_preserve_outer_tran
         ).fetchall()
     }
     assert not {"relationship_master", "schedule_calculation_context"} & tables
+
+def test_revision_conflict_does_not_rollback_prior_caller_owned_write():
+    connection = sqlite3.connect(":memory:")
+    activities = SQLiteActivityMasterRepository(connection)
+    scope = _scope()
+    activities.save(
+        ActivityMaster(scope, "A-1", Decimal("2"), DurationUnit.WORKING_DAY)
+    )
+    # Force the optimistic UPDATE to affect zero rows after the repository has
+    # read revision 1. This reaches the rowcount-conflict rollback path.
+    connection.execute(
+        """
+        CREATE TRIGGER ignore_activity_master_update
+        BEFORE UPDATE ON activity_master
+        WHEN OLD.activity_id = 'A-1'
+        BEGIN
+            SELECT RAISE(IGNORE);
+        END
+        """
+    )
+    connection.commit()
+
+    with SQLiteTransactionManager(connection).transaction():
+        activities.save(
+            ActivityMaster(scope, "A-2", Decimal("3"), DurationUnit.WORKING_DAY)
+        )
+        with pytest.raises(Exception, match="REVISION_CONFLICT"):
+            activities.save(
+                ActivityMaster(scope, "A-1", Decimal("4"), DurationUnit.WORKING_DAY),
+                expected_revision=1,
+            )
+        # A repository must not roll back the application-owned transaction
+        # when its own optimistic update loses a race.
+        assert connection.in_transaction
+        assert activities.get(scope, "A-2") is not None
+
+    assert activities.get(scope, "A-2") is not None
+    assert activities.get(scope, "A-1").duration_value == Decimal("2")
+
