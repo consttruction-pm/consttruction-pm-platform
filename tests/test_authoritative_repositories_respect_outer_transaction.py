@@ -224,3 +224,42 @@ def test_revision_conflict_does_not_rollback_prior_caller_owned_write():
     assert activities.get(scope, "A-2") is not None
     assert activities.get(scope, "A-1").duration_value == Decimal("2")
 
+def test_activity_master_schema_migration_stays_inside_caller_transaction():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            project_revision INTEGER NOT NULL,
+            activity_id TEXT NOT NULL,
+            duration_value TEXT NOT NULL,
+            duration_unit TEXT NOT NULL,
+            actual_start TEXT,
+            actual_finish TEXT,
+            remaining_duration INTEGER,
+            remaining_start TEXT,
+            percent_complete REAL,
+            percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+            record_revision INTEGER NOT NULL,
+            expected_finish TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id)
+        )"""
+    )
+    connection.commit()
+
+    connection.execute("BEGIN")
+    repo = SQLiteActivityMasterRepository(connection)
+    assert connection.in_transaction
+    columns_during_transaction = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(activity_master)").fetchall()
+    }
+    assert {"planned_finish", "leveling_priority", "original_duration"} <= columns_during_transaction
+
+    connection.rollback()
+    columns_after_rollback = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(activity_master)").fetchall()
+    }
+    assert not {"planned_finish", "leveling_priority", "original_duration"} & columns_after_rollback
+
