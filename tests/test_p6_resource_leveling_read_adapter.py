@@ -163,3 +163,31 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_composite_leveling_read_holds_one_outer_sqlite_transaction():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 11)
+    assignment_repo.upsert(
+        P6ResourceAssignment(scope, "a-1", "activity-1", "resource-1", units=Decimal("1"))
+    )
+    period_repo.upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope, "a-1", "activity-1", "resource-1", "2026-10-02", Decimal("1"), Decimal("0")
+        )
+    )
+
+    original_list = period_repo.list
+    observed = []
+
+    def list_during_read(*args, **kwargs):
+        observed.append(api.assignment_service.transaction_manager.connection.in_transaction)
+        return original_list(*args, **kwargs)
+
+    period_repo.list = list_during_read
+    assignments, periods = api.list_leveling_inputs(scope, auth_context=auth())
+
+    assert observed == [True]
+    assert len(assignments) == 1
+    assert len(periods) == 1
+    assert not api.assignment_service.transaction_manager.connection.in_transaction
