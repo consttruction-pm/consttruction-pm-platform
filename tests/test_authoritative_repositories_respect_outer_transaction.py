@@ -248,7 +248,7 @@ def test_activity_master_schema_migration_stays_inside_caller_transaction():
     connection.commit()
 
     connection.execute("BEGIN")
-    repo = SQLiteActivityMasterRepository(connection)
+    SQLiteActivityMasterRepository(connection)
     assert connection.in_transaction
     columns_during_transaction = {
         row[1]
