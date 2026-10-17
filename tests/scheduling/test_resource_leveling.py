@@ -550,3 +550,52 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
+
+
+def test_activity_id_fallback_matches_p6_numeric_alphabetic_and_deterministic_order():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = tuple(
+        LevelingActivity(activity_id, day, day, 0)
+        for activity_id in ("A2", "10", "2", "A10", "02")
+    )
+    ordered = sorted(activities, key=lambda item: _priority_sort_key(item, ()))
+    assert [item.activity_id for item in ordered] == ["02", "2", "10", "A10", "A2"]
+
+
+@pytest.mark.parametrize(
+    ("sort_order", "expected"),
+    [
+        (SortOrder.ASCENDING, ["2", "10", "A10", "A2"]),
+        (SortOrder.DESCENDING, ["10", "2", "A2", "A10"]),
+    ],
+)
+def test_explicit_activity_id_priority_preserves_p6_categories(sort_order, expected):
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = tuple(
+        LevelingActivity(activity_id, day, day, 0)
+        for activity_id in ("A2", "10", "2", "A10")
+    )
+    priority = (LevelingPriority("Activity ID", sort_order),)
+    ordered = sorted(activities, key=lambda item: _priority_sort_key(item, priority))
+    assert [item.activity_id for item in ordered] == expected
+
+
+def test_leveling_priority_rows_keep_precedence_and_blank_values_last():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity("A", day, day, 0, activity_priority=1),
+        LevelingActivity("B", day, day, 0, activity_priority=1),
+        LevelingActivity("Z", day, day, 0, activity_priority=None),
+    )
+    priorities = (
+        LevelingPriority("Activity Priority", SortOrder.ASCENDING),
+        LevelingPriority("Activity ID", SortOrder.DESCENDING),
+    )
+    ordered = sorted(activities, key=lambda item: _priority_sort_key(item, priorities))
+    assert [item.activity_id for item in ordered] == ["B", "A", "Z"]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from .calendar import WorkingTimeResolver
 from enum import Enum
@@ -241,19 +241,47 @@ def _priority_value(activity: LevelingActivity, field_name: str):
     return values[normalized]
 
 
+def _activity_id_value_key(value: str) -> tuple[int, object]:
+    """Order P6 activity IDs as numeric values, alphabetic values, then blanks.
+
+    Oracle P6 Professional v26 documents numeric values first, alphabetic values
+    second, and blank priority values last. Numeric and alphabetic subkeys retain
+    original text as a deterministic tie-breaker (for example, "02" vs "2").
+    """
+    normalized = value.strip()
+    if not normalized:
+        return (2, "")
+    try:
+        numeric_value = Decimal(normalized)
+    except InvalidOperation:
+        return (1, (normalized.casefold(), normalized))
+    if numeric_value.is_finite():
+        return (0, (numeric_value, normalized.casefold(), normalized))
+    return (1, (normalized.casefold(), normalized))
+
+
 def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPriority, ...]) -> tuple:
     """Return a deterministic P6-style leveling priority key."""
     parts: list[tuple[int, object]] = []
     for priority in priorities:
+        normalized_field = priority.field_name.strip().lower().replace(" ", "_")
         value = _priority_value(activity, priority.field_name)
-        if value is None:
-            parts.append((1, ""))
+        if value is None or (isinstance(value, str) and not value.strip()):
+            # P6 places blank priority values after numeric and alphabetic values.
+            parts.append((2, ""))
+        elif normalized_field == "activity_id":
+            category, comparable = _activity_id_value_key(str(value))
+            ordered_value = comparable if priority.sort_order is SortOrder.ASCENDING else _Descending(comparable)
+            # Preserve P6's category order in both directions; reverse values only.
+            parts.append((category, ordered_value))
         elif priority.sort_order is SortOrder.ASCENDING:
             parts.append((0, value))
         else:
             parts.append((0, _Descending(value)))
-    # Oracle documents Activity ID as the deterministic conflict tie-breaker.
-    parts.append((0, activity.activity_id))
+    # P6 uses Activity ID when no priority rows are configured and as the final
+    # deterministic tie-breaker after explicit priority rows.
+    id_category, id_value = _activity_id_value_key(activity.activity_id)
+    parts.append((id_category, id_value))
     return tuple(parts)
 
 
