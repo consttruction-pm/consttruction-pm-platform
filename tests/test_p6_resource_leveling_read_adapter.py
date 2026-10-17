@@ -1,5 +1,4 @@
 import sqlite3
-from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 
@@ -7,6 +6,7 @@ import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentApplicationService,
@@ -26,22 +26,13 @@ from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceLevelingOptions
 
 
-class TransactionManager:
-    def __init__(self, connection):
-        self.connection = connection
-
-    @contextmanager
-    def transaction(self):
-        yield
-
-
 def auth(tenant="tenant-a", project="project-a"):
     return AuthorizationContext(tenant, project, "reader", frozenset({"viewer"}))
 
 
 def build_api():
     connection = sqlite3.connect(":memory:")
-    manager = TransactionManager(connection)
+    manager = SQLiteTransactionManager(connection)
     assignment_repo = SQLiteP6ResourceAssignmentRepository(connection)
     period_repo = SQLiteP6ResourceAssignmentPeriodRepository(connection)
     spread_repo = SQLiteP6ResourceSpreadRepository(connection)
