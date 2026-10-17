@@ -95,6 +95,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> RelationshipMaste
 
 class SQLiteRelationshipMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
@@ -117,10 +118,12 @@ class SQLiteRelationshipMasterRepository:
             "CREATE INDEX IF NOT EXISTS idx_relationship_master_revision "
             "ON relationship_master(tenant_id, project_id, project_revision, relationship_id)"
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, relationship: RelationshipMaster, expected_revision: int | None = None) -> RelationshipMaster:
         relationship.validate()
+        owns_transaction = not self.connection.in_transaction
         if expected_revision is not None and (
             isinstance(expected_revision, bool)
             or not isinstance(expected_revision, int)
@@ -156,7 +159,8 @@ class SQLiteRelationshipMasterRepository:
                     stored.lag_unit.value, stored.record_revision,
                 ),
             )
-            self.connection.commit()
+            if owns_transaction:
+                self.connection.commit()
             return stored
 
         current = _from_row(relationship.scope, row[:7])
@@ -183,9 +187,11 @@ class SQLiteRelationshipMasterRepository:
             ),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            if owns_transaction:
+                self.connection.rollback()
             raise RelationshipPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, relationship_id: str) -> RelationshipMaster | None:
@@ -216,6 +222,7 @@ class SQLiteRelationshipMasterRepository:
         return tuple(_from_row(scope, row) for row in rows)
 
     def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int) -> bool:
+        owns_transaction = not self.connection.in_transaction
         scope.validate()
         _validate_relationship_id(relationship_id)
         _validate_expected_record_revision(expected_revision)
@@ -234,9 +241,11 @@ class SQLiteRelationshipMasterRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision, relationship_id, expected_revision),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            if owns_transaction:
+                self.connection.rollback()
             raise RelationshipPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return True
 
 
