@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
+from construction_pm.activity_master_repository import ActivityMaster, ActivityPersistenceError, SQLiteActivityMasterRepository
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.constraint_master_repository import ConstraintMaster, SQLiteConstraintMasterRepository
@@ -211,7 +211,7 @@ def test_revision_conflict_does_not_rollback_prior_caller_owned_write():
         activities.save(
             ActivityMaster(scope, "A-2", Decimal("3"), DurationUnit.WORKING_DAY)
         )
-        with pytest.raises(Exception, match="REVISION_CONFLICT"):
+        with pytest.raises(ActivityPersistenceError, match="REVISION_CONFLICT"):
             activities.save(
                 ActivityMaster(scope, "A-1", Decimal("4"), DurationUnit.WORKING_DAY),
                 expected_revision=1,
