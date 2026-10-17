@@ -74,8 +74,9 @@ def build_scheduler_leveling_input(
     calculation is performed here.
     """
     scope.validate()
-    assignments_dto = read_api.list_assignments(scope, auth_context=auth_context)
-    periods_dto = read_api.list_assignment_periods(scope, auth_context=auth_context)
+    assignments_dto, periods_dto = read_api.list_leveling_inputs(
+        scope, auth_context=auth_context
+    )
 
     assignments_by_id: dict[str, dict] = {}
     typed_assignments: list[P6ResourceAssignment] = []
