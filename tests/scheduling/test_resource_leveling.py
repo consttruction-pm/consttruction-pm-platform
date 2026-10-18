@@ -550,3 +550,39 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
+
+
+def test_backward_leveling_supports_late_finish_priority_from_p6_matrix():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 3)
+    day_four = date(2026, 10, 4)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_three, Decimal("1"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_four, day_four,
+            (ResourceDemand("R1", day_three, Decimal("1"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_two, Decimal("1")),
+        ResourceCapacity("R1", day_three, Decimal("1")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("late_finish", SortOrder.ASCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_two
+    assert shifts[0].new_finish == day_two
