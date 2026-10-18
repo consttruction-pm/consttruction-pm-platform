@@ -55,3 +55,17 @@ The new **Progress Control** sheet fixes the operational gap between a static ac
 - Formula-error scan returned no `#REF!`, `#DIV/0!`, `#VALUE!`, `#NAME?` or `#N/A` matches.
 
 This is a **controlled, evidence-gated workbook workflow**, not a live GitHub API sync. The current number remains the last calculated snapshot, 48.13%, because no new row has yet been recertified and accepted. The current certified figure for 2026-10-18 remains pending; this workbook change does not create implementation credit.
+
+
+## Dashboard category completeness check — 2026-10-18
+
+A second workbook reconciliation found that the overall activity matrix correctly totaled 100 weighted points, but the Dashboard's workstream breakdown listed only 12 of the 13 distinct workstream labels. It omitted the 1-point `G · امنیت و چندمستاجری` workstream. The overall 48.13% did not change, but the workstream display summed to only 99 points and was incomplete.
+
+The refreshed workbook adds this missing row with SUMIF-linked formulas. Verification now shows:
+- Dashboard workstream weights: **100.00**
+- Workstream earned points: **48.13**
+- Workstream remaining points: **51.87**
+- Formula-error scan: **0 matches**
+- Evidence-gated input simulation remains green: pending input ignored; accepted input recalculates; clearing input restores the prior snapshot.
+
+This is an additional reporting-integrity repair; it does not create product-code credit or change the last computed detailed progress snapshot.
