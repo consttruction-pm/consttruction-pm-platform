@@ -347,11 +347,6 @@ def schedule_with_resource_leveling(
             backward_shifts,
             key=lambda item: (item.advanced_days, item.activity_id),
         ):
-            # A backward proposal can describe an activity's existing early
-            # date as its "advanced" target. Such a no-op must not be reported
-            # as an accepted leveling shift or pin a date unnecessarily.
-            if current_starts.get(candidate.activity_id) == candidate.new_start:
-                continue
             trial_shifts = tuple(accepted_backward_shifts) + (candidate,)
             trial_ids = {
                 shift.activity_id for shift in trial_shifts if shift.advanced_days > 0
