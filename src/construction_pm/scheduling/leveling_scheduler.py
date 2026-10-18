@@ -109,11 +109,11 @@ def _backward_activities_from_intermediate(
         for demand in forward_activity.resource_demands:
             if displacement > 0:
                 shifted_period = resolver.add_working_duration(
-                    demand.period, displacement
+                    demand.period, displacement + 1
                 )
             elif displacement < 0:
                 shifted_period = resolver.subtract_working_duration(
-                    demand.period, abs(displacement)
+                    demand.period, abs(displacement) + 1
                 )
             else:
                 shifted_period = demand.period
@@ -167,11 +167,11 @@ def _validate_final_resource_load(
         for demand in activity_input.resource_demands:
             if shift_days > 0:
                 shifted_period = resolver.add_working_duration(
-                    demand.period, shift_days
+                    demand.period, shift_days + 1
                 )
             elif shift_days < 0:
                 shifted_period = resolver.subtract_working_duration(
-                    demand.period, abs(shift_days)
+                    demand.period, abs(shift_days) + 1
                 )
             else:
                 shifted_period = demand.period
