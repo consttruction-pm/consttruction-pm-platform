@@ -472,6 +472,7 @@ class BackwardLevelingActivity:
     late_finish: date
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    total_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -487,6 +488,10 @@ class BackwardLevelingActivity:
             isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if self.total_float is not None and (
+            isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -592,10 +597,13 @@ def propose_backward_leveling(
     # unsupported errors rather than being approximated from unrelated fields.
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish",
+        "early_finish", "late_start", "late_finish", "total_float",
     }
     for priority in priorities:
-        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+        normalized = priority.field_name.strip().lower().replace(" ", "_")
+        if normalized not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if normalized == "total_float" and any(activity.total_float is None for activity in activity_list):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
@@ -667,6 +675,7 @@ def propose_backward_leveling(
                     "early_finish": activity.early_finish,
                     "late_start": activity.late_start,
                     "late_finish": activity.late_finish,
+                    "total_float": activity.total_float,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
