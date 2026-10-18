@@ -696,7 +696,6 @@ def test_materializer_rejects_fractional_remaining_duration():
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
-@pytest.mark.parametrize("value", [True, 0, 101, 4.0, "4"])
 @pytest.mark.parametrize("value", [True, 1, "Urgent", "normal"])
 def test_materializer_rejects_invalid_activity_leveling_priority(value):
     snapshot = make_snapshot()
