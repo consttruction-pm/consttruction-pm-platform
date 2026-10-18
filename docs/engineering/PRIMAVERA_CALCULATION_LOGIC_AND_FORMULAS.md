@@ -1137,6 +1137,16 @@ Permitted statuses: NOT REVIEWED; REVIEWED—DOCUMENTED; IMPLEMENTED—UNVERIFIE
 
 ## 43. Expanded source index for detailed option and formula pages
 
+- [Currency formatting preferences](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_a_format_for_currency.htm)
+
+- [Currencies and base currency](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/currencies.htm)
+
+- [Select a view currency — Version 26 User Guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/select_a_view_currency.htm)
+
+- [System Characteristics dialog — 14 GSC values](https://docs.oracle.com/cd/F88968_01/client_help/en_US/function_point_estimation_system_characteristics_dialog_box.htm)
+
+- [Function Point Estimation dialog and formulas](https://docs.oracle.com/cd/F51303_01/client_help/en_US/function_point_estimation_dialog_box.htm)
+
 - [Admin Preferences Options — Cost Spread and stored summary intervals](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm)
 
 - [Version 26 full User Guide TOC](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm)
@@ -1275,50 +1285,62 @@ Live calculation results, stored summaries and historical period values are diff
 
 ## 50. Top-down estimation: formulas, inputs and required parity fixtures
 
-The Version 26 official pages have now been read for both estimation modes. These are calculation-affecting workflows because they seed resource units inside a selected WBS and can influence schedule/cost results.
+The Version 26 official help pages have been checked for both estimation modes. These workflows seed resource-unit values in a selected WBS and therefore affect schedule/cost outputs.
 
-### 50.1 Prior experience mode — explicitly documented adjustment
+### 50.1 Prior Experience mode — documented adjustment
 
-Inputs are: estimate labor or nonlabor units; target WBS (activities beneath the selected WBS); optional resource filter; Estimated Units; and an optional Apply Adjustment percentage.
+Inputs: estimate labor or nonlabor units; target WBS (activities beneath it); optional resource filter; Estimated Units; optional Apply Adjustment percentage p.
 
-Let U = entered Estimated Units and p = the positive adjustment percentage. The documented positive adjustment is:
+For a positive p, the documented formula is:
+- Adjustment Units = Estimated Units × (p / 100)
+- Adjusted Units = Estimated Units + Adjustment Units = Estimated Units × (1 + p / 100)
 
-- Adjustment Units = U × (p / 100)
-- Adjusted Units = U + Adjustment Units = U × (1 + p / 100)
+Example in the official guide: Estimated Units = 400.00 hours; p = 50%; Adjustment Units = 200.00 hours; Adjusted Units = 600.00 hours.
 
-Documented example: U = 400.00 hours and p = 50%, so Adjustment Units = 200.00 hours and Adjusted Units = 600.00 hours.
+Preserve the entered estimate, p, calculated adjustment and adjusted value. Negative adjustment handling, rounding, allocation among selected activities, overwriting pre-existing values and reapplication semantics need reference fixtures and remain OPEN. Saving a named estimate (with assumptions/notes) is separate from applying it.
 
-CUBI must preserve the user-entered estimate, p, computed adjustment and adjusted value. Validate input units/time, scope (WBS/resource), precision and authorization. Negative adjustment handling, rounding, allocation of the adjusted total among selected activities/assignments, overwriting existing values and reapplication semantics require additional reference fixtures and are OPEN until proven. A saved estimate persists its name, assumptions and notes; saving is separate from applying it. Applying requires explicit confirmation and creates an auditable mutation.
+### 50.2 Function Point mode — documented formulas and data contract
 
-### 50.2 Function-point mode — fully enumerated inputs
+The Version 26 Function Point Estimation dialog supports a selected WBS, optional resource, Labor/Nonlabor units or Material resource; entered or calculated Unadjusted Function Point Count (UFP); counts of low/average/high-complexity data-function and transaction-function items; entered or calculated Total Degree of Influence (TDI); average productivity input; optional adjustment; and save/apply workflow.
 
-The Version 26 dialog supports:
-- estimate Labor or Nonlabor units, or select a Material resource;
-- target WBS, and optionally a Resource;
-- Unadjusted Function Point Count (UFP), entered or calculated;
-- low/average/high-complexity file and transaction counts to calculate UFP;
-- Total Degree of Influence (TDI), entered or calculated;
-- system-characteristic rows rated 0 through 5, where 0 means no influence and 5 means strongest influence;
-- average productive value in Function Points per Person Month;
-- optional adjustment percentage;
-- save named estimate with assumptions/notes, or apply it after confirmation.
+The official help documents:
+- TDI = sum of DI values for the WBS.
+- The System Characteristics dialog contains 14 General System Characteristics (GSCs), each rated 0–5; 0 means no influence and 5 means strong influence. When calculated from that dialog, TDI is the sum of those 14 values.
+- Value Adjustment Factor (VAF) = 0.65 + (0.01 × TDI).
+- Final Adjusted Function Point Count = UFP × VAF.
+- **Estimated Units = Final Adjusted Function Point Count × Average Productivity value**, as expressly stated by the official P6 dialog help. Implement that stated product; do not silently invert it to division because the field label appears to imply a different dimensional convention. If the resulting output unit/scale is unclear, retain an OPEN item and compare a real Version 26 dialog fixture before asserting parity.
+- If Apply Adjustment is selected, use the positive adjustment operation in Section 50.1. Example: 400.00 hours with 50% adjustment produces 600.00 hours.
 
-The following mathematical chain is the expected model to verify in the selected Version 26 reference dialog, **not a license to hard-code guessed weights or conversion factors**:
+UFP is calculated from the supported data-function and transaction-function classes by complexity count and class weight. The conventional Function Point matrix below is included as a **candidate to verify**, not as confirmed P6 behavior until captured in a Version 26 fixture:
 
-1. UFP = weighted sum of the low/average/high complexity counts for each supported data-function and transaction type.
-2. TDI = sum of the numeric influence ratings across the dialog's system-characteristic rows.
-3. Conventional adjusted-function-point candidate = UFP × (0.65 + 0.01 × TDI).
-4. Estimated person-months candidate = adjusted function points ÷ average productive value (function points/person month).
-5. Adjusted units, if the adjustment checkbox is selected, apply the documented positive adjustment pattern from Section 50.1 to the resource units produced by the estimation method.
+| Function Point class | Low | Average | High |
+|---|---:|---:|---:|
+| External Input (EI) | 3 | 4 | 6 |
+| External Output (EO) | 4 | 5 | 7 |
+| External Inquiry (EQ) | 3 | 4 | 6 |
+| Internal Logical File (ILF) | 7 | 10 | 15 |
+| External Interface File (EIF) | 5 | 7 | 10 |
 
-**Required OPEN reference evidence:** capture the exact Function Point Estimation dialog category names and complexity-weight matrix; characteristic list/count; whether/how the adjusted function-point factor in step 3 is used by this P6 version; conversion from person-month productivity to labor/nonlabor/material Units; Hours per Time Period/fiscal/calendar assumptions; fractional-unit rounding; per-activity distribution within the selected WBS; zero/blank UFP, TDI, productivity and resource cases; and adjustment sign handling. Do not claim parity or ship as reference-compatible until a golden fixture contains all inputs, output units/precision, resulting assignment values and post-estimation schedule/cost behavior.
+Candidate equation: UFP = Σ(class complexity count × its corresponding weight). If actual Version 26 dialog values or terminology differ, captured reference behavior replaces this candidate. Do not hard-code the matrix into production before the fixture confirms each class/weight.
 
-### 50.3 Shared application semantics
+### 50.3 Applying a saved estimate and distributing units
 
-Top-down estimation is a project data mutation, not a separate scheduler. The saved estimate must not become a live hidden formula. The operation must show a preview, target WBS/resource/activity scope, input assumptions and expected total before applying. After apply, recalculate the dependent plan through the authoritative CUBI core, preserve provenance of generated versus manually edited values, and report any unresolved capacity, relationship or constraint effects. Save As must not apply; Cancel must not mutate; re-applying the same saved estimate must follow a tested overwrite/preserve policy.
+The official guide describes applying saved top-down estimates by distributing estimated units to selected activities based on the estimated weights assigned to WBS elements and activities, preserving their relative proportions.
 
-**Sources:** [Top-down estimate using prior experience — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80492.htm); [Top-down estimate using function points — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80493.htm); [Apply saved top-down estimates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80494.htm).
+Candidate allocation equation to verify:
+- Allocated Units(i) = Total Units to Allocate × Weight(i) / Σ(Weights of all eligible items).
 
+The exact eligible population, hierarchical WBS handling, whether weights inherit or aggregate, behavior for blank/zero/negative weights, precision, remainder allocation and overwrite/preserve behavior must be verified against the reference version. Keep allocation rows reconcilable to the total, and record the input estimate ID, weights, resulting units, target assignments and audit data.
+
+### 50.4 Required reference fixture and shared application semantics
+
+Capture a golden Version 26 fixture containing: exact Function Point class names and weights; all 14 GSCs and values; UFP; TDI; VAF; Final Adjusted Function Point Count; Average Productivity; Estimated Units and adjusted units; resource type and unit; selected WBS/resource/activity scope; weights and per-activity allocation; rounding/remainder behavior; pre-existing assignment values; save/apply/cancel/reapply behavior; and final schedule/cost outputs.
+
+Top-down estimation is an audited project-data mutation, not a separate scheduler. Preview WBS/resource/activity scope, units, assumptions and total before applying. After application, recalculate through the shared authoritative core and report any resource-capacity, relationship or constraint impacts. Save As must not apply; Cancel must not mutate; reapplying a saved estimate must follow an explicit, tested overwrite/preserve policy.
+
+Until the fixture resolves the candidate weights, dimensional interpretation/units conversion and allocation edge cases, those details remain **OPEN/PARITY TEST REQUIRED** and may not be claimed as fully reference-compatible.
+
+**Sources:** [Top-down estimation using prior experience — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80492.htm); [Top-down estimation using function points — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80493.htm); [Function Point Estimation dialog and formulas](https://docs.oracle.com/cd/F51303_01/client_help/en_US/function_point_estimation_dialog_box.htm); [System Characteristics dialog — 14 GSC values](https://docs.oracle.com/cd/F88968_01/client_help/en_US/function_point_estimation_system_characteristics_dialog_box.htm); [Apply saved top-down estimates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80494.htm).
 ## 51. Identity-changing activity operations and graph integrity
 
 Copy/paste, WBS move, dissolve, delete and renumber can alter the calculation graph even when the relationship editor is not opened.
@@ -1383,3 +1405,18 @@ Where CUBI implements period posting, earned value, spending plans, time-phased 
 - Test partial first/last periods, zero-length/overlapping/duplicate period definitions, leap year, Jalali calendar display, timezones, closed projects, unavailable old periods, historical edits and period reposting.
 
 **Sources:** [Define fiscal start month](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_a_fiscal_start_month.htm); [Post period actuals](https://docs.oracle.com/cd/F51303_01/English/User_Guides/p6_pro_user/post_actual_amounts_for_a_period.htm); [Admin Preferences Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm).
+
+
+## 56. Base currency, view currency and conversion invariants
+
+Currency configuration affects monetary meaning and presentation. It must be included with rate and amount values in calculation provenance.
+
+- Distinguish the project/database base currency from the user's selected view currency. A view-currency change must not overwrite source values, rates, baselines or persisted costs.
+- Each rate/amount carries currency identity, rate type/source and, where conversion is actually performed, the conversion rate/source, effective date, precision and rounding policy.
+- Currency format (symbol placement, decimal separator, grouping, localized digits) is presentation only. If no currency conversion is selected, changing the view format cannot change any stored or calculated numeric result.
+- An actual conversion is a distinct, auditable arithmetic operation with a specified rate and date; it is not the same as display formatting. Never add/compare monetary amounts in incompatible currencies without a validated conversion path.
+- Resource/role price/unit, assignment Rate Source and view currency are independent inputs. A rate-source change can alter the applied price; a view-currency change alone cannot alter the native assignment rate.
+- Preserve internal precision and apply the declared rounding rule only at documented output boundaries. Report converted and native amounts separately where needed.
+- Tests: same project in base currency and multiple view currencies; resource/role effective-dated rates; expenses, budgets and EVM totals; zero/negative values; rate conversion change; export/import roundtrip; decimal separator/date/language/RTL changes; and proof that presentation-only changes leave values invariant.
+
+**Sources:** [Select a view currency — Version 26 User Guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/select_a_view_currency.htm); [Currencies and base currency](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/currencies.htm); [Currency formatting preferences](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_a_format_for_currency.htm).
