@@ -133,3 +133,25 @@ def test_assignment_period_decimal_validation_fails_closed():
         period_value(units="NaN").validate()
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_PERIOD_START"):
         period_value(period_start="").validate()
+
+
+def test_calendar_version_round_trip_and_legacy_positional_constructor():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteP6ResourceAssignmentRepository(connection)
+
+    # The pre-version positional constructor remains source-compatible.
+    legacy = assignment(scope(), "legacy")
+    assert legacy.calendar_version is None
+    assert repo.upsert(legacy) == legacy
+    assert repo.get(scope(), "legacy") == legacy
+
+    versioned = P6ResourceAssignment(
+        scope(), "versioned", "act-1", "res-1", "role-1",
+        Decimal("8.5"), Decimal("2.5"), Decimal("6.0"),
+        Decimal("850.25"), Decimal("250.00"), Decimal("600.25"),
+        "h", "USD", "cal-1", "assignment snapshot",
+        calendar_version="cal-v7",
+    )
+    assert repo.upsert(versioned) == versioned
+    assert repo.get(scope(), "versioned") == versioned
+    assert [item.calendar_version for item in repo.list(scope())] == [None, "cal-v7"]
