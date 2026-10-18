@@ -962,6 +962,7 @@ def test_resource_leveling_preserves_activity_specific_calendars() -> None:
     """Every CPM pass in resource leveling must use the activity calendar map."""
     from construction_pm.scheduling.activity import Activity
     from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
 
     start = date(2026, 10, 1)  # Thursday
     finish = date(2026, 10, 5)  # Monday
