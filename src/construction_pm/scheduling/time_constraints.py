@@ -44,6 +44,16 @@ def _resolver(activity, registry: CalendarResolverRegistry) -> TimeAwareWorkingT
     return resolve_calendar_aware(registry, activity.calendar_context.effective_activity())
 
 
+def _normalized_target(item: TimeActivityConstraint, resolver: TimeAwareWorkingTimeResolver) -> datetime:
+    if item.type in {
+        TimeConstraintType.FINISH_NO_EARLIER_THAN,
+        TimeConstraintType.FINISH_NO_LATER_THAN,
+        TimeConstraintType.MANDATORY_FINISH,
+    }:
+        return resolver.normalize_finish(item.target)
+    return resolver.normalize_start(item.target)
+
+
 def apply_time_earliest_constraints(
     activity,
     start: datetime,
@@ -56,7 +66,7 @@ def apply_time_earliest_constraints(
     for item in sorted(constraints, key=lambda x: (x.type.value, x.target)):
         if item.activity_id != activity.id:
             continue
-        target = resolver.normalize_start(item.target)
+        target = _normalized_target(item, resolver)
         if item.type is TimeConstraintType.START_NO_EARLIER_THAN:
             result = max(result, target)
         elif item.type is TimeConstraintType.FINISH_NO_EARLIER_THAN:
@@ -84,7 +94,7 @@ def validate_time_early_window(
     for item in constraints:
         if item.activity_id != activity.id:
             continue
-        target = resolver.normalize_start(item.target)
+        target = _normalized_target(item, resolver)
         if item.type is TimeConstraintType.START_NO_LATER_THAN and start > target:
             raise TimeConstraintViolation(f"start no later than violated for {activity.id}")
         if item.type is TimeConstraintType.FINISH_NO_LATER_THAN and finish > target:
@@ -107,7 +117,7 @@ def apply_time_latest_constraints(
     for item in sorted(constraints, key=lambda x: (x.type.value, x.target)):
         if item.activity_id != activity.id:
             continue
-        target = resolver.normalize_start(item.target)
+        target = _normalized_target(item, resolver)
         if item.type in {
             TimeConstraintType.START_NO_EARLIER_THAN,
             TimeConstraintType.FINISH_NO_EARLIER_THAN,
@@ -140,7 +150,11 @@ def validate_time_late_window(
     for item in constraints:
         if item.activity_id != activity.id:
             continue
-        target = resolver.normalize_start(item.target)
+        target = _normalized_target(item, resolver)
+        if item.type is TimeConstraintType.START_NO_EARLIER_THAN and start < target:
+            raise TimeConstraintViolation(f"late start no earlier than violated for {activity.id}")
+        if item.type is TimeConstraintType.FINISH_NO_EARLIER_THAN and finish < target:
+            raise TimeConstraintViolation(f"late finish no earlier than violated for {activity.id}")
         if item.type is TimeConstraintType.START_NO_LATER_THAN and start > target:
             raise TimeConstraintViolation(f"late start no later than violated for {activity.id}")
         if item.type is TimeConstraintType.FINISH_NO_LATER_THAN and finish > target:

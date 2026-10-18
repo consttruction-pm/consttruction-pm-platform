@@ -14,6 +14,7 @@ from construction_pm.scheduling.time_calendar import (
     WorkingTimeCalendar,
 )
 from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
+from construction_pm.scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
 from construction_pm.scheduling.time_forward_pass import (
     TimeActivity,
@@ -285,3 +286,19 @@ def test_time_forward_pass_start_to_start_out_of_sequence_requires_data_date():
             datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
             registry(),
         )
+
+def test_time_forward_pass_rejects_constraint_for_unknown_activity():
+    constraint = TimeActivityConstraint(
+        "MISSING",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
+    )
+    with pytest.raises(ValueError, match="constraint references an unknown activity"):
+        time_forward_pass(
+            [TimeActivity("A", TimeQuantity.working_hours(1), context())],
+            [],
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            registry(),
+            [constraint],
+        )
+

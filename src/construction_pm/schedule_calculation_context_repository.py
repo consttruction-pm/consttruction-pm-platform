@@ -65,7 +65,7 @@ class PersistedCalculationContext:
             or self.context.project_version != self.scope.project_revision
         ):
             raise CalculationContextPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
-        if self.context.tenant_id is not None and self.context.tenant_id != self.scope.tenant_id:
+        if self.context.tenant_id != self.scope.tenant_id:
             raise CalculationContextPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
         _validate_sha(self.context_sha256, "INVALID_CONTEXT_SHA256")
         _validate_sha(self.calculation_identity, "INVALID_CALCULATION_IDENTITY")
@@ -310,44 +310,15 @@ class PostgresCalculationContextRepository:
 
     def save(self, record: PersistedCalculationContext) -> PersistedCalculationContext:
         record.validate()
-        existing = self.connection.execute(
-            "SELECT project_id,project_revision,calendar_id,calendar_version,rules_version,"
-            "engine_version,timezone,calculation_timestamp,input_snapshot_id,tenant_context_id,"
-            "actor_id,request_id,idempotency_key,context_sha256,calculation_identity,"
-            "calculation_identity_version "
-            "FROM schedule_calculation_context "
-            "WHERE tenant_id=%s AND project_id=%s AND snapshot_id=%s",
-            (record.scope.tenant_id, record.scope.project_id, record.snapshot_id),
-        ).fetchone()
-        if existing is not None:
-            if (
-                existing[0] == record.context.project_id
-                and _parse_revision(existing[1]) == record.context.project_version
-                and existing[2] == record.context.calendar_id
-                and existing[3] == record.context.calendar_version
-                and existing[4] == record.context.rules_version
-                and existing[5] == record.context.engine_version
-                and existing[6] == record.context.timezone
-                and existing[7] == record.context.calculation_timestamp
-                and existing[8] == record.context.input_snapshot_id
-                and existing[9] == record.context.tenant_id
-                and existing[10] == record.context.actor_id
-                and existing[11] == record.context.request_id
-                and existing[12] == record.context.idempotency_key
-                and existing[13] == record.context_sha256
-                and existing[14] == record.calculation_identity
-                and existing[15] == record.calculation_identity_version
-            ):
-                return record
-            raise CalculationContextPersistenceError("CONTEXT_IMMUTABLE_CONFLICT")
-
-        self.connection.execute(
+        inserted = self.connection.execute(
             "INSERT INTO schedule_calculation_context "
             "(tenant_id,project_id,project_revision,snapshot_id,calendar_id,calendar_version,"
             "rules_version,engine_version,timezone,calculation_timestamp,input_snapshot_id,"
             "tenant_context_id,actor_id,request_id,idempotency_key,context_sha256,"
             "calculation_identity,calculation_identity_version) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,snapshot_id) DO NOTHING "
+            "RETURNING tenant_id",
             (
                 record.scope.tenant_id,
                 record.context.project_id,
@@ -368,8 +339,43 @@ class PostgresCalculationContextRepository:
                 record.calculation_identity,
                 record.calculation_identity_version,
             ),
-        )
-        return record
+        ).fetchone()
+        if inserted is not None:
+            return record
+
+        # ON CONFLICT avoids a race between a prior SELECT and INSERT. If another
+        # writer already stored this key, verify exact immutable content below.
+        existing = self.connection.execute(
+            "SELECT project_id,project_revision,calendar_id,calendar_version,rules_version,"
+            "engine_version,timezone,calculation_timestamp,input_snapshot_id,tenant_context_id,"
+            "actor_id,request_id,idempotency_key,context_sha256,calculation_identity,"
+            "calculation_identity_version "
+            "FROM schedule_calculation_context "
+            "WHERE tenant_id=%s AND project_id=%s AND snapshot_id=%s",
+            (record.scope.tenant_id, record.scope.project_id, record.snapshot_id),
+        ).fetchone()
+        if existing is None:
+            raise CalculationContextPersistenceError("CONTEXT_INSERT_FAILED")
+        if (
+            existing[0] == record.context.project_id
+            and _parse_revision(existing[1]) == record.context.project_version
+            and existing[2] == record.context.calendar_id
+            and existing[3] == record.context.calendar_version
+            and existing[4] == record.context.rules_version
+            and existing[5] == record.context.engine_version
+            and existing[6] == record.context.timezone
+            and existing[7] == record.context.calculation_timestamp
+            and existing[8] == record.context.input_snapshot_id
+            and existing[9] == record.context.tenant_id
+            and existing[10] == record.context.actor_id
+            and existing[11] == record.context.request_id
+            and existing[12] == record.context.idempotency_key
+            and existing[13] == record.context_sha256
+            and existing[14] == record.calculation_identity
+            and existing[15] == record.calculation_identity_version
+        ):
+            return record
+        raise CalculationContextPersistenceError("CONTEXT_IMMUTABLE_CONFLICT")
 
     def get(
         self,

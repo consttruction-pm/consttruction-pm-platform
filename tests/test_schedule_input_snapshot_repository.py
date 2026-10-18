@@ -5,6 +5,12 @@ import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 
+from construction_pm.schedule_snapshot_materializer import (
+    SnapshotMaterializationError,
+    _finite_float,
+    _finite_percent_complete,
+)
+
 from construction_pm.schedule_input_snapshot_repository import (
     PostgresScheduleInputSnapshotRepository,
     ScheduleSnapshotPersistenceError,
@@ -100,6 +106,31 @@ def test_snapshot_requires_matching_calculation_context():
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_CONTEXT_ID_MISMATCH"):
         build_snapshot(make_input("S-1"), make_context("S-2"), datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
 
+
+
+
+def test_snapshot_rejects_missing_calculation_context_tenant():
+    tenantless_context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-1",
+        tenant_id=None,
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        build_snapshot(
+            make_input(),
+            tenantless_context,
+            datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+        )
 
 def test_snapshot_rejects_mismatched_calculation_context_tenant():
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_CONTEXT_TENANT_MISMATCH"):
@@ -525,3 +556,116 @@ def test_snapshot_validate_rejects_unknown_calculation_identity_version():
         match="INVALID_CALCULATION_IDENTITY_VERSION",
     ):
         candidate.validate()
+
+
+def test_snapshot_rejects_mismatched_calculation_calendar_context():
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-OTHER",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-1",
+        tenant_id="T-1",
+    )
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_CALENDAR_MISMATCH",
+    ):
+        build_snapshot(
+            make_input(),
+            context,
+            datetime(2026, 9, 21, 8, tzinfo=timezone.utc),
+        )
+
+def test_sqlite_legacy_snapshot_migration_rejects_missing_tenant_binding():
+    from dataclasses import replace
+
+    tenantless_context = CalculationContext(
+        **{**make_context().to_dict(), "tenant_id": None}
+    )
+    v2_snapshot = build_snapshot(
+        make_input(), tenantless_context,
+        datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    legacy_snapshot = replace(
+        v2_snapshot,
+        calculation_identity=tenantless_context.legacy_calculation_identity,
+        calculation_identity_version=1,
+    )
+    repo = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
+    repo.save(legacy_snapshot)
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        repo.migrate_calculation_identity(
+            legacy_snapshot.scope, legacy_snapshot.snapshot_id, tenantless_context
+        )
+
+def test_sqlite_failed_identity_migration_rolls_back_write_transaction():
+    from dataclasses import replace
+
+    context = make_context(
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        actor_id="actor-legacy",
+        request_id="request-legacy",
+        idempotency_key="idem-legacy",
+    )
+    current = build_snapshot(
+        make_input(), context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    legacy = replace(
+        current,
+        calculation_identity=context.legacy_calculation_identity,
+        calculation_identity_version=1,
+    )
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(legacy)
+
+    class IgnoreMigrationUpdate:
+        def execute(self, sql, parameters=()):
+            if sql.startswith("UPDATE schedule_input_snapshot SET calculation_identity="):
+                return connection.execute(
+                    "UPDATE schedule_input_snapshot SET calculation_identity=calculation_identity WHERE 0"
+                )
+            return connection.execute(sql, parameters)
+
+        def rollback(self):
+            return connection.rollback()
+
+        def commit(self):
+            return connection.commit()
+
+    repo.connection = IgnoreMigrationUpdate()
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="SNAPSHOT_IDENTITY_MIGRATION_CONFLICT",
+    ):
+        repo.migrate_calculation_identity(legacy.scope, legacy.snapshot_id, context)
+
+    assert not connection.in_transaction
+    persisted = repo.get(legacy.scope, legacy.snapshot_id)
+    assert persisted == legacy
+
+
+
+def test_snapshot_numeric_overflow_is_normalized_to_materialization_error():
+    huge_integer = 10**10000
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_SCHEDULE_OPTION:critical_activity_float_threshold",
+    ):
+        _finite_float(huge_integer, "critical_activity_float_threshold")
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_PERCENT_COMPLETE",
+    ):
+        _finite_percent_complete(huge_integer)

@@ -204,13 +204,14 @@ def _validate_snapshot_context(
     snapshot: ScheduleInputSnapshot,
     calculation_context: CalculationContext,
 ) -> None:
+    snapshot.validate()
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ValueError("INPUT_SNAPSHOT_ID_MISMATCH")
     if calculation_context.project_id != snapshot.scope.project_id:
         raise ValueError("PROJECT_ID_MISMATCH")
     if calculation_context.project_version != snapshot.scope.project_revision:
         raise ValueError("PROJECT_REVISION_MISMATCH")
-    if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
+    if calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ValueError("TENANT_ID_MISMATCH")
     if calculation_context.calculation_identity != snapshot.calculation_identity:
         raise ValueError("CALCULATION_IDENTITY_MISMATCH")

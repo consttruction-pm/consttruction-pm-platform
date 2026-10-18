@@ -71,3 +71,85 @@ def test_mandatory_finish_is_exact_on_both_early_and_late_paths_when_feasible():
     )
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
     assert result.late_activities["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+
+
+def test_finish_constraint_normalizes_target_as_finish_during_break():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    result = time_schedule(
+        [activity],
+        [],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        registry(),
+        [TimeActivityConstraint(
+            "A", TimeConstraintType.FINISH_NO_LATER_THAN,
+            datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc),
+        )],
+    )
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 12, tzinfo=timezone.utc)
+
+@pytest.mark.parametrize(
+    ("constraint_type", "expected_early_finish", "expected_late_finish"),
+    [
+        (
+            TimeConstraintType.FINISH_NO_EARLIER_THAN,
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        ),
+        (
+            TimeConstraintType.MANDATORY_FINISH,
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+        ),
+    ],
+)
+def test_finish_constraints_normalize_break_target_as_finish(
+    constraint_type, expected_early_finish, expected_late_finish
+):
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    result = time_schedule(
+        [activity],
+        [],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        registry(),
+        [TimeActivityConstraint(
+            "A", constraint_type,
+            datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc),
+        )],
+    )
+    assert result.early_activities["A"].finish == expected_early_finish
+    assert result.late_activities["A"].finish == expected_late_finish
+
+@pytest.mark.parametrize(
+    ("constraint_type", "target", "message"),
+    [
+        (
+            TimeConstraintType.START_NO_EARLIER_THAN,
+            datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            "late start no earlier than violated",
+        ),
+        (
+            TimeConstraintType.FINISH_NO_EARLIER_THAN,
+            datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            "late finish no earlier than violated",
+        ),
+    ],
+)
+def test_backward_pass_rejects_late_dates_that_violate_earliest_constraints(
+    constraint_type, target, message
+):
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    with pytest.raises(TimeConstraintViolation, match=message):
+        time_schedule(
+            [activity],
+            [],
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
+            registry(),
+            [TimeActivityConstraint("A", constraint_type, target)],
+        )
+

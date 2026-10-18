@@ -77,6 +77,17 @@ def test_context_save_rejects_immutable_conflict():
         repo.save(changed)
 
 
+def test_persisted_context_rejects_missing_tenant_binding():
+    context = CalculationContext(
+        **{**make_context().to_dict(), "tenant_id": None}
+    )
+    with pytest.raises(
+        CalculationContextPersistenceError,
+        match="SNAPSHOT_CONTEXT_TENANT_MISMATCH",
+    ):
+        build_persisted_context(scope(), context)
+
+
 def test_context_get_rejects_scope_revision_mismatch():
     repo = SQLiteCalculationContextRepository(sqlite3.connect(":memory:"))
     repo.save(build_persisted_context(scope(), make_context()))
@@ -156,6 +167,18 @@ def test_postgres_context_round_trip(postgres_dsn):
         record = build_persisted_context(scope(), make_context())
         with connection.transaction():
             assert repo.save(record) == record
+            # A repeated identical write must remain idempotent after the
+            # conflict-safe INSERT path is taken.
+            assert repo.save(record) == record
+            changed_context = CalculationContext(
+                **{**make_context().to_dict(), "actor_id": "actor-2"}
+            )
+            changed = build_persisted_context(scope(), changed_context)
+            with pytest.raises(
+                CalculationContextPersistenceError,
+                match="CONTEXT_IMMUTABLE_CONFLICT",
+            ):
+                repo.save(changed)
         loaded = repo.get(scope(), "S-1", expected_calculation_identity=record.calculation_identity)
         assert loaded == record
     finally:
@@ -163,3 +186,11 @@ def test_postgres_context_round_trip(postgres_dsn):
         connection.execute("TRUNCATE TABLE schedule_calculation_context")
         connection.commit()
         connection.close()
+
+
+@pytest.mark.parametrize("project_version", [True, 7.5, "7"])
+def test_calculation_context_rejects_non_integer_project_version(project_version):
+    with pytest.raises(ValueError, match="project_version must be an integer"):
+        CalculationContext(
+            **{**make_context().to_dict(), "project_version": project_version}
+        )

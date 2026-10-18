@@ -161,12 +161,18 @@ def time_backward_pass(
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware backward pass requires at least one activity")
     _validate_project_calendar_context(activity_list)
     activity_map = {a.id: a for a in activity_list}
+    if len(activity_map) != len(activity_list):
+        raise ValueError("activity ids must be unique")
     if set(activity_map) != set(early):
         raise ValueError("early schedule must contain every activity")
     relationship_list = list(relationships)
     constraint_list = list(constraints)
+    if any(item.activity_id not in activity_map for item in constraint_list):
+        raise ValueError("constraint references an unknown activity")
     outgoing: dict[str, list[TimeRelationship]] = {a.id: [] for a in activity_list}
     incoming_count = {a.id: 0 for a in activity_list}
     successors: dict[str, list[str]] = {a.id: [] for a in activity_list}
@@ -246,8 +252,16 @@ def time_backward_pass(
                 CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
             )
         else:
-            lag_reference = lag_context.relationship_lag_reference(predecessor_context.effective_activity())
-            lag_resolver = resolve_calendar_aware(registry, lag_reference)
+            lag_reference = lag_context.relationship_lag_reference(
+                predecessor_context.effective_activity(),
+                relationship_lag_calendar,
+            )
+            if lag_reference is None:
+                lag_resolver = CalendarAwareResolver(
+                    CalendarReference("24-hour", "1", "working-time"), raw_lag_resolver
+                )
+            else:
+                lag_resolver = resolve_calendar_aware(registry, lag_reference)
         required = {
             RelationshipType.FS: _inverse_lag(successor.start, rel.lag, lag_resolver),
             RelationshipType.SS: _inverse_lag(successor.start, rel.lag, lag_resolver),
@@ -272,9 +286,21 @@ def calculate_time_floats(
     registry: CalendarResolverRegistry,
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
 ) -> Mapping[str, TimeFloatActivity]:
-    activity_map = {a.id: a for a in activities}
+    activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware float calculation requires at least one activity")
+    activity_map = {a.id: a for a in activity_list}
+    if len(activity_map) != len(activity_list):
+        raise ValueError("activity ids must be unique")
+    expected_ids = set(activity_map)
+    if set(early) != expected_ids or set(late) != expected_ids:
+        raise ValueError("early and late schedules must contain every activity and no extras")
+
+    relationship_list = list(relationships)
     outgoing = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
+    for rel in relationship_list:
+        if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
+            raise ValueError("relationship references an unknown activity")
         outgoing[rel.predecessor_id].append(rel)
 
     result: dict[str, TimeFloatActivity] = {}
@@ -318,9 +344,10 @@ def calculate_time_floats(
                     lag_resolver = resolve_calendar_aware(registry, lag_reference)
                 if rel.type in {RelationshipType.FS, RelationshipType.FF, RelationshipType.SF, RelationshipType.SS}:
                     # Measure slack by delaying the predecessor and checking the
-                    # relationship event in the authoritative lag calendar.
-                    delay = Decimal("0")
-                    for _ in range(10000):
+                    # relationship event in the authoritative lag calendar. For
+                    # working hours, search at the resolver's exact microsecond
+                    # precision rather than rounding slack to whole hours.
+                    def relationship_holds(delay: Decimal) -> bool:
                         delay_quantity = (
                             TimeQuantity.working_hours(delay)
                             if activity.duration.unit is DurationUnit.WORKING_HOUR
@@ -329,27 +356,51 @@ def calculate_time_floats(
                         candidate_start = resolver.add_duration(e.start, delay_quantity)
                         candidate_finish = _add_duration(candidate_start, activity.duration, resolver)
                         if rel.type is RelationshipType.FS:
-                            event = candidate_finish
-                            required = lag_resolver.add_lag(event, rel.lag)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.SS:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.start >= required
-                        elif rel.type is RelationshipType.FF:
-                            event = candidate_finish
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        else:
-                            event = candidate_start
-                            required = _add_signed_lag_for_float(event, rel.lag, lag_resolver)
-                            holds = successor.finish >= required
-                        if not holds:
-                            break
-                        delay += Decimal("1")
-                    limits.append(max(Decimal("0"), delay - Decimal("1")))
+                            required = lag_resolver.add_lag(candidate_finish, rel.lag)
+                            return successor.start >= required
+                        if rel.type is RelationshipType.SS:
+                            required = _add_signed_lag_for_float(candidate_start, rel.lag, lag_resolver)
+                            return successor.start >= required
+                        if rel.type is RelationshipType.FF:
+                            required = _add_signed_lag_for_float(candidate_finish, rel.lag, lag_resolver)
+                            return successor.finish >= required
+                        required = _add_signed_lag_for_float(candidate_start, rel.lag, lag_resolver)
+                        return successor.finish >= required
+
+                    if not relationship_holds(Decimal("0")):
+                        limits.append(Decimal("0"))
+                    elif activity.duration.unit is DurationUnit.WORKING_DAY:
+                        delay = 1
+                        while relationship_holds(Decimal(delay)):
+                            delay *= 2
+                        low, high = 0, delay
+                        while low + 1 < high:
+                            middle = (low + high) // 2
+                            if relationship_holds(Decimal(middle)):
+                                low = middle
+                            else:
+                                high = middle
+                        limits.append(Decimal(low))
+                    else:
+                        microseconds_per_hour = Decimal("3600000000")
+                        delay_microseconds = 1
+                        while relationship_holds(Decimal(delay_microseconds) / microseconds_per_hour):
+                            delay_microseconds *= 2
+                        low, high = 0, delay_microseconds
+                        while low + 1 < high:
+                            middle = (low + high) // 2
+                            delay_hours = Decimal(middle) / microseconds_per_hour
+                            if relationship_holds(delay_hours):
+                                low = middle
+                            else:
+                                high = middle
+                        limits.append(Decimal(low) / microseconds_per_hour)
             free = min(limits) if limits else Decimal("0")
 
+        # Free float is non-negative by definition. In an infeasible schedule,
+        # the relationship check above reports zero available delay; do not let a
+        # negative total float turn that zero into a negative free float.
+        bounded_free = min(max(total, Decimal("0")), free)
         result[activity_id] = TimeFloatActivity(
             activity_id=activity_id,
             early_start=e.start,
@@ -357,9 +408,9 @@ def calculate_time_floats(
             late_start=l.start,
             late_finish=l.finish,
             total_float_hours=total if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
-            free_float_hours=min(total, free) if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
+            free_float_hours=bounded_free if activity.duration.unit is DurationUnit.WORKING_HOUR else None,
             total_float_value=total,
-            free_float_value=min(total, free),
+            free_float_value=bounded_free,
             float_unit=activity.duration.unit,
             critical=total <= 0,
         )
@@ -376,6 +427,8 @@ def time_schedule(
     options: TimeScheduleOptions | None = None,
 ) -> TimeScheduleResult:
     activity_list = list(activities)
+    if not activity_list:
+        raise ValueError("time-aware schedule requires at least one activity")
     _validate_project_calendar_context(activity_list)
     relationship_list = list(relationships)
     constraint_list = list(constraints)

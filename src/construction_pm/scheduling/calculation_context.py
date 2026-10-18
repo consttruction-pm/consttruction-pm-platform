@@ -72,6 +72,8 @@ class CalculationContext:
         ):
             if not getattr(self, field):
                 raise ValueError(f"{field} is required")
+        if isinstance(self.project_version, bool) or not isinstance(self.project_version, int):
+            raise ValueError("project_version must be an integer")
         if self.project_version < 0:
             raise ValueError("project_version must be non-negative")
         try:

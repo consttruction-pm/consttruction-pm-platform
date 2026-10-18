@@ -1,5 +1,8 @@
 from datetime import date, datetime, timezone
+from dataclasses import replace
 import sqlite3
+
+import pytest
 from unittest.mock import patch
 
 from construction_pm.application.authorization import AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
@@ -7,6 +10,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryApplicationService,
     AuthoritativeScheduleQueryProvider,
+    _validate_snapshot_context,
 )
 from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
@@ -406,3 +410,54 @@ def test_query_ignores_client_calculation_metadata_when_persisted_context_exists
         calculation_context=spoofed,
     )
     assert answer.data["project_finish"] == "2026-09-22"
+
+
+def test_authoritative_schedule_input_rejects_project_finish_before_start():
+    with pytest.raises(ValueError, match="project_finish must not be before project_start"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-INVERTED",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=1,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=CalendarReference("CAL-1", "1"),
+            activities=(Activity("A", 1),),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 10, 10),
+            project_finish=date(2026, 10, 9),
+        )
+
+def test_scenario_snapshot_context_rejects_tampered_snapshot_payload():
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-TAMPER",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-TAMPER",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)
+    )
+    tampered = replace(snapshot, canonical_payload=snapshot.canonical_payload + " ")
+
+    with pytest.raises(ValueError, match="SNAPSHOT_HASH_MISMATCH"):
+        _validate_snapshot_context(tampered, context)
+

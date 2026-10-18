@@ -68,14 +68,33 @@ def evaluate_schedule_snapshot(
     authoritative leveling seam when the application supplies its already
     mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
     """
+    if hashlib.sha256(snapshot.canonical_payload.encode("utf-8")).hexdigest() != snapshot.snapshot_hash:
+        raise ScheduleEvaluationError("SNAPSHOT_HASH_MISMATCH")
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ScheduleEvaluationError("INPUT_SNAPSHOT_ID_MISMATCH")
     if calculation_context.project_id != snapshot.scope.project_id:
         raise ScheduleEvaluationError("PROJECT_ID_MISMATCH")
     if calculation_context.project_version != snapshot.scope.project_revision:
         raise ScheduleEvaluationError("PROJECT_REVISION_MISMATCH")
-    if calculation_context.tenant_id is not None and calculation_context.tenant_id != snapshot.scope.tenant_id:
+    if calculation_context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleEvaluationError("TENANT_ID_MISMATCH")
+    # Validate the context against the calendar embedded in the immutable payload
+    # as well as against the stored identity. Older snapshots may predate the
+    # build_snapshot guard, so identity equality alone is not sufficient.
+    try:
+        snapshot_payload = json.loads(snapshot.canonical_payload)
+        if not isinstance(snapshot_payload, dict):
+            raise ScheduleEvaluationError("INVALID_SNAPSHOT_PAYLOAD")
+        project_calendar = snapshot_payload.get("project_calendar")
+        snapshot_calendar_id = project_calendar.get("calendar_id") if isinstance(project_calendar, dict) else None
+        snapshot_calendar_version = project_calendar.get("calendar_version") if isinstance(project_calendar, dict) else None
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SNAPSHOT_PAYLOAD") from exc
+    if (
+        calculation_context.calendar_id != snapshot_calendar_id
+        or calculation_context.calendar_version != snapshot_calendar_version
+    ):
+        raise ScheduleEvaluationError("CALCULATION_CONTEXT_CALENDAR_MISMATCH")
     if snapshot.calculation_identity_version == 2:
         identity_matches = (
             calculation_context.calculation_identity == snapshot.calculation_identity
@@ -193,7 +212,7 @@ def _evaluate_materialized(
         )
     except ScheduleEvaluationError:
         raise
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, OverflowError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
 
 

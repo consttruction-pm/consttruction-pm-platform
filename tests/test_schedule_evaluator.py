@@ -1,4 +1,6 @@
 from datetime import date, datetime, time, timezone
+import hashlib
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -179,6 +181,7 @@ def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input
         ("project_version", 8),
         ("project_id", "OTHER"),
         ("tenant_id", "OTHER"),
+        ("tenant_id", None),
     ],
 )
 def test_evaluator_rejects_context_scope_mismatch(field, value):
@@ -236,3 +239,50 @@ def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
     assert result.time_activities == result.time_result.early_activities
     assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
     assert result.time_result.floats['B'].total_float_hours == Decimal('2')
+
+
+def test_evaluator_rejects_context_calendar_mismatch_before_replay():
+    snapshot, context = make_snapshot_and_context()
+    mismatched_context = replace(context, calendar_id="CAL-OTHER")
+
+    with pytest.raises(
+        ScheduleEvaluationError,
+        match="CALCULATION_CONTEXT_CALENDAR_MISMATCH",
+    ):
+        evaluate_schedule_snapshot(snapshot, mismatched_context, registry())
+
+
+def test_evaluator_checks_snapshot_hash_before_calendar_context():
+    snapshot, context = make_snapshot_and_context()
+    tampered_payload = snapshot.canonical_payload.replace('"calendar_id":"CAL-1"', '"calendar_id":"CAL-OTHER"', 1)
+    tampered_snapshot = replace(snapshot, canonical_payload=tampered_payload)
+
+    with pytest.raises(ScheduleEvaluationError, match="SNAPSHOT_HASH_MISMATCH"):
+        evaluate_schedule_snapshot(tampered_snapshot, context, registry())
+
+
+@pytest.mark.parametrize("payload", ["[]", "null", '"not-an-object"'])
+def test_evaluator_rejects_non_object_json_snapshot_payload(payload):
+    snapshot, context = make_snapshot_and_context()
+    malformed_shape_snapshot = replace(
+        snapshot,
+        canonical_payload=payload,
+        snapshot_hash=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+    )
+
+    with pytest.raises(ScheduleEvaluationError, match="INVALID_SNAPSHOT_PAYLOAD"):
+        evaluate_schedule_snapshot(malformed_shape_snapshot, context, registry())
+
+
+def test_evaluator_normalizes_arithmetic_overflow(monkeypatch):
+    import construction_pm.schedule_evaluator as evaluator_module
+
+    snapshot, context = make_snapshot_and_context()
+
+    def overflow_schedule(**kwargs):
+        raise OverflowError("datetime arithmetic overflow")
+
+    monkeypatch.setattr(evaluator_module, "schedule", overflow_schedule)
+
+    with pytest.raises(ScheduleEvaluationError, match="SCHEDULE_EVALUATION_FAILED"):
+        evaluate_schedule_snapshot(snapshot, context, registry())

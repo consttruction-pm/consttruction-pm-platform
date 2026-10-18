@@ -178,7 +178,7 @@ def _finite_float(value: Any, field_name: str) -> float:
         raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}")
     try:
         result = float(value)
-    except (TypeError, ValueError) as exc:
+    except (OverflowError, TypeError, ValueError) as exc:
         raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}") from exc
     if not result == result or result in (float("inf"), float("-inf")):
         raise SnapshotMaterializationError(f"INVALID_SCHEDULE_OPTION:{field_name}")
@@ -196,7 +196,7 @@ def _finite_percent_complete(value: Any) -> float:
         raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
     try:
         result = float(value)
-    except (TypeError, ValueError) as exc:
+    except (OverflowError, TypeError, ValueError) as exc:
         raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE") from exc
     if not result == result or result in (float("inf"), float("-inf")):
         raise SnapshotMaterializationError("INVALID_ACTIVITY_PERCENT_COMPLETE")
@@ -565,6 +565,8 @@ def _materialize_payload(
                 Relationship(predecessor_id, successor_id, rel_type, int(lag_value))
             )
         else:
+            if unit is not DurationUnit.WORKING_HOUR:
+                raise SnapshotMaterializationError("TIME_AWARE_LAG_MUST_BE_WORKING_HOURS")
             relationships.append(
                 TimeRelationship(
                     predecessor_id,

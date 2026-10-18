@@ -18,6 +18,7 @@ from typing import Any, Mapping
 from .activity import Activity
 from .calendar_context import CalendarReference
 from .constraints import ActivityConstraint
+from .time_constraints import TimeActivityConstraint
 from .relationships import Relationship
 from .schedule_options import ScheduleOptions
 from .time_forward_pass import TimeActivity, TimeRelationship
@@ -60,7 +61,7 @@ class AuthoritativeScheduleInput:
     activities: tuple[Activity | TimeActivity, ...]
     relationships: tuple[Relationship | TimeRelationship, ...]
     activity_calendar_assignments: tuple[ActivityCalendarAssignment, ...]
-    constraints: tuple[ActivityConstraint, ...] = ()
+    constraints: tuple[ActivityConstraint | TimeActivityConstraint, ...] = ()
     schedule_options: ScheduleOptions = ScheduleOptions()
     project_start: date | datetime | None = None
     project_finish: date | datetime | None = None
@@ -93,8 +94,8 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must contain scheduling relationships")
         if not all(isinstance(item, ActivityCalendarAssignment) for item in self.activity_calendar_assignments):
             raise TypeError("activity_calendar_assignments must contain ActivityCalendarAssignment items")
-        if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
-            raise TypeError("constraints must contain ActivityConstraint items")
+        if not all(isinstance(item, (ActivityConstraint, TimeActivityConstraint)) for item in self.constraints):
+            raise TypeError("constraints must contain scheduling constraint items")
         if not isinstance(self.project_calendar, CalendarReference):
             raise TypeError("project_calendar must be a CalendarReference")
         expected_calendar_kind = (
@@ -128,6 +129,8 @@ class AuthoritativeScheduleInput:
             raise ValueError("calendar assignment references unknown activity")
 
         if self.mode is AuthoritativeScheduleMode.DATE_BASED:
+            if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
+                raise ValueError("DATE_BASED snapshot requires date-based constraints")
             if not all(isinstance(item, Activity) for item in self.activities):
                 raise ValueError("DATE_BASED snapshot requires date-based activities")
             if not all(isinstance(item, Relationship) for item in self.relationships):
@@ -138,7 +141,11 @@ class AuthoritativeScheduleInput:
                 not isinstance(self.project_finish, date) or isinstance(self.project_finish, datetime)
             ):
                 raise ValueError("DATE_BASED project_finish must be a date")
+            if self.project_finish is not None and self.project_finish < self.project_start:
+                raise ValueError("project_finish must not be before project_start")
         else:
+            if not all(isinstance(item, TimeActivityConstraint) for item in self.constraints):
+                raise ValueError("TIME_AWARE snapshot requires time-aware constraints")
             if not all(isinstance(item, TimeActivity) for item in self.activities):
                 raise ValueError("TIME_AWARE snapshot requires time-aware activities")
             if not all(isinstance(item, TimeRelationship) for item in self.relationships):
@@ -152,6 +159,8 @@ class AuthoritativeScheduleInput:
                     raise ValueError("TIME_AWARE project_finish must be a datetime")
                 if self.project_finish.tzinfo is None or self.project_finish.utcoffset() is None:
                     raise ValueError("TIME_AWARE project_finish must include a timezone")
+                if self.project_finish < self.project_start:
+                    raise ValueError("project_finish must not be before project_start")
 
         if isinstance(self.project_leveling_priority, bool) or not isinstance(self.project_leveling_priority, int) or not 1 <= self.project_leveling_priority <= 100:
             raise ValueError("project_leveling_priority must be between 1 and 100")

@@ -131,10 +131,12 @@ class CalendarAwareResolver:
                 return datetime.combine(
                     self.resolver.subtract_working_duration(event.date(), self._whole_working_days(lag.value, field="lag")),
                     time.min,
+                    tzinfo=event.tzinfo,
                 )
             return datetime.combine(
                 self.resolver.add_working_duration(event.date(), self._whole_working_days(-lag.value, field="lag")),
                 time.min,
+                tzinfo=event.tzinfo,
             )
         if lag.unit is not DurationUnit.WORKING_HOUR:
             raise ValueError("working-time lag calendar requires working-hour lag")

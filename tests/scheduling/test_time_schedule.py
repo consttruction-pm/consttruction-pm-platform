@@ -13,7 +13,7 @@ from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from construction_pm.scheduling.time_duration import LagQuantity, TimeQuantity
 from construction_pm.scheduling.schedule_options import StartToStartLagCalculationType
-from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship, time_forward_pass
+from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship, TimeScheduledActivity, time_forward_pass
 from construction_pm.scheduling.time_constraints import TimeActivityConstraint, TimeConstraintType
 from construction_pm.scheduling.time_schedule import (
     calculate_time_floats,
@@ -689,3 +689,251 @@ def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_cale
     )
     start = datetime(2026, 9, 22, 23, tzinfo=timezone.utc)
     assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3, tzinfo=timezone.utc)
+
+def test_time_backward_pass_rejects_constraint_for_unknown_activity():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    constraint = TimeActivityConstraint(
+        "MISSING",
+        TimeConstraintType.START_NO_EARLIER_THAN,
+        datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
+    )
+    with pytest.raises(ValueError, match="constraint references an unknown activity"):
+        time_backward_pass(
+            [activity],
+            [],
+            early,
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+            [constraint],
+        )
+
+
+def test_time_backward_pass_rejects_duplicate_activity_ids():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        time_backward_pass(
+            [activity, activity],
+            [],
+            early,
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+        )
+
+def test_time_backward_pass_rejects_empty_activity_list():
+    with pytest.raises(ValueError, match="time-aware backward pass requires at least one activity"):
+        time_backward_pass(
+            [],
+            [],
+            {},
+            datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+            registry(),
+        )
+
+
+def test_time_schedule_rejects_empty_activity_list():
+    with pytest.raises(ValueError, match="time-aware schedule requires at least one activity"):
+        time_schedule(
+            [],
+            [],
+            datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+            None,
+            registry(),
+        )
+
+
+
+def test_calculate_time_floats_rejects_unknown_relationship_endpoint():
+    ctx = context()
+    activities = [TimeActivity("A", TimeQuantity.working_hours(1), ctx)]
+    early = time_forward_pass(
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="relationship references an unknown activity"):
+        calculate_time_floats(
+            activities,
+            [TimeRelationship("A", "MISSING", RelationshipType.FS)],
+            early,
+            early,
+            registry(),
+        )
+
+
+def test_calculate_time_floats_rejects_incomplete_schedule_mappings():
+    ctx = context()
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = time_forward_pass(
+        activities, [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="early and late schedules must contain every activity"):
+        calculate_time_floats(activities, [], {"A": early["A"]}, early, registry())
+
+
+def test_calculate_time_floats_rejects_duplicate_activity_ids():
+    ctx = context()
+    activity = TimeActivity("A", TimeQuantity.working_hours(1), ctx)
+    early = time_forward_pass(
+        [activity], [], datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry()
+    )
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        calculate_time_floats(
+            [activity, activity], [], early, early, registry()
+        )
+
+
+
+def test_free_float_search_handles_slack_beyond_10000_working_hours():
+    ctx = context()
+    resolver = registry().time_resolvers["site@1"]
+    start = datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    early_a_finish = resolver.add_working_hours(start, 1)
+    late_a_start = resolver.add_working_hours(start, 10001)
+    late_a_finish = resolver.add_working_hours(late_a_start, 1)
+    successor_start = resolver.add_working_hours(start, 10002)
+    successor_finish = resolver.add_working_hours(successor_start, 1)
+
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = {
+        "A": TimeScheduledActivity("A", start, early_a_finish, activities[0].duration),
+        "B": TimeScheduledActivity("B", successor_start, successor_finish, activities[1].duration),
+    }
+    late = {
+        "A": TimeScheduledActivity("A", late_a_start, late_a_finish, activities[0].duration),
+        "B": early["B"],
+    }
+
+    result = calculate_time_floats(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS)],
+        early,
+        late,
+        registry(),
+    )
+
+    assert result["A"].total_float_value == Decimal("10001")
+    assert result["A"].free_float_value == Decimal("10001")
+
+
+def test_free_float_preserves_fractional_working_hour_slack():
+    ctx = context()
+    cal_resolver = registry().time_resolvers["site@1"]
+    start = datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    early_a_finish = cal_resolver.add_working_hours(start, 1)
+    late_a_start = cal_resolver.add_working_hours(start, Decimal("1.5"))
+    late_a_finish = cal_resolver.add_working_hours(late_a_start, 1)
+    successor_start = cal_resolver.add_working_hours(start, Decimal("2.5"))
+    successor_finish = cal_resolver.add_working_hours(successor_start, 1)
+
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(1), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = {
+        "A": TimeScheduledActivity("A", start, early_a_finish, activities[0].duration),
+        "B": TimeScheduledActivity("B", successor_start, successor_finish, activities[1].duration),
+    }
+    late = {
+        "A": TimeScheduledActivity("A", late_a_start, late_a_finish, activities[0].duration),
+        "B": early["B"],
+    }
+
+    result = calculate_time_floats(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS)],
+        early,
+        late,
+        registry(),
+    )
+
+    assert result["A"].total_float_value == Decimal("1.5")
+    assert result["A"].free_float_value == Decimal("1.5")
+
+
+def test_free_float_is_zero_when_total_float_is_negative_and_relationship_is_violated():
+    ctx = context()
+    start = datetime(2026, 9, 22, 9, tzinfo=timezone.utc)
+    resolver = registry().time_resolvers["site@1"]
+    early_a_finish = resolver.add_working_hours(start, 2)
+    late_a_start = datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    late_a_finish = resolver.add_working_hours(late_a_start, 2)
+    successor_start = datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    successor_finish = resolver.add_working_hours(successor_start, 1)
+
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), ctx),
+        TimeActivity("B", TimeQuantity.working_hours(1), ctx),
+    ]
+    early = {
+        "A": TimeScheduledActivity("A", start, early_a_finish, activities[0].duration),
+        "B": TimeScheduledActivity("B", successor_start, successor_finish, activities[1].duration),
+    }
+    late = {
+        "A": TimeScheduledActivity("A", late_a_start, late_a_finish, activities[0].duration),
+        "B": early["B"],
+    }
+
+    result = calculate_time_floats(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS)],
+        early,
+        late,
+        registry(),
+    )
+
+    assert result["A"].total_float_value == Decimal("-1")
+    assert result["A"].free_float_value == Decimal("0")
+    assert result["A"].free_float_hours == Decimal("0")
+
+def test_backward_validation_uses_explicit_project_lag_calendar_over_context_default():
+    refs = {
+        "project": CalendarReference("project", "1", "working-time"),
+        "predecessor": CalendarReference("predecessor", "1", "working-time"),
+        "successor": CalendarReference("successor", "1", "working-time"),
+    }
+    calendar = lambda intervals: TimeAwareWorkingTimeResolver(
+        WorkingTimeCalendar(daily_intervals={i: intervals for i in range(5)})
+    )
+    registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": calendar(((time(6), time(18)),)),
+        "predecessor@1": calendar(((time(8), time(17)),)),
+        "successor@1": calendar(((time(7), time(11)), (time(12), time(16)))),
+    })
+    predecessor_context = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["predecessor"],
+        relationship_lag=refs["successor"],
+    )
+    successor_context = SchedulingCalendarContext(
+        project=refs["project"],
+        activity=refs["successor"],
+        relationship_lag=refs["successor"],
+    )
+    result = time_schedule(
+        [
+            TimeActivity("A", TimeQuantity.working_hours(3), predecessor_context),
+            TimeActivity("B", TimeQuantity.working_hours(1), successor_context),
+        ],
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
+        registry,
+        options=TimeScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PROJECT_DEFAULT
+        ),
+    )
+    assert result.early_activities["B"].start == datetime(2026, 9, 22, 14, tzinfo=timezone.utc)
+    assert result.late_activities["A"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
+

@@ -95,7 +95,7 @@ def _validate_migration_context(
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
     if context.project_id != snapshot.scope.project_id or context.project_version != snapshot.scope.project_revision:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
-    if context.tenant_id is not None and context.tenant_id != snapshot.scope.tenant_id:
+    if context.tenant_id != snapshot.scope.tenant_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
     if snapshot.calculation_identity_version != 1:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_ALREADY_MIGRATED")
@@ -122,10 +122,15 @@ def build_snapshot(
 ) -> ScheduleInputSnapshot:
     if schedule_input.project_id != context.project_id or schedule_input.project_revision != context.project_version:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_SCOPE_MISMATCH")
-    if context.tenant_id is not None and schedule_input.tenant_id != context.tenant_id:
+    if context.tenant_id != schedule_input.tenant_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_TENANT_MISMATCH")
     if schedule_input.snapshot_id != context.input_snapshot_id:
         raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_ID_MISMATCH")
+    if (
+        schedule_input.project_calendar.calendar_id != context.calendar_id
+        or schedule_input.project_calendar.calendar_version != context.calendar_version
+    ):
+        raise ScheduleSnapshotPersistenceError("SNAPSHOT_CONTEXT_CALENDAR_MISMATCH")
     payload = schedule_input.canonical_json()
     return ScheduleInputSnapshot(
         scope=BackendScope(
@@ -285,6 +290,10 @@ class SQLiteScheduleInputSnapshotRepository:
             ),
         )
         if updated.rowcount != 1:
+            # This repository commits successful migrations itself. Keep the
+            # same transaction boundary on the failed compare-and-swap path so
+            # callers are not left with an open SQLite write transaction.
+            self.connection.rollback()
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
         self.connection.commit()
         migrated = self.get(scope, snapshot_id)
