@@ -148,10 +148,15 @@ def compose_activity_master_records(
             "ACTIVITY_MASTER_READ_FAILED"
         ) from exc
 
-    expected_ids = {activity.id for activity in schedule_input.activities}
     if not all(isinstance(activity, Activity) for activity in schedule_input.activities):
         raise ScheduleSnapshotPersistenceError(
             "ACTIVITY_MASTER_GRAPH_ACTIVITY_TYPE_MISMATCH"
+        )
+    graph_ids = tuple(activity.id for activity in schedule_input.activities)
+    expected_ids = set(graph_ids)
+    if len(expected_ids) != len(graph_ids):
+        raise ScheduleSnapshotPersistenceError(
+            "ACTIVITY_MASTER_GRAPH_DUPLICATE_ACTIVITY_ID"
         )
     by_id = {record.activity_id: record for record in records}
     if len(by_id) != len(records) or set(by_id) != expected_ids:
