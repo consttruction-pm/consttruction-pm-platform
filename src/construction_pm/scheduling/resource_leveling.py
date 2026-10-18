@@ -592,7 +592,7 @@ def propose_backward_leveling(
     # unsupported errors rather than being approximated from unrelated fields.
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish", "total_float",
+        "early_finish", "late_start", "late_finish",
     }
     for priority in priorities:
         if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
@@ -667,7 +667,6 @@ def propose_backward_leveling(
                     "early_finish": activity.early_finish,
                     "late_start": activity.late_start,
                     "late_finish": activity.late_finish,
-                    "total_float": max_advance,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
