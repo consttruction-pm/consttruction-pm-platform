@@ -623,3 +623,45 @@ def test_forward_leveling_rejects_free_float_priority_when_cpm_value_is_missing(
             (activity,), (ResourceCapacity("R1", day_one, Decimal("0")),),
             resolver=resolver, priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
         )
+
+def test_forward_leveling_uses_each_activities_own_calendar():
+    from construction_pm.scheduling.resource_leveling import LevelingActivity
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    four_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    activities = (
+        LevelingActivity(
+            "A", thursday, thursday, 1,
+            (ResourceDemand("R1", thursday, Decimal("8"), "A"),),
+        ),
+        LevelingActivity(
+            "B", thursday, thursday, 1,
+            (ResourceDemand("R1", thursday, Decimal("8"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", thursday, Decimal("8")),
+        ResourceCapacity("R1", monday, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=project_resolver,
+        level_within_float=True,
+        priorities=(LevelingPriority("Activity ID", SortOrder.DESCENDING),),
+        activity_resolvers={"B": four_day_resolver},
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+    # B's calendar does not work Friday, so its next working day is Monday.
+    assert shifts[0].new_start == monday
+    assert shifts[0].new_finish == monday
+
