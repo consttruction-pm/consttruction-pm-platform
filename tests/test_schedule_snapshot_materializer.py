@@ -21,7 +21,7 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
-from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
+from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -604,6 +604,9 @@ def test_materializer_preserves_activity_state_fields():
                 status=ActivityStatus.COMPLETED,
                 activity_type=ActivityType.TASK_DEPENDENT,
                 status_code=ActivityStatusCode.ACTIVE,
+                original_duration=12,
+                planned_finish=date(2026, 9, 9),
+                leveling_priority=ActivityLevelingPriority.HIGH,
             ),
         ),
         relationships=(),
@@ -627,6 +630,9 @@ def test_materializer_preserves_activity_state_fields():
     assert activity.status is ActivityStatus.COMPLETED
     assert activity.activity_type is ActivityType.TASK_DEPENDENT
     assert activity.status_code is ActivityStatusCode.ACTIVE
+    assert activity.original_duration == 12
+    assert activity.planned_finish == date(2026, 9, 9)
+    assert activity.leveling_priority is ActivityLevelingPriority.HIGH
 
 
 def test_materializer_rejects_non_finite_schedule_option_numbers():
