@@ -291,9 +291,10 @@ For each selected resource r and period t:
 
 - Demand(r,t) = sum of assignment demand overlapping that period under the applicable calendar/spread and leveling semantics.
 - BaseCapacity(r,t) is resolved from the versioned canonical resource calendar/capacity source.
-- EffectiveCapacity(r,t) = BaseCapacity(r,t) × (1 + OverAllocationPercentage / 100) only where the selected option applies.
-- Overload(r,t) = max(0, Demand(r,t) − EffectiveCapacity(r,t)).
-- A result claiming capacity-constrained success must satisfy Overload(r,t) = 0 in every period. Any permitted overload must be explicitly selected and reported.
+- Overload(r,t) = max(0, Demand(r,t) − CapacityAllowedBySelectedLevelingMode(r,t)).
+- IMPORTANT REFERENCE SEMANTICS: “Max Percent to Overallocate Resources” is not a blanket capacity multiplier for every resource and period. The documented leveling option increases resource availability only if resource assignments cannot be leveled after the activity-float limit has been used. Model that conditional fallback explicitly, log where it was invoked, and preserve the original base capacity as a separate value.
+- CUBI must separately expose (a) base-calendar capacity, (b) the selected leveling mode’s permitted capacity allowance/fallback, and (c) actual final demand. Where a CUBI safety policy requires zero overload, it must say whether that means zero against base capacity or zero against the explicitly selected effective allowance. Never silently change between those meanings.
+- If a user-selected overload allowance is applied, report the exact resource, period, base capacity, added allowance, final demand and remaining/excess margin. A schedule that still violates its selected allowed-capacity rule is not successful.
 
 Final demand validation is mandatory. Never disable, bypass, swallow or weaken it.
 
@@ -361,7 +362,7 @@ Earned Value is a family of selected calculation methods. Preserve baseline, bas
 ### 13.1 Base metrics
 
 - BAC = Budget at Completion from the selected baseline.
-- EV = Earned Value cost, calculated from baseline BAC and Performance % Complete.
+- EV Cost = BAC × Performance % Complete, where Performance % Complete is selected by the WBS earned-value technique. This is the standard formula; the documented resource-curve/manual-future-period override conditions in Section 13.2 and Section 36 must be applied before asserting that the same simple activity percentage controls every assignment.
 - PV = Planned Value cost, derived from selected baseline/time-phased plan and date basis.
 - AC = Actual Cost from relevant actual labor/nonlabor/material/expense data.
 - ETC = Estimate to Complete under selected WBS technique.
@@ -720,3 +721,423 @@ No checkbox may be marked complete from inference or screenshots alone. Confirm 
 - [ActivityStep API endpoints, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/api-activitystep.html)
 - [Leveling priority definitions, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm)
 - [Specify leveling priorities, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm)
+
+
+## 29. Exhaustive source-coverage rule: calculation-related official guide scope
+
+This section was added after a full pass over the current Version 26 User Guide table of contents and the official Help navigation for the areas that can affect schedule dates, calendar arithmetic, progress, resource units/cost, earned value, budget/time-phased outputs and calculated reporting. The guide contains many pages about access, layout appearance and administration that do not define calculation semantics; they are not silently treated as formulas. The engineering team must still map actual CUBI controls to this domain.
+
+The source topics below are in scope and must not be skipped simply because a feature is exposed through a menu rather than a formula field:
+
+1. **Administration and user calculation preferences:** global/per-calendar hours per time period; time units and display precision; currency/view currency; default rate types; default price/unit; EVM defaults; overtime factor synchronization; assignment staffing price source; resource calculation options; fiscal-year start month where period reporting is used.
+2. **Project definition and defaults:** project planned start, forecast start, planned finish, Must Finish By/finish anchor where supported, Data Date, default calendar, default activity type, duration type, percent complete type, default cost account/rate type, project leveling priority, baseline for current schedule comparison, summarization and earned-value roles.
+3. **Activity fields and user selections:** Activity Type; Duration Type; Percent Complete Type; activity calendar; Original/Planned/Remaining/Actual duration; Start/Finish vs Early/Late/Remaining dates; actual start/finish/status; expected finish; suspend/resume; constraints; primary/secondary resource; WBS/cost account; all four relationship types; signed lag and lag calendar; assignment rate type/rate source/cost-unit links; steps and step weights; time-phased buckets; baseline-associated values.
+4. **Calendar definition and assignment:** global/project/shared resource/personal resource calendars; default global calendar; calendar Used By assignments; work/nonwork days; weekly working hours and daily segments; exceptions; default Hours per Time Period; activity/resource calendar assignment; calendar replacement when deleting an in-use calendar; calendar edits that affect manual future-period assignment values.
+5. **Schedule command and options:** chosen options source project for multi-project scheduling; current Data Date; whether all open projects use own Data Date or the selected date; optional “set Data Date and Project Planned Start to Project Forecast Start” behavior; output log; multiple-project warnings; General and Advanced tabs; every selection enumerated in Sections 9, 30 and 31.
+6. **Progress/update commands:** Update Progress for selected/spotlighted activities; Apply Actuals; new Data Date; own project dates vs shared date; schedule forecast/progress; Started/Finished flags; remaining duration; actual duration and units; automatic actual computation; progress removal; suspend/resume; timesheet-derived actuals; manual future bucket side effects; rescheduling after update.
+7. **Level Resources:** level selected/all resources; automatically level during scheduling; project-resource priority filter; activity-priority sequence and sort order; only within Total Float; preserve minimum float; Max Percent to Overallocate fallback; driving vs non-driving assignments; WBS summary treatment; resource shifts behavior according to the supported deployment; recalculation of costs after leveling; leveling report.
+8. **Cost and units:** Calculate Costs from Units; cost/units linked flags; assignment rate type and rate source Resource/Role/Override; multiple rates over time; default price/unit; cost/units synchronization under activity duration types; Add Actual to Remaining / Subtract Actual from At Completion; Reset Planned/Original duration and units to Remaining / Reset Remaining to Planned/Original; auto compute actuals; actuals and period values; expenses/accrual; cost-account rollup; labor/nonlabor/material/expense totals.
+9. **Curves and manual period spread:** assign/remove curve; curve distribution; planned and actual time-phased spread; remaining distribution; manual future-period bucket planning; settings that change how actuals/remaining units derive from planned vs remaining spread; the effect of calendar edits, status changes, schedule changes, and EVM.
+10. **Baseline/EVM:** create/copy/assign/update/modify baseline; separate baselines for earned value, summary and comparison; current/planned date basis; activity/WBS percent technique; WBS milestone weights; ETC/PF method; BAC/EV/PV/AC/CV/SV/CPI/SPI/EAC/TCPI; using curves/buckets for earned value; stored period data and historical-period corrections.
+11. **Calculation-adjacent reports/diagnostics:** Check Schedule Report tests, thresholds for long lags/large float/large duration, open-ended and relationship diagnostics, closed/missing external project links, missing baseline activities, scheduling/leveling logs, critical path, multiple float paths, Gantt progress line/data-date line, resource/usage profile and spreadsheet units.
+12. **Calculated views and persistence boundaries:** Activity Table calculated columns and formulas, Gantt bar labels/geometry, Activity Network and Trace Logic, Usage/Profile/Spreadsheet time-phased data, Tracking Project Tables/Bar Charts/Gantt/Profile, group/sort/filter/summarize, publish/export/import and any AI/desktop output. Presentation settings may change rendering only; they cannot independently calculate dates, float, units, cost or progress.
+
+A page listed in this section may contain one or more explicit options, field definitions, note paragraphs or edge-case rules. Implementation owners must read the relevant page, not merely cite the navigation title.
+
+## 30. Calendar arithmetic, hours/time-period conversion and display units
+
+### 30.1 Canonical storage versus display
+
+**DOCUMENTED:** the reference application stores time-unit values in hourly increments. Users may display/enter durations and units in hours, days, weeks, months or years. The Hours per Time Period conversion factors convert non-hour values to hours for storage, and stored hours back to display units.
+
+Two different calculation settings must not be confused:
+- **Global hours-per-period mode:** uses the administrative/application Hours per Time Period values even if the assigned calendar works a different number of hours per day.
+- **Assigned-calendar mode:** uses the Hour per Time Period values from the activity/resource's assigned calendar.
+
+Example explicitly described in the guide: with display unit = day, global factor = 8 h/day, calendar work = 10 h/day, and stored duration = 30 hours, the global conversion display is 3 days 6 hours, while calendar conversion is 3 days. This distinction is a conversion/display configuration, not permission to alter the actual 30 hours of work.
+
+### 30.2 Conversion contract
+
+For a defined display period q with conversion factor H(q) hours per period:
+
+- Convert entered amount x periods to canonical hours: Hours = x × H(q).
+- Convert canonical hours h to display amount: DisplayUnits = h ÷ H(q), subject to the selected formatting/precision rules.
+- For calendar-aware duration and working-time advancement, separately calculate actual working intervals from the assigned calendar. Do not use hours-per-period display conversion as a substitute for iterating real work periods.
+- If global Hours per Time Period differs from assigned calendar work hours, show the selected conversion source and avoid presenting the display count as actual working-day count without explanation.
+- Per the guide, calendar work-hour decimals other than 0.0 or 0.5 round up/down to 0.0 or 0.5 in that calendar UI. The CUBI compatibility layer must parity-test this field-entry/normalization rule and not spread it silently to every internal decimal calculation.
+
+### 30.3 Calendar operations and edit effects
+
+The compatibility inventory must include calendar type (global/project/shared resource/personal resource), assignment, inherited/linked relationship, workday/nonworkday, day segments, exceptions, calendar used-by and deletion/replacement workflow. Deleting an in-use calendar cannot silently orphan references; the selected replacement/link-to-default behavior must be explicit and audited. Calendar changes can change working-time distribution, duration conversions and manual future-period bucket values; invalidate and recompute affected values with the calendar ID/version recorded.
+
+### 30.4 Required calendar fixtures
+
+Use a golden fixture for each of: calendar-specific 8/10/12-hour days; global versus per-calendar conversion; split day shifts; midnight-crossing shifts if supported by the model; Friday/Saturday or other nonstandard workweek; holiday/exception as work and as nonwork; fractional hour rounding; month/year display conversion; mixed activity/resource/lag calendars; calendar inheritance/change; deleting/replacing a used calendar; manually planned future bucket after calendar change; Jalali/Gregorian display invariance.
+
+**Sources:** [Hours per Time Period — User Guide v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/defining_default_hours_per_time_period_in_calendars.htm); [Time Periods tab — Admin Preferences v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/time_periods_tab_-_admin_preferences_dialog_box.htm); [Edit a project calendar](https://docs.oracle.com/cd/F37128_01/English/User_Guides/p6_pro_user/edit_a_project_calendar.htm); [Edit a resource calendar](https://docs.oracle.com/cd/F51303_01/client_help/en_US/edit_a_resource_calendar.htm).
+
+## 31. Full schedule command input/output contract
+
+The Tools → Schedule action is itself a calculation contract. Before invoking the engine, collect and persist:
+
+- selected project(s);
+- source of schedule options when multiple projects are open;
+- each project's current Data Date, or the explicit choice to apply one selected Data Date to all open projects;
+- whether scheduling will first set Data Date and Project Planned Start to each project's Forecast Start;
+- every General and Advanced option from Section 9;
+- any selected default values restored from the Default action;
+- whether to generate a scheduling log and its output target;
+- acknowledgement/cancel state for warnings about different project Data Dates or “Opened projects” float/end-date mode.
+
+Output must return an immutable calculation ID, the project/option snapshot, scheduled start/finish/early/late/remaining dates, total/free/start/finish float, critical flags, multiple path IDs/order, constraint/relationship diagnostics, project scheduled finish and summary resource/cost outputs. A log file is evidence output—not a substitute for typed machine-readable diagnostics.
+
+### 31.1 Multi-project schedule semantics
+
+- “All projects use their own Data Date” must use each project’s selected date.
+- “Apply selected Data Date to all open projects” intentionally changes calculation input; record that choice and the resulting dates.
+- Under “Calculate float based on end date of Each project,” backward pass/open-ended activities use each project finish date, including external relationships.
+- Under “Opened projects,” the latest finish date across all opened projects governs backward dates for open-ended/external-linked activities and can yield more float; each project's Scheduled Finish field uses that latest finish date.
+- “Use scheduling options from” determines which project settings to use when multiple projects are open. CUBI must not mix settings from different projects unintentionally.
+- WBS Summary activity relationships are ignored during schedule calculation even where activity relationships between projects are otherwise maintained, as documented.
+- Canceling a warning must not silently proceed with a different configuration.
+
+**Sources:** [Schedule a project — v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/schedule_a_project.htm); [General Schedule Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm); [Schedule Options dialog](https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedule_options_dialog_box.htm).
+
+## 32. Exact Project Details → Calculations tab behavior
+
+These settings interact with units, costs, status changes, baselines, remaining work and time-phased values. They must be separate options, individually testable; do not collapse them into one generic “autocalculate” switch.
+
+### 32.1 Activity settings
+
+**Default Price/Unit for activities without resource/role prices**
+- Used for activities with labor/nonlabor units but no assigned resources/roles, or assignments with no price, according to this project default.
+- The entry has a price and a time unit. Changing the default is not an automatic recalculation of every existing assignment; the explicit recalculation action and project option rules apply.
+- A resource assignment whose rate type is not defined can fall back to this value according to the guide; the UI should identify the fallback source.
+
+**Activity percent complete based on activity steps**
+- When enabled, an activity using Physical percent-complete type derives its Physical % Complete from weighted steps; see Section 23. It does not replace Duration/Units type behavior.
+
+**Link Planned or Budget and At Completion for not-started activities**
+- When enabled, for Not Started activities, Budgeted/Planned, Remaining and At Completion values are linked/equal according to the guide; future-period planned and Remaining (Early) units fields for the assignment stay equal in aggregate and paired period edits can mirror one another.
+- When disabled, planned/budgeted values are retained as the original plan while Remaining or At Completion values can diverge; future-period budgeted/planned and Remaining (Early) bucket distributions may be entered and calculated independently.
+- When a Not Started activity already has Actual Costs, Planned Cost and At Completion Cost remain unlinked regardless of this option.
+- Changing a task from Started to Not Started or changing this option from unlinked to linked interacts with “Reset Planned or Original Duration and Units to Remaining.” Do not treat the checkbox as a simple equal-fields UI rule; recalculate as documented.
+
+**Reset Planned or Original Duration and Units to Remaining**
+- Recalculate Planned duration and dates from At Completion duration and Remaining dates, and Planned units from At Completion units for activity and assignments.
+- If there are no actual costs, Planned Cost, At Completion Cost and ETC become equal.
+
+**Reset Remaining Duration and Units to Planned or Original**
+- Recalculate At Completion duration and Remaining dates from Planned duration and dates, and At Completion units from Planned units.
+- If there are no actual costs, Planned Cost, At Completion Cost and ETC become equal.
+
+These reset choices are discrete operations. Record prior inputs/outputs and the specific choice; do not run both or silently infer one from activity status.
+
+### 32.2 Resource assignment settings
+
+**When Updating Actual Units or Cost → Add Actual to Remaining**
+- At Completion Units/Cost = Actual Units/Cost + Remaining Units/Cost.
+- This is a common true-at-completion mode (for example, cost-plus work).
+
+**When Updating Actual Units or Cost → Subtract Actual from At Completion**
+- Remaining Units/Cost = At Completion Units/Cost − Actual Units/Cost.
+- This tracks remaining budget under a fixed-price/fixed-budget model.
+- Documented exception: Fixed Duration & Units/Time always uses Add Actual to Remaining regardless of this Add/Subtract setting, because subtract mode would require changing duration or units/time and contradict fixed-duration/fixed-units-time semantics.
+
+**Recalculate Actual Units and Cost when Duration % Complete changes**
+- When enabled and Duration % Complete is edited, Actual Units/Cost = Budgeted/Planned Units/Cost × Duration % Complete.
+- Without resource assignment, activity budgeted/planned units/costs are used.
+- An explicitly entered value overrides the auto-calculated value.
+- Costs use this rule only when the resource detail option Calculate costs from units is enabled.
+- This rule recalculates actuals only for Fixed Duration & Units/Time and Fixed Duration & Units duration types; it calculates actuals when Duration % Complete changes, but does not reverse-calculate Duration % Complete from actual unit/cost changes.
+- With a resource curve, Actual Units/Cost = curve-area percentage at Duration % Complete × Budgeted/Planned Units/Cost, then roll up to the activity.
+- Manual future period planning changes whether actuals are distributed from the manual Remaining or Planned/Budgeted distribution depending on which fields are edited; see Section 36.
+
+**Update units when costs change on resource assignments**
+- Enables recalculation of units when assignment cost changes, such as remaining cost. It depends on Calculate Costs from Units/assignment settings. Cost-to-unit conversions must use selected rate and units/time semantics; do not apply where the guide disables synchronization for Fixed Units/Fixed Units-Time.
+
+**Link actual to date and actual this period units and costs**
+- When enabled, edits to either value recalculate the other according to the linked period/actual model.
+- This setting is required for Store Period Performance and editing past period actuals.
+- Save period, activity/assignment and before/after values with an audit trail.
+
+**Sources:** [Calculations tab — Project Details v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/calculations_tab_-_project_details.htm); [Recalculate resource and role assignment costs](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/recalculate_resource_and_role_assignment_costs.htm).
+
+## 33. Progress commands, Progress Spotlight and Apply Actuals
+
+Activity progress is an input workflow with explicit date and assignment updates; it is not equivalent to running CPM or editing one percentage field.
+
+### 33.1 Tools → Update Progress / Progress Spotlight
+
+- Progress Spotlight identifies activities expected to start/progress/finish between the previous Data Date and the new date, using the smallest interval of the displayed Gantt timescale unless the user adjusts the Data Date line.
+- If multiple projects are open, the default project's Data Date is used as the start of the highlighted period.
+- Spotlight selection is persistent independently of row selection.
+- When the data-date line is dragged or Progress Spotlight is enabled, automatic scheduling is turned off. The user must complete the update and then schedule again; CUBI must make unscheduled/stale values explicit.
+- Update Progress chooses whether to update all spotlighted activities or just selected activities and specifies the new Data Date. Do not silently update activities outside the selected set.
+
+### 33.2 Documented Apply Actuals / Update Progress calculations
+
+The official Update Progress dialog describes the following operations when estimating progress for activities that should have occurred by the new Data Date:
+
+- If Project Planned Start is before the new Data Date, set Actual Start to Project Planned Start.
+- Remaining Duration = Early Finish − New Data Date, under the scheduler’s appropriate time/calendar semantics.
+- Actual Duration = Original Duration − Remaining Duration.
+- Actual Units = Units % Complete × At Completion Units.
+- If Planned Finish is before the new Data Date, set Actual Finish to Planned Finish.
+- Update Current Data Date to the selected New Data Date after applying.
+
+These formulas describe the auto-progress workflow; they do not overwrite timesheet/report actuals or manually controlled actual fields unless the selected application mode calls for it. Test exact boundaries when dates equal the Data Date, activities should not have started, activities progressed out of sequence, remaining duration below zero, calendar exceptions and activities with manually planned buckets.
+
+### 33.3 Timesheets and remaining-duration policy
+
+When actuals are applied from timesheets, a user can choose to recalculate remaining duration based on activity duration type or always recalculate it. “Always” treats activities as Fixed Units and Fixed Units/Time. This is a calculation mode and must be captured in snapshot/audit. Unapproved timesheet handling and permission to Apply Actuals are workflow preconditions; they must not be bypassed in the assistant.
+
+### 33.4 Manual progress versus automatic estimate
+
+Support the documented flows to update all activities, individually selected activities, spotlighted activities or an entire project; update/remove progress; suspend/resume; set Started/Finished status; change remaining duration/units or Expected Finish; and then recalculate. Show separately what the user entered, what was automatically estimated, what was applied from timesheets and what CPM recalculated afterward.
+
+**Sources:** [Update Progress dialog box v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_dialog_box.htm); [Apply Actuals dialog box v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/apply_actuals_dialog_box.htm); [Update progress for the project](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_for_the_project.htm); [Highlight activities for updating](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/highlight_activities_for_updating.htm); [Updating progress](https://docs.oracle.com/cd/G48902_01/client_help/en_US/updating_progress.htm).
+
+## 34. Resource/role rate source, price calculations and resource details
+
+The assignment’s calculation is determined by multiple independent fields. Do not make Rate Type, Rate Source, Cost Units Linked, Calculate Costs from Units and project default price/unit into one setting.
+
+### 34.1 Rate Type and Rate Source
+
+- **Rate Type:** selects which named price/unit is used from rate table/assignment settings.
+- **Rate Source = Resource:** use the resource’s selected rate type.
+- **Rate Source = Role:** use the role’s selected rate type.
+- **Rate Source = Override:** use custom price/unit entered for the assignment; the recalculation utility must not overwrite it.
+- If resource and role share an assignment, follow the explicit rate source or the user-preference behavior (always resource, always role, or prompt on assignment). If only a resource exists, the rate source cannot be Role; if only a role exists, it cannot be Resource.
+- A missing selected price/unit can invoke the documented project default price/unit for activities without resource/role prices. Record that fallback in the output.
+- Recalculate Assignment Costs updates assignments across open projects under the documented permission and selection rules. It can synchronize the overtime factor if selected, ignores Rate Source = Override, and requires Link actual to date/Actual This Period according to the official guide.
+- Schedule Options can request cost recalculation after scheduling. Level Resources can separately request cost recalculation after leveling. These trigger points are not interchangeable.
+- When the rate type changes and units/costs are linked, the selected rate can recalculate cost. If Activity Duration Type is Fixed Units or Fixed Units/Time, units are not recalculated merely because cost changes.
+
+### 34.2 Time-varying rates
+
+For each work segment s where the chosen rate applies:
+- Segment Cost(s) = Segment Units(s) × Price per Unit(s).
+- Assignment Cost = Σ Segment Cost(s) across all applicable effective periods/rate changes under the chosen rate type and source.
+- Example in the official guide: 16 hours at $10/hour = $160; subsequent 8 hours at $30/hour = $240; total = $400.
+- When dates change, recalculate the rate segments if the relevant option/action is selected.
+- The guide notes special handling for resource shifts that use timesheets and notes that multiple rates are not reflected in Activity Usage/Resource Usage Spreadsheets. If CUBI displays cost spreading in those views, document and test exactly which aggregate it represents rather than assuming it equals a segment-rate calculation.
+- Price rate tables by effective date, currencies and rounding require separate fixtures.
+
+### 34.3 Resource and role availability
+
+Resource/role data includes max units/time, price/unit rates over time, effective dates, resource shifts, shared/personal calendar, primary resource designation and resource/role assignments. Role limits over time are not the same as calendar hours and not the same as current assignment demand. Availability must be checked over the correct work periods and selected project scope.
+
+### 34.4 Resource shifts and environment-specific behavior
+
+The Version 26 guide describes resource shifts as 24-hour definitions composed of segments with start times on the hour and a minimum segment duration of one hour. In the documented P6 Professional database context, leveling does not consider shifts in one mode, while another documented behavior uses shifts to calculate units/prices during leveling and uses calendar to determine workability; the exact product/database deployment matters. Therefore, CUBI must not make a universal claim about shift-based leveling without matching the selected reference deployment. Put deployment profile/version into compatibility fixtures, and make shift support/status explicit.
+
+### 34.5 Non-driving resource assignment leveling
+
+The reference guide distinguishes driving and non-driving assignments:
+- For Task Dependent activities with driving and non-driving assignments, all assigned resources must be available to place the activity.
+- For Resource Dependent activities with both, driving resources drive the activity dates; non-driving resources are leveled on/after those dates.
+- For Resource Dependent activities with only non-driving assignments, those assignments may be placed any time after the earliest possible activity start.
+- If driving resources can be placed but non-driving resources cannot, non-driving assignment dates may be delayed based on driving placement and a failure is recorded in leveling report.
+- WBS Summary activities are ignored during leveling.
+- A suspended-activity resource is considered available for other assignments until the resume date per the Level Resources guide.
+
+These are mandatory activity-type/assignment-level parity cases. “No overload at activity dates” cannot be simplified to one boolean for the entire multi-resource assignment.
+
+**Sources:** [Rate Type](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/assign_a_rate_type_to_a_resource_assignment.htm); [Rate Source](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/choose_the_rate_source_for_an_assignment.htm); [Multiple resource rates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_cost_when_using_multiple_resource_rates.htm); [Resource shifts](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/define_resource_shifts.htm); [Leveling by activity type](https://docs.oracle.com/cd/F74771_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm); [Recalculate assignment costs](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/recalculate_resource_and_role_assignment_costs.htm).
+
+## 35. Complete Resource Leveling command options and edge cases
+
+The Tools → Level Resources dialog must model these options independently:
+- Consider assignments in other projects with priority equal/higher than threshold.
+- Preserve Scheduled Early and Late Dates.
+- Level All Resources or choose a subset via Select Resources.
+- Ordered leveling priorities and sort direction.
+- Level Resources Only Within Activity Total Float.
+- Preserve Minimum Float When Leveling.
+- Max Percent to Overallocate Resources.
+- Automatically Level Resources When Scheduling.
+- Recalculate Assignment Costs After Leveling where available.
+- Log leveling results to file.
+- Restore defaults.
+- The selected project's leveling options when multiple projects are open.
+
+### 35.1 Exact float-limit and over-allocation meaning
+
+“Level Resources Only Within Activity Total Float” limits delayed activities to their late dates (Late Finish when the finish-float basis is used, or Late Start when the start-float basis is used). “Preserve Minimum Float When Leveling” defines the minimum retained total float. “Max Percent to Overallocate Resources” defines a maximum increase in resource availability and is used only if the assignments cannot be leveled after their activity float limit is used. This percentage cannot be blindly applied to every date or act as a normal allowance independent of float constraints.
+
+### 35.2 Priority vocabulary and order
+
+Support the complete orderable field vocabulary: Activity ID; Activity Priority; Early Finish; Early Start; Free Float; Late Finish; Late Start; Original/Planned Duration; Planned Finish; Project Planned Start; Project Priority; Remaining Duration; Total Float. Sort direction and the order of the priority list matter: a first-priority field wins before lower-priority fields. The guide documents number-before-alpha ordering for codes and Activity ID ordering when there are no priority codes. Keep tie-breaks deterministic and separately test blanks/values.
+
+### 35.3 Special assignment behavior
+
+The Level Resources report must identify each resource assignment that could not be leveled even if other driving assignments of that activity succeeded. Preserve distinct assignment dates when non-driving resource assignments can be placed later than activity dates. Do not force all resource assignment dates to equal the activity dates if resource-dependent reference behavior allows independent non-driving assignments.
+
+### 35.4 Final validation
+
+The final output validator must inspect the accepted scheduled graph, all assignment-level effective dates, all time-phased demands/capacity periods, the selected allowance policy, and any failed assignment record. It must not validate only the proposal ledger or only resource/date totals. An infeasible result must identify the resource, bucket, demand, base capacity, allowed capacity policy, activities/assignments and blocking constraints/relations.
+
+**Sources:** [Level Resources v26 Help](https://docs.oracle.com/cd/G48902_01/client_help/en_US/levelingresources.htm); [Limit resource leveling](https://docs.oracle.com/cd/F25600_01/client_help/en_US/limit_resource_leveling.htm); [Level selected resources](https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_selected_resources.htm); [Level resources automatically](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/level_resources_automatically_2.htm); [Leveling special activity types](https://docs.oracle.com/cd/F74771_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm).
+
+## 36. Resource curves, future-period buckets and Earned Value interaction
+
+Curves and manually entered future-period buckets are independent inputs to the assignment time-phasing model and can change actual units/costs and Earned Value. Keep all of these distinctions:
+
+- A resource/role assignment may have a curve or manual distribution of units/cost in future time periods.
+- If Actual Units/Cost is computed from Duration % Complete and a curve applies, actuals are the corresponding curve-area percentage × planned/budgeted assignment units/cost, not a simple linear Duration % Complete × full budget.
+- When applying actuals with manually planned buckets, the source of the distribution depends on what was edited: Duration % Complete/Remaining Duration, Remaining Units/Remaining Early Finish, or Actual Units. Different cases can use Remaining distribution, planned/budgeted distribution, or not modify planned/remaining bucket values.
+- If the option Link Planned/Budget and At Completion is enabled for a Not Started assignment, planned/budgeted units and Remaining (Early) units bucket values remain linked/equal per the guide. If disabled, those totals can be independent. In-progress assignments may enter different planned versus remaining future-period values.
+- Calendar edits can change values in manual future-period buckets. Recompute and preserve audit history.
+- **EVM curve/bucket conditions:** the guide says curves/manual future-period buckets are used when Activity % Complete Type is Units and the WBS Performance % Complete technique is Activity % Complete; or when the WBS option “Use resource curves/future period buckets” is checked with Activity % Complete technique. For ETC to spread using a curve, ETC = Remaining Cost for Activity must be selected.
+- The EVM user must be able to select the WBS method and see why curve/bucket behavior did or did not apply. Do not apply curves to every WBS technique automatically.
+
+**Sources:** [EVM with resource curves/future buckets v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_earned_value_using_resource_curves_or_manual_future_period_buckets.htm); [Future period bucket planning](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/future_period_bucket_planning.htm); [Troubleshooting future buckets](https://docs.oracle.com/cd/G48902_01/client_help/en_US/48610.htm); [Project calculations settings](https://docs.oracle.com/cd/G48902_01/client_help/en_US/calculations_tab_-_project_details.htm).
+
+## 37. Baseline selection, baseline values and historical period data
+
+A “baseline” is not one generic record. Inventory and test these distinct decisions:
+- create/copy/update/modify/delete baseline;
+- choose the baseline used for current project comparison/display;
+- choose the baseline used for summarization;
+- choose the baseline used for earned value;
+- choose user primary baseline vs project baseline policy;
+- compare current schedule to baseline and select which baseline fields are shown;
+- retain current actual and remaining values when creating/updating a baseline;
+- handle an activity missing from the assigned baseline in reports;
+- historical-period unit/cost actuals and corrections.
+
+Baseline comparisons are calculated against a selected version and field mapping, not necessarily current schedule dates. Historical period values and current actual-to-date/actual-this-period are separate time series. Editing a past period must trigger the appropriate recalculation of EVM and reports and must leave an audit record.
+
+Required test: same snapshot with two different baselines; planned-date versus current-date EV policy; project baseline versus primary baseline; baseline without one activity; update baseline on progressed activities; two fiscal calendars/period scopes; posting/reposting period; changing historic Actual This Period; restore/recalculate result replay.
+
+**Sources:** [Baselines section in official User Guide v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm); [EVM baseline/date method](https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value_tab_-_admin_preferences_dialog_box.htm); [Post period values](https://docs.oracle.com/cd/F51303_01/English/User_Guides/p6_pro_user/post_actual_amounts_for_a_period.htm); [Edit past period actuals](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/edit_past_period_actual_data.htm).
+
+## 38. Activity/work-calendar defaults and project settings
+
+Before scheduling a newly created/imported project or activity, resolve and persist all defaults that can affect calculations, including:
+- project default activity type;
+- project default activity duration type;
+- project default percent-complete type;
+- project default activity calendar;
+- project default cost account and assignment rate type;
+- global vs project vs resource calendar availability;
+- project planned start, finish/date settings, Data Date, forecast start if present;
+- project status and level priority;
+- fiscal year starts and financial-period definitions when time-phased cost/EVM is in use;
+- default price/unit and assignment cost/unit settings;
+- chosen baseline roles and critical-activity definition.
+
+Defaults apply at specific creation/import points; changing a default later must not silently rewrite existing activity fields unless the documented bulk-change action explicitly requests it. Test each default for: new activity, copy/paste, WBS template, import, duplicate project and changed default after existing activities already exist.
+
+**Sources:** [Project Details/Defaults and settings in official P6 Help v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm); [Project dates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/enter_project_dates.htm); [Default activity/calendar/rate settings](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm).
+
+## 39. Check Schedule Report as a calculated diagnostic contract
+
+Tools → Check Schedule Report is not a substitute for calculating the schedule, but its selected checks, thresholds and results are a required validation/reporting capability for the project scope. Support configurable thresholds for Long Lags, Large Float and Large Durations, select which checks run, and preserve the generated report's project IDs/names/Data Dates, total/completed activity counts, internal/external relationship counts, activities missing from the assigned baseline, and links to/from external projects that are closed when checked.
+
+Every check result should expose the input threshold, activity/relationship identifiers, specific observed value, failed condition and source schedule calculation ID. The threshold/reporting filters must not alter the core scheduler's values or hide the diagnostic from the stored report. Include tests for mixed projects, external relationship endpoints closed, missing baseline activity, threshold boundaries exactly equal to target, and rerunning after a corrected schedule.
+
+**Sources:** [Check a schedule v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/101251.htm); [Check Schedule threshold navigation](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm).
+
+## 40. Complete calculation menu/control coverage matrix — additions after TOC audit
+
+This supplements Section 27. The engineering inventory must include these controls/options where present in CUBI, and explicitly mark a row “not implemented / planned” if a CUBI surface does not yet exist. Absence is not silently treated as “not calculation-relevant.”
+
+| Official menu/window or control | Fields / options / calculations to inventory | Contract areas and required tests |
+|---|---|---|
+| Enterprise → Calendars; Global/Project/Resource tabs | create/edit/delete; calendar type; work week and exceptions; default global calendar; Used By; replacement/link-to-default on delete; Hours per Time Period | CAL-*; conversion and invalidation, roundtrip and reference fixture |
+| Enterprise → Resource Shifts | shift segments; start-hour boundaries; 24-hour total; resource assignments; deployment-specific leveling effect | CAL-*, RES-*; exact version/deployment parity |
+| Enterprise → Projects → Dates | Data Date; Project Planned Start; Planned Finish; Forecast Start; must-finish/finish anchor; project status | SCH-*, OOS-*; multi-project and forecast-start option |
+| Enterprise → Projects → Defaults | default activity type, duration type, percent type, calendar, cost account, rate type, price/unit | ACT-*, DUR-*, PC-*, RES-*, COST-*; existing values not silently rewritten |
+| Enterprise → Projects → Calculations | default price/unit; steps-based Physical%; link/unlink planned/at-completion; reset plan to remaining; reset remaining to plan; Add/Subtract actuals; automatic actuals; update units from costs; link actual period values | CALC-PROJECT-* and exact formula fixtures |
+| Enterprise → Projects → Settings | baseline for EV; critical activity rule/threshold; other calculation defaults and fiscal start month | BASELINE-*, EVM-*, CRIT-*; baseline/threshold behavior |
+| Admin Preferences → Time Periods | global conversion factors vs assigned-calendar hours; unit abbreviations; project/environment-specific behavior | CAL-HOURS-*; hours storage and display invariant |
+| User Preferences → Time Units/Dates/Currency | display unit, date/time format, currency, rounding/display precision and decimal separators | FORMAT-*, locale invariance; no calculation differences from display |
+| Admin Preferences → Earned Value | default performance-complete method, ETC technique/PF, baseline value/date basis | EVM-*; WBS override and denominator tests |
+| Admin Preferences → Rate Types | rate type vocabulary and default names | RES-RATE-*; selected price/source |
+| Project → Activities → General | activity type, duration type, percent complete type, calendar, WBS, responsible manager, primary resource, cost account | ACT-*, CAL-*, PC-*; defaults/calc invalidation |
+| Activity Details → Status/Dates | Started/Finished state, actual dates, durations, Physical/Duration/Units %, expected finish, remaining dates, suspend/resume | PROGRESS-*, OOS-*, DATE-*; automatic/manual update matrix |
+| Activity Details → Constraints | primary and secondary constraints, dates and allowed combinations | CON-*; conflicts/negative float |
+| Activity Details → Predecessors/Successors/Relationships | project/WBS/activity IDs, relation type, lag/time unit, status and external endpoints; synchronization between tabs | REL-*; add/edit/remove and mixed calendars |
+| Activity Details → Resources | resource/role assignment, primary resource, planned/actual/remaining units and cost, rate type/source, price/unit, cost units linked, calendar and manual bucket values | RES-*, RATE-*, DUR-*, COST-*; field-linked/unlinked tests |
+| Activity Details → Steps / Step Templates | step %, completed checkbox, weight, templates copied/assigned | STEP-*; weighted sum and default weights |
+| Tools → Schedule | selected projects/options source; own/shared Data Date; forecast-start mode; default/options; schedule log; warnings/cancel | SCH-*; reproducible input/output snapshot |
+| Schedule Options → General | all fields from Section 9 plus explicit date/finish/critical float and lag calendar options | SCH-*; one-factor and interaction matrix |
+| Schedule Options → Advanced | calculate multiple paths toggle, Total Float vs Free Float, endpoint default, number of paths, path/ordering fields | PATH-*; endpoint selection and path order |
+| Tools → Level Resources | cross-project priority threshold; preserve Early/Late; all/selected resources; full priority list; within float; min float; max overallocate; automatic leveling; recalculate costs; log | LEVEL-*; assignment-level final validation |
+| Tools → Recalculate Assignment Costs | scope of open projects; synchronize overtime factor; Rate Source Override behavior; security gating | COST-*, RATE-*; not overwriting Override |
+| Tools → Apply Actuals / Update Progress | target projects; own/shared Data Date; timesheet remaining-duration policy; project planned start/finish auto-actuals; apply/cancel | PROGRESS-*; actual dates, duration, units and audit |
+| View → Progress Spotlight / Gantt date line | timescale minimum increment; prior/new Data Date; highlighted set; schedule auto-toggle | PROGRESS-*; schedule stale/refresh state |
+| Resource Usage Spreadsheet | period scale, budget/planned vs remaining/actual columns, manual future values, grouping/sort, project/resource scope | SPREAD-*, CURVE-*; total reconciliation and calendar change |
+| Activity Usage Profile / Resource Usage Profile | regular/stacked histogram, series, filters, overtime/past periods, background lines | VIS-*; outputs derived from engine |
+| Tools → Check Schedule Report | selected checks, targets, durations/thresholds, output location, baseline gaps and closed external links | CHECK-*; boundary values and report IDs |
+| Project → Expenses | category, planned units/cost, actual cost, activity assignment, accrual (Start/End/Uniform), Auto Compute Actuals | EXP-*, COST-*; time spread/summary |
+| WBS Details → Earned Value | local overrides to admin default, performance %, ETC/PF, curves/buckets, milestone weight | EVM-*; WBS-specific override |
+| WBS Milestones | name, weight, complete status/date, total weight denominator | STEP-/EVM-MILESTONE-*; zero weight/unequal weights |
+| Project → Baselines / Assign Baselines | project/primary/comparison/summarization/EVM baseline assignments, update/copy/modify | BASELINE-*; not changing source actuals |
+| Tools → Store Period Performance | financial period selection; linking actual to date/this period; post/edit historical values | PERIOD-*; repeat/idempotent and audit |
+| Activity Table / Gantt / Activity Network / Trace Logic | field columns, sort/group/filter, relationship connectors, drag-to-date/duration, critical indicators, progress line, collapse/summary bars | UI action registry; all edit paths use one domain engine |
+| Global Change | condition, operator, typed arithmetic/date/text fields, Then/Else ordering, preview/report, multi-row mutation | GC-*; data type and work-period arithmetic |
+| Import/export, copy/paste, dissolve, baseline import | date/duration units, relation types/lags, calendars, status/progress, rates/costs, bucket/baseline identity | IO-*; lossless roundtrip and invalid-import diagnostics |
+| AI assistant tools | option selections, project scope, permissions, preview/apply, calculation API, reports, write-audit | AI-*; tool calls constrained to shared engine |
+
+## 41. Activity field matrix: calculation dependencies and invalidation
+
+For each activity and assignment field below, record type, unit, source-of-truth, editor, validation and dependency invalidation in the code inventory. Names may differ between CUBI and the reference UI, but semantics must not be merged.
+
+| Field family | Examples | Required invalidation/recalculation |
+|---|---|---|
+| Identity/scope | project, activity ID, WBS ID, assignment ID, tenant/revision | references, graph indexes, rollups, cached snapshots |
+| Activity type | task/resource dependent, LOE, start/finish milestone, WBS summary | date/duration behavior, valid fields, assignments, leveling eligibility |
+| Duration model | original/planned/remaining/actual duration, duration type, units/time | dates, finish, floats, resource spread, cost when tied |
+| Completion state | status, actual start/finish, physical/duration/units %, steps | actual/remaining fields, schedule progress mode, EV and time-phasing |
+| Schedule dates | project planned start/finish, early/late, remaining dates, expected finish, suspend/resume, data date | CPM, constraints, float, status and period spreads |
+| Relationship edge | endpoint, relationship type, lag amount/unit/calendar, external-project scope | connected graph forward/backward propagation and diagnostics |
+| Constraint | type, date, primary/secondary status | CPM feasibility, late dates/float/critical status |
+| Calendar | ID/version, time periods, exceptions, shifts | duration conversion, event dates, lag, demand, unit/cost spread |
+| Assignment quantity | budgeted/planned/actual/remaining/at-completion units and unit type | units %, duration sync, cost, resource demand and EVM |
+| Assignment cost | planned/actual/remaining/at-completion cost, price/unit, rate type/source, costs linked | cost totals, ETC/EAC, period series, reports |
+| Capacity/availability | max units/time, calendar availability, period demand, project priority | leveling, overload, resource profile/report |
+| Baseline/EVM | baseline ID/version, EV method/PF, BAC/PV/EV/AC/ETC/EAC/indices | all derived EVM and variance outputs |
+| Financial period | period ID, Actual This Period/To Date, historical values and link setting | cumulative totals, EVM, cash flow and audit history |
+| WBS summary | parent/child scope, milestone weights, local EVM override | summary dates/units/cost/progress/EVM |
+| Presentation only | icon, color, label, language, date format, time unit label | never changes core calculation values |
+
+## 42. Final source and coverage audit ledger
+
+Use a tracked row per applicable official source topic from the current User Guide and Help. Minimum columns: guide edition, source page title and URL, feature/menu, option/field, exact documented rule, CUBI contract ID, current source file/function, current test file/ID, actual UI control/action ID, parity fixture/evidence, reviewer, status and SHA.
+
+Permitted statuses: NOT REVIEWED; REVIEWED—DOCUMENTED; IMPLEMENTED—UNVERIFIED; TESTED—REFERENCE PARITY; OPEN—AMBIGUOUS; NOT IMPLEMENTED; NOT APPLICABLE WITH REASON. “Reviewed” does not mean implemented; “implemented” does not mean parity tested.
+
+**No-omission acceptance gate:** compare the registry against every calculation-relevant node in the official Version 26 TOC/help tree and every actual web/desktop calculation-affecting control. Report counts of sources inspected, settings/fields enumerated, formulas captured, CUBI implementation sites mapped, test cases mapped, live controls found, controls mapped, controls tested and unresolved items. A zero missing count is permitted only after an independent source-tree and source-code scan. Until then, coverage remains OPEN even though this contract is mandatory.
+
+## 43. Expanded source index for detailed option and formula pages
+
+- [Version 26 full User Guide TOC](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm)
+- [Version 26 full P6 Professional Help TOC](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm)
+- [Project Details Calculations tab](https://docs.oracle.com/cd/G48902_01/client_help/en_US/calculations_tab_-_project_details.htm)
+- [Admin Preferences Time Periods tab](https://docs.oracle.com/cd/G48902_01/client_help/en_US/time_periods_tab_-_admin_preferences_dialog_box.htm)
+- [Admin Preferences Earned Value tab](https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value_tab_-_admin_preferences_dialog_box.htm)
+- [Update Progress dialog](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_dialog_box.htm)
+- [Apply Actuals dialog](https://docs.oracle.com/cd/G48902_01/client_help/en_US/apply_actuals_dialog_box.htm)
+- [Update progress for project](https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_for_the_project.htm)
+- [Updating progress](https://docs.oracle.com/cd/G48902_01/client_help/en_US/updating_progress.htm)
+- [Resource assignment cost synchronization](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/recalculate_resource_and_role_assignment_costs.htm)
+- [Resource rate types](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/assign_a_rate_type_to_a_resource_assignment.htm)
+- [Rate source](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/choose_the_rate_source_for_an_assignment.htm)
+- [Resource cost across multiple time-varying rates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_cost_when_using_multiple_resource_rates.htm)
+- [Level Resources dialog and features](https://docs.oracle.com/cd/G48902_01/client_help/en_US/levelingresources.htm)
+- [Limit resource leveling](https://docs.oracle.com/cd/F25600_01/client_help/en_US/limit_resource_leveling.htm)
+- [Level selected resources](https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_selected_resources.htm)
+- [Level resources automatically](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/level_resources_automatically_2.htm)
+- [Special leveling rules by activity type](https://docs.oracle.com/cd/F74771_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm)
+- [Check Schedule Report](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/101251.htm)
+- [BAC definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/budget_at_completion.htm)
+- [Earned Value Cost definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value_cost.htm)
+- [CPI definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/cost_performance_index.htm)
+- [SPI definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedule_performance_index.htm)
+- [ETC definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/estimate_to_complete.htm)
+- [PF definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/performance_factor_pf.htm)
+- [Resource curves/future-bucket EVM](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_earned_value_using_resource_curves_or_manual_future_period_buckets.htm)
+
