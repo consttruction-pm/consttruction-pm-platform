@@ -31,6 +31,8 @@
 
 The exact 130 activities, dependencies, owners, supporting roles, row-level weights, acceptance criteria, source links, provisional effort and J4 crosswalk fields are in the workbook’s **Jalal5 Schedule** sheet. Do not use the stream summary as a substitute for accepting the individual activity rows.
 
+The explicit 58-row coverage map is maintained in [Jalal 4 → Jalal 5 crosswalk](../audits/JALAL4_TO_JALAL5_CROSSWALK_2026-10-18.md). It maps historical activity scope to J5 IDs but is not automatic progress transfer. The workbook's `Crosswalk جلال۴` column must be populated from this reviewed mapping; until that column and all 58 rows are reconciled and accepted by the owners, the task-to-task crosswalk status remains **proposed/pending** and Jalal 5 earned progress remains Pending.
+
 ## 3. Website inventory and journey contract
 
 The workbook distinguishes target routes from implemented routes. The target inventory has **28 route records**:
