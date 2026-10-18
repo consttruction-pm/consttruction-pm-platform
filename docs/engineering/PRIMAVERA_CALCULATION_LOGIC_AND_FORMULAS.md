@@ -662,6 +662,14 @@ Date arithmetic uses the applicable activity/resource calendar work-period numbe
 
 CUBI may retain additional precision internally for core cost/resource calculations, but its **reference-compatible Global Change mode** must reproduce the reference expression operators, allowed operand types, date/work-period behavior and documented division display/rounding behavior. Do not allow raw arbitrary code evaluation.
 
+Additional Version 26 Global Change constraints:
+- If statements are conditions/comparisons; Then/Else statements apply typed assignments. Statement order, blank-field testing, text concatenation, import/export/copy/delete of specifications and Preview Report are part of command behavior.
+- Duration/unit values entered in Global Change Parameter/Value fields are stored as that unit (for example, 2d means two days, not preconverted to 16 hours). Without an explicit suffix, User Preferences time units apply.
+- When Global Change modifies duration or unit fields, the “Use the assigned calendar…” conversion toggle is ignored by the reference application; administrative/application Hours per Time Period control the entered value. Do not route this command through ordinary calendar-specific display conversion.
+- Changing Planned Finish, Remaining Finish, Actual Start, Original/Planned/Remaining Duration, Duration Type, Curve, Actual Finish, Units or Units/Time can change/delete manually planned future-period values. Implement impact preview and before/after audit; manual buckets are not unrelated metadata during bulk changes.
+- Security may prevent commitment across all selected activities. Preview distinguishes proposed from committed changes; Cancel restores original values; Commit is an audited mutation.
+- Assigning a day of week to a date must use the reference expression function and date rules, not locale-dependent string parsing.
+
 **Sources:** [Global Change Version 26 help index](https://docs.oracle.com/cd/G48902_01/client_help/en_US/globalchange.htm); [Operators and valid calculations](https://docs.oracle.com/cd/G48902_01/client_help/en_US/operators_and_valid_calculations.htm); [Use arithmetic with Global Change](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_arithmetic_with_global_change.htm); [Use date arithmetic](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_date_arithmetic.htm).
 
 ## 27. Command-to-calculation mapping: reference control inventory for the actual CUBI UI audit
@@ -732,18 +740,18 @@ This section was added after a full pass over the current Version 26 User Guide 
 
 The source topics below are in scope and must not be skipped simply because a feature is exposed through a menu rather than a formula field:
 
-1. **Administration and user calculation preferences:** global/per-calendar hours per time period; time units and display precision; currency/view currency; default rate types; default price/unit; EVM defaults; overtime factor synchronization; assignment staffing price source; resource calculation options; fiscal-year start month where period reporting is used.
+1. **Administration and user calculation preferences:** global/per-calendar hours per time period; time units and display precision; currency/view currency; default rate types; default price/unit; EVM defaults; overtime factor synchronization; assignment staffing price source; resource calculation options; fiscal-year start month; cost-spread mode (Linear Spread vs Unit Spread); summary storage granularity (calendar intervals and/or financial periods); WBS/resource-assignment summary levels; summary baseline selection and output-refresh behavior.
 2. **Project definition and defaults:** project planned start, forecast start, planned finish, Must Finish By/finish anchor where supported, Data Date, default calendar, default activity type, duration type, percent complete type, default cost account/rate type, project leveling priority, baseline for current schedule comparison, summarization and earned-value roles.
 3. **Activity fields and user selections:** Activity Type; Duration Type; Percent Complete Type; activity calendar; Original/Planned/Remaining/Actual duration; Start/Finish vs Early/Late/Remaining dates; actual start/finish/status; expected finish; suspend/resume; constraints; primary/secondary resource; WBS/cost account; all four relationship types; signed lag and lag calendar; assignment rate type/rate source/cost-unit links; steps and step weights; time-phased buckets; baseline-associated values.
 4. **Calendar definition and assignment:** global/project/shared resource/personal resource calendars; default global calendar; calendar Used By assignments; work/nonwork days; weekly working hours and daily segments; exceptions; default Hours per Time Period; activity/resource calendar assignment; calendar replacement when deleting an in-use calendar; calendar edits that affect manual future-period assignment values.
 5. **Schedule command and options:** chosen options source project for multi-project scheduling; current Data Date; whether all open projects use own Data Date or the selected date; optional “set Data Date and Project Planned Start to Project Forecast Start” behavior; output log; multiple-project warnings; General and Advanced tabs; every selection enumerated in Sections 9, 30 and 31.
 6. **Progress/update commands:** Update Progress for selected/spotlighted activities; Apply Actuals; new Data Date; own project dates vs shared date; schedule forecast/progress; Started/Finished flags; remaining duration; actual duration and units; automatic actual computation; progress removal; suspend/resume; timesheet-derived actuals; manual future bucket side effects; rescheduling after update.
 7. **Level Resources:** level selected/all resources; automatically level during scheduling; project-resource priority filter; activity-priority sequence and sort order; only within Total Float; preserve minimum float; Max Percent to Overallocate fallback; driving vs non-driving assignments; WBS summary treatment; resource shifts behavior according to the supported deployment; recalculation of costs after leveling; leveling report.
-8. **Cost and units:** Calculate Costs from Units; cost/units linked flags; assignment rate type and rate source Resource/Role/Override; multiple rates over time; default price/unit; cost/units synchronization under activity duration types; Add Actual to Remaining / Subtract Actual from At Completion; Reset Planned/Original duration and units to Remaining / Reset Remaining to Planned/Original; auto compute actuals; actuals and period values; expenses/accrual; cost-account rollup; labor/nonlabor/material/expense totals.
+8. **Cost and units:** Calculate Costs from Units; cost/units linked flags; assignment rate type and rate source Resource/Role/Override; multiple rates over time; default price/unit; cost/units synchronization under activity duration types; Add Actual to Remaining / Subtract Actual from At Completion; Reset Planned/Original duration and units to Remaining / Reset Remaining to Planned/Original; auto compute actuals; actuals and period values; expenses/accrual; cost-account rollup; labor/nonlabor/material/expense totals; Linear Spread vs Unit Spread for time-phased costs; resource-hour reporting mode and material-resource unit-of-measure conversion.
 9. **Curves and manual period spread:** assign/remove curve; curve distribution; planned and actual time-phased spread; remaining distribution; manual future-period bucket planning; settings that change how actuals/remaining units derive from planned vs remaining spread; the effect of calendar edits, status changes, schedule changes, and EVM.
 10. **Baseline/EVM:** create/copy/assign/update/modify baseline; separate baselines for earned value, summary and comparison; current/planned date basis; activity/WBS percent technique; WBS milestone weights; ETC/PF method; BAC/EV/PV/AC/CV/SV/CPI/SPI/EAC/TCPI; using curves/buckets for earned value; stored period data and historical-period corrections.
 11. **Calculation-adjacent reports/diagnostics:** Check Schedule Report tests, thresholds for long lags/large float/large duration, open-ended and relationship diagnostics, closed/missing external project links, missing baseline activities, scheduling/leveling logs, critical path, multiple float paths, Gantt progress line/data-date line, resource/usage profile and spreadsheet units.
-12. **Calculated views and persistence boundaries:** Activity Table calculated columns and formulas, Gantt bar labels/geometry, Activity Network and Trace Logic, Usage/Profile/Spreadsheet time-phased data, Tracking Project Tables/Bar Charts/Gantt/Profile, group/sort/filter/summarize, publish/export/import and any AI/desktop output. Presentation settings may change rendering only; they cannot independently calculate dates, float, units, cost or progress.
+12. **Calculated views and persistence boundaries:** Activity Table calculated columns and formulas, Gantt bar labels/geometry, Activity Network and Trace Logic, Usage/Profile/Spreadsheet time-phased data, Tracking Project Tables/Bar Charts/Gantt/Profile, group/sort/filter/summarize, publish/export/import, top-down estimate outputs and any AI/desktop output. Presentation settings may change rendering only; they cannot independently calculate dates, float, units, cost or progress.
 
 A page listed in this section may contain one or more explicit options, field definitions, note paragraphs or edge-case rules. Implementation owners must read the relevant page, not merely cite the navigation title.
 
@@ -1062,6 +1070,10 @@ This supplements Section 27. The engineering inventory must include these contro
 | Admin Preferences → Time Periods | global conversion factors vs assigned-calendar hours; unit abbreviations; project/environment-specific behavior | CAL-HOURS-*; hours storage and display invariant |
 | User Preferences → Time Units/Dates/Currency | display unit, date/time format, currency, rounding/display precision and decimal separators | FORMAT-*, locale invariance; no calculation differences from display |
 | Admin Preferences → Earned Value | default performance-complete method, ETC technique/PF, baseline value/date basis | EVM-*; WBS override and denominator tests |
+| Admin Preferences → Options / Summary | By calendar and/or By financial period; WBS summary level; Resource/Role Assignment summary level; summary refresh; baseline for summarization | SUMMARY-*, PERIOD-*; closed-project and stale-summary tests |
+| Admin Preferences → Options / Cost Spread | Linear Spread versus Unit Spread | COST-SPREAD-*; rate changes alter bucket allocation only under Unit Spread; total-cost reconciliation |
+| User Preferences / Resources → calculation/reporting options | resource hour reporting, unit/time, material UOM, active-resource filters, summary availability | RES-REPORT-*; hour/unit consistency and availability view correctness |
+| Tools → Top-Down Estimation | prior-experience estimator, function-point estimator, saved estimates and apply-to-project selection | TOPDOWN-*; sourced formula, input validation and reapplication behavior |
 | Admin Preferences → Rate Types | rate type vocabulary and default names | RES-RATE-*; selected price/source |
 | Project → Activities → General | activity type, duration type, percent complete type, calendar, WBS, responsible manager, primary resource, cost account | ACT-*, CAL-*, PC-*; defaults/calc invalidation |
 | Activity Details → Status/Dates | Started/Finished state, actual dates, durations, Physical/Duration/Units %, expected finish, remaining dates, suspend/resume | PROGRESS-*, OOS-*, DATE-*; automatic/manual update matrix |
@@ -1085,7 +1097,11 @@ This supplements Section 27. The engineering inventory must include these contro
 | Project → Baselines / Assign Baselines | project/primary/comparison/summarization/EVM baseline assignments, update/copy/modify | BASELINE-*; not changing source actuals |
 | Tools → Store Period Performance | financial period selection; linking actual to date/this period; post/edit historical values | PERIOD-*; repeat/idempotent and audit |
 | Activity Table / Gantt / Activity Network / Trace Logic | field columns, sort/group/filter, relationship connectors, drag-to-date/duration, critical indicators, progress line, collapse/summary bars | UI action registry; all edit paths use one domain engine |
+| Activity Table/Network → Copy/Paste, Dissolve, Renumber IDs | identity mappings, WBS placement, predecessor/successor rewrites, external links, assignments/steps/cost accounts | ACT-IDENTITY-*; graph stays connected or added/removed edges are reported |
+| Layout and Gantt bar settings | timescale, bar start/end fields, progress/baseline bars, Data Date line, filters, relationship-line visibility | VIEW-*; presentation mapping cannot edit engine output except explicit edit handles |
+| Resource Usage/Profile and Tracking Summary | units, regular/stacked histogram, availability/overload/overtime, past-period actuals, dynamic-level scenario, calendar vs financial period | RES-REPORT-*, SUMMARY-*, PERIOD-*; live-vs-summary freshness/scenario separation |
 | Global Change | condition, operator, typed arithmetic/date/text fields, Then/Else ordering, preview/report, multi-row mutation | GC-*; data type and work-period arithmetic |
+| Top-down Estimation | prior-experience estimator, function-point estimator, saved estimate definitions and application to a project | TOPDOWN-*; no formula claim until source and reference fixture are attached |
 | Import/export, copy/paste, dissolve, baseline import | date/duration units, relation types/lags, calendars, status/progress, rates/costs, bucket/baseline identity | IO-*; lossless roundtrip and invalid-import diagnostics |
 | AI assistant tools | option selections, project scope, permissions, preview/apply, calculation API, reports, write-audit | AI-*; tool calls constrained to shared engine |
 
@@ -1120,6 +1136,8 @@ Permitted statuses: NOT REVIEWED; REVIEWED—DOCUMENTED; IMPLEMENTED—UNVERIFIE
 **No-omission acceptance gate:** compare the registry against every calculation-relevant node in the official Version 26 TOC/help tree and every actual web/desktop calculation-affecting control. Report counts of sources inspected, settings/fields enumerated, formulas captured, CUBI implementation sites mapped, test cases mapped, live controls found, controls mapped, controls tested and unresolved items. A zero missing count is permitted only after an independent source-tree and source-code scan. Until then, coverage remains OPEN even though this contract is mandatory.
 
 ## 43. Expanded source index for detailed option and formula pages
+
+- [Admin Preferences Options — Cost Spread and stored summary intervals](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm)
 
 - [Version 26 full User Guide TOC](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm)
 - [Version 26 full P6 Professional Help TOC](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm)
@@ -1225,3 +1243,79 @@ No caller may override this matrix ad hoc in a view, import/export path or AI to
 
 **Source:** [Synchronizing activity duration, units, and resource units/time — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/synchronizing_activity_duration_units_and_resource_units_time.htm).
 
+
+
+## 48. Cost spread, resource-hour reporting and material units
+
+Version 26 Administrative Preferences → Options exposes “Spread cost based on”:
+- **Linear Spread:** costs are spread evenly across the period regardless of resource/role rate changes.
+- **Unit Spread:** cost spread accounts for periodic changes in resource/role rates.
+
+This alters time-phased cost allocation, not the underlying assignment total cost. Test one assignment with multiple effective-dated rates under both modes: total cost reconciles in both; period bucket values may differ. Keep cost-spread mode separate from resource curves, assignment rate type/source and actual-cost entry.
+
+Resource preferences also define how resources report hours. Material resources can have a unit of measure. Hours, time periods, material quantities and price/unit must be typed and converted explicitly. “8 hours,” “one 8-hour day,” and “one material unit” are not interchangeable. Carry quantity-unit identity, price currency and display unit; if a conversion is undefined, reject instead of assuming factor 1.
+
+**Sources:** [Admin Preferences Options: Cost Spread and summaries](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm); [Specify resource type](https://docs.oracle.com/cd/G48902_01/client_help/en_US/specify_the_resource_type_for_resources.htm); [Material resource unit of measure](https://docs.oracle.com/cd/G48902_01/client_help/en_US/specify_the_unit_of_measure_for_material_resources.htm); [How resources report hours](https://docs.oracle.com/cd/G48902_01/client_help/en_US/specify_how_resources_report_hours.htm).
+
+## 49. Summary service and stored time-phased data
+
+Live calculation results, stored summaries and historical period values are different products. Preserve provenance and freshness for each.
+
+- **By calendar:** store activity/resource spreads using configured WBS and Resource/Role Assignment intervals, such as weeks/months.
+- **By financial period:** store activity/resource data in defined financial periods so Actual To Date and Past Period Actual display in financial-period timescales.
+- At least one mode must remain selected. Both modes can increase summarization work.
+- Turning off By Calendar does not automatically remove pre-existing calendar summaries in the reference behavior; cleanup/refresh is explicit.
+- Financial-period summaries require defined periods covering the underlying history; closed projects must be summarized after this setting is configured.
+- Summary granularity includes WBS and Resource/Role Assignment levels; the baseline used for summarization is a separate setting.
+- Tracking can display summary data for closed projects and live WBS data for open projects. Identify live versus summarized source, timestamp and summarized WBS depth.
+- Summaries roll up data; do not run CPM over summary bars unless scheduling was explicitly requested. Calendar and financial-period buckets can differ and must not be silently mixed.
+- Rebuilds are traceable/idempotent with project, baseline, snapshot, summary depth, period/calendar mode, timestamp and failures.
+
+**Sources:** [Admin Preferences Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm); [Tracking overview](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/tracking.htm); [Rolling up data with the summary service](https://docs.oracle.com/cd/G48902_01/client_help/en_US/rolling_up_data_with_the_summary_service.htm); [Set global summarization options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/set_global_summarization_options.htm); [Select baseline for summarization](https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_a_baseline_for_summarization.htm).
+
+## 50. Top-down estimation: formula verification gate
+
+The Version 26 guide includes top-down estimates using prior experience and function points, plus applying a saved estimate to a project. Because outputs can populate planned durations, units, resources, costs or budgets, these flows belong in the calculation contract.
+
+Inventory estimator mode/version, every input and unit, saved template parameters, target project/WBS/activities, allocation method, mapping to planned duration/units/rates/cost/resources, rounding, missing-input validation, preview/apply/cancel, before/after values, audit actor and reapplication behavior.
+
+**Formula status: OPEN until reviewed page-by-page.** Do not infer a universal formula from the feature name. Copy the exact official formula and example into this contract only after the pages are reviewed and a reference fixture captures inputs and outputs. The feature cannot be labeled reference-compatible while these items are open.
+
+**Sources:** [Top-down estimate using prior experience — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80492.htm); [Top-down estimate using function points — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80493.htm); [Apply saved top-down estimates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80494.htm).
+
+## 51. Identity-changing activity operations and graph integrity
+
+Copy/paste, WBS move, dissolve, delete and renumber can alter the calculation graph even when the relationship editor is not opened.
+- Preserve relationship endpoints and project scope on copy/move. If edges are remapped or duplicated, make the rule and result visible.
+- Dissolve an activity through the documented relationship rewrite behavior or explicitly remove the source activity/edges with an audit of retained/added/deleted relationships. Never orphan edges or collapse FS/SS/FF/SF into one type silently.
+- Renumber IDs updates all ID-based references, while stable internal identity remains distinct from display code; resolve external references separately.
+- Copied assignments, steps, curves and future-period buckets must follow explicit copy/reference semantics and not share mutable state accidentally.
+- WBS reparenting invalidates WBS dates, milestone weights, summaries, EVM and reports.
+- Tests: copied subnetworks with internal/external edges, copy without predecessor, repeated paste, dissolve with multiple predecessors/successors, renumber of linked activities, assignment/curve duplication, WBS move and undo/cancel if supported.
+
+## 52. Project controls affecting calculation scope and diagnostics
+
+- Project status (active/inactive/what-if/closed) affects selection, access, schedule scope, summaries and live-vs-summarized views.
+- Planned Start/Finish, Forecast Start, Data Date, baseline assignments, WBS hierarchy and project finish/level priority are calculation anchors or scope inputs.
+- Project/resource/activity codes and user-defined fields may be used by filters, Group/Sort, Global Change conditions, priorities or report populations. They can change the input set even where a per-activity formula is unchanged.
+- “Shorten the critical path” is a scenario/decision process, not authority to mutate durations or relationships silently. Every crash/fast-track alternative names cost/risk/relationship assumptions and runs authoritative CPM; preserve the preceding baseline/snapshot.
+- Project Checker, Check Schedule, threshold-generated issues and scheduler/leveling logs are diagnostics, not silent repair mechanisms. Preserve criteria, thresholds, findings and calculation ID.
+- API scheduling, UI Schedule, automatic scheduling and assistant-triggered schedule actions all use the same immutable input snapshot and engine/version; no hidden per-surface defaults.
+
+**Sources:** [Project dates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/enter_project_dates.htm); [Project status](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/change_a_project_s_status.htm); [Shorten the critical path](https://docs.oracle.com/cd/G48902_01/client_help/en_US/shortening_the_critical_path.htm); [Project Checker](https://docs.oracle.com/cd/G48902_01/client_help/en_US/project_checker.htm); [Project resource options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/set_project_resource_options.htm); [Version 26 User Guide TOC](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm); [Version 26 Help TOC](https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm).
+
+## 53. Time-phased outputs and Tracking-view options
+
+A profile, spreadsheet, Tracking chart or summarized report records these inputs:
+- financial periods versus calendar periods and their boundaries;
+- availability, limits, overallocation and overtime lines;
+- past-period actual visibility;
+- regular versus stacked resource histogram;
+- activity/resource group, sort, filter and summary scope;
+- baseline, project status, live-vs-summary source;
+- selected schedule/baseline/actual/forecast and units/cost series;
+- summary granularity and freshness timestamp.
+
+Showing/hiding availability or changing color does not change capacity. Changing field, period, baseline, filter or scope changes the population/value and must be retained in report/export provenance. Dynamic leveling in Resource Analysis is a what-if scenario until an accepted calculation updates the authoritative schedule.
+
+**Sources:** [Version 26 User Guide TOC — profiles and spreadsheets](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm); [Tracking layouts](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/tracking.htm).
