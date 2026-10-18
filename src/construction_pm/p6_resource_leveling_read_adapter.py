@@ -160,7 +160,13 @@ def build_scheduler_leveling_input(
         capacity_periods,
     )
     capacities = tuple(
-        ResourceCapacity(item.resource_id, item.period, item.units)
+        ResourceCapacity(
+            item.resource_id,
+            item.period,
+            item.units,
+            calendar_id=item.calendar_id,
+            calendar_version=item.calendar_version,
+        )
         for item in capacity_slices
     )
 
