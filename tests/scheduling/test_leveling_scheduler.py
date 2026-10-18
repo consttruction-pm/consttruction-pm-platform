@@ -1259,3 +1259,32 @@ def test_infeasible_resource_window_fails_closed() -> None:
                 preserve_scheduled_early_and_late_dates=False,
             ),
         )
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "activity_id",
+        "activity_priority",
+        "early_start",
+        "early_finish",
+        "late_start",
+        "late_finish",
+        "free_float",
+        "total_float",
+    ],
+)
+def test_public_leveling_priority_boundary_accepts_supported_p6_fields(field_name):
+    from construction_pm.scheduling.leveling_boundary import _map_priority_list
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+        ScheduleOptions,
+    )
+
+    mapped = _map_priority_list(ScheduleOptions(
+        priority_list=(PriorityListItem(field_name, PrioritySortOrder.ASCENDING),)
+    ))
+
+    assert len(mapped) == 1
+    assert mapped[0].field_name == field_name
+
