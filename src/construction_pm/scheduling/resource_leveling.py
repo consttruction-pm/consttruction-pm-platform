@@ -171,6 +171,7 @@ class LevelingActivity:
     total_float: int
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    free_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -187,6 +188,10 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if self.free_float is not None and (
+            isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -235,6 +240,7 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "early_start": activity.start,
         "early_finish": activity.finish,
         "total_float": activity.total_float,
+        "free_float": activity.free_float,
     }
     if normalized not in values:
         raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
@@ -395,6 +401,14 @@ def propose_forward_leveling(
         raise ResourceLevelingError("INVALID_LEVEL_WITHIN_FLOAT")
     if isinstance(max_shift_working_days, bool) or not isinstance(max_shift_working_days, int) or max_shift_working_days < 0:
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
+    normalized_priorities = tuple(
+        priority.field_name.strip().lower().replace(" ", "_")
+        for priority in priorities
+    )
+    if "free_float" in normalized_priorities and any(
+        activity.free_float is None for activity in activities
+    ):
+        raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
     if level_within_float:
         return propose_forward_leveling_within_float(
             activities, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
@@ -402,7 +416,8 @@ def propose_forward_leveling(
             level_all_resources=level_all_resources, resource_ids=resource_ids,
         )
     synthetic = tuple(LevelingActivity(a.activity_id, a.start, a.finish,
-        max_shift_working_days + min_float_to_preserve, a.resource_demands, a.activity_priority) for a in activities)
+        max_shift_working_days + min_float_to_preserve, a.resource_demands,
+        a.activity_priority, a.free_float) for a in activities)
     shifts = propose_forward_leveling_within_float(
         synthetic, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
         over_allocation_percentage=over_allocation_percentage, priorities=priorities,
@@ -456,6 +471,7 @@ def apply_leveling_shifts(
             total_float=max(0, activity.total_float - shift.consumed_float),
             resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
             activity_priority=activity.activity_priority,
+            free_float=activity.free_float,
         ))
     return tuple(result)
 
@@ -473,6 +489,7 @@ class BackwardLevelingActivity:
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
     total_float: int | None = None
+    free_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -597,13 +614,15 @@ def propose_backward_leveling(
     # unsupported errors rather than being approximated from unrelated fields.
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "late_start", "late_finish", "total_float",
+        "early_finish", "late_start", "late_finish", "total_float", "free_float",
     }
     for priority in priorities:
         normalized = priority.field_name.strip().lower().replace(" ", "_")
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         if normalized == "total_float" and any(activity.total_float is None for activity in activity_list):
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if normalized == "free_float" and any(activity.free_float is None for activity in activity_list):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
@@ -676,6 +695,7 @@ def propose_backward_leveling(
                     "late_start": activity.late_start,
                     "late_finish": activity.late_finish,
                     "total_float": activity.total_float,
+                    "free_float": activity.free_float,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
