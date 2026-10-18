@@ -1031,11 +1031,13 @@ def test_leveling_recalculation_preserves_all_relationship_types_and_signed_lags
             ),
         ),
         capacities=tuple(
-            ResourceCapacity("R1", date(2026, 10, day), Decimal("16" if day > 1 else "8"))
+            # One activity at a time on every date forces real resource
+            # contention, including the backward-leveling recalculation path.
+            ResourceCapacity("R1", date(2026, 10, day), Decimal("8"))
             for day in range(1, 12)
         ),
         options=ResourceLevelingOptions(
-            preserve_scheduled_early_and_late_dates=True,
+            preserve_scheduled_early_and_late_dates=False,
             level_all_resources=True,
         ),
     )
