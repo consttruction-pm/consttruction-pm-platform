@@ -1189,3 +1189,36 @@ def test_backward_demand_translation_uses_activity_calendar() -> None:
     # Friday is non-working for B. Its demand therefore shifts to Monday,
     # not Friday as it would under the project calendar.
     assert result[0].resource_demands[0].period == monday
+
+def test_forward_activity_builder_carries_authoritative_cpm_free_float():
+    from types import SimpleNamespace
+    from construction_pm.scheduling.leveling_scheduler import (
+        _forward_activities_with_authoritative_floats,
+    )
+    from construction_pm.scheduling.resource_leveling import LevelingActivity
+
+    day = date(2026, 10, 1)
+    demand_a = ResourceDemand("R1", day, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", day, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day, day, 3, (demand_a,), free_float=99),
+            LevelingActivity("B", day, day, 3, (demand_b,), free_float=99),
+        ),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _forward_activities_with_authoritative_floats(
+        leveling_input,
+        initial_schedule=SimpleNamespace(
+            floats={
+                "A": SimpleNamespace(free_float=0),
+                "B": SimpleNamespace(free_float=2),
+            }
+        ),
+    )
+
+    assert [activity.free_float for activity in built] == [0, 2]
+
