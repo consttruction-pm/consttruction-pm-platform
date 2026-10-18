@@ -101,6 +101,7 @@ def _assignment_dto(item: P6ResourceAssignment) -> dict[str, Any]:
             "units": item.units, "actual_units": item.actual_units, "remaining_units": item.remaining_units,
             "planned_cost": item.planned_cost, "actual_cost": item.actual_cost, "remaining_cost": item.remaining_cost,
             "unit": item.unit, "currency": item.currency, "calendar_id": item.calendar_id, "note": item.note,
+            "calendar_version": item.calendar_version,
         },
     }
 
