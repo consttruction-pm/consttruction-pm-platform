@@ -172,3 +172,20 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_calendar_version_survives_authoritative_resource_read_dto():
+    api, assignment_repo, _ = build_api()
+    scope = BackendScope("tenant-a", "project-a", 11)
+    assignment_repo.upsert(
+        P6ResourceAssignment(
+            scope, "versioned-a", "activity-1", "resource-1",
+            units=Decimal("8"), calendar_id="calendar-1",
+            calendar_version="calendar-v3",
+        )
+    )
+
+    dto = api.get_assignment(scope, "versioned-a", auth_context=auth())
+    assert dto is not None
+    assert dto["assignment"]["calendar_id"] == "calendar-1"
+    assert dto["assignment"]["calendar_version"] == "calendar-v3"
