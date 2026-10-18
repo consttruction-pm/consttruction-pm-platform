@@ -958,8 +958,6 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
 
 def test_backward_leveling_never_overrides_user_start_lower_bound() -> None:
     """A backward candidate earlier than a user constraint must be rejected."""
-    import pytest
-
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
