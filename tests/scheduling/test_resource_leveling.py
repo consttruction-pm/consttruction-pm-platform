@@ -756,3 +756,27 @@ def test_backward_leveling_uses_each_activities_own_calendar():
     assert shifts[0].new_start == thursday
     assert shifts[0].new_finish == thursday
 
+
+
+@pytest.mark.parametrize(
+    ("late_start", "late_finish"),
+    [
+        (date(2026, 9, 30), date(2026, 10, 1)),
+        (date(2026, 10, 1), date(2026, 9, 30)),
+    ],
+)
+def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
+    late_start, late_finish
+):
+    # Negative total float can produce late dates earlier than early dates.
+    # Preserve CPM output instead of rejecting it as an invalid activity window.
+    activity = LevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+        1,
+        late_start=late_start,
+        late_finish=late_finish,
+    )
+    assert activity.late_start == late_start
+    assert activity.late_finish == late_finish
