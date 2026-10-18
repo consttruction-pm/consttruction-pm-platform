@@ -822,3 +822,27 @@ Stage 33.3.4 establishes a provider-neutral Application authorization boundary. 
 - The rule does not alter Shared Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculation semantics.
 
 Implementation: `ProjectLifecycleService.authorize_project`, `ProjectLifecycleAPI.authorize_project`, and the sync mutation HTTP route. Regression must prove a viewer cannot submit a mutation and that the handler is not invoked. This is a focused security fix, not complete platform security certification.
+
+
+## 39. Application/API Authorization Boundary — 2026-10-17
+
+Stage 33.3.4 authorization boundary is implemented.
+
+Mandatory rules:
+- Authentication establishes identity outside the Shared Domain/Calculation Core.
+- Project-scoped authorization carries tenant_id, project_id, user_id and effective roles.
+- Authorization uses explicit permissions and a shared policy contract.
+- Denied operations raise the stable application-level AuthorizationError.
+- Initial permissions: project.read, project.write, project.schedule, project.admin.
+- Initial baseline roles: viewer, planner, project_admin. This is extensible, not the final product role catalog.
+- Web, Desktop and Mobile consume the same authorization semantics through Application/API contracts.
+- Authorization must not introduce client-specific Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations.
+
+Compatibility impact:
+- P6/Scheduling: unchanged.
+- Shared Calculation Core remains independent of authentication providers.
+- Web-readiness is strengthened by a common Application authorization boundary.
+- Tenant/project context remains explicit and compatible with optimistic locking and idempotency.
+- Allow/deny, stable error and context-preservation regression tests are mandatory.
+
+Next gate: Stage 33.3.5 integration regression and runtime verification.

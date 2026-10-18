@@ -156,6 +156,7 @@ def _reconstruct(
 
 class SQLiteCalculationContextRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS schedule_calculation_context (
@@ -180,9 +181,11 @@ class SQLiteCalculationContextRepository:
                 PRIMARY KEY (tenant_id, project_id, snapshot_id)
             )"""
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, record: PersistedCalculationContext) -> PersistedCalculationContext:
+        owns_transaction = not self.connection.in_transaction
         record.validate()
         existing = self.connection.execute(
             "SELECT project_id,project_revision,calendar_id,calendar_version,rules_version,"
@@ -243,7 +246,8 @@ class SQLiteCalculationContextRepository:
                 record.calculation_identity_version,
             ),
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return record
 
     def get(

@@ -215,6 +215,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
 
 class SQLiteActivityMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
@@ -251,9 +252,11 @@ class SQLiteActivityMasterRepository:
         if "percent_complete_type" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_master_revision ON activity_master(tenant_id, project_id, project_revision, activity_id)")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
+        owns_transaction = not self.connection.in_transaction
         activity.validate()
         if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
@@ -279,7 +282,8 @@ class SQLiteActivityMasterRepository:
                  None if stored.planned_finish is None else stored.planned_finish.isoformat(),
                  stored.leveling_priority.value,
                  stored.original_duration))
-            self.connection.commit()
+            if owns_transaction:
+                self.connection.commit()
             return stored
         current = _from_row(activity.scope, row[:14])
         if int(row[14]) != activity.scope.project_revision:
@@ -303,9 +307,11 @@ class SQLiteActivityMasterRepository:
              stored.original_duration,
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
         if update_cursor.rowcount != 1:
-            self.connection.rollback()
+            if owns_transaction:
+                self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
