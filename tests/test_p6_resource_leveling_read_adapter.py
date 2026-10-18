@@ -189,3 +189,27 @@ def test_calendar_version_survives_authoritative_resource_read_dto():
     assert dto is not None
     assert dto["assignment"]["calendar_id"] == "calendar-1"
     assert dto["assignment"]["calendar_version"] == "calendar-v3"
+
+
+def test_capacity_resolution_fails_closed_for_persisted_calendar_version():
+    from construction_pm.p6_resource_capacity_contract import (
+        ResourceCapacityContractError,
+        build_resource_capacity_slices,
+    )
+
+    scope = BackendScope("tenant-a", "project-a", 12)
+    assignment = P6ResourceAssignment(
+        scope, "versioned-a", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1",
+        calendar_version="calendar-v3",
+    )
+    with pytest.raises(
+        ResourceCapacityContractError,
+        match="VERSIONED_RESOURCE_CALENDAR_RESOLUTION_REQUIRED",
+    ):
+        build_resource_capacity_slices(
+            scope,
+            (assignment,),
+            {"calendar-1": ResourceCalendar("calendar-1")},
+            (date(2026, 10, 2),),
+        )
