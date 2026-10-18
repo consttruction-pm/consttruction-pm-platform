@@ -368,6 +368,7 @@ def schedule_with_resource_leveling(
                 shift.activity_id for shift in forward_shifts
                 if shift.shift_working_days > 0
             })),
+            activity_resolvers=activity_resolvers,
         )
         # P6 leveling proposals are candidates, not permission to override
         # CPM or user-entered constraints. Validate each proposed exact-date
