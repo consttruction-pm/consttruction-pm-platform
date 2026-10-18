@@ -1,5 +1,4 @@
 import sqlite3
-from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 
@@ -7,6 +6,7 @@ import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentApplicationService,
@@ -26,22 +26,13 @@ from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceLevelingOptions
 
 
-class TransactionManager:
-    def __init__(self, connection):
-        self.connection = connection
-
-    @contextmanager
-    def transaction(self):
-        yield
-
-
 def auth(tenant="tenant-a", project="project-a"):
     return AuthorizationContext(tenant, project, "reader", frozenset({"viewer"}))
 
 
 def build_api():
     connection = sqlite3.connect(":memory:")
-    manager = TransactionManager(connection)
+    manager = SQLiteTransactionManager(connection)
     assignment_repo = SQLiteP6ResourceAssignmentRepository(connection)
     period_repo = SQLiteP6ResourceAssignmentPeriodRepository(connection)
     spread_repo = SQLiteP6ResourceSpreadRepository(connection)
@@ -172,3 +163,34 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_composite_leveling_read_holds_one_outer_sqlite_transaction():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 11)
+    assignment_repo.upsert(
+        P6ResourceAssignment(scope, "a-1", "activity-1", "resource-1", units=Decimal("1"))
+    )
+    period_repo.upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope, "a-1", "activity-1", "resource-1", "2026-10-02", Decimal("1"), Decimal("0")
+        )
+    )
+    # Direct repository setup uses sqlite's implicit transaction; close it so
+    # the API call below must own and close its outer read transaction.
+    api.assignment_service.transaction_manager.connection.commit()
+
+    original_list = period_repo.list
+    observed = []
+
+    def list_during_read(*args, **kwargs):
+        observed.append(api.assignment_service.transaction_manager.connection.in_transaction)
+        return original_list(*args, **kwargs)
+
+    period_repo.list = list_during_read
+    assignments, periods = api.list_leveling_inputs(scope, auth_context=auth())
+
+    assert observed == [True]
+    assert len(assignments) == 1
+    assert len(periods) == 1
+    assert not api.assignment_service.transaction_manager.connection.in_transaction
