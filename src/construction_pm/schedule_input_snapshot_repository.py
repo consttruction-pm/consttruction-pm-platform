@@ -207,6 +207,26 @@ def compose_activity_master_records(
     return replace(schedule_input, activities=tuple(overlaid))
 
 
+
+def build_activity_master_composed_snapshot(
+    schedule_input: AuthoritativeScheduleInput,
+    activity_master_repository: ActivityMasterRepository,
+    context: CalculationContext,
+    created_at: datetime,
+) -> ScheduleInputSnapshot:
+    """Build a snapshot only after overlaying the scoped persisted Activity Master.
+
+    The caller must still supply the complete authoritative graph and its matching
+    CalculationContext; this helper does not invent relationships, calendars, or
+    other graph-owned inputs.
+    """
+    composed_input = compose_activity_master_records(
+        schedule_input,
+        activity_master_repository,
+    )
+    return build_snapshot(composed_input, context, created_at)
+
+
 def build_snapshot(
     schedule_input: AuthoritativeScheduleInput,
     context: CalculationContext,
