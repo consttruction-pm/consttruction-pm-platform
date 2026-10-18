@@ -1103,3 +1103,87 @@ def test_backward_activity_builder_carries_authoritative_cpm_floats():
     )
     assert built[0].total_float == 3
     assert built[0].free_float == 1
+
+def test_resource_leveling_preserves_activity_specific_calendars() -> None:
+    """Every CPM pass in resource leveling must use the activity calendar map."""
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    start = date(2026, 10, 1)  # Thursday
+    finish = date(2026, 10, 5)  # Monday
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    activity_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", start, start, 0, ()),
+            LevelingActivity("B", start, finish, 0, ()),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", start, start, finish, finish, ()),
+            BackwardLevelingActivity("B", start, finish, finish, finish, ()),
+        ),
+        capacities=(),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=False,
+        ),
+    )
+
+    result, _, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 2)),
+        (),
+        start,
+        project_resolver,
+        leveling_input,
+        project_finish=finish,
+        options=ScheduleOptions(preserve_scheduled_early_and_late_dates=True),
+        activity_resolvers={"B": activity_resolver},
+    )
+
+    assert backward == ()
+    assert result.activities["A"].finish == start
+    # Friday is non-working for B, so its two-day activity ends on Monday.
+    assert result.activities["B"].finish == finish
+
+
+def test_backward_demand_translation_uses_activity_calendar() -> None:
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    activity_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", thursday, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("B", thursday, thursday, 1, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("B", thursday, thursday, monday, monday, (demand,)),
+        ),
+        capacities=(),
+        options=ResourceLevelingOptions(preserve_scheduled_early_and_late_dates=False),
+    )
+
+    result = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"B": SimpleNamespace(start=thursday, finish=thursday)},
+        late_schedule={"B": SimpleNamespace(start=monday, finish=monday)},
+        resolver=project_resolver,
+        activity_resolvers={"B": activity_resolver},
+    )
+
+    # Friday is non-working for B. Its demand therefore shifts to Monday,
+    # not Friday as it would under the project calendar.
+    assert result[0].resource_demands[0].period == monday
