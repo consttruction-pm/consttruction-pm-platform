@@ -91,6 +91,26 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
     )
 
 
+def _forward_activities_with_authoritative_floats(
+    leveling_input: SchedulerLevelingInput,
+    *,
+    initial_schedule: object,
+) -> tuple[LevelingActivity, ...]:
+    """Attach CPM-calculated floats before forward priority sorting.
+
+    Free Float is a schedule result, not an input estimate. In particular, do
+    not derive it from Total Float or from the activity dates.
+    """
+    float_schedule = getattr(initial_schedule, "floats", {}) or {}
+    return tuple(
+        replace(
+            activity,
+            free_float=getattr(float_schedule.get(activity.activity_id), "free_float", None),
+        )
+        for activity in leveling_input.forward_activities
+    )
+
+
 def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
@@ -292,12 +312,8 @@ def schedule_with_resource_leveling(
         activity_resolvers=activity_resolvers,
     )
 
-    forward_activities = tuple(
-        replace(
-            activity,
-            free_float=getattr(initial.floats.get(activity.activity_id), "free_float", None),
-        )
-        for activity in leveling_input.forward_activities
+    forward_activities = _forward_activities_with_authoritative_floats(
+        leveling_input, initial_schedule=initial
     )
     forward_shifts = propose_forward_leveling(
         forward_activities,
