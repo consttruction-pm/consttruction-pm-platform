@@ -341,13 +341,14 @@ def schedule_with_resource_leveling(
         accepted_backward_shifts: list[BackwardLevelingShift] = []
         # The proposal algorithm emits cumulative steps for an activity
         # (advance by one day, then by two, and so on). Treat those as
-        # alternative target dates, not separate accepted shifts; otherwise
-        # the public result can report the same activity multiple times and
-        # trial constraints can accidentally combine cumulative steps.
+        # alternative target dates, not separate accepted shifts. Try the
+        # smallest advance first: it is the least disruptive feasible move,
+        # and larger advances should only be considered if the smaller one
+        # cannot resolve the overload.
         candidate_by_activity: dict[str, BackwardLevelingShift] = {}
         for proposed in backward_shifts:
             current = candidate_by_activity.get(proposed.activity_id)
-            if current is None or proposed.advanced_days > current.advanced_days:
+            if current is None or proposed.advanced_days < current.advanced_days:
                 candidate_by_activity[proposed.activity_id] = proposed
         candidates = tuple(candidate_by_activity.values())
         for candidate in sorted(
