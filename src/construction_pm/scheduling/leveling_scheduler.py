@@ -356,7 +356,7 @@ def schedule_with_resource_leveling(
                 + backward_leveling_exact_constraints(trial_shifts)
             )
             try:
-                schedule(
+                trial_result = schedule(
                     activities, relationships, project_start, resolver,
                     project_finish=project_finish, constraints=trial_constraints,
                     options=base_options,
@@ -368,6 +368,20 @@ def schedule_with_resource_leveling(
                 # Reject only the infeasible candidate; do not weaken existing
                 # constraints or hide unrelated scheduler/resource failures.
                 continue
+            try:
+                _validate_final_resource_load(
+                    result=trial_result,
+                    leveling_input=leveling_input,
+                    resolver=resolver,
+                )
+            except ResourceLevelingError as exc:
+                # A candidate is admissible only when the CPM result and the
+                # aggregate resource ledger agree. Reject overload-producing
+                # candidates so a later candidate cannot silently undo a
+                # previously feasible shift.
+                if str(exc).startswith("FINAL_RESOURCE_OVERALLOCATION:"):
+                    continue
+                raise
             accepted_backward_shifts.append(candidate)
 
         backward_shifts = tuple(accepted_backward_shifts)
