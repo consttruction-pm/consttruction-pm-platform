@@ -96,6 +96,7 @@ def _backward_activities_from_intermediate(
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
+    float_schedule: Mapping[str, object],
     resolver: object,
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
@@ -140,6 +141,7 @@ def _backward_activities_from_intermediate(
                 late_finish=late.finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
+                total_float=getattr(float_schedule.get(activity.activity_id), "total_float", None),
             )
         )
     return tuple(result)
@@ -318,6 +320,7 @@ def schedule_with_resource_leveling(
             # move that violates a relationship newly activated by a forward shift.
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
+            float_schedule=intermediate.floats,
             resolver=resolver,
         )
         backward_shifts = propose_backward_leveling(
