@@ -187,7 +187,7 @@ class LevelingActivity:
             or self.finish < self.start
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
-        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int) or self.total_float < 0:
+        if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
