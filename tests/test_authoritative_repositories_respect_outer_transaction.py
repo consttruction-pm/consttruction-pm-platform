@@ -9,6 +9,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.constraint_master_repository import ConstraintMaster, SQLiteConstraintMasterRepository
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
+from construction_pm.p6_resource_assignment_repository import SQLiteP6ResourceAssignmentRepository
 from construction_pm.schedule_calculation_context_repository import (
     SQLiteCalculationContextRepository,
     build_persisted_context,
@@ -124,6 +125,7 @@ def test_repository_initialization_preserves_caller_owned_transaction():
     SQLiteActivityMasterRepository(connection)
     SQLiteConstraintMasterRepository(connection)
     SQLiteScheduleInputSnapshotRepository(connection)
+    SQLiteP6ResourceAssignmentRepository(connection)
 
     assert connection.in_transaction
     connection.rollback()
@@ -137,6 +139,7 @@ def test_repository_initialization_preserves_caller_owned_transaction():
         "activity_master",
         "constraint_master",
         "schedule_input_snapshot",
+        "p6_resource_assignment",
     } & tables
 
 
