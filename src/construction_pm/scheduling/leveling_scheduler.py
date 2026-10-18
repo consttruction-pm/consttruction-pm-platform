@@ -339,12 +339,19 @@ def schedule_with_resource_leveling(
         # prevents a backward proposal from turning a valid START_NO_LATER_THAN
         # constraint into an internally contradictory date window.
         accepted_backward_shifts: list[BackwardLevelingShift] = []
-        current_starts = {
-            activity_id: activity.start
-            for activity_id, activity in (intermediate.activities or {}).items()
-        }
+        # The proposal algorithm emits cumulative steps for an activity
+        # (advance by one day, then by two, and so on). Treat those as
+        # alternative target dates, not separate accepted shifts; otherwise
+        # the public result can report the same activity multiple times and
+        # trial constraints can accidentally combine cumulative steps.
+        candidate_by_activity: dict[str, BackwardLevelingShift] = {}
+        for proposed in backward_shifts:
+            current = candidate_by_activity.get(proposed.activity_id)
+            if current is None or proposed.advanced_days > current.advanced_days:
+                candidate_by_activity[proposed.activity_id] = proposed
+        candidates = tuple(candidate_by_activity.values())
         for candidate in sorted(
-            backward_shifts,
+            candidates,
             key=lambda item: (item.advanced_days, item.activity_id),
         ):
             trial_shifts = tuple(accepted_backward_shifts) + (candidate,)
