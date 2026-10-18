@@ -1095,3 +1095,11 @@ Status: **merged; exact-head CI verified**
 - ResourceList is now a tuple of resource IDs through ScheduleOptions and the leveling boundary; canonical snapshot arrays preserve IDs containing commas. Legacy comma-separated snapshot strings are accepted only at the materialization compatibility boundary and validated for blanks/duplicates.
 - These changes do not certify the Release 26 REST mapping or close Issue #1379. The field disposition remains pending where external wire representation is not proven. PriorityList still needs an explicit canonical item/sort-order contract and round-trip evidence through authoritative resource leveling.
 - Issue #1379 updated with merge evidence; keep open for the remaining PriorityList acceptance gate. Do not change Shared Core semantics speculatively.
+
+
+### 2026-10-18 — Activity Master precision guard / exact-head CI checkpoint (PR #1474)
+- Exact head: `d4db5094b31faf83ef7b3fab2dfaeadbefd11af1`.
+- Added five parameterized regression cases ensuring Activity Master date-based composition rejects datetime values instead of silently truncating time/UTC-offset precision for actual_start, actual_finish, remaining_start, expected_finish, and planned_finish.
+- Exact-head Client Typecheck and PostgreSQL Integration workflows passed. ConstructionPM CI reports `2555 passed, 91 skipped, 2 failed` on Python 3.11/3.12/3.13; both failures are the previously confirmed baseline scheduler failures (batch resource over-allocation and backward-leveling start-no-later-than constraint). Do not weaken those guards to force green.
+- PR remains Draft. The test-only precision slice is verified, but Issue #1462 remains open: no production ActivityMaster-to-snapshot writer/canonical graph assembly owner is proven. Do not wire a partial writer that fabricates or drops relationships, calendars, constraints, options, or resource assignments.
+- Next implementation step: trace and establish the authoritative application/write transaction boundary from project graph assembly to ActivityMaster persistence; only then add production composition and fresh-read integration coverage. Keep exact-head CI and independent review as gates.

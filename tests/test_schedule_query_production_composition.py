@@ -1,22 +1,28 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import hashlib
+from decimal import Decimal
 from io import BytesIO
 import json
 import sqlite3
 
+import pytest
+
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
-from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
-from construction_pm.scheduling.activity import Activity
+from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, SQLiteScheduleInputSnapshotRepository, ScheduleSnapshotPersistenceError, build_activity_master_composed_snapshot, build_snapshot, compose_activity_master_records
+from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.time_duration import DurationUnit
 
 
 class Sessions:
@@ -60,6 +66,139 @@ def _lifecycle_api(now: datetime) -> ProjectLifecycleAPI:
         default_project_policy(),
     )
     return ProjectLifecycleAPI(service)
+
+
+def test_persisted_activity_master_records_are_composed_before_snapshot_build():
+    conn = sqlite3.connect(":memory:")
+    activity_repo = SQLiteActivityMasterRepository(conn)
+    scope = BackendScope("T-1", "P-1", 9)
+    activity_repo.save(
+        ActivityMaster(
+            scope=scope,
+            activity_id="A",
+            duration_value=Decimal("4"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            actual_start=date(2026, 9, 21),
+            record_revision=0,
+            expected_finish=date(2026, 9, 30),
+            actual_finish=None,
+            remaining_duration=3,
+            remaining_start=date(2026, 9, 22),
+            percent_complete=25,
+            percent_complete_type=PercentCompleteType.DURATION,
+            planned_finish=date(2026, 10, 2),
+            leveling_priority=ActivityLevelingPriority.HIGH,
+            original_duration=6,
+        )
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-ACTIVITY-MASTER",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 99, name="preserve graph identity"),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+
+    composed = compose_activity_master_records(source, activity_repo)
+    activity = composed.activities[0]
+    assert activity.duration == 4
+    assert activity.actual_start == date(2026, 9, 21)
+    assert activity.expected_finish == date(2026, 9, 30)
+    assert activity.remaining_duration == 3
+    assert activity.remaining_start == date(2026, 9, 22)
+    assert activity.percent_complete == 25
+    assert activity.planned_finish == date(2026, 10, 2)
+    assert activity.original_duration == 6
+    assert activity.leveling_priority is ActivityLevelingPriority.HIGH
+    assert activity.name == "preserve graph identity"
+    assert source.activities[0].duration == 99
+
+    now = datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-ACTIVITY-MASTER",
+        tenant_id="T-1",
+    )
+    snapshot = build_activity_master_composed_snapshot(
+        source, activity_repo, context, now
+    )
+    assert snapshot.snapshot_hash == build_snapshot(composed, context, now).snapshot_hash
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["activities"][0]["duration"] == 4
+    assert payload["activities"][0]["planned_finish"] == "2026-10-02"
+    assert payload["activities"][0]["original_duration"] == 6
+    assert payload["activities"][0]["leveling_priority"] == "High"
+
+    # Verify the composed, hashed payload survives a fresh repository read.
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    persisted = snapshot_repo.save(snapshot)
+    reloaded = snapshot_repo.get(BackendScope("T-1", "P-1", 9), "S-ACTIVITY-MASTER")
+    assert reloaded is not None
+    assert reloaded.snapshot_hash == persisted.snapshot_hash == snapshot.snapshot_hash
+    assert reloaded.canonical_payload == snapshot.canonical_payload
+    reloaded_payload = json.loads(reloaded.canonical_payload)
+    assert reloaded_payload["activities"][0]["planned_finish"] == "2026-10-02"
+    assert reloaded_payload["activities"][0]["original_duration"] == 6
+    assert reloaded_payload["activities"][0]["leveling_priority"] == "High"
+
+
+def test_activity_master_composition_fails_closed_for_fractional_working_day():
+    conn = sqlite3.connect(":memory:")
+    activity_repo = SQLiteActivityMasterRepository(conn)
+    activity_repo.save(
+        ActivityMaster(
+            scope=BackendScope("T-1", "P-1", 9),
+            activity_id="A",
+            duration_value=Decimal("1.5"),
+            duration_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-FRACTIONAL",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+    try:
+        compose_activity_master_records(source, activity_repo)
+    except ScheduleSnapshotPersistenceError as exc:
+        assert str(exc) == "ACTIVITY_MASTER_FRACTIONAL_WORKING_DAY_UNSUPPORTED"
+    else:
+        raise AssertionError("fractional working-day duration must fail closed")
+
+
+def test_authoritative_schedule_input_rejects_duplicate_graph_activity_ids():
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-DUPLICATE",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=9,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=CalendarReference("CAL-1", "1"),
+            activities=(Activity("A", 2), Activity("A", 3)),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 9, 21),
+        )
 
 
 def test_production_composition_wires_persisted_context_into_schedule_query_route():
@@ -196,3 +335,61 @@ def test_production_composition_wires_backend_p0_workspace_control_room():
         "project_id": "P-1",
         "project_revision": 9,
     }
+
+
+@pytest.mark.parametrize("identity_version", [True, False, 1.0, 2.0, "1"])
+def test_snapshot_rejects_non_integer_calculation_identity_version(identity_version):
+    payload = "{}"
+    snapshot = ScheduleInputSnapshot(
+        scope=BackendScope("T-1", "P-1", 9),
+        snapshot_id="S-identity-version",
+        snapshot_hash=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        canonical_payload=payload,
+        calculation_identity="a" * 64,
+        created_at=datetime(2026, 10, 18, tzinfo=timezone.utc),
+        calculation_identity_version=identity_version,
+    )
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="INVALID_CALCULATION_IDENTITY_VERSION",
+    ):
+        snapshot.validate()
+
+
+@pytest.mark.parametrize(
+    "date_field",
+    ["actual_start", "actual_finish", "remaining_start", "expected_finish", "planned_finish"],
+)
+def test_activity_master_composition_rejects_datetime_without_truncating_precision(date_field):
+    conn = sqlite3.connect(":memory:")
+    activity_repo = SQLiteActivityMasterRepository(conn)
+    scope = BackendScope("T-1", "P-1", 9)
+    precise_timestamp = datetime(2026, 10, 2, 14, 30, tzinfo=timezone.utc)
+    activity_repo.save(
+        ActivityMaster(
+            scope=scope,
+            activity_id="A",
+            duration_value=Decimal("4"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            **{date_field: precise_timestamp},
+        )
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-DATETIME-REJECT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 4),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="ACTIVITY_MASTER_DATE_TYPE_MISMATCH",
+    ):
+        compose_activity_master_records(source, activity_repo)
