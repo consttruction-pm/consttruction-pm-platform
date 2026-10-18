@@ -45,7 +45,16 @@ def backward_leveling_constraints(
     )
 
 
-def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift]) -> tuple[ActivityConstraint, ...]:
+def backward_leveling_exact_constraints(
+    shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift],
+) -> tuple[ActivityConstraint, ...]:
+    """Translate backward-leveling candidates without creating contradictory date windows.
+
+    A candidate's requested date is represented by a single lower bound. The
+    authoritative CPM pass must still honor relationships and user constraints;
+    paired lower/upper bounds can make the graph infeasible and propagate a
+    candidate move to otherwise-unselected predecessors.
+    """
     final_by_activity: dict[str, BackwardLevelingShift] = {}
     for shift in shifts:
         if shift.advanced_days <= 0:
@@ -53,13 +62,14 @@ def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...
         current = final_by_activity.get(shift.activity_id)
         if current is None or shift.advanced_days > current.advanced_days:
             final_by_activity[shift.activity_id] = shift
-    result: list[ActivityConstraint] = []
-    for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id):
-        result.extend((
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start),
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_LATER_THAN, shift.new_start),
-        ))
-    return tuple(result)
+    return tuple(
+        ActivityConstraint(
+            shift.activity_id,
+            ConstraintType.START_NO_EARLIER_THAN,
+            shift.new_start,
+        )
+        for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id)
+    )
 
 
 def merge_leveling_constraints(
