@@ -24,6 +24,14 @@ A web-ready construction project management platform designed as a structured re
 8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
 
+## Mandatory read-first workflow (every new chat/session and every team task)
+
+Before planning, coding, review or progress reporting, read [the Project Continuity Protocol](docs/governance/PROJECT_CONTINUITY_PROTOCOL.md), [the Project State Ledger](docs/governance/PROJECT_STATE_LEDGER.md), the current Jalal 5 schedule **and its exact authoritative workbook**, then verify current `main`, relevant GitHub issues/PRs and exact-SHA checks. The ledger is an index; live GitHub evidence must be refreshed. When a required source cannot be accessed, report `BLOCKED / UNKNOWN` instead of guessing.
+
+**Binding V1 scope:** Website + Desktop + native Mobile are all required in V1. See [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486). Any old statement that defers native Mobile to V2 is superseded. The Mobile requirement is not considered fully scheduled until the weighted workbook includes its activities and the 100.00-point allocation, dependencies and forecast have been recalculated.
+
+All material decisions must be captured in GitHub issues/decision records; every task needs a schedule activity ID and a linked issue/PR; product completion credit requires merged current-main implementation plus fresh tests and acceptance evidence. Conversation history is not the source of truth.
+
 ## Team responsibility model
 The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
 - **Jalal** — Lead Developer / Architect / Integration; Shared Core, scheduling/calculation, P6 parity, integration and final technical acceptance.
