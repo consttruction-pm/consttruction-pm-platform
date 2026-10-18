@@ -1107,6 +1107,7 @@ def test_backward_activity_builder_carries_authoritative_cpm_floats():
 def test_resource_leveling_preserves_activity_specific_calendars() -> None:
     """Every CPM pass in resource leveling must use the activity calendar map."""
     from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.resource_leveling import LevelingActivity
     from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
@@ -1155,6 +1156,7 @@ def test_backward_demand_translation_uses_activity_calendar() -> None:
     from decimal import Decimal
     from types import SimpleNamespace
     from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+    from construction_pm.scheduling.resource_leveling import LevelingActivity
 
     thursday = date(2026, 10, 1)
     monday = date(2026, 10, 5)
