@@ -69,3 +69,22 @@ The refreshed workbook adds this missing row with SUMIF-linked formulas. Verific
 - Evidence-gated input simulation remains green: pending input ignored; accepted input recalculates; clearing input restores the prior snapshot.
 
 This is an additional reporting-integrity repair; it does not create product-code credit or change the last computed detailed progress snapshot.
+
+
+## Source-to-model conformance blocker discovered — 2026-10-18
+
+The current Jalal resource-leveling candidate has a new source-backed blocker, tracked in [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447), [PR #1457](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1457), and its matrix row **RL-P6-08**:
+- Release 26 Project REST exposes `LevelPriorityList` / `LevelResourceList` as resource-leveling project settings; it describes the former as the ordered criteria used to level resources and the latter as the resources to level.
+- The distinct ScheduleOptions REST object exposes `PriorityList` / `ResourceList` as scalar strings without the same resource-leveling description.
+- Release 26.4 Integration API shapes differ too: Project `getLevelPriorityList()/getLevelResourceList()` return `String`, while ScheduleOptions `getPriorityList()/getResourceList()` return `String[]`.
+- Candidate `scheduling/leveling_boundary.py` currently maps ScheduleOptions `priority_list/resource_list` into the Shared Core leveling boundary. The chosen object/profile, canonical storage, scalar-string encoding and lossless round-trip remain unverified. This is an established contract ambiguity, not yet a proven runtime defect. No mapping/encoding should be guessed; an independent semantic review and authoritative read/write/read fixture are required.
+
+Official source links:
+- [Project REST GET](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-get.html)
+- [Update Project REST](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-syncservice-updateproject-put.html)
+- [ScheduleOptions REST GET](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html)
+- [ScheduleOptions REST PUT](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-put.html)
+- [P6 Integration API Project](https://docs.oracle.com/cd/G48897_01/English/Integration_Documentation/p6_eppm_api_reference/com/primavera/integration/client/bo/object/Project.html)
+- [P6 Integration API ScheduleOptions](https://docs.oracle.com/cd/G48897_01/English/Integration_Documentation/p6_eppm_api_reference/com/primavera/integration/client/bo/object/ScheduleOptions.html)
+
+Candidate evidence current as of this addendum: matrix update commit `bdd1d6c8a30dde3c207f06987f33ba0bd044a18d`; Client Typecheck run `39083278784` passed; PostgreSQL Integration run `39083278778` passed; ConstructionPM CI run `39083278773` was still in progress at inspection. The earlier head's green CI is not evidence for the new SHA. Keep #1457 Draft/unmerged and do not increase weighted progress on this documentation/conformance finding.
