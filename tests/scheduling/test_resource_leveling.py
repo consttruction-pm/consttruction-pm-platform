@@ -550,3 +550,34 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
+
+def test_activity_id_priority_uses_p6_numeric_then_alphabetic_order():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity("10", day, day, 0),
+        LevelingActivity("A2", day, day, 0),
+        LevelingActivity("2", day, day, 0),
+        LevelingActivity("A10", day, day, 0),
+    )
+
+    ordered = sorted(activities, key=lambda activity: _priority_sort_key(activity, ()))
+    assert [activity.activity_id for activity in ordered] == ["2", "10", "A10", "A2"]
+
+
+def test_explicit_activity_id_priority_reverses_values_without_reversing_p6_categories():
+    from construction_pm.scheduling.resource_leveling import _priority_sort_key
+
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity("10", day, day, 0),
+        LevelingActivity("A2", day, day, 0),
+        LevelingActivity("2", day, day, 0),
+        LevelingActivity("A10", day, day, 0),
+    )
+    priority = (LevelingPriority("activity_id", SortOrder.DESCENDING),)
+
+    ordered = sorted(activities, key=lambda activity: _priority_sort_key(activity, priority))
+    assert [activity.activity_id for activity in ordered] == ["10", "2", "A2", "A10"]
+
