@@ -173,6 +173,8 @@ class LevelingActivity:
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
     free_float: int | None = None
+    late_start: date | None = None
+    late_finish: date | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -193,6 +195,21 @@ class LevelingActivity:
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if any(
+            value is not None and (
+                not isinstance(value, date) or isinstance(value, datetime)
+            )
+            for value in (self.late_start, self.late_finish)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        if (
+            self.late_start is not None
+            and self.late_start < self.start
+        ) or (
+            self.late_finish is not None
+            and self.late_finish < self.finish
+        ):
+            raise ResourceLevelingError("INVALID_LATE_WINDOW")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -240,6 +257,8 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "activity_priority": activity.activity_priority,
         "early_start": activity.start,
         "early_finish": activity.finish,
+        "late_start": activity.late_start,
+        "late_finish": activity.late_finish,
         "total_float": activity.total_float,
         "free_float": activity.free_float,
     }
