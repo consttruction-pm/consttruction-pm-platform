@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-10-18  
 **Plan ID:** JALAL-5-CUBI-2026-10-18  
-**Status:** Planning baseline for review; not a product implementation completion claim.  
+**Status:** DRAFT — re-baseline required before approval. Product-owner decision in [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486) makes native Mobile mandatory in V1. The existing 100-point / 130-row workbook model does not yet reflect that added scope; its weights and forecast are not the final approved baseline.  
 **Product-code baseline checked:** `main@faa34707957022ffa3f51c8d13561047cc7a44cc`  
 **Workbook:** `Jalal5_Weighted_Master_Schedule_2026-10-18.xlsx` (12 sheets; row-level task, web route, menu, AI, source, gate, decision and dependency matrices).
 
@@ -12,7 +12,7 @@
 2. **Jalal 5 has 100 weighted points.** Weights are allocated once across ten workstreams. Shared work is counted once. PRs, documentation, comments, mocks and isolated tests earn no product completion until the relevant implementation is merged, exact-head checks pass and acceptance evidence is recorded.
 3. **No false current percentage.** Jalal 4's last calculated detailed snapshot is 48.13% (2026-10-13), not a newly certified 2026-10-18 value. Jalal 5 row-level acceptance and its earned total remain Pending until the 58 Jalal 4 activities are explicitly mapped to Jalal 5 rows against current-main evidence. Pending is not a claim that the whole product is 0% complete.
 4. The last Jalal 4 workbook implies 535.21 remaining person-days. The Jalal 5 task allocations use that value only as a **temporary proportional effort envelope** because the new 130-row J4→J5 crosswalk is not yet accepted. The 1986 person-days in the gross lifecycle column are the unscaled scope estimate, not estimated remaining effort. Re-estimate individual rows after the crosswalk; do not silently preserve this proportional assumption as audited fact.
-5. Date planning uses Monday 2026-10-19 as week 1, explicit predecessor relationships, one serialized primary-owner lane per owner and 80% focus capacity. The first computed owner/dependency forecast ends 2027-12-08; planning week 60 ends Friday 2027-12-10. This is about six weeks beyond the inherited Jalal 4 target (2027-10-29), is **conditional**, and must be recalculated after row-level crosswalk, blocker resolution and calendar-aware resource planning. Public holidays and project-specific calendars are not yet modeled in this coarse planning calculation.
+5. Date planning uses Monday 2026-10-19 as week 1, explicit predecessor relationships, one serialized primary-owner lane per owner and 80% focus capacity. The first computed owner/dependency forecast ends 2027-12-08; planning week 60 ends Friday 2027-12-10. This is about six weeks beyond the inherited Jalal 4 target (2027-10-29), is **conditional**, and must be recalculated after row-level crosswalk, Mobile V1 task/weight inclusion, blocker resolution and calendar-aware resource planning. The currently shown effort envelope and dates are not valid as the final Jalal 5 forecast until that recalculation passes QA. Public holidays and project-specific calendars are not yet modeled in this coarse planning calculation.
 
 ## 2. Workstream weights and exit criteria
 
@@ -54,7 +54,25 @@ The plan preserves the current **nine root menu keys**: Project, Schedule, Progr
 
 Each row has bilingual labels, target screen, previous/next sibling, functional scope and permission/status boundary. Detailed requirements include WBS/Work Packages, complete Activity Grid/custom fields, relationships/network, Gantt/timeline, schedule/recalculate and diagnostics, project/activity/resource/lag calendars, constraints, baselines, progress/actuals, resource assignments/leveling, costs/EVM, documents/RFI/Submittals/claims, procurement, field logs/inspections, form builder, dashboards, report/print/export, language settings, help and recovery. Every command that overlaps P6 must map to a stable control/action ID and calculation/test contract; UI-only placeholders do not count as implementation.
 
-## 5. AI assistant design contract
+## 5. Native Mobile is a mandatory V1 client
+
+The product-owner decision is explicit: **CUBI V1 includes the Website, Desktop application and a native Mobile application. Mobile is not deferred to V2.** See [governance Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486); it supersedes the conflicting mobile-V2 language in the historical crosswalk.
+
+V1 Mobile acceptance must include, at minimum:
+- A real native host/runtime, authenticated session and project/workspace shell, with observable permission, loading, empty, error and recovery states.
+- Core planning journeys: WBS/work-package navigation, activity create/edit, predecessor/successor relationship viewing/editing for FS/SS/FF/SF with lead/lag, schedule/recalculate invocation through the authoritative application contract, and relevant early/late/float/criticality results from that same calculation result.
+- An explicitly scoped set of first field/control workflows aligned to the product schedule (such as field logs, attendance/timecards, equipment status, inspection/quality/safety observations and punch/closeout where included), using durable APIs and tenant/project/revision/authorization boundaries.
+- Correct offline/online/sync behavior for every workflow declared offline-capable; clear conflict and stale-revision handling; no hidden success claim before write → commit → fresh-read proof.
+- RTL/LTR, all declared supported languages, locale-aware project data and Jalali/Gregorian date presentation; mobile navigation, accessibility and responsive detail/report views.
+- Mobile-specific negative, permission, accessibility, localization, integration, lifecycle/recovery and regression tests. AI/voice/OCR capabilities may only be advertised when the real runtime/provider capability is verified.
+
+Mobile must reuse the same versioned contracts and authoritative Shared Domain/Calculation Core as Web/Desktop. **No client-side duplicate CPM, calendar, resource leveling, progress, cost or EVM engine is permitted.** Calculation parity and source-before-coding requirements remain unchanged.
+
+**Owner lanes:** Farmj22002 owns the Mobile client/runtime and user journeys; Hasan owns backend/API/persistence/auth/sync contracts in his lane; Jalal owns shared calculation semantics, architecture and integration/release acceptance. Reassignments require a recorded decision and workbook update.
+
+**Schedule and weight gate:** the ten workstream percentages, 130-task count and 535.21-PD proportional effort envelope above describe the prior proposed model. They are not certified against this mandatory scope. Add explicit Mobile V1 activity IDs, definitions of done, estimates, predecessors, owner lanes and test evidence to the authoritative workbook; reallocate only after sizing, keep the workbook weight total exactly 100.00, recompute dependency/owner-lane/forecast outputs, and independently inspect formulas. Do not assign a guessed percentage or award progress for writing this section. Until this gate is complete, the master plan remains DRAFT and Jalal 5 earned progress remains Pending.
+
+## 6. AI assistant design contract
 
 The goal is a **Pro-level construction project-controls assistant**, not a generic chat screen. The workbook lists 27 detailed capabilities and a P0 acceptance matrix. It covers text and supported file intake; project initialization; WBS/activity/relationship/resource proposals; natural-language schedule/control queries; revision-bound source grounding; scenarios; document/contract analysis; forms/report generation; error explanation and next steps; voice and OCR where actual provider/runtime capability is verified; and action proposal, preview, approval/rejection, execution, audit and report readback.
 
@@ -67,7 +85,7 @@ Execution is intentionally dual-mode:
 
 Implementation remains tracked by [Issue #1423](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1423) and [Issue #94](https://github.com/consttruction-pm/consttruction-pm-platform/issues/94); the desktop offline principle is also recorded in draft [PR #1482](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1482). These are not claims that the local inference engine is finished.
 
-## 6. Source-driven P6 and PMBOK contracts
+## 7. Source-driven P6 and PMBOK contracts
 
 - The workbook’s P6/PMBOK ledger has **56 top-level P6 calculation contract sections** and **33 top-level PMBOK form/calculation contract sections**. Each row is a coverage anchor with authority, implementation map, expected tests and state.
 - [PR #1478](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1478) contains the source-backed P6 calculation contract. As checked for this schedule, it is open/unmerged.
@@ -75,7 +93,7 @@ Implementation remains tracked by [Issue #1423](https://github.com/consttruction
 - P6 Release 26/26.4 is the compatibility and no-silent-omission baseline for overlapping behavior. Each rule must be traced to official edition/source evidence, a CUBI implementation mapping and a regression/parity fixture. Where public documentation leaves semantics unresolved, mark OPEN/PARITY TEST REQUIRED; do not guess.
 - PMBOK is tailored and non-prescriptive. Distinguish PMI-documented rules from CUBI-approved techniques, project-configured formulas, Shared Core outputs, AI-proposed formulas and OPEN semantics. Forms, charts and reports may not introduce duplicate CPM/calendar/resource/EVM engines.
 
-## 7. Current blockers and release gates
+## 8. Current blockers and release gates
 
 The workbook contains 20 release gates, including:
 - current-main CI failures for shared-resource over-allocation and backward SS/constraint handling: [Issue #1476](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1476) and source-before-coding evidence [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447);
@@ -88,7 +106,7 @@ The workbook contains 20 release gates, including:
 
 The spreadsheet’s **Dependency QA** sheet has 300 explicit predecessor edges and 127 primary-owner-lane ordering checks; its computed model reports zero violations/overlaps. These are planning-calculation checks only, not test evidence from production software. The plan must be rebuilt if the accepted task crosswalk, actual owner capacity or a project calendar changes.
 
-## 8. Workbook index
+## 9. Workbook index
 
 The saved workbook contains twelve sheets: Dashboard; Jalal5 Schedule; Workstream Summary; Site Route Matrix; App Menu Map; AI Capability Matrix; P6 PMBOK Ledger; Release Gates; Decision Register; Jalal4 Archive; Team Load; Dependency QA.
 
