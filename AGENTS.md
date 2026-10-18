@@ -27,4 +27,4 @@ Treat it as mandatory, version-controlled engineering authority. This requiremen
 
 ## Pull request requirements
 
-Calculation-affecting PRs must complete the checklist in `/.github/pull_request_template.md`. Missing source evidence, missing tests, failing CI or unresolved high-risk ambiguity blocks merge. Review the calculation contract's OPEN backlog before claiming complete coverage.
+Calculation-affecting PRs must complete the checklist in `.github/pull_request_template.md`. Missing source evidence, missing tests, failing CI or unresolved high-risk ambiguity blocks merge. Review the calculation contract's OPEN backlog before claiming complete coverage.
