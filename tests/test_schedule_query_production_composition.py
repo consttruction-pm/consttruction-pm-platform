@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import hashlib
 from decimal import Decimal
 from io import BytesIO
 import json
@@ -15,7 +16,7 @@ from construction_pm.activity_master_repository import ActivityMaster, SQLiteAct
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
-from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, ScheduleSnapshotPersistenceError, build_activity_master_composed_snapshot, build_snapshot, compose_activity_master_records
+from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, SQLiteScheduleInputSnapshotRepository, ScheduleSnapshotPersistenceError, build_activity_master_composed_snapshot, build_snapshot, compose_activity_master_records
 from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -334,3 +335,23 @@ def test_production_composition_wires_backend_p0_workspace_control_room():
         "project_id": "P-1",
         "project_revision": 9,
     }
+
+
+@pytest.mark.parametrize("identity_version", [True, False, 1.0, 2.0, "1"])
+def test_snapshot_rejects_non_integer_calculation_identity_version(identity_version):
+    payload = "{}"
+    snapshot = ScheduleInputSnapshot(
+        scope=BackendScope("T-1", "P-1", 9),
+        snapshot_id="S-identity-version",
+        snapshot_hash=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        canonical_payload=payload,
+        calculation_identity="a" * 64,
+        created_at=datetime(2026, 10, 18, tzinfo=timezone.utc),
+        calculation_identity_version=identity_version,
+    )
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="INVALID_CALCULATION_IDENTITY_VERSION",
+    ):
+        snapshot.validate()
