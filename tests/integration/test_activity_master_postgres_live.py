@@ -9,7 +9,7 @@ from construction_pm.activity_master_repository import (
     PostgresActivityMasterRepository,
 )
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.scheduling.activity import PercentCompleteType
+from construction_pm.scheduling.activity import ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.time_duration import DurationUnit
 
 
@@ -108,6 +108,64 @@ def test_postgres_activity_master_updates_all_progress_state():
 
         assert saved.record_revision == 2
         assert repo.get(scope, "A-PROGRESS") == saved
+
+        connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+            (scope.tenant_id, scope.project_id),
+        )
+        connection.commit()
+
+
+
+def test_postgres_activity_master_persists_and_updates_schedule_fields():
+    scope = BackendScope("tenant-activity-schedule-fields", "project-master", 7)
+
+    with connect() as connection:
+        repo = PostgresActivityMasterRepository(connection)
+        repo.initialize()
+        connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+            (scope.tenant_id, scope.project_id),
+        )
+        connection.commit()
+
+        initial = ActivityMaster(
+            scope,
+            "A-SCHEDULE-FIELDS",
+            Decimal("4"),
+            DurationUnit.WORKING_DAY,
+            date(2026, 9, 21),
+            planned_finish=date(2026, 10, 1),
+            leveling_priority=ActivityLevelingPriority.HIGH,
+            original_duration=12,
+        )
+        stored = repo.save(initial)
+        connection.commit()
+
+        restored = repo.get(scope, "A-SCHEDULE-FIELDS")
+        assert restored == stored
+        assert restored.planned_finish == date(2026, 10, 1)
+        assert restored.leveling_priority is ActivityLevelingPriority.HIGH
+        assert restored.original_duration == 12
+
+        updated = ActivityMaster(
+            scope,
+            "A-SCHEDULE-FIELDS",
+            Decimal("3"),
+            DurationUnit.WORKING_DAY,
+            date(2026, 9, 21),
+            planned_finish=date(2026, 10, 2),
+            leveling_priority=ActivityLevelingPriority.LOWEST,
+            original_duration=9,
+        )
+        saved = repo.save(updated, expected_revision=1)
+        connection.commit()
+
+        assert saved.record_revision == 2
+        assert repo.get(scope, "A-SCHEDULE-FIELDS") == saved
+        assert saved.planned_finish == date(2026, 10, 2)
+        assert saved.leveling_priority is ActivityLevelingPriority.LOWEST
+        assert saved.original_duration == 9
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
