@@ -18,3 +18,6 @@ validation = ["pmcontrols>=0.2.1,<0.3"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "postgres: tests that require a PostgreSQL test database",
+]
