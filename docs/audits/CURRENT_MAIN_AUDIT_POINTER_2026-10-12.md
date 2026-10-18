@@ -1,6 +1,6 @@
-# Current-main Audit Pointer — 2026-10-12
+# Historical Audit Pointer — 2026-10-12 (Superseded)
 
-This is the live repository pointer for audit reporting. Historical audit snapshots remain historical; do not treat their SHAs or percentages as current unless independently reconciled.
+**HISTORICAL SNAPSHOT — not the live reporting pointer.** This document records the audit state at the 2026-10-12 cut-off and is superseded for current reporting by [Jalal 4 Progress Control — 2026-10-18](JALAL4_PROGRESS_CONTROL_2026-10-18.md). Its SHAs, Jalal 3 percentage and prior open-PR list must not be reported as current.
 
 ## Authoritative integration baseline
 
