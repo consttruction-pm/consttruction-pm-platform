@@ -106,14 +106,14 @@ Conversions must honor resource type, hours per period, calendars and unit scale
 
 ### 4.2 Duration-type matrix
 
-| ID | Duration type | Quantity held fixed | Units changed | Duration changed | Units/time changed |
-|---|---|---|---|---|---|
-| DUR-FUT | Fixed Units/Time | Resource units per time | Duration changes | Units change | Duration changes |
-| DUR-FDUT | Fixed Duration & Units/Time | Duration | Units/time changes | Units change | Units change |
-| DUR-FU | Fixed Units | Total units | Duration changes | Units/time changes | Duration changes |
-| DUR-FDU | Fixed Duration & Units | Duration and total units | Units/time changes | Units/time changes | Units change |
+| ID | Duration type | When Units change | When Duration changes | When Units/Time changes | Add first resource with no budgeted/planned units | Add additional resource(s) |
+|---|---|---|---|---|---|---|
+| DUR-FUT | Fixed Units/Time | Duration changes | Units change | Duration changes | Units change | Duration changes |
+| DUR-FDUT | Fixed Duration & Units/Time | Units/Time changes | Units change | Units change | Units change | Units change |
+| DUR-FU | Fixed Units | Duration changes | Units/Time changes | Duration changes | Units change | Duration changes |
+| DUR-FDU | Fixed Duration & Units | Units/Time changes | Units/Time changes | Units change | Units change | Units/Time of each resource changes |
 
-The official synchronization table also defines behavior when adding the first resource to an assignment with no budgeted/planned units and when adding additional resources. Implement and test those columns too; they cannot be omitted. Start/Finish Milestones disable the duration-type setting.
+This is the full Version 26 synchronization table, including resource-addition behavior—not an optional test note. Apply the rule at the supported activity/assignment calculation boundary and preserve resource-type/calendar unit conversions. Start/Finish Milestones disable the duration-type setting.
 
 ### 4.3 Mandatory tests
 
@@ -242,7 +242,7 @@ Save these options in the calculation snapshot; reports, logs and assistant expl
 | ID | Selection | Required handling |
 |---|---|---|
 | SCH-DATA-DATE | Per-project Data Date vs selected date applied to all open projects | Preserve each project's chosen data date and project scope. |
-| SCH-EXPECTED-FINISH | Use Expected Finish Dates | Include only when selected. |
+| SCH-EXPECTED-FINISH | Use Expected Finish Dates | The Version 26 General Schedule Options help documents this option as checked by default. Use Expected Finish as the scheduled finish only when this option is active. |
 | SCH-AUTO | Automatic scheduling on significant changes | Recalculate dependencies or explicitly mark cached values stale. |
 | SCH-LEVEL-AUTO | Level resources during scheduling | Invoke shared leveling + authoritative CPM + final validation. |
 | SCH-EXTERNAL | Ignore/respect external-project relationships | Apply the explicit policy to external links. |
@@ -361,18 +361,21 @@ Earned Value is a family of selected calculation methods. Preserve baseline, bas
 
 ### 13.1 Base metrics
 
-- BAC = Budget at Completion from the selected baseline.
-- EV Cost = BAC × Performance % Complete, where Performance % Complete is selected by the WBS earned-value technique. This is the standard formula; the documented resource-curve/manual-future-period override conditions in Section 13.2 and Section 36 must be applied before asserting that the same simple activity percentage controls every assignment.
-- PV = Planned Value cost, derived from selected baseline/time-phased plan and date basis.
-- AC = Actual Cost from relevant actual labor/nonlabor/material/expense data.
-- ETC = Estimate to Complete under selected WBS technique.
-- EAC = Estimate at Completion = AC + ETC.
-- CV = Cost Variance = EV − AC.
-- SV = Schedule Variance = EV − PV.
-- CPI = Cost Performance Index = EV ÷ AC.
-- SPI = Schedule Performance Index = EV ÷ PV.
-- TCPI against BAC = (BAC − EV) ÷ (BAC − AC).
-- TCPI against EAC = (BAC − EV) ÷ (EAC − AC).
+- BAC Cost = Budgeted/Planned Labor Cost + Budgeted/Planned Nonlabor Cost + Budgeted/Planned Material Cost + Budgeted/Planned Expense Cost from the selected baseline.
+- EV Cost = BAC Cost × Performance % Complete, where Performance % Complete is selected by the WBS earned-value technique. Represent percentages as a fraction in the calculation core (for example, 50% = 0.5), not as 50. Apply the resource-curve/manual-future-period override conditions in Section 13.2 and Section 36 before assuming a straight-line activity percentage controls assignment-level EV.
+- PV Cost for an individual resource assignment = assignment BAC × (Current Project Data Date − Baseline Assignment Start Date) ÷ (Baseline Assignment Finish Date − Baseline Assignment Start Date), under the selected reference date/calendar semantics. Sum assignment-level PV Cost to the activity. If an assignment has manually defined future-period buckets, use those manual values to calculate PV.
+- PV Cost for an activity without resources = activity BAC × Schedule % Complete. The documented Schedule % Complete form is 0% when Data Date is before baseline start, 100% after baseline finish, and between those dates uses (Data Date − Baseline Start) ÷ (Planned Finish − Baseline Start). Treat equal/zero date span and calendar-boundary behavior as parity fixtures; never divide by zero.
+- AC Cost = Actual Labor Cost + Actual Nonlabor Cost + Actual Material Cost + Actual Expense Cost for the selected scope and date basis; the activity/assignment source fields remain separately auditable.
+- ETC Cost = Remaining Total Cost for the activity, or PF × (BAC Cost − EV Cost), according to the WBS ETC method.
+- EAC Cost = AC Cost + ETC Cost.
+- CV Cost = EV Cost − AC Cost.
+- SV Cost = EV Cost − PV Cost. This is cost-valued schedule variance, not time duration.
+- CPI Cost = EV Cost ÷ AC Cost.
+- SPI Cost = EV Cost ÷ PV Cost.
+- TCPI against BAC Cost = (BAC Cost − EV Cost) ÷ (BAC Cost − AC Cost).
+- TCPI against EAC Cost = (BAC Cost − EV Cost) ÷ (EAC Cost − AC Cost).
+- VAC Cost = BAC Cost − EAC Cost.
+- Unit-based EVM is a separate field family: EV Labor Units = Baseline Planned Labor Units × Performance % Complete where the selected method applies; ETC Labor Units is Remaining Total Units or the selected PF × (Baseline Planned Labor Units − EV Labor Units); EAC Labor Units = Actual Labor Units + ETC Labor Units; VAC Labor Units = Baseline Planned Labor Units − EAC Labor Units; TCPI Units uses the same BAC/EAC formulas with the unit-valued BAC, EV, AC and EAC fields. Never substitute cost values for units or vice versa.
 
 If a denominator is zero, return an explicit undefined/not-applicable state with reason; never divide by zero or fabricate zero. Standard cost-based SV is a cost-valued variance, not a time duration. CUBI Earned Schedule/time-based metrics are separate extensions with their own contract and tests.
 
@@ -944,7 +947,7 @@ The reference guide distinguishes driving and non-driving assignments:
 
 These are mandatory activity-type/assignment-level parity cases. “No overload at activity dates” cannot be simplified to one boolean for the entire multi-resource assignment.
 
-**Sources:** [Rate Type](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/assign_a_rate_type_to_a_resource_assignment.htm); [Rate Source](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/choose_the_rate_source_for_an_assignment.htm); [Multiple resource rates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_cost_when_using_multiple_resource_rates.htm); [Resource shifts](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/define_resource_shifts.htm); [Leveling by activity type](https://docs.oracle.com/cd/F74771_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm); [Recalculate assignment costs](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/recalculate_resource_and_role_assignment_costs.htm).
+**Sources:** [Rate Type](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/assign_a_rate_type_to_a_resource_assignment.htm); [Rate Source](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/choose_the_rate_source_for_an_assignment.htm); [Multiple resource rates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_cost_when_using_multiple_resource_rates.htm); [Resource shifts](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/define_resource_shifts.htm); [Leveling by activity type — Version 26 Help](https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm); [Recalculate assignment costs](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/recalculate_resource_and_role_assignment_costs.htm).
 
 ## 35. Complete Resource Leveling command options and edge cases
 
@@ -984,7 +987,11 @@ The final output validator must inspect the accepted scheduled graph, all assign
 
 Curves and manually entered future-period buckets are independent inputs to the assignment time-phasing model and can change actual units/costs and Earned Value. Keep all of these distinctions:
 
-- A resource/role assignment may have a curve or manual distribution of units/cost in future time periods.
+- Without a curve or manually entered buckets, budgeted/planned assignment units are spread evenly over the activity duration in the selected timescale. A resource/cost distribution curve changes this to a nonlinear spread.
+- Version 26 documents 21 points on a resource curve. The public page does not define every interpolation/bucket-boundary tie rule, so preserve reference fixtures instead of inventing an interpolation formula.
+- Curves may be assigned only for Fixed Duration & Units/Time and Fixed Duration & Units activities. Resource lag is considered; the curve starts at the lagged start date.
+- If timesheet data exists for actuals, curves are ignored for actual values and timesheet data is used; remaining units continue to use the curve.
+- Curves do not support expenses; expense Accrual Type continues to control their spread. Curves are reflected in Resource Usage Profile and Resource Usage Spreadsheet.
 - If Actual Units/Cost is computed from Duration % Complete and a curve applies, actuals are the corresponding curve-area percentage × planned/budgeted assignment units/cost, not a simple linear Duration % Complete × full budget.
 - When applying actuals with manually planned buckets, the source of the distribution depends on what was edited: Duration % Complete/Remaining Duration, Remaining Units/Remaining Early Finish, or Actual Units. Different cases can use Remaining distribution, planned/budgeted distribution, or not modify planned/remaining bucket values.
 - If the option Link Planned/Budget and At Completion is enabled for a Not Started assignment, planned/budgeted units and Remaining (Early) units bucket values remain linked/equal per the guide. If disabled, those totals can be independent. In-progress assignments may enter different planned versus remaining future-period values.
@@ -1135,9 +1142,86 @@ Permitted statuses: NOT REVIEWED; REVIEWED—DOCUMENTED; IMPLEMENTED—UNVERIFIE
 - [Check Schedule Report](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/101251.htm)
 - [BAC definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/budget_at_completion.htm)
 - [Earned Value Cost definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value_cost.htm)
+- [Planned Value Cost definition and assignment/no-resource formulas](https://docs.oracle.com/cd/G48902_01/client_help/en_US/planned_value_cost.htm)
 - [CPI definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/cost_performance_index.htm)
 - [SPI definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedule_performance_index.htm)
 - [ETC definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/estimate_to_complete.htm)
+- [EAC definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/estimate_at_completion.htm)
 - [PF definition](https://docs.oracle.com/cd/G48902_01/client_help/en_US/performance_factor_pf.htm)
+- [TCPI formulas — official P6 guide](https://docs.oracle.com/cd/F88966_01/p6help/en/43948.htm)
 - [Resource curves/future-bucket EVM](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/calculating_earned_value_using_resource_curves_or_manual_future_period_buckets.htm)
+
+
+
+## 44. Budget log, spending plan, funding and variance formulas
+
+These calculations are adjacent to schedule cost control and must be included when CUBI builds the project financial-control layer. Do not confuse project-budget variances with EVM Cost Variance or Schedule Variance.
+
+| Field | Formula / source behavior |
+|---|---|
+| Original Budget | User-entered estimate of total project need, including funding contributions. |
+| Approved Budget Changes | Sum of approved budget changes in the Budget Log. Keep pending/proposed changes distinct. |
+| Current Budget | Original Budget + Approved Budget Changes. |
+| Distributed Current Budget | Sum of current budget values distributed to the next level/control accounts as defined by the field. It is not a substitute for the total Current Budget. |
+| Total Spending Plan | Sum of monthly/period spending plan values. |
+| Total Spending Plan Tally | Sum of the period spending tally values. |
+| Current Variance | Current Budget − Total Spending Plan. |
+| Undistributed Current Variance | Total Spending Plan − Total Spending Plan Tally, at the corresponding project/period scope. |
+| Benefit Variance | Benefit Plan Tally − Benefit Plan at the corresponding period scope. |
+| Net Present Value (when the feature is supported) | Present Value of Total Benefit Plan − Present Value of Total Spending Plan; requires explicit discount rate, timescale and date basis. |
+
+Budget changes, approval statuses, project/EPS scope and time-period/fiscal-calendar basis must be retained in the input snapshot. Current Budget is the approved baseline budget for this feature; it is not necessarily the same field as activity BAC or the selected earned-value baseline total cost. Spending plan values are manually time-phased financial projections and do not automatically equal EVM PV, cost ETC or cash actually spent.
+
+Funding source assignments can be defined at different EPS/project levels, may include the same source multiple times with different amount/share contributions, and **do not automatically roll up** across EPS levels in the documented workflow. Total Funding is the sum of funding assigned to the selected project/EPS node. Do not calculate a parent’s fund by summing lower-level values unless the selected reference feature expressly does so.
+
+Required tests: Original Budget only; approved and pending changes; current budget changes after approval; distributed versus undistributed values; monthly/period plan and tally totals; variance sign including negative variance; funding contribution amount/share and duplicate source entries; no implicit parent rollup; NPV zero discount/empty periods; and currency/date/fiscal-period settings.
+
+**Sources:** [Compare budgets and variances](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/compare_budgets_and_variances.htm); [View budget and spending plan totals](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/view_budget_and_spending_plan_totals.htm); [Assign funding sources](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/assign_funding_sources.htm); [P6 Activity subject-area field definitions](https://docs.oracle.com/en/industries/construction-engineering/intelligence/subject-area-reference-guide/p6-activity-primaveraactivity.html).
+
+## 45. Separate percent-complete, scheduled-percent, and remaining-float fields
+
+The word “percent” does not identify one formula. Store field identity and computation type explicitly.
+
+| Field | Formula / meaning | Guardrail |
+|---|---|---|
+| Physical % Complete | User-entered physical progress, or weighted activity-step value if the corresponding project option is enabled. | Not derived from duration or units unless the selected method specifies it. |
+| Duration % Complete | (Original/Planned Duration − Remaining Duration) ÷ Original/Planned Duration. | Original duration is from the current plan under the documented field definition, not necessarily the baseline. Test zero duration, completed activity and precision/range. |
+| Units % Complete | (Actual Labor Units + Actual Nonlabor Units) ÷ (Actual Labor Units + Actual Nonlabor Units + Remaining Labor Units + Remaining Nonlabor Units). | Does not silently add Material quantities to this particular Activity Units % Complete definition; material-unit/EVM metrics are separate. |
+| Labor Units % Complete | Actual Labor Units ÷ At Completion Labor Units × 100, where the field is exposed. | Check denominator and link/actual settings. |
+| Nonlabor Units % Complete | Actual Nonlabor Units ÷ At Completion Nonlabor Units × 100, where the field is exposed. | Check denominator and link/actual settings. |
+| Schedule % Complete | Date-based progress implied by the selected plan/baseline at Data Date; the official activity subject-area formula provides (Data Date − Baseline Start) ÷ (Planned Finish − Baseline Start), with 0% before baseline start and 100% after baseline finish. | Not equivalent to Activity % Complete or Performance % Complete; precise calendar/date boundary behavior needs parity fixtures. |
+| Performance % Complete | WBS-selected EVM method: activity percent, WBS milestone weights, 0/100, 50/50, custom percent or applicable curve/bucket method. | Only drives EV under the selected WBS method. |
+| Remaining Float | Official subject-area definition: Late Finish − Remaining Finish. | Distinct from Total Float; use selected schedule dates/calendar semantics. |
+| Total Float | The selected scheduler method: Late Start − Early Start; Late Finish − Early Finish; or the smaller of those values. | Retain component floats; do not clamp negative values. |
+
+This matrix is a semantic separation contract. When a field appears with a different definition in a specific P6 interface/API/export schema, log the source and version as a compatibility case rather than silently mixing the two definitions.
+
+**Sources:** [Activity percent-complete types v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/define_activity_percent_complete_types.htm); [Activity subject-area field definitions](https://docs.oracle.com/en/industries/construction-engineering/intelligence/subject-area-reference-guide/p6-activity-primaveraactivity.html); [P6 subject-area reference for resource assignments](https://docs.oracle.com/en/industries/construction-engineering/intelligence/subject-area-reference-guide/dimensions-resource-assignment.html); [Schedule Options v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm).
+
+## 46. Role limits, resource availability and resource-analysis outputs
+
+Role limits over time and resource assignment leveling capacity are related but not identical concepts. Keep them separate in the model and user interface.
+
+- Role limit entries use an effective date and Max Units/Time. Effective dates must be unique for each role; input values may be units or percentages depending on the user’s selected resource units/time preference and are converted to the user’s default display format.
+- The reference guide says role limits help identify role overload in Resource/Role Usage Profiles and histograms. By default, calculated role limits can be based on the limits of each role’s primary resource. User preferences may instead consider only active resources or show custom role limits.
+- Do not treat a role-limit histogram indicator as automatically equivalent to the resource-calendar capacity used by resource leveling. Identify the selected analysis mode and show which source supplies the capacity/limit.
+- Resource limits, role limits, time-varying Max Units/Time, resource calendars, resource shifts, project priority and actual assignment demand must all be retained as separate facts. A chart color is only a visual overload indicator, not a recalculation.
+- Resource Analysis dynamic leveling and “what-if” forecast outputs must be marked as scenarios/proposals until their selected schedule/leveling engine calculation is run and validated; they must not overwrite the authoritative baseline/current schedule without an explicit commit action.
+
+**Sources:** [Define role limits over time v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/define_role_limits_over_time.htm); [Roles guide v26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/roles.htm); [Level Resources v26](https://docs.oracle.com/cd/G48902_01/client_help/en_US/levelingresources.htm); [Project Gantt/Profile and Resource Analysis](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/profileandresourceanalysis.htm).
+
+## 47. Cross-checks for the activity duration synchronization table
+
+The duration-type table in Section 4 was rechecked against the full official Version 26 table, including both “add resource when no budgeted/planned units exist” and “add additional resources” columns. The required expected changes are:
+
+| Duration Type | Edit Units | Edit Duration | Edit Units/Time | Add first resource when no planned units | Add additional resources |
+|---|---|---|---|---|---|
+| Fixed Units/Time | Duration | Units | Duration | Units | Duration |
+| Fixed Duration & Units/Time | Units/Time | Units | Units | Units | Units |
+| Fixed Units | Duration | Units/Time | Duration | Units | Duration |
+| Fixed Duration & Units | Units/Time | Units/Time | Units | Units | Units/Time of each resource |
+
+No caller may override this matrix ad hoc in a view, import/export path or AI tool. Every cell in the matrix needs a focused test, including multi-resource assignments, zero planned units, non-hour time periods, and the selected activity/resource calendar.
+
+**Source:** [Synchronizing activity duration, units, and resource units/time — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/synchronizing_activity_duration_units_and_resource_units_time.htm).
 
