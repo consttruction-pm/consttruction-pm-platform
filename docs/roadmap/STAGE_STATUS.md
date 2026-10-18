@@ -1336,3 +1336,11 @@ Status: **implemented; runtime verification pending**
 - This does not authenticate users by itself and must be wired to the trusted identity/session layer before production use.
 - No Scheduling/P6, Progress/EVM, Resource/Cost or calendar calculation logic changed.
 - Next: Stage 33.3.5 integration regression, inspect the actual API enforcement points, then verify the complete test workflow.
+
+
+### 2026-10-18 — Activity Master composition / precision guard (PR #1474)
+Status: **precision regression verified; production integration blocked**
+- Exact head `d4db5094b31faf83ef7b3fab2dfaeadbefd11af1` adds five regressions that reject persisted datetime values in the date-based Activity Master composition path rather than losing time or timezone precision.
+- Client Typecheck and PostgreSQL Integration passed on this exact head.
+- ConstructionPM CI: `2555 passed, 91 skipped, 2 failed` on Python 3.11/3.12/3.13. The two failures are known baseline scheduler failures: shared-resource batch final-overallocation guard and backward-leveling start-no-later-than constraint. Safety checks were not weakened.
+- PR #1474 remains Draft. Issue #1462 is not closed: production import currently maps rows but does not persist ActivityMaster records, and no canonical graph assembly/write owner has been established. Do not claim end-to-end production composition or merge before that boundary is implemented and tested.
