@@ -11,7 +11,7 @@
 - Each Jalal 5 activity retains its independent weight in the 100-point Jalal 5 denominator. Shared work is credited once, not once per contributing historical row.
 - Jalal 4 completion may only carry forward after the mapped capability is found on current `main`, the exact commit/test/runtime evidence is accepted, and the Jalal 5 row's own Definition of Done is met. Documentation-only PRs, comments and open PRs get no implementation credit.
 - Rows whose new IDs include `J11` or `J12` are final gates. Logo verification remains deliberately low-priority and late; it must not block product implementation or reopen the approved brand design.
-- Native mobile delivery remains out of the present Jalal 5 V1 baseline per the previously accepted Web-first/Desktop-next decision; shared contracts remain reusable for later mobile work. Issue #1133 currently states a contradictory mobile-V1 requirement and requires governance reconciliation before it is treated as scope.
+- **SUPERSEDED BY PRODUCT-OWNER DECISION:** Native Mobile is mandatory in CUBI V1 alongside Web and Desktop per [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486). The prior mobile-V2 deferral is no longer valid. The authoritative workbook must add and weight Mobile V1 activity rows before the Jalal 5 baseline is approved; no progress/weight is transferred automatically.
 
 ## Complete 58-row coverage mapping
 
@@ -82,7 +82,7 @@ These rows must not be forced into an inaccurate historical mapping merely to fi
 
 | Jalal 5 ID | Added capability | Governing source / acceptance |
 |---|---|---|
-| F11 | Field operations and assurance screens: daily logs, attendance, equipment, issues, inspections, quality, safety and punch closeout | Product completeness Principle 2; Issue #459; real page/action and workflow acceptance. Native mobile-only work remains deferred to V2. |
+| F11 | Field operations and assurance screens: daily logs, attendance, equipment, issues, inspections, quality, safety and punch closeout | Product completeness Principle 2; Issue #459; real page/action and workflow acceptance. Required native Mobile V1 journeys are included; no client calculation duplication; scope, weights and acceptance evidence must be reflected in the re-baselined workbook. |
 | G06 | Field operations backend persistence and validation | Product completeness Principle 2; Issue #459; tenant/project-scoped persisted read/write, validation, audit and fresh-read tests. |
 | A06 | Current baseline confirmation and immediate blocker register is mapped to J4-58 for the gate/omission concept, but the new current-main cut-off and blocker evidence are Jalal 5-specific. Keep it marked as current-main re-baselining work, not a transferred percentage. |
 
@@ -99,7 +99,7 @@ The reverse map now classifies 128 of the 130 Jalal 5 tasks against existing Jal
 
 ## Scope conflict requiring explicit governance reconciliation
 
-Accepted product delivery intent is Web first and Desktop next; native Mobile is deferred to V2. Repository issue #1133 presently labels Mobile V1 mandatory. Do not silently blend that older issue text into Jalal 5. Preserve the V1 scope above and update/close/re-scope the conflicting issue after product-owner acknowledgement. This is a scope-record conflict, not a reason to redesign approved Web/Desktop capability.
+The product-owner decision recorded in [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486) is binding: V1 includes Web, Desktop and native Mobile. The earlier mobile-V2 deferral in this crosswalk is superseded and must not be used for task planning. Update the activity-level workbook to include Mobile V1 and re-baseline weights, predecessors, owner lanes and forecast; until that is done, this crosswalk and plan remain proposed/pending, and earned progress stays Pending. Web/Desktop scope must not be weakened by adding Mobile.
 
 ## Source-of-truth references
 
