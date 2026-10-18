@@ -1222,3 +1222,40 @@ def test_forward_activity_builder_carries_authoritative_cpm_free_float():
 
     assert [activity.free_float for activity in built] == [0, 2]
 
+def test_infeasible_resource_window_fails_closed() -> None:
+    """Do not report success when no CPM-feasible period has resource capacity."""
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", day, day, 0, (demand,)),),
+        backward_activities=(
+            BackwardLevelingActivity("A", day, day, day, day, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day, Decimal("0")),),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="FINAL_RESOURCE_OVERALLOCATION"):
+        schedule_with_resource_leveling(
+            (Activity("A", 1),),
+            (),
+            day,
+            resolver,
+            leveling_input,
+            project_finish=day,
+            options=ScheduleOptions(
+                level_all_resources=True,
+                preserve_scheduled_early_and_late_dates=False,
+            ),
+        )
