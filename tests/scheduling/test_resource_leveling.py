@@ -465,7 +465,7 @@ def test_internal_numeric_activity_priority_honors_descending_sort_order():
 
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish", "total_float"])
 def test_backward_leveling_rejects_priority_fields_without_distinct_schedule_data(field_name):
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
