@@ -325,10 +325,12 @@ def schedule_with_resource_leveling(
         priorities=leveling_input.options.priorities,
         level_all_resources=leveling_input.options.level_all_resources,
         resource_ids=leveling_input.options.resource_ids,
+        activity_resolvers=activity_resolvers,
     )
     shifted_forward = apply_leveling_shifts(
         forward_activities, forward_shifts, resolver=resolver,
         allow_beyond_float=not leveling_input.options.level_within_float,
+        activity_resolvers=activity_resolvers,
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
 
