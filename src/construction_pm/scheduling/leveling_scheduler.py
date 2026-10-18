@@ -102,10 +102,13 @@ def _forward_activities_with_authoritative_floats(
     not derive it from Total Float or from the activity dates.
     """
     float_schedule = getattr(initial_schedule, "floats", {}) or {}
+    late_schedule = getattr(initial_schedule, "late_activities", {}) or {}
     return tuple(
         replace(
             activity,
             free_float=getattr(float_schedule.get(activity.activity_id), "free_float", None),
+            late_start=getattr(late_schedule.get(activity.activity_id), "start", None),
+            late_finish=getattr(late_schedule.get(activity.activity_id), "finish", None),
         )
         for activity in leveling_input.forward_activities
     )
