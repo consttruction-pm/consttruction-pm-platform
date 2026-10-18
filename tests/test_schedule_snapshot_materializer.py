@@ -717,6 +717,7 @@ def test_materializer_rejects_invalid_activity_leveling_priority(value):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
+@pytest.mark.parametrize("value", [True, 0, 101, 4.0, "4"])
 def test_materializer_rejects_invalid_project_leveling_priority(value):
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
