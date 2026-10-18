@@ -5,7 +5,7 @@
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Default branch: `main`
 - Product-code SHA audited for this report: `350c230064ff0052bb2f34bc2c16775c332d4ba9`
-- Audit-only commits recorded during this reconciliation: `35a5f2d3c73198d779b2d6d07c2a1f4a6ae56fa6` and `1b71ded8471eb993ab46fcf2d5fd99e9322cd66e`. These document governance/reporting and do not claim product capability.
+- Audit-only documentation updates are recorded in the main commit history. They refresh reporting/governance only and do not count as product capability; use the explicit product-code baseline above for implementation-progress comparison.
 - Detailed progress control: [Jalal 4 Progress Control — 2026-10-18](JALAL4_PROGRESS_CONTROL_2026-10-18.md)
 - Governing reconciliation issue: [#680](https://github.com/consttruction-pm/consttruction-pm-platform/issues/680)
 
