@@ -191,11 +191,8 @@ def test_calendar_version_survives_authoritative_resource_read_dto():
     assert dto["assignment"]["calendar_version"] == "calendar-v3"
 
 
-def test_capacity_resolution_fails_closed_for_persisted_calendar_version():
-    from construction_pm.p6_resource_capacity_contract import (
-        ResourceCapacityContractError,
-        build_resource_capacity_slices,
-    )
+def test_capacity_resolution_uses_exact_persisted_calendar_version():
+    from construction_pm.p6_resource_capacity_contract import build_resource_capacity_slices
 
     scope = BackendScope("tenant-a", "project-a", 12)
     assignment = P6ResourceAssignment(
@@ -203,9 +200,42 @@ def test_capacity_resolution_fails_closed_for_persisted_calendar_version():
         units=Decimal("8"), calendar_id="calendar-1",
         calendar_version="calendar-v3",
     )
+    result = build_resource_capacity_slices(
+        scope,
+        (assignment,),
+        {
+            ("calendar-1", "calendar-v3"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                calendar_version="calendar-v3",
+            ),
+            ("calendar-1", "calendar-v2"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("4"),
+                calendar_version="calendar-v2",
+            ),
+        },
+        (date(2026, 10, 2),),
+    )
+    assert len(result) == 1
+    assert result[0].calendar_id == "calendar-1"
+    assert result[0].calendar_version == "calendar-v3"
+    assert result[0].units == Decimal("7.5")
+
+
+def test_capacity_resolution_never_falls_back_when_pinned_version_is_missing():
+    from construction_pm.p6_resource_capacity_contract import (
+        ResourceCapacityContractError,
+        build_resource_capacity_slices,
+    )
+
+    scope = BackendScope("tenant-a", "project-a", 13)
+    assignment = P6ResourceAssignment(
+        scope, "versioned-a", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1",
+        calendar_version="calendar-v3",
+    )
     with pytest.raises(
         ResourceCapacityContractError,
-        match="VERSIONED_RESOURCE_CALENDAR_RESOLUTION_REQUIRED",
+        match="RESOURCE_CALENDAR_VERSION_NOT_FOUND",
     ):
         build_resource_capacity_slices(
             scope,
