@@ -15,7 +15,7 @@ from construction_pm.activity_master_repository import ActivityMaster, SQLiteAct
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
-from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, ScheduleSnapshotPersistenceError, build_snapshot, compose_activity_master_records
+from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, ScheduleSnapshotPersistenceError, build_activity_master_composed_snapshot, build_snapshot, compose_activity_master_records
 from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -130,7 +130,10 @@ def test_persisted_activity_master_records_are_composed_before_snapshot_build():
         input_snapshot_id="S-ACTIVITY-MASTER",
         tenant_id="T-1",
     )
-    snapshot = build_snapshot(composed, context, now)
+    snapshot = build_activity_master_composed_snapshot(
+        source, activity_repo, context, now
+    )
+    assert snapshot.snapshot_hash == build_snapshot(composed, context, now).snapshot_hash
     payload = json.loads(snapshot.canonical_payload)
     assert payload["activities"][0]["duration"] == 4
     assert payload["activities"][0]["planned_finish"] == "2026-10-02"
