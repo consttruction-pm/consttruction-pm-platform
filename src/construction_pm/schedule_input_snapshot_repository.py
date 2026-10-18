@@ -7,11 +7,17 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
+from dataclasses import replace
+from datetime import date
+from decimal import Decimal
 from typing import Protocol
 
+from .activity_master_repository import ActivityMasterRepository, ActivityPersistenceError
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
-from .scheduling.authoritative_schedule import AuthoritativeScheduleInput
+from .scheduling.activity import Activity
+from .scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from .scheduling.calculation_context import CalculationContext
+from .scheduling.time_duration import DurationUnit
 
 
 class ScheduleSnapshotPersistenceError(ValueError):
@@ -113,6 +119,87 @@ class ScheduleInputSnapshotRepository(Protocol):
         snapshot_id: str,
         context: CalculationContext,
     ) -> ScheduleInputSnapshot: ...
+
+
+def compose_activity_master_records(
+    schedule_input: AuthoritativeScheduleInput,
+    activity_master_repository: ActivityMasterRepository,
+) -> AuthoritativeScheduleInput:
+    """Overlay persisted Activity Master state onto an already-authoritative graph.
+
+    Relationships, calendars, constraints, project options and data dates must come
+    from the supplied authoritative graph; this function never invents them.
+    Only the date-based working-day path is supported until calendar-aware duration
+    conversion is available for time-aware records.
+    """
+    if schedule_input.mode is not AuthoritativeScheduleMode.DATE_BASED:
+        raise ScheduleSnapshotPersistenceError(
+            "ACTIVITY_MASTER_TIME_AWARE_COMPOSITION_UNSUPPORTED"
+        )
+    scope = BackendScope(
+        schedule_input.tenant_id,
+        schedule_input.project_id,
+        schedule_input.project_revision,
+    )
+    try:
+        records = activity_master_repository.list(scope)
+    except (ActivityPersistenceError, ValueError) as exc:
+        raise ScheduleSnapshotPersistenceError(
+            "ACTIVITY_MASTER_READ_FAILED"
+        ) from exc
+
+    expected_ids = {activity.id for activity in schedule_input.activities}
+    if not all(isinstance(activity, Activity) for activity in schedule_input.activities):
+        raise ScheduleSnapshotPersistenceError(
+            "ACTIVITY_MASTER_GRAPH_ACTIVITY_TYPE_MISMATCH"
+        )
+    by_id = {record.activity_id: record for record in records}
+    if len(by_id) != len(records) or set(by_id) != expected_ids:
+        raise ScheduleSnapshotPersistenceError(
+            "ACTIVITY_MASTER_GRAPH_ACTIVITY_SET_MISMATCH"
+        )
+
+    overlaid: list[Activity] = []
+    for activity in schedule_input.activities:
+        record = by_id[activity.id]
+        if record.scope != scope or record.scope.project_revision != schedule_input.project_revision:
+            raise ScheduleSnapshotPersistenceError(
+                "ACTIVITY_MASTER_SCOPE_OR_REVISION_MISMATCH"
+            )
+        if record.duration_unit is not DurationUnit.WORKING_DAY:
+            raise ScheduleSnapshotPersistenceError(
+                "ACTIVITY_MASTER_DURATION_UNIT_MISMATCH"
+            )
+        if record.duration_value != record.duration_value.to_integral_value():
+            raise ScheduleSnapshotPersistenceError(
+                "ACTIVITY_MASTER_FRACTIONAL_WORKING_DAY_UNSUPPORTED"
+            )
+        for field_name in ("actual_start", "actual_finish", "remaining_start", "expected_finish", "planned_finish"):
+            value = getattr(record, field_name)
+            if value is not None and (not isinstance(value, date) or isinstance(value, datetime)):
+                raise ScheduleSnapshotPersistenceError(
+                    "ACTIVITY_MASTER_DATE_TYPE_MISMATCH"
+                )
+        duration = int(record.duration_value)
+        if duration < 0:
+            raise ScheduleSnapshotPersistenceError("INVALID_ACTIVITY_DURATION")
+        overlaid.append(
+            replace(
+                activity,
+                duration=duration,
+                actual_start=record.actual_start,
+                actual_finish=record.actual_finish,
+                remaining_duration=record.remaining_duration,
+                remaining_start=record.remaining_start,
+                percent_complete=record.percent_complete,
+                percent_complete_type=record.percent_complete_type,
+                expected_finish=record.expected_finish,
+                original_duration=record.original_duration,
+                planned_finish=record.planned_finish,
+                leveling_priority=record.leveling_priority,
+            )
+        )
+    return replace(schedule_input, activities=tuple(overlaid))
 
 
 def build_snapshot(
