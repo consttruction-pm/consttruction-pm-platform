@@ -6,6 +6,8 @@ from io import BytesIO
 import json
 import sqlite3
 
+import pytest
+
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
@@ -167,35 +169,20 @@ def test_activity_master_composition_fails_closed_for_fractional_working_day():
         raise AssertionError("fractional working-day duration must fail closed")
 
 
-def test_activity_master_composition_rejects_duplicate_graph_activity_ids():
-    conn = sqlite3.connect(":memory:")
-    activity_repo = SQLiteActivityMasterRepository(conn)
-    activity_repo.save(
-        ActivityMaster(
-            scope=BackendScope("T-1", "P-1", 9),
-            activity_id="A",
-            duration_value=Decimal("2"),
-            duration_unit=DurationUnit.WORKING_DAY,
+def test_authoritative_schedule_input_rejects_duplicate_graph_activity_ids():
+    with pytest.raises(ValueError, match="activity ids must be unique"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-DUPLICATE",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=9,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=CalendarReference("CAL-1", "1"),
+            activities=(Activity("A", 2), Activity("A", 3)),
+            relationships=(),
+            activity_calendar_assignments=(),
+            project_start=date(2026, 9, 21),
         )
-    )
-    source = AuthoritativeScheduleInput(
-        snapshot_id="S-DUPLICATE",
-        tenant_id="T-1",
-        project_id="P-1",
-        project_revision=9,
-        mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=CalendarReference("CAL-1", "1"),
-        activities=(Activity("A", 2), Activity("A", 3)),
-        relationships=(),
-        activity_calendar_assignments=(),
-        project_start=date(2026, 9, 21),
-    )
-    try:
-        compose_activity_master_records(source, activity_repo)
-    except ScheduleSnapshotPersistenceError as exc:
-        assert str(exc) == "ACTIVITY_MASTER_GRAPH_DUPLICATE_ACTIVITY_ID"
-    else:
-        raise AssertionError("duplicate graph activity IDs must fail closed")
 
 
 def test_production_composition_wires_persisted_context_into_schedule_query_route():
