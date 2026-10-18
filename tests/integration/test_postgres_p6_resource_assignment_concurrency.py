@@ -135,3 +135,42 @@ def test_postgres_resource_assignment_period_identical_concurrent_upsert_is_race
         with psycopg.connect(DSN) as connection:
             connection.execute(cleanup_sql, params)
             connection.commit()
+
+
+def test_postgres_resource_assignment_calendar_version_round_trip():
+    if not DSN:
+        pytest.skip("CONSTRUCTION_PM_POSTGRES_DSN is required for live PostgreSQL tests")
+
+    from dataclasses import replace
+
+    assignment = replace(
+        _assignment(),
+        assignment_id="calendar-version-round-trip",
+        calendar_id="calendar-1",
+        calendar_version="calendar-v3",
+    )
+    params = (
+        assignment.scope.tenant_id,
+        assignment.scope.project_id,
+        assignment.assignment_id,
+    )
+    try:
+        with psycopg.connect(DSN) as connection:
+            repository = PostgresP6ResourceAssignmentRepository(connection)
+            repository.initialize()
+            repository.upsert(assignment)
+            connection.commit()
+
+        # Verify using a fresh connection/repository, not the write instance.
+        with psycopg.connect(DSN) as connection:
+            repository = PostgresP6ResourceAssignmentRepository(connection)
+            assert repository.get(assignment.scope, assignment.assignment_id) == assignment
+            assert repository.list(assignment.scope)[0].calendar_version == "calendar-v3"
+    finally:
+        with psycopg.connect(DSN) as connection:
+            connection.execute(
+                "DELETE FROM p6_resource_assignment "
+                "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
+                params,
+            )
+            connection.commit()
