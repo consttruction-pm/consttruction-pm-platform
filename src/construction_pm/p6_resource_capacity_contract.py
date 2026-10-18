@@ -67,6 +67,13 @@ def build_resource_capacity_slices(
             raise ResourceCapacityContractError("CROSS_SCOPE_CAPACITY")
         if assignment.calendar_id is None:
             raise ResourceCapacityContractError("MISSING_RESOURCE_CALENDAR")
+        # The current resolver is keyed only by calendar_id. Do not silently
+        # discard a persisted version pin and resolve a potentially different
+        # calendar definition; fail closed until exact-version resolution exists.
+        if assignment.calendar_version is not None:
+            raise ResourceCapacityContractError(
+                "VERSIONED_RESOURCE_CALENDAR_RESOLUTION_REQUIRED"
+            )
         existing = calendar_by_resource.get(assignment.resource_id)
         if existing is not None and existing != assignment.calendar_id:
             raise ResourceCapacityContractError("AMBIGUOUS_RESOURCE_CALENDAR")
