@@ -89,3 +89,19 @@ The approximate owner split is for capacity planning, not an additional progress
 ## Progress statement
 
 **56.50% is a provisional reweighted planning indicator, not a fresh certified project-progress result.** It intentionally differs from Jalal 3's 59.50% because the V1 scope denominator has changed: mobile-only V1 work was deferred, the integrated assistant was raised from a 3% UI item to a 12% release capability and receives 0% until end-to-end proof, and system-wide QA remains 0%. Publish a final Jalal 4 percentage only after reconciling the latest main SHA, open/merged PRs, and direct implementation/test evidence.
+
+
+## Reconciliation amendment — 2026-10-18 (status control)
+
+**Do not use the 56.50 / 100 total above as current certified project progress.** It remains the provisional arithmetic for this older, coarse 16-package rebaseline proposal. It has not been reconciled with the detailed 58-activity Jalal 4 master schedule, and the differing totals are not a verified increase/decrease on a common, accepted matrix.
+
+The most recent arithmetic visible in the detailed 58-activity workbook is **48.13 / 100 complete and 51.87 / 100 remaining**, dated 2026-10-13. The workbook's Assumptions sheet also has a conflicting stale 48.58% value; the detailed weighted contribution total (48.13) is the only supported arithmetic snapshot until the workbook is corrected. Neither value is newly recertified for 2026-10-18.
+
+The authoritative current reporting status and reason are recorded on `main`:
+- [Current-main Audit Pointer — 2026-10-18](CURRENT_MAIN_AUDIT_POINTER_2026-10-18.md)
+- [Jalal 4 Progress Control — 2026-10-18](JALAL4_PROGRESS_CONTROL_2026-10-18.md)
+- [Single weighted-progress governance issue #680](https://github.com/consttruction-pm/consttruction-pm-platform/issues/680)
+
+The product-code SHA audited for that status is `350c230064ff0052bb2f34bc2c16775c332d4ba9`; the main scheduling CI matrix is red on the resource-overallocation and backward explicit-constraint regressions. Open/unmerged PRs receive zero incremental credit.
+
+This appendix supersedes this proposal's earlier *progress statement* for live reporting; it does not change the original table's historical arithmetic, certify the 58-row workbook, claim a code fix, or grant additional earned completion. Keep this PR out of merge until the detailed activity matrix, exact current-main SHA, accepted evidence, and weighted arithmetic are reconciled together.
