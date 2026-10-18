@@ -665,3 +665,42 @@ def test_forward_leveling_uses_each_activities_own_calendar():
     assert shifts[0].new_start == monday
     assert shifts[0].new_finish == monday
 
+def test_backward_leveling_uses_each_activities_own_calendar():
+    from construction_pm.scheduling.resource_leveling import BackwardLevelingActivity
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    four_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    activities = (
+        BackwardLevelingActivity(
+            "A", thursday, thursday, monday, monday,
+            (ResourceDemand("R1", monday, Decimal("8"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", thursday, thursday, monday, monday,
+            (ResourceDemand("R1", monday, Decimal("8"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", monday, Decimal("8")),
+        ResourceCapacity("R1", thursday, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=project_resolver,
+        priorities=(LevelingPriority("Activity ID", SortOrder.DESCENDING),),
+        activity_resolvers={"B": four_day_resolver},
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+    assert shifts[0].new_start == thursday
+    assert shifts[0].new_finish == thursday
+
