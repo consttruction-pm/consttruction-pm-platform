@@ -2,6 +2,7 @@
 
 **Document ID:** CUBI-CALC-CONTRACT-001  
 **Status:** Mandatory engineering baseline; living, version-controlled scope registry  
+**نسخه فارسی همراه:** [قرارداد فارسی محاسبات زمان‌بندی، منابع، هزینه و کنترل پروژه](PRIMAVERA_CALCULATION_LOGIC_AND_FORMULAS_FA.md)  
 **Initial issue date:** 2026-10-18  
 **Reference edition checked:** Oracle Primavera P6 Professional User Guide / Help, Version 26  
 **Audience:** all engineers, reviewers, testers, product owners and AI coding agents working on scheduling, dates, resources, cost/EVM, reports, visualizations, imports/exports or the CUBI assistant.
