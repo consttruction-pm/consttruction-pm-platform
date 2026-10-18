@@ -1216,11 +1216,21 @@ def test_forward_activity_builder_carries_authoritative_cpm_free_float():
             floats={
                 "A": SimpleNamespace(free_float=0),
                 "B": SimpleNamespace(free_float=2),
-            }
+            },
+            late_activities={
+                "A": SimpleNamespace(start=date(2026, 10, 3), finish=date(2026, 10, 4)),
+                "B": SimpleNamespace(start=date(2026, 10, 5), finish=date(2026, 10, 6)),
+            },
         ),
     )
 
     assert [activity.free_float for activity in built] == [0, 2]
+    assert [activity.late_start for activity in built] == [
+        date(2026, 10, 3), date(2026, 10, 5)
+    ]
+    assert [activity.late_finish for activity in built] == [
+        date(2026, 10, 4), date(2026, 10, 6)
+    ]
 
 def test_infeasible_resource_window_fails_closed() -> None:
     """Do not report success when no CPM-feasible period has resource capacity."""
