@@ -1,0 +1,77 @@
+name: "Jalal 5 tracked task / decision"
+description: "Register work, scope decisions, blockers, and acceptance evidence in the canonical project record."
+title: "[J5] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read the README, AGENTS.md, Project Continuity Protocol and Project State Ledger before planning. Every material task or decision must have durable GitHub traceability. Mobile is mandatory in V1 (Issue #1486).
+  - type: input
+    id: activity_id
+    attributes:
+      label: Jalal 5 activity ID
+      description: Use a stable workbook activity ID. For a decision not yet scheduled, write "DECISION — activity ID pending".
+      placeholder: "e.g. B03 or MV1-06"
+    validations:
+      required: true
+  - type: dropdown
+    id: record_type
+    attributes:
+      label: Record type
+      options:
+        - Implementation task
+        - Scope / product decision
+        - Calculation semantics / parity
+        - Verification / release gate
+        - Blocker / incident
+        - Schedule / weight change
+        - Team handoff
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Problem and desired outcome
+      description: Include current behavior, expected behavior, and affected users or modules.
+    validations:
+      required: true
+  - type: textarea
+    id: source_and_dependencies
+    attributes:
+      label: Canonical sources, decisions and predecessors
+      description: Link the applicable requirements, existing decisions, related activity IDs and dependency issues. Mark unknowns as UNKNOWN / VERIFY.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owner and reviewer
+      placeholder: "Primary owner; reviewer / approver"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Definition of Done and required evidence
+      description: Specify tests/runtime evidence, exact SHA requirement, permissions, audit, localization/accessibility, and user acceptance where applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Scope, weight, estimate, dependency and forecast impact
+      description: Required for material decisions. State no impact only after checking. Do not guess weights.
+    validations:
+      required: true
+  - type: checkboxes
+    id: continuity
+    attributes:
+      label: Continuity preflight
+      options:
+        - label: I read the current continuity protocol, state ledger, relevant schedule/workbook, and current GitHub records.
+          required: true
+        - label: I will record exact SHA/check results and handoff status; open PRs or documentation alone do not earn product completion.
+          required: true
+        - label: I have accounted for mandatory V1 Mobile if the change affects product scope, schedule or release readiness.
+          required: true
