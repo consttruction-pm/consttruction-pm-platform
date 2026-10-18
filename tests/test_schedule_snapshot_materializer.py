@@ -697,6 +697,27 @@ def test_materializer_rejects_fractional_remaining_duration():
 
 
 @pytest.mark.parametrize("value", [True, 0, 101, 4.0, "4"])
+@pytest.mark.parametrize("value", [True, 1, "Urgent", "normal"])
+def test_materializer_rejects_invalid_activity_leveling_priority(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["leveling_priority"] = value
+    tampered_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(tampered_payload.encode("utf-8")).hexdigest(),
+        tampered_payload,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_LEVELING_PRIORITY",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
 def test_materializer_rejects_invalid_project_leveling_priority(value):
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
