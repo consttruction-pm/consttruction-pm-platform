@@ -309,6 +309,9 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
     for activity in activities:
         for priority in priorities:
+            normalized = priority.field_name.strip().lower().replace(" ", "_")
+            if normalized == "free_float" and activity.free_float is None:
+                raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
             _priority_value(activity, priority.field_name)
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
