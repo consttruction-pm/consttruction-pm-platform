@@ -115,6 +115,26 @@ def test_persisted_activity_master_records_are_composed_before_snapshot_build():
     assert activity.name == "preserve graph identity"
     assert source.activities[0].duration == 99
 
+    now = datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-ACTIVITY-MASTER",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(composed, context, now)
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["activities"][0]["duration"] == 4
+    assert payload["activities"][0]["planned_finish"] == "2026-10-02"
+    assert payload["activities"][0]["original_duration"] == 6
+    assert payload["activities"][0]["leveling_priority"] == "High"
+
 
 def test_activity_master_composition_fails_closed_for_fractional_working_day():
     conn = sqlite3.connect(":memory:")
