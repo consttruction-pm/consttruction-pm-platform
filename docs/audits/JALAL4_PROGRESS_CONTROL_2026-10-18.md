@@ -38,3 +38,20 @@
 - **Team acceptance gate:** do not increase the score for resource leveling until the final resource-demand ledger and constraints pass the full Python matrix on the exact tested SHA and the authoritative production composition is demonstrated.
 
 This control update fixes the **reporting-governance gap**; it does not claim a scheduling-code fix, a PR merge, or a new implementation-progress increase.
+
+
+## Workbook control-flow fix — verified 2026-10-18
+
+A refreshed working workbook was created from the detailed 58-activity Jalal 4 schedule: `Jalal4_Weighted_Master_Schedule_2026-10-18_ProgressControl.xlsx`.
+
+The new **Progress Control** sheet fixes the operational gap between a static activity snapshot and a weighted roll-up:
+
+- It keeps each previous completion fraction and evidence URL in an activity-by-activity review queue.
+- Column G accepts a candidate new completion fraction; column K must be set to `Accepted` before it affects the calculation.
+- Column H computes effective completion only when the candidate is nonblank and the status is `Accepted`; otherwise it retains the previous recorded completion.
+- `Master Schedule` completion column H now reads from that effective control value; earned weight/remaining weight and Dashboard totals remain formula-driven.
+- The Assumptions text that incorrectly reported 48.58% was corrected to distinguish the last detailed 48.13% snapshot from current certification status.
+- Validation simulation passed: entering 95% for a 2-point activity while pending left overall completion at 48.13%; marking that row Accepted recalculated to 48.23%; clearing the candidate and returning to Pending restored 48.13%.
+- Formula-error scan returned no `#REF!`, `#DIV/0!`, `#VALUE!`, `#NAME?` or `#N/A` matches.
+
+This is a **controlled, evidence-gated workbook workflow**, not a live GitHub API sync. The current number remains the last calculated snapshot, 48.13%, because no new row has yet been recertified and accepted. The current certified figure for 2026-10-18 remains pending; this workbook change does not create implementation credit.
