@@ -20,6 +20,12 @@ Before any planning, implementation, review, testing, prioritization, assignment
 
 Do not start coding or give a progress percentage before this checklist. If the required current evidence cannot be fetched, work may continue only on clearly bounded read-only investigation; implementation acceptance remains blocked.
 
+## Repository templates and review controls
+
+- New work, blockers, and material decisions should use [the Jalal 5 issue template](../../.github/ISSUE_TEMPLATE/jalal5_task.yml) so activity ID, owner/reviewer, canonical sources, predecessor impact and Definition of Done are captured before work starts.
+- Implementation/documentation changes should use [the required PR checklist](../../.github/pull_request_template.md) to record preflight, exact SHAs, test/runtime evidence, workbook impacts and reviewer disposition.
+- These templates reduce omissions but do not mechanically prove that someone read the source documents. A reviewer must verify checkboxes and linked evidence; branch protection/required checks would need separate repository administration if later desired.
+
 ## Authoritative record hierarchy
 
 1. Latest explicit product-owner decision in a GitHub issue/change request.
