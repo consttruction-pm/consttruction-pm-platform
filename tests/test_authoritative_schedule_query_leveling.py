@@ -7,7 +7,6 @@ from construction_pm.backend_p0.authoritative_schedule_query import Authoritativ
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
-from construction_pm.schedule_calculation_context_repository import build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
 from construction_pm.schedule_evaluator import ScheduleEvaluationError
 from construction_pm.scheduling.activity import Activity
