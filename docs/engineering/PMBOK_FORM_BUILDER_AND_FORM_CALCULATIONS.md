@@ -2,6 +2,7 @@
 
 **Document ID:** CUBI-FORM-CALC-001  
 **Status:** Mandatory engineering specification; implementation coverage remains open until mapped to source code and tests  
+**نسخه فارسی همراه:** [قرارداد فارسی فرم‌ساز و محاسبات فرم](PMBOK_FORM_BUILDER_AND_FORM_CALCULATIONS_FA.md)  
 **Initial issue date:** 2026-10-18  
 **Reference baseline reviewed:** PMBOK® Guide — Eighth Edition (published November 2025; PMI's product page identifies an errata sheet for the second printing last updated April 2026), plus relevant current PMI practice guides and standards  
 **Applies to:** CUBI website Form Builder, reusable form templates, form instances/submissions, calculated fields, form-specific rules, approvals, form-driven reports, exports and AI-assisted form creation.
