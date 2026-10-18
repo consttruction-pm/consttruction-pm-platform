@@ -589,3 +589,134 @@ Adoption is complete only when:
 8. An independent reviewer confirms evidence.
 
 Until those gates pass, this is the mandatory baseline and coverage plan—not a claim that the whole product already fully conforms.
+
+
+## 23. Activity steps and step-weighted physical progress
+
+When the project option “Activity Percent Complete Based on Activity Steps” is selected and an activity uses Physical as its percent-complete type, the activity's Physical % Complete is derived from its weighted steps. A step can hold a Step % Complete or be marked Completed; completed means 100%.
+
+Required formula contract for weighted progress:
+
+Physical % Complete = 100 × Σ(step weight × step percent complete / 100) ÷ Σ(all step weights).
+
+This is mathematically equivalent to the weighted average of step percentages. Example: step weights 3, 2 and 1; the weight-3 step completed and the other two at 0 gives 3/6 = 50%. Adding, removing or editing a step, its weight or percentage must recalculate the activity when the project/activity settings call for this method. The guide documents the example and weighted behavior; partial-step, zero-total-weight and rounding edge cases still require reference parity fixtures. Do not divide by zero or make every new step weight 1 when the documented default rule requires 0 because prior steps are already complete.
+
+Test: project option on/off; Physical vs Duration/Units type; every step 0/partial/100; Completed checkbox toggling; unequal/zero weights; add/remove/reweight; templates; saved/reloaded activity; and earned-value behavior when the WBS method uses activity percent complete.
+
+**Sources:** [Activity steps (Version 26)](https://docs.oracle.com/cd/F51303_01/English/User_Guides/p6_pro_user/activity_steps.htm); [Add weights to steps (Version 26)](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/add_weights_to_steps.htm); [ActivityStep API](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/api-activitystep.html).
+
+## 24. Schedule percent complete and other date-derived indicators
+
+Do not treat every percentage field as the Activity % Complete from Section 5. At minimum distinguish:
+- Activity % Complete (according to Physical/Duration/Units type);
+- Performance % Complete (WBS Earned Value technique);
+- Schedule % Complete (progress that the selected baseline schedule implies should have been achieved by Data Date);
+- percent of duration/units/cost completed and any report-specific variants.
+
+For Schedule % Complete, the official activity-field description defines the value relative to the selected baseline: 0% when Data Date is before baseline Start, 100% when Data Date is after baseline Finish, and a date/calendar-derived proportion between those boundaries. The exact inclusive work-period boundary and chosen baseline variant must be proven with a reference fixture before implementation claims parity. This value must not be substituted for Physical, Duration, Units or Performance % Complete.
+
+**Source:** [Oracle activity subject-area field definitions](https://docs.oracle.com/en/industries/construction-engineering/intelligence/subject-area-reference-guide/p6-activity-primaveraactivity.html).
+
+## 25. Leveling priority list: complete documented field vocabulary and tie rules
+
+The supported priority list is ordered and lexicographic: a priority earlier in the list takes precedence over all priorities beneath it. Support all documented field choices and ascending/descending direction:
+
+- Activity ID;
+- Activity Priority;
+- Early Finish;
+- Early Start;
+- Free Float;
+- Late Finish;
+- Late Start;
+- Original or Planned Duration;
+- Planned Finish;
+- Project Planned Start;
+- Project Priority;
+- Remaining Duration;
+- Total Float.
+
+The documented per-field direction must be preserved: Activity ID uses low IDs first ascending/high IDs first descending; Activity Priority follows its configured numerical order; early/late/plan dates use earlier/later first; Free Float and Total Float can place more-critical activities first in ascending order; duration fields order shorter/longer first; Project Priority follows project priority ordering. Numbers sort before alphabetic characters, then blanks; with no priority codes the reference sorts by Activity ID.
+
+For multiple open projects, the selected project's leveling settings must be explicit; do not mix priorities from different projects accidentally. Add same-date, equal-float, equal-duration and blank-code tests, including project-level priority tie-breaking.
+
+**Sources:** [Leveling priority definitions, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm); [Specify leveling priorities, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm); [Project leveling priority, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/change_the_project_leveling_priority.htm).
+
+## 26. Global Change and user-defined arithmetic
+
+Global Change is an explicit user-selected calculation/editing feature and must not be confused with the scheduler. Implement a typed and auditable expression model with the documented distinction between condition tests and assignments:
+
+- If statements use comparisons/conditions; arithmetic expressions are not used as If expressions.
+- Then/Else statements can calculate numeric data using addition, subtraction, multiplication and division.
+- Ampersand is the documented text-concatenation operator.
+- Integer + integer = integer.
+- Date + integer = date, where integer adds working periods.
+- Date − date = integer work-period difference.
+- Date − integer = date.
+- Integer division in this reference Global Change context returns decimal to two-digit accuracy.
+
+Date arithmetic uses the applicable activity/resource calendar work-period numbering, not plain Gregorian/Jalali calendar-day subtraction. Preserve typed operands: invalid date/text/numeric combinations must be rejected with a clear error. Preview the affected records and calculated values before applying a multi-row change; record before/after values, user, scope, expression version and affected entity IDs. Changes to durations/dates/units/relationships must invalidate and recalculate dependent schedule/cost values after application.
+
+CUBI may retain additional precision internally for core cost/resource calculations, but its **reference-compatible Global Change mode** must reproduce the reference expression operators, allowed operand types, date/work-period behavior and documented division display/rounding behavior. Do not allow raw arbitrary code evaluation.
+
+**Sources:** [Global Change Version 26 help index](https://docs.oracle.com/cd/G48902_01/client_help/en_US/globalchange.htm); [Operators and valid calculations](https://docs.oracle.com/cd/G48902_01/client_help/en_US/operators_and_valid_calculations.htm); [Use arithmetic with Global Change](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_arithmetic_with_global_change.htm); [Use date arithmetic](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_date_arithmetic.htm).
+
+## 27. Command-to-calculation mapping: reference control inventory for the actual CUBI UI audit
+
+The rows below are the initial reference-command inventory derived from calculation-relevant guide navigation. Each must be mapped to the concrete CUBI screen/control/icon/tooltip/API/test using Section 18. This is a coverage seed, **not evidence that the current CUBI UI has already been completely inventoried**.
+
+| Reference command/screen/control | Fields or selections that affect calculation | Contract IDs / expected test family |
+|---|---|---|
+| Tools → Schedule | Data Date, general/advanced options, project set | SCH-*, CPM, date/float regression |
+| Schedule Options → General | external links, open ends, expected finish, auto scheduling, float method, lag calendar, OOS mode, SS lag | SCH-*, REL-*, OOS-*, CPM matrix |
+| Schedule Options → Advanced | multiple paths, path method, endpoint and count | CPM float-path tests |
+| Activity Details → General | activity type, duration type, percent-complete type, activity calendar | ACT-*, DUR-*, PC-*, CAL-* |
+| Activity Details → Status | actuals, remaining duration, suspend/resume, float display | PC-*, OOS-*, dates, progress tests |
+| Activity Details → Predecessors/Successors | relation type, lag, external/project identity | REL-*, graph integrity and mixed-calendar tests |
+| Gantt relationship connector/editor | relation type, direction, lag | REL-*; UI edit must equal domain edit |
+| Activity-table Start/Finish edit or Gantt drag handle | planned dates, constraints/edits created and resulting recalculation | CPM, CON-*, audit before/after |
+| Activity Details → Resources/Assignments | resource/role, assignment units, units/time, rate type, cost, calendar | RES-*, COST-*, DUR-* |
+| Enterprise → Calendars / project/resource calendar editor | work week, shifts, holiday exceptions, hours per time period, calendar version | CAL-*; all-dependent-value invalidation |
+| Resource/Role → Units & Prices / rate effective dates | max units/time, price/unit, rate type and effective date | RES-*, COST-*, leveling capacity tests |
+| Tools → Level Resources | selected resources, priorities/order, within float, minimum float, allowed overload, preserve Early/Late dates and cross-project policy | SCH-LEVEL-*, complete final-demand tests |
+| Enterprise → Projects → General → Project Leveling Priority | project priority 1–100 | cross-project resource contention/tie tests |
+| Project Details → Calculations | Activity Percent Complete Based on Activity Steps; link actual-to-date/actual-this-period settings | STEP-*, PERIOD-*, calculation toggles |
+| Activity Details → Steps | step weight, Step % Complete, Completed flag, add/remove/reorder | STEP-*; partial/zero/unequal-weight tests |
+| Project/WBS Details → Earned Value | performance-percent technique, ETC method, PF, baseline and date basis | EVM-* full method matrix |
+| WBS → WBS Milestones | milestone weight/completion | EVM-MILESTONE weighted tests |
+| Project → Baselines / Assign Baselines | create/assign/selected baseline identity | BASELINE-* and EV recomputation |
+| Tools → Store Period Performance | selected financial period, actuals and period posting | PERIOD-* idempotency/reposting/history tests |
+| Project → Expenses | budgeted units, price/unit, actual cost, accrual type, Auto Compute Actuals | EXP-*, COST-* |
+| Activity Table/Grid → calculated columns | selected field, unit, formula/format and filter context | field provenance, parity and locale invariance |
+| Activity Table → critical indicators/colors | critical definition/float threshold only | critical-flag tests; color must not alter result |
+| Gantt → baseline/current bars and data-date line | current/baseline series selection, date scale, progress bars | GANTT-*; rendering uses authoritative results |
+| Resource Usage/Assignments spreadsheet | timescale, resource filter, future-period buckets, resource/cost/EV series | SPREAD-*, demand/cost reconciliation |
+| Global Change dialog | If/Then/Else, operator, fields, numeric/date/text operands | GC-* typed expression and preview tests |
+| Import/Export / Excel/MS Project-like mappings | date/units/cost fields, relationships, calendar/baseline mapping | IMPORT-*, roundtrip and no-loss tests |
+| Report/A4/print/export builder | field selections, date/baseline/data-date, grouping/rollup options | REPORT-*, field source and rollup parity |
+| AI assistant action/tool controls | project create/read/write permission, scheduling action, calculation API, output/report action | AI-*, permission boundary and shared-engine test |
+
+### Icon-by-icon completion checklist
+
+For every concrete control discovered in web and desktop source:
+- [ ] stable control/action ID;
+- [ ] route/screen/menu path and icon asset name;
+- [ ] accessible label/tooltip in all supported languages;
+- [ ] exact domain/API action and user-selectable options;
+- [ ] contract IDs and input invalidation list;
+- [ ] authorization and AI-assistant permission behavior;
+- [ ] focused UI/domain/regression test IDs;
+- [ ] owner, review evidence and final commit SHA.
+
+No checkbox may be marked complete from inference or screenshots alone. Confirm the actual source component, behavior, API invocation and test. The registry owner must report total controls discovered, controls mapped, controls tested and unmapped count.
+
+## 28. Expanded official source index
+
+- [Version 26 Global Change index](https://docs.oracle.com/cd/G48902_01/client_help/en_US/globalchange.htm)
+- [Operators and valid calculations](https://docs.oracle.com/cd/G48902_01/client_help/en_US/operators_and_valid_calculations.htm)
+- [Use arithmetic with Global Change](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_arithmetic_with_global_change.htm)
+- [Use date arithmetic](https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_date_arithmetic.htm)
+- [Activity steps](https://docs.oracle.com/cd/F51303_01/English/User_Guides/p6_pro_user/activity_steps.htm)
+- [Add weights to steps](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/add_weights_to_steps.htm)
+- [ActivityStep API endpoints, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/api-activitystep.html)
+- [Leveling priority definitions, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm)
+- [Specify leveling priorities, Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm)
