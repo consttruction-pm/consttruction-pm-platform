@@ -1205,7 +1205,14 @@ def test_forward_activity_builder_carries_authoritative_cpm_free_float():
             LevelingActivity("A", day, day, 3, (demand_a,), free_float=99),
             LevelingActivity("B", day, day, 3, (demand_b,), free_float=99),
         ),
-        backward_activities=(),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", day, day, date(2026, 10, 3), date(2026, 10, 4), (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", day, day, date(2026, 10, 5), date(2026, 10, 6), (demand_b,)
+            ),
+        ),
         capacities=(),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
@@ -1253,6 +1260,7 @@ def test_infeasible_resource_window_fails_closed() -> None:
         options=ResourceLevelingOptions(
             preserve_scheduled_early_and_late_dates=False,
             level_all_resources=True,
+            level_within_float=True,
         ),
     )
 
@@ -1266,6 +1274,7 @@ def test_infeasible_resource_window_fails_closed() -> None:
             project_finish=day,
             options=ScheduleOptions(
                 level_all_resources=True,
+                level_within_float=True,
                 preserve_scheduled_early_and_late_dates=False,
             ),
         )
