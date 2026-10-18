@@ -845,11 +845,15 @@ def test_backward_activity_builder_shifts_resource_demands_inclusive_of_one_day(
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
         late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
     assert len(built) == 1
     assert built[0].resource_demands[0].period == day_two
+    # The original boundary activity omits Total Float; rollback ordering must
+    # use the authoritative CPM-enriched candidate produced by this builder.
+    assert built[0].total_float == 1
 
 
 
@@ -879,6 +883,7 @@ def test_backward_activity_builder_shifts_demands_across_weekend():
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=thursday, finish=thursday)},
         late_schedule={"A": SimpleNamespace(start=monday, finish=monday)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
@@ -913,6 +918,7 @@ def test_backward_activity_builder_shifts_resource_demands_across_holiday():
         leveling_input,
         early_schedule={"A": SimpleNamespace(start=thursday, finish=thursday)},
         late_schedule={"A": SimpleNamespace(start=monday, finish=monday)},
+        float_schedule={"A": SimpleNamespace(total_float=1)},
         resolver=resolver,
     )
 
@@ -955,3 +961,108 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+
+
+def test_schedule_failure_before_final_result_is_not_backtracked(monkeypatch):
+    import importlib
+
+    import pytest
+
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    schedule_module = importlib.import_module("construction_pm.scheduling.schedule")
+    real_schedule = schedule_module.schedule
+    calls = 0
+
+    def fail_on_final_schedule(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise ResourceLevelingError("SCHEDULE_FAILED_BEFORE_RESULT")
+        return real_schedule(*args, **kwargs)
+
+    monkeypatch.setattr(schedule_module, "schedule", fail_on_final_schedule)
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    with pytest.raises(
+        ResourceLevelingError,
+        match="^SCHEDULE_FAILED_BEFORE_RESULT$",
+    ):
+        schedule_with_resource_leveling(
+            (Activity("A", 1), Activity("B", 1)),
+            (),
+            date(2026, 10, 1),
+            resolver,
+            _resource_leveling_input(preserve=True),
+            project_finish=date(2026, 10, 3),
+        )
+
+    assert calls == 3
+
+def test_backward_activity_builder_handles_missing_float_record():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 1, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day_one, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        float_schedule={},
+        resolver=resolver,
+    )
+
+    assert len(built) == 1
+    assert built[0].total_float is None
+
+
+
+def test_backward_rollback_priority_key_uses_configured_total_float_before_activity_priority():
+    from construction_pm.scheduling.leveling_scheduler import _backward_leveling_priority_key
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        LevelingPriority,
+        SortOrder,
+    )
+
+    day = date(2026, 10, 1)
+    preferred_by_float = BackwardLevelingActivity(
+        "A", day, day, date(2026, 10, 5), date(2026, 10, 5),
+        activity_priority=90, total_float=1,
+    )
+    lower_priority_number_but_worse_float = BackwardLevelingActivity(
+        "B", day, day, date(2026, 10, 8), date(2026, 10, 8),
+        activity_priority=1, total_float=5,
+    )
+    priorities = (
+        LevelingPriority("total_float", SortOrder.ASCENDING),
+        LevelingPriority("activity_priority", SortOrder.ASCENDING),
+    )
+
+    # The proposal ordering prefers A because Total Float is the first criterion,
+    # even though B has the numerically smaller activity_priority. Rollback uses
+    # max(key), so B must sort after A and be selected as the less-preferred row.
+    assert _backward_leveling_priority_key(preferred_by_float, priorities) < (
+        _backward_leveling_priority_key(lower_priority_number_but_worse_float, priorities)
+    )

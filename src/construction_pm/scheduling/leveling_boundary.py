@@ -45,7 +45,14 @@ class SchedulerLevelingInput:
             raise ValueError("duplicate forward activity IDs")
         if len(backward_ids) != len(self.backward_activities):
             raise ValueError("duplicate backward activity IDs")
-        if forward_ids != backward_ids:
+        # The backward pass is intentionally skipped when scheduled early
+        # and late dates must be preserved. In that mode callers may provide
+        # only forward candidates; when backward leveling is enabled, retain
+        # the strict one-to-one activity contract.
+        if forward_ids != backward_ids and not (
+            self.options.preserve_scheduled_early_and_late_dates
+            and not self.backward_activities
+        ):
             raise ValueError("forward and backward leveling activity sets must match")
 
         demand_ids = {

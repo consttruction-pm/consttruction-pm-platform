@@ -472,10 +472,15 @@ class BackwardLevelingActivity:
     late_finish: date
     resource_demands: tuple[ResourceDemand, ...] = ()
     activity_priority: int | None = None
+    total_float: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.total_float is not None and (
+            isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
         if any(not isinstance(value, date) or isinstance(value, datetime) for value in dates):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
@@ -591,7 +596,12 @@ def propose_backward_leveling(
         "early_finish", "total_float",
     }
     for priority in priorities:
-        if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
+        field_name = priority.field_name.strip().lower().replace(" ", "_")
+        if field_name not in allowed:
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if field_name == "total_float" and any(
+            activity.total_float is None for activity in activity_list
+        ):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
@@ -649,6 +659,13 @@ def propose_backward_leveling(
                 max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
                 if -current_shift >= max_advance:
                     continue
+                # Never propose a backward move before the CPM early start.
+                # The exclusive working-day distance and the date-shift helper
+                # are intentionally separate operations; validate the actual
+                # candidate date so a boundary cannot be crossed by one day.
+                next_shift = current_shift - 1
+                if _shift_date_backward(activity.late_start, next_shift, resolver) < activity.early_start:
+                    continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
                 units = sum(
                     (d.units for d in current if d.resource_id == resource_id and d.period == period),
@@ -661,7 +678,7 @@ def propose_backward_leveling(
                     "activity_priority": activity.activity_priority,
                     "early_start": activity.early_start,
                     "early_finish": activity.early_finish,
-                    "total_float": max_advance,
+                    "total_float": activity.total_float,
                 }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
