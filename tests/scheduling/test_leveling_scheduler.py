@@ -955,3 +955,34 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+def test_backward_leveling_never_overrides_user_start_lower_bound() -> None:
+    """A backward candidate earlier than a user constraint must be rejected."""
+    import pytest
+
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    required_start = date(2026, 10, 2)
+
+    result, _forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        date(2026, 10, 1),
+        resolver,
+        _resource_leveling_input(preserve=False),
+        project_finish=date(2026, 10, 3),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, required_start,
+            ),
+        ),
+    )
+
+    assert result.activities["A"].start >= required_start
+    assert result.activities["A"].start != result.activities["B"].start
+    # No accepted backward move may place A before the user-specified bound.
+    assert all(
+        shift.activity_id != "A" or shift.new_start >= required_start
+        for shift in backward
+    )
