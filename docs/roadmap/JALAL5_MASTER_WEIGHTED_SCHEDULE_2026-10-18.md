@@ -29,9 +29,13 @@
 | I — Desktop integration and release package | 5 | Hasan | Desktop package, offline-capable local project workflows, local AI model install/provisioning, backup/restore, import/export, no hidden cloud fallback and recovery tests. |
 | J — Cross-product verification, release gates and recovery | 8 | Jalal | Exact-SHA regression, security/negative tests, real user journeys, report/source consistency, restore evidence and final weighted recertification. |
 
-The exact 130 activities, dependencies, owners, supporting roles, row-level weights, acceptance criteria, source links, provisional effort and J4 crosswalk fields are in the workbook’s **Jalal5 Schedule** sheet. Do not use the stream summary as a substitute for accepting the individual activity rows.
+The exact 130 activities, dependencies, owners, supporting roles, row-level weights, acceptance criteria, source links and provisional effort are in the workbook’s **Jalal5 Schedule** sheet. Do not use the stream summary as a substitute for accepting individual activity rows.
 
-The explicit 58-row coverage map is maintained in [Jalal 4 → Jalal 5 crosswalk](../audits/JALAL4_TO_JALAL5_CROSSWALK_2026-10-18.md). It maps historical activity scope to J5 IDs but is not automatic progress transfer. The workbook's `Crosswalk جلال۴` column must be populated from this reviewed mapping; until that column and all 58 rows are reconciled and accepted by the owners, the task-to-task crosswalk status remains **proposed/pending** and Jalal 5 earned progress remains Pending.
+Two separate traceability artifacts support the schedule:
+- [Jalal 4 → Jalal 5 crosswalk](../audits/JALAL4_TO_JALAL5_CROSSWALK_2026-10-18.md) maps all 58 historical Jalal4 activities to proposed Jalal5 activity IDs. It explicitly separates coverage mapping from progress transfer and identifies added scope with no precise Jalal4 equivalent.
+- [P6/PMBOK contract section → Jalal5 task map](../audits/JALAL5_CONTRACT_SECTION_TO_TASK_MAP_2026-10-18.md) maps all 56 P6 contract sections and 33 PMBOK form/calculation sections to specific Jalal5 activity IDs.
+
+The workbook's `Crosswalk جلال۴` column still needs to be populated from the reviewed mapping. Until the column is filled, the 58-row historical mapping and the 3 added-scope classifications are accepted by owners, and current-main activity evidence is reconciled, the task-to-task crosswalk remains **proposed/pending** and Jalal5 earned progress remains Pending. The section-to-task map and crosswalk are traceability artifacts, not evidence that implementation or tests are already complete.
 
 ## 3. Website inventory and journey contract
 
