@@ -40,6 +40,8 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    calendar_id: str | None = None
+    calendar_version: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
