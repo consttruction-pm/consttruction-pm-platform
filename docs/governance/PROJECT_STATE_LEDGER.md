@@ -20,17 +20,17 @@
 
 ## Current Jalal 5 baseline and caveats
 
-- [Jalal 5 schedule PR #1484](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1484) was inspected as **open/draft and unmerged**, head `694f3d7f3d3512b34a7a61be86b6107e94286946`; base `main` at inspection was `faa34707957022ffa3f51c8d13561047cc7a44cc`. Recheck both before the next action.
+- [Jalal 5 schedule PR #1484](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1484) was last inspected as **open/draft and unmerged**, head `d0e69fd56f70ca5b6ac447c8143a63ec709c3916`; base `main` at this snapshot was `faa34707957022ffa3f51c8d13561047cc7a44cc`. Refresh both before the next action.
 - The proposed plan currently describes 100 weight points, 130 activity rows, a 535.21 person-day proportional residual estimate, a conditional 60-week schedule ending 2027-12-08 (week 60 ending 2027-12-10), and 300 predecessor edges / 127 owner-lane checks. These are **proposed planning-model numbers, not an approved final forecast**.
-- Mandatory Mobile V1 expands the scope relative to the current plan/crosswalk. **The authoritative workbook has not yet been recalculated to include Mobile V1 tasks and weights.** Until row-level mobile tasks, 100.00-point weights, predecessors, owner lanes and the forecast are recalculated and independently checked, the old 130-row/535.21-PD forecast must not be reported as the certified plan.
-- The workbook's `Crosswalk جلال۴` fields were previously recorded as unpopulated. The 58-row markdown mapping exists in [crosswalk audit](../audits/JALAL4_TO_JALAL5_CROSSWALK_2026-10-18.md), but owner acceptance and workbook reconciliation were pending at this snapshot. Confirm current workbook contents directly.
+- Mandatory Mobile V1 expands the scope relative to the old plan/crosswalk. The candidate workbook `/Schedules/Jalal5_Weighted_Master_Schedule_2026-10-18_MobileV1-Rebaseline.xlsx` now has a `Mobile V1 Rebaseline` sheet with 14 candidate activities; the companion [candidate backlog](../roadmap/MOBILE_V1_REBASELINE_BACKLOG_2026-10-18.md) contains their definitions of done and dependency points to validate. These candidate rows still have `TBD` estimates/weights/dates and are not integrated into the main schedule denominator. **The authoritative master schedule is not yet recalculated to include Mobile V1.** Until weights sum to 100.00 after task-level reallocation and owner/dependency/forecast checks pass, the old 130-row/535.21-PD forecast must not be reported as certified.
+- The workbook's `Crosswalk جلال۴` fields were previously recorded as unpopulated. The 58-row markdown mapping exists in [crosswalk audit](../audits/JALAL4_TO_JALAL5_CROSSWALK_2026-10-18.md), but owner acceptance and workbook reconciliation remain pending at this snapshot. Confirm current workbook contents directly.
 - **Jalal 5 earned progress: PENDING / NOT CERTIFIED.** Do not borrow Jalal 4's historical 48.13% or present it as a new Jalal 5 percentage.
 
 ## Active governance/verification items (refresh live)
 
 | Item | Snapshot status | Required next action |
 |---|---|---|
-| [#1486 Mobile V1 + continuity gate](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486) | Open; assigned to Jalal and Farmj | Update schedule, workbook, weights, task dependencies and acceptance gates; then verify read-first protocol. |
+| [#1486 Mobile V1 + continuity gate](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486) | Open; assigned to Jalal and Farmj | Size/accept 14 candidate Mobile V1 rows; integrate into master schedule; recalc weights/dependencies/owner lanes/forecast; verify read-first protocol. |
 | [PR #1484 Jalal 5 master schedule](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1484) | Open/draft; unmerged at last inspection | Review updated plan; reconcile workbook and crosswalk; do not count docs as product implementation. |
 | [PR #1477 resource-leveling CPM correction](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1477) | Open at the last audit; current-head checks had a green reported test/typecheck/PG run | Confirm live exact head and checks, complete independent review plus calendar/priority/infeasible-window parity matrix before certification. |
 | [PR #1485 snapshot identity validation](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1485) | Open; latest validation checks were pending at the last audit | Refresh checks on exact head and inspect review result. |
@@ -41,8 +41,8 @@
 
 ## Next task sequence
 
-1. Finish this governance PR and verify root README / agent instructions point to the read-first protocol.
-2. Reconcile the Jalal 5 workbook to **include Mobile V1**; identify exact activity rows and weights, preserve a 100.00 total, re-evaluate 300 predecessor / owner-lane model counts, formula checks and forecast. Do not choose a mobile weight without an explicit task-level sizing and dependency review.
+1. Finish and review the governance PR; ensure README and `AGENTS.md` route contributors to the read-first protocol and state ledger.
+2. Size the 14 Mobile V1 candidate rows, integrate accepted tasks into the main weighted schedule, reallocate exactly 100.00 points, update release-gate cross-references, and recompute dependencies, owner lanes, formulas and forecast. Keep the Jalal 3 mobile 20-point figure as a reference only, not a predetermined weight.
 3. Populate and review the complete J4→J5 workbook crosswalk; accept or reject mappings explicitly per row; grant no progress transfer by default.
 4. Refresh active PRs/issues/checks and inspect current-main code before making implementation claims.
 5. Start with the highest-impact implementation/release blocker after the schedule and current evidence are reconciled.
