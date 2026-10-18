@@ -9,7 +9,10 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.constraint_master_repository import ConstraintMaster, SQLiteConstraintMasterRepository
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
-from construction_pm.p6_resource_assignment_repository import SQLiteP6ResourceAssignmentRepository
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    SQLiteP6ResourceAssignmentRepository,
+)
 from construction_pm.schedule_calculation_context_repository import (
     SQLiteCalculationContextRepository,
     build_persisted_context,
@@ -68,6 +71,7 @@ def test_activity_constraint_and_snapshot_writes_rollback_with_outer_transaction
     activities = SQLiteActivityMasterRepository(connection)
     constraints = SQLiteConstraintMasterRepository(connection)
     snapshots = SQLiteScheduleInputSnapshotRepository(connection)
+    resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     scope = _scope()
 
     with pytest.raises(RuntimeError, match="injected failure"):
@@ -85,11 +89,17 @@ def test_activity_constraint_and_snapshot_writes_rollback_with_outer_transaction
                 )
             )
             snapshots.save(_snapshot())
+            resource_assignments.upsert(
+                P6ResourceAssignment(
+                    scope, "ASG-1", "A-1", "R-1", units=Decimal("1")
+                )
+            )
             raise RuntimeError("injected failure")
 
     assert activities.get(scope, "A-1") is None
     assert constraints.get(scope, "C-1") is None
     assert snapshots.get(scope, "S-1") is None
+    assert resource_assignments.get(scope, "ASG-1") is None
 
 
 def test_activity_constraint_and_snapshot_writes_commit_with_outer_transaction():
@@ -97,6 +107,7 @@ def test_activity_constraint_and_snapshot_writes_commit_with_outer_transaction()
     activities = SQLiteActivityMasterRepository(connection)
     constraints = SQLiteConstraintMasterRepository(connection)
     snapshots = SQLiteScheduleInputSnapshotRepository(connection)
+    resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     scope = _scope()
 
     with SQLiteTransactionManager(connection).transaction():
@@ -113,10 +124,16 @@ def test_activity_constraint_and_snapshot_writes_commit_with_outer_transaction()
             )
         )
         snapshots.save(_snapshot())
+        resource_assignments.upsert(
+            P6ResourceAssignment(
+                scope, "ASG-1", "A-1", "R-1", units=Decimal("1")
+            )
+        )
 
     assert activities.get(scope, "A-1") is not None
     assert constraints.get(scope, "C-1") is not None
     assert snapshots.get(scope, "S-1") is not None
+    assert resource_assignments.get(scope, "ASG-1") is not None
 
 def test_repository_initialization_preserves_caller_owned_transaction():
     connection = sqlite3.connect(":memory:")
