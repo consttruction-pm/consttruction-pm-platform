@@ -4,7 +4,7 @@
 **Plan ID:** JALAL-5-CUBI-2026-10-18  
 **Status:** DRAFT — re-baseline required before approval. Product-owner decision in [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486) makes native Mobile mandatory in V1. The existing 100-point / 130-row workbook model does not yet reflect that added scope; its weights and forecast are not the final approved baseline.  
 **Product-code baseline checked:** `main@faa34707957022ffa3f51c8d13561047cc7a44cc`  
-**Workbook:** `Jalal5_Weighted_Master_Schedule_2026-10-18.xlsx` (12 sheets; row-level task, web route, menu, AI, source, gate, decision and dependency matrices).
+**Workbook:** `Jalal5_Weighted_Master_Schedule_2026-10-18_MobileV1-Rebaseline.xlsx` (13 sheets; includes a new 14-candidate-row `Mobile V1 Rebaseline` inventory. The mobile candidates are not yet integrated into the main 130-row weighted denominator and have no final weights/effort. This is a rebaseline candidate, not the approved final schedule).
 
 ## 1. Mandatory governance
 
@@ -70,7 +70,7 @@ Mobile must reuse the same versioned contracts and authoritative Shared Domain/C
 
 **Owner lanes:** Farmj22002 owns the Mobile client/runtime and user journeys; Hasan owns backend/API/persistence/auth/sync contracts in his lane; Jalal owns shared calculation semantics, architecture and integration/release acceptance. Reassignments require a recorded decision and workbook update.
 
-**Schedule and weight gate:** the ten workstream percentages, 130-task count and 535.21-PD proportional effort envelope above describe the prior proposed model. They are not certified against this mandatory scope. Add explicit Mobile V1 activity IDs, definitions of done, estimates, predecessors, owner lanes and test evidence to the authoritative workbook; reallocate only after sizing, keep the workbook weight total exactly 100.00, recompute dependency/owner-lane/forecast outputs, and independently inspect formulas. Do not assign a guessed percentage or award progress for writing this section. Until this gate is complete, the master plan remains DRAFT and Jalal 5 earned progress remains Pending.
+**Schedule and weight gate:** the companion backlog [`MOBILE_V1_REBASELINE_BACKLOG_2026-10-18.md`](MOBILE_V1_REBASELINE_BACKLOG_2026-10-18.md) defines 14 candidate activities (`MV1-01`–`MV1-14`) with owners, dependencies to validate and exit criteria. They are currently in a separate `Mobile V1 Rebaseline` sheet; estimates, dates and weights intentionally remain `TBD`, so the old 130-task/100-point/535.21-PD model is not certified for the expanded scope. Size each candidate, integrate accepted rows into the primary schedule, reallocate weights exactly to 100.00, then rerun formula, dependency, owner-lane and forecast QA. The former Jalal 3 mobile 20-point value is historical sizing context only, not an approved Jalal 5 weight. Do not award progress for documenting the backlog. Until this gate is complete, the plan remains DRAFT and Jalal 5 earned progress remains Pending.
 
 ## 6. AI assistant design contract
 
@@ -95,7 +95,7 @@ Implementation remains tracked by [Issue #1423](https://github.com/consttruction
 
 ## 8. Current blockers and release gates
 
-The workbook contains 20 release gates, including:
+The rebaseline candidate workbook contains 22 release gates, including the two added gates for mandatory Mobile V1 scope/weight reconciliation and the read-first continuity/handoff protocol. The existing PASS values validate only the old 130-task model, not completeness after the scope change. Gates include:
 - current-main CI failures for shared-resource over-allocation and backward SS/constraint handling: [Issue #1476](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1476) and source-before-coding evidence [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447);
 - persisted Activity Master write/read → immutable schedule input composition, which cannot be proven by manually assembled test snapshots: [Issue #1462](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1462);
 - full AI vertical slice #1423 and Desktop offline local inference #94;
@@ -108,6 +108,6 @@ The spreadsheet’s **Dependency QA** sheet has 300 explicit predecessor edges a
 
 ## 9. Workbook index
 
-The saved workbook contains twelve sheets: Dashboard; Jalal5 Schedule; Workstream Summary; Site Route Matrix; App Menu Map; AI Capability Matrix; P6 PMBOK Ledger; Release Gates; Decision Register; Jalal4 Archive; Team Load; Dependency QA.
+The revised candidate workbook contains thirteen sheets: Dashboard; Jalal5 Schedule; Workstream Summary; Site Route Matrix; App Menu Map; AI Capability Matrix; P6 PMBOK Ledger; Release Gates; Decision Register; Jalal4 Archive; Team Load; Dependency QA; Mobile V1 Rebaseline. The 14 candidate mobile activity rows are intentionally not added to the main schedule denominator until task-level sizing, weights and the predecessor/owner-lane network are reconciled. The workbook is therefore a candidate for re-baselining, not final approval.
 
 The weighted-progress fields deliberately start Pending. On each accepted merge, update only the mapped activity row, attach current-main SHA, exact-head test/runtime evidence and acceptance URL, then recalculate earned points from row formulas. Keep overall delivery, Web Beta, P6 semantic parity and release readiness as separate metrics.
