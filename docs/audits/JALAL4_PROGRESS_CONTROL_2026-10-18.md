@@ -88,3 +88,15 @@ Official source links:
 - [P6 Integration API ScheduleOptions](https://docs.oracle.com/cd/G48897_01/English/Integration_Documentation/p6_eppm_api_reference/com/primavera/integration/client/bo/object/ScheduleOptions.html)
 
 Candidate evidence current as of 2026-10-18: matrix update commit `bdd1d6c8a30dde3c207f06987f33ba0bd044a18d`; ConstructionPM CI run `39083278773` passed on Python 3.11, 3.12 and 3.13; Client Typecheck run `39083278784` passed for web, mobile, desktop and client-sync; PostgreSQL Integration run `39083278778` passed. These are exact-head checks for the current candidate SHA. Keep #1457 Draft/unmerged because the source-to-model mapping, lossless field round-trip, independent semantic review, and production immutable input composition gates remain open. Do not increase weighted progress on this documentation/conformance finding.
+
+
+## Backward-leveling error classification hardening — pending code review
+
+A further implementation-level risk was raised on [PR #1457](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1457): `_violated_backward_upper_bound_activity()` detects a retryable upper-bound conflict by parsing the English `ConstraintViolation` message prefix rather than a typed violation payload. This couples scheduler control flow to display text and creates avoidable risk if error wording is changed or localized.
+
+Required before the candidate is mergeable:
+- Use a typed violation payload or dedicated subtype that exposes the relevant constraint kind and activity ID.
+- Keep readable error messages for callers, but branch/retry only on typed fields.
+- Test that the intended relationship-propagated upper-bound conflict is retryable, unrelated constraints are re-raised unchanged, and changing/localizing the message does not alter control flow.
+
+This is a separate robustness review item; it does not negate the successful exact-head CI on candidate SHA `bdd1d6c8a30dde3c207f06987f33ba0bd044a18d`, but it must be reviewed and validated before merge. The candidate stays Draft/unmerged and no additional weighted implementation credit is earned.
