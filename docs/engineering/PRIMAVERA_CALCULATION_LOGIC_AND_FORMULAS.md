@@ -1273,13 +1273,49 @@ Live calculation results, stored summaries and historical period values are diff
 
 **Sources:** [Admin Preferences Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm); [Tracking overview](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/tracking.htm); [Rolling up data with the summary service](https://docs.oracle.com/cd/G48902_01/client_help/en_US/rolling_up_data_with_the_summary_service.htm); [Set global summarization options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/set_global_summarization_options.htm); [Select baseline for summarization](https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_a_baseline_for_summarization.htm).
 
-## 50. Top-down estimation: formula verification gate
+## 50. Top-down estimation: formulas, inputs and required parity fixtures
 
-The Version 26 guide includes top-down estimates using prior experience and function points, plus applying a saved estimate to a project. Because outputs can populate planned durations, units, resources, costs or budgets, these flows belong in the calculation contract.
+The Version 26 official pages have now been read for both estimation modes. These are calculation-affecting workflows because they seed resource units inside a selected WBS and can influence schedule/cost results.
 
-Inventory estimator mode/version, every input and unit, saved template parameters, target project/WBS/activities, allocation method, mapping to planned duration/units/rates/cost/resources, rounding, missing-input validation, preview/apply/cancel, before/after values, audit actor and reapplication behavior.
+### 50.1 Prior experience mode — explicitly documented adjustment
 
-**Formula status: OPEN until reviewed page-by-page.** Do not infer a universal formula from the feature name. Copy the exact official formula and example into this contract only after the pages are reviewed and a reference fixture captures inputs and outputs. The feature cannot be labeled reference-compatible while these items are open.
+Inputs are: estimate labor or nonlabor units; target WBS (activities beneath the selected WBS); optional resource filter; Estimated Units; and an optional Apply Adjustment percentage.
+
+Let U = entered Estimated Units and p = the positive adjustment percentage. The documented positive adjustment is:
+
+- Adjustment Units = U × (p / 100)
+- Adjusted Units = U + Adjustment Units = U × (1 + p / 100)
+
+Documented example: U = 400.00 hours and p = 50%, so Adjustment Units = 200.00 hours and Adjusted Units = 600.00 hours.
+
+CUBI must preserve the user-entered estimate, p, computed adjustment and adjusted value. Validate input units/time, scope (WBS/resource), precision and authorization. Negative adjustment handling, rounding, allocation of the adjusted total among selected activities/assignments, overwriting existing values and reapplication semantics require additional reference fixtures and are OPEN until proven. A saved estimate persists its name, assumptions and notes; saving is separate from applying it. Applying requires explicit confirmation and creates an auditable mutation.
+
+### 50.2 Function-point mode — fully enumerated inputs
+
+The Version 26 dialog supports:
+- estimate Labor or Nonlabor units, or select a Material resource;
+- target WBS, and optionally a Resource;
+- Unadjusted Function Point Count (UFP), entered or calculated;
+- low/average/high-complexity file and transaction counts to calculate UFP;
+- Total Degree of Influence (TDI), entered or calculated;
+- system-characteristic rows rated 0 through 5, where 0 means no influence and 5 means strongest influence;
+- average productive value in Function Points per Person Month;
+- optional adjustment percentage;
+- save named estimate with assumptions/notes, or apply it after confirmation.
+
+The following mathematical chain is the expected model to verify in the selected Version 26 reference dialog, **not a license to hard-code guessed weights or conversion factors**:
+
+1. UFP = weighted sum of the low/average/high complexity counts for each supported data-function and transaction type.
+2. TDI = sum of the numeric influence ratings across the dialog's system-characteristic rows.
+3. Conventional adjusted-function-point candidate = UFP × (0.65 + 0.01 × TDI).
+4. Estimated person-months candidate = adjusted function points ÷ average productive value (function points/person month).
+5. Adjusted units, if the adjustment checkbox is selected, apply the documented positive adjustment pattern from Section 50.1 to the resource units produced by the estimation method.
+
+**Required OPEN reference evidence:** capture the exact Function Point Estimation dialog category names and complexity-weight matrix; characteristic list/count; whether/how the adjusted function-point factor in step 3 is used by this P6 version; conversion from person-month productivity to labor/nonlabor/material Units; Hours per Time Period/fiscal/calendar assumptions; fractional-unit rounding; per-activity distribution within the selected WBS; zero/blank UFP, TDI, productivity and resource cases; and adjustment sign handling. Do not claim parity or ship as reference-compatible until a golden fixture contains all inputs, output units/precision, resulting assignment values and post-estimation schedule/cost behavior.
+
+### 50.3 Shared application semantics
+
+Top-down estimation is a project data mutation, not a separate scheduler. The saved estimate must not become a live hidden formula. The operation must show a preview, target WBS/resource/activity scope, input assumptions and expected total before applying. After apply, recalculate the dependent plan through the authoritative CUBI core, preserve provenance of generated versus manually edited values, and report any unresolved capacity, relationship or constraint effects. Save As must not apply; Cancel must not mutate; re-applying the same saved estimate must follow a tested overwrite/preserve policy.
 
 **Sources:** [Top-down estimate using prior experience — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80492.htm); [Top-down estimate using function points — Version 26](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80493.htm); [Apply saved top-down estimates](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/80494.htm).
 
@@ -1319,3 +1355,31 @@ A profile, spreadsheet, Tracking chart or summarized report records these inputs
 Showing/hiding availability or changing color does not change capacity. Changing field, period, baseline, filter or scope changes the population/value and must be retained in report/export provenance. Dynamic leveling in Resource Analysis is a what-if scenario until an accepted calculation updates the authoritative schedule.
 
 **Sources:** [Version 26 User Guide TOC — profiles and spreadsheets](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm); [Tracking layouts](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/tracking.htm).
+
+
+## 54. Schedule/estimate/report scope does not imply automatic data mutation
+
+The official tool tree includes workflows whose names look like calculations but have different effects:
+- **Schedule** calculates and persists schedule results according to the selected input/options.
+- **Level Resources** changes placement proposals/accepted dates only under the chosen resource-leveling operation.
+- **Top-Down Estimation** produces and applies estimated units under explicit confirmation; it does not by itself certify schedule feasibility.
+- **Update Progress / Apply Actuals** changes actual/progress inputs; schedule results must then be recalculated if automatic scheduling is off.
+- **Store Period Performance** posts actual-period values; it is not the same operation as changing actual-to-date and must not double-count period data.
+- **Summarize Project Data** builds stored reporting aggregates; it is not the same as scheduling.
+- **Check Schedule / Project Checker** creates diagnostic evidence; it does not change schedule source fields unless a separate explicit edit action is invoked.
+- **Dynamic Resource Leveling in Resource Analysis** is a scenario view until explicitly accepted and recalculated. It must not silently overwrite the current schedule.
+
+Every such action must return a typed operation status (previewed, applied, cancelled, scheduled, summarized, diagnostic-only, failed), input snapshot and output/audit reference. The UI, API and CUBI assistant must use the same action distinction.
+
+## 55. Financial-period dictionary, fiscal start and summary boundary tests
+
+Where CUBI implements period posting, earned value, spending plans, time-phased cost, or closed-project summary reporting, the financial-period dictionary and fiscal start month are calculation inputs:
+- A financial period has a stable ID, start, finish/end, label and reporting/fiscal year membership. Do not infer a period boundary from month name alone.
+- Period totals use a defined inclusion boundary; test activity/cost/actual exactly at period start/end and across two periods.
+- Fiscal-year start month changes grouping/labels and annual rollups; it must not rewrite underlying transaction dates or actuals.
+- Summary by financial period requires that configured periods span the complete historical span of included projects; missing periods must result in an explicit gap/unavailable status, not a silently omitted zero.
+- When both calendar and financial-period summaries are enabled, keep the two datasets distinguishable by aggregation mode. Re-running summary after changing mode must not double-add, carry forward stale buckets or leave ambiguous values.
+- Actual To Date and historical/Past Period Actual are different series. Posting or editing one period updates the required aggregate/reports according to selected linking settings and retains a before/after audit.
+- Test partial first/last periods, zero-length/overlapping/duplicate period definitions, leap year, Jalali calendar display, timezones, closed projects, unavailable old periods, historical edits and period reposting.
+
+**Sources:** [Define fiscal start month](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_a_fiscal_start_month.htm); [Post period actuals](https://docs.oracle.com/cd/F51303_01/English/User_Guides/p6_pro_user/post_actual_amounts_for_a_period.htm); [Admin Preferences Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/options_tab_-_admin_preferences_dialog_box.htm).
