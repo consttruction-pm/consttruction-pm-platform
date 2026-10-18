@@ -30,6 +30,14 @@ A requirement may be marked **Outside Scope** only with an explicit documented d
 
 The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
 
+## Principle 1A.1 — All formulas and calculations require P6 conformance evidence
+
+Every formula and calculation in the P6-overlap scope must be assessed against the applicable, versioned Oracle Primavera P6 documentation before semantic implementation changes. This includes CPM dates and float, relationships and lag, constraints, activity/resource calendars, duration and unit arithmetic, resource leveling and priority order, progress/actuals, EVM, cost/spreads, formula/calculated columns, summary rollups and calculation-related import/export.
+
+The source-derived rule, exact Oracle page/section, edge cases, owning Shared Core implementation, regression tests, exact tested commit SHA and independent semantic review must be traceable in the [P6 Calculation Conformance Matrix](P6_CALCULATION_CONFORMANCE_MATRIX_2026-10-18.md). Every matrix row must be VERIFIED or have an approved OUTSIDE SCOPE disposition before claiming release conformance. UNVERIFIED or BLOCKED semantics must not be guessed, and test failures must not be hidden by weakening constraints, calculation assertions or final resource-capacity validation.
+
+This is a documentation-first gate, consistent with [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447). A passing test for one calculation slice does not certify the full calculation family.
+
 ## Principle 1B — Calendar configuration and user-selected changes must travel with project export/import
 
 A project is not portable unless its complete effective calendar context is portable. Every project export/import, backup/restore, clone/template transfer and supported interchange workflow must preserve and round-trip:
