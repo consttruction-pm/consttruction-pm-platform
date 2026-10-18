@@ -44,7 +44,7 @@ class P6ResourceCapacitySlice:
 def build_resource_capacity_slices(
     scope: BackendScope,
     assignments: Sequence[P6ResourceAssignment],
-    calendars: Mapping[object, ResourceCalendar],
+    calendars: Mapping[str | tuple[str, str], ResourceCalendar],
     periods: Sequence[date],
 ) -> tuple[P6ResourceCapacitySlice, ...]:
     """Resolve pinned calendars by the exact (calendar_id, calendar_version) key.
