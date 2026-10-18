@@ -61,7 +61,7 @@ def build_scheduler_leveling_input(
     auth_context: AuthorizationContext,
     forward_activities: tuple[LevelingActivity, ...],
     backward_activities: tuple[BackwardLevelingActivity, ...],
-    calendars: Mapping[str, ResourceCalendar],
+    calendars: Mapping[str | tuple[str, str], ResourceCalendar],
     periods: Sequence[date],
     options: ResourceLevelingOptions,
 ) -> SchedulerLevelingInput:
