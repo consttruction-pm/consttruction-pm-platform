@@ -202,14 +202,9 @@ class LevelingActivity:
             for value in (self.late_start, self.late_finish)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
-        if (
-            self.late_start is not None
-            and self.late_start < self.start
-        ) or (
-            self.late_finish is not None
-            and self.late_finish < self.finish
-        ):
-            raise ResourceLevelingError("INVALID_LATE_WINDOW")
+        # Late dates may precede early dates when CPM reports negative float
+        # (for example, an infeasible imposed finish/constraint). Preserve the
+        # authoritative dates; feasibility is handled by CPM/constraint checks.
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
