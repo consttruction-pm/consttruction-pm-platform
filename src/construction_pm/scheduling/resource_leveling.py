@@ -50,6 +50,16 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
+        if self.calendar_id is not None and (
+            not isinstance(self.calendar_id, str) or not self.calendar_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_ID")
+        if self.calendar_version is not None and (
+            not isinstance(self.calendar_version, str) or not self.calendar_version.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_VERSION")
+        if self.calendar_version is not None and self.calendar_id is None:
+            raise ResourceLevelingError("INCOMPLETE_CALENDAR_REFERENCE")
 
 
 @dataclass(frozen=True)
