@@ -608,6 +608,7 @@ def propose_backward_leveling(
     level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (),
     protected_activity_ids: tuple[str, ...] = (),
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[BackwardLevelingShift, ...]:
     """Propose deterministic backward leveling from late dates toward early dates.
 
@@ -648,8 +649,8 @@ def propose_backward_leveling(
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
     # Match the P6 Professional leveling-priority fields represented by this
     # backward-pass input. Fields not carried by the typed input (for example,
-    # Free Float, durations, and project-level values) must remain explicit
-    # unsupported errors rather than being approximated from unrelated fields.
+    # durations and project-level values) must remain explicit unsupported errors
+    # rather than being approximated from unrelated fields.
     allowed = {
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "total_float", "free_float",
@@ -687,7 +688,9 @@ def propose_backward_leveling(
         for activity in activity_list:
             result.extend(
                 d for d in _shift_demands_backward(
-                    activity.resource_demands, shifts[activity.activity_id], resolver
+                    activity.resource_demands,
+                    shifts[activity.activity_id],
+                    _resolver_for_activity(activity.activity_id, resolver, activity_resolvers),
                 ) if d.resource_id in selected_resources
             )
         return result
@@ -715,10 +718,17 @@ def propose_backward_leveling(
                 if activity.activity_id in protected_activity_ids:
                     continue
                 current_shift = shifts[activity.activity_id]
-                max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
+                activity_resolver = _resolver_for_activity(
+                    activity.activity_id, resolver, activity_resolvers
+                )
+                max_advance = _working_days_between(
+                    activity.early_start, activity.late_start, activity_resolver
+                )
                 if -current_shift >= max_advance:
                     continue
-                current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
+                current = _shift_demands_backward(
+                    activity.resource_demands, current_shift, activity_resolver
+                )
                 units = sum(
                     (d.units for d in current if d.resource_id == resource_id and d.period == period),
                     Decimal("0"),
@@ -754,12 +764,15 @@ def propose_backward_leveling(
         activity = next(a for a in activity_list if a.activity_id == activity_id)
         next_shift = shifts[activity_id] - 1
         shifts[activity_id] = next_shift
+        activity_resolver = _resolver_for_activity(
+            activity.activity_id, resolver, activity_resolvers
+        )
         result.append(
             BackwardLevelingShift(
                 activity_id=activity_id,
                 shift_working_days=next_shift,
-                new_start=_shift_date_backward(activity.late_start, next_shift, resolver),
-                new_finish=_shift_date_backward(activity.late_finish, next_shift, resolver),
+                new_start=_shift_date_backward(activity.late_start, next_shift, activity_resolver),
+                new_finish=_shift_date_backward(activity.late_finish, next_shift, activity_resolver),
                 advanced_days=-next_shift,
             )
         )
