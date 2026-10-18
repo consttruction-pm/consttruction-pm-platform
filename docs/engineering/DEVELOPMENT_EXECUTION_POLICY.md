@@ -19,3 +19,18 @@ GitHub/Codex must remain the authoritative working environment because the proje
 ## Rationale
 
 A previous ChatGPT-only execution attempt was stopped because the required SQL runtime was not available. The project therefore returns to the established GitHub/Codex workflow so database-backed and full-stack tests can execute in the intended environment.
+
+
+## Mandatory PMBOK-aligned Form Builder calculation contract
+
+Before creating, changing, reviewing, or debugging any website form template, field type, formula editor, validation/conditional rule, form submission/approval flow, calculated form field, form-derived KPI/report, or AI-assisted form generation, read:
+
+- `docs/engineering/PMBOK_FORM_BUILDER_AND_FORM_CALCULATIONS.md`
+
+This document identifies the current PMBOK edition and related PMI sources, distinguishes documented guidance from optional CUBI/project-configured formulas, defines typed form/field/calculation behavior, and maps current form/formula-core components with known gaps. It is mandatory engineering authority for this area.
+
+For formulas that read schedule dates, durations, calendars, resource capacity/units/cost, progress, EVM or WBS values, the form layer must use the canonical shared CUBI domain/calculation services. It must not create a duplicate CPM, calendar, resource-leveling or EVM implementation. The standalone scheduling calculation contract remains the authority for reference-compatible scheduling/Project Controls formulas once merged.
+
+Every form-calculation change must document contract section IDs, formula authority class, source/input/output units, null/zero/rounding behavior, field dependencies, tests and exact final SHA. AI-generated fields/formulas are draft-only until type-checked, tested and approved by an authorized human.
+
+**Status: ACTIVE for engineering changes in the form-builder area on this branch; merge this policy/document before treating the requirement as active on main.**
