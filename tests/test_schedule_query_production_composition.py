@@ -140,6 +140,18 @@ def test_persisted_activity_master_records_are_composed_before_snapshot_build():
     assert payload["activities"][0]["original_duration"] == 6
     assert payload["activities"][0]["leveling_priority"] == "High"
 
+    # Verify the composed, hashed payload survives a fresh repository read.
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    persisted = snapshot_repo.save(snapshot)
+    reloaded = snapshot_repo.get(BackendScope("T-1", "P-1", 9), "S-ACTIVITY-MASTER")
+    assert reloaded is not None
+    assert reloaded.snapshot_hash == persisted.snapshot_hash == snapshot.snapshot_hash
+    assert reloaded.canonical_payload == snapshot.canonical_payload
+    reloaded_payload = json.loads(reloaded.canonical_payload)
+    assert reloaded_payload["activities"][0]["planned_finish"] == "2026-10-02"
+    assert reloaded_payload["activities"][0]["original_duration"] == 6
+    assert reloaded_payload["activities"][0]["leveling_priority"] == "High"
+
 
 def test_activity_master_composition_fails_closed_for_fractional_working_day():
     conn = sqlite3.connect(":memory:")
