@@ -142,6 +142,7 @@ def _backward_activities_from_intermediate(
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
                 total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
+                free_float=getattr((float_schedule or {}).get(activity.activity_id), "free_float", None),
             )
         )
     return tuple(result)
@@ -285,8 +286,15 @@ def schedule_with_resource_leveling(
         batch_scheduled_finish=batch_scheduled_finish,
     )
 
+    forward_activities = tuple(
+        replace(
+            activity,
+            free_float=getattr(initial.floats.get(activity.activity_id), "free_float", None),
+        )
+        for activity in leveling_input.forward_activities
+    )
     forward_shifts = propose_forward_leveling(
-        leveling_input.forward_activities,
+        forward_activities,
         leveling_input.capacities,
         resolver=resolver,
         level_within_float=leveling_input.options.level_within_float,
@@ -297,7 +305,7 @@ def schedule_with_resource_leveling(
         resource_ids=leveling_input.options.resource_ids,
     )
     shifted_forward = apply_leveling_shifts(
-        leveling_input.forward_activities, forward_shifts, resolver=resolver,
+        forward_activities, forward_shifts, resolver=resolver,
         allow_beyond_float=not leveling_input.options.level_within_float,
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
