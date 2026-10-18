@@ -10,7 +10,14 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
-from .scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
+from .scheduling.activity import (
+    Activity,
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityType,
+    ActivityStatusCode,
+    PercentCompleteType,
+)
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -214,7 +221,7 @@ def _resource_list(raw: Any) -> tuple[str, ...] | None:
         if any(not item for item in items):
             raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
         raw = items
-    if not isinstance(raw, list) or not raw:
+    if not isinstance(raw, list):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
     if any(not isinstance(item, str) or not item.strip() or item != item.strip() for item in raw):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:resource_list")
@@ -256,7 +263,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
         if priority_payload is None:
             priority_list = None
         else:
-            if not isinstance(priority_payload, list) or not priority_payload:
+            if not isinstance(priority_payload, list):
                 raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTION:priority_list")
             priority_list = tuple(
                 PriorityListItem(
@@ -417,20 +424,77 @@ def _materialize_payload(
                 )
             except ValueError as exc:
                 raise SnapshotMaterializationError("INVALID_ACTIVITY_ENUM") from exc
+
+            # These independent Activity fields are part of the canonical
+            # snapshot contract; do not drop them when rebuilding the model.
+            raw_name = item.get("name", "")
+            if not isinstance(raw_name, str):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_NAME")
+            raw_original_duration = item.get("original_duration")
+            original_duration = (
+                _strict_integer(raw_original_duration, "INVALID_ACTIVITY_ORIGINAL_DURATION")
+                if raw_original_duration is not None
+                else None
+            )
+            if original_duration is not None and original_duration < 0:
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_ORIGINAL_DURATION")
+            raw_planned_finish = item.get("planned_finish")
+            planned_finish = (
+                _date(raw_planned_finish) if raw_planned_finish is not None else None
+            )
+            raw_leveling_priority = item.get(
+                "leveling_priority", ActivityLevelingPriority.NORMAL.value
+            )
+            if not isinstance(raw_leveling_priority, str):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_LEVELING_PRIORITY")
+            try:
+                leveling_priority = ActivityLevelingPriority(raw_leveling_priority)
+            except ValueError as exc:
+                raise SnapshotMaterializationError(
+                    "INVALID_ACTIVITY_LEVELING_PRIORITY"
+                ) from exc
+
             activities.append(
                 Activity(
-                    activity_id,
-                    int(duration_value),
-                    _date(actual) if actual is not None else None,
-                    _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
-                    _strict_integer(item["remaining_duration"], "INVALID_ACTIVITY_REMAINING_DURATION") if item.get("remaining_duration") is not None else None,
-                    _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
-                    _finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
-                    percent_complete_type,
-                    _date(item["expected_finish"]) if item.get("expected_finish") is not None else None,
-                    status,
-                    activity_type,
-                    status_code,
+                    id=activity_id,
+                    duration=int(duration_value),
+                    actual_start=_date(actual) if actual is not None else None,
+                    actual_finish=(
+                        _date(item["actual_finish"])
+                        if item.get("actual_finish") is not None
+                        else None
+                    ),
+                    remaining_duration=(
+                        _strict_integer(
+                            item["remaining_duration"],
+                            "INVALID_ACTIVITY_REMAINING_DURATION",
+                        )
+                        if item.get("remaining_duration") is not None
+                        else None
+                    ),
+                    remaining_start=(
+                        _date(item["remaining_start"])
+                        if item.get("remaining_start") is not None
+                        else None
+                    ),
+                    percent_complete=(
+                        _finite_percent_complete(item["percent_complete"])
+                        if item.get("percent_complete") is not None
+                        else None
+                    ),
+                    percent_complete_type=percent_complete_type,
+                    expected_finish=(
+                        _date(item["expected_finish"])
+                        if item.get("expected_finish") is not None
+                        else None
+                    ),
+                    status=status,
+                    activity_type=activity_type,
+                    status_code=status_code,
+                    name=raw_name,
+                    original_duration=original_duration,
+                    planned_finish=planned_finish,
+                    leveling_priority=leveling_priority,
                 )
             )
         else:

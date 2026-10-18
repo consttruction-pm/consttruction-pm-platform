@@ -54,7 +54,7 @@ def test_priority_list_typed_contract_is_deterministic():
     assert ScheduleOptions(priority_list=(item,)).priority_list == (item,)
 
 
-@pytest.mark.parametrize("value", [(), (object(),)])
+@pytest.mark.parametrize("value", [(object(),)])
 def test_priority_list_rejects_invalid_typed_values(value):
     with pytest.raises(ValueError):
         ScheduleOptions(priority_list=value)
@@ -83,3 +83,8 @@ def test_multiple_float_paths_ending_activity_short_name_rejects_blank():
     with pytest.raises(ValueError, match="short_name"):
         ScheduleOptions(multiple_float_paths_ending_activity_short_name="   ")
 
+
+
+
+def test_priority_list_allows_explicitly_empty_tuple():
+    assert ScheduleOptions(priority_list=()).priority_list == ()

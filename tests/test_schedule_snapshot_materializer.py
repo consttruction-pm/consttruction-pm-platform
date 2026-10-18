@@ -21,7 +21,14 @@ from construction_pm.scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
 )
-from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
+from construction_pm.scheduling.activity import (
+    Activity,
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityType,
+    ActivityStatusCode,
+    PercentCompleteType,
+)
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
@@ -547,7 +554,7 @@ def test_materializer_preserves_priority_list_order_and_explicit_sort_directions
     )
 
 
-def test_materializer_rejects_empty_priority_list_instead_of_silently_defaulting():
+def test_materializer_preserves_explicitly_empty_priority_list():
     snapshot = make_snapshot()
     payload = json.loads(snapshot.canonical_payload)
     payload["schedule_options"]["priority_list"] = []
@@ -563,11 +570,8 @@ def test_materializer_rejects_empty_priority_list_instead_of_silently_defaulting
         snapshot.created_at,
     )
 
-    with pytest.raises(
-        SnapshotMaterializationError,
-        match="INVALID_SCHEDULE_OPTION:priority_list",
-    ):
-        materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+    result = materialize_schedule_snapshot(candidate, CalendarResolverRegistry())
+    assert result.schedule_input.schedule_options.priority_list == ()
 
 def test_materializer_rejects_invalid_calendar_system():
     snapshot = make_snapshot()
@@ -604,6 +608,10 @@ def test_materializer_preserves_activity_state_fields():
                 status=ActivityStatus.COMPLETED,
                 activity_type=ActivityType.TASK_DEPENDENT,
                 status_code=ActivityStatusCode.ACTIVE,
+                name="Completed foundation",
+                original_duration=14,
+                planned_finish=date(2026, 9, 8),
+                leveling_priority=ActivityLevelingPriority.HIGH,
             ),
         ),
         relationships=(),
@@ -627,6 +635,10 @@ def test_materializer_preserves_activity_state_fields():
     assert activity.status is ActivityStatus.COMPLETED
     assert activity.activity_type is ActivityType.TASK_DEPENDENT
     assert activity.status_code is ActivityStatusCode.ACTIVE
+    assert activity.name == "Completed foundation"
+    assert activity.original_duration == 14
+    assert activity.planned_finish == date(2026, 9, 8)
+    assert activity.leveling_priority is ActivityLevelingPriority.HIGH
 
 
 def test_materializer_rejects_non_finite_schedule_option_numbers():
@@ -999,3 +1011,90 @@ def test_materializer_accepts_legacy_comma_separated_resource_list():
     )
     result = materialize_schedule_snapshot(legacy, CalendarResolverRegistry())
     assert result.schedule_input.schedule_options.resource_list == ("R1", "R2")
+
+@pytest.mark.parametrize("value", ["TopPriority", "normal", 2, None])
+def test_materializer_rejects_invalid_activity_leveling_priority(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["leveling_priority"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_LEVELING_PRIORITY",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize("value", [True, 2.0, "2", -1])
+def test_materializer_rejects_invalid_original_duration(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["activities"][0]["original_duration"] = value
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="INVALID_ACTIVITY_ORIGINAL_DURATION",
+    ):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+
+
+def test_schedule_options_materializer_preserves_explicitly_empty_arrays():
+    from construction_pm.schedule_snapshot_materializer import _schedule_options
+
+    options = _schedule_options({"resource_list": [], "priority_list": []})
+
+    assert options.resource_list == ()
+    assert options.priority_list == ()
+
+
+def test_schedule_options_materializer_keeps_null_distinct_from_empty_arrays():
+    from construction_pm.schedule_snapshot_materializer import _schedule_options
+
+    options = _schedule_options({"resource_list": None, "priority_list": None})
+
+    assert options.resource_list is None
+    assert options.priority_list is None
+
+def test_snapshot_materializer_preserves_explicitly_empty_leveling_arrays():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["schedule_options"]["resource_list"] = []
+    payload["schedule_options"]["priority_list"] = []
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    explicit_empty = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    result = materialize_schedule_snapshot(explicit_empty, CalendarResolverRegistry())
+    options = result.schedule_input.schedule_options
+
+    assert options.resource_list == ()
+    assert options.resource_list is not None
+    assert options.priority_list == ()
+    assert options.priority_list is not None
+

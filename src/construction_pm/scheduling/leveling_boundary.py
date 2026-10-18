@@ -78,8 +78,19 @@ def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]
     supported = {
         "activity_id",
         "activity_priority",
+        "activity_leveling_priority",
         "early_start",
         "early_finish",
+        "late_start",
+        "late_finish",
+        "free_float",
+        "remaining_duration",
+        "planned_duration",
+        "original_duration",
+        "original_or_planned_duration",
+        "project_planned_start",
+        "project_priority",
+        "planned_finish",
         "total_float",
     }
     priorities: list[LevelingPriority] = []
