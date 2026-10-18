@@ -355,3 +355,41 @@ def test_snapshot_rejects_non_integer_calculation_identity_version(identity_vers
         match="INVALID_CALCULATION_IDENTITY_VERSION",
     ):
         snapshot.validate()
+
+
+@pytest.mark.parametrize(
+    "date_field",
+    ["actual_start", "actual_finish", "remaining_start", "expected_finish", "planned_finish"],
+)
+def test_activity_master_composition_rejects_datetime_without_truncating_precision(date_field):
+    conn = sqlite3.connect(":memory:")
+    activity_repo = SQLiteActivityMasterRepository(conn)
+    scope = BackendScope("T-1", "P-1", 9)
+    precise_timestamp = datetime(2026, 10, 2, 14, 30, tzinfo=timezone.utc)
+    activity_repo.save(
+        ActivityMaster(
+            scope=scope,
+            activity_id="A",
+            duration_value=Decimal("4"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            **{date_field: precise_timestamp},
+        )
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-DATETIME-REJECT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 4),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+
+    with pytest.raises(
+        ScheduleSnapshotPersistenceError,
+        match="ACTIVITY_MASTER_DATE_TYPE_MISMATCH",
+    ):
+        compose_activity_master_records(source, activity_repo)
