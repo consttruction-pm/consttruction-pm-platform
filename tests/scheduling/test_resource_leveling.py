@@ -219,6 +219,58 @@ def test_priority_based_leveling_uses_configured_priority_before_demand_size():
     assert shifts[0].activity_id == "A2"
 
 
+@pytest.mark.parametrize(
+    ("field_name", "a1_value", "a2_value"),
+    [
+        ("late_start", date(2026, 10, 3), date(2026, 10, 2)),
+        ("late_finish", date(2026, 10, 4), date(2026, 10, 3)),
+    ],
+)
+def test_late_date_leveling_priorities_use_authoritative_values(field_name, a1_value, a2_value):
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()
+    ))
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity(
+            "A1", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+            late_start=date(2026, 10, 3), late_finish=date(2026, 10, 4),
+        ),
+        LevelingActivity(
+            "A2", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("4"), "A2"),),
+            late_start=date(2026, 10, 2), late_finish=date(2026, 10, 3),
+        ),
+    )
+    # Keep the case data explicit so a mistaken field mapping cannot pass.
+    assert getattr(activities[0], field_name) == a1_value
+    assert getattr(activities[1], field_name) == a2_value
+    capacities = (ResourceCapacity("R1", day, Decimal("8")),)
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority(field_name, SortOrder.ASCENDING),),
+    )
+
+    assert shifts[0].activity_id == "A2"
+
+
+def test_missing_authoritative_late_date_priority_fails_closed():
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()
+    ))
+    activity = LevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_forward_leveling_within_float(
+            (activity,), (), resolver=resolver,
+            priorities=(LevelingPriority("late_start", SortOrder.ASCENDING),),
+        )
+
+
 def test_priority_tie_falls_back_to_activity_id():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activities = (
