@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
-from .scheduling.activity import Activity, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
+from .scheduling.activity import Activity, ActivityLevelingPriority, ActivityStatus, ActivityType, ActivityStatusCode, PercentCompleteType
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -417,6 +417,19 @@ def _materialize_payload(
                 )
             except ValueError as exc:
                 raise SnapshotMaterializationError("INVALID_ACTIVITY_ENUM") from exc
+            raw_leveling_priority = item.get(
+                "leveling_priority", ActivityLevelingPriority.NORMAL.value
+            )
+            if not isinstance(raw_leveling_priority, str):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_LEVELING_PRIORITY")
+            try:
+                leveling_priority = ActivityLevelingPriority.from_p6_value(
+                    raw_leveling_priority
+                )
+            except ValueError as exc:
+                raise SnapshotMaterializationError(
+                    "INVALID_ACTIVITY_LEVELING_PRIORITY"
+                ) from exc
             activities.append(
                 Activity(
                     activity_id,
@@ -431,6 +444,15 @@ def _materialize_payload(
                     status,
                     activity_type,
                     status_code,
+                    original_duration=(
+                        _strict_integer(item["original_duration"], "INVALID_ACTIVITY_ORIGINAL_DURATION")
+                        if item.get("original_duration") is not None else None
+                    ),
+                    planned_finish=(
+                        _date(item["planned_finish"])
+                        if item.get("planned_finish") is not None else None
+                    ),
+                    leveling_priority=leveling_priority,
                 )
             )
         else:
