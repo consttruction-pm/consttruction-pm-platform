@@ -30,7 +30,7 @@ Before planning, coding, review or progress reporting, read [the Project Continu
 
 **Binding V1 scope:** Website + Desktop + native Mobile are all required in V1. See [Issue #1486](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1486). Any old statement that defers native Mobile to V2 is superseded. The Mobile requirement is not considered fully scheduled until the weighted workbook includes its activities and the 100.00-point allocation, dependencies and forecast have been recalculated.
 
-All material decisions must be captured in GitHub issues/decision records; every task needs a schedule activity ID and a linked issue/PR; product completion credit requires merged current-main implementation plus fresh tests and acceptance evidence. Conversation history is not the source of truth.
+All material decisions must be captured in GitHub issues/decision records; every task needs a schedule activity ID and a linked issue/PR. Use the [tracked-task issue template](.github/ISSUE_TEMPLATE/jalal5_task.yml) and [PR continuity/evidence checklist](.github/pull_request_template.md). Product completion credit requires merged current-main implementation plus fresh tests and acceptance evidence. Conversation history is not the source of truth.
 
 ## Team responsibility model
 The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
