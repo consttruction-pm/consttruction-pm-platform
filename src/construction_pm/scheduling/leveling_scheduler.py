@@ -343,6 +343,7 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
