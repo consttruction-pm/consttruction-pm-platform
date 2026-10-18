@@ -7,6 +7,7 @@ from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    ResourceCalendarAssignment,
 )
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.relationships import Relationship
@@ -170,4 +171,69 @@ def test_project_leveling_priority_rejects_invalid_values(priority):
             activity_calendar_assignments=(),
             project_start=date(2026, 9, 21),
             project_leveling_priority=priority,
+        )
+
+
+
+def test_resource_calendar_assignments_are_version_pinned_and_hashed():
+    first = make_input()
+    resource_calendar = CalendarReference("RESOURCE-CAL", "v3")
+    assigned = AuthoritativeScheduleInput(
+        snapshot_id=first.snapshot_id,
+        tenant_id=first.tenant_id,
+        project_id=first.project_id,
+        project_revision=first.project_revision,
+        mode=first.mode,
+        project_calendar=first.project_calendar,
+        activities=first.activities,
+        relationships=first.relationships,
+        activity_calendar_assignments=first.activity_calendar_assignments,
+        resource_calendar_assignments=(
+            ResourceCalendarAssignment("tenant:T-1/resource:R-7", resource_calendar),
+        ),
+        schedule_options=first.schedule_options,
+        project_start=first.project_start,
+    )
+    assert assigned.canonical_payload()["resource_calendar_assignments"] == [
+        {
+            "calendar": {
+                "calendar_id": "RESOURCE-CAL",
+                "calendar_version": "v3",
+                "kind": "working-day",
+                "system": "gregorian",
+            },
+            "resource_id": "tenant:T-1/resource:R-7",
+        }
+    ]
+    assert assigned.snapshot_hash != first.snapshot_hash
+
+
+def test_resource_calendar_assignments_reject_duplicate_resource_ids():
+    cal = CalendarReference("CAL-1", "1")
+    with pytest.raises(ValueError, match="resource calendar assignments must be unique"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S", tenant_id="T", project_id="P", project_revision=0,
+            mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=cal,
+            activities=(Activity("A", 1),), relationships=(),
+            activity_calendar_assignments=(),
+            resource_calendar_assignments=(
+                ResourceCalendarAssignment("R-1", cal),
+                ResourceCalendarAssignment("R-1", CalendarReference("CAL-2", "2")),
+            ),
+            project_start=date(2026, 9, 21),
+        )
+
+
+def test_resource_calendar_assignment_kind_must_match_schedule_mode():
+    cal = CalendarReference("CAL-1", "1")
+    with pytest.raises(ValueError, match="working-day resource calendars"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S", tenant_id="T", project_id="P", project_revision=0,
+            mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=cal,
+            activities=(Activity("A", 1),), relationships=(),
+            activity_calendar_assignments=(),
+            resource_calendar_assignments=(
+                ResourceCalendarAssignment("R-1", CalendarReference("TIME-CAL", "1", "working-time")),
+            ),
+            project_start=date(2026, 9, 21),
         )
