@@ -586,9 +586,13 @@ def propose_backward_leveling(
         raise ResourceLevelingError("DUPLICATE_PROTECTED_ACTIVITY_ID")
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
+    # Match the P6 Professional leveling-priority fields represented by this
+    # backward-pass input. Fields not carried by the typed input (for example,
+    # Free Float, durations, and project-level values) must remain explicit
+    # unsupported errors rather than being approximated from unrelated fields.
     allowed = {
         "activity_id", "activity_priority", "early_start",
-        "early_finish", "total_float",
+        "early_finish", "late_start", "late_finish", "total_float",
     }
     for priority in priorities:
         if priority.field_name.strip().lower().replace(" ", "_") not in allowed:
@@ -661,6 +665,8 @@ def propose_backward_leveling(
                     "activity_priority": activity.activity_priority,
                     "early_start": activity.early_start,
                     "early_finish": activity.early_finish,
+                    "late_start": activity.late_start,
+                    "late_finish": activity.late_finish,
                     "total_float": max_advance,
                 }
                 key: list[tuple[int, object]] = []
