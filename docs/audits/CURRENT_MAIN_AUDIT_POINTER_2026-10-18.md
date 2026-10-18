@@ -51,3 +51,33 @@ Thus the current report must preserve **48.13% as the last computed detailed sna
 ## Historical pointer
 
 [2026-10-12 audit pointer](CURRENT_MAIN_AUDIT_POINTER_2026-10-12.md) is retained for traceability only. It is a Jalal 3 historical snapshot and no longer governs current reporting.
+
+
+## Resource-calendar version pinning — follow-up audit (2026-10-18)
+
+This is an audit-only finding, not a product fix or a test result.
+
+### Confirmed source-to-wire gap
+
+The resource assignment currently carries `calendar_id` but no `calendar_version`:
+
+- `src/construction_pm/p6_resource_assignment_repository.py` (blob `6da967f98985549301921be7a5cf79a1578ebe57`): `P6ResourceAssignment`, `_payload`, SQLite schema/queries and Postgres schema/queries omit `calendar_version`. Both persistence implementations therefore cannot round-trip an exact calendar version from the assignment.
+- `src/construction_pm/p6_resource_read_api.py` (blob `098d87a04b9f0a2e49c679badcb6f85d84103d7d`): assignment DTO serializes `calendar_id` only, so the read contract also drops version identity.
+- `src/construction_pm/p6_resource_capacity_contract.py` (blob `6f3ce2a0d267fb592ac2e287dad7693b26fbc707`): capacity slices identify only `calendar_id`; the resolver receives `Mapping[str, ResourceCalendar]` and derives capacity through the legacy calendar model.
+- `src/construction_pm/p6_resource_leveling_read_adapter.py` (blob `fae40d90bb8413158011b1e3e97e2e05f2a7ec6e`): the adapter maps the DTO into an assignment and resolves calendars by ID, without a version-pinned canonical calendar snapshot.
+
+In contrast, `src/construction_pm/calendar_master_repository.py` (blob `61a954c49e0a13b8141ef02ec6f358a370197481`) already models `CalendarMaster.calendar_version` and version-specific repository keys. The missing link is therefore specifically the resource-assignment → read DTO → capacity/leveling input path, not a lack of versioned calendar identity everywhere.
+
+### Safe implementation boundary
+
+Do not infer “latest calendar” for legacy assignments and do not silently substitute the legacy `ResourceCalendar` model in production. A coordinated fix needs to:
+
+1. Add an optional, validated `calendar_version` to resource assignments without shifting existing positional constructor arguments (append the field or update all callers explicitly).
+2. Persist/read it consistently in SQLite and Postgres, including migration behavior for existing tables.
+3. Include it in the resource read DTO and adapter mapping; reject missing versions on the authoritative production leveling path where exact version binding is required.
+4. Resolve the exact versioned CalendarMaster/canonical calendar snapshot using existing inheritance and exception semantics; include calendar ID/version and canonical snapshot hash in immutable leveling input bound to schedule snapshot scope/revision/calculation identity.
+5. Add round-trip, migration, DTO, stale-version, SQLite/Postgres parity, and production-composition tests. Verify persisted Activity Master + assignments/periods/calendar → commit → fresh reads → immutable version-bound inputs → leveling and final capacity validation.
+
+### Compatibility and release status
+
+Existing assignment tests instantiate `P6ResourceAssignment` positionally, so inserting a new field before `note` would silently reinterpret callers. Existing adapter tests supply ID-keyed legacy `ResourceCalendar` objects and do not prove version-pinned production composition. No product code or tests were changed by this audit entry; no new test execution is claimed. Issue #1468 remains open and PR #1457 remains Draft until the production path and exact-head evidence meet the acceptance criteria.
