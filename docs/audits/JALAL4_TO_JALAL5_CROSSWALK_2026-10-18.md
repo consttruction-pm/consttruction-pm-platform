@@ -86,7 +86,7 @@ These rows must not be forced into an inaccurate historical mapping merely to fi
 | G06 | Field operations backend persistence and validation | Product completeness Principle 2; Issue #459; tenant/project-scoped persisted read/write, validation, audit and fresh-read tests. |
 | A06 | Current baseline confirmation and immediate blocker register is mapped to J4-58 for the gate/omission concept, but the new current-main cut-off and blocker evidence are Jalal 5-specific. Keep it marked as current-main re-baselining work, not a transferred percentage. |
 
-The reverse map now classifies 127 of the 130 Jalal 5 tasks against existing Jalal 4 scope; F11 and G06 are explicit added scope, while A06 has both its J4-58 gate linkage and its distinct current-main re-baselining role. This classification is about traceability, not accepted completion.
+The reverse map now classifies 128 of the 130 Jalal 5 tasks against existing Jalal 4 scope; F11 and G06 are the two explicit added-scope tasks. A06 is linked to J4-58 for the final gate/omission concept, while its current-main re-baselining work remains Jalal 5-specific. This classification is about traceability, not accepted completion.
 
 ## Acceptance procedure for finalizing the crosswalk
 
