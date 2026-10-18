@@ -774,9 +774,10 @@ def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
         "A1",
         date(2026, 10, 1),
         date(2026, 10, 2),
-        1,
+        -2,
         late_start=late_start,
         late_finish=late_finish,
     )
+    assert activity.total_float == -2
     assert activity.late_start == late_start
     assert activity.late_finish == late_finish
