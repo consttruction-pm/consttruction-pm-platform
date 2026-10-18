@@ -163,3 +163,58 @@ def test_backward_leveling_rejects_total_float_priority_when_cpm_value_is_missin
             resolver=resolver,
             priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),),
         )
+
+
+
+def test_backward_leveling_uses_authoritative_free_float_priority():
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    day_one, day_two, day_three = date(2026, 10, 1), date(2026, 10, 2), date(2026, 10, 3)
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_three, Decimal("8"), "A"),),
+            free_float=0,
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_three, Decimal("8"), "B"),),
+            free_float=2,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_two, Decimal("8")),
+        ResourceCapacity("R1", day_three, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_two
+
+
+def test_backward_leveling_rejects_free_float_priority_when_cpm_value_is_missing():
+    import pytest
+    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
+
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    activity = BackwardLevelingActivity(
+        "A", date(2026, 10, 1), date(2026, 10, 1),
+        date(2026, 10, 3), date(2026, 10, 3),
+        (ResourceDemand("R1", date(2026, 10, 3), Decimal("8"), "A"),),
+    )
+
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_backward_leveling(
+            (activity,),
+            (ResourceCapacity("R1", date(2026, 10, 3), Decimal("0")),),
+            resolver=resolver,
+            priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
+        )
