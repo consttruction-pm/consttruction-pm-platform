@@ -12,6 +12,20 @@ PMI's PMBOK Guide — Eighth Edition (November 2025), together with ANSI/PMI 99-
 
 No client, API adapter, external package or AI agent may silently redefine P6/shared calculation semantics.
 
+### Mandatory documentation-first gate for calculation semantics
+
+Before changing production behavior for scheduling, activity relationships, resource priorities/leveling, calendars, constraints, formulas, durations, progress/EVM, financial calculations, or AI-generated numerical results:
+
+1. Cite the exact official, versioned source and section that defines the behavior. For P6-overlap behavior, use the applicable Oracle P6 documentation and record its version/publication date.
+2. Translate the source into explicit rules, precedence, boundary conditions and unresolved questions in the calculation-conformance matrix before implementation.
+3. Link each rule to a focused regression test and identify the affected authoritative Shared Core entry point.
+4. Obtain independent semantic review of the source-to-rule interpretation before changing production calculation behavior. The implementer cannot self-certify this gate.
+5. If the source is unavailable or ambiguous, mark the item `UNVERIFIED/BLOCKED`; do not guess, weaken validation, or code an assumed interpretation.
+6. Every pull request that changes calculation behavior must include the repository's pull-request conformance checklist. Test-only changes must explicitly state that no calculation semantics changed.
+7. Keep the change unmerged until the independent review, targeted tests, full required CI, and exact-head evidence are recorded.
+
+This gate applies equally to human contributors and AI coding agents. A green test run does not substitute for P6 semantic evidence, and a source citation does not substitute for regression coverage.
+
 ## Principle 1A — P6 complete-field, calculation and interoperability parity / no silent omission
 
 For every capability applicable to the product's P6-overlap scope, the latest approved P6 baseline is a **completeness floor, not only a semantic reference**. We must not silently omit a P6 field, input option, calendar rule, calculation option, output column, import/export mapping, or user-configurable field capability when an equivalent concept belongs in our product.
