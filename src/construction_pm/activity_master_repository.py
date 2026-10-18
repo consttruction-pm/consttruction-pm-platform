@@ -159,7 +159,7 @@ def _decode_planned_finish(value: object) -> date | datetime | None:
 
 
 def _decode_activity_leveling_priority(value: object) -> ActivityLevelingPriority:
-    # P6 defaults an activity's leveling priority to Normal unless overridden.
+    # Compatibility default for legacy rows; this does not assert Oracle P6 default semantics.
     if value is None:
         return ActivityLevelingPriority.NORMAL
     try:
