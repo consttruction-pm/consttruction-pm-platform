@@ -16,7 +16,7 @@
 | Calendar days from snapshot 2026-10-18 to calculated finish | 474 |
 | Calendar days from snapshot 2026-10-18 to management target | 488 |
 
-**These are schedule-model outputs, not a guarantee or earned-progress claim.** The 85/15 weight split is the proposed control policy; owners must acknowledge estimates and weights. The 14 Mobile estimates total 94.5 PD and are first-pass estimates pending device/API/test-matrix review. Existing effort is re-estimated only where identified; B08 is provisionally 12 PD after the latest CI regression expansion.
+**These are schedule-model outputs, not a guarantee or earned-progress claim.** The 85/15 weight split is the proposed control policy; owners must acknowledge estimates and weights. The 14 Mobile estimates total 94.5 PD and are first-pass estimates pending device/API/test-matrix review. Existing effort is re-estimated only where identified; B08 retains a provisional 12 PD pending Hasan's next triage and owner re-estimate. The live CI has since improved from the earlier 19-failure result to two remaining failures on head 84f0694a6bee54e1a228ba35b21c6d545cd7f1e2.
 
 ## Estimate and resource assumptions
 
@@ -62,7 +62,7 @@ Any error discovered in a person's assigned area must be owned and followed to f
 
 ## Current blocking evidence
 
-PR #1487 remains Draft/unmerged. On the head `075a6dbefa48fb35a3366e652dddfb4c2cdc03a7`, Client Typecheck and PostgreSQL Integration passed, but ConstructionPM CI failed. The Python 3.11 log reported **19 failed, 2,507 passed, 90 skipped**, including resource-leveling final-demand/working-day displacement regressions and a schedule-evaluator failure. Treat the expanded failure list as the current scope; do not merge or mark B08 complete until every relevant failure is resolved, fresh exact-SHA checks pass, and independent review is recorded.
+PR #1487 remains Draft/unmerged. **Current exact head:** `84f0694a6bee54e1a228ba35b21c6d545cd7f1e2`. Client Typecheck and PostgreSQL Integration passed, but ConstructionPM CI failed on Python 3.11/3.12/3.13. Python 3.11 reports **2 failed, 2,525 passed, 90 skipped**: (1) `tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph` — final resource demand R1=2 vs capacity 1 on 2026-10-02; (2) `tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss` — start-no-later-than constraint violation for B. Exact run: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39104945732. The earlier 19-failure report on `075a6dbefa48fb35a3366e652dddfb4c2cdc03a7` is historical, not current. Do not merge or mark B08 complete until both failures and relevant regressions are resolved, exact-SHA gates pass, and independent review is recorded.
 
 ## Workbook authority
 
