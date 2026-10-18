@@ -342,19 +342,16 @@ def schedule_with_resource_leveling(
         # The proposal algorithm emits cumulative steps for an activity
         # (advance by one day, then by two, and so on). Treat those as
         # alternative target dates, not separate accepted shifts. Try the
-        # smallest advance first: it is the least disruptive feasible move,
-        # and larger advances should only be considered if the smaller one
-        # cannot resolve the overload.
-        candidate_by_activity: dict[str, BackwardLevelingShift] = {}
-        for proposed in backward_shifts:
-            current = candidate_by_activity.get(proposed.activity_id)
-            if current is None or proposed.advanced_days < current.advanced_days:
-                candidate_by_activity[proposed.activity_id] = proposed
-        candidates = tuple(candidate_by_activity.values())
-        for candidate in sorted(
-            candidates,
+        # least disruptive target first and only consider a larger advance
+        # when every smaller target for that activity was rejected.
+        candidates = tuple(sorted(
+            backward_shifts,
             key=lambda item: (item.advanced_days, item.activity_id),
-        ):
+        ))
+        accepted_activity_ids: set[str] = set()
+        for candidate in candidates:
+            if candidate.activity_id in accepted_activity_ids:
+                continue
             trial_shifts = tuple(accepted_backward_shifts) + (candidate,)
             trial_ids = {
                 shift.activity_id for shift in trial_shifts if shift.advanced_days > 0
@@ -395,6 +392,7 @@ def schedule_with_resource_leveling(
                     continue
                 raise
             accepted_backward_shifts.append(candidate)
+            accepted_activity_ids.add(candidate.activity_id)
 
         backward_shifts = tuple(accepted_backward_shifts)
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
