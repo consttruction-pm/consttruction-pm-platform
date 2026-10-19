@@ -1906,6 +1906,7 @@ def test_resource_leveling_calendar_lag_cross_product_preserves_relationships_an
         ResourceDemand,
         ResourceLevelingOptions,
     )
+    from construction_pm.scheduling.relationships import Relationship
     from construction_pm.scheduling.schedule import _relationship_holds
     from construction_pm.scheduling.schedule_options import ScheduleOptions
 
