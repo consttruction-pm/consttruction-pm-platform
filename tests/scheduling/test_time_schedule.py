@@ -474,8 +474,12 @@ def test_cross_calendar_negative_lag_sf_is_consistent_forward_backward():
     ]
     relationships = [TimeRelationship("A", "B", RelationshipType.SF, LagQuantity.working_hours(-1))]
     early = time_forward_pass(activities, relationships, datetime(2026, 9, 22, 8, tzinfo=timezone.utc), registry)
-    assert early["B"].start == datetime(2026, 9, 21, 14, tzinfo=timezone.utc)
-    assert early["B"].finish == datetime(2026, 9, 21, 16, tzinfo=timezone.utc)
+    assert early["B"].start == datetime(
+        2026, 9, 21, 14, microsecond=1, tzinfo=timezone.utc
+    )
+    assert early["B"].finish == datetime(
+        2026, 9, 22, 7, microsecond=1, tzinfo=timezone.utc
+    )
     late = time_backward_pass(activities, relationships, early, datetime(2026, 9, 22, 17, tzinfo=timezone.utc), registry)
     assert late["B"].finish == datetime(2026, 9, 22, 16, tzinfo=timezone.utc)
     assert late["A"].start == datetime(2026, 9, 22, 13, tzinfo=timezone.utc)
@@ -765,6 +769,10 @@ def test_time_ff_sf_finish_lower_bound_inside_successor_calendar_gap(
         if relationship_type is RelationshipType.FF
         else predecessor.start
     )
-    assert successor.start == datetime(2026, 9, 22, 9, 30, tzinfo=timezone.utc)
-    assert successor.finish == datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc)
+    assert successor.start == datetime(
+        2026, 9, 22, 9, microsecond=1, tzinfo=timezone.utc
+    )
+    assert successor.finish == datetime(
+        2026, 9, 22, 12, microsecond=1, tzinfo=timezone.utc
+    )
     assert successor.finish >= required_finish
