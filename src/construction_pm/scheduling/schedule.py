@@ -6,7 +6,8 @@ from typing import Callable, Iterable, Mapping
 
 from .activity import Activity
 from .calculation_context import CalculationContext
-from .calendar import WorkingTimeResolver
+from .calendar import WorkingCalendar, WorkingTimeResolver
+from .calendar_context import RelationshipLagCalendar
 from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
@@ -22,6 +23,53 @@ from .schedule_options import (
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
 )
+
+
+def _effective_relationship_lag_resolvers(
+    relationships: Iterable[Relationship],
+    *,
+    project_resolver: WorkingTimeResolver,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None,
+    option: RelationshipLagCalendar,
+    overrides: Mapping[tuple[str, str], WorkingTimeResolver] | None,
+) -> dict[tuple[str, str], WorkingTimeResolver]:
+    """Resolve P6's relationship-lag calendar setting for each relationship.
+
+    Explicit per-edge resolvers remain authoritative. Otherwise the selected
+    ScheduleOptions calendar controls lag arithmetic independently of the
+    predecessor/successor activity calendars used to calculate their dates.
+    """
+    if option is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+        lag_resolver = WorkingTimeResolver(WorkingCalendar(
+            working_weekdays=frozenset(range(7)),
+            holidays=frozenset(),
+            system=project_resolver.calendar.system,
+            time_period_factors=project_resolver.calendar.time_period_factors,
+        ))
+    else:
+        lag_resolver = None
+
+    resolved: dict[tuple[str, str], WorkingTimeResolver] = {}
+    for relationship in relationships:
+        key = (relationship.predecessor_id, relationship.successor_id)
+        if option is RelationshipLagCalendar.PREDECESSOR:
+            selected = (activity_resolvers or {}).get(
+                relationship.predecessor_id, project_resolver
+            )
+        elif option is RelationshipLagCalendar.SUCCESSOR:
+            selected = (activity_resolvers or {}).get(
+                relationship.successor_id, project_resolver
+            )
+        elif option is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+            selected = lag_resolver
+        else:
+            selected = project_resolver
+        # Explicit caller-provided edge calendars override the option-derived
+        # default for integrations with versioned relationship calendar data.
+        resolved[key] = selected
+
+    resolved.update(overrides or {})
+    return resolved
 
 
 @dataclass(frozen=True)
@@ -790,6 +838,13 @@ def schedule(
     activity_list = list(activities)
     relationship_list = list(relationships)
     constraint_list = list(constraints or ())
+    effective_relationship_lag_resolvers = _effective_relationship_lag_resolvers(
+        relationship_list,
+        project_resolver=resolver,
+        activity_resolvers=activity_resolvers,
+        option=selected_options.relationship_lag_calendar,
+        overrides=relationship_lag_resolvers,
+    )
     early = forward_pass(
         activity_list,
         relationship_list,
@@ -799,7 +854,7 @@ def schedule(
         calculation_context,
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
-        relationship_lag_resolvers,
+        effective_relationship_lag_resolvers,
         selected_options.use_expected_finish_dates,
         selected_options.out_of_sequence_schedule_type,
         activity_resolvers,
@@ -816,7 +871,7 @@ def schedule(
     )
     late = backward_pass(
         activity_list, relationship_list, early, float_finish, resolver, constraint_list,
-        relationship_lag_resolvers,
+        effective_relationship_lag_resolvers,
         activity_resolvers,
     )
     floats = calculate_floats(
@@ -826,12 +881,12 @@ def schedule(
         late,
         resolver,
         selected_options,
-        relationship_lag_resolvers,
+        effective_relationship_lag_resolvers,
         activity_resolvers,
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers, activity_resolvers
+        activity_list, relationship_list, early, late, resolver, selected_options, effective_relationship_lag_resolvers, activity_resolvers
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
