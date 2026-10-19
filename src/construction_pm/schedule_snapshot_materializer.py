@@ -338,7 +338,7 @@ def _schedule_options(value: Any) -> ScheduleOptions:
                     "INVALID_SCHEDULE_OPTION:relationship_lag_calendar",
                 )
                 if "relationship_lag_calendar" in value
-                else RelationshipLagCalendar.PROJECT_DEFAULT.value
+                else RelationshipLagCalendar.SUCCESSOR.value
             ),
             use_expected_finish_dates=_bool("use_expected_finish_dates"),
             recalculate_resource_costs=_bool("recalculate_resource_costs"),
