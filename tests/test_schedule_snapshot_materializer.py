@@ -1098,3 +1098,30 @@ def test_snapshot_materializer_preserves_explicitly_empty_leveling_arrays():
     assert options.priority_list == ()
     assert options.priority_list is not None
 
+
+
+def test_materializer_defaults_omitted_relationship_lag_calendar_to_successor():
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    options = payload["schedule_options"]
+    options.pop("relationship_lag_calendar", None)
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    without_lag_calendar = snapshot.__class__(
+        snapshot.scope,
+        snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical,
+        snapshot.calculation_identity,
+        snapshot.created_at,
+    )
+
+    result = materialize_schedule_snapshot(
+        without_lag_calendar, CalendarResolverRegistry()
+    )
+
+    assert (
+        result.schedule_input.schedule_options.relationship_lag_calendar
+        is RelationshipLagCalendar.SUCCESSOR
+    )
