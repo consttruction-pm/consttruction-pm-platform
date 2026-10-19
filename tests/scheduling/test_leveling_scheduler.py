@@ -1748,3 +1748,126 @@ def test_explicit_relationship_lag_resolver_overrides_schedule_option() -> None:
 
     assert result.activities["B"].start == date(2026, 10, 6)
 
+
+
+@pytest.mark.parametrize(
+    ("relationship_type", "lag", "calendar_option"),
+    [
+        (RelationshipType.FS, -1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, -1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, -1, "24_HOUR_CALENDAR"),
+        (RelationshipType.FS, -1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.FS, 0, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, 0, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, 0, "24_HOUR_CALENDAR"),
+        (RelationshipType.FS, 0, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.FS, 1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, 1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FS, 1, "24_HOUR_CALENDAR"),
+        (RelationshipType.FS, 1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SS, -1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, -1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, -1, "24_HOUR_CALENDAR"),
+        (RelationshipType.SS, -1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SS, 0, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, 0, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, 0, "24_HOUR_CALENDAR"),
+        (RelationshipType.SS, 0, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SS, 1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, 1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SS, 1, "24_HOUR_CALENDAR"),
+        (RelationshipType.SS, 1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.FF, -1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, -1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, -1, "24_HOUR_CALENDAR"),
+        (RelationshipType.FF, -1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.FF, 0, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, 0, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, 0, "24_HOUR_CALENDAR"),
+        (RelationshipType.FF, 0, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.FF, 1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, 1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.FF, 1, "24_HOUR_CALENDAR"),
+        (RelationshipType.FF, 1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SF, -1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, -1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, -1, "24_HOUR_CALENDAR"),
+        (RelationshipType.SF, -1, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SF, 0, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, 0, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, 0, "24_HOUR_CALENDAR"),
+        (RelationshipType.SF, 0, "PROJECT_DEFAULT_CALENDAR"),
+        (RelationshipType.SF, 1, "PREDECESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, 1, "SUCCESSOR_ACTIVITY_CALENDAR"),
+        (RelationshipType.SF, 1, "24_HOUR_CALENDAR"),
+        (RelationshipType.SF, 1, "PROJECT_DEFAULT_CALENDAR"),
+    ],
+)
+def test_schedule_lag_calendar_cross_product_preserves_relationships(
+    relationship_type, lag, calendar_option
+) -> None:
+    """Every FS/SS/FF/SF signed lag works with every P6 lag-calendar option."""
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+    from construction_pm.scheduling.relationships import Relationship
+    from construction_pm.scheduling.schedule import _relationship_holds, schedule
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    successor_resolver = WorkingTimeResolver(WorkingCalendar(
+        # Friday is non-working; Saturday and Sunday are working.
+        working_weekdays=frozenset({0, 1, 2, 3, 5, 6}), holidays=frozenset(),
+    ))
+    twenty_four_hour_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset(range(7)), holidays=frozenset(),
+        system=project_resolver.calendar.system,
+        time_period_factors=project_resolver.calendar.time_period_factors,
+    ))
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+    activity_resolvers = {
+        "A": predecessor_resolver,
+        "B": successor_resolver,
+    }
+    selected_option = RelationshipLagCalendar(calendar_option)
+    lag_resolver = {
+        RelationshipLagCalendar.PREDECESSOR: predecessor_resolver,
+        RelationshipLagCalendar.SUCCESSOR: successor_resolver,
+        RelationshipLagCalendar.TWENTY_FOUR_HOUR: twenty_four_hour_resolver,
+        RelationshipLagCalendar.PROJECT_DEFAULT: project_resolver,
+    }[selected_option]
+
+    result = schedule(
+        (Activity("A", 2), Activity("B", 1)),
+        (relationship,),
+        date(2026, 9, 28),
+        project_resolver,
+        project_finish=date(2026, 10, 20),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2),
+            ),
+        ),
+        options=ScheduleOptions(relationship_lag_calendar=selected_option),
+        activity_resolvers=activity_resolvers,
+    )
+
+    predecessor = result.activities["A"]
+    successor = result.activities["B"]
+    assert predecessor.start >= date(2026, 10, 2)
+    assert predecessor_resolver.is_working_day(predecessor.start)
+    assert predecessor_resolver.is_working_day(predecessor.finish)
+    assert successor_resolver.is_working_day(successor.start)
+    assert successor_resolver.is_working_day(successor.finish)
+    assert _relationship_holds(
+        relationship, predecessor, successor, project_resolver, lag_resolver
+    ), (
+        f"{calendar_option} {relationship_type.value} lag={lag} violated: "
+        f"predecessor={predecessor}, successor={successor}"
+    )
+
