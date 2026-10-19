@@ -1661,6 +1661,7 @@ def test_backward_demand_translation_uses_activity_calendar() -> None:
 @pytest.mark.parametrize(
     ("calendar_option", "expected_successor_start"),
     [
+        ("DEFAULT", date(2026, 10, 5)),
         ("PREDECESSOR_ACTIVITY_CALENDAR", date(2026, 10, 6)),
         ("SUCCESSOR_ACTIVITY_CALENDAR", date(2026, 10, 5)),
         ("24_HOUR_CALENDAR", date(2026, 10, 4)),
@@ -1696,8 +1697,12 @@ def test_schedule_options_relationship_lag_calendar_selects_correct_resolver(
         date(2026, 10, 2),  # Friday; A is scheduled on its weekday calendar.
         project_resolver,
         project_finish=date(2026, 10, 15),
-        options=ScheduleOptions(
-            relationship_lag_calendar=RelationshipLagCalendar(calendar_option),
+        options=(
+            ScheduleOptions()
+            if calendar_option == "DEFAULT"
+            else ScheduleOptions(
+                relationship_lag_calendar=RelationshipLagCalendar(calendar_option),
+            )
         ),
         activity_resolvers={
             "A": predecessor_resolver,
