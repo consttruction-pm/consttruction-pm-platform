@@ -15,7 +15,10 @@ def test_forward_leveling_uses_each_activitys_own_calendar() -> None:
     thursday = date(2026, 10, 1)
     monday = date(2026, 10, 5)
     five_day_resolver = WorkingTimeResolver(
-        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset())
+        WorkingCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            holidays=frozenset({date(2026, 10, 2)}),
+        )
     )
     seven_day_resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
