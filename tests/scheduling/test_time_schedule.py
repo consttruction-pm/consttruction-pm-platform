@@ -776,3 +776,57 @@ def test_time_ff_sf_finish_lower_bound_inside_successor_calendar_gap(
         2026, 9, 22, 12, microsecond=1, tzinfo=timezone.utc
     )
     assert successor.finish >= required_finish
+
+
+@pytest.mark.parametrize("calendar_option", [
+    RelationshipLagCalendar.PREDECESSOR,
+    RelationshipLagCalendar.SUCCESSOR,
+    RelationshipLagCalendar.PROJECT_DEFAULT,
+])
+def test_time_aware_passes_propagate_selected_lag_calendar(calendar_option, monkeypatch):
+    from construction_pm.scheduling.time_unit_resolver import resolve_calendar_aware as original_resolve
+
+    project = CalendarReference("project", "1", "working-time")
+    predecessor_ref = CalendarReference("predecessor", "1", "working-time")
+    successor_ref = CalendarReference("successor", "1", "working-time")
+    lag_ref = CalendarReference("lag", "1", "working-time")
+
+    def resolver(intervals):
+        return TimeAwareWorkingTimeResolver(
+            WorkingTimeCalendar(daily_intervals={day: intervals for day in range(5)})
+        )
+
+    resolver_registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": resolver(((time(8), time(12)), (time(13), time(17)))),
+        "predecessor@1": resolver(((time(8), time(10)), (time(14), time(18)))),
+        "successor@1": resolver(((time(7), time(18)),)),
+        "lag@1": resolver(((time(9), time(18)),)),
+    })
+    predecessor_context = SchedulingCalendarContext(project, predecessor_ref, lag_ref)
+    successor_context = SchedulingCalendarContext(project, successor_ref, lag_ref)
+    seen_options = []
+    original_reference = SchedulingCalendarContext.relationship_lag_reference
+
+    def capture_reference(self, predecessor, option=None):
+        seen_options.append(option)
+        return original_reference(self, predecessor, option)
+
+    monkeypatch.setattr(
+        SchedulingCalendarContext, "relationship_lag_reference", capture_reference
+    )
+    result = time_schedule(
+        [
+            TimeActivity("A", TimeQuantity.working_hours(2), predecessor_context),
+            TimeActivity("B", TimeQuantity.working_hours(2), successor_context),
+        ],
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(4))],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        datetime(2026, 9, 24, 17, tzinfo=timezone.utc),
+        resolver_registry,
+        options=TimeScheduleOptions(relationship_lag_calendar=calendar_option),
+    )
+
+    assert seen_options
+    assert all(value is calendar_option for value in seen_options)
+    assert result.early_activities["B"].start >= result.early_activities["A"].finish
+    assert result.late_activities["B"].start >= result.late_activities["A"].finish
