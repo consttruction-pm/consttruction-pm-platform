@@ -5,6 +5,7 @@ from construction_pm.scheduling.relationships import RelationshipType
 
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_scheduler import (
+    _order_backward_leveling_candidates,
     backward_leveling_constraints,
     forward_leveling_constraints,
     merge_leveling_constraints,
@@ -19,6 +20,41 @@ from construction_pm.scheduling.resource_leveling import (
 )
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+
+
+def test_backward_candidate_order_preserves_proposal_priority_for_equal_advances() -> None:
+    """Equal-size moves retain the scheduler's P6-prioritized proposal order."""
+    proposed = (
+        BackwardLevelingShift(
+            activity_id="B",
+            shift_working_days=-1,
+            new_start=date(2026, 10, 2),
+            new_finish=date(2026, 10, 2),
+            advanced_days=1,
+        ),
+        BackwardLevelingShift(
+            activity_id="A",
+            shift_working_days=-1,
+            new_start=date(2026, 10, 2),
+            new_finish=date(2026, 10, 2),
+            advanced_days=1,
+        ),
+        BackwardLevelingShift(
+            activity_id="B",
+            shift_working_days=-2,
+            new_start=date(2026, 10, 1),
+            new_finish=date(2026, 10, 1),
+            advanced_days=2,
+        ),
+    )
+
+    ordered = _order_backward_leveling_candidates(proposed)
+
+    assert [(item.activity_id, item.advanced_days) for item in ordered] == [
+        ("B", 1),
+        ("A", 1),
+        ("B", 2),
+    ]
 
 
 def test_forward_leveling_becomes_start_lower_bound() -> None:
