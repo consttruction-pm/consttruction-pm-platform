@@ -424,6 +424,7 @@ def schedule_with_resource_leveling(
                     result=trial_result,
                     leveling_input=leveling_input,
                     resolver=resolver,
+                    activity_resolvers=activity_resolvers,
                 )
             except ResourceLevelingError as exc:
                 # A candidate is admissible only when the CPM result and the
