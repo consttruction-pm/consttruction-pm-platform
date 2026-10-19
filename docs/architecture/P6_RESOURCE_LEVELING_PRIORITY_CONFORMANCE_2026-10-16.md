@@ -63,27 +63,41 @@ The official sources above support the UI/API label distinction and the five-val
 - Add a source-backed mapping test demonstrating the selected criterion flows through import/persistence/snapshot materialization into the same authoritative comparator.
 - If numeric `activity_priority` is a CUBI-only extension, it needs an explicitly non-conflicting identifier and must not be represented as the P6 Professional **Activity Priority** field.
 
-## Relationship-lag calendar conformance — implementation and regression verified; full parity still open
+## Relationship-lag calendar conformance — source/test verified, full parity still open
 
-Oracle P6 EPPM Release 26 documents four relationship-lag calendar choices—Predecessor Activity Calendar, Successor Activity Calendar, 24 Hour Calendar, and Project Default Calendar—and states that the successor activity calendar is the default when no choice is selected:
-- [ScheduleOptions GET, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html)
-- [ScheduleOptions PUT, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-put.html)
+Official Release 26 sources:
+- [ScheduleOptions GET](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html)
+- [ScheduleOptions PUT](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-put.html)
+- [RelationshipType Data Dictionary](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-dd/relationshiptype-46554a.html)
 
-Corrections on source/test head `a4e5c9c34663843bc48ed643f09e305b2736b28d`:
-- The date-based Shared Core `schedule()` derives an edge-specific lag resolver from `ScheduleOptions.relationship_lag_calendar` and uses it across forward CPM, backward CPM, float calculation, and multiple-float-path analysis. Explicit per-edge resolver inputs override the option-derived defaults.
-- The `ScheduleOptions` default is `SUCCESSOR`, matching Release 26 documented default behavior.
-- A failing 48-case calendar × relationship × signed-lag matrix exposed a real FF/SF issue. When lag arithmetic produced a required successor finish that fell on a nonworking day in the successor activity calendar, the code previously called `subtract_working_duration` directly; its implicit `normalize_finish` moved the target backward. The FF/SF successor-start logic now first normalizes that finish lower bound forward using the successor activity calendar, then subtracts the successor duration.
-- Added 48 cross-product cases: 4 relationship types (FS/SS/FF/SF) × 3 lag values (-1/0/+1) × 4 lag-calendar settings. The fixtures use differing project, predecessor and successor working calendars and assert both activity-calendar validity and the relationship invariant.
-- Existing leveling regression coverage separately exercises all FS/SS/FF/SF types × signed lag after resource leveling, a user START-NOT-EARLIER-THAN bound, activity-specific demand translation, mixed-calendar shared-resource leveling, and final aggregate load validation. The entire calendar × relationship × lag matrix currently runs through date-based CPM; it is not yet a single matrix that repeats all 48 combinations through resource leveling, persisted import and time-aware scheduling.
+The ScheduleOptions contract lists Predecessor Activity Calendar, Successor Activity Calendar, 24 Hour Calendar, and Project Default Calendar. If no lag calendar is selected, the successor activity calendar is used. FS/SS/FF/SF semantics are respectively: successor start cannot precede predecessor finish, successor start cannot precede predecessor start, successor finish cannot precede predecessor finish, and successor finish cannot precede predecessor start.
 
-## Verification snapshot
+Corrections implemented and covered by regression tests on source/test SHA `9838e61567fdd788ec17bfc7c5c47fdf4869485c`:
+- Date-based `schedule()` derives per-edge lag resolvers from `ScheduleOptions.relationship_lag_calendar` and uses them for forward/backward CPM, float and multiple-float-path calculations. Explicit per-edge resolver overrides take precedence.
+- The ScheduleOptions model default and snapshot materializer fallback both use `SUCCESSOR`. An omitted field in a canonical snapshot no longer becomes `PROJECT_DEFAULT` during materialization; an omission/rehash/materialize regression verifies the effective setting.
+- Time-aware CPM passes the selected lag-calendar option through forward scheduling, backward scheduling and free-float analysis. Previously the time-aware backward pass and float calculation resolved the context's relationship-lag reference without the selected option, causing forward/backward settings to diverge.
+- The date-based FF/SF branch now normalizes a relationship-required successor finish forward on the successor activity calendar before backing out successor duration. A 48-case matrix covers FS/SS/FF/SF × lag −1/0/+1 × four lag-calendar options with differing project, predecessor and successor calendars.
+- Time-aware FF/SF logic now verifies the forward-computed finish against the required finish lower bound. When a target lies in a calendar gap, subtracting duration can normalize backward and create a relationship violation; the solver advances to the earliest representable candidate whose calculated finish satisfies the bound. Regression coverage includes the SF zero-lag case, negative-lag cross-calendar SF and FF/SF finish targets in a successor working-time gap.
+- Time-aware option tests exercise each of the four calendar choices and assert expected successor start behavior as well as that the chosen enum reaches every calendar-reference derivation. A separate test verifies option forwarding into time-aware backward and float passes.
+- Snapshot materialization regression coverage verifies that omitted `relationship_lag_calendar` becomes `SUCCESSOR`, consistent with the source contract.
 
-- Candidate: PR #1457 (Draft, unmerged), branch `fix/backward-leveling-rebased-main-2026-10-16`.
-- Exact source/test SHA: `a4e5c9c34663843bc48ed643f09e305b2736b28d`.
-- ConstructionPM CI passed on Python 3.11, 3.12 and 3.13: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192500094
-- Client Typecheck passed for web, desktop, mobile and client-sync: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192500133
-- PostgreSQL Integration passed: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192500117
-- Python 3.11 test summary for this source/test SHA: `2685 passed, 90 skipped`; the three previously failing FF/SF mixed-calendar cases now pass.
-- These results verify the tested code paths only. They do not certify full P6 parity or resolve the Release 26 priority/resource-list object-plane and wire encoding, Professional “Activity Priority” versus EPPM `Activity.LevelingPriority` profile mapping, Hierarchy sort eligibility, persisted ActivityMaster → authoritative snapshot → leveling-input composition, or independent Farmj sign-off.
-- Keep Draft and unmerged. Remaining acceptance work: source-to-wire round-trip evidence, priority blank/tie/sort behavior, an integrated calendar × relationship × signed-lag matrix through resource leveling and persistence, time-aware lag-calendar parity, and independent semantic review. The conformance matrix remains **PARTIAL / NOT CERTIFIED**.
-- The checks above attach to exact source/test SHA `a4e5c9c...`. Any new commit must be checked at its own exact HEAD before claiming verification.
+## Current exact-head verification
+
+Candidate PR #1457 remains Draft/unmerged on branch `fix/backward-leveling-rebased-main-2026-10-16`.
+- Exact source/test SHA: `9838e61567fdd788ec17bfc7c5c47fdf4869485c`.
+- ConstructionPM CI, Python 3.11/3.12/3.13: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850917
+- Client Typecheck (web, desktop, mobile, client-sync): passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850870
+- PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850756
+- Python 3.11 suite: `2740 passed, 90 skipped`.
+- This is exact-head verification of tested behavior, not full P6 certification.
+
+## Remaining release blockers
+
+1. **Priority/resource-list wire contract:** Release 26 ScheduleOptions REST declares `PriorityList`/`ResourceList` as strings while Project exposes `LevelPriorityList`/`LevelResourceList` for resource leveling, and Integration API accessor shapes differ. Establish the authoritative product-profile object plane, string encoding/escaping and null/empty rules with official wire evidence or authorized GET→PUT→GET fixtures; do not guess delimiters.
+2. **Activity-priority mapping:** independently approve the product-profile mapping between Professional UI “Activity Priority” and EPPM `Activity.LevelingPriority`. Numeric Project Leveling Priority remains a separate field and must not be conflated.
+3. **Integrated behavior matrix:** the 48-case relationship × signed-lag × lag-calendar matrix is covered in date-based CPM; time-aware tests cover all four lag-calendar options plus FF/SF gap cases, but not yet one full 48-case time-aware × leveling × persistence cross-product. Keep that requirement open.
+4. **Production snapshot path:** prove persisted ActivityMaster write → fresh read → canonical/version-bound immutable schedule snapshot → leveling input for Planned Finish, Original Duration and Activity Leveling Priority.
+5. **Independent reviewer:** Farmj review is requested, but no independent semantic approval is recorded on this candidate. Require review of source-to-rule mappings, the exact current source/test SHA and counterexamples.
+6. Do not merge or increase Jalal 5 earned progress until the applicable wire, production-path and independent-review gates are accepted on a final exact SHA.
+
+The matrix remains **PARTIAL / NOT CERTIFIED**. Any future source or test commit requires its own exact-head checks; the results above must not be attributed to later commits.
