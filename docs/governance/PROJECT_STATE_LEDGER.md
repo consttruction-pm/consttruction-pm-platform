@@ -72,3 +72,26 @@ Copy and fill at every meaningful task boundary:
 - **Progress point change and workbook row(s), if any:**
 - **Risks / decisions needed:**
 - **Next action:**
+
+
+## Resource-leveling / P6 conformance handoff — 2026-10-19
+
+Preflight:
+- Current `main` SHA verified by GitHub: `9945856c8f2c40453cc0b0414c1f89600228348a`.
+- Read `README.md`, `AGENTS.md`, the proposed continuity protocol and this proposed ledger, Jalal 5 execution baseline, and the authoritative 19-sheet workbook in the user Library. These governance files are still on the unmerged Jalal 5 PR branch, not accepted `main`.
+- Oracle P6 Professional Help Version 26 confirms that resource leveling must fit demand within availability, priority rows are considered in configured order, selected-resource scope is supported, and clearing “Preserve scheduled early and late dates” invokes a backward leveling pass (official source: https://docs.oracle.com/cd/G48897_01/p6help/en/91573.htm; https://docs.oracle.com/cd/G48897_01/p6help/en/91739.htm; https://docs.oracle.com/cd/G48897_01/p6help/en/91740.htm).
+
+Fresh scheduler code/test evidence:
+- PR #1477 remains open and unmerged. Source/test head `b350156fa8d1ffbe651478feb97a24f2f6658f2a` passes ConstructionPM CI (run https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39189550470; Python 3.11/3.12/3.13), Client Typecheck (https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39189550298; web/desktop/mobile/client-sync), and PostgreSQL Integration (https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39189550280).
+- Additional source/test commits on #1477: `10dbb1b96e9f40829568f626c1ceffcce5f80f7b` passes the activity-calendar resolver map into backward candidate load validation; `c0a29da3e9d4b38ab3a6a986fa48cc036afd65ef` adds the resolver propagation regression; `0e5b656b109df6849d22377850b662b3e7188e48` preserves proposal/priority order for equal-advance candidates; `b350156fa8d1ffbe651478feb97a24f2f6658f2a` adds the stable-order regression.
+- The latest live #1477 head is now `15a4ec5d4f0bcea049997830fed5c7ed091d715c`, a documentation-only refresh after the passing code/test SHA. At the time of this ledger update, no workflow run/status was returned for this docs-only head; the green runs above are attributed to `b350156...`, not to `15a4ec5...`.
+- The older calendar-only PR #1487 remains open/Draft at `84f0694a6bee54e1a228ba35b21c6d545cd7f1e2`, whose recorded ConstructionPM CI failed on shared-resource overload and backward SS feasibility. Do not claim that #1487 is fixed by its own head; use #1477 as the current scheduler-candidate branch and reconcile/close the duplicate only after review.
+- PR #1457 remains open/Draft on `bdd1d6c8a30dde3c207f06987f33ba0bd044a18d`; ConstructionPM CI (run 39083278773), Client Typecheck (run 39083278784) and PostgreSQL Integration (run 39083278778) passed on that exact SHA. It contains the broader P6 priority-value/provenance/persistence path, but has not been reconciled with the activity-calendar resolver work in #1477.
+
+Current acceptance status: **IMPLEMENTED — UNVERIFIED for product release; full P6 parity OPEN / NOT CERTIFIED.** Passing tests on an open branch do not equal merged current-main acceptance. No Jalal 5 product-progress points are earned from this work yet.
+
+Remaining integration gates:
+1. Reconcile #1477 calendar-aware CPM/resource validation with #1457's distinct Project Leveling Priority, Activity Leveling Priority, duration criteria, Project Planned Start and Planned Finish provenance. Avoid merging parallel/conflicting scheduler implementations.
+2. Run final ConstructionPM CI on Python 3.11/3.12/3.13, client typecheck, PostgreSQL integration and focused resource-leveling tests on one identical final SHA after that integration.
+3. Complete independent Farmj semantic review of priority order/ties, selected-resource scope, project-level multi-project priority, FS/SS/FF/SF × negative/zero/positive lag, activity/resource/lag calendars, infeasible windows, final floats/dates and aggregate period-by-period resource demand.
+4. Verify the merged current-main SHA after acceptance and update the master workbook/state ledger with exact evidence. Do not increase weighted progress before this gate passes.
