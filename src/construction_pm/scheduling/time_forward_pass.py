@@ -129,27 +129,79 @@ def _earliest_start_for_finish_bound(
     duration: TimeQuantity,
     resolver: CalendarAwareResolver,
 ) -> datetime:
-    """Find the earliest successor start whose computed finish satisfies FF/SF.
+    """Find the earliest successor start satisfying an FF/SF finish lower bound.
 
-    A finish lower bound can fall inside a gap in the successor calendar. A
-    direct subtract-duration call normalizes that target backward, potentially
-    producing an activity finish earlier than the relationship allows. Recheck
-    the forward-computed finish and advance the candidate when needed.
+    Subtracting a duration from a bound inside a nonworking gap can normalize
+    the finish backward. Search forward from that candidate using the monotone
+    mapping start -> normalized start -> computed finish. Exponential bracketing
+    avoids arbitrary search limits; binary search then finds the earliest valid
+    calendar date or microsecond without stepping through every instant.
     """
     candidate = resolver.normalize_start(
         resolver.subtract_duration(finish_bound, duration)
     )
-    for _ in range(1000):
-        calculated_finish = resolver.add_duration(candidate, duration)
-        if calculated_finish >= finish_bound:
-            return candidate
-        increment = (
-            timedelta(days=1)
-            if resolver.is_working_day_calendar
-            else timedelta(microseconds=1)
+
+    def satisfies(start: datetime) -> bool:
+        normalized = resolver.normalize_start(start)
+        return resolver.add_duration(normalized, duration) >= finish_bound
+
+    if satisfies(candidate):
+        return candidate
+
+    if resolver.is_working_day_calendar:
+        low_days, high_days = 0, 1
+        for _ in range(32):
+            try:
+                probe = resolver.normalize_start(candidate + timedelta(days=high_days))
+            except OverflowError as exc:
+                raise ValueError(
+                    "could not satisfy finish relationship on successor calendar"
+                ) from exc
+            if satisfies(probe):
+                break
+            high_days *= 2
+        else:
+            raise ValueError("could not satisfy finish relationship on successor calendar")
+
+        while low_days < high_days:
+            mid_days = (low_days + high_days) // 2
+            probe = resolver.normalize_start(candidate + timedelta(days=mid_days))
+            if satisfies(probe):
+                high_days = mid_days
+            else:
+                low_days = mid_days + 1
+        return resolver.normalize_start(candidate + timedelta(days=low_days))
+
+    # The time-aware path works at datetime precision. Begin with one minute,
+    # exponentially widen until feasible, then binary-search integer microseconds.
+    low_us, high_us = 0, 60_000_000
+    for _ in range(64):
+        try:
+            probe = resolver.normalize_start(
+                candidate + timedelta(microseconds=high_us)
+            )
+        except OverflowError as exc:
+            raise ValueError(
+                "could not satisfy finish relationship on successor calendar"
+            ) from exc
+        if satisfies(probe):
+            break
+        high_us *= 2
+    else:
+        raise ValueError("could not satisfy finish relationship on successor calendar")
+
+    while low_us < high_us:
+        mid_us = (low_us + high_us) // 2
+        probe = resolver.normalize_start(
+            candidate + timedelta(microseconds=mid_us)
         )
-        candidate = resolver.normalize_start(candidate + increment)
-    raise ValueError("could not satisfy finish relationship on successor calendar")
+        if satisfies(probe):
+            high_us = mid_us
+        else:
+            low_us = mid_us + 1
+    return resolver.normalize_start(
+        candidate + timedelta(microseconds=low_us)
+    )
 
 
 def time_forward_pass(
