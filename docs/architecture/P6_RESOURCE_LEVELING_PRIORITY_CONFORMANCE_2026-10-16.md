@@ -66,10 +66,11 @@ The official sources above support the UI/API label distinction and the five-val
 ## Verification snapshot
 
 - Candidate: PR #1457 (Draft, unmerged), branch `fix/backward-leveling-rebased-main-2026-10-16`.
-- Latest source/code review for this matrix includes live candidate head `e09aac5a4be13f61b8cbc9c01b0e1a44d01696d7`; this document-only update creates a new head and invalidates the previous exact-head certification until checks rerun.
-- The previous live candidate head `e09aac5a4be13f61b8cbc9c01b0e1a44d01696d7` had successful recorded checks: ConstructionPM CI run `38970547448`, Client Typecheck run `38970547313`, and PostgreSQL Integration run `38970547311`.
-- The earlier failing fixture run on `fcab7fffa5ffba34aeeff33614e76fa08cc01f06` and the earlier green run on `4fa88f27a5b93952131aba0012cd6b20918f2609` are historical and are not the current candidate verification snapshot.
-- The PR description also contains a stale “Latest exact-head verification” entry naming `c403a72e5fbb4091120967c13ddcc0917913df36`; it must not be treated as the current candidate head.
-- These successful workflows verify the tested code paths only. They do not establish P6 scheduling parity, resolve the REST scalar-string encoding for `PriorityList`/`ResourceList`, or replace independent semantic review.
-- The current PR head has green checks, but this document-only follow-up will create a new head and therefore requires fresh exact-head checks. Keep Draft and unmerged until the integration-path, wire-contract, priority mapping, and independent-review gates are evidenced.
-- No independent semantic approval is recorded. The newly identified object-plane mapping discrepancy RL-P6-08 also remains blocked. The matrix remains **PARTIAL / NOT CERTIFIED**.
+- Exact source/test head: `c243297ac438c510d57970276bf2e438ddad8a03`.
+- ConstructionPM CI passed on Python 3.11, 3.12 and 3.13: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443639
+- Client Typecheck passed for web, desktop, client-sync and mobile: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443606
+- PostgreSQL Integration passed: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443623
+- The exact code/test head above includes the broader ordered P6 priority values/provenance path and new activity-calendar resolver propagation through forward proposals, backward proposals, candidate demand checks, final resource-load validation, and shared-batch scheduling. It also replaces the old blanket rejection of mixed activity calendars with a shared-graph regression, and adds a direct backward demand-translation regression for activity calendars.
+- These checks apply to the code/test head `c243297...`. A later documentation-only edit creates a new candidate HEAD and needs fresh checks before the new head is treated as fully verified.
+- This is verification of the tested branch code paths only. It does not establish full P6 scheduling parity, resolve the REST scalar-string encoding for `PriorityList`/`ResourceList`, establish the UI/API source mapping between Professional `Activity Priority` and EPPM `Activity.LevelingPriority`, validate Hierarchy sort eligibility, or replace independent semantic review.
+- Keep Draft and unmerged. The current contract remains **PARTIAL / NOT CERTIFIED** pending cross-project/object-plane wire round-trip evidence, remaining sort/blank/tie behavior, full FS/SS/FF/SF × signed-lag × calendar test matrix, independent review, and exact-head verification after integration.
