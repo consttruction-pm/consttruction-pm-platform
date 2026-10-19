@@ -158,7 +158,10 @@ def test_time_forward_pass_sf_zero_uses_predecessor_start():
         registry(),
     )
     assert result["A"].start == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
-    assert result["B"].finish == datetime(2026, 9, 21, 17, tzinfo=timezone.utc)
+    # SF means the successor cannot finish before A starts.
+    assert result["B"].finish == datetime(
+        2026, 9, 22, 8, microsecond=1, tzinfo=timezone.utc
+    )
 
 
 def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
