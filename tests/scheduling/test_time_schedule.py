@@ -588,16 +588,32 @@ def test_cross_calendar_mandatory_finish_conflict_with_successor_lag_is_rejected
 
 
 @pytest.mark.parametrize(
-    ("option", "expected_start"),
+    ("option", "expected_start", "expected_late_a_start"),
     [
-        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
-        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 15, tzinfo=timezone.utc)),
-        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
-        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+        (
+            RelationshipLagCalendar.PREDECESSOR,
+            datetime(2026, 9, 22, 14, tzinfo=timezone.utc),
+            datetime(2026, 9, 23, 8, tzinfo=timezone.utc),
+        ),
+        (
+            RelationshipLagCalendar.SUCCESSOR,
+            datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
+            datetime(2026, 9, 22, 16, tzinfo=timezone.utc),
+        ),
+        (
+            RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+            datetime(2026, 9, 22, 14, tzinfo=timezone.utc),
+            datetime(2026, 9, 23, 8, tzinfo=timezone.utc),
+        ),
+        (
+            RelationshipLagCalendar.PROJECT_DEFAULT,
+            datetime(2026, 9, 22, 14, tzinfo=timezone.utc),
+            datetime(2026, 9, 23, 8, tzinfo=timezone.utc),
+        ),
     ],
 )
 def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
-    option, expected_start
+    option, expected_start, expected_late_a_start
 ):
     refs = {
         "project": CalendarReference("project", "1", "working-time"),
@@ -643,6 +659,10 @@ def test_relationship_lag_calendar_option_changes_time_aware_fs_lag(
 
     assert result.early_activities["A"].finish == datetime(2026, 9, 22, 11, tzinfo=timezone.utc)
     assert result.early_activities["B"].start == expected_start
+    # The selected lag calendar also governs the inverse/backward relationship
+    # limit, not only the early pass. The successor calendar yields a later
+    # predecessor late start because its noon break changes the 3-hour inverse lag.
+    assert result.late_activities["A"].start == expected_late_a_start
 
 
 def test_time_schedule_defaults_relationship_lag_calendar_to_successor():
