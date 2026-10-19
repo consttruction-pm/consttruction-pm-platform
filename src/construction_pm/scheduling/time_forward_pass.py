@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Iterable, Mapping
 
@@ -123,6 +123,31 @@ def _ss_successor_start(
         )
         return resolver.add_lag(anchor, LagQuantity(remaining_lag, relationship.lag.unit))
     return _add_signed_lag(predecessor_scheduled.start, relationship.lag, resolver)
+
+def _earliest_start_for_finish_bound(
+    finish_bound: datetime,
+    duration: TimeQuantity,
+    resolver: CalendarAwareResolver,
+) -> datetime:
+    """Find the earliest successor start whose computed finish satisfies FF/SF.
+
+    A finish lower bound can fall inside a gap in the successor calendar. A
+    direct subtract-duration call normalizes that target backward, potentially
+    producing an activity finish earlier than the relationship allows. Recheck
+    the forward-computed finish and advance the candidate when needed.
+    """
+    candidate = resolver.normalize_start(
+        resolver.subtract_duration(finish_bound, duration)
+    )
+    for _ in range(1000):
+        calculated_finish = resolver.add_duration(candidate, duration)
+        if calculated_finish >= finish_bound:
+            return candidate
+        candidate = resolver.normalize_start(
+            candidate + (finish_bound - calculated_finish)
+        )
+    raise ValueError("could not satisfy finish relationship on successor calendar")
+
 
 def time_forward_pass(
     activities: Iterable[TimeActivity],
@@ -256,7 +281,9 @@ def time_forward_pass(
             else:
                 target = _add_signed_lag(anchor, rel.lag, lag_resolver)
             if rel.type in {RelationshipType.FF, RelationshipType.SF}:
-                candidate = _subtract_duration(target, activity.duration, resolver)
+                candidate = _earliest_start_for_finish_bound(
+                    target, activity.duration, resolver
+                )
             else:
                 candidate = target
             start = candidate if start is None else max(start, candidate)
