@@ -1871,3 +1871,146 @@ def test_schedule_lag_calendar_cross_product_preserves_relationships(
         f"predecessor={predecessor}, successor={successor}"
     )
 
+
+
+@pytest.mark.parametrize(
+    ("relationship_type", "lag", "calendar_option"),
+    [
+        (relationship_type, lag, calendar_option)
+        for relationship_type in RelationshipType
+        for lag in (-1, 0, 1)
+        for calendar_option in (
+            "PREDECESSOR_ACTIVITY_CALENDAR",
+            "SUCCESSOR_ACTIVITY_CALENDAR",
+            "24_HOUR_CALENDAR",
+            "PROJECT_DEFAULT_CALENDAR",
+        )
+    ],
+)
+def test_resource_leveling_calendar_lag_cross_product_preserves_relationships_and_capacity(
+    relationship_type, lag, calendar_option
+) -> None:
+    """The 48 P6 relation/lag-calendar cases remain valid after resource leveling."""
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+    from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.resource_leveling import (
+        BackwardLevelingActivity,
+        LevelingActivity,
+        ResourceCapacity,
+        ResourceDemand,
+        ResourceLevelingOptions,
+    )
+    from construction_pm.scheduling.schedule import _relationship_holds
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    first_day = date(2026, 9, 28)
+    last_day = date(2026, 10, 31)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    successor_resolver = WorkingTimeResolver(WorkingCalendar(
+        # Friday is non-working; Saturday and Sunday are working.
+        working_weekdays=frozenset({0, 1, 2, 3, 5, 6}), holidays=frozenset(),
+    ))
+    twenty_four_hour_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset(range(7)), holidays=frozenset(),
+        system=project_resolver.calendar.system,
+        time_period_factors=project_resolver.calendar.time_period_factors,
+    ))
+    selected_option = RelationshipLagCalendar(calendar_option)
+    lag_resolver = {
+        RelationshipLagCalendar.PREDECESSOR: predecessor_resolver,
+        RelationshipLagCalendar.SUCCESSOR: successor_resolver,
+        RelationshipLagCalendar.TWENTY_FOUR_HOUR: twenty_four_hour_resolver,
+        RelationshipLagCalendar.PROJECT_DEFAULT: project_resolver,
+    }[selected_option]
+    activity_resolvers = {
+        "A": predecessor_resolver,
+        "B": successor_resolver,
+    }
+
+    demand_a = ResourceDemand("R1", first_day, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", first_day, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", first_day, first_day, 20, (demand_a,)),
+            LevelingActivity("B", first_day, first_day, 20, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", first_day, first_day, last_day, last_day, (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", first_day, first_day, last_day, last_day, (demand_b,)
+            ),
+        ),
+        capacities=tuple(
+            ResourceCapacity("R1", first_day + timedelta(days=offset), Decimal("8"))
+            for offset in range((last_day - first_day).days + 1)
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+
+    result, _forward, _backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (relationship,),
+        first_day,
+        project_resolver,
+        leveling_input,
+        project_finish=last_day,
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 2)
+            ),
+        ),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=False,
+            relationship_lag_calendar=selected_option,
+        ),
+        activity_resolvers=activity_resolvers,
+    )
+
+    predecessor = result.activities["A"]
+    successor = result.activities["B"]
+    assert predecessor_resolver.is_working_day(predecessor.start)
+    assert predecessor_resolver.is_working_day(predecessor.finish)
+    assert successor_resolver.is_working_day(successor.start)
+    assert successor_resolver.is_working_day(successor.finish)
+    assert predecessor.start >= date(2026, 10, 2)
+    assert _relationship_holds(
+        relationship, predecessor, successor, project_resolver, lag_resolver
+    ), (
+        f"{calendar_option} {relationship_type.value} lag={lag} violated after leveling: "
+        f"predecessor={predecessor}, successor={successor}"
+    )
+
+    # One unitized assignment per one-day activity: verify the final combined
+    # resource ledger has no date with demand above the supplied capacity.
+    demand_by_day = {
+        day: sum(
+            (Decimal("8") for activity in (predecessor, successor) if activity.start == day),
+            Decimal("0"),
+        )
+        for day in (first_day + timedelta(days=offset)
+                    for offset in range((last_day - first_day).days + 1))
+    }
+    capacity_by_day = {
+        capacity.period: capacity.units
+        for capacity in leveling_input.capacities
+        if capacity.resource_id == "R1"
+    }
+    assert all(demand_by_day[day] <= capacity_by_day[day] for day in demand_by_day)
