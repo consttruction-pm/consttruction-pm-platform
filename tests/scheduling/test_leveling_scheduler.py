@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from construction_pm.scheduling.relationships import RelationshipType
 
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_scheduler import (
@@ -1467,6 +1468,150 @@ def test_backward_ss_candidate_is_rolled_back_when_it_violates_relationship_and_
             project_finish=date(2026, 10, 3),
         )
 
+
+
+
+
+def test_backward_leveling_never_overrides_user_start_lower_bound() -> None:
+    """A backward candidate earlier than a user constraint must be rejected."""
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    required_start = date(2026, 10, 2)
+    first_day = date(2026, 10, 1)
+    second_day = required_start
+    demand_a = ResourceDemand("R1", first_day, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", first_day, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", first_day, first_day, 1, (demand_a,)),
+            LevelingActivity("B", first_day, first_day, 1, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", first_day, first_day, second_day, second_day, (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", first_day, first_day, second_day, second_day, (demand_b,)
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", first_day, Decimal("8")),
+            ResourceCapacity("R1", second_day, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+
+    result, _forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (),
+        first_day,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 5),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, required_start,
+            ),
+        ),
+    )
+
+    assert result.activities["A"].start >= required_start
+    assert result.activities["A"].start != result.activities["B"].start
+    assert all(
+        shift.activity_id != "A" or shift.new_start >= required_start
+        for shift in backward
+    )
+
+
+@pytest.mark.parametrize(
+    ("relationship_type", "lag"),
+    [
+        (RelationshipType.FS, 0),
+        (RelationshipType.FS, 1),
+        (RelationshipType.FS, -1),
+        (RelationshipType.SS, 0),
+        (RelationshipType.SS, 1),
+        (RelationshipType.SS, -1),
+        (RelationshipType.FF, 0),
+        (RelationshipType.FF, 1),
+        (RelationshipType.FF, -1),
+        (RelationshipType.SF, 0),
+        (RelationshipType.SF, 1),
+        (RelationshipType.SF, -1),
+    ],
+)
+def test_leveling_recalculation_preserves_all_relationship_types_and_signed_lags(
+    relationship_type, lag
+):
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.schedule import _relationship_holds
+
+    first_day = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", first_day, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", first_day, Decimal("8"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", first_day, first_day, 10, (demand_a,)),
+            LevelingActivity("B", first_day, first_day, 10, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", first_day, first_day, date(2026, 10, 10), date(2026, 10, 10), (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", first_day, first_day, date(2026, 10, 10), date(2026, 10, 10), (demand_b,)
+            ),
+        ),
+        capacities=tuple(
+            ResourceCapacity("R1", date(2026, 10, day), Decimal("8"))
+            for day in range(1, 12)
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+    relationship = Relationship("A", "B", relationship_type, lag=lag)
+
+    result, _forward, _backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (relationship,),
+        first_day,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 15),
+    )
+
+    predecessor = result.activities["A"]
+    successor = result.activities["B"]
+    assert _relationship_holds(relationship, predecessor, successor, resolver, resolver), (
+        f"{relationship_type.value} lag={lag} violated after leveling: "
+        f"predecessor={predecessor}, successor={successor}"
+    )
+    final_demand_by_day = {
+        day: sum(
+            (Decimal("8") for activity in (predecessor, successor) if activity.start == day),
+            Decimal("0"),
+        )
+        for day in (date(2026, 10, day) for day in range(1, 12))
+    }
+    capacity_by_day = {
+        capacity.period: capacity.units
+        for capacity in leveling_input.capacities
+        if capacity.resource_id == "R1"
+    }
+    assert all(
+        final_demand_by_day[day] <= capacity_by_day[day]
+        for day in final_demand_by_day
+    )
+    assert set(result.floats) == {"A", "B"}
 
 
 def test_backward_demand_translation_uses_activity_calendar() -> None:
