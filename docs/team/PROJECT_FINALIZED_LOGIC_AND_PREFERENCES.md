@@ -846,3 +846,20 @@ Compatibility impact:
 - Allow/deny, stable error and context-preservation regression tests are mandatory.
 
 Next gate: Stage 33.3.5 integration regression and runtime verification.
+
+
+## 39. Application/API Authorization Boundary — 2026-10-19
+
+Stage 33.3.4 introduces a framework/provider-neutral authorization policy at the Application layer.
+
+- Authentication establishes identity outside the Shared Domain/Calculation Core.
+- Project-scoped authorization carries tenant_id, project_id, user_id and effective roles.
+- Initial permissions: project.read, project.write, project.schedule, project.admin.
+- Initial roles: viewer, planner, project_admin; this is an extensible starting point, not the final role catalog.
+- Denied operations raise AuthorizationError.
+- Web, Desktop and Mobile must consume common authorization semantics through Application/API contracts.
+- Authorization must not introduce client-specific Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations.
+- Required tests cover allow/deny, stable error behavior and context preservation.
+- This boundary does not itself authenticate users, enforce tenant isolation in a live API, or constitute production security certification.
+
+Compatibility impact: P6/Scheduling and Shared Calculation Core semantics remain unchanged; Web-readiness and explicit context handling are strengthened. Next gate is integration of authorization with the actual Application/API use cases, followed by full CI verification.
