@@ -143,9 +143,12 @@ def _earliest_start_for_finish_bound(
         calculated_finish = resolver.add_duration(candidate, duration)
         if calculated_finish >= finish_bound:
             return candidate
-        candidate = resolver.normalize_start(
-            candidate + (finish_bound - calculated_finish)
+        increment = (
+            timedelta(days=1)
+            if resolver.is_working_day_calendar
+            else timedelta(microseconds=1)
         )
+        candidate = resolver.normalize_start(candidate + increment)
     raise ValueError("could not satisfy finish relationship on successor calendar")
 
 
