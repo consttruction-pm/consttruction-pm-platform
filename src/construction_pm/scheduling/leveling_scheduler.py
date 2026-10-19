@@ -69,6 +69,26 @@ def backward_leveling_exact_constraints(
     return tuple(constraints)
 
 
+def _order_backward_leveling_candidates(
+    shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift],
+) -> tuple[BackwardLevelingShift, ...]:
+    """Order least-disruptive moves without discarding P6 priority sequence.
+
+    The backward proposal routine already selects overloaded activities using
+    the configured ordered priority rows. Keep that proposal order when two
+    activities need the same number of working-day advances; activity ID is
+    only a deterministic fallback inside the proposal routine, not a reason
+    to reorder its already-prioritized candidates here.
+    """
+    proposal_order: dict[str, int] = {}
+    for shift in shifts:
+        proposal_order.setdefault(shift.activity_id, len(proposal_order))
+    return tuple(sorted(
+        shifts,
+        key=lambda item: (item.advanced_days, proposal_order[item.activity_id]),
+    ))
+
+
 def merge_leveling_constraints(
     base_constraints: tuple[ActivityConstraint, ...] | list[ActivityConstraint],
     *,
@@ -385,10 +405,7 @@ def schedule_with_resource_leveling(
         # alternative target dates, not separate accepted shifts. Try the
         # least disruptive target first and only consider a larger advance
         # when every smaller target for that activity was rejected.
-        candidates = tuple(sorted(
-            backward_shifts,
-            key=lambda item: (item.advanced_days, item.activity_id),
-        ))
+        candidates = _order_backward_leveling_candidates(backward_shifts)
         accepted_activity_ids: set[str] = set()
         for candidate in candidates:
             if candidate.activity_id in accepted_activity_ids:
