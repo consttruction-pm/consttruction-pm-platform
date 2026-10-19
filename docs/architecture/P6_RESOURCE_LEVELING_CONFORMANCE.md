@@ -61,3 +61,24 @@ This focused branch's `leveling_boundary.py` maps only activity ID/priority, ear
 The required independent acceptance matrix remains: FS/SS/FF/SF crossed with negative/zero/positive lag; activity, resource and relationship-lag calendar interactions; selected-resource scope and cross-project project-level priority; priority-row precedence, value types, blank/tie ordering and hierarchy where eligible; infeasible-window behavior; authoritative early/late dates and float; final period-by-period resource demand/capacity; and preserved assignment-cost / audit semantics where configured.
 
 Do not weaken final resource-load validation, delete dependency constraints, or accept a candidate that the authoritative CPM scheduler rejects. Full P6 parity stays **OPEN / NOT CERTIFIED** until the broader priority contract is integrated, independent human review is recorded, and final exact-head checks/behavior evidence pass on the integrated candidate.
+
+## Continuation audit — exact-head verification and object-plane boundary (2026-10-19)
+
+The current scheduler candidate SHA is `15a4ec5d4f0bcea049997830fed5c7ed091d715c`. GitHub reports all three checks successful on this exact SHA:
+- ConstructionPM CI: success (Python 3.11, 3.12 and 3.13).
+- Client Typecheck: success.
+- PostgreSQL Integration: success.
+
+This is exact-head test evidence for the current candidate, not evidence that the candidate is merged into `main`, and not certification of complete Primavera P6 parity.
+
+### Source-backed Project vs ScheduleOptions distinction
+
+Oracle P6 EPPM Release 26 Project REST documentation defines `LevelPriorityList` and `LevelResourceList` as Project fields. The Project-level priority list describes fields and sort direction used to prioritize resource leveling; Project also exposes distinct controls such as `LevelAllResources`, `LevelWithinFloat`, `LevelingPriority`, and `RelationshipLagCalendar`. See the official [Project PUT schema](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html).
+
+The separately documented ScheduleOptions REST object has `PriorityList` and `ResourceList` fields, but its scalar-string schema does not establish the internal string encoding or prove that it is interchangeable with Project's `LevelPriorityList` / `LevelResourceList`. Do not map these object planes interchangeably without an authoritative wire fixture or an authorized Release 26 GET → PUT → GET round trip. Preserve null, explicit-empty, single-item, multi-item, ordering, and escaping semantics; do not guess a delimiter.
+
+### Integration gate
+
+The scheduler correction and broader priority/persistence work in PR #1457 remain complementary. The application path must be demonstrated end-to-end: persisted Activity Master and project settings → canonical typed authoritative input → immutable/version-bound snapshot → Shared Scheduling Core and resource-leveling comparator. Tests that manually construct the authoritative input or snapshot do not prove this production bridge. Verify tenant/project scope, revision freshness, field provenance and calendar resolution on the real composition path.
+
+Keep full P6 parity **OPEN / NOT CERTIFIED** until the two change sets are reconciled on one candidate, production composition is integration-tested, remaining source-backed matrix rows are closed or explicitly unsupported, independent review is recorded, and all required checks pass on the same final SHA.
