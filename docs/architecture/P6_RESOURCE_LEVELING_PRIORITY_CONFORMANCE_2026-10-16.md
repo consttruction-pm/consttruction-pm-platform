@@ -81,28 +81,16 @@ Corrections implemented and covered by regression tests on source/test SHA `9838
 - Time-aware option tests exercise each of the four calendar choices and assert expected successor start behavior as well as that the chosen enum reaches every calendar-reference derivation. A separate test verifies option forwarding into time-aware backward and float passes.
 - Snapshot materialization regression coverage verifies that omitted `relationship_lag_calendar` becomes `SUCCESSOR`, consistent with the source contract.
 
-## Current exact-head verification
+## Exact source/test verification
 
 Candidate PR #1457 remains Draft/unmerged on branch `fix/backward-leveling-rebased-main-2026-10-16`.
 
-### Source/test SHA
-
-- Exact code/test SHA: `9838e61567fdd788ec17bfc7c5c47fdf4869485c`.
-- ConstructionPM CI, Python 3.11/3.12/3.13: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850917
-- Client Typecheck (web, desktop, mobile, client-sync): passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850870
-- PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850756
-- Python 3.11 suite: `2740 passed, 90 skipped`.
-- The tested changes include the date-based 48-case relationship × signed-lag × lag-calendar resource-leveling matrix, activity-calendar constraints, time-aware FF/SF gap handling, backward lag-calendar option propagation and the omitted/default successor-calendar materialization regression.
-
-### Latest documentation HEAD
-
-- Current documentation-only HEAD at the time of this record: `f57331bccd07951fd74e0c7aa6d8401b9aaf411a`.
-- ConstructionPM CI: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996590
-- Client Typecheck: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996540
-- PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996480
-- The documentation-only HEAD checks do not replace source/test evidence on `9838e615...`; any later source or test change requires its own fresh exact-head checks.
-
-This is exact-head verification of tested behaviors, not full P6 certification and not merged-`main` acceptance.
+- Latest source/test SHA: `bfc3c0c489438d6aac61db767a1feb9b56ecd11b`.
+- ConstructionPM CI, Python 3.11/3.12/3.13: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39194423705
+- Client Typecheck (web, desktop, mobile, client-sync): passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39194423741
+- PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39194423728
+- The source/test SHA includes the date-based 48-case leveling matrix (FS/SS/FF/SF × lag −1/0/+1 × predecessor/successor/24-hour/project-default lag calendar); time-aware FF/SF gap search; backward lag-calendar propagation; snapshot default-to-successor regression; and the new discriminating time-aware FS test in which the four lag-calendar options produce distinct starts (predecessor 14:00, successor 15:00, 24-hour 13:00, project default 14:30).
+- This verifies tested implementation paths on this SHA. It does not establish full P6 certification or merged-`main` acceptance; later source/test changes require their own exact-head checks.
 
 ## Remaining release blockers
 
