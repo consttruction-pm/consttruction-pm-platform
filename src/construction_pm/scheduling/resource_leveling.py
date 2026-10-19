@@ -685,6 +685,9 @@ def propose_backward_leveling(
                 )
                 if -current_shift >= max_advance:
                     continue
+                next_shift = current_shift - 1
+                if _shift_date_backward(activity.late_start, next_shift, activity_resolver) < activity.early_start:
+                    continue
                 current = _shift_demands_backward(
                     activity.resource_demands, current_shift, activity_resolver
                 )
