@@ -689,3 +689,82 @@ def test_continuous_24_hour_relationship_lag_is_not_approximated_by_working_cale
     )
     start = datetime(2026, 9, 22, 23, tzinfo=timezone.utc)
     assert resolver.add_working_hours(start, 4) == datetime(2026, 9, 23, 3, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    ("relationship_type", "activity_a_start", "activity_a_duration_hours"),
+    [
+        (RelationshipType.FF, time(8), Decimal("3.5")),
+        (RelationshipType.SF, time(11, 30), Decimal("1")),
+    ],
+)
+def test_time_ff_sf_finish_lower_bound_inside_successor_calendar_gap(
+    relationship_type, activity_a_start, activity_a_duration_hours
+):
+    """FF/SF must not pull successor finish backward across an activity break."""
+    project_ref = CalendarReference("project", "1", "working-time")
+    predecessor_ref = CalendarReference("predecessor", "1", "working-time")
+    successor_ref = CalendarReference("successor", "1", "working-time")
+    predecessor_calendar = WorkingTimeCalendar(
+        daily_intervals={
+            i: ((time(8), time(12)), (time(13), time(17)))
+            for i in range(5)
+        }
+    )
+    successor_calendar = WorkingTimeCalendar(
+        daily_intervals={
+            i: ((time(7), time(11)), (time(12), time(16)))
+            for i in range(5)
+        }
+    )
+    resolver_registry = CalendarResolverRegistry(time_resolvers={
+        "project@1": TimeAwareWorkingTimeResolver(predecessor_calendar),
+        "predecessor@1": TimeAwareWorkingTimeResolver(predecessor_calendar),
+        "successor@1": TimeAwareWorkingTimeResolver(successor_calendar),
+    })
+    predecessor_context = SchedulingCalendarContext(
+        project=project_ref,
+        activity=predecessor_ref,
+        relationship_lag=predecessor_ref,
+    )
+    successor_context = SchedulingCalendarContext(
+        project=project_ref,
+        activity=successor_ref,
+        relationship_lag=successor_ref,
+    )
+    start_day = datetime(2026, 9, 22, tzinfo=timezone.utc)
+    activity_a_start = datetime.combine(
+        start_day.date(), activity_a_start, tzinfo=timezone.utc
+    )
+    result = time_schedule(
+        [
+            TimeActivity(
+                "A",
+                TimeQuantity.working_hours(activity_a_duration_hours),
+                predecessor_context,
+            ),
+            TimeActivity("B", TimeQuantity.working_hours(2), successor_context),
+        ],
+        [
+            TimeRelationship(
+                "A", "B", relationship_type, LagQuantity.working_hours(0)
+            )
+        ],
+        activity_a_start,
+        datetime(2026, 9, 22, 17, tzinfo=timezone.utc),
+        resolver_registry,
+        options=TimeScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR
+        ),
+    )
+
+    predecessor = result.early_activities["A"]
+    successor = result.early_activities["B"]
+    required_finish = (
+        predecessor.finish
+        if relationship_type is RelationshipType.FF
+        else predecessor.start
+    )
+    assert successor.start == datetime(2026, 9, 22, 9, 30, tzinfo=timezone.utc)
+    assert successor.finish == datetime(2026, 9, 22, 12, 30, tzinfo=timezone.utc)
+    assert successor.finish >= required_finish
