@@ -63,15 +63,28 @@ The official sources above support the UI/API label distinction and the five-val
 - Add a source-backed mapping test demonstrating the selected criterion flows through import/persistence/snapshot materialization into the same authoritative comparator.
 - If numeric `activity_priority` is a CUBI-only extension, it needs an explicitly non-conflicting identifier and must not be represented as the P6 Professional **Activity Priority** field.
 
+## Relationship-lag calendar conformance — implemented / cross-product still open
+
+Oracle Release 26 documents four relationship-lag calendars—Predecessor Activity Calendar, Successor Activity Calendar, 24 Hour Calendar, and Project Default Calendar—and states that when no calendar is selected, the successor activity calendar is used:
+- [ScheduleOptions GET, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html)
+- [ScheduleOptions PUT, Release 26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-put.html)
+
+Implementation correction on source/test head `70e6607945a54b7d38cf8a89a93957abdf757f47`:
+- The date-based Shared Core `schedule()` now derives a relationship-specific lag resolver from `ScheduleOptions.relationship_lag_calendar` for each relationship and uses that mapping across forward pass, backward pass, float calculation, and multiple-float-path analysis.
+- Predecessor/Successor settings use the assigned activity resolver; Project Default uses the project resolver; 24 Hour uses a date-based, seven-day resolver without holidays.
+- Explicit caller-provided per-relationship resolvers override the ScheduleOptions-derived default.
+- The default `ScheduleOptions.relationship_lag_calendar` is now `SUCCESSOR`, aligning omitted/unselected configuration with the Release 26 REST contract; the previous default `PROJECT_DEFAULT` conflicted with the documented fallback.
+- Added runtime tests for all four explicit selections plus the default and an explicit per-edge resolver override. Existing tests also cover all FS/SS/FF/SF types crossed with negative/zero/positive lag during leveling, and shared batch paths pass the activity-calendar map.
+- **Remaining test limitation:** the FS/SS/FF/SF × signed-lag test and the four selected lag-calendar tests are not yet one combined cross-product. Full mixed activity calendars × every relation/lag/calendar-option combination, including time-aware behavior and actual persisted import/snapshot composition, still requires acceptance.
+
 ## Verification snapshot
 
 - Candidate: PR #1457 (Draft, unmerged), branch `fix/backward-leveling-rebased-main-2026-10-16`.
-- Exact source/test SHA: `c243297ac438c510d57970276bf2e438ddad8a03`.
-- ConstructionPM CI passed on Python 3.11, 3.12 and 3.13: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443639
-- Client Typecheck passed for web, desktop, client-sync and mobile: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443606
-- PostgreSQL Integration passed: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190443623
-- This source/test SHA includes distinct priority values/provenance and activity-specific calendar resolvers through forward/backward proposals, intermediate demand translation, candidate/final load validation, and the shared batch scheduler. Regressions cover mixed calendars in shared leveling and backward demand translation where an activity excludes Friday.
-- The later documentation-only head `ff414694c4c51c5072af4fc694074f73e36eecc1` was independently checked too: ConstructionPM CI passed (run https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190595493), Client Typecheck passed (run https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190595499), and PostgreSQL Integration passed (run https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39190595507). These runs include Python 3.11/3.12/3.13 and web/desktop/mobile/client-sync.
-- This verifies the tested branch paths only. It does not establish full P6 scheduling parity, resolve Release 26's REST scalar-string encoding for `PriorityList`/`ResourceList`, establish the product-profile mapping between Professional `Activity Priority` and EPPM `Activity.LevelingPriority`, validate Hierarchy sort eligibility, or replace independent semantic review.
-- Keep Draft and unmerged. Remaining gates include source-to-wire round-trip evidence, blank/tie/sort precedence for all supported fields, the full FS/SS/FF/SF × signed-lag × calendar matrix, the persisted ActivityMaster → authoritative snapshot → leveling-input composition path, and independent reviewer disposition. The conformance matrix remains **PARTIAL / NOT CERTIFIED**.
-- These SHAs/runs are immutable evidence for the listed source/test and documentation commits; any subsequent commit must be checked via its own exact-head status rather than inheriting earlier green results.
+- Current source/test SHA: `70e6607945a54b7d38cf8a89a93957abdf757f47`.
+- ConstructionPM CI passed on Python 3.11, 3.12 and 3.13: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192102554
+- Client Typecheck passed for web, desktop, client-sync and mobile: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192102394
+- PostgreSQL Integration passed: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39192102435
+- This source/test SHA includes distinct priority values/provenance, activity-specific calendar resolver flow through forward/backward proposals and candidate/final resource validation, mixed-calendar shared-leveling tests, the FS/SS/FF/SF × signed-lag matrix, configured relationship-lag calendar behavior, and successor-calendar default semantics.
+- The checks verify tested code paths only. They do not certify full P6 scheduling parity, resolve Release 26 REST scalar-string encoding for `PriorityList`/`ResourceList`, establish the Professional “Activity Priority” versus EPPM `Activity.LevelingPriority` product-profile mapping, validate Hierarchy sort eligibility, or substitute for independent semantic review.
+- Keep Draft and unmerged. Remaining gates include source-to-wire round-trip evidence, blank/tie/sort precedence for all supported fields, full mixed-calendar cross-product regression, persisted ActivityMaster → authoritative snapshot → leveling-input composition, and independent Farmj review. The conformance matrix remains **PARTIAL / NOT CERTIFIED**.
+- These checks attach to the exact source/test SHA above. Any subsequent commit must be checked using its own exact-head run data before it is called verified.
