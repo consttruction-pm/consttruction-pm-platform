@@ -84,12 +84,25 @@ Corrections implemented and covered by regression tests on source/test SHA `9838
 ## Current exact-head verification
 
 Candidate PR #1457 remains Draft/unmerged on branch `fix/backward-leveling-rebased-main-2026-10-16`.
-- Exact source/test SHA: `9838e61567fdd788ec17bfc7c5c47fdf4869485c`.
+
+### Source/test SHA
+
+- Exact code/test SHA: `9838e61567fdd788ec17bfc7c5c47fdf4869485c`.
 - ConstructionPM CI, Python 3.11/3.12/3.13: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850917
 - Client Typecheck (web, desktop, mobile, client-sync): passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850870
 - PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193850756
 - Python 3.11 suite: `2740 passed, 90 skipped`.
-- This is exact-head verification of tested behavior, not full P6 certification.
+- The tested changes include the date-based 48-case relationship × signed-lag × lag-calendar resource-leveling matrix, activity-calendar constraints, time-aware FF/SF gap handling, backward lag-calendar option propagation and the omitted/default successor-calendar materialization regression.
+
+### Latest documentation HEAD
+
+- Current documentation-only HEAD at the time of this record: `f57331bccd07951fd74e0c7aa6d8401b9aaf411a`.
+- ConstructionPM CI: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996590
+- Client Typecheck: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996540
+- PostgreSQL Integration: passed — https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/39193996480
+- The documentation-only HEAD checks do not replace source/test evidence on `9838e615...`; any later source or test change requires its own fresh exact-head checks.
+
+This is exact-head verification of tested behaviors, not full P6 certification and not merged-`main` acceptance.
 
 ## Remaining release blockers
 
