@@ -6,6 +6,7 @@ import pytest
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    RelationshipLagCalendar,
     SchedulingCalendarContext,
 )
 from construction_pm.scheduling.relationships import RelationshipType
@@ -162,6 +163,62 @@ def test_time_forward_pass_sf_zero_uses_predecessor_start():
     assert result["B"].finish == datetime(
         2026, 9, 22, 8, microsecond=1, tzinfo=timezone.utc
     )
+
+
+
+@pytest.mark.parametrize(
+    ("option", "expected_successor_start"),
+    [
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 15, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 13, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 14, 30, tzinfo=timezone.utc)),
+    ],
+)
+def test_time_forward_pass_lag_calendar_choices_produce_distinct_results(
+    option, expected_successor_start
+):
+    project_ref = CalendarReference("project", "1", "working-time")
+    predecessor_ref = CalendarReference("predecessor", "1", "working-time")
+    successor_ref = CalendarReference("successor", "1", "working-time")
+
+    def resolver(intervals):
+        return TimeAwareWorkingTimeResolver(
+            WorkingTimeCalendar(
+                daily_intervals={weekday: intervals for weekday in range(5)}
+            )
+        )
+
+    registry_for_case = CalendarResolverRegistry(
+        time_resolvers={
+            # Anchor A finishes at 10:00. The four selected lag calendars
+            # advance a three-hour positive lag through distinct work maps.
+            "project@1": resolver(((time(8), time(10, 15)), (time(11, 45), time(17)))),
+            "predecessor@1": resolver(((time(8), time(10)), (time(11), time(17)))),
+            "successor@1": resolver(((time(8), time(10)), (time(12), time(17)))),
+        }
+    )
+    predecessor_context = SchedulingCalendarContext(
+        project=project_ref, activity=predecessor_ref, relationship_lag=predecessor_ref
+    )
+    successor_context = SchedulingCalendarContext(
+        project=project_ref, activity=successor_ref, relationship_lag=successor_ref
+    )
+    activities = [
+        TimeActivity("A", TimeQuantity.working_hours(2), predecessor_context),
+        TimeActivity("B", TimeQuantity.working_hours(1), successor_context),
+    ]
+
+    result = time_forward_pass(
+        activities,
+        [TimeRelationship("A", "B", RelationshipType.FS, LagQuantity.working_hours(3))],
+        datetime(2026, 9, 22, 8, tzinfo=timezone.utc),
+        registry_for_case,
+        relationship_lag_calendar=option,
+    )
+
+    assert result["A"].finish == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    assert result["B"].start == expected_successor_start
 
 
 def test_time_forward_pass_uses_authoritative_project_calendar_for_root_start():
