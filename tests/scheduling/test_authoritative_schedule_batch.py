@@ -252,31 +252,59 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
-def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
+def test_mixed_activity_calendars_are_supported_for_shared_resource_leveling():
+    day_one = date(2026, 10, 1)  # Thursday
+    day_two = date(2026, 10, 2)  # Friday
+    finish = date(2026, 10, 10)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
     p1 = replace(
-        snapshot("P1", date(2026, 10, 10)),
+        snapshot("P1", finish, options=options),
+        project_start=day_one,
         activity_calendar_assignments=(
             ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
         ),
     )
-    p2 = snapshot("P2", date(2026, 10, 10))
+    p2 = replace(
+        snapshot("P2", finish, options=options),
+        project_start=day_one,
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
     leveling_input = SchedulerLevelingInput(
-        forward_activities=(),
-        backward_activities=(),
-        capacities=(),
-        options=ResourceLevelingOptions(level_all_resources=True),
+        forward_activities=(
+            LevelingActivity("P1-A", day_one, day_one, 10, (demand_p1,)),
+            LevelingActivity("P2-A", day_one, day_one, 10, (demand_p2,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("P1-A", day_one, day_one, finish, finish, (demand_p1,)),
+            BackwardLevelingActivity("P2-A", day_one, day_one, finish, finish, (demand_p2,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
     )
 
-    with pytest.raises(
-        UnsupportedMultiProjectSchedulingError,
-        match="MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED",
-    ):
-        execute_authoritative_schedule_batch(
-            [p1, p2],
-            resolvers={"P1": resolver(), "P2": resolver()},
-            leveling_input=leveling_input,
-            calendar_registry=calendar_registry(),
-        )
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+        calendar_registry=calendar_registry(),
+    )
+    p1_activity = result.project("P1").result.activities["P1-A"]
+    p2_activity = result.project("P2").result.activities["P2-A"]
+    assert {p1_activity.start, p2_activity.start} == {day_one, day_two}
+    # The 7-day activity calendar permits P1-A to move on Friday; P2-A's
+    # weekday calendar and the shared capacity ledger keep both loads feasible.
+    assert p1_activity.start == day_two
+    assert p2_activity.start == day_one
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
