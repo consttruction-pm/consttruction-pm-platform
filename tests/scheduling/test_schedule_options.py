@@ -11,8 +11,10 @@ from construction_pm.scheduling.schedule_options import (
 )
 
 
-def test_relationship_lag_calendar_defaults_to_project_default():
-    assert ScheduleOptions().relationship_lag_calendar is RelationshipLagCalendar.PROJECT_DEFAULT
+def test_relationship_lag_calendar_defaults_to_successor_activity_calendar():
+    # P6 EPPM Release 26: if no lag calendar is selected, successor activity
+    # calendar is used.
+    assert ScheduleOptions().relationship_lag_calendar is RelationshipLagCalendar.SUCCESSOR
 
 
 @pytest.mark.parametrize("value", list(RelationshipLagCalendar))
