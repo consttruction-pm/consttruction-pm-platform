@@ -335,6 +335,7 @@ def schedule_with_resource_leveling(
                 shift.activity_id for shift in forward_shifts
                 if shift.shift_working_days > 0
             })),
+            activity_resolvers=activity_resolvers,
         )
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
