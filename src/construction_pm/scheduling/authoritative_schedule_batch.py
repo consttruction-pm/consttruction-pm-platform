@@ -156,14 +156,9 @@ def execute_authoritative_schedule_batch(
             snapshot_list, calendar_registry
         )
         activity_calendar_resolvers = activity_calendar_context.as_mapping()
-        if leveling_input is not None:
-            activity_calendars = {
-                resolver.calendar for resolver in activity_calendar_resolvers.values()
-            }
-            if len(activity_calendars) > 1:
-                raise UnsupportedMultiProjectSchedulingError(
-                    "MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED"
-                )
+        # Shared-graph resource leveling supports activity-specific calendars.
+        # Every CPM pass, candidate translation, and final load validator receives
+        # this version-pinned resolver map; do not reject a valid mixed-calendar graph.
     executions: list[AuthoritativeProjectScheduleExecution] = []
 
     has_leveling_options = any(
@@ -401,6 +396,7 @@ def execute_authoritative_schedule_batch(
                 constraints=global_constraints,
                 options=snapshot_list[0].schedule_options,
                 batch_scheduled_finish=batch_finish,
+                activity_resolvers=activity_calendar_resolvers,
             )
             for snapshot in snapshot_list:
                 owned_ids = {activity.id for activity in snapshot.activities}
