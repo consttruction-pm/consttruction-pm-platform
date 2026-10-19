@@ -1656,3 +1656,90 @@ def test_backward_demand_translation_uses_activity_calendar() -> None:
     # Friday is non-working for B. Demand translated from Thursday to Monday
     # must use B's activity calendar, not the project calendar.
     assert result[0].resource_demands[0].period == monday
+
+
+@pytest.mark.parametrize(
+    ("calendar_option", "expected_successor_start"),
+    [
+        ("PREDECESSOR_ACTIVITY_CALENDAR", date(2026, 10, 6)),
+        ("SUCCESSOR_ACTIVITY_CALENDAR", date(2026, 10, 5)),
+        ("24_HOUR_CALENDAR", date(2026, 10, 4)),
+        ("PROJECT_DEFAULT_CALENDAR", date(2026, 10, 7)),
+    ],
+)
+def test_schedule_options_relationship_lag_calendar_selects_correct_resolver(
+    calendar_option, expected_successor_start
+) -> None:
+    """P6's lag-calendar option must affect CPM relationship arithmetic."""
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+    from construction_pm.scheduling.relationships import Relationship
+    from construction_pm.scheduling.schedule import schedule
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+    from construction_pm.scheduling.activity import Activity
+
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    successor_resolver = WorkingTimeResolver(WorkingCalendar(
+        # Friday is non-working, but both weekend days are working.
+        working_weekdays=frozenset({0, 1, 2, 3, 5, 6}), holidays=frozenset(),
+    ))
+    relationship = Relationship("A", "B", RelationshipType.FS, lag=1)
+
+    result = schedule(
+        (Activity("A", 1), Activity("B", 1)),
+        (relationship,),
+        date(2026, 10, 2),  # Friday; A is scheduled on its weekday calendar.
+        project_resolver,
+        project_finish=date(2026, 10, 15),
+        options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar(calendar_option),
+        ),
+        activity_resolvers={
+            "A": predecessor_resolver,
+            "B": successor_resolver,
+        },
+    )
+
+    assert result.activities["A"].finish == date(2026, 10, 2)
+    assert result.activities["B"].start == expected_successor_start
+
+
+def test_explicit_relationship_lag_resolver_overrides_schedule_option() -> None:
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+    from construction_pm.scheduling.relationships import Relationship
+    from construction_pm.scheduling.schedule import schedule
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+    from construction_pm.scheduling.activity import Activity
+
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    predecessor_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    successor_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 5, 6}), holidays=frozenset(),
+    ))
+    relationship = Relationship("A", "B", RelationshipType.FS, lag=1)
+
+    result = schedule(
+        (Activity("A", 1), Activity("B", 1)),
+        (relationship,),
+        date(2026, 10, 2),
+        project_resolver,
+        project_finish=date(2026, 10, 15),
+        options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PROJECT_DEFAULT,
+        ),
+        relationship_lag_resolvers={("A", "B"): predecessor_resolver},
+        activity_resolvers={"A": predecessor_resolver, "B": successor_resolver},
+    )
+
+    assert result.activities["B"].start == date(2026, 10, 6)
+
