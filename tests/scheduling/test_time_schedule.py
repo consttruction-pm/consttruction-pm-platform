@@ -798,13 +798,18 @@ def test_time_ff_sf_finish_lower_bound_inside_successor_calendar_gap(
     assert successor.finish >= required_finish
 
 
-@pytest.mark.parametrize("calendar_option", [
-    RelationshipLagCalendar.PREDECESSOR,
-    RelationshipLagCalendar.SUCCESSOR,
-    RelationshipLagCalendar.PROJECT_DEFAULT,
-])
-def test_time_aware_passes_propagate_selected_lag_calendar(calendar_option, monkeypatch):
-    from construction_pm.scheduling.time_unit_resolver import resolve_calendar_aware as original_resolve
+@pytest.mark.parametrize(
+    ("calendar_option", "expected_successor_start"),
+    [
+        (RelationshipLagCalendar.PREDECESSOR, datetime(2026, 9, 23, 7, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.SUCCESSOR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, datetime(2026, 9, 22, 15, tzinfo=timezone.utc)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, datetime(2026, 9, 22, 14, tzinfo=timezone.utc)),
+    ],
+)
+def test_time_aware_passes_propagate_selected_lag_calendar(
+    calendar_option, expected_successor_start, monkeypatch
+):
 
     project = CalendarReference("project", "1", "working-time")
     predecessor_ref = CalendarReference("predecessor", "1", "working-time")
@@ -848,5 +853,6 @@ def test_time_aware_passes_propagate_selected_lag_calendar(calendar_option, monk
 
     assert seen_options
     assert all(value is calendar_option for value in seen_options)
+    assert result.early_activities["B"].start == expected_successor_start
     assert result.early_activities["B"].start >= result.early_activities["A"].finish
     assert result.late_activities["B"].start >= result.late_activities["A"].finish
