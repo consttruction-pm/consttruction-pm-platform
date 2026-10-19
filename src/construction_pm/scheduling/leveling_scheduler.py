@@ -212,7 +212,9 @@ def _select_backward_shift_frontier(
         current = selected.get(shift.activity_id)
         if current is None or shift.advanced_days > current.advanced_days:
             selected[shift.activity_id] = shift
-    return tuple(selected[key] for key in sorted(selected))
+    # Keep the proposal engine's ordered-priority sequence for equal advances.
+    # Dict insertion order captures the first proposal for each activity.
+    return tuple(selected.values())
 
 
 def _select_backward_rollback_candidate(
