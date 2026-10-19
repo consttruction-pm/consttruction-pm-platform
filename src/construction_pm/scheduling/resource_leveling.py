@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Mapping
 
 from .calendar import WorkingTimeResolver
 from enum import Enum
@@ -282,8 +283,13 @@ def propose_forward_leveling_within_float(
     priorities: tuple[LevelingPriority, ...] = (),
     level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (),
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[LevelingShift, ...]:
-    """Propose deterministic forward shifts without mutating the CPM schedule."""
+    """Propose deterministic forward shifts without mutating the CPM schedule.
+
+    activity_resolvers lets each activity retain its authoritative P6 calendar
+    while preserving the legacy single-resolver fallback.
+    """
     activity_ids = [activity.activity_id for activity in activities]
     if len(set(activity_ids)) != len(activity_ids):
         raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
@@ -306,6 +312,13 @@ def propose_forward_leveling_within_float(
             _priority_value(activity, priority.field_name)
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
+    resolver_by_activity = activity_resolvers or {}
+    if any(not isinstance(value, WorkingTimeResolver) for value in resolver_by_activity.values()):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+
+    def resolver_for(activity_id: str) -> WorkingTimeResolver:
+        return resolver_by_activity.get(activity_id, resolver)
+
     selected_resources = set(
         select_leveling_resources(
             [d for a in activity_list for d in a.resource_demands],
@@ -330,7 +343,9 @@ def propose_forward_leveling_within_float(
         for activity in activity_list:
             out.extend(
                 demand
-                for demand in _shift_demands(activity.resource_demands, selected[activity.activity_id], resolver)
+                for demand in _shift_demands(
+                    activity.resource_demands, selected[activity.activity_id], resolver_for(activity.activity_id)
+                )
                 if demand.resource_id in selected_resources
             )
         return out
@@ -353,7 +368,9 @@ def propose_forward_leveling_within_float(
                 current_shift = selected[activity.activity_id]
                 if current_shift >= max(0, activity.total_float - min_float_to_preserve):
                     continue
-                shifted = _shift_demands(activity.resource_demands, current_shift, resolver)
+                shifted = _shift_demands(
+                    activity.resource_demands, current_shift, resolver_for(activity.activity_id)
+                )
                 units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
                 if units > 0:
                     priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
@@ -369,8 +386,8 @@ def propose_forward_leveling_within_float(
             LevelingShift(
                 activity_id,
                 next_shift,
-                _shift_date_forward(activity.start, next_shift, resolver),
-                _shift_date_forward(activity.finish, next_shift, resolver),
+                _shift_date_forward(activity.start, next_shift, resolver_for(activity_id)),
+                _shift_date_forward(activity.finish, next_shift, resolver_for(activity_id)),
                 next_shift,
                 activity.total_float - next_shift,
             )
@@ -389,6 +406,7 @@ def propose_forward_leveling(
     min_float_to_preserve: int = 0, over_allocation_percentage: Decimal = Decimal("0"),
     priorities: tuple[LevelingPriority, ...] = (), level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (), max_shift_working_days: int = 10000,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward leveling, optionally unconstrained by float."""
     if not isinstance(level_within_float, bool):
@@ -400,6 +418,7 @@ def propose_forward_leveling(
             activities, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
             over_allocation_percentage=over_allocation_percentage, priorities=priorities,
             level_all_resources=level_all_resources, resource_ids=resource_ids,
+            activity_resolvers=activity_resolvers,
         )
     synthetic = tuple(LevelingActivity(a.activity_id, a.start, a.finish,
         max_shift_working_days + min_float_to_preserve, a.resource_demands, a.activity_priority) for a in activities)
@@ -407,6 +426,7 @@ def propose_forward_leveling(
         synthetic, capacities, resolver=resolver, min_float_to_preserve=min_float_to_preserve,
         over_allocation_percentage=over_allocation_percentage, priorities=priorities,
         level_all_resources=level_all_resources, resource_ids=resource_ids,
+        activity_resolvers=activity_resolvers,
     )
     original_float = {a.activity_id: a.total_float for a in activities}
     return tuple(LevelingShift(s.activity_id, s.shift_working_days, s.new_start, s.new_finish,
@@ -420,6 +440,7 @@ def apply_leveling_shifts(
     *,
     resolver: WorkingTimeResolver,
     allow_beyond_float: bool = False,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
 ) -> tuple[LevelingActivity, ...]:
     """Apply accepted forward shifts using the caller's authoritative calendar."""
     if not isinstance(resolver, WorkingTimeResolver):
@@ -429,6 +450,9 @@ def apply_leveling_shifts(
         raise ResourceLevelingError("DUPLICATE_ACTIVITY_ID")
     if not isinstance(allow_beyond_float, bool):
         raise ResourceLevelingError("INVALID_ALLOW_BEYOND_FLOAT")
+    resolver_by_activity = activity_resolvers or {}
+    if any(not isinstance(value, WorkingTimeResolver) for value in resolver_by_activity.values()):
+        raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     shift_map = {s.activity_id: s for s in shifts}
     if len(shift_map) != len(shifts):
         raise ResourceLevelingError("DUPLICATE_LEVELING_SHIFT")
@@ -445,8 +469,9 @@ def apply_leveling_shifts(
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
         if shift.consumed_float != shift.shift_working_days:
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT")
-        expected_start = _shift_date_forward(activity.start, shift.shift_working_days, resolver)
-        expected_finish = _shift_date_forward(activity.finish, shift.shift_working_days, resolver)
+        activity_resolver = resolver_by_activity.get(activity.activity_id, resolver)
+        expected_start = _shift_date_forward(activity.start, shift.shift_working_days, activity_resolver)
+        expected_finish = _shift_date_forward(activity.finish, shift.shift_working_days, activity_resolver)
         if (shift.new_start, shift.new_finish) != (expected_start, expected_finish):
             raise ResourceLevelingError("INVALID_LEVELING_SHIFT_DATES")
         result.append(LevelingActivity(
@@ -454,7 +479,7 @@ def apply_leveling_shifts(
             start=shift.new_start,
             finish=shift.new_finish,
             total_float=max(0, activity.total_float - shift.consumed_float),
-            resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, resolver),
+            resource_demands=_shift_demands(activity.resource_demands, shift.shift_working_days, activity_resolver),
             activity_priority=activity.activity_priority,
         ))
     return tuple(result)
