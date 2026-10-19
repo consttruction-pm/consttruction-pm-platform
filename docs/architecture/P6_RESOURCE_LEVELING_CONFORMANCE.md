@@ -82,3 +82,18 @@ The separately documented ScheduleOptions REST object has `PriorityList` and `Re
 The scheduler correction and broader priority/persistence work in PR #1457 remain complementary. The application path must be demonstrated end-to-end: persisted Activity Master and project settings → canonical typed authoritative input → immutable/version-bound snapshot → Shared Scheduling Core and resource-leveling comparator. Tests that manually construct the authoritative input or snapshot do not prove this production bridge. Verify tenant/project scope, revision freshness, field provenance and calendar resolution on the real composition path.
 
 Keep full P6 parity **OPEN / NOT CERTIFIED** until the two change sets are reconciled on one candidate, production composition is integration-tested, remaining source-backed matrix rows are closed or explicitly unsupported, independent review is recorded, and all required checks pass on the same final SHA.
+
+## Code-level audit — supported priority fields are narrower than P6 v26 (2026-10-19)
+
+A source inspection of the current candidate confirms a concrete conformance gap, not just a documentation concern:
+
+- `src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list` accepts only `activity_id`, `activity_priority`, `early_start`, `early_finish`, `late_start`, `late_finish`, `free_float`, and `total_float`.
+- `src/construction_pm/scheduling/resource_leveling.py::_priority_value` exposes the same limited value set from `LevelingActivity`.
+- The Shared Core `LevelingActivity` slice currently has no typed values for `planned_finish`, `original_duration`, `remaining_duration`, or `project_planned_start`; its `activity_priority` is an optional integer and is not itself proof of P6's distinct `Activity Leveling Priority` value contract.
+- The current priority mapper also does not represent `Project Priority` or hierarchical sort order.
+
+Oracle's P6 Professional leveling-priority reference lists these criteria separately: Activity ID, Activity Priority, Early Finish, Early Start, Free Float, Late Finish, Late Start, Original or Planned Duration, Planned Finish, Project Planned Start, Project Priority, Remaining Duration, and Total Float. Priority rows are ordered, and the documented tie fallback sorts numeric values, then alphabetic values, then blank values; absent configured priority codes, Activity ID is used. See the official [Leveling priority definitions](https://docs.oracle.com/cd/F51303_01/client_help/en_US/leveling_priority_definitions.htm) and [P6 Professional Version 26 documentation](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/user.html).
+
+**Required implementation correction:** do not simply whitelist the missing field names. Add explicit typed/provenance-bearing values to the authoritative schedule/leveling input, define null/blank and mixed-type ordering from source-backed behavior, and implement the same comparator in proposal, retry, and rollback paths. Preserve P6's distinct project-level and activity-level priorities and ordered priority rows. If any criterion cannot yet be supported end-to-end, reject it explicitly as unsupported rather than silently substituting another field.
+
+**Verification boundary:** this is a source-level audit of the PR branch. No code-level parity fix is claimed in this entry; the current exact-head checks do not yet prove the broader priority contract or the Activity Master → authoritative snapshot production bridge tracked by Issue #1462.
