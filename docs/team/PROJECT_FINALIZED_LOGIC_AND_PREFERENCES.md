@@ -723,3 +723,27 @@ Stage 33.3.4 establishes a framework/provider-neutral authorization policy at th
 - This policy does not itself authenticate users, enforce every API route, or constitute production security certification.
 
 Compatibility impact: P6/Scheduling and Shared Calculation Core semantics remain unchanged; Web-readiness and explicit context handling are strengthened. Stage 33.3.5 adds route-level integration enforcement and must not be marked complete until exact-head CI, Client Typecheck and PostgreSQL sync checks are verified.
+
+
+## 39. Application/API Authorization Boundary — 2026-10-21
+
+Stage 33.3.4 introduces a framework-neutral authorization boundary at the Application layer.
+
+Mandatory rules:
+- Authentication establishes identity outside the Shared Domain/Calculation Core.
+- Project-scoped authorization carries tenant_id, project_id, user_id and effective roles.
+- Authorization uses explicit permissions and a shared policy contract.
+- Denied operations raise the stable application-level AuthorizationError.
+- Initial permissions: project.read, project.write, project.schedule and project.admin.
+- Initial roles: viewer, planner and project_admin; this is an extensible baseline, not the final product role catalog.
+- Web, Desktop and Mobile consume the same authorization semantics through Application/API contracts.
+- Authorization must not introduce client-specific Scheduling/P6, Progress/EVM, Resource/Cost, duration, calendar or financial calculations.
+
+Compatibility impact:
+- P6/Scheduling: unchanged.
+- Shared Calculation Core: remains independent of identity providers and authorization policy.
+- Web-readiness: strengthened by a common Application authorization boundary.
+- Portability/sync: tenant/project context remains explicit and compatible with revision and idempotency contracts.
+- Regression coverage: allow/deny, stable error and context preservation are mandatory.
+
+Next gate: Stage 33.3.5 Integration Regression and runtime verification.
