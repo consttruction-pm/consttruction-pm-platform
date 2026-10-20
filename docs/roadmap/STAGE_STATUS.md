@@ -1336,3 +1336,12 @@ Status: **implementation + focused route-level security regressions added; exact
 - No Scheduling/P6, calendar, Progress/EVM, Resource/Cost, duration or financial calculation semantics changed.
 - Exact-head ConstructionPM CI, Client Typecheck and PostgreSQL sync workflow results must be reviewed before this stage can be marked complete.
 
+
+
+### Stage 33.3.5 — Authorization Integration Regression
+Status: **implemented — full runtime verification pending**
+- Expanded regression coverage for invalid/blank tenant, project and user identifiers.
+- Added fail-closed checks for malformed role collections, unknown roles and empty-permission roles.
+- Verified denial messages do not reveal tenant/project/user identifiers.
+- Specification: `docs/architecture/STAGE_33_3_5_AUTHORIZATION_INTEGRATION_REGRESSION.md`.
+- Next gate: wait for GitHub Actions on the current main commit; inspect failures and record exact run evidence before declaring runtime verification.
