@@ -78,3 +78,39 @@ def test_unknown_only_role_denies_every_permission_by_default() -> None:
 
     with pytest.raises(AuthorizationError):
         policy.require(context, Permission.PROJECT_READ)
+
+
+@pytest.mark.parametrize(
+    ("tenant_id", "project_id", "user_id"),
+    [
+        ("", "project-1", "user-1"),
+        ("tenant-1", " ", "user-1"),
+        ("tenant-1", "project-1", ""),
+    ],
+)
+def test_invalid_authorization_context_fails_closed(
+    tenant_id: str, project_id: str, user_id: str
+) -> None:
+    policy = default_project_policy()
+    context = AuthorizationContext(tenant_id, project_id, user_id, frozenset({"project_admin"}))
+
+    with pytest.raises(AuthorizationError, match="INVALID_AUTHORIZATION_"):
+        policy.is_allowed(context, Permission.PROJECT_READ)
+
+
+def test_mutable_or_malformed_roles_fail_closed() -> None:
+    policy = default_project_policy()
+    context = AuthorizationContext("tenant-1", "project-1", "user-1", {"project_admin"})  # type: ignore[arg-type]
+
+    with pytest.raises(AuthorizationError, match="INVALID_AUTHORIZATION_ROLES"):
+        policy.is_allowed(context, Permission.PROJECT_ADMIN)
+
+
+def test_role_with_no_configured_permissions_grants_nothing() -> None:
+    from construction_pm.application.authorization import RoleBasedAuthorizationPolicy
+
+    policy = RoleBasedAuthorizationPolicy({"empty-role": frozenset()})
+    context = AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"empty-role"}))
+
+    for permission in Permission:
+        assert not policy.is_allowed(context, permission)
