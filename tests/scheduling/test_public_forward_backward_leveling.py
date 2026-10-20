@@ -185,7 +185,7 @@ def test_public_forward_backward_leveling_recalculates_linked_cpm_and_capacity()
         assert float_result.critical is True
 
 
-def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() -> None:
+def test_public_backward_leveling_moves_linked_activities_without_breaking_ss(monkeypatch) -> None:
     from construction_pm.scheduling.relationships import Relationship, RelationshipType
 
     day_one = date(2026, 10, 1)  # Thursday
@@ -217,6 +217,22 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
     ))
 
+    # Every candidate must be checked against the final CPM/resource ledger
+    # with the same activity-calendar map used by intermediate and final CPM.
+    from construction_pm.scheduling import leveling_scheduler
+
+    activity_resolvers = {"A": resolver, "B": resolver}
+    validator_calls = []
+    original_validator = leveling_scheduler._validate_final_resource_load
+
+    def recording_validator(**kwargs):
+        validator_calls.append(kwargs.get("activity_resolvers"))
+        return original_validator(**kwargs)
+
+    monkeypatch.setattr(
+        leveling_scheduler, "_validate_final_resource_load", recording_validator
+    )
+
     result, forward, backward = schedule_with_resource_leveling(
         (Activity("A", 1), Activity("B", 1)),
         (Relationship("A", "B", RelationshipType.SS),),
@@ -229,6 +245,7 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
             preserve_scheduled_early_and_late_dates=False,
             priority_list=(PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),),
         ),
+        activity_resolvers=activity_resolvers,
     )
 
     # Both demands are initially on day one. The valid Monday project finish
@@ -243,3 +260,5 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
     assert result.project_finish == day_three
+    assert len(validator_calls) >= 2  # accepted-candidate check plus final check
+    assert all(value is activity_resolvers for value in validator_calls)

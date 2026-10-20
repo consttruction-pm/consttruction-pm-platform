@@ -502,7 +502,22 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     )
     p1 = result.project("P1").result.activities["P1-A"]
     p2 = result.project("P2").result.activities["P2-A"]
-    assert p1.finish < p2.start or p2.finish < p1.start
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    assert {p1.start, p2.start} == {day_one, day_two}
+
+    # Assert the recalculated shared graph, not only the proposal output:
+    # each occupied resource period must fit the aggregate batch capacity.
+    capacity_by_period = {day_one: Decimal("1"), day_two: Decimal("1")}
+    for period, capacity in capacity_by_period.items():
+        final_demand = sum(
+            (Decimal("1") for activity in (p1, p2) if activity.start == period),
+            Decimal("0"),
+        )
+        assert final_demand <= capacity, (
+            f"shared R1 overload after final CPM: {period}: "
+            f"demand={final_demand}, capacity={capacity}"
+        )
 
 
 @pytest.mark.parametrize(
