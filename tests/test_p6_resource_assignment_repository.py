@@ -15,12 +15,16 @@ def scope(revision=1):
     return BackendScope("tenant-a", "project-a", revision)
 
 
-def assignment(s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1"):
+def assignment(
+    s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1",
+    calendar_version="cal-v1",
+):
     return P6ResourceAssignment(
         s, assignment_id, activity_id, resource_id, "role-1",
         Decimal("8.5"), Decimal("2.5"), Decimal("6.0"),
         Decimal("850.25"), Decimal("250.00"), Decimal("600.25"),
         "h", "USD", "cal-1", "assignment snapshot",
+        calendar_version=calendar_version,
     )
 
 
@@ -32,6 +36,50 @@ def test_round_trip_and_deterministic_list():
     assert [x.assignment_id for x in repo.list(scope())] == ["a", "b"]
     assert [x.assignment_id for x in repo.list(scope(), activity_id="act-1")] == ["a", "b"]
     assert [x.assignment_id for x in repo.list(scope(), resource_id="res-1")] == ["a", "b"]
+
+
+def test_legacy_sqlite_schema_migrates_without_guessing_calendar_version():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE p6_resource_assignment (
+          tenant_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          project_revision INTEGER NOT NULL,
+          assignment_id TEXT NOT NULL,
+          activity_id TEXT NOT NULL,
+          resource_id TEXT NOT NULL,
+          role_id TEXT,
+          units TEXT,
+          actual_units TEXT,
+          remaining_units TEXT,
+          planned_cost TEXT,
+          actual_cost TEXT,
+          remaining_cost TEXT,
+          unit TEXT,
+          currency TEXT,
+          calendar_id TEXT,
+          note TEXT,
+          PRIMARY KEY (tenant_id, project_id, assignment_id)
+        )"""
+    )
+    connection.execute(
+        "INSERT INTO p6_resource_assignment VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("tenant-a", "project-a", 1, "legacy", "act-1", "res-1", "role-1",
+         "8.5", "2.5", "6.0", "850.25", "250.00", "600.25", "h", "USD",
+         "cal-1", "old record"),
+    )
+
+    repo = SQLiteP6ResourceAssignmentRepository(connection)
+
+    legacy = repo.get(scope(), "legacy")
+    assert legacy is not None
+    assert legacy.calendar_id == "cal-1"
+    # Old rows remain explicitly unversioned; migrations must never guess latest.
+    assert legacy.calendar_version is None
+
+    versioned = assignment(scope(), assignment_id="new", calendar_version="cal-v3")
+    repo.upsert(versioned)
+    assert repo.get(scope(), "new") == versioned
 
 
 def test_scope_isolation_and_revision_conflict():
@@ -58,6 +106,17 @@ def test_definition_is_immutable_but_identical_replay_is_idempotent():
     )
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="IMMUTABLE_RESOURCE_ASSIGNMENT"):
         repo.upsert(changed)
+
+
+def test_calendar_version_is_part_of_immutable_assignment_identity():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    original = assignment(scope(), calendar_version="cal-v1")
+    repo.upsert(original)
+    assert repo.get(scope(), original.assignment_id).calendar_version == "cal-v1"
+
+    changed_version = assignment(scope(), calendar_version="cal-v2")
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="IMMUTABLE_RESOURCE_ASSIGNMENT"):
+        repo.upsert(changed_version)
 
 
 def test_typed_decimal_and_invalid_values_fail_closed():
