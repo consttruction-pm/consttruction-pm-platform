@@ -29,6 +29,7 @@ class P6ResourceCapacitySlice:
     units: Decimal
     calendar_id: str
     calendar_version: str | None = None
+    calendar_snapshot_hash: str | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -44,6 +45,12 @@ class P6ResourceCapacitySlice:
             not isinstance(self.calendar_version, str) or not self.calendar_version.strip()
         ):
             raise ResourceCapacityContractError("INVALID_CALENDAR_VERSION")
+        if self.calendar_snapshot_hash is not None and (
+            not isinstance(self.calendar_snapshot_hash, str)
+            or len(self.calendar_snapshot_hash) != 64
+            or any(c not in "0123456789abcdef" for c in self.calendar_snapshot_hash)
+        ):
+            raise ResourceCapacityContractError("INVALID_CALENDAR_SNAPSHOT_HASH")
 
 
 def build_resource_capacity_slices(
@@ -101,14 +108,26 @@ def build_resource_capacity_slices(
             raise ResourceCapacityContractError("RESOURCE_CALENDAR_IDENTITY_MISMATCH")
         if require_calendar_versions and calendar.calendar_version != calendar_version:
             raise ResourceCapacityContractError("RESOURCE_CALENDAR_OBJECT_VERSION_MISMATCH")
+        if require_calendar_versions and calendar.canonical_snapshot_hash is None:
+            raise ResourceCapacityContractError("RESOURCE_CALENDAR_SNAPSHOT_HASH_REQUIRED")
+        if require_calendar_versions and not calendar.capacity_slices:
+            raise ResourceCapacityContractError("RESOURCE_CALENDAR_CAPACITY_SLICES_REQUIRED")
+        available_periods = {period for period, _units in calendar.capacity_slices}
+        if require_calendar_versions and not set(requested_periods).issubset(available_periods):
+            raise ResourceCapacityContractError("RESOURCE_CALENDAR_CAPACITY_PERIOD_MISSING")
         for period in requested_periods:
+            try:
+                units = calendar.capacity_on(period)
+            except ValueError as exc:
+                raise ResourceCapacityContractError("RESOURCE_CALENDAR_CAPACITY_PERIOD_MISSING") from exc
             item = P6ResourceCapacitySlice(
                 scope=scope,
                 resource_id=resource_id,
                 period=period,
-                units=calendar.capacity_on(period),
+                units=units,
                 calendar_id=calendar_id,
                 calendar_version=calendar_version,
+                calendar_snapshot_hash=calendar.canonical_snapshot_hash,
             )
             item.validate()
             result.append(item)
