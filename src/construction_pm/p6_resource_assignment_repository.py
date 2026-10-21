@@ -52,6 +52,8 @@ class P6ResourceAssignment:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise P6ResourceAssignmentPersistenceError(f"INVALID_{code}")
+        if self.calendar_version is not None and self.calendar_id is None:
+            raise P6ResourceAssignmentPersistenceError("CALENDAR_VERSION_REQUIRES_CALENDAR_ID")
         for value, code in (
             (self.units, "UNITS"),
             (self.actual_units, "ACTUAL_UNITS"),
