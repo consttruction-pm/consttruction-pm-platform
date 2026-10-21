@@ -100,10 +100,13 @@ def _backward_activities_from_intermediate(
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
         activity_resolver = (activity_resolvers or {}).get(activity.activity_id, resolver)
+        # working_days_between uses exclusive interval semantics: adjacent
+        # working dates can return zero. Convert date displacement to an
+        # inclusive count before moving a demand period.
         if late.start > original_start:
-            displacement = activity_resolver.working_days_between(original_start, late.start)
+            displacement = activity_resolver.working_days_between(original_start, late.start) + 1
         elif late.start < original_start:
-            displacement = -activity_resolver.working_days_between(late.start, original_start)
+            displacement = -(activity_resolver.working_days_between(late.start, original_start) + 1)
         else:
             displacement = 0
 
@@ -111,11 +114,11 @@ def _backward_activities_from_intermediate(
         for demand in forward_activity.resource_demands:
             if displacement > 0:
                 shifted_period = activity_resolver.add_working_duration(
-                    demand.period, displacement + 1
+                    demand.period, displacement
                 )
             elif displacement < 0:
                 shifted_period = activity_resolver.subtract_working_duration(
-                    demand.period, abs(displacement) + 1
+                    demand.period, abs(displacement)
                 )
             else:
                 shifted_period = demand.period
@@ -160,22 +163,26 @@ def _validate_final_resource_load(
                 )
             continue
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
-        if final_activity.start >= activity_input.start:
+        # Convert exclusive working-day distance into the inclusive number
+        # of working-date steps used to project a demand period.
+        if final_activity.start > activity_input.start:
             shift_days = activity_resolver.working_days_between(
                 activity_input.start, final_activity.start
-            )
-        else:
-            shift_days = -activity_resolver.working_days_between(
+            ) + 1
+        elif final_activity.start < activity_input.start:
+            shift_days = -(activity_resolver.working_days_between(
                 final_activity.start, activity_input.start
-            )
+            ) + 1)
+        else:
+            shift_days = 0
         for demand in activity_input.resource_demands:
             if shift_days > 0:
                 shifted_period = activity_resolver.add_working_duration(
-                    demand.period, shift_days + 1
+                    demand.period, shift_days
                 )
             elif shift_days < 0:
                 shifted_period = activity_resolver.subtract_working_duration(
-                    demand.period, abs(shift_days) + 1
+                    demand.period, abs(shift_days)
                 )
             else:
                 shifted_period = demand.period
