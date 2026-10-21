@@ -119,3 +119,17 @@ Current `main` source inspection confirms:
 **Acceptance evidence:** a production-path integration test performs persisted write → commit → fresh read → canonical snapshot/input composition → authoritative query evaluation, using non-empty resource data and non-default Planned Finish, Original Duration and Activity Leveling Priority. Assert revision/scope/hash binding, deterministic leveling priority, final capacity validity, and explicit failures for missing/stale/mismatched inputs. Run ConstructionPM CI, Client Typecheck and applicable PostgreSQL integration on the exact resulting SHA.
 
 This continuation records source evidence and sharpens the acceptance contract; it does not mark the blocker closed, certify P6 parity, or authorize merging PR #1457.
+
+
+### Follow-up audit — 2026-10-22: authorization context is not available at the resource adapter seam
+
+A second production integration constraint was confirmed from the current branch source:
+
+- `P6ResourceLevelingReadAdapter.build_scheduler_leveling_input` requires an explicit `AuthorizationContext` and reads assignment and assignment-period data through `P6ResourceReadAPI`.
+- `ScheduleQueryApplicationService.execute` authorizes the request, then calls `provider.execute(request)`; its provider protocol does not pass the already-validated `AuthorizationContext`.
+- `AuthoritativeScheduleQueryProvider.execute` therefore has no authorized principal/context to supply to the resource adapter. Directly calling the adapter here by manufacturing a context from `requested_by`, or by using a default/system identity, would bypass the established authorization boundary and is not an acceptable fix.
+- The production composition currently wires snapshot/context repositories and a calendar registry factory, but does not wire the resource read API, versioned resource/calendar source, or an immutable resource-leveling input repository.
+
+**Required implementation sequence:** extend the internal provider boundary to receive the exact validated `AuthorizationContext` from `ScheduleQueryApplicationService`; add an explicit production dependency for an immutable, scope- and calculation-identity-bound leveling-input provider; compose/read that input for the same snapshot revision; reject absent or stale resource/calendar revisions; then pass it to `evaluate_schedule_snapshot(..., leveling_input=...)`. Do not infer permissions from `request.requested_by`. Add tests proving that a cross-tenant request cannot read resource data and that valid resource data reaches the evaluator on the production route.
+
+This is an additional blocker for Issue #1468. No resource-leveling runtime code or authorization behavior was changed in this documentation-only continuation.
