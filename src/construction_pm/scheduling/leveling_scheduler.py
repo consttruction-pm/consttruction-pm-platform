@@ -103,6 +103,30 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
     )
 
 
+def _working_shift_days(start: date, end: date, resolver: object) -> int:
+    """Count actual working-day moves between scheduled start dates.
+
+    working_days_between is interval-oriented and may return zero for adjacent
+    working dates. Leveling needs a displacement count, where moving Thursday
+    to Friday is one working-day move.
+    """
+    if start == end:
+        return 0
+    cursor = start
+    direction = 1 if end > start else -1
+    steps = 0
+    while cursor != end:
+        cursor = (
+            resolver.next_working_day(cursor)
+            if direction > 0
+            else resolver.previous_working_day(cursor)
+        )
+        steps += direction
+        if (direction > 0 and cursor > end) or (direction < 0 and cursor < end):
+            raise ResourceLevelingError("LEVELING_DATE_NOT_ON_WORKING_CALENDAR")
+    return steps
+
+
 def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
@@ -138,12 +162,7 @@ def _backward_activities_from_intermediate(
             if activity.activity_id in protected_activity_ids
             else late_start
         )
-        if demand_anchor > original_start:
-            displacement = resolver.working_days_between(original_start, demand_anchor)
-        elif demand_anchor < original_start:
-            displacement = -resolver.working_days_between(demand_anchor, original_start)
-        else:
-            displacement = 0
+        displacement = _working_shift_days(original_start, demand_anchor, resolver)
 
         shifted_demands: list[ResourceDemand] = []
         for demand in forward_activity.resource_demands:
@@ -200,16 +219,9 @@ def _validate_final_resource_load(
         # interval semantics, so equal dates must be handled explicitly. A zero
         # movement must leave demand on its original period, not advance it one
         # working day during final-load validation.
-        if final_activity.start > activity_input.start:
-            shift_days = resolver.working_days_between(
-                activity_input.start, final_activity.start
-            )
-        elif final_activity.start < activity_input.start:
-            shift_days = -resolver.working_days_between(
-                final_activity.start, activity_input.start
-            )
-        else:
-            shift_days = 0
+        shift_days = _working_shift_days(
+            activity_input.start, final_activity.start, resolver
+        )
         for demand in activity_input.resource_demands:
             if shift_days > 0:
                 shifted_period = resolver.add_working_duration(
