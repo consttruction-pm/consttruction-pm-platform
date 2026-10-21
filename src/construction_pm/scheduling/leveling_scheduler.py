@@ -19,6 +19,7 @@ from .resource_leveling import (
     ResourceLevelingError,
 )
 from .schedule_options import ScheduleOptions
+from .relationships import successor_earliest_start
 from .leveling_boundary import (
     SchedulerLevelingInput,
     scheduler_leveling_input_from_options,
@@ -381,6 +382,68 @@ def schedule_with_resource_leveling(
             else:
                 normalized_backward.append(shift)
         backward_shifts = tuple(normalized_backward)
+
+        # Enforce relationship feasibility across the *combined* backward
+        # proposal, not one candidate at a time. A successor may otherwise be
+        # assigned an exact target earlier than a predecessor's final proposed
+        # date, and the final CPM pass then contradicts its generated constraint.
+        final_by_activity: dict[str, BackwardLevelingShift] = {}
+        for shift in backward_shifts:
+            if shift.advanced_days <= 0:
+                continue
+            current = final_by_activity.get(shift.activity_id)
+            if current is None or shift.advanced_days > current.advanced_days:
+                final_by_activity[shift.activity_id] = shift
+
+        target_dates = {
+            activity_id: (shift.new_start, shift.new_finish)
+            for activity_id, shift in final_by_activity.items()
+        }
+        activity_by_id = {getattr(activity, "id"): activity for activity in activities}
+        # Iterate to a fixed point so chains of FS/SS/FF/SF relationships
+        # propagate the necessary lower bounds through the proposed dates.
+        for _ in range(max(1, len(scheduler_activity_ids))):
+            changed = False
+            for relationship in relationships:
+                predecessor_id = getattr(relationship, "predecessor_id", None)
+                successor_id = getattr(relationship, "successor_id", None)
+                if predecessor_id not in scheduler_activity_ids or successor_id not in scheduler_activity_ids:
+                    continue
+                successor_shift = final_by_activity.get(successor_id)
+                if successor_shift is None:
+                    continue
+                predecessor = intermediate.activities[predecessor_id]
+                predecessor_start, predecessor_finish = target_dates.get(
+                    predecessor_id, (predecessor.start, predecessor.finish)
+                )
+                successor_activity = intermediate.activities[successor_id]
+                duration = resolver.calculate_duration(
+                    successor_activity.start, successor_activity.finish
+                )
+                bound = successor_earliest_start(
+                    relationship, predecessor_start, predecessor_finish, duration, resolver
+                )
+                current_start, current_finish = target_dates[successor_id]
+                if current_start < bound:
+                    offset = resolver.working_days_between(current_start, current_finish)
+                    target_dates[successor_id] = (
+                        bound,
+                        resolver.add_working_duration(bound, max(0, offset)),
+                    )
+                    changed = True
+            if not changed:
+                break
+
+        normalized_by_activity: dict[str, BackwardLevelingShift] = {}
+        for activity_id, shift in final_by_activity.items():
+            target_start, target_finish = target_dates[activity_id]
+            normalized_by_activity[activity_id] = replace(
+                shift, new_start=target_start, new_finish=target_finish
+            )
+        backward_shifts = tuple(
+            normalized_by_activity.get(shift.activity_id, shift)
+            for shift in backward_shifts
+        )
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
