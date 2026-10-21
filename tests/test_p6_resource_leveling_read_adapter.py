@@ -232,6 +232,8 @@ def test_strict_adapter_resolves_exact_calendar_id_and_version_pair():
             ("calendar-1", "cal-v7"): ResourceCalendar(
                 "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
                 calendar_version="cal-v7",
+                canonical_snapshot_hash="a" * 64,
+                capacity_slices=((date(2026, 10, 2), Decimal("7.5")),),
             )
         },
         periods=(date(2026, 10, 2),),
@@ -240,6 +242,57 @@ def test_strict_adapter_resolves_exact_calendar_id_and_version_pair():
     )
 
     assert result.capacities[0].units == Decimal("7.5")
+    assert result.capacities[0].calendar_id == "calendar-1"
+    assert result.capacities[0].calendar_version == "cal-v7"
+    assert result.capacities[0].calendar_snapshot_hash == "a" * 64
+
+
+def test_strict_adapter_requires_calendar_snapshot_hash_and_period_capacity_slices():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 16)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1", calendar_version="cal-v7",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+    base = dict(
+        read_api=api,
+        scope=scope,
+        auth_context=auth(),
+        forward_activities=(activity,),
+        backward_activities=(activity,),
+        periods=(date(2026, 10, 2),),
+        options=ResourceLevelingOptions(),
+        require_calendar_versions=True,
+    )
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_SNAPSHOT_HASH_REQUIRED"):
+        build_scheduler_leveling_input(
+            **base,
+            calendars={
+                ("calendar-1", "cal-v7"): ResourceCalendar(
+                    "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                    calendar_version="cal-v7",
+                )
+            },
+        )
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_CAPACITY_PERIOD_MISSING"):
+        build_scheduler_leveling_input(
+            **base,
+            calendars={
+                ("calendar-1", "cal-v7"): ResourceCalendar(
+                    "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                    calendar_version="cal-v7",
+                    canonical_snapshot_hash="b" * 64,
+                    capacity_slices=((date(2026, 10, 5), Decimal("7.5")),),
+                )
+            },
+        )
 
 
 def test_strict_adapter_rejects_exact_key_with_wrong_calendar_object_version():
