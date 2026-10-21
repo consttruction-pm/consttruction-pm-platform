@@ -184,6 +184,9 @@ class SQLiteActivityMasterRepository:
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         activity.validate()
+        # Application/use-case transactions own commit and rollback. Preserve
+        # standalone repository behavior, but never commit a caller's transaction.
+        was_in_transaction = self.connection.in_transaction
         if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
         row = self.connection.execute(
@@ -205,7 +208,8 @@ class SQLiteActivityMasterRepository:
                  stored.percent_complete_type.value,
                  stored.record_revision,
                  None if stored.expected_finish is None else stored.expected_finish.isoformat()))
-            self.connection.commit()
+            if not was_in_transaction:
+                self.connection.commit()
             return stored
         current = _from_row(activity.scope, row[:11])
         if int(row[11]) != activity.scope.project_revision:
@@ -226,9 +230,11 @@ class SQLiteActivityMasterRepository:
              None if stored.expected_finish is None else stored.expected_finish.isoformat(),
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
         if update_cursor.rowcount != 1:
-            self.connection.rollback()
+            if not was_in_transaction:
+                self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
