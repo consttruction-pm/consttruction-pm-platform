@@ -30,6 +30,33 @@ A requirement may be marked **Outside Scope** only with an explicit documented d
 
 The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
 
+## Principle 1A.1 — Documentation-first calculation conformance evidence
+
+Every formula and calculation in the P6-overlap scope must be assessed against applicable, versioned official P6 documentation before semantic implementation changes. This covers CPM dates and float, relationships and lag, constraints, activity/resource calendars, duration and unit arithmetic, resource leveling and priority order, progress/actuals, EVM, cost/spreads, calculated columns/rollups, and calculation-related import/export.
+
+The source-derived rule, exact official source and section, edge cases, owning Shared Core implementation, regression tests, exact tested commit SHA and independent semantic review must be traceable in the [P6 Calculation Conformance Matrix](P6_CALCULATION_CONFORMANCE_MATRIX_2026-10-18.md). Every applicable row must be VERIFIED or have an approved OUTSIDE SCOPE disposition before a conformance claim. UNVERIFIED/BLOCKED semantics must not be guessed; tests must not be made green by weakening constraints, assertions or final resource-capacity validation.
+
+This documentation-first gate is tracked in [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447). Passing one focused test does not certify the whole calculation family.
+
+## Principle 1A.2 — Mandatory end-to-end Definition of Done: inputs, outputs, conformance, correction and acceptance
+
+This cross-team rule applies to every implementation, defect, integration, calculation, API/data contract, import/export path, client workflow, AI action, test task and documentation task. It applies to all developers, reviewers, QA, and human/AI agents. **Starting an audit or obtaining a passing test is not completion. Any known discrepancy must be corrected and re-verified, not merely reported.** The mandatory task and acceptance checklist is [Issue #1492](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1492).
+
+### Required work loop
+
+1. **Establish the governing contract first.** Read current-main implementation, approved requirements, architecture/API/data contracts, existing tests and authoritative sources. For P6-overlap behavior, cite the applicable official, versioned source and exact section; never infer undocumented semantics.
+2. **Map every input.** Record source, field, type, unit, null/empty/default meaning, validation and boundaries, tenant/project scope, revision/version, calendar/calculation context and provenance. Confirm that the real production entry point receives the expected values.
+3. **Map every output and side effect.** Record computed/derived values, persistence and fresh read-back, DTO/API/export fields, downstream consumers, errors, constraints, audit/revision effects, permissions, determinism and round-trip behavior.
+4. **Trace source → rule → input/output → production code → tests → evidence.** Include normal, boundary, invalid/negative, interaction, persistence, stale-revision, scope-isolation, round-trip and regression scenarios as applicable. A hand-built fixture or test-only adapter is not proof of the actual production path.
+5. **Compare and correct.** When behavior diverges from the documented rule or contract, the implementation owner must fix the implementation/mapping, add regression coverage and continue until the supported behavior conforms. Reviewers must verify the correction, not merely leave findings. Never weaken a guard, constraint or fail-closed rule only to make a test pass.
+6. **Handle ambiguity honestly.** If source semantics or product scope cannot be established, record the exact evidence and unresolved question as BLOCKED/UNVERIFIED, obtain an authorized decision and keep the item open. Guesswork is not conformance.
+7. **Validate the real path on the same final SHA.** Run focused/regression tests, actual production-path persistence/read/execute/output integration tests and all applicable CI gates on the exact final candidate. Prior-SHA checks do not transfer to later commits.
+8. **Record the disposition.** Record source version/section, rule, input/output map, changed paths, exact SHA, test commands/results, workflow links and independent reviewer disposition. When mismatch is found, record its fix and successful re-verification.
+9. **Only then mark Done or award progress.** Required implementation must be integrated into current main or an explicitly approved delivery ref, exact-SHA checks green, conformance matrix updated, required independent review complete, and evidence linked. An audit, test request, open PR, comment, stale green run or documentation-only note cannot close a code defect.
+
+Each work item must have one named implementation owner and an independent reviewer for calculation-semantic/cross-boundary changes. Link the task to a schedule activity and related issue/PR. The implementation owner remains responsible for fixing findings through acceptance; handing a finding to QA/review is not completion.
+
+
 ## Principle 1B — Calendar configuration and user-selected changes must travel with project export/import
 
 A project is not portable unless its complete effective calendar context is portable. Every project export/import, backup/restore, clone/template transfer and supported interchange workflow must preserve and round-trip:
