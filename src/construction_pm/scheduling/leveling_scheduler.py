@@ -375,9 +375,7 @@ def schedule_with_resource_leveling(
                     shift,
                     new_start=target_start,
                     new_finish=target_finish,
-                    advanced_days=resolver.working_days_between(
-                        target_start, intermediate_activity.start
-                    ) if target_start < intermediate_activity.start else 0,
+                    advanced_days=shift.advanced_days,
                 ))
             else:
                 normalized_backward.append(shift)
