@@ -207,7 +207,6 @@ def _resource_leveling_requested(options: object) -> bool:
             "over_allocation_percentage",
             "resource_list",
             "priority_list",
-            "preserve_scheduled_early_and_late_dates",
         )
     )
 
