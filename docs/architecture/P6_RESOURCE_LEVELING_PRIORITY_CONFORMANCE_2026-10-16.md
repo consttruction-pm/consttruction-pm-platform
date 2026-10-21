@@ -102,3 +102,20 @@ Candidate PR #1457 remains Draft/unmerged on branch `fix/backward-leveling-rebas
 6. Do not merge or increase Jalal 5 earned progress until the applicable wire, production-path and independent-review gates are accepted on a final exact SHA.
 
 The matrix remains **PARTIAL / NOT CERTIFIED**. Any future source or test commit requires its own exact-head checks; the results above must not be attributed to later commits.
+
+
+## Continuation audit — 2026-10-22: authoritative query seam and evaluator contract
+
+**Status: confirmed production-wiring blocker; no claim of code fix.**
+
+Current `main` source inspection confirms:
+- `src/construction_pm/backend_p0/authoritative_schedule_query.py::AuthoritativeScheduleQueryProvider.execute` invokes `evaluate_schedule_snapshot(snapshot, calculation_context, calendar_registry)` without the optional `leveling_input`.
+- `src/construction_pm/schedule_evaluator.py` explicitly raises `SCHEDULE_LEVELING_INPUT_REQUIRED` when DATE_BASED ScheduleOptions requests resource leveling and that input is absent.
+- `src/construction_pm/p6_resource_leveling_read_adapter.py::build_scheduler_leveling_input` exists as a transport adapter, but its existence alone does not prove that the production query path invokes it with authorized, revision-consistent data.
+- The evaluator docstring currently says the snapshot and CalculationContext are the complete calculation inputs, while the function signature and runtime behavior require a separate `SchedulerLevelingInput` for resource leveling. The production contract must resolve this explicitly.
+
+**Required correction before closing Issue #1468:** define one immutable, tenant/project/revision-bound and calculation-identity/hash-bound input contract for assignments, time-phased demand, capacity, selected-resource scope and calendar/resource revisions. Compose it in the authoritative snapshot/read path, or provide a versioned immutable companion snapshot; pass that exact input into the evaluator. Do not read mutable repositories during calculation, and do not create a test-only adapter or hand-built input that bypasses the real write/commit/fresh-read path. Missing, stale, scope-mismatched or unauthorized inputs must fail closed.
+
+**Acceptance evidence:** a production-path integration test performs persisted write → commit → fresh read → canonical snapshot/input composition → authoritative query evaluation, using non-empty resource data and non-default Planned Finish, Original Duration and Activity Leveling Priority. Assert revision/scope/hash binding, deterministic leveling priority, final capacity validity, and explicit failures for missing/stale/mismatched inputs. Run ConstructionPM CI, Client Typecheck and applicable PostgreSQL integration on the exact resulting SHA.
+
+This continuation records source evidence and sharpens the acceptance contract; it does not mark the blocker closed, certify P6 parity, or authorize merging PR #1457.
