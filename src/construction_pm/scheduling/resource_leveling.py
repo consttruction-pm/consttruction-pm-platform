@@ -41,6 +41,9 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    calendar_id: str | None = None
+    calendar_version: str | None = None
+    calendar_snapshot_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -49,6 +52,16 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
+        metadata = (self.calendar_id, self.calendar_version, self.calendar_snapshot_hash)
+        if any(value is not None for value in metadata):
+            if not all(isinstance(value, str) and value.strip() for value in metadata):
+                raise ResourceLevelingError("INCOMPLETE_CAPACITY_CALENDAR_IDENTITY")
+            assert self.calendar_snapshot_hash is not None
+            if (
+                len(self.calendar_snapshot_hash) != 64
+                or any(char not in "0123456789abcdef" for char in self.calendar_snapshot_hash)
+            ):
+                raise ResourceLevelingError("INVALID_CAPACITY_CALENDAR_SNAPSHOT_HASH")
 
 
 @dataclass(frozen=True)
