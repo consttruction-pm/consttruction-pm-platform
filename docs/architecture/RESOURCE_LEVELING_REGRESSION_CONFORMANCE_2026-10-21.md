@@ -21,6 +21,8 @@ Scope: close the two known backward/resource-leveling regressions in Issue #1476
 | Every CPM pass and every demand translation must use the effective calendar for that activity. | Project resolver plus the resolved per-activity calendar map; activity/resource period demand. | Initial/intermediate/final dates, backward candidates, forward demand shifts, and final load validation use consistent working-time semantics. | `schedule_with_resource_leveling`, `propose_forward_leveling`, backward proposal, `apply_leveling_shifts`, and final-load validation receive the activity resolver map; regression tests assert that the actual output path preserves the calendars. |
 | Backward alternatives preserve configured proposal precedence. | Ordered priority rows, sort direction, tie-break fields, candidate advance size. | Retry order may reject infeasible alternatives but must not alphabetically reorder candidates in a way that changes an already-established configured priority sequence. | `_order_backward_leveling_candidates`; `test_backward_candidate_order_preserves_proposal_priority_for_equal_advances`. |
 | Priority values must be authoritative, not estimated. | CPM-derived early/late dates and Total/Free Float; supported typed priority fields. | Missing authoritative values fail explicitly; no substitution of Total Float for Free Float or unrelated dates. | `_forward_activities_with_authoritative_floats`; forward/backward priority regression tests. |
+| Leveling rows and time-phased demands must be rebased to the fresh CPM early schedule before priority ordering. | Fresh CPM early start/finish, Total/Free Float, late dates, original LevelingActivity dates, activity-calendar resolver and demand periods. | Early dates and Total Float must not remain stale; assignment demand periods shift by the same working-day displacement under the activity calendar; no raw demand is silently dropped. | `_forward_activities_with_authoritative_floats`; `test_forward_activity_builder_rebases_all_values_from_fresh_cpm`; `test_public_leveling_rebases_resource_periods_to_fresh_cpm_dates`. |
+| Unrestricted forward leveling must not replace real priority inputs with synthetic float/date values. | User-selected PriorityList fields including Total Float, Free Float, Late Start, Late Finish, plus the configured maximum shift. | The unconstrained path removes only the float movement limit; it preserves true priority values and late-date fields and has an explicit maximum-shift bound. | `propose_forward_leveling`; `test_unrestricted_forward_leveling_preserves_authoritative_priority_values`. |
 
 ## Known defects under correction
 
@@ -31,7 +33,7 @@ These failures are release blockers until the actual schedule and aggregate dema
 
 ## Required verification
 
-- Focused tests for the two defect reproductions plus the added backward candidate-order, activity-calendar, and authoritative priority tests.
+- Focused tests for the two defect reproductions plus the added fresh-CPM rebasing, signed lag × relationship types, backward candidate-order, activity-calendar, authoritative Total/Free Float, late-date and unrestricted priority tests.
 - Full ConstructionPM CI for Python 3.11, 3.12 and 3.13, Client Typecheck, and applicable PostgreSQL Integration on the *same final SHA*.
 - Independent semantic review on that final SHA.
 - Exact commit SHA, CI links, reviewer disposition, final activity dates/relationships/constraints and per-resource/per-period demand/capacity must be recorded in Issue #1476 before closure.
