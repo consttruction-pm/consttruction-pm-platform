@@ -129,13 +129,28 @@ def _backward_activities_from_intermediate(
                 demand.activity_id,
             ))
 
+        # A backward candidate cannot be advanced to a date earlier than
+        # the relationship-constrained early schedule. The intermediate CPM
+        # pass is authoritative here: a late-date result may otherwise appear
+        # earlier than early dates after forward leveling has moved a linked
+        # predecessor, and an exact backward constraint would then conflict
+        # with the final forward CPM pass (notably for SS relationships).
+        candidate_late_start = max(late.start, early.start)
+        candidate_late_finish = max(
+            late.finish,
+            early.finish,
+            activity_resolver.add_working_duration(
+                candidate_late_start, activity.duration
+            ),
+        )
+
         result.append(
             BackwardLevelingActivity(
                 activity_id=activity.activity_id,
                 early_start=early.start,
                 early_finish=early.finish,
-                late_start=late.start,
-                late_finish=late.finish,
+                late_start=candidate_late_start,
+                late_finish=candidate_late_finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
             )
