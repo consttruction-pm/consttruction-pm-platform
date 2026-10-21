@@ -119,6 +119,18 @@ def test_calendar_version_is_part_of_immutable_assignment_identity():
         repo.upsert(changed_version)
 
 
+def test_calendar_version_requires_an_explicit_calendar_id():
+    item = P6ResourceAssignment(
+        scope(), "ra-version", "act-1", "res-1",
+        calendar_version="cal-v2",
+    )
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="CALENDAR_VERSION_REQUIRES_CALENDAR_ID",
+    ):
+        item.validate()
+
+
 def test_typed_decimal_and_invalid_values_fail_closed():
     item = assignment(scope())
     assert item.units == Decimal("8.5")
