@@ -256,6 +256,51 @@ def test_late_date_leveling_priorities_use_authoritative_values(field_name, a1_v
     assert shifts[0].activity_id == "A2"
 
 
+@pytest.mark.parametrize(
+    "priority_field",
+    ["late_start", "late_finish", "total_float"],
+)
+def test_unrestricted_forward_leveling_preserves_authoritative_priority_values(
+    priority_field,
+):
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    day = date(2026, 10, 1)
+    early_late_date = date(2026, 10, 2)
+    later_date = date(2026, 10, 7)
+    activities = (
+        # Activity ID A sorts ahead of B, so this assertion proves that the
+        # requested authoritative priority field—not a synthetic tie—wins.
+        LevelingActivity(
+            "A", day, day, 5,
+            (ResourceDemand("R1", day, Decimal("8"), "A"),),
+            late_start=later_date,
+            late_finish=later_date,
+        ),
+        LevelingActivity(
+            "B", day, day, 1,
+            (ResourceDemand("R1", day, Decimal("8"), "B"),),
+            late_start=early_late_date,
+            late_finish=early_late_date,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day, Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        level_within_float=False,
+        priorities=(LevelingPriority(priority_field, SortOrder.ASCENDING),),
+    )
+
+    assert shifts[0].activity_id == "B"
+
+
 def test_missing_authoritative_late_date_priority_fails_closed():
     resolver = WorkingTimeResolver(WorkingCalendar(
         working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()
