@@ -16,18 +16,14 @@ class ResourceCapacityContractError(ValueError):
 
 @dataclass(frozen=True)
 class P6ResourceCapacitySlice:
-    """Scope-preserving API contract for scheduler ResourceCapacity input.
-
-    Capacity is sourced only from the authoritative ResourceCalendar model.
-    AssignmentPeriod/ResourceSpreadBucket values are never interpreted as
-    capacity by this contract.
-    """
+    """Scope-preserving API contract for scheduler ResourceCapacity input."""
 
     scope: BackendScope
     resource_id: str
     period: date
     units: Decimal
     calendar_id: str
+    calendar_version: str | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -39,20 +35,22 @@ class P6ResourceCapacitySlice:
             raise ResourceCapacityContractError("INVALID_CAPACITY_UNITS")
         if not isinstance(self.calendar_id, str) or not self.calendar_id.strip():
             raise ResourceCapacityContractError("INVALID_CALENDAR_ID")
+        if self.calendar_version is not None and (
+            not isinstance(self.calendar_version, str) or not self.calendar_version.strip()
+        ):
+            raise ResourceCapacityContractError("INVALID_CALENDAR_VERSION")
 
 
 def build_resource_capacity_slices(
     scope: BackendScope,
     assignments: Sequence[P6ResourceAssignment],
-    calendars: Mapping[str, ResourceCalendar],
+    calendars: Mapping[str | tuple[str, str], ResourceCalendar],
     periods: Sequence[date],
 ) -> tuple[P6ResourceCapacitySlice, ...]:
-    """Build authoritative capacity slices from resource calendar capacity.
+    """Resolve pinned calendars by the exact (calendar_id, calendar_version) key.
 
-    A resource's calendar reference is taken from its persisted assignment
-    calendar_id. Missing or conflicting calendar references are rejected
-    rather than guessed. The resulting slices are deterministic and retain
-    Decimal precision and tenant/project/revision scope.
+    Unversioned legacy assignments continue to use the calendar_id key.
+    Version-pinned assignments never fall back to an unversioned calendar.
     """
 
     scope.validate()
@@ -60,21 +58,31 @@ def build_resource_capacity_slices(
     if any(not isinstance(period, date) for period in requested_periods):
         raise ResourceCapacityContractError("INVALID_PERIOD")
 
-    calendar_by_resource: dict[str, str] = {}
+    calendar_by_resource: dict[str, tuple[str, str | None]] = {}
     for assignment in assignments:
         assignment.validate()
         if assignment.scope != scope:
             raise ResourceCapacityContractError("CROSS_SCOPE_CAPACITY")
         if assignment.calendar_id is None:
             raise ResourceCapacityContractError("MISSING_RESOURCE_CALENDAR")
+        reference = (assignment.calendar_id, assignment.calendar_version)
         existing = calendar_by_resource.get(assignment.resource_id)
-        if existing is not None and existing != assignment.calendar_id:
+        if existing is not None and existing != reference:
             raise ResourceCapacityContractError("AMBIGUOUS_RESOURCE_CALENDAR")
-        calendar_by_resource[assignment.resource_id] = assignment.calendar_id
+        calendar_by_resource[assignment.resource_id] = reference
 
     result: list[P6ResourceCapacitySlice] = []
-    for resource_id, calendar_id in sorted(calendar_by_resource.items()):
-        calendar = calendars.get(calendar_id)
+    for resource_id, (calendar_id, calendar_version) in sorted(calendar_by_resource.items()):
+        if calendar_version is None:
+            calendar = calendars.get(calendar_id)
+            if calendar is not None and calendar.calendar_version is not None:
+                raise ResourceCapacityContractError("RESOURCE_CALENDAR_VERSION_MISMATCH")
+        else:
+            calendar = calendars.get((calendar_id, calendar_version))
+            if calendar is None:
+                raise ResourceCapacityContractError("RESOURCE_CALENDAR_VERSION_NOT_FOUND")
+            if calendar.id != calendar_id or calendar.calendar_version != calendar_version:
+                raise ResourceCapacityContractError("RESOURCE_CALENDAR_VERSION_MISMATCH")
         if calendar is None:
             raise ResourceCapacityContractError("RESOURCE_CALENDAR_NOT_FOUND")
         for period in requested_periods:
@@ -84,6 +92,7 @@ def build_resource_capacity_slices(
                 period=period,
                 units=calendar.capacity_on(period),
                 calendar_id=calendar_id,
+                calendar_version=calendar_version,
             )
             item.validate()
             result.append(item)

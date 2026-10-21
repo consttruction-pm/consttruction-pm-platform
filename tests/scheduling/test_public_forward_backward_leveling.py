@@ -243,3 +243,46 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss() 
     assert result.activities["A"].start == day_one
     assert result.activities["B"].start == day_two
     assert result.project_finish == day_three
+
+
+def test_backward_leveling_never_proposes_start_before_cpm_early_start() -> None:
+    from construction_pm.scheduling.resource_leveling import propose_backward_leveling
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    flexible = BackwardLevelingActivity(
+        "A", day_two, day_three, day_three, day_three,
+        (
+            ResourceDemand("R1", day_two, Decimal("1"), "A"),
+            ResourceDemand("R1", day_three, Decimal("1"), "A"),
+        ),
+        activity_priority=0,
+    )
+    fixed = BackwardLevelingActivity(
+        "B", day_two, day_two, day_two, day_two,
+        (
+            ResourceDemand("R1", day_two, Decimal("1"), "B"),
+            ResourceDemand("R1", day_three, Decimal("1"), "B"),
+        ),
+        activity_priority=1,
+    )
+
+    shifts = propose_backward_leveling(
+        (flexible, fixed),
+        (
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+            ResourceCapacity("R1", day_three, Decimal("1")),
+        ),
+        resolver=resolver,
+        priorities=(),
+        level_all_resources=True,
+        protected_activity_ids=("B",),
+    )
+
+    assert shifts
+    assert all(shift.new_start >= day_two for shift in shifts)

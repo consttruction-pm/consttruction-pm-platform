@@ -309,7 +309,12 @@ def schedule_with_resource_leveling(
             # Backward candidates must respect the CPM early dates after forward
             # leveling has been applied. Using the initial dates can propose a
             # move that violates a relationship newly activated by a forward shift.
-            early_schedule=intermediate.early_activities or intermediate.activities,
+            # Use the actual intermediate CPM schedule as the hard feasibility
+            # floor. The separately exposed early_activities map can differ from
+            # the selected schedule under non-default modes; allowing a backward
+            # candidate against that map can emit a no-later-than bound that the
+            # relationship-propagated forward pass cannot satisfy.
+            early_schedule=intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
         )

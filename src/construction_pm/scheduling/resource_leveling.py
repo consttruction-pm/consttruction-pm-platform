@@ -40,6 +40,8 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    calendar_id: str | None = None
+    calendar_version: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -48,6 +50,16 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
+        if self.calendar_id is not None and (
+            not isinstance(self.calendar_id, str) or not self.calendar_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_ID")
+        if self.calendar_version is not None and (
+            not isinstance(self.calendar_version, str) or not self.calendar_version.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_VERSION")
+        if self.calendar_version is not None and self.calendar_id is None:
+            raise ResourceLevelingError("INCOMPLETE_CALENDAR_REFERENCE")
 
 
 @dataclass(frozen=True)
@@ -648,6 +660,15 @@ def propose_backward_leveling(
                 current_shift = shifts[activity.activity_id]
                 max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
                 if -current_shift >= max_advance:
+                    continue
+                # The date-difference helper uses exclusive interval semantics;
+                # verify the actual proposed calendar date as well so an
+                # additional backward step can never cross the CPM early start.
+                proposed_shift = current_shift - 1
+                proposed_start = _shift_date_backward(
+                    activity.late_start, proposed_shift, resolver
+                )
+                if proposed_start < activity.early_start:
                     continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
                 units = sum(
