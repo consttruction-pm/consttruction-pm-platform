@@ -47,6 +47,15 @@ def backward_leveling_constraints(
 
 
 def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift]) -> tuple[ActivityConstraint, ...]:
+    """Apply backward proposals as earliest-start bounds in the final CPM pass.
+
+    The proposal is a target for moving an activity earlier than its late date,
+    not permission to force a predecessor later. A paired START_NO_LATER_THAN
+    bound can propagate backward through CPM and shift an SS predecessor,
+    defeating the resource-leveling proposal. Relationship logic and the
+    project's finish bound remain authoritative; final resource validation
+    rejects any schedule that still overloads capacity.
+    """
     final_by_activity: dict[str, BackwardLevelingShift] = {}
     for shift in shifts:
         if shift.advanced_days <= 0:
@@ -54,13 +63,10 @@ def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...
         current = final_by_activity.get(shift.activity_id)
         if current is None or shift.advanced_days > current.advanced_days:
             final_by_activity[shift.activity_id] = shift
-    result: list[ActivityConstraint] = []
-    for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id):
-        result.extend((
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start),
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_LATER_THAN, shift.new_start),
-        ))
-    return tuple(result)
+    return tuple(
+        ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start)
+        for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id)
+    )
 
 
 def merge_leveling_constraints(
