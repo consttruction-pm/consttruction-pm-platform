@@ -955,3 +955,49 @@ def test_final_resource_validation_shifts_backward_demands_across_holiday_and_we
             leveling_input=leveling_input,
             resolver=resolver,
         )
+
+def test_resource_leveling_preserves_activity_specific_calendars() -> None:
+    """Every CPM pass in resource leveling must use the activity calendar map."""
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    start = date(2026, 10, 1)  # Thursday
+    finish = date(2026, 10, 5)  # Monday
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    activity_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", start, start, 0, ()),
+            LevelingActivity("B", start, finish, 0, ()),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", start, start, finish, finish, ()),
+            BackwardLevelingActivity("B", start, finish, finish, finish, ()),
+        ),
+        capacities=(),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=False,
+        ),
+    )
+
+    result, _, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 2)),
+        (),
+        start,
+        project_resolver,
+        leveling_input,
+        project_finish=finish,
+        options=ScheduleOptions(preserve_scheduled_early_and_late_dates=True),
+        activity_resolvers={"B": activity_resolver},
+    )
+
+    assert backward == ()
+    assert result.activities["A"].finish == start
+    # Friday is non-working for B, so its two-day activity ends on Monday.
+    assert result.activities["B"].finish == finish
