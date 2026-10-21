@@ -454,7 +454,27 @@ def schedule_with_resource_leveling(
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
         )
-        final_constraints = tuple(constraints or ()) + forward_leveling_constraints(retained_forward) + backward_leveling_exact_constraints(backward_shifts)
+        # Backward-leveling dates are targets, not hard upper bounds on the
+        # final CPM pass. In particular, an upper bound on an SS successor can
+        # make the CPM backward/early-date reconciliation move its predecessor
+        # later, which reintroduces the resource overload that leveling resolved.
+        # Keep the accepted target as a lower bound; CPM relationship logic and
+        # project-finish constraints determine whether it can remain at that date.
+        final_constraints = (
+            tuple(constraints or ())
+            + forward_leveling_constraints(retained_forward)
+            + tuple(
+                ActivityConstraint(
+                    shift.activity_id,
+                    ConstraintType.START_NO_EARLIER_THAN,
+                    shift.new_start,
+                )
+                for shift in sorted(
+                    (item for item in backward_shifts if item.advanced_days > 0),
+                    key=lambda item: item.activity_id,
+                )
+            )
+        )
 
     result = schedule(
         activities, relationships, project_start, resolver,
