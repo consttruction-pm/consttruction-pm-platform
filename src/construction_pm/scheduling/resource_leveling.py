@@ -668,12 +668,13 @@ def propose_backward_leveling(
                 violates_relationship = False
                 for relationship in incoming_relationships.get(activity.activity_id, ()):
                     predecessor = activity_by_id[relationship.predecessor_id]
-                    predecessor_start = _shift_date_backward(
-                        predecessor.late_start, shifts[predecessor.activity_id], resolver
-                    )
-                    predecessor_finish = _shift_date_backward(
-                        predecessor.late_finish, shifts[predecessor.activity_id], resolver
-                    )
+                    # Validate against the predecessor's earliest feasible CPM
+                    # dates, not its current late-date proposal. The backward pass
+                    # is moving dates toward the early schedule; using the late
+                    # proposal here can force the predecessor to move repeatedly
+                    # before a valid successor shift is even considered.
+                    predecessor_start = predecessor.early_start
+                    predecessor_finish = predecessor.early_finish
                     successor_duration = resolver.calculate_duration(
                         activity.early_start, activity.early_finish
                     )
