@@ -55,21 +55,34 @@ def select_resource_assignments_for_scheduling(
     if not assignment_list:
         return ()
 
-    if isinstance(external_project_priority_limit, bool) or not isinstance(external_project_priority_limit, int):
+    if (
+        isinstance(external_project_priority_limit, bool)
+        or not isinstance(external_project_priority_limit, int)
+        or not 0 <= external_project_priority_limit <= 100
+    ):
         raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
-    if not 1 <= external_project_priority_limit <= 100:
-        raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+
+    # Validate the assignment types before deciding whether the external-project
+    # limit is relevant. P6's default 0 sentinel is harmless when external
+    # assignments are disabled or no external project is present; it must not
+    # reject an otherwise valid local-project schedule.
+    if any(not isinstance(item, ExternalResourceAssignment) for item in assignment_list):
+        raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
+    has_external_assignments = any(
+        item.project_id != scheduled_project_id for item in assignment_list
+    )
     priorities = project_leveling_priorities or {}
-    for project_id, priority in priorities.items():
-        if not isinstance(project_id, str) or not project_id.strip():
-            raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
-        if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 100:
-            raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
+    if include_external_res_ass and has_external_assignments:
+        if not 1 <= external_project_priority_limit <= 100:
+            raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+        for project_id, priority in priorities.items():
+            if not isinstance(project_id, str) or not project_id.strip():
+                raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
+            if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 100:
+                raise ResourceLevelingError("INVALID_PROJECT_LEVELING_PRIORITY")
 
     selected: list[ResourceDemand] = []
     for assignment in assignment_list:
-        if not isinstance(assignment, ExternalResourceAssignment):
-            raise ResourceLevelingError("INVALID_EXTERNAL_RESOURCE_ASSIGNMENT")
         if assignment.project_id != scheduled_project_id:
             if not include_external_res_ass:
                 continue
