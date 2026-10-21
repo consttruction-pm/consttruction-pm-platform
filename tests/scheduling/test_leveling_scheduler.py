@@ -738,7 +738,8 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
     base = _resource_leveling_input(preserve=True)
     leveling_input = SchedulerLevelingInput(
         forward_activities=tuple(
-            replace(activity, total_float=2) for activity in base.forward_activities
+            # Deliberately stale input values must be replaced by the CPM result.
+            replace(activity, total_float=99) for activity in base.forward_activities
         ),
         backward_activities=tuple(
             replace(activity, late_start=day_three, late_finish=day_three)
@@ -754,7 +755,8 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
         day_one,
         resolver,
         leveling_input,
-        project_finish=date(2026, 10, 6),
+        # Thursday -> Monday produces two working-day units of total float.
+        project_finish=day_three,
         options=ScheduleOptions(
             level_all_resources=True,
             level_within_float=True,
@@ -763,8 +765,8 @@ def test_public_leveling_allows_one_day_move_at_minimum_float_boundary() -> None
         ),
     )
 
-    # Two days of total float with one day required to remain permits exactly
-    # one working-day move; the one-day-float case is separately tested as blocked.
+    # Fresh CPM float is two working days, despite the deliberately stale 99.
+    # Preserving one day of float therefore allows exactly one working-day move.
     assert len(forward) == 1
     assert forward[0].shift_working_days == 1
     assert forward[0].consumed_float == 1
