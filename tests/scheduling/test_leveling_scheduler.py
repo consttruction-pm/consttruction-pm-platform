@@ -1292,6 +1292,66 @@ def test_forward_activity_builder_rebases_all_values_from_fresh_cpm():
         day_two, day_three
     ]
 
+def test_public_leveling_rebases_resource_periods_to_fresh_cpm_dates():
+    from construction_pm.scheduling.activity import Activity
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+    from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
+    from construction_pm.scheduling.relationships import Relationship, RelationshipType
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_a = ResourceDemand("R1", thursday, Decimal("1"), "A")
+    # Deliberately stale request period: a fresh SS +1 CPM pass starts B Friday.
+    demand_b = ResourceDemand("R1", thursday, Decimal("1"), "B")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", thursday, thursday, 9, (demand_a,)),
+            LevelingActivity("B", thursday, thursday, 9, (demand_b,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", thursday, thursday, friday, friday, (demand_a,)
+            ),
+            BackwardLevelingActivity(
+                "B", thursday, thursday, friday, friday, (demand_b,)
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", thursday, Decimal("1")),
+            ResourceCapacity("R1", friday, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
+    )
+
+    result, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 1), Activity("B", 1)),
+        (Relationship("A", "B", RelationshipType.SS, lag=1),),
+        thursday,
+        resolver,
+        leveling_input,
+        project_finish=friday,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    assert forward == ()
+    assert backward == ()
+    assert result.activities["A"].start == thursday
+    assert result.activities["B"].start == friday
+    # Stale periods must be rebased with CPM dates before leveling, not counted
+    # as a false Thursday overload and then unnecessarily delayed.
+    assert result.project_finish == friday
+
+
 def test_infeasible_resource_window_fails_closed() -> None:
     """Do not report success when no CPM-feasible period has resource capacity."""
     import pytest
