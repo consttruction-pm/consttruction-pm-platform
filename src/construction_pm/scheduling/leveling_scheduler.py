@@ -117,7 +117,7 @@ def _backward_activities_from_intermediate(
         demand_anchor = (
             early.start
             if activity.activity_id in protected_activity_ids
-            else late.start
+            else late_start
         )
         if demand_anchor > original_start:
             displacement = resolver.working_days_between(original_start, demand_anchor)
