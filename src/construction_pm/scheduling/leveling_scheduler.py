@@ -484,24 +484,31 @@ def schedule_with_resource_leveling(
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
         )
-        # Backward-leveling dates are targets, not hard upper bounds on the
-        # final CPM pass. In particular, an upper bound on an SS successor can
-        # make the CPM backward/early-date reconciliation move its predecessor
-        # later, which reintroduces the resource overload that leveling resolved.
-        # Keep the accepted target as a lower bound; CPM relationship logic and
-        # project-finish constraints determine whether it can remain at that date.
+        # A backward leveling proposal is an exact target only if the CPM
+        # network can honor it. Expressing it as START_NO_EARLIER_THAN alone
+        # lets a successor remain later than the proposed resource slot, which
+        # can silently retain overload. Use an exact date window for accepted
+        # backward targets; relationship feasibility was normalized above.
         final_constraints = (
             tuple(constraints or ())
             + forward_leveling_constraints(retained_forward)
             + tuple(
-                ActivityConstraint(
-                    shift.activity_id,
-                    ConstraintType.START_NO_EARLIER_THAN,
-                    shift.new_start,
-                )
+                constraint
                 for shift in sorted(
                     (item for item in backward_shifts if item.advanced_days > 0),
                     key=lambda item: item.activity_id,
+                )
+                for constraint in (
+                    ActivityConstraint(
+                        shift.activity_id,
+                        ConstraintType.START_NO_EARLIER_THAN,
+                        shift.new_start,
+                    ),
+                    ActivityConstraint(
+                        shift.activity_id,
+                        ConstraintType.START_NO_LATER_THAN,
+                        shift.new_start,
+                    ),
                 )
             )
         )
