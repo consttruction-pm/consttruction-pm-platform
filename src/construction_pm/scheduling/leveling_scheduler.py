@@ -100,13 +100,21 @@ def _backward_activities_from_intermediate(
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
         activity_resolver = (activity_resolvers or {}).get(activity.activity_id, resolver)
+        # A backward candidate cannot precede the relationship-constrained
+        # early schedule produced by the intermediate CPM pass.
+        candidate_late_start = max(late.start, early.start)
+        candidate_late_finish = max(late.finish, early.finish)
         # working_days_between uses exclusive interval semantics: adjacent
         # working dates can return zero. Convert date displacement to an
         # inclusive count before moving a demand period.
-        if late.start > original_start:
-            displacement = activity_resolver.working_days_between(original_start, late.start) + 1
-        elif late.start < original_start:
-            displacement = -(activity_resolver.working_days_between(late.start, original_start) + 1)
+        if candidate_late_start > original_start:
+            displacement = activity_resolver.working_days_between(
+                original_start, candidate_late_start
+            ) + 1
+        elif candidate_late_start < original_start:
+            displacement = -(activity_resolver.working_days_between(
+                candidate_late_start, original_start
+            ) + 1)
         else:
             displacement = 0
 
@@ -128,15 +136,6 @@ def _backward_activities_from_intermediate(
                 demand.units,
                 demand.activity_id,
             ))
-
-        # A backward candidate cannot be advanced to a date earlier than
-        # the relationship-constrained early schedule. The intermediate CPM
-        # pass is authoritative here: a late-date result may otherwise appear
-        # earlier than early dates after forward leveling has moved a linked
-        # predecessor, and an exact backward constraint would then conflict
-        # with the final forward CPM pass (notably for SS relationships).
-        candidate_late_start = max(late.start, early.start)
-        candidate_late_finish = max(late.finish, early.finish)
 
         result.append(
             BackwardLevelingActivity(
