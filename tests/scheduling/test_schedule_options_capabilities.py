@@ -28,7 +28,6 @@ def resolver():
         ("resource_list", ("R1",)),
         ("priority_list", (PriorityListItem("PRIORITY", PrioritySortOrder.ASCENDING),)),
         ("min_float_to_preserve", 1),
-        ("preserve_scheduled_early_and_late_dates", True),
         ("multiple_float_paths_ending_activity_short_name", "FIN-MILESTONE"),
     ],
 )
@@ -36,6 +35,12 @@ def test_schedule_rejects_unimplemented_p6_option_instead_of_silent_fallback(res
     options = ScheduleOptions(**{field: value})
     with pytest.raises(UnsupportedScheduleOptionError, match=field):
         schedule([Activity("A", 1)], [], date(2026, 10, 1), resolver, options=options)
+
+
+def test_preserve_scheduled_dates_option_is_supported_without_leveling(resolver):
+    options = ScheduleOptions(preserve_scheduled_early_and_late_dates=True)
+    result = schedule([Activity("A", 1)], [], date(2026, 10, 1), resolver, options=options)
+    assert result.activities["A"].start == date(2026, 10, 1)
 
 
 def test_schedule_default_options_remain_supported(resolver):
