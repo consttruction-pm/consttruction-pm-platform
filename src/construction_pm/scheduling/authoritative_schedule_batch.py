@@ -368,6 +368,7 @@ def execute_authoritative_schedule_batch(
                 constraints=global_constraints,
                 options=snapshot_list[0].schedule_options,
                 batch_scheduled_finish=batch_finish,
+                activity_resolvers=activity_calendar_resolvers,
             )
             for snapshot in snapshot_list:
                 owned_ids = {activity.id for activity in snapshot.activities}
