@@ -96,7 +96,18 @@ def _backward_activities_from_intermediate(
     result: list[BackwardLevelingActivity] = []
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
         early = early_schedule[activity.activity_id]
-        late = late_schedule[activity.activity_id]
+        calculated_late = late_schedule[activity.activity_id]
+        # The input's late dates are the caller's CPM window for the leveling
+        # proposal. Keep that window unless it falls before the actual
+        # intermediate early dates; replacing it with the intermediate pass's
+        # dates can collapse the available float and create a backward target
+        # earlier than the relationship-constrained schedule.
+        late_start = max(activity.late_start, early.start)
+        late_finish = max(activity.late_finish, early.finish)
+        # Retain the calculated late boundary when it is later than the
+        # caller-supplied boundary (e.g. after a valid forward-leveling move).
+        late_start = max(late_start, calculated_late.start)
+        late_finish = max(late_finish, calculated_late.finish)
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
         # Activities moved by the forward pass are protected from being moved
@@ -139,8 +150,8 @@ def _backward_activities_from_intermediate(
                 activity_id=activity.activity_id,
                 early_start=early.start,
                 early_finish=early.finish,
-                late_start=late.start,
-                late_finish=late.finish,
+                late_start=late_start,
+                late_finish=late_finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
             )
