@@ -394,6 +394,9 @@ def resolve_p6_resource_calendar(
             f"RESOURCE_CALENDAR_RESOLUTION_FAILED:{exc}"
         ) from exc
 
+    # This is the identity hash for the selected calendar definition and
+    # versioned lineage. It must not depend on which query asked for capacity
+    # periods; the raw-capacity envelope owns its own range/content hash.
     canonical_payload = {
         "scope": {
             "tenant_id": scope.tenant_id,
@@ -402,22 +405,13 @@ def resolve_p6_resource_calendar(
         },
         "requested_calendar": {"calendar_id": calendar_id, "calendar_version": calendar_version},
         "calendar_chain": hash_records,
-        "requested_periods": [value.isoformat() for value in sorted(requested_periods)],
-        "effective_capacity_slices": [
-            {"period": value.isoformat(), "units": str(units)}
-            for value, units in capacity_slices
-        ],
     }
     snapshot_hash = hashlib.sha256(_canonical_json(canonical_payload).encode("utf-8")).hexdigest()
     assert isinstance(root_definition, (WorkingCalendar, WorkingTimeCalendar))
     return ResourceCalendar(
         id=calendar_id,
         working_weekdays=frozenset(root_definition.working_weekdays),
-        daily_capacity=(
-            Decimal(str(root_definition.hours_per_day))
-            if isinstance(root_definition, WorkingCalendar)
-            else Decimal("0")
-        ),
+        daily_capacity=Decimal(str(root_definition.hours_per_day)),
         calendar_version=calendar_version,
         canonical_snapshot_hash=snapshot_hash,
         capacity_slices=capacity_slices,
