@@ -352,6 +352,7 @@ def schedule_with_resource_leveling(
                 shift.activity_id for shift in forward_shifts
                 if shift.shift_working_days > 0
             })),
+            relationships=tuple(relationships),
         )
         # A backward proposal is only valid if its target remains feasible after
         # relationship propagation in the intermediate CPM schedule. Clamp any
