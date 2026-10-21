@@ -353,6 +353,35 @@ def schedule_with_resource_leveling(
                 if shift.shift_working_days > 0
             })),
         )
+        # A backward proposal is only valid if its target remains feasible after
+        # relationship propagation in the intermediate CPM schedule. Clamp any
+        # target earlier than that activity's intermediate dates; otherwise a
+        # generated START_NO_LATER_THAN can contradict a predecessor's forward
+        # leveling constraint (for example, an SS successor).
+        normalized_backward: list[BackwardLevelingShift] = []
+        for shift in backward_shifts:
+            if shift.advanced_days <= 0:
+                normalized_backward.append(shift)
+                continue
+            intermediate_activity = intermediate.activities.get(shift.activity_id)
+            if intermediate_activity is None:
+                raise ResourceLevelingError(
+                    f"BACKWARD_LEVELING_ACTIVITY_MISSING:{shift.activity_id}"
+                )
+            target_start = max(shift.new_start, intermediate_activity.start)
+            target_finish = max(shift.new_finish, intermediate_activity.finish)
+            if target_start != shift.new_start or target_finish != shift.new_finish:
+                normalized_backward.append(replace(
+                    shift,
+                    new_start=target_start,
+                    new_finish=target_finish,
+                    advanced_days=resolver.working_days_between(
+                        target_start, intermediate_activity.start
+                    ) if target_start < intermediate_activity.start else 0,
+                ))
+            else:
+                normalized_backward.append(shift)
+        backward_shifts = tuple(normalized_backward)
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
