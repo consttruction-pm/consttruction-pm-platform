@@ -115,23 +115,98 @@ def _forward_activities_with_authoritative_floats(
     leveling_input: SchedulerLevelingInput,
     *,
     initial_schedule: object,
+    resolver: object,
+    activity_resolvers: Mapping[str, object] | None = None,
 ) -> tuple[LevelingActivity, ...]:
-    """Attach CPM-calculated floats before forward priority sorting.
+    """Rebase leveling rows to the fresh CPM early/late dates and float values.
 
-    Free Float is a schedule result, not an input estimate. In particular, do
-    not derive it from Total Float or from the activity dates.
+    ResourceDemand periods must be moved with the same per-activity calendar
+    when the authoritative CPM early start differs from the supplied row.
+    Free Float and Total Float are schedule outputs, never estimates from
+    activity dates or stale request values.
     """
+    early_schedule = (
+        getattr(initial_schedule, "early_activities", None)
+        or getattr(initial_schedule, "activities", {})
+        or {}
+    )
     float_schedule = getattr(initial_schedule, "floats", {}) or {}
     late_schedule = getattr(initial_schedule, "late_activities", {}) or {}
-    return tuple(
-        replace(
-            activity,
-            free_float=getattr(float_schedule.get(activity.activity_id), "free_float", None),
-            late_start=getattr(late_schedule.get(activity.activity_id), "start", None),
-            late_finish=getattr(late_schedule.get(activity.activity_id), "finish", None),
+    result: list[LevelingActivity] = []
+    for activity in leveling_input.forward_activities:
+        early = early_schedule.get(activity.activity_id)
+        floats = float_schedule.get(activity.activity_id)
+        late = late_schedule.get(activity.activity_id)
+        if early is None or floats is None or late is None:
+            raise ResourceLevelingError(
+                f"SCHEDULE_MISSING_LEVELING_ACTIVITY:{activity.activity_id}"
+            )
+        authoritative_total_float = getattr(floats, "total_float", None)
+        authoritative_free_float = getattr(floats, "free_float", None)
+        if (
+            isinstance(authoritative_total_float, bool)
+            or not isinstance(authoritative_total_float, int)
+        ):
+            raise ResourceLevelingError(
+                f"SCHEDULE_TOTAL_FLOAT_MISSING:{activity.activity_id}"
+            )
+
+        activity_resolver = (activity_resolvers or {}).get(
+            activity.activity_id, resolver
         )
-        for activity in leveling_input.forward_activities
-    )
+        if not all(
+            callable(getattr(activity_resolver, name, None))
+            for name in (
+                "working_days_between",
+                "add_working_duration",
+                "subtract_working_duration",
+            )
+        ):
+            raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+
+        if early.start >= activity.start:
+            start_displacement = activity_resolver.working_days_between(
+                activity.start, early.start
+            )
+        else:
+            start_displacement = -activity_resolver.working_days_between(
+                early.start, activity.start
+            )
+
+        shifted_demands: list[ResourceDemand] = []
+        for demand in activity.resource_demands:
+            if start_displacement > 0:
+                shifted_period = activity_resolver.add_working_duration(
+                    demand.period, start_displacement + 1
+                )
+            elif start_displacement < 0:
+                shifted_period = activity_resolver.subtract_working_duration(
+                    demand.period, abs(start_displacement) + 1
+                )
+            else:
+                shifted_period = demand.period
+            shifted_demands.append(
+                ResourceDemand(
+                    demand.resource_id,
+                    shifted_period,
+                    demand.units,
+                    demand.activity_id,
+                )
+            )
+
+        result.append(
+            replace(
+                activity,
+                start=early.start,
+                finish=early.finish,
+                total_float=authoritative_total_float,
+                resource_demands=tuple(shifted_demands),
+                free_float=authoritative_free_float,
+                late_start=late.start,
+                late_finish=late.finish,
+            )
+        )
+    return tuple(result)
 
 
 def _backward_activities_from_intermediate(
