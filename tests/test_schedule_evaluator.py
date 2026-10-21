@@ -123,6 +123,19 @@ def test_evaluator_replays_same_snapshot_across_provenance_metadata():
     assert first.date_result == replay.date_result
 
 
+def test_preserve_scheduled_dates_alone_does_not_enable_resource_leveling():
+    # P6's preserve-dates flag controls the leveling pass when leveling is run;
+    # it is not itself a command to run resource leveling.
+    options = ScheduleOptions(preserve_scheduled_early_and_late_dates=True)
+    snapshot, context = make_snapshot_and_context(options=options)
+
+    result = evaluate_schedule_snapshot(snapshot, context, registry())
+
+    assert result.date_result is not None
+    assert result.date_result.activities["A"].start == date(2026, 9, 21)
+    assert result.date_result.activities["B"].start == date(2026, 9, 23)
+
+
 def test_evaluator_routes_leveling_options_to_authoritative_seam():
     options = ScheduleOptions(
         level_all_resources=True,

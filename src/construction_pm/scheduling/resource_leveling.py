@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from .calendar import WorkingTimeResolver
+from .relationships import Relationship, successor_earliest_start
 from enum import Enum
 
 
@@ -548,6 +549,7 @@ def propose_backward_leveling(
     level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (),
     protected_activity_ids: tuple[str, ...] = (),
+    relationships: tuple[Relationship, ...] = (),
 ) -> tuple[BackwardLevelingShift, ...]:
     """Propose deterministic backward leveling from late dates toward early dates.
 
@@ -584,8 +586,17 @@ def propose_backward_leveling(
         raise ResourceLevelingError("INVALID_PROTECTED_ACTIVITY_IDS")
     if len(set(protected_activity_ids)) != len(protected_activity_ids):
         raise ResourceLevelingError("DUPLICATE_PROTECTED_ACTIVITY_ID")
+    if not isinstance(relationships, tuple) or any(
+        not isinstance(relationship, Relationship) for relationship in relationships
+    ):
+        raise ResourceLevelingError("INVALID_LEVELING_RELATIONSHIPS")
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
+    activity_by_id = {activity.activity_id: activity for activity in activity_list}
+    incoming_relationships: dict[str, list[Relationship]] = {}
+    for relationship in relationships:
+        if relationship.predecessor_id in activity_by_id and relationship.successor_id in activity_by_id:
+            incoming_relationships.setdefault(relationship.successor_id, []).append(relationship)
     allowed = {
         "activity_id", "activity_priority", "early_start",
         "early_finish", "total_float",
@@ -648,6 +659,33 @@ def propose_backward_leveling(
                 current_shift = shifts[activity.activity_id]
                 max_advance = _working_days_between(activity.early_start, activity.late_start, resolver)
                 if -current_shift >= max_advance:
+                    continue
+                # Do not advance a successor ahead of dates implied by its
+                # predecessors. CPM remains authoritative; this prevents the
+                # leveler from generating impossible exact-date constraints.
+                candidate_shift = current_shift - 1
+                candidate_start = _shift_date_backward(activity.late_start, candidate_shift, resolver)
+                violates_relationship = False
+                for relationship in incoming_relationships.get(activity.activity_id, ()):
+                    predecessor = activity_by_id[relationship.predecessor_id]
+                    # Validate against the predecessor's earliest feasible CPM
+                    # dates, not its current late-date proposal. The backward pass
+                    # is moving dates toward the early schedule; using the late
+                    # proposal here can force the predecessor to move repeatedly
+                    # before a valid successor shift is even considered.
+                    predecessor_start = predecessor.early_start
+                    predecessor_finish = predecessor.early_finish
+                    successor_duration = resolver.calculate_duration(
+                        activity.early_start, activity.early_finish
+                    )
+                    relationship_bound = successor_earliest_start(
+                        relationship, predecessor_start, predecessor_finish,
+                        successor_duration, resolver,
+                    )
+                    if candidate_start < relationship_bound:
+                        violates_relationship = True
+                        break
+                if violates_relationship:
                     continue
                 current = _shift_demands_backward(activity.resource_demands, current_shift, resolver)
                 units = sum(
