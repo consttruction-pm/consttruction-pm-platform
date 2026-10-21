@@ -95,7 +95,8 @@ def test_application_delegates_to_provider_and_preserves_scope() -> None:
 
 
 def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
-    service = ScheduleQueryApplicationService(Provider(answer()), policy())
+    provider = Provider(answer())
+    service = ScheduleQueryApplicationService(provider, policy())
 
     try:
         service.execute(request(), auth_context=auth(tenant_id="tenant-2"))
@@ -112,6 +113,10 @@ def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
         assert getattr(exc, "code") == "FORBIDDEN"
     else:
         pytest.fail("forbidden query was accepted")
+
+    # Authorization must happen before the provider can read schedule data.
+    assert provider.requests == []
+    assert provider.auth_contexts == []
 
 
 @pytest.mark.parametrize(
