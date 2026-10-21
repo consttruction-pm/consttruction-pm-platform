@@ -97,6 +97,8 @@ def test_adapter_maps_authoritative_demand_and_calendar_capacity():
     assert result.capacities[0].resource_id == "resource-1"
     assert result.capacities[0].period == date(2026, 10, 2)
     assert result.capacities[0].units == Decimal("8.5")
+    assert result.capacities[0].calendar_id == "calendar-1"
+    assert result.capacities[0].calendar_version is None
     assert result.forward_activities[0].resource_demands[0].units.as_tuple() == Decimal("6.25").as_tuple()
 
 
@@ -172,3 +174,107 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_calendar_version_survives_authoritative_resource_read_dto():
+    api, assignment_repo, _ = build_api()
+    scope = BackendScope("tenant-a", "project-a", 11)
+    assignment_repo.upsert(
+        P6ResourceAssignment(
+            scope, "versioned-a", "activity-1", "resource-1",
+            units=Decimal("8"), calendar_id="calendar-1",
+            calendar_version="calendar-v3",
+        )
+    )
+
+    dto = api.get_assignment(scope, "versioned-a", auth_context=auth())
+    assert dto is not None
+    assert dto["assignment"]["calendar_id"] == "calendar-1"
+    assert dto["assignment"]["calendar_version"] == "calendar-v3"
+
+
+def test_capacity_resolution_uses_exact_persisted_calendar_version():
+    from construction_pm.p6_resource_capacity_contract import build_resource_capacity_slices
+
+    scope = BackendScope("tenant-a", "project-a", 12)
+    assignment = P6ResourceAssignment(
+        scope, "versioned-a", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1",
+        calendar_version="calendar-v3",
+    )
+    result = build_resource_capacity_slices(
+        scope,
+        (assignment,),
+        {
+            ("calendar-1", "calendar-v3"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                calendar_version="calendar-v3",
+            ),
+            ("calendar-1", "calendar-v2"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("4"),
+                calendar_version="calendar-v2",
+            ),
+        },
+        (date(2026, 10, 2),),
+    )
+    assert len(result) == 1
+    assert result[0].calendar_id == "calendar-1"
+    assert result[0].calendar_version == "calendar-v3"
+    assert result[0].units == Decimal("7.5")
+
+
+def test_capacity_resolution_never_falls_back_when_pinned_version_is_missing():
+    from construction_pm.p6_resource_capacity_contract import (
+        ResourceCapacityContractError,
+        build_resource_capacity_slices,
+    )
+
+    scope = BackendScope("tenant-a", "project-a", 13)
+    assignment = P6ResourceAssignment(
+        scope, "versioned-a", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1",
+        calendar_version="calendar-v3",
+    )
+    with pytest.raises(
+        ResourceCapacityContractError,
+        match="RESOURCE_CALENDAR_VERSION_NOT_FOUND",
+    ):
+        build_resource_capacity_slices(
+            scope,
+            (assignment,),
+            {"calendar-1": ResourceCalendar("calendar-1")},
+            (date(2026, 10, 2),),
+        )
+
+
+
+def test_adapter_preserves_versioned_calendar_reference_to_scheduler_boundary():
+    api, assignment_repo, _ = build_api()
+    scope = BackendScope("tenant-a", "project-a", 14)
+    assignment_repo.upsert(
+        P6ResourceAssignment(
+            scope, "versioned-a", "activity-1", "resource-1",
+            units=Decimal("8"), calendar_id="calendar-1",
+            calendar_version="calendar-v3",
+        )
+    )
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 3), 2)
+    result = build_scheduler_leveling_input(
+        read_api=api,
+        scope=scope,
+        auth_context=auth(),
+        forward_activities=(activity,),
+        backward_activities=(activity,),
+        calendars={
+            ("calendar-1", "calendar-v3"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                calendar_version="calendar-v3",
+            )
+        },
+        periods=(date(2026, 10, 2),),
+        options=ResourceLevelingOptions(),
+    )
+    assert len(result.capacities) == 1
+    assert result.capacities[0].units == Decimal("7.5")
+    assert result.capacities[0].calendar_id == "calendar-1"
+    assert result.capacities[0].calendar_version == "calendar-v3"

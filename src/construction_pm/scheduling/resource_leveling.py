@@ -40,6 +40,8 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    calendar_id: str | None = None
+    calendar_version: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -48,6 +50,16 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
+        if self.calendar_id is not None and (
+            not isinstance(self.calendar_id, str) or not self.calendar_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_ID")
+        if self.calendar_version is not None and (
+            not isinstance(self.calendar_version, str) or not self.calendar_version.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CALENDAR_VERSION")
+        if self.calendar_version is not None and self.calendar_id is None:
+            raise ResourceLevelingError("INCOMPLETE_CALENDAR_REFERENCE")
 
 
 @dataclass(frozen=True)

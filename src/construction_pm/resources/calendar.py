@@ -10,6 +10,7 @@ class ResourceCalendar:
     id: str
     working_weekdays: frozenset[int] = frozenset({0, 1, 2, 3, 4})
     daily_capacity: Decimal = Decimal("8")
+    calendar_version: str | None = None
 
     def is_working_day(self, value: date) -> bool:
         return value.weekday() in self.working_weekdays

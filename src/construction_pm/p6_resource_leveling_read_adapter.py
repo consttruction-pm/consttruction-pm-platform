@@ -61,7 +61,7 @@ def build_scheduler_leveling_input(
     auth_context: AuthorizationContext,
     forward_activities: tuple[LevelingActivity, ...],
     backward_activities: tuple[BackwardLevelingActivity, ...],
-    calendars: Mapping[str, ResourceCalendar],
+    calendars: Mapping[str | tuple[str, str], ResourceCalendar],
     periods: Sequence[date],
     options: ResourceLevelingOptions,
 ) -> SchedulerLevelingInput:
@@ -104,6 +104,7 @@ def build_scheduler_leveling_input(
                 currency=assignment.get("currency"),
                 calendar_id=assignment.get("calendar_id"),
                 note=assignment.get("note"),
+                calendar_version=assignment.get("calendar_version"),
             )
         )
     typed_assignments.sort(key=lambda item: item.assignment_id)
@@ -159,7 +160,13 @@ def build_scheduler_leveling_input(
         capacity_periods,
     )
     capacities = tuple(
-        ResourceCapacity(item.resource_id, item.period, item.units)
+        ResourceCapacity(
+            item.resource_id,
+            item.period,
+            item.units,
+            calendar_id=item.calendar_id,
+            calendar_version=item.calendar_version,
+        )
         for item in capacity_slices
     )
 
