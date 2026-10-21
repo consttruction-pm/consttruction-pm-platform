@@ -196,14 +196,20 @@ def _validate_final_resource_load(
                     f"FINAL_SCHEDULE_MISSING_ACTIVITY:{activity_id}"
                 )
             continue
-        if final_activity.start >= activity_input.start:
+        # WorkingTimeResolver.working_days_between uses inclusive/exclusive
+        # interval semantics, so equal dates must be handled explicitly. A zero
+        # movement must leave demand on its original period, not advance it one
+        # working day during final-load validation.
+        if final_activity.start > activity_input.start:
             shift_days = resolver.working_days_between(
                 activity_input.start, final_activity.start
             )
-        else:
+        elif final_activity.start < activity_input.start:
             shift_days = -resolver.working_days_between(
                 final_activity.start, activity_input.start
             )
+        else:
+            shift_days = 0
         for demand in activity_input.resource_demands:
             if shift_days > 0:
                 shifted_period = resolver.add_working_duration(
