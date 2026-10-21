@@ -61,9 +61,10 @@ def build_scheduler_leveling_input(
     auth_context: AuthorizationContext,
     forward_activities: tuple[LevelingActivity, ...],
     backward_activities: tuple[BackwardLevelingActivity, ...],
-    calendars: Mapping[str, ResourceCalendar],
+    calendars: Mapping[object, ResourceCalendar],
     periods: Sequence[date],
     options: ResourceLevelingOptions,
+    require_calendar_versions: bool = False,
 ) -> SchedulerLevelingInput:
     """Adapt authoritative resource read data into the existing Shared Core boundary.
 
@@ -104,6 +105,7 @@ def build_scheduler_leveling_input(
                 currency=assignment.get("currency"),
                 calendar_id=assignment.get("calendar_id"),
                 note=assignment.get("note"),
+                calendar_version=assignment.get("calendar_version"),
             )
         )
     typed_assignments.sort(key=lambda item: item.assignment_id)
@@ -157,6 +159,7 @@ def build_scheduler_leveling_input(
         tuple(typed_assignments),
         calendars,
         capacity_periods,
+        require_calendar_versions=require_calendar_versions,
     )
     capacities = tuple(
         ResourceCapacity(item.resource_id, item.period, item.units)
