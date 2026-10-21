@@ -334,24 +334,21 @@ def schedule_with_resource_leveling(
         batch_scheduled_finish=batch_scheduled_finish,
     )
 
-    # P6's preserve-dates option selects the leveling direction. When dates
-    # are not preserved, compute backward proposals from the un-leveled CPM
-    # window; pre-applying forward shifts can protect the wrong activity and
-    # make the backward pass unable to resolve a resource conflict.
-    if leveling_input.options.preserve_scheduled_early_and_late_dates:
-        forward_shifts = propose_forward_leveling(
-            leveling_input.forward_activities,
-            leveling_input.capacities,
-            resolver=resolver,
-            level_within_float=leveling_input.options.level_within_float,
-            min_float_to_preserve=int(leveling_input.options.min_float_to_preserve),
-            over_allocation_percentage=leveling_input.options.over_allocation_percentage,
-            priorities=leveling_input.options.priorities,
-            level_all_resources=leveling_input.options.level_all_resources,
-            resource_ids=leveling_input.options.resource_ids,
-        )
-    else:
-        forward_shifts = ()
+    # P6 still performs forward leveling when scheduled early/late dates are
+    # not preserved; that option adds a backward pass so late dates can be
+    # recalculated. Keep the forward pass in both modes, then run backward
+    # leveling only when preservation is disabled.
+    forward_shifts = propose_forward_leveling(
+        leveling_input.forward_activities,
+        leveling_input.capacities,
+        resolver=resolver,
+        level_within_float=leveling_input.options.level_within_float,
+        min_float_to_preserve=int(leveling_input.options.min_float_to_preserve),
+        over_allocation_percentage=leveling_input.options.over_allocation_percentage,
+        priorities=leveling_input.options.priorities,
+        level_all_resources=leveling_input.options.level_all_resources,
+        resource_ids=leveling_input.options.resource_ids,
+    )
 
     shifted_forward = apply_leveling_shifts(
         leveling_input.forward_activities, forward_shifts, resolver=resolver,
