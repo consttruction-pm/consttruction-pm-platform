@@ -136,13 +136,7 @@ def _backward_activities_from_intermediate(
         # predecessor, and an exact backward constraint would then conflict
         # with the final forward CPM pass (notably for SS relationships).
         candidate_late_start = max(late.start, early.start)
-        candidate_late_finish = max(
-            late.finish,
-            early.finish,
-            activity_resolver.add_working_duration(
-                candidate_late_start, activity.duration
-            ),
-        )
+        candidate_late_finish = max(late.finish, early.finish)
 
         result.append(
             BackwardLevelingActivity(
