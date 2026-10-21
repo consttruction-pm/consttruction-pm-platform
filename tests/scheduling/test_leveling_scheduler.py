@@ -1226,53 +1226,70 @@ def test_backward_demand_translation_uses_activity_calendar() -> None:
     # not Friday as it would under the project calendar.
     assert result[0].resource_demands[0].period == monday
 
-def test_forward_activity_builder_carries_authoritative_cpm_free_float():
+def test_forward_activity_builder_rebases_all_values_from_fresh_cpm():
     from types import SimpleNamespace
+    from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
     from construction_pm.scheduling.leveling_scheduler import (
         _forward_activities_with_authoritative_floats,
     )
     from construction_pm.scheduling.resource_leveling import LevelingActivity
 
-    day = date(2026, 10, 1)
-    demand_a = ResourceDemand("R1", day, Decimal("8"), "A")
-    demand_b = ResourceDemand("R1", day, Decimal("8"), "B")
+    day_one = date(2026, 10, 1)  # Thursday
+    day_two = date(2026, 10, 2)  # Friday
+    day_three = date(2026, 10, 5)  # Monday
+    day_five = date(2026, 10, 7)  # Wednesday
+    demand_a = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    demand_b = ResourceDemand("R1", day_one, Decimal("8"), "B")
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity("A", day, day, 3, (demand_a,), free_float=99),
-            LevelingActivity("B", day, day, 3, (demand_b,), free_float=99),
+            # These deliberately stale dates/floats must not survive CPM refresh.
+            LevelingActivity("A", day_one, day_one, 99, (demand_a,), free_float=99),
+            LevelingActivity("B", day_one, day_one, 99, (demand_b,), free_float=99),
         ),
         backward_activities=(
             BackwardLevelingActivity(
-                "A", day, day, date(2026, 10, 3), date(2026, 10, 4), (demand_a,)
+                "A", day_one, day_one, day_three, day_three, (demand_a,)
             ),
             BackwardLevelingActivity(
-                "B", day, day, date(2026, 10, 5), date(2026, 10, 6), (demand_b,)
+                "B", day_one, day_one, day_five, day_five, (demand_b,)
             ),
         ),
         capacities=(),
         options=ResourceLevelingOptions(level_all_resources=True),
     )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
 
     built = _forward_activities_with_authoritative_floats(
         leveling_input,
+        resolver=resolver,
         initial_schedule=SimpleNamespace(
+            early_activities={
+                "A": SimpleNamespace(start=day_two, finish=day_two),
+                "B": SimpleNamespace(start=day_three, finish=day_three),
+            },
             floats={
-                "A": SimpleNamespace(free_float=0),
-                "B": SimpleNamespace(free_float=2),
+                "A": SimpleNamespace(total_float=1, free_float=0),
+                "B": SimpleNamespace(total_float=4, free_float=2),
             },
             late_activities={
-                "A": SimpleNamespace(start=date(2026, 10, 3), finish=date(2026, 10, 4)),
-                "B": SimpleNamespace(start=date(2026, 10, 5), finish=date(2026, 10, 6)),
+                "A": SimpleNamespace(start=day_three, finish=day_three),
+                "B": SimpleNamespace(start=day_five, finish=day_five),
             },
         ),
     )
 
-    assert [activity.free_float for activity in built] == [0, 2]
-    assert [activity.late_start for activity in built] == [
-        date(2026, 10, 3), date(2026, 10, 5)
+    assert [(activity.start, activity.finish) for activity in built] == [
+        (day_two, day_two), (day_three, day_three)
     ]
-    assert [activity.late_finish for activity in built] == [
-        date(2026, 10, 4), date(2026, 10, 6)
+    assert [activity.total_float for activity in built] == [1, 4]
+    assert [activity.free_float for activity in built] == [0, 2]
+    assert [activity.late_start for activity in built] == [day_three, day_five]
+    assert [activity.late_finish for activity in built] == [day_three, day_five]
+    # Resource demand must follow the same CPM/calendar shift as the activity.
+    assert [activity.resource_demands[0].period for activity in built] == [
+        day_two, day_three
     ]
 
 def test_infeasible_resource_window_fails_closed() -> None:
