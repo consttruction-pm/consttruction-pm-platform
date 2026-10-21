@@ -1,0 +1,46 @@
+# P6 Calculation Conformance Matrix — Version 26
+Effective date: 2026-10-18
+
+## Purpose and acceptance rule
+
+This matrix makes Oracle Primavera P6 Professional Version 26 the compatibility baseline for every overlapping calculation. It is an engineering control, not a claim of Oracle certification. Every row must reach VERIFIED or an explicitly approved OUTSIDE SCOPE disposition before release certification. UNVERIFIED behavior must not be guessed or described as P6-compatible.
+
+Authoritative baseline inventory: `docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md`.
+Governance blocker: [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447).
+Broader leveling test matrix: [Issue #1483](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1483).
+
+## Source-to-rule-to-code-to-test ledger
+
+| Calculation family | Required rule / observable result | Primary Oracle Version 26 reference | Required regression evidence | Status |
+|---|---|---|---|---|
+| CPM forward/backward pass | Early/late dates and total/free float must follow the configured schedule options, project finish, data date, calendars and constraints. | [Scheduling projects](https://docs.oracle.com/cd/G48902_01/client_help/en_US/scheduling_projects.htm) | Hand-calculated small networks; exact dates and float; finish boundary and open ends. | UNVERIFIED as a complete family |
+| Relationships and lag | FS, SS, FF, SF and positive/zero/negative lag must preserve the documented driving relationship and configured lag-calendar semantics. | [Scheduling projects](https://docs.oracle.com/cd/G48902_01/client_help/en_US/scheduling_projects.htm) | Cross-product of relationship type × lag sign × calendar; final feasibility, not proposal-only assertions. | PARTIAL; see #1483 |
+| Activity constraints | Mandatory and non-mandatory constraints must affect early/late dates according to their defined semantics; leveling may never override explicit constraints. | [Constraint types](https://docs.oracle.com/cd/G48902_01/client_help/en_US/types_of_constraints.htm) | Each supported constraint type, conflicting windows, infeasible windows, and final CPM validation. | UNVERIFIED as a complete family |
+| Calendar and duration arithmetic | Use the effective version-pinned project/activity/resource/lag calendar, work periods, holidays, exceptions and unit conversions; no silent default-calendar substitution. | [Scheduling projects](https://docs.oracle.com/cd/G48902_01/client_help/en_US/scheduling_projects.htm) and [P6 Version 26 user guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm) | Weekends, holidays, split shifts, exceptions, inherited and overridden calendars, duration units, round trips. | PARTIAL; version-pinned resource calendar gap remains |
+| Resource leveling | Demand must not exceed effective capacity under selected resources, priorities, preservation mode, within-float and cross-project options; final CPM must not reintroduce overload. | [Level resources](https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources.htm) and [Specify leveling priorities](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm) | Final dates + aggregate demand by resource/period + capacity + constraints; shared-project and mixed-calendar cases. | PARTIAL; exact-head CI and independent review required |
+| Leveling priorities | Priority fields, row order, sort direction, blanks, tie-breaks and unsupported fields must match the documented P6 behavior; no approximated fallback. | [Leveling priority definitions](https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_priority_definitions.htm) | Deterministic multi-field ordering, ascending/descending, ties, missing values, unsupported-field fail-closed. | UNVERIFIED as a complete family |
+| Criticality and float paths | Critical definition, float threshold, longest path, multiple float paths, endpoint and path count must be explicit typed options with deterministic results. | [P6 Version 26 user guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm) | Networks with competing paths, negative/zero float, multiple endpoints and option changes. | UNVERIFIED as a complete family |
+| Progress and actuals | Actual/remaining durations, percent-complete type, out-of-sequence treatment, data date and expected finish must follow the selected P6 options. | [P6 Version 26 user guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm) | Retained Logic / Progress Override / Actual Dates, each percent-complete type, date-data-date boundaries. | UNVERIFIED as a complete family |
+| EVM / earned schedule | PV, EV, AC, SV, CV, SPI, CPI and forecast outputs must have documented definitions, zero-denominator behavior, period basis and rollup rules. | P6 Version 26 field and user-guide baseline; exact field/section must be attached per formula before certification. | Decimal-exact hand-calculated fixtures, zero/NULL cases, WBS rollups, period and baseline variants. | BLOCKED pending formula-by-formula source mapping |
+| Cost, units and resource spreads | Rates, units/time, actual/remaining costs, expenses, resource curves and time-phased spreads must preserve units, precision, effective dates and aggregation rules. | [P6 Version 26 user guide](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm) and applicable Version 26 data maps. | Decimal precision, rate changes, calendar conversions, actual/remaining split, time-phased totals and round trips. | UNVERIFIED as a complete family |
+| Formula / calculated columns | Formula parsing, type checking, dependency order, cycle detection, null/error semantics and summary rollups must be deterministic; no client-specific formula engine. | P6 Version 26 UDF/formula capabilities in the approved parity inventory; exact section must be recorded per supported operator/function. | Operator/function conformance table, type errors, cycles, missing values, rollups and cross-client parity. | BLOCKED pending operator/function inventory |
+| Import/export and round-trip calculations | XER/XML/XLSX/MS Project mappings must preserve typed dates, durations, Decimal precision, relationships, calendars, schedule options and calculated-field inputs; unsupported data cannot disappear silently. | Version 26 XER/XLSX data maps and P6 API documentation linked in the no-omission baseline. | Export → clean import → normalized input comparison → recalculate through Shared Core → compare outputs. | PARTIAL; per-format/field-family certification required |
+
+## Required workflow for every calculation change
+
+1. Cite the exact Oracle Version 26 page/section and record the applicable option, input assumptions and edge cases.
+2. Write the source-derived rule and an independent expected-result fixture before changing implementation.
+3. Map the rule to the authoritative Shared Domain/Calculation Core function and the exact regression test.
+4. Add tests for normal, boundary, conflicting, missing/unsupported and multi-calendar cases as applicable.
+5. Run focused tests, full ConstructionPM CI, Client Typecheck and PostgreSQL Integration on the exact final SHA where applicable.
+6. Obtain independent semantic review. If the Oracle source is ambiguous, mark the row UNVERIFIED/BLOCKED and do not guess.
+7. Do not claim full P6 parity from a single passing slice, green UI, source inspection, or a passing isolated component test.
+
+## Current concrete blockers
+
+- [Issue #1476](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1476): backward-leveling SS feasibility and shared-resource final overload.
+- [Issue #1483](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1483): broader relationship/lag/calendar/priority/infeasible-window regression matrix.
+- [Issue #1462](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1462): persisted Activity Master → immutable authoritative schedule snapshot.
+- [Issue #1468](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1468): version-bound resource-leveling input composition into authoritative schedule queries.
+
+No overall conformance percentage is assigned by this matrix. It must be calculated from reviewed, versioned row-level evidence; documentation presence alone earns no implementation credit.

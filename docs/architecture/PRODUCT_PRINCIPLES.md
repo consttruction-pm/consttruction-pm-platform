@@ -30,6 +30,33 @@ A requirement may be marked **Outside Scope** only with an explicit documented d
 
 The parity baseline is release-versioned. It must be refreshed against the current Oracle P6 baseline before each release certification gate, and a newly discovered applicable P6 capability becomes a gap item until dispositioned.
 
+## Principle 1A.1 — All formulas and calculations require P6 conformance evidence
+
+Every formula and calculation in the P6-overlap scope must be assessed against the applicable, versioned Oracle Primavera P6 documentation before semantic implementation changes. This includes CPM dates and float, relationships and lag, constraints, activity/resource calendars, duration and unit arithmetic, resource leveling and priority order, progress/actuals, EVM, cost/spreads, formula/calculated columns, summary rollups and calculation-related import/export.
+
+The source-derived rule, exact Oracle page/section, edge cases, owning Shared Core implementation, regression tests, exact tested commit SHA and independent semantic review must be traceable in the [P6 Calculation Conformance Matrix](P6_CALCULATION_CONFORMANCE_MATRIX_2026-10-18.md). Every matrix row must be VERIFIED or have an approved OUTSIDE SCOPE disposition before claiming release conformance. UNVERIFIED or BLOCKED semantics must not be guessed, and test failures must not be hidden by weakening constraints, calculation assertions or final resource-capacity validation.
+
+This is a documentation-first gate, consistent with [Issue #1447](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1447). A passing test for one calculation slice does not certify the full calculation family.
+
+## Principle 1A.2 — Mandatory end-to-end Definition of Done: inputs, outputs, conformance, correction and acceptance
+
+This rule applies to every implementation, defect, integration, calculation, API/data contract, import/export path, client workflow, AI action, test task and documentation task. It applies to every developer, reviewer, QA contributor and human/AI coding agent. **Starting an audit or obtaining a passing test is not completion. A known discrepancy must be fixed and re-verified, not merely reported.** The cross-team tracking and acceptance checklist are maintained in [Issue #1492](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1492).
+
+### Required work loop
+
+1. **Establish the governing contract first.** Read the current-main implementation, approved product requirements, architecture/API/data contracts, relevant tests and authoritative external references. For behavior overlapping P6, cite the applicable official, versioned source and exact section. Never guess undocumented semantics.
+2. **Map every input.** Record source, field name, data type, unit, null/empty/default meaning, validation and boundary conditions, tenant/project scope, revision/version, calendar/calculation context and provenance. Confirm that the real production entry point receives the expected values.
+3. **Map every output and side effect.** Record computed/derived values, persisted writes and fresh read-back, response/DTO/export fields, downstream consumers, errors, constraints, audit/revision effects, permission enforcement, determinism and round-trip behavior.
+4. **Trace source → rule → input/output → production code → test → evidence.** Include normal, boundary, invalid/negative, interaction, persistence, stale revision, scope isolation, round-trip and regression scenarios as applicable. A handcrafted input, mock-only check or test-only adapter does not prove the authoritative production path.
+5. **Compare and correct.** If actual behavior does not match the documented rule or product contract, the implementation owner must change the code/contract mapping, add regression tests and continue the cycle until the supported behavior conforms. Reviewers must verify the correction, not only leave a list of findings. Never weaken a constraint, guard or fail-closed condition merely to get a green test.
+6. **Handle ambiguity honestly.** If source semantics or product scope cannot yet be established, record exact evidence and the unresolved question as BLOCKED/UNVERIFIED, obtain an authorized decision and keep the item open. Do not substitute assumptions for source evidence or claim full parity.
+7. **Re-run the real path on the same final SHA.** Execute focused and regression tests plus production-path integration/runtime checks and every applicable CI gate on the exact candidate commit. Verify the inputs, execution, outputs, persistence/read-back and failure paths as one end-to-end chain. Prior-SHA or branch-only green checks do not transfer to a changed commit.
+8. **Record the disposition.** If conformant, record the source version/section, rule, input/output map, changed paths, tested SHA, exact workflow/test evidence, independent reviewer disposition and conformance-matrix status. If a discrepancy was found, record both the defect and its fix plus successful re-verification.
+9. **Only then mark Done or award progress.** Required code must be integrated into current main (or another product-owner-approved delivery ref), all applicable exact-SHA checks must pass, the matrix/task ledger must be updated, and required independent review/acceptance must be recorded. A review, test request, green run alone, open PR, comment, or documentation-only change cannot close a code defect.
+
+Each work item must have one named implementation owner and, where calculation semantics or cross-boundary behavior is involved, an independent reviewer. Every task must link to its schedule activity and related issue/PR. The implementation owner remains responsible for resolving findings in their area through acceptance; handing a finding to QA/review is not a substitute for completing the fix.
+
+
 ## Principle 1B — Calendar configuration and user-selected changes must travel with project export/import
 
 A project is not portable unless its complete effective calendar context is portable. Every project export/import, backup/restore, clone/template transfer and supported interchange workflow must preserve and round-trip:
