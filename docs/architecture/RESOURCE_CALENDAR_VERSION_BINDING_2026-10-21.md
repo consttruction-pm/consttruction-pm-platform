@@ -22,7 +22,7 @@ The rule is now explicit: a calendar version, when present, must be paired with 
 
 ## Exact persisted calendar resolver added — acceptance evidence required
 
-A first production-boundary resolver now exists in `src/construction_pm/p6_versioned_resource_calendar_resolver.py`. It reads the exact `CalendarMaster` ID/version, immutable canonical calendar snapshot, stored version-pinned exception rows, and work-hour rule records; resolves local/inherited exception precedence through `CalendarResolverRegistry`; and derives a deterministic SHA-256 over scope/revision, the versioned ancestry, canonical snapshots, work-hour records, exceptions, requested periods and effective capacity slices. It returns a `ResourceCalendar` with the exact version, hash, and date-specific `capacity_slices`. It never chooses a “latest” version.
+A first production-boundary resolver now exists in `src/construction_pm/p6_versioned_resource_calendar_resolver.py`. It reads the exact `CalendarMaster` ID/version, immutable canonical calendar snapshot, stored version-pinned exception rows, and work-hour rule records; resolves local/inherited exception precedence through `CalendarResolverRegistry`; and derives a deterministic SHA-256 identity over scope/revision, the versioned ancestry, canonical snapshots, work-hour records and exceptions. The calendar-definition hash is independent of the queried period range; date-specific capacity slices belong to the separately versioned raw-capacity envelope. It returns a `ResourceCalendar` with the exact version, hash, and date-specific `capacity_slices`. It never chooses a “latest” version.
 
 The current resolver deliberately fails closed on incomplete mapping instead of silently dropping values:
 - missing master/version or snapshot;
