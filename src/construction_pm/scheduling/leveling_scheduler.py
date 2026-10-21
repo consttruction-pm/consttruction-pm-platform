@@ -64,8 +64,20 @@ def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...
         if current is None or shift.advanced_days > current.advanced_days:
             final_by_activity[shift.activity_id] = shift
     return tuple(
-        ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start)
+        constraint
         for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id)
+        for constraint in (
+            ActivityConstraint(
+                shift.activity_id,
+                ConstraintType.START_NO_EARLIER_THAN,
+                shift.new_start,
+            ),
+            ActivityConstraint(
+                shift.activity_id,
+                ConstraintType.START_NO_LATER_THAN,
+                shift.new_start,
+            ),
+        )
     )
 
 
