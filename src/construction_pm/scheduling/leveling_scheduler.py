@@ -411,7 +411,18 @@ def schedule_with_resource_leveling(
     )
 
     forward_activities = _forward_activities_with_authoritative_floats(
-        leveling_input, initial_schedule=initial
+        leveling_input,
+        initial_schedule=initial,
+        resolver=resolver,
+        activity_resolvers=activity_resolvers,
+    )
+    # All following passes must consume the same freshly rebased CPM dates,
+    # float values, and demand periods, not the caller's prior calculation.
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward_activities,
+        backward_activities=leveling_input.backward_activities,
+        capacities=leveling_input.capacities,
+        options=leveling_input.options,
     )
     forward_shifts = propose_forward_leveling(
         forward_activities,
