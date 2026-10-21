@@ -97,6 +97,10 @@ def build_resource_capacity_slices(
         if calendar is None:
             code = "RESOURCE_CALENDAR_VERSION_NOT_FOUND" if require_calendar_versions else "RESOURCE_CALENDAR_NOT_FOUND"
             raise ResourceCapacityContractError(code)
+        if calendar.id != calendar_id:
+            raise ResourceCapacityContractError("RESOURCE_CALENDAR_IDENTITY_MISMATCH")
+        if require_calendar_versions and calendar.calendar_version != calendar_version:
+            raise ResourceCapacityContractError("RESOURCE_CALENDAR_OBJECT_VERSION_MISMATCH")
         for period in requested_periods:
             item = P6ResourceCapacitySlice(
                 scope=scope,
