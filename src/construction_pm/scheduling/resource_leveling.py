@@ -336,6 +336,8 @@ def propose_forward_leveling_within_float(
         or max_shift_working_days < 0
     ):
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
+    if allow_beyond_float and max_shift_working_days is None:
+        raise ResourceLevelingError("MAX_LEVELING_SHIFT_REQUIRED")
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
