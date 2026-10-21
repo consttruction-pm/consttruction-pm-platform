@@ -97,12 +97,16 @@ def test_exact_version_calendar_resolves_capacity_and_stable_hash(repositories):
 
     first = resolve(repositories, "resource-calendar", "v1", periods)
     second = resolve(repositories, "resource-calendar", "v1", periods)
+    narrow_query = resolve(
+        repositories, "resource-calendar", "v1", (date(2026, 10, 1),)
+    )
 
     assert first.id == "resource-calendar"
     assert first.calendar_version == "v1"
     assert first.canonical_snapshot_hash is not None
     assert len(first.canonical_snapshot_hash) == 64
     assert first.canonical_snapshot_hash == second.canonical_snapshot_hash
+    assert first.canonical_snapshot_hash == narrow_query.canonical_snapshot_hash
     assert first.capacity_slices == (
         (date(2026, 10, 1), Decimal("8")),
         (date(2026, 10, 2), Decimal("8")),
