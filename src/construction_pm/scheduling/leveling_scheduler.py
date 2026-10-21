@@ -90,6 +90,7 @@ def _backward_activities_from_intermediate(
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     resolver: object,
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
@@ -98,10 +99,19 @@ def _backward_activities_from_intermediate(
         late = late_schedule[activity.activity_id]
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         original_start = forward_by_id[activity.activity_id].start
-        if late.start > original_start:
-            displacement = resolver.working_days_between(original_start, late.start)
-        elif late.start < original_start:
-            displacement = -resolver.working_days_between(late.start, original_start)
+        # Activities moved by the forward pass are protected from being moved
+        # back onto an already occupied resource period. Keep their demand
+        # ledger at the actual intermediate CPM date; other activities are
+        # rebased to their late dates for backward-leveling proposals.
+        demand_anchor = (
+            early.start
+            if activity.activity_id in protected_activity_ids
+            else late.start
+        )
+        if demand_anchor > original_start:
+            displacement = resolver.working_days_between(original_start, demand_anchor)
+        elif demand_anchor < original_start:
+            displacement = -resolver.working_days_between(demand_anchor, original_start)
         else:
             displacement = 0
 
@@ -309,9 +319,15 @@ def schedule_with_resource_leveling(
             # Backward candidates must respect the CPM early dates after forward
             # leveling has been applied. Using the initial dates can propose a
             # move that violates a relationship newly activated by a forward shift.
-            early_schedule=intermediate.early_activities or intermediate.activities,
+            # Use the actual intermediate CPM dates as the lower bound;
+            # they include relationship and forward-leveling constraints.
+            early_schedule=intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
             resolver=resolver,
+            protected_activity_ids=tuple(sorted({
+                shift.activity_id for shift in forward_shifts
+                if shift.shift_working_days > 0
+            })),
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
