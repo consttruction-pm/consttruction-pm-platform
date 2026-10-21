@@ -1142,6 +1142,61 @@ def test_backward_activity_builder_carries_authoritative_cpm_floats():
     assert built[0].total_float == 3
     assert built[0].free_float == 1
 
+def test_backward_builder_keeps_protected_forward_demand_at_intermediate_cpm_period():
+    from types import SimpleNamespace
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    thursday = date(2026, 10, 1)
+    friday = date(2026, 10, 2)
+    monday = date(2026, 10, 5)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand_p = ResourceDemand("R1", thursday, Decimal("8"), "P")
+    demand_u = ResourceDemand("R1", thursday, Decimal("8"), "U")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("P", thursday, thursday, 2, (demand_p,)),
+            LevelingActivity("U", thursday, thursday, 2, (demand_u,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("P", thursday, thursday, monday, monday, (demand_p,)),
+            BackwardLevelingActivity("U", thursday, thursday, monday, monday, (demand_u,)),
+        ),
+        capacities=(),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=False,
+            level_all_resources=True,
+        ),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={
+            "P": SimpleNamespace(start=friday, finish=friday),
+            "U": SimpleNamespace(start=thursday, finish=thursday),
+        },
+        late_schedule={
+            "P": SimpleNamespace(start=monday, finish=monday),
+            "U": SimpleNamespace(start=monday, finish=monday),
+        },
+        float_schedule={
+            "P": SimpleNamespace(total_float=1, free_float=0),
+            "U": SimpleNamespace(total_float=2, free_float=1),
+        },
+        resolver=resolver,
+        protected_activity_ids=("P",),
+    )
+    by_id = {activity.activity_id: activity for activity in built}
+
+    # P's demand is already committed to the intermediate Friday date; U's
+    # backward proposal demand belongs to its candidate late Monday date.
+    assert by_id["P"].resource_demands[0].period == friday
+    assert by_id["U"].resource_demands[0].period == monday
+    assert by_id["P"].early_start == friday
+    assert by_id["P"].late_start == monday
+
+
 def test_resource_leveling_preserves_activity_specific_calendars() -> None:
     """Every CPM pass in resource leveling must use the activity calendar map."""
     from construction_pm.scheduling.activity import Activity
