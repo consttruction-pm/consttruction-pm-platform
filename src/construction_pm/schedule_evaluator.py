@@ -308,12 +308,18 @@ def _leveling_input_from_snapshot_facts(
             resource_demands=demands,
             **metadata,
         ))
+        # A finish constraint can legitimately create negative float, with
+        # late dates preceding early dates. Keep the authoritative negative
+        # float, but bound the backward leveling proposal window to CPM early
+        # dates, matching the Shared Core's existing intermediate-pass builder.
+        candidate_late_start = max(late.start, early.start)
+        candidate_late_finish = max(late.finish, early.finish)
         backward_rows.append(BackwardLevelingActivity(
             activity_id=activity.id,
             early_start=early.start,
             early_finish=early.finish,
-            late_start=late.start,
-            late_finish=late.finish,
+            late_start=candidate_late_start,
+            late_finish=candidate_late_finish,
             resource_demands=demands,
             activity_priority=None,
             total_float=float_values.total_float,
