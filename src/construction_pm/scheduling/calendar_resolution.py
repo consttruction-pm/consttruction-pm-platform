@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
 
-from .authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleInput
+from .authoritative_schedule import (
+    ActivityCalendarAssignment,
+    AuthoritativeScheduleInput,
+    RelationshipLagCalendarAssignment,
+)
 from .calendar import WorkingTimeResolver
 from .calendar_context import (
     CalendarReference,
@@ -100,16 +104,27 @@ def resolve_relationship_lag_resolvers(
     calendars = activity_calendars or resolve_authoritative_activity_calendars(
         snapshot, registry
     )
-    option = snapshot.schedule_options.relationship_lag_calendar
+    default_option = snapshot.schedule_options.relationship_lag_calendar
+    assignments = {
+        (item.predecessor_id, item.successor_id): item
+        for item in snapshot.relationship_lag_calendar_assignments
+    }
     resolvers: dict[tuple[str, str], WorkingTimeResolver] = {}
     for relationship in snapshot.relationships:
         key = (relationship.predecessor_id, relationship.successor_id)
+        assignment: RelationshipLagCalendarAssignment | None = assignments.get(key)
+        if assignment is not None and assignment.calendar is not None:
+            # A persisted, explicit per-relationship calendar takes precedence
+            # over the selector and is always resolved by its exact version.
+            resolvers[key] = registry.resolve(assignment.calendar)
+            continue
         predecessor_reference = calendars.reference_for(relationship.predecessor_id)
         successor_reference = calendars.reference_for(relationship.successor_id)
         context = SchedulingCalendarContext(
             project=snapshot.project_calendar,
             activity=successor_reference,
         )
+        option = assignment.option if assignment is not None else default_option
         resolvers[key] = registry.resolve_relationship_lag(
             context,
             predecessor_reference,
