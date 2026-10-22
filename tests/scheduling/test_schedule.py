@@ -5,6 +5,7 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.forward_pass import ScheduledActivity, forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.schedule_options import (
     StartToStartLagCalculationType,
     start_to_start_lag_type_from_p6,
@@ -1015,6 +1016,51 @@ def test_calculate_floats_accepts_one_shot_iterables(resolver, path_type):
     assert set(result) == {"A", "B"}
     assert result["B"].critical is True
     assert result["A"].critical is True
+
+
+@pytest.mark.parametrize(
+    ("lag_calendar", "expected_successor_start"),
+    [
+        (RelationshipLagCalendar.PREDECESSOR, date(2026, 9, 28)),
+        (RelationshipLagCalendar.SUCCESSOR, date(2026, 9, 26)),
+    ],
+)
+def test_schedule_honors_selected_relationship_lag_calendar(
+    resolver, lag_calendar, expected_successor_start
+):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        options=ScheduleOptions(relationship_lag_calendar=lag_calendar),
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    assert result.early_activities["A"].finish == date(2026, 9, 25)
+    assert result.early_activities["B"].start == expected_successor_start
+
+
+def test_explicit_relationship_lag_resolver_overrides_schedule_option(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.SUCCESSOR
+        ),
+        relationship_lag_resolvers={("A", "B"): resolver},
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    assert result.early_activities["B"].start == date(2026, 9, 28)
 
 
 def test_schedule_rejects_unsupported_resource_cost_recalculation(resolver):
