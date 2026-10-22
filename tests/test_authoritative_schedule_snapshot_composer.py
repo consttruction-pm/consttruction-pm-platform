@@ -899,6 +899,10 @@ def test_leveling_snapshot_rejects_unimplemented_cross_project_or_recosting_opti
 
 def test_snapshot_rejects_non_p6_per_relationship_lag_calendar_override(tmp_path):
     fixture = _fixture(tmp_path)
+    settings_status, _ = _save_settings(
+        fixture["app"], options=ScheduleOptions()
+    )
+    assert settings_status == "201 Created"
     scope = fixture["scope"]
     assignments = fixture["calendar_assignments"]
     assignments.save_relationship_lag(
