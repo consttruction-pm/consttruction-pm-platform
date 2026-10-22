@@ -5,6 +5,7 @@ import pytest
 from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.forward_pass import ScheduledActivity, forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.schedule_options import (
     StartToStartLagCalculationType,
     start_to_start_lag_type_from_p6,
@@ -22,6 +23,7 @@ from construction_pm.scheduling.schedule import (
     _relationship_holds,
     _relationship_total_float,
     backward_pass,
+    calculate_floats,
     schedule,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
@@ -990,6 +992,93 @@ def test_mixed_activity_calendars_preserve_all_relationship_types(
         early["B"],
         predecessor_resolver,
     )
+
+
+@pytest.mark.parametrize(
+    "path_type",
+    [CriticalActivityPathType.CRITICAL_FLOAT, CriticalActivityPathType.LONGEST_PATH],
+)
+def test_calculate_floats_accepts_one_shot_iterables(resolver, path_type):
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B")]
+    early = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+    late = backward_pass(activities, relationships, early, None, resolver)
+
+    result = calculate_floats(
+        (item for item in activities),
+        (item for item in relationships),
+        early,
+        late,
+        resolver,
+        ScheduleOptions(critical_activity_path_type=path_type),
+    )
+
+    assert set(result) == {"A", "B"}
+    assert result["B"].critical is True
+    assert result["A"].critical is True
+
+
+@pytest.mark.parametrize(
+    ("lag_calendar", "expected_successor_start"),
+    [
+        (RelationshipLagCalendar.PREDECESSOR, date(2026, 9, 28)),
+        (RelationshipLagCalendar.SUCCESSOR, date(2026, 9, 26)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, date(2026, 9, 26)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, date(2026, 9, 28)),
+    ],
+)
+def test_schedule_honors_selected_relationship_lag_calendar(
+    resolver, lag_calendar, expected_successor_start
+):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        options=ScheduleOptions(relationship_lag_calendar=lag_calendar),
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    assert result.early_activities["A"].finish == date(2026, 9, 25)
+    assert result.early_activities["B"].start == expected_successor_start
+
+
+def test_default_relationship_lag_calendar_uses_successor_activity_calendar(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    # P6's documented default is the successor activity calendar.
+    assert result.early_activities["B"].start == date(2026, 9, 26)
+
+
+def test_explicit_relationship_lag_resolver_overrides_schedule_option(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.SUCCESSOR
+        ),
+        relationship_lag_resolvers={("A", "B"): resolver},
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    assert result.early_activities["B"].start == date(2026, 9, 28)
 
 
 def test_schedule_rejects_unsupported_resource_cost_recalculation(resolver):

@@ -323,22 +323,32 @@ class SQLiteProjectScheduleSettingsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_schedule_settings (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                project_revision INTEGER NOT NULL,
-                record_revision INTEGER NOT NULL,
-                canonical_payload TEXT NOT NULL,
-                settings_hash TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id)
-            )"""
-        )
-        self.connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_project_schedule_settings_revision "
-            "ON project_schedule_settings(tenant_id, project_id, project_revision)"
-        )
-        self.connection.commit()
+        self._initialize_schema()
+
+    def _initialize_schema(self) -> None:
+        was_in_transaction = self.connection.in_transaction
+        try:
+            self.connection.execute(
+                """CREATE TABLE IF NOT EXISTS project_schedule_settings (
+                    tenant_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    project_revision INTEGER NOT NULL,
+                    record_revision INTEGER NOT NULL,
+                    canonical_payload TEXT NOT NULL,
+                    settings_hash TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, project_id)
+                )"""
+            )
+            self.connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_project_schedule_settings_revision "
+                "ON project_schedule_settings(tenant_id, project_id, project_revision)"
+            )
+            if not was_in_transaction:
+                self.connection.commit()
+        except Exception:
+            if not was_in_transaction:
+                self.connection.rollback()
+            raise
 
     def save(
         self,
@@ -358,17 +368,24 @@ class SQLiteProjectScheduleSettingsRepository:
                 raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
             payload = _canonical_payload(replace(settings, record_revision=1))
             stored_hash = _content_hash(payload)
-            self.connection.execute(
-                "INSERT INTO project_schedule_settings "
-                "(tenant_id,project_id,project_revision,record_revision,canonical_payload,settings_hash) "
-                "VALUES (?,?,?,?,?,?)",
-                (
-                    settings.scope.tenant_id, settings.scope.project_id, settings.scope.project_revision,
-                    1, payload, stored_hash,
-                ),
-            )
-            if not was_in_transaction:
-                self.connection.commit()
+            try:
+                self.connection.execute(
+                    "INSERT INTO project_schedule_settings "
+                    "(tenant_id,project_id,project_revision,record_revision,canonical_payload,settings_hash) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (
+                        settings.scope.tenant_id, settings.scope.project_id, settings.scope.project_revision,
+                        1, payload, stored_hash,
+                    ),
+                )
+                if not was_in_transaction:
+                    self.connection.commit()
+            except Exception:
+                # Roll back only a transaction started by this repository call.
+                # A caller-owned transaction must remain under caller control.
+                if not was_in_transaction and self.connection.in_transaction:
+                    self.connection.rollback()
+                raise
             return replace(settings, record_revision=1)
 
         if int(existing[0]) != settings.scope.project_revision:
@@ -380,21 +397,34 @@ class SQLiteProjectScheduleSettingsRepository:
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
         stored = replace(settings, record_revision=current.record_revision + 1)
         payload = _canonical_payload(stored)
-        cursor = self.connection.execute(
-            "UPDATE project_schedule_settings SET project_revision=?,record_revision=?,canonical_payload=?,settings_hash=? "
-            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND record_revision=?",
-            (
-                stored.scope.project_revision, stored.record_revision, payload, _content_hash(payload),
-                stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
-                current.record_revision,
-            ),
-        )
+        try:
+            cursor = self.connection.execute(
+                "UPDATE project_schedule_settings SET project_revision=?,record_revision=?,canonical_payload=?,settings_hash=? "
+                "WHERE tenant_id=? AND project_id=? AND project_revision=? AND record_revision=?",
+                (
+                    stored.scope.project_revision, stored.record_revision, payload, _content_hash(payload),
+                    stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision,
+                    current.record_revision,
+                ),
+            )
+        except Exception:
+            # SQLite can leave a transaction open after a failed statement.
+            # Do not leak a repository-owned transaction, and never roll back
+            # a transaction that was already active on the caller's connection.
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
         if cursor.rowcount != 1:
-            if not was_in_transaction:
+            if not was_in_transaction and self.connection.in_transaction:
                 self.connection.rollback()
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
         if not was_in_transaction:
-            self.connection.commit()
+            try:
+                self.connection.commit()
+            except Exception:
+                if self.connection.in_transaction:
+                    self.connection.rollback()
+                raise
         return stored
 
     def get(self, scope: BackendScope) -> ProjectScheduleSettings | None:

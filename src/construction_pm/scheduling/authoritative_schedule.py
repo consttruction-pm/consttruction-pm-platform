@@ -153,6 +153,9 @@ class AuthoritativeScheduleInput:
                 if self.project_finish.tzinfo is None or self.project_finish.utcoffset() is None:
                     raise ValueError("TIME_AWARE project_finish must include a timezone")
 
+        if self.project_finish is not None and self.project_finish < self.project_start:
+            raise ValueError("project_finish must not be earlier than project_start")
+
         if isinstance(self.project_leveling_priority, bool) or not isinstance(self.project_leveling_priority, int) or not 1 <= self.project_leveling_priority <= 100:
             raise ValueError("project_leveling_priority must be between 1 and 100")
 
