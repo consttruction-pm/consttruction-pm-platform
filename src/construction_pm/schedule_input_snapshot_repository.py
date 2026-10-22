@@ -64,7 +64,11 @@ class ScheduleInputSnapshot:
             or not 0 <= self.record_revision <= MAX_SAFE_REVISION
         ):
             raise ScheduleSnapshotPersistenceError("INVALID_RECORD_REVISION")
-        if self.calculation_identity_version not in (1, 2):
+        if (
+            isinstance(self.calculation_identity_version, bool)
+            or not isinstance(self.calculation_identity_version, int)
+            or self.calculation_identity_version not in (1, 2)
+        ):
             raise ScheduleSnapshotPersistenceError("INVALID_CALCULATION_IDENTITY_VERSION")
 
 
