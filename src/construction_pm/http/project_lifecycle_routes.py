@@ -81,6 +81,7 @@ from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_rate_api import P6ResourceRateAPI, P6_RESOURCE_RATE_API_VERSION
+from ..p6_resource_rate_repository import P6ResourceRatePersistenceError
 from ..scheduling.resource_leveling_input import ResourceCapacityRate
 from ..p6_resource_assignment_repository import P6ResourceAssignmentPeriodValue
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
@@ -1520,6 +1521,11 @@ class ProjectLifecycleHttpRoutes:
                         rate,
                         auth_context=auth,
                     )
+                except P6ResourceRatePersistenceError as exc:
+                    code = str(exc)
+                    if code == "IMMUTABLE_RESOURCE_RATE_CONFLICT":
+                        return self._error(409, code, "error.resource_rate.immutable_conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
