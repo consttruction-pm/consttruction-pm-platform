@@ -61,3 +61,77 @@ def test_postgres_resource_capacity_rate_round_trip_scope_and_immutability():
             (scope.tenant_id, scope.project_id),
         )
         connection.commit()
+
+
+
+def test_postgres_resource_capacity_rate_conflicting_concurrent_writes_are_race_safe():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    scope = BackendScope(
+        "tenant-resource-rate-concurrency",
+        "project-resource-rate-concurrency",
+        1,
+    )
+    params = (scope.tenant_id, scope.project_id)
+    cleanup_sql = (
+        "DELETE FROM p6_resource_rate_capacity WHERE tenant_id=%s AND project_id=%s"
+    )
+    barrier = Barrier(2)
+
+    class FirstSelectBarrierConnection:
+        def __init__(self, connection):
+            self._connection = connection
+            self._waited = False
+
+        def execute(self, statement, parameters=()):
+            cursor = self._connection.execute(statement, parameters)
+            if (
+                not self._waited
+                and statement.lstrip().startswith("SELECT max_units_per_time")
+            ):
+                self._waited = True
+                barrier.wait(timeout=10)
+            return cursor
+
+        def __getattr__(self, name):
+            return getattr(self._connection, name)
+
+    try:
+        with connect() as connection:
+            repository = PostgresP6ResourceRateRepository(connection)
+            repository.initialize()
+            connection.execute(cleanup_sql, params)
+            connection.commit()
+
+        def write(max_units: str) -> str:
+            with connect() as connection:
+                repository = PostgresP6ResourceRateRepository(
+                    FirstSelectBarrierConnection(connection)
+                )
+                try:
+                    repository.save(scope, profile(max_units=max_units))
+                    connection.commit()
+                    return "saved"
+                except P6ResourceRatePersistenceError as exc:
+                    connection.rollback()
+                    return str(exc)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = sorted(
+                [executor.submit(write, "8"), executor.submit(write, "10")][i].result()
+                for i in range(2)
+            )
+        assert results == ["IMMUTABLE_RESOURCE_RATE_CONFLICT", "saved"]
+
+        with connect() as connection:
+            row = connection.execute(
+                "SELECT count(*) FROM p6_resource_rate_capacity "
+                "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+                (*params, "R-RATE-PG"),
+            ).fetchone()
+            assert row == (1,)
+    finally:
+        with connect() as connection:
+            connection.execute(cleanup_sql, params)
+            connection.commit()
