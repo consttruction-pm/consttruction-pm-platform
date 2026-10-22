@@ -1046,6 +1046,22 @@ def test_schedule_honors_selected_relationship_lag_calendar(
     assert result.early_activities["B"].start == expected_successor_start
 
 
+def test_default_relationship_lag_calendar_uses_successor_activity_calendar(resolver):
+    seven_day = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset(range(7)))
+    )
+    result = schedule(
+        [Activity("A", 1), Activity("B", 1)],
+        [Relationship("A", "B", RelationshipType.FS)],
+        date(2026, 9, 25),
+        resolver,
+        activity_resolvers={"A": resolver, "B": seven_day},
+    )
+
+    # P6's documented default is the successor activity calendar.
+    assert result.early_activities["B"].start == date(2026, 9, 26)
+
+
 def test_explicit_relationship_lag_resolver_overrides_schedule_option(resolver):
     seven_day = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset(range(7)))
