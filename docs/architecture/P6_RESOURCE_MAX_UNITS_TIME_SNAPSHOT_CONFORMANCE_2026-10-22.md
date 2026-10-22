@@ -1,7 +1,7 @@
 # Resource Max Units/Time — Immutable Schedule Snapshot Contract
 
 Date: 2026-10-22  
-Status: **Partial implementation: immutable capacity inputs, SQLite/PostgreSQL repositories, authenticated HTTP read/write routes, production wiring, effective-date boundary tests, and conflict-safe persistence are implemented. The latest verified checkpoint passed Python CI (2,674 passed, 93 skipped), PostgreSQL integration (127 passed), and client typecheck; P6 edge-case parity and independent semantic review remain gated.**
+Status: **Partial implementation. Code checkpoint `b0d10815f6845c7c86be31c76a25460202f01ab9` passed Python CI (2,693 passed, 93 skipped, 1 pre-existing pytest-marker warning), PostgreSQL Integration, and Client Typecheck for web/desktop/mobile/client-sync. This does not establish full P6 feature parity; the unsupported cases below remain open.**
 
 ## Authoritative references
 
@@ -34,6 +34,12 @@ Publication/materialization rejects missing or ambiguous rate data, an ineffecti
 P6 documentation states that resource curves are not used by resource leveling, while manually entered future-period assignment values are considered. The snapshot therefore uses persisted period-demand values for the leveling input and does not treat a distribution curve as a capacity limit.
 
 ## Implemented path and current limitations
+## Calendar resolution in the evaluation boundary
+
+The evaluator now uses the shared `resolve_authoritative_activity_calendars` result for every DATE_BASED activity in both ordinary CPM and resource leveling, including exact version refs and project-calendar fallback. It also binds the configured relationship-lag calendar choice to each relationship through `resolve_relationship_lag_resolvers`; tests verify that an activity-only Tuesday/Thursday calendar changes scheduled dates and that a predecessor-calendar holiday changes a one-day lag. The resolver map is reused across relationships to avoid re-resolving the complete activity set for every edge.
+
+P6 v26 defines the available relationship-lag calendar choices as predecessor activity, successor activity, 24-hour, and project default. Source: [P6 EPPM Release 26 — Read ScheduleOptions](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html).
+
 ## Activity-type rules from P6 v26
 
 The shared snapshot evaluator now excludes **WBS Summary** activity demands from the leveling ledger while retaining source assignment/demand facts in the immutable snapshot for audit. Regression coverage gives a WBS Summary activity 100 units on a day when two Task Dependent activities each demand 8 units; those two executable tasks must still level based on actual capacity, and the summary row must not consume capacity.
@@ -45,12 +51,12 @@ Source: [P6 Professional v26 — Leveling resources on Task, Resource Dependent,
 
 The authenticated HTTP boundary now exposes `GET /api/projects/{project_id}/p6/resource-rates` and `POST /api/projects/{project_id}/p6/resource-rates`. It derives tenant, project, revision, and actor roles from the authenticated project session rather than trusting the request body. The production composition uses the same rate repository as the snapshot composer; an explicitly different repository is rejected as `RESOURCE_RATE_REPOSITORY_WIRING_MISMATCH`. WSGI integration tests cover read-after-write, revision scope, reader-versus-writer authorization, split-repository wiring, and immutable profile conflicts reported as HTTP `409 Conflict`. The end-to-end snapshot test also covers a rate effective-date boundary and a non-working Saturday where both calendar work-hours and capacity must be zero.
 
-When a leveling request enables `include_external_res_ass` or a positive `external_project_priority_limit`, snapshot publication now returns `CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED`; the implementation does not pretend a single-project resource pool satisfies a cross-project request. Likewise, `recalculate_resource_costs` during leveling is rejected with `RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED` until re-costed assignment outputs can be calculated and included in query results. Three route-level regression cases exercise these fail-closed settings and assert no snapshot is persisted.
+When a leveling request enables `include_external_res_ass` or a positive `external_project_priority_limit`, snapshot publication now returns `CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED`; the implementation does not pretend a single-project resource pool satisfies a cross-project request. Likewise, `recalculate_resource_costs` during leveling is rejected with `RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED` until re-costed assignment outputs can be calculated and included in query results. Three route-level regression cases exercise these fail-closed settings and assert no snapshot is persisted. The same gates are enforced again by `schedule_evaluator` so a prebuilt or older snapshot cannot bypass the composition boundary.
 
 
 SQLite and PostgreSQL immutable inserts now use conflict-safe insert/read-back comparison, so concurrent writes to the same effective-date key converge on one identical record or return `IMMUTABLE_RESOURCE_RATE_CONFLICT` instead of exposing a raw unique-key exception. A SQLite concurrency regression test and a PostgreSQL live integration test cover this behavior; the PostgreSQL test only runs when `CONSTRUCTION_PM_POSTGRES_DSN` is configured.
 
-1. **Multiple resource shifts:** the current date-based capacity contract rejects multiple shift identities with `RESOURCE_RATE_SHIFT_LEVELING_UNSUPPORTED`. This is intentionally fail-closed behavior, not full parity for installations where resource shift schedules affect leveling.
+1. **Resource shifts:** the current date-based contract rejects more than one shift identity and any non-`default` named shift with `RESOURCE_RATE_SHIFT_LEVELING_UNSUPPORTED`. No versioned resource-shift calendar/working-time resolver exists yet, so a single named shift is not silently treated as the generic resource calendar. Full shift-calendar support remains open.
 2. **Suspended activities:** P6 states resource assignments on a suspended activity can be treated as available to other activities until the resume date. `ActivityMaster` persistence and snapshot semantics do not yet carry a complete suspend/resume interval into resource leveling. The HTTP activity write route now rejects populated `suspend_date` or `resume_date` with `ACTIVITY_SUSPEND_RESUME_NOT_PERSISTED`, rather than silently discarding those schedule-critical values. This is a protective fail-closed guard, not feature parity; proper persisted date semantics and demand suppression remain open.
 3. **Cross-project resources:** P6 supports leveling decisions that can consider assignments from other open projects according to project leveling priority. The present rate/assignment snapshot is revision-scoped to one project and does not yet bind a multi-project leveling pool and its project-priority ordering.
 4. **Post-level critical paths:** the code must prove that CPM dates/float and resource-driven critical-path outputs are recalculated/represented according to the selected P6 leveling options after changes. This behavior is not yet accepted by an independent semantic test in this work item.
