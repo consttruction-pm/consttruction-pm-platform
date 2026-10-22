@@ -60,22 +60,6 @@ jobs:
           cp -R public/. "${{ github.workspace }}/_site/"
           cp -R dist "${{ github.workspace }}/_site/dist"
           cp index.html "${{ github.workspace }}/_site/app/index.html"
-          # /app is a private workspace entry, not a public marketing page.
-          # Strip root-page indexing signals before publishing the app route.
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          path = Path("${{ github.workspace }}/_site/app/index.html")
-          html = path.read_text(encoding="utf-8")
-          html = re.sub(r'\s*<link\s+rel=["\']canonical["\'][^>]*>', "", html, flags=re.I)
-          html = re.sub(r'\s*<meta\s+property=["\']og:url["\'][^>]*>', "", html, flags=re.I)
-          html = re.sub(r'\s*<script\s+type=["\']application/ld\+json["\'][^>]*>.*?</script>', "", html, flags=re.I | re.S)
-          html = re.sub(r'<meta\s+name=["\']robots["\'][^>]*>', '<meta name="robots" content="noindex,nofollow,noarchive">', html, flags=re.I)
-          html = re.sub(r'<meta\s+name=["\']keywords["\'][^>]*>\s*', "", html, flags=re.I)
-          html = re.sub(r'<title>.*?</title>', "<title>CUBI Workspace</title>", html, flags=re.I | re.S)
-          html = re.sub(r'<meta\s+name=["\']description["\'][^>]*>', '<meta name="description" content="Private CUBI workspace. Sign in to access your project.">', html, count=1, flags=re.I)
-          path.write_text(html, encoding="utf-8")
-          PY
           # The shared landing component uses document-relative logo paths on both routes.
           # Copy the same canonical asset into /app so those references resolve there too.
           cp public/cubi-platform-logo-primary.svg "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
@@ -89,11 +73,6 @@ jobs:
           sed -i 's#\./dist/landing-entry\.js#../dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/index.html"
           test -f "${{ github.workspace }}/_site/app/index.html"
-          grep -qi 'name="robots" content="noindex,nofollow,noarchive"' "${{ github.workspace }}/_site/app/index.html"
-          ! grep -qi 'rel="canonical"' "${{ github.workspace }}/_site/app/index.html"
-          ! grep -qi 'property="og:url"' "${{ github.workspace }}/_site/app/index.html"
-          ! grep -qi 'application/ld+json' "${{ github.workspace }}/_site/app/index.html"
-          grep -qi '<title>CUBI Workspace</title>' "${{ github.workspace }}/_site/app/index.html"
           test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
           test -f "${{ github.workspace }}/_site/dist/web/src/landing.js"
           test -f "${{ github.workspace }}/_site/styles.css"
