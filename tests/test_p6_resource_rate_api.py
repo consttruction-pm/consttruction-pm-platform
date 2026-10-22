@@ -1,6 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal
 import sqlite3
+from threading import Barrier
 
 import pytest
 
@@ -102,3 +104,48 @@ def test_resource_rate_api_rejects_percentage_capacity_without_explicit_base():
             invalid,
             auth_context=auth("planner"),
         )
+
+
+def test_concurrent_immutable_rate_writes_return_domain_conflict(tmp_path):
+    database_path = str(tmp_path / "resource-rates.sqlite")
+    bootstrap = sqlite3.connect(database_path)
+    SQLiteP6ResourceRateRepository(bootstrap)
+    bootstrap.close()
+    barrier = Barrier(2)
+    scope = BackendScope("tenant-a", "project-a", 1)
+
+    class FirstSelectBarrierConnection:
+        def __init__(self, connection):
+            self._connection = connection
+            self._waited = False
+
+        def execute(self, statement, parameters=()):
+            cursor = self._connection.execute(statement, parameters)
+            if (
+                not self._waited
+                and statement.lstrip().startswith("SELECT max_units_per_time")
+            ):
+                self._waited = True
+                barrier.wait(timeout=5)
+            return cursor
+
+        def __getattr__(self, name):
+            return getattr(self._connection, name)
+
+    def write(max_units: str) -> str:
+        connection = sqlite3.connect(database_path, timeout=5)
+        repository = SQLiteP6ResourceRateRepository(
+            FirstSelectBarrierConnection(connection)
+        )
+        try:
+            repository.save(scope, rate(max_units=max_units))
+            return "saved"
+        except P6ResourceRatePersistenceError as exc:
+            return str(exc)
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = sorted([executor.submit(write, "8"), executor.submit(write, "10")][i].result()
+                         for i in range(2))
+    assert results == ["IMMUTABLE_RESOURCE_RATE_CONFLICT", "saved"]
