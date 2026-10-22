@@ -27,7 +27,14 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
-from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
+from construction_pm.p6_schedule_snapshot_publication_api import (
+    P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+    P6ScheduleSnapshotPublicationAPI,
+)
+from construction_pm.project_schedule_settings_repository import (
+    SQLiteProjectScheduleSettingsRepository,
+    _schedule_options_payload,
+)
 from construction_pm.relationship_master_repository import (
     RelationshipMaster,
     SQLiteRelationshipMasterRepository,
@@ -105,6 +112,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
     resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    settings_repo = SQLiteProjectScheduleSettingsRepository(connection)
     snapshot_repo = SQLiteScheduleInputSnapshotRepository(connection)
     context_repo = SQLiteCalculationContextRepository(connection)
 
@@ -127,6 +135,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         calendar_snapshot_repository=calendar_snapshots,
         resource_assignment_repository=resource_assignments,
         resource_period_repository=resource_periods,
+        project_schedule_settings_repository=settings_repo,
     )
     if fail_context_write:
         class FailingContextRepository:
@@ -150,7 +159,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         clock=lambda: now,
         snapshot_id_factory=lambda: "SNAP-PUBLISHED-1",
     )
-    snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy)
+    snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy, settings_repo)
     registry = CalendarResolverRegistry(
         day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
     )
@@ -173,7 +182,25 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
         "calendar_repo": calendar_repo,
+        "settings_repo": settings_repo,
     }
+
+
+def _save_settings(app, *, expected_revision: int = 0):
+    options = ScheduleOptions(data_date=date(2026, 10, 19))
+    payload = {
+        "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+        "expected_record_revision": expected_revision,
+        "mode": "DATE_BASED",
+        "project_calendar_id": "CAL-1",
+        "project_calendar_version": "1",
+        "project_calendar_system": "GREGORIAN",
+        "project_start": "2026-10-19",
+        "project_finish": None,
+        "schedule_options": _schedule_options_payload(options),
+        "project_leveling_priority": 10,
+    }
+    return _request(app, "POST", "/api/projects/p1/p6/schedule/settings", payload)
 
 
 def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_snapshot(tmp_path):
@@ -219,20 +246,25 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
         )
     )
 
+    settings_status, stored_settings = _save_settings(app)
+    assert settings_status == "201 Created"
+    assert stored_settings["record_revision"] == 1
+
+    settings_read_status, settings_read = _request(
+        app, "GET", "/api/projects/p1/p6/schedule/settings"
+    )
+    assert settings_read_status == "200 OK"
+    assert settings_read["record_revision"] == 1
+    assert settings_read["project_calendar"]["calendar_version"] == "1"
+    assert settings_read["schedule_options"]["data_date"] == "2026-10-19"
+
     status, published = _request(
         app,
         "POST",
         "/api/projects/p1/p6/schedule/snapshots",
         {
             "contract_version": "p6-schedule-snapshot-api.v1",
-            "mode": "DATE_BASED",
-            "project_calendar_id": "CAL-1",
-            "project_calendar_version": "1",
-            "project_start": "2026-10-19",
-            "project_finish": None,
             "timezone": "UTC",
-            "project_leveling_priority": 10,
-            "schedule_options": {"data_date": "2026-10-19"},
         },
     )
     assert status == "201 Created"
@@ -313,16 +345,13 @@ def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp
             "actual_start": "2026-10-19T09:15:00+00:00",
         },
     )
+    settings_status, _ = _save_settings(app)
+    assert settings_status == "201 Created"
     status, error = _request(
         app, "POST", "/api/projects/p1/p6/schedule/snapshots",
         {
             "contract_version": "p6-schedule-snapshot-api.v1",
-            "mode": "DATE_BASED",
-            "project_calendar_id": "CAL-1",
-            "project_calendar_version": "1",
-            "project_start": "2026-10-19",
             "timezone": "UTC",
-            "schedule_options": {},
         },
     )
     assert status == "400 Bad Request"
