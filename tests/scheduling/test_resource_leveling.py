@@ -894,12 +894,12 @@ def test_forward_leveling_uses_p6_categorical_activity_priority_order(
         LevelingActivity(
             "A", day, day, 2,
             (ResourceDemand("R1", day, Decimal("8"), "A"),),
-            activity_priority=ActivityLevelingPriority.TOP,
+            leveling_priority=ActivityLevelingPriority.TOP,
         ),
         LevelingActivity(
             "B", day, day, 2,
             (ResourceDemand("R1", day, Decimal("8"), "B"),),
-            activity_priority=ActivityLevelingPriority.LOW,
+            leveling_priority=ActivityLevelingPriority.LOW,
         ),
     )
     capacities = (
@@ -935,12 +935,12 @@ def test_backward_leveling_uses_p6_categorical_activity_priority_order(
         BackwardLevelingActivity(
             "A", day_one, day_one, day_two, day_two,
             (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
-            activity_priority=ActivityLevelingPriority.TOP,
+            leveling_priority=ActivityLevelingPriority.TOP,
         ),
         BackwardLevelingActivity(
             "B", day_one, day_one, day_two, day_two,
             (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
-            activity_priority=ActivityLevelingPriority.LOW,
+            leveling_priority=ActivityLevelingPriority.LOW,
         ),
     )
     capacities = (
