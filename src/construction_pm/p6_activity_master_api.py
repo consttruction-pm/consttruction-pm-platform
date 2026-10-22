@@ -13,7 +13,13 @@ from .application.authorization import (
 )
 from .activity_master_repository import ActivityMaster, ActivityMasterRepository
 from .backend_p0.models import BackendScope
-from .scheduling.activity import ActivityLevelingPriority, PercentCompleteType
+from .scheduling.activity import (
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityStatusCode,
+    ActivityType,
+    PercentCompleteType,
+)
 
 
 P6_ACTIVITY_MASTER_API_VERSION = "p6-activity-master-api.v1"
@@ -45,6 +51,10 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
         "scope": _scope_dto(item.scope),
         "activity": {
             "activity_id": item.activity_id,
+            "name": item.name,
+            "activity_type": item.activity_type.value,
+            "status": item.status.value,
+            "status_code": item.status_code.value,
             "duration_value": str(item.duration_value),
             "duration_unit": item.duration_unit.value,
             "actual_start": _optional_iso(item.actual_start),
