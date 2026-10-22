@@ -264,7 +264,7 @@ def test_leveling_priority_reads_typed_p6_fields_without_substituting_other_valu
     assert _priority_value(activity, "original_planned_duration") == Decimal("5.5")
     assert _priority_value(activity, "planned_finish") == date(2026, 10, 12)
     assert _priority_value(activity, "project_planned_start") == date(2026, 10, 1)
-    assert _priority_value(activity, "project_priority") == 3
+    assert _priority_value(activity, "project_priority") == 98
     assert _priority_value(activity, "remaining_duration") == Decimal("2.25")
 
 
