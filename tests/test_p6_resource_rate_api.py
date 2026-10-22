@@ -120,14 +120,13 @@ def test_concurrent_immutable_rate_writes_return_domain_conflict(tmp_path):
             self._waited = False
 
         def execute(self, statement, parameters=()):
-            cursor = self._connection.execute(statement, parameters)
             if (
                 not self._waited
-                and statement.lstrip().startswith("SELECT max_units_per_time")
+                and statement.lstrip().startswith("INSERT OR IGNORE INTO p6_resource_rate_capacity")
             ):
                 self._waited = True
                 barrier.wait(timeout=5)
-            return cursor
+            return self._connection.execute(statement, parameters)
 
         def __getattr__(self, name):
             return getattr(self._connection, name)
