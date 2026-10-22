@@ -16,6 +16,7 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    RelationshipLagCalendar,
     SchedulingCalendarContext,
 )
 from construction_pm.scheduling.authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleInput, AuthoritativeScheduleMode
@@ -396,3 +397,61 @@ def test_evaluator_uses_exact_versioned_activity_calendar_for_cpm_dates():
     assert result.date_result is not None
     assert result.date_result.activities["A"].start == date(2026, 9, 22)
     assert result.date_result.activities["A"].finish == date(2026, 9, 22)
+
+
+
+def test_evaluator_applies_configured_predecessor_calendar_to_relationship_lag():
+    project_calendar = CalendarReference("CAL-1", "1")
+    predecessor_calendar = CalendarReference("CAL-PRED", "3")
+    successor_calendar = CalendarReference("CAL-SUCC", "2")
+    options = ScheduleOptions(
+        relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR,
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RELATIONSHIP-LAG-CALENDAR",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_calendar,
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(Relationship("A", "B", RelationshipType.FS, lag=1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", predecessor_calendar),
+            ActivityCalendarAssignment("B", successor_calendar),
+        ),
+        schedule_options=options,
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-RELATIONSHIP-LAG-CALENDAR",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 9, 30, tzinfo=timezone.utc),
+    )
+    registry_with_lag_holiday = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
+            "CAL-PRED@3": WorkingTimeResolver(
+                WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+            ),
+            "CAL-SUCC@2": WorkingTimeResolver(WorkingCalendar()),
+        }
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, registry_with_lag_holiday)
+
+    assert result.date_result is not None
+    assert result.date_result.activities["A"].start == date(2026, 9, 21)
+    assert result.date_result.activities["B"].start == date(2026, 9, 24)
