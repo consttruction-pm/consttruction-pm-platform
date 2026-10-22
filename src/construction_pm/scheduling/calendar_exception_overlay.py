@@ -56,6 +56,12 @@ class ExceptionAwareWorkingCalendar:
     def time_period_factors(self):
         return self.calendar.time_period_factors
 
+    @property
+    def hours_per_day(self):
+        # Preserve the WorkingCalendar protocol through the exception overlay;
+        # downstream calendar resolution uses the same authoritative factor.
+        return self.calendar.hours_per_day
+
     def to_gregorian(self, value):
         return self.calendar.to_gregorian(value)
 

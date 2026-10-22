@@ -16,6 +16,7 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentRepository,
 )
 from construction_pm.p6_resource_leveling_read_adapter import build_scheduler_leveling_input
+from construction_pm.p6_resource_capacity_contract import ResourceCapacityContractError
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
@@ -23,7 +24,7 @@ from construction_pm.p6_resource_spread_repository import (
 )
 from construction_pm.resources.calendar import ResourceCalendar
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
-from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceLevelingOptions
+from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceCapacity, ResourceLevelingError, ResourceLevelingOptions
 
 
 class TransactionManager:
@@ -151,6 +152,182 @@ def test_adapter_preserves_deterministic_order_and_scope():
     assert result.forward_activities[0].resource_demands[0].activity_id == "activity-1"
 
 
+def test_strict_adapter_fails_closed_for_legacy_assignment_without_calendar_version():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 12)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+
+    with pytest.raises(ResourceCapacityContractError, match="MISSING_RESOURCE_CALENDAR_VERSION"):
+        build_scheduler_leveling_input(
+            read_api=api,
+            scope=scope,
+            auth_context=auth(),
+            forward_activities=(activity,),
+            backward_activities=(activity,),
+            calendars={("calendar-1", "cal-v1"): ResourceCalendar("calendar-1")},
+            periods=(date(2026, 10, 2),),
+            options=ResourceLevelingOptions(),
+            require_calendar_versions=True,
+        )
+
+
+def test_strict_adapter_never_falls_back_to_same_calendar_id_with_wrong_version():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 13)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1", calendar_version="cal-v7",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_VERSION_NOT_FOUND"):
+        build_scheduler_leveling_input(
+            read_api=api,
+            scope=scope,
+            auth_context=auth(),
+            forward_activities=(activity,),
+            backward_activities=(activity,),
+            # Same ID, wrong version: strict mode must not silently fall back.
+            calendars={
+                "calendar-1": ResourceCalendar("calendar-1"),
+                ("calendar-1", "cal-v6"): ResourceCalendar("calendar-1"),
+            },
+            periods=(date(2026, 10, 2),),
+            options=ResourceLevelingOptions(),
+            require_calendar_versions=True,
+        )
+
+
+def test_strict_adapter_resolves_exact_calendar_id_and_version_pair():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 14)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1", calendar_version="cal-v7",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+    result = build_scheduler_leveling_input(
+        read_api=api,
+        scope=scope,
+        auth_context=auth(),
+        forward_activities=(activity,),
+        backward_activities=(activity,),
+        calendars={
+            ("calendar-1", "cal-v7"): ResourceCalendar(
+                "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                calendar_version="cal-v7",
+                canonical_snapshot_hash="a" * 64,
+                capacity_slices=((date(2026, 10, 2), Decimal("7.5")),),
+            )
+        },
+        periods=(date(2026, 10, 2),),
+        options=ResourceLevelingOptions(),
+        require_calendar_versions=True,
+    )
+
+    assert result.capacities[0].units == Decimal("7.5")
+    assert result.capacities[0].calendar_id == "calendar-1"
+    assert result.capacities[0].calendar_version == "cal-v7"
+    assert result.capacities[0].calendar_snapshot_hash == "a" * 64
+
+
+def test_strict_adapter_requires_calendar_snapshot_hash_and_period_capacity_slices():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 16)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1", calendar_version="cal-v7",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+    base = dict(
+        read_api=api,
+        scope=scope,
+        auth_context=auth(),
+        forward_activities=(activity,),
+        backward_activities=(activity,),
+        periods=(date(2026, 10, 2),),
+        options=ResourceLevelingOptions(),
+        require_calendar_versions=True,
+    )
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_SNAPSHOT_HASH_REQUIRED"):
+        build_scheduler_leveling_input(
+            **base,
+            calendars={
+                ("calendar-1", "cal-v7"): ResourceCalendar(
+                    "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                    calendar_version="cal-v7",
+                )
+            },
+        )
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_CAPACITY_PERIOD_MISSING"):
+        build_scheduler_leveling_input(
+            **base,
+            calendars={
+                ("calendar-1", "cal-v7"): ResourceCalendar(
+                    "calendar-1", frozenset({0, 1, 2, 3, 4}), Decimal("7.5"),
+                    calendar_version="cal-v7",
+                    canonical_snapshot_hash="b" * 64,
+                    capacity_slices=((date(2026, 10, 5), Decimal("7.5")),),
+                )
+            },
+        )
+
+
+def test_strict_adapter_rejects_exact_key_with_wrong_calendar_object_version():
+    api, assignment_repo, period_repo = build_api()
+    scope = BackendScope("tenant-a", "project-a", 15)
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope, "a-1", "activity-1", "resource-1",
+        units=Decimal("8"), calendar_id="calendar-1", calendar_version="cal-v7",
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope, "a-1", "activity-1", "resource-1",
+        "2026-10-02", Decimal("6"), Decimal("0"),
+    ))
+    activity = LevelingActivity("activity-1", date(2026, 10, 2), date(2026, 10, 2), 0)
+
+    with pytest.raises(ResourceCapacityContractError, match="RESOURCE_CALENDAR_OBJECT_VERSION_MISMATCH"):
+        build_scheduler_leveling_input(
+            read_api=api,
+            scope=scope,
+            auth_context=auth(),
+            forward_activities=(activity,),
+            backward_activities=(activity,),
+            # A tuple key alone must not be allowed to relabel a stale calendar.
+            calendars={
+                ("calendar-1", "cal-v7"): ResourceCalendar(
+                    "calendar-1", frozenset({0, 1, 2, 3, 4}),
+                    Decimal("7.5"), calendar_version="cal-v6",
+                )
+            },
+            periods=(date(2026, 10, 2),),
+            options=ResourceLevelingOptions(),
+            require_calendar_versions=True,
+        )
+
+
 def test_adapter_enforces_existing_read_api_authorization_boundary():
     api, assignment_repo, _ = build_api()
     scope = BackendScope("tenant-a", "project-a", 1)
@@ -172,3 +349,25 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_resource_capacity_allows_legacy_calendar_id_without_version_metadata():
+    capacity = ResourceCapacity(
+        "resource-1", date(2026, 10, 2), Decimal("8"), calendar_id="calendar-1"
+    )
+    assert capacity.calendar_id == "calendar-1"
+    assert capacity.calendar_version is None
+    assert capacity.calendar_snapshot_hash is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"calendar_id": "calendar-1", "calendar_version": "v1"},
+        {"calendar_id": "calendar-1", "calendar_snapshot_hash": "a" * 64},
+        {"calendar_version": "v1", "calendar_snapshot_hash": "a" * 64},
+    ],
+)
+def test_resource_capacity_rejects_partial_versioned_calendar_identity(kwargs):
+    with pytest.raises(ResourceLevelingError, match="INCOMPLETE_CAPACITY_CALENDAR_IDENTITY"):
+        ResourceCapacity("resource-1", date(2026, 10, 2), Decimal("8"), **kwargs)
