@@ -89,11 +89,14 @@ def build_project_lifecycle_wsgi_app(
     calendar_assignment_repository = getattr(
         publication_composer, "calendar_assignment_repository", None
     )
+    calendar_repository = getattr(publication_composer, "calendar_repository", None)
     relationship_lag_calendar_api = (
         None
         if calendar_assignment_repository is None
         else P6RelationshipLagCalendarAPI(
-            calendar_assignment_repository, authorization_policy
+            calendar_assignment_repository,
+            authorization_policy,
+            calendar_repository=calendar_repository,
         )
     )
     routes = ProjectLifecycleHttpRoutes(
