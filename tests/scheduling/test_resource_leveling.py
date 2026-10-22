@@ -23,6 +23,7 @@ from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     propose_backward_leveling,
     _priority_value,
+    _priority_sort_key,
 )
 
 
@@ -327,6 +328,31 @@ def test_priority_tie_falls_back_to_activity_id():
     capacities = (ResourceCapacity("R1", date(2026, 10, 1), Decimal("8")),)
     shifts = propose_forward_leveling_within_float(activities, capacities, resolver=resolver, priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),))
     assert shifts[0].activity_id == "A1"
+
+
+def test_activity_id_priority_sorts_numeric_ids_numerically_before_alphabetic_ids():
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity("10", day, day, 1, ()),
+        LevelingActivity("A-1", day, day, 1, ()),
+        LevelingActivity("2", day, day, 1, ()),
+    )
+
+    ascending = sorted(
+        activities,
+        key=lambda activity: _priority_sort_key(
+            activity, (LevelingPriority("Activity ID", SortOrder.ASCENDING),)
+        ),
+    )
+    descending = sorted(
+        activities,
+        key=lambda activity: _priority_sort_key(
+            activity, (LevelingPriority("Activity ID", SortOrder.DESCENDING),)
+        ),
+    )
+
+    assert [activity.activity_id for activity in ascending] == ["2", "10", "A-1"]
+    assert [activity.activity_id for activity in descending] == ["10", "2", "A-1"]
 
 
 def test_unsupported_leveling_priority_fails_closed():
