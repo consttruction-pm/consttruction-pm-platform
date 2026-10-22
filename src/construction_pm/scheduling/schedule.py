@@ -673,15 +673,23 @@ def calculate_floats(
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
+    # These arguments are Iterable, not necessarily reusable collections. Materialize
+    # them once so LONGEST_PATH analysis cannot consume a generator before the
+    # activity/relationship maps and float calculations are built.
+    activity_list = list(activities)
+    relationship_list = list(relationships)
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
+        _longest_path_activity_ids(
+            activity_list, relationship_list, early_schedule, resolver,
+            relationship_lag_resolvers,
+        )
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
 
-    activity_map = {activity.id: activity for activity in activities}
+    activity_map = {activity.id: activity for activity in activity_list}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
+    for rel in relationship_list:
         outgoing[rel.predecessor_id].append(rel)
 
     result: dict[str, FloatActivity] = {}
