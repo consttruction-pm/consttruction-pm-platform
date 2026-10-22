@@ -221,18 +221,45 @@ def _resource_leveling_facts(
                 calendar_id=_required_string(item, "calendar_id"),
                 calendar_version=_required_string(item, "calendar_version"),
                 calendar_snapshot_hash=_required_string(item, "calendar_snapshot_hash"),
+                calendar_work_hours=_decimal(_required(item, "calendar_work_hours")),
+                resource_rate_hash=_required_string(item, "resource_rate_hash"),
+                resource_rate_effective_from=_datetime(_required(item, "resource_rate_effective_from")),
             )
             for item in capacities_payload
             if isinstance(item, dict)
         )
         if len(capacities) != len(capacities_payload):
             raise SnapshotMaterializationError("INVALID_RESOURCE_CAPACITY")
+        rates = tuple(
+            ResourceCapacityRate(
+                resource_id=_required_string(item, "resource_id"),
+                effective_from=_datetime(_required(item, "effective_from")),
+                max_units_per_time=_decimal(_required(item, "max_units_per_time")),
+                time_period_unit=_required_string(item, "time_period_unit"),
+                hours_per_time_period=_decimal(_required(item, "hours_per_time_period")),
+                unit_of_measure=_required_string(item, "unit_of_measure"),
+                time_period_source=_required_string(item, "time_period_source"),
+                capacity_basis=_required_string(item, "capacity_basis"),
+                full_time_units_per_time_period=(
+                    _decimal(item["full_time_units_per_time_period"])
+                    if item.get("full_time_units_per_time_period") is not None else None
+                ),
+                shift_id=_required_string(item, "shift_id"),
+                record_revision=_strict_integer(item.get("record_revision"), "INVALID_RESOURCE_RATE_REVISION"),
+            )
+            for item in rates_payload
+            if isinstance(item, dict)
+        )
+        if len(rates) != len(rates_payload):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_CAPACITY_RATE")
         facts = ResourceLevelingFacts(
             assignments=assignments,
             demands=demands,
             capacities=capacities,
+            resource_capacity_rates=rates,
             capacity_horizon_start=_date(_required(raw, "capacity_horizon_start")),
             capacity_horizon_end=_date(_required(raw, "capacity_horizon_end")),
+            calculation_timezone=_required_string(raw, "calculation_timezone"),
             schema_version=_strict_integer(raw.get("schema_version", 1), "INVALID_RESOURCE_LEVELING_SCHEMA_VERSION"),
         )
         facts.validate(activity_ids=activity_ids)
