@@ -7,7 +7,6 @@ remain in the shared scheduling domain/core. Unsupported date/resource/calendar
 semantics fail closed instead of being coerced or silently omitted.
 """
 
-from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
@@ -28,6 +27,11 @@ from .p6_resource_assignment_repository import (
     P6ResourceAssignmentPeriodRepository,
     P6ResourceAssignmentRepository,
 )
+from .project_schedule_settings_repository import (
+    ProjectScheduleSettings,
+    ProjectScheduleSettingsPersistenceError,
+    ProjectScheduleSettingsRepository,
+)
 from .scheduling.activity import Activity
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
@@ -38,7 +42,6 @@ from .scheduling.calendar_context import CalendarReference
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.constraints import ActivityConstraint
 from .scheduling.relationships import Relationship
-from .scheduling.schedule_options import ScheduleOptions
 from .scheduling.time_duration import DurationUnit
 
 
@@ -46,62 +49,7 @@ class ScheduleInputCompositionError(ValueError):
     """Raised when persisted project records cannot safely form a schedule input."""
 
 
-@dataclass(frozen=True)
-class ScheduleInputDefinition:
-    """Explicit schedule settings required to compose one DATE_BASED schedule.
-
-    These are project schedule settings supplied by the trusted application
-    boundary; the composer does not guess project dates, calendars, units or
-    option values when persistence has not yet modeled them.
-    """
-
-    project_calendar_id: str
-    project_calendar_version: str
-    project_start: date
-    schedule_options: ScheduleOptions
-    project_finish: date | None = None
-    mode: AuthoritativeScheduleMode = AuthoritativeScheduleMode.DATE_BASED
-    project_leveling_priority: int = 10
-
-    def validate(self) -> None:
-        if not isinstance(self.project_calendar_id, str) or not self.project_calendar_id.strip():
-            raise ScheduleInputCompositionError("PROJECT_CALENDAR_ID_REQUIRED")
-        if not isinstance(self.project_calendar_version, str) or not self.project_calendar_version.strip():
-            raise ScheduleInputCompositionError("PROJECT_CALENDAR_VERSION_REQUIRED")
-        if not isinstance(self.mode, AuthoritativeScheduleMode):
-            raise ScheduleInputCompositionError("INVALID_SCHEDULE_MODE")
-        if self.mode is not AuthoritativeScheduleMode.DATE_BASED:
-            raise ScheduleInputCompositionError("TIME_AWARE_ACTIVITY_MASTER_MAPPING_NOT_IMPLEMENTED")
-        if not isinstance(self.project_start, date) or isinstance(self.project_start, datetime):
-            raise ScheduleInputCompositionError("DATE_BASED_PROJECT_START_MUST_BE_DATE")
-        if self.project_finish is not None and (
-            not isinstance(self.project_finish, date) or isinstance(self.project_finish, datetime)
-        ):
-            raise ScheduleInputCompositionError("DATE_BASED_PROJECT_FINISH_MUST_BE_DATE")
-        if not isinstance(self.schedule_options, ScheduleOptions):
-            raise ScheduleInputCompositionError("TYPED_SCHEDULE_OPTIONS_REQUIRED")
-        if isinstance(self.project_leveling_priority, bool) or not isinstance(self.project_leveling_priority, int) or not 1 <= self.project_leveling_priority <= 100:
-            raise ScheduleInputCompositionError("INVALID_PROJECT_LEVELING_PRIORITY")
-        if self.schedule_options.data_date is not None and (
-            not isinstance(self.schedule_options.data_date, date)
-            or isinstance(self.schedule_options.data_date, datetime)
-        ):
-            raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
-
-        options = self.schedule_options
-        if any((
-            options.level_all_resources,
-            options.level_within_float,
-            options.resource_list is not None,
-            options.priority_list is not None,
-            options.min_float_to_preserve != 0,
-            options.over_allocation_percentage != 0,
-            options.preserve_scheduled_early_and_late_dates,
-        )):
-            raise ScheduleInputCompositionError("RESOURCE_LEVELING_REQUIRES_HASH_BOUND_INPUT")
-
-
-class ActivityCalendarAssignments(Protocol):
+undefinedclass ActivityCalendarAssignments(Protocol):
     def list_activities(self, scope: BackendScope) -> tuple[ActivityCalendarAssignmentMaster, ...]: ...
     def list_relationship_lag(self, scope: BackendScope) -> tuple[RelationshipLagCalendarAssignmentMaster, ...]: ...
 
@@ -120,6 +68,7 @@ class AuthoritativeScheduleInputComposer:
         calendar_snapshot_repository: CalendarSnapshotRepository,
         resource_assignment_repository: P6ResourceAssignmentRepository,
         resource_period_repository: P6ResourceAssignmentPeriodRepository,
+        project_schedule_settings_repository: ProjectScheduleSettingsRepository,
     ) -> None:
         self.activity_repository = activity_repository
         self.relationship_repository = relationship_repository
@@ -129,6 +78,7 @@ class AuthoritativeScheduleInputComposer:
         self.calendar_snapshot_repository = calendar_snapshot_repository
         self.resource_assignment_repository = resource_assignment_repository
         self.resource_period_repository = resource_period_repository
+        self.project_schedule_settings_repository = project_schedule_settings_repository
 
     @staticmethod
     def _date_value(value: date | datetime | None, *, field_name: str, activity_id: str) -> date | None:
@@ -204,12 +154,10 @@ class AuthoritativeScheduleInputComposer:
         scope: BackendScope,
         *,
         snapshot_id: str,
-        definition: ScheduleInputDefinition,
     ) -> AuthoritativeScheduleInput:
         scope.validate()
         if not isinstance(snapshot_id, str) or not snapshot_id.strip():
             raise ScheduleInputCompositionError("SNAPSHOT_ID_REQUIRED")
-        definition.validate()
         try:
             # Fresh reads intentionally occur at the application boundary.
             # The core receives only the immutable result below.
@@ -220,10 +168,40 @@ class AuthoritativeScheduleInputComposer:
             relationship_lag_assignments = self.calendar_assignment_repository.list_relationship_lag(scope)
             resource_assignments = self.resource_assignment_repository.list(scope)
             resource_periods = self.resource_period_repository.list(scope)
+            project_settings = self.project_schedule_settings_repository.get(scope)
+        except (ProjectScheduleSettingsPersistenceError, CalendarPersistenceError) as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
         except (TypeError, ValueError) as exc:
             if isinstance(exc, ScheduleInputCompositionError):
                 raise
             raise ScheduleInputCompositionError(f"PERSISTED_INPUT_READ_FAILED:{exc}") from exc
+
+        if project_settings is None:
+            raise ScheduleInputCompositionError("PROJECT_SCHEDULE_SETTINGS_NOT_FOUND")
+        if project_settings.scope != scope:
+            raise ScheduleInputCompositionError("PROJECT_SCHEDULE_SETTINGS_SCOPE_MISMATCH")
+        try:
+            project_settings.validate()
+        except ProjectScheduleSettingsPersistenceError as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
+        if project_settings.mode is not AuthoritativeScheduleMode.DATE_BASED:
+            raise ScheduleInputCompositionError("TIME_AWARE_ACTIVITY_MASTER_MAPPING_NOT_IMPLEMENTED")
+        if project_settings.schedule_options.data_date is not None and (
+            not isinstance(project_settings.schedule_options.data_date, date)
+            or isinstance(project_settings.schedule_options.data_date, datetime)
+        ):
+            raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
+        options = project_settings.schedule_options
+        if any((
+            options.level_all_resources,
+            options.level_within_float,
+            options.resource_list is not None,
+            options.priority_list is not None,
+            options.min_float_to_preserve != 0,
+            options.over_allocation_percentage != 0,
+            options.preserve_scheduled_early_and_late_dates,
+        )):
+            raise ScheduleInputCompositionError("RESOURCE_LEVELING_REQUIRES_HASH_BOUND_INPUT")
 
         if not persisted_activities:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
@@ -236,11 +214,15 @@ class AuthoritativeScheduleInputComposer:
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
 
+        configured_calendar = project_settings.project_calendar
         project_calendar = self._load_calendar_reference(
             scope,
-            definition.project_calendar_id,
-            definition.project_calendar_version,
+            configured_calendar.calendar_id,
+            configured_calendar.calendar_version,
+            expected_kind=configured_calendar.kind,
         )
+        if project_calendar != configured_calendar:
+            raise ScheduleInputCompositionError("PROJECT_CALENDAR_REFERENCE_MISMATCH")
 
         activities: list[Activity] = []
         for item in sorted(persisted_activities, key=lambda value: value.activity_id):
@@ -355,7 +337,7 @@ class AuthoritativeScheduleInputComposer:
             tenant_id=scope.tenant_id,
             project_id=scope.project_id,
             project_revision=scope.project_revision,
-            mode=definition.mode,
+            mode=project_settings.mode,
             project_calendar=project_calendar,
             activities=tuple(activities),
             relationships=tuple(relationships),
@@ -363,15 +345,14 @@ class AuthoritativeScheduleInputComposer:
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
             constraints=tuple(constraints),
-            schedule_options=definition.schedule_options,
-            project_start=definition.project_start,
-            project_finish=definition.project_finish,
-            project_leveling_priority=definition.project_leveling_priority,
+            schedule_options=project_settings.schedule_options,
+            project_start=project_settings.project_start,
+            project_finish=project_settings.project_finish,
+            project_leveling_priority=project_settings.project_leveling_priority,
         )
 
 
 __all__ = [
     "AuthoritativeScheduleInputComposer",
     "ScheduleInputCompositionError",
-    "ScheduleInputDefinition",
 ]
