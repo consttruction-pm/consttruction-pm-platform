@@ -68,6 +68,31 @@ class P6ResourceReadAPI:
         _require_read(self.authorization_policy, auth_context)
         return tuple(_period_dto(item) for item in self.period_service.list(scope, assignment_id))
 
+    def list_leveling_inputs(
+        self, scope: BackendScope, *, auth_context: AuthorizationContext,
+    ) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+        """Read assignments and time-phased values from one shared transaction.
+
+        Both services must use the same transaction-manager instance so the
+        nested service reads share one outer database snapshot. Fail closed if
+        the application wiring cannot guarantee that boundary.
+        """
+        _require_scope(scope, auth_context)
+        _require_read(self.authorization_policy, auth_context)
+        manager = self.assignment_service.transaction_manager
+        if manager is not self.period_service.transaction_manager:
+            raise RuntimeError("RESOURCE_LEVELING_READ_REQUIRES_SHARED_TRANSACTION_MANAGER")
+        with manager.transaction():
+            assignments = tuple(
+                _assignment_dto(item)
+                for item in self.assignment_service.list(scope)
+            )
+            periods = tuple(
+                _period_dto(item)
+                for item in self.period_service.list(scope)
+            )
+        return assignments, periods
+
     def get_spread(
         self, scope: BackendScope, spread_id: str, period_id: str, *,
         auth_context: AuthorizationContext,
