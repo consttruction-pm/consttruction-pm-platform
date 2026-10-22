@@ -408,8 +408,8 @@ def propose_forward_leveling_within_float(
         for priority in priorities:
             normalized = priority.field_name.strip().lower().replace(" ", "_")
             value = _priority_value(activity, priority.field_name)
-            if value is None:
-                raise ResourceLevelingError(f"LEVELING_PRIORITY_VALUE_REQUIRED:{normalized}")
+            if normalized in {"free_float", "late_start", "late_finish"} and value is None:
+                raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
     selected_resources = set(
@@ -803,8 +803,14 @@ def propose_backward_leveling(
         normalized = priority.field_name.strip().lower().replace(" ", "_").replace("/", "_")
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
-        if any(_backward_priority_value(activity, normalized) is None for activity in activity_list):
-            raise ResourceLevelingError(f"LEVELING_PRIORITY_VALUE_REQUIRED:{normalized}")
+        if normalized == "total_float" and any(activity.total_float is None for activity in activity_list):
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if normalized == "free_float" and any(activity.free_float is None for activity in activity_list):
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if normalized in {"late_start", "late_finish"} and any(
+            _backward_priority_value(activity, normalized) is None for activity in activity_list
+        ):
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
         select_leveling_resources(
