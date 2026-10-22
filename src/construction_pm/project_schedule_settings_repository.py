@@ -323,22 +323,32 @@ class SQLiteProjectScheduleSettingsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_schedule_settings (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                project_revision INTEGER NOT NULL,
-                record_revision INTEGER NOT NULL,
-                canonical_payload TEXT NOT NULL,
-                settings_hash TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id)
-            )"""
-        )
-        self.connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_project_schedule_settings_revision "
-            "ON project_schedule_settings(tenant_id, project_id, project_revision)"
-        )
-        self.connection.commit()
+        self._initialize_schema()
+
+    def _initialize_schema(self) -> None:
+        was_in_transaction = self.connection.in_transaction
+        try:
+            self.connection.execute(
+                """CREATE TABLE IF NOT EXISTS project_schedule_settings (
+                    tenant_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    project_revision INTEGER NOT NULL,
+                    record_revision INTEGER NOT NULL,
+                    canonical_payload TEXT NOT NULL,
+                    settings_hash TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, project_id)
+                )"""
+            )
+            self.connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_project_schedule_settings_revision "
+                "ON project_schedule_settings(tenant_id, project_id, project_revision)"
+            )
+            if not was_in_transaction:
+                self.connection.commit()
+        except Exception:
+            if not was_in_transaction:
+                self.connection.rollback()
+            raise
 
     def save(
         self,
