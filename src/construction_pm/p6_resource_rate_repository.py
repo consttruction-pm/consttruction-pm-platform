@@ -152,7 +152,7 @@ class SQLiteP6ResourceRateRepository:
                 unit_of_measure,time_period_source,capacity_basis,
                 full_time_units_per_time_period,shift_id,record_revision
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            key + values[:6] + (values[6], rate.shift_id, values[7]),
+            key[:5] + values[:6] + (values[6], key[5], values[7]),
         )
         if not was_in_transaction:
             self.connection.commit()
@@ -265,7 +265,7 @@ class PostgresP6ResourceRateRepository:
                 unit_of_measure,time_period_source,capacity_basis,
                 full_time_units_per_time_period,shift_id,record_revision
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            key + values[:6] + (values[6], rate.shift_id, values[7]),
+            key[:5] + values[:6] + (values[6], key[5], values[7]),
         )
         return rate
 
