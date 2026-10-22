@@ -455,3 +455,31 @@ def test_evaluator_applies_configured_predecessor_calendar_to_relationship_lag()
     assert result.date_result is not None
     assert result.date_result.activities["A"].start == date(2026, 9, 21)
     assert result.date_result.activities["B"].start == date(2026, 9, 24)
+
+
+
+@pytest.mark.parametrize(
+    ("unsupported_options", "expected_error"),
+    [
+        (
+            {"include_external_res_ass": True},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"external_project_priority_limit": 1},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"recalculate_resource_costs": True},
+            "RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED",
+        ),
+    ],
+)
+def test_evaluator_fails_closed_even_for_prebuilt_snapshots_with_unsupported_leveling_options(
+    unsupported_options, expected_error
+):
+    options = ScheduleOptions(level_all_resources=True, **unsupported_options)
+    snapshot, context = make_snapshot_and_context(options=options)
+
+    with pytest.raises(ScheduleEvaluationError, match=expected_error):
+        evaluate_schedule_snapshot(snapshot, context, registry())
