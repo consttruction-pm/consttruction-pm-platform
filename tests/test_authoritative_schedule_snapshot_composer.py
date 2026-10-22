@@ -478,6 +478,21 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()),
     )
 
+    # P6 Max Units/Time is effective-dated: capacity before the boundary must
+    # retain the old profile while the next working day uses the new profile.
+    fixture["resource_rates"].save(
+        scope,
+        ResourceCapacityRate(
+            resource_id="R1",
+            effective_from=datetime(2026, 10, 21, tzinfo=timezone.utc),
+            max_units_per_time=Decimal("10"),
+            time_period_unit="day",
+            hours_per_time_period=Decimal("8"),
+            unit_of_measure="h",
+            time_period_source="global",
+        ),
+    )
+
     for activity_id in ("A-1", "B-1"):
         status, created = _request(
             app,
@@ -558,6 +573,22 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
         item["calendar_version"] == "1"
         and len(item["calendar_snapshot_hash"]) == 64
         for item in facts["capacities"]
+    )
+    capacity_by_period = {
+        item["period"]: item
+        for item in facts["capacities"]
+        if item["resource_id"] == "R1"
+    }
+    assert capacity_by_period["2026-10-20"]["units"] == "8"
+    assert capacity_by_period["2026-10-20"]["resource_rate_effective_from"] == (
+        "2026-10-18T00:00:00+00:00"
+    )
+    assert capacity_by_period["2026-10-21"]["units"] == "10"
+    assert capacity_by_period["2026-10-21"]["resource_rate_effective_from"] == (
+        "2026-10-21T00:00:00+00:00"
+    )
+    assert capacity_by_period["2026-10-20"]["resource_rate_hash"] != (
+        capacity_by_period["2026-10-21"]["resource_rate_hash"]
     )
 
     query_status, query_result = _request(
