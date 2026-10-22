@@ -258,7 +258,9 @@ class LevelingActivity:
             ):
                 raise ResourceLevelingError(f"INVALID_{name.upper()}")
         if self.project_priority is not None and (
-            isinstance(self.project_priority, bool) or not isinstance(self.project_priority, int)
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
         ):
             raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         # Late dates may precede early dates when CPM reports negative float
@@ -323,6 +325,20 @@ def _activity_priority_sort_value(value: int | ActivityLevelingPriority | None) 
     return value
 
 
+def _project_priority_sort_value(value: int | None) -> int | None:
+    """Convert P6's 1=highest .. 100=lowest rank to its leveling order.
+
+    An ascending Project Priority criterion levels lower-priority projects
+    first, so its sort key must reverse the stored ranking. Descending then
+    naturally prioritizes projects whose stored rank is closer to 1.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100:
+        raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
+    return 101 - value
+
+
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
     normalized = field_name.strip().lower().replace(" ", "_").replace("/", "_")
@@ -343,7 +359,7 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "planned_duration": activity.original_planned_duration,
         "planned_finish": activity.planned_finish,
         "project_planned_start": activity.project_planned_start,
-        "project_priority": activity.project_priority,
+        "project_priority": _project_priority_sort_value(activity.project_priority),
         "remaining_duration": activity.remaining_duration,
         "total_float": activity.total_float,
         "free_float": activity.free_float,
@@ -712,7 +728,9 @@ class BackwardLevelingActivity:
             ):
                 raise ResourceLevelingError(f"INVALID_{name.upper()}")
         if self.project_priority is not None and (
-            isinstance(self.project_priority, bool) or not isinstance(self.project_priority, int)
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
         ):
             raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
@@ -786,7 +804,7 @@ def _backward_priority_value(activity: BackwardLevelingActivity, normalized: str
         "original_duration": activity.original_planned_duration,
         "planned_finish": activity.planned_finish,
         "project_planned_start": activity.project_planned_start,
-        "project_priority": activity.project_priority,
+        "project_priority": _project_priority_sort_value(activity.project_priority),
         "remaining_duration": activity.remaining_duration,
     }
     if normalized not in values:
