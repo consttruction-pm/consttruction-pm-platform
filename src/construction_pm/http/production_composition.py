@@ -13,6 +13,7 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.p6_resource_rate_api import P6ResourceRateAPI
 from construction_pm.p6_resource_rate_repository import P6ResourceRateRepository
+from construction_pm.p6_relationship_lag_calendar_api import P6RelationshipLagCalendarAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
@@ -85,6 +86,16 @@ def build_project_lifecycle_wsgi_app(
         if resource_rate_repository is None
         else P6ResourceRateAPI(resource_rate_repository, authorization_policy)
     )
+    calendar_assignment_repository = getattr(
+        publication_composer, "calendar_assignment_repository", None
+    )
+    relationship_lag_calendar_api = (
+        None
+        if calendar_assignment_repository is None
+        else P6RelationshipLagCalendarAPI(
+            calendar_assignment_repository, authorization_policy
+        )
+    )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
@@ -92,6 +103,7 @@ def build_project_lifecycle_wsgi_app(
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         p6_resource_rate_api=resource_rate_api,
+        p6_relationship_lag_calendar_api=relationship_lag_calendar_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
     )
