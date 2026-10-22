@@ -848,8 +848,15 @@ class ProjectLifecycleHttpRoutes:
                 auth = context.authorization_context(session.roles)
                 scope = BackendScope(context.tenant_id, context.project_id, context.revision)
 
-                def parse_activity_date(field_name: str) -> date | datetime | None:
-                    value = payload.get(field_name)
+                def parse_activity_date(
+                    field_name: str,
+                    existing_value: date | datetime | None = None,
+                ) -> date | datetime | None:
+                    # PATCH distinguishes an omitted field (preserve current value)
+                    # from an explicit null (clear an optional date field).
+                    if field_name not in payload:
+                        return existing_value
+                    value = payload[field_name]
                     if value is None:
                         return None
                     if not isinstance(value, str) or not value.strip():
@@ -861,25 +868,44 @@ class ProjectLifecycleHttpRoutes:
                     except ValueError as exc:
                         raise ValueError("INVALID_" + field_name.upper()) from exc
 
-                def build_activity(activity_id: str) -> ActivityMaster:
-                    duration_raw = payload.get("duration_value")
+                def build_activity(
+                    activity_id: str,
+                    existing: ActivityMaster | None = None,
+                ) -> ActivityMaster:
+                    duration_raw = payload.get(
+                        "duration_value",
+                        existing.duration_value if existing is not None else None,
+                    )
                     if isinstance(duration_raw, bool) or duration_raw is None:
                         raise ValueError("INVALID_DURATION_VALUE")
                     duration_value = Decimal(str(duration_raw))
-                    duration_unit = P6ActivityDurationUnit(payload.get("duration_unit"))
-                    raw_remaining_duration = payload.get("remaining_duration")
+                    duration_unit_raw = payload.get(
+                        "duration_unit",
+                        existing.duration_unit.value if existing is not None else None,
+                    )
+                    duration_unit = P6ActivityDurationUnit(duration_unit_raw)
+                    raw_remaining_duration = payload.get(
+                        "remaining_duration",
+                        existing.remaining_duration if existing is not None else None,
+                    )
                     if raw_remaining_duration is not None and (
                         isinstance(raw_remaining_duration, bool)
                         or not isinstance(raw_remaining_duration, int)
                     ):
                         raise ValueError("INVALID_REMAINING_DURATION")
-                    raw_original_duration = payload.get("original_duration")
+                    raw_original_duration = payload.get(
+                        "original_duration",
+                        existing.original_duration if existing is not None else None,
+                    )
                     if raw_original_duration is not None and (
                         isinstance(raw_original_duration, bool)
                         or not isinstance(raw_original_duration, int)
                     ):
                         raise ValueError("INVALID_ORIGINAL_DURATION")
-                    raw_percent = payload.get("percent_complete")
+                    raw_percent = payload.get(
+                        "percent_complete",
+                        existing.percent_complete if existing is not None else None,
+                    )
                     if raw_percent is not None and (
                         isinstance(raw_percent, bool)
                         or not isinstance(raw_percent, (int, float))
@@ -890,18 +916,36 @@ class ProjectLifecycleHttpRoutes:
                         activity_id=activity_id,
                         duration_value=duration_value,
                         duration_unit=duration_unit,
-                        actual_start=parse_activity_date("actual_start"),
-                        actual_finish=parse_activity_date("actual_finish"),
+                        actual_start=parse_activity_date(
+                            "actual_start", existing.actual_start if existing is not None else None
+                        ),
+                        actual_finish=parse_activity_date(
+                            "actual_finish", existing.actual_finish if existing is not None else None
+                        ),
                         remaining_duration=raw_remaining_duration,
-                        remaining_start=parse_activity_date("remaining_start"),
+                        remaining_start=parse_activity_date(
+                            "remaining_start", existing.remaining_start if existing is not None else None
+                        ),
                         percent_complete=None if raw_percent is None else float(raw_percent),
                         percent_complete_type=P6ActivityPercentCompleteType(
-                            payload.get("percent_complete_type", P6ActivityPercentCompleteType.DURATION.value)
+                            payload.get(
+                                "percent_complete_type",
+                                existing.percent_complete_type.value if existing is not None
+                                else P6ActivityPercentCompleteType.DURATION.value,
+                            )
                         ),
-                        expected_finish=parse_activity_date("expected_finish"),
-                        planned_finish=parse_activity_date("planned_finish"),
+                        expected_finish=parse_activity_date(
+                            "expected_finish", existing.expected_finish if existing is not None else None
+                        ),
+                        planned_finish=parse_activity_date(
+                            "planned_finish", existing.planned_finish if existing is not None else None
+                        ),
                         leveling_priority=P6ActivityLevelingPriority.from_p6_value(
-                            payload.get("leveling_priority", P6ActivityLevelingPriority.NORMAL.value)
+                            payload.get(
+                                "leveling_priority",
+                                existing.leveling_priority.value if existing is not None
+                                else P6ActivityLevelingPriority.NORMAL.value,
+                            )
                         ),
                         original_duration=raw_original_duration,
                     )
@@ -938,8 +982,11 @@ class ProjectLifecycleHttpRoutes:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
                             raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        existing = self._p6_activity_master_api.repository.get(scope, parts[0])
+                        if existing is None:
+                            return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
                         result = self._p6_activity_master_api.update(
-                            build_activity(parts[0]),
+                            build_activity(parts[0], existing=existing),
                             expected_revision=expected_revision,
                             auth_context=auth,
                         )
