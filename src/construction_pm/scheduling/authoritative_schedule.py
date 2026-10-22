@@ -190,9 +190,11 @@ class AuthoritativeScheduleInput:
         if set(lag_assignment_keys) - relationship_keys:
             raise ValueError("relationship lag calendar assignment references unknown relationship")
         if lag_assignment_keys:
+            relationship_edge_counts: dict[tuple[str, str], int] = {}
+            for key in relationship_key_list:
+                relationship_edge_counts[key] = relationship_edge_counts.get(key, 0) + 1
             duplicate_relationship_edges = {
-                key for key in relationship_key_list
-                if relationship_key_list.count(key) > 1
+                key for key, count in relationship_edge_counts.items() if count > 1
             }
             if set(lag_assignment_keys) & duplicate_relationship_edges:
                 # This resolver contract indexes calendar policy by edge, not
