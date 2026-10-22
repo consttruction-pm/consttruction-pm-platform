@@ -18,7 +18,7 @@ from construction_pm.scheduling.calendar_context import (
     CalendarResolverRegistry,
     SchedulingCalendarContext,
 )
-from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
+from construction_pm.scheduling.authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
     ResourceCapacityRate,
@@ -341,3 +341,58 @@ def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(
     assert backward.total_float == -1
     assert backward.late_start == day_two
     assert backward.late_finish == day_two
+
+
+
+def test_evaluator_uses_exact_versioned_activity_calendar_for_cpm_dates():
+    project_calendar = CalendarReference("CAL-1", "1")
+    activity_calendar = CalendarReference("CAL-ACT", "4")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-ACTIVITY-CALENDAR",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_calendar,
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", activity_calendar),
+        ),
+        project_start=date(2026, 9, 21),  # Monday
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-ACTIVITY-CALENDAR",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 9, 30, tzinfo=timezone.utc),
+    )
+    custom_registry = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+            ),
+            # This activity works only Tuesday and Thursday. The project calendar
+            # works Monday-Friday, so this distinguishes the bound activity ref.
+            "CAL-ACT@4": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({1, 3}))
+            ),
+        }
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, custom_registry)
+
+    assert result.date_result is not None
+    assert result.date_result.activities["A"].start == date(2026, 9, 22)
+    assert result.date_result.activities["A"].finish == date(2026, 9, 22)
