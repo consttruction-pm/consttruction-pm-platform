@@ -209,7 +209,7 @@ def _forward_activities_with_authoritative_floats(
     return tuple(result)
 
 
-def _backward_activities_from_intermediate(def _backward_activities_from_intermediate(
+def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
     early_schedule: Mapping[str, object],
