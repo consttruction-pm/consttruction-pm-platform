@@ -122,6 +122,14 @@ def _evaluate_materialized(
     try:
         if source.mode.value == "DATE_BASED":
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
+            # The snapshot's version-pinned Activity Calendar assignments are
+            # part of the calculation contract, not display-only metadata.
+            # Resolve each exact reference once and pass it through every CPM
+            # and leveling pass; unassigned activities fall back to project calendar.
+            activity_resolvers = {
+                item.activity_id: materialized.calendar_registry.resolve(item.calendar)
+                for item in source.activity_calendar_assignments
+            }
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if source.resource_leveling_inputs is not None:
@@ -133,6 +141,7 @@ def _evaluate_materialized(
                         source,
                         resolver=resolver,
                         calculation_context=calculation_context,
+                        activity_resolvers=activity_resolvers,
                     )
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
@@ -146,6 +155,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    activity_resolvers=activity_resolvers,
                 )
             else:
                 result = schedule(
@@ -157,6 +167,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    activity_resolvers=activity_resolvers,
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
@@ -225,6 +236,7 @@ def _leveling_input_from_snapshot_facts(
     *,
     resolver: object,
     calculation_context: CalculationContext,
+    activity_resolvers: Mapping[str, object] | None = None,
 ) -> SchedulerLevelingInput:
     """Build typed leveling rows only from the same immutable schedule snapshot."""
     facts = getattr(source, "resource_leveling_inputs", None)
@@ -251,6 +263,7 @@ def _leveling_input_from_snapshot_facts(
         constraints=constraints,
         options=_schedule_options_without_leveling(schedule_options),
         calculation_context=calculation_context,
+        activity_resolvers=activity_resolvers,
     )
     early_schedule = initial.early_activities or initial.activities
     late_schedule = initial.late_activities or initial.activities
