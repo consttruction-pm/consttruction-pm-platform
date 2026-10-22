@@ -42,7 +42,9 @@ P6 v26 defines the available relationship-lag calendar choices as predecessor ac
 
 ## Activity-type rules from P6 v26
 
-The shared snapshot evaluator now excludes **WBS Summary** activity demands from the leveling ledger while retaining source assignment/demand facts in the immutable snapshot for audit. Regression coverage gives a WBS Summary activity 100 units on a day when two Task Dependent activities each demand 8 units; those two executable tasks must still level based on actual capacity, and the summary row must not consume capacity.
+The shared snapshot evaluator excludes **WBS Summary** and **Level of Effort** (LOE) activity demands from the leveling ledger while retaining source assignment/demand facts in the immutable snapshot for audit. Oracle's LOE help explicitly states these activities are not included during resource leveling, and the v26 activity-type reference confirms LOE is one of the six native P6 activity types. Regression coverage gives both a WBS Summary and an LOE row 100 units on a day when two Task Dependent activities each demand 8 units; neither summary/roll-up row may consume capacity or force the executable tasks to be delayed.
+
+Sources: [Oracle Help — Level of Effort activity](https://docs.oracle.com/cd/F25600_01/client_help/en_US/level_of_effort_activity.htm); [P6 Professional v26 — Activity types](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/activity_types.htm).
 
 P6 v26 distinguishes Task Dependent and Resource Dependent activities: Task Dependent work requires all assigned resources to be available; Resource Dependent work uses driving resources to determine activity dates while nondriving assignments may be leveled separately on/after those dates. The persisted resource-assignment contract does not yet record a driving/nondriving flag, and the Shared Core does not yet return independently shifted nondriving assignment dates. The composer therefore rejects a leveling snapshot with Resource Dependent assignments using `RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED`, instead of treating every assignment as activity-driving.
 
