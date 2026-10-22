@@ -914,7 +914,7 @@ def test_snapshot_rejects_non_p6_per_relationship_lag_calendar_override(tmp_path
         "POST",
         "/api/projects/p1/p6/schedule/snapshots",
         {
-            "contract_version": "p6-schedule-snapshot.v1",
+            "contract_version": "p6-schedule-snapshot-api.v1",
             "timezone": "UTC",
         },
     )
