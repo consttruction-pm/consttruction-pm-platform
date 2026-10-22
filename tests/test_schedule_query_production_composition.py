@@ -278,3 +278,89 @@ def test_leveling_enabled_snapshot_without_immutable_leveling_input_returns_stru
     assert payload_out["error"]["retryable"] is False
     assert "data" not in payload_out
     conn.close()
+
+
+def test_production_composition_injects_explicit_workspace_read_service():
+    from construction_pm.backend_p0.api import BackendP0API, BackendP0ApplicationService
+    from construction_pm.backend_p0.persistence import SQLiteBackendP0Repository
+    from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+    from construction_pm.backend_p0.workspace_read import (
+        WORKSPACE_CONTROL_ROOM_READ_VERSION,
+        InMemoryWorkspaceReadProvider,
+        WorkspaceControlRoomReadService,
+    )
+
+    connection = sqlite3.connect(":memory:")
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    scope = BackendScope("T-1", "P-1", 9)
+    snapshot = {
+        "contract_version": WORKSPACE_CONTROL_ROOM_READ_VERSION,
+        "context": {"tenant_id": "T-1", "project_id": "P-1", "revision": 9},
+        "workspace": {
+            "contract_version": "workspace-control-room.v1",
+            "context": {"tenant_id": "T-1", "project_id": "P-1", "revision": 9},
+            "columns": [],
+            "activities": [],
+        },
+        "field_daily_logs": [],
+        "field_issues": [],
+        "field_timecards": [],
+        "equipment_status_reports": [],
+        "inspections": [],
+        "quality_records": [],
+        "safety_observations": [],
+        "punch_items": [],
+    }
+    policy = default_project_policy()
+    backend_service = BackendP0ApplicationService(
+        SQLiteBackendP0Repository(connection),
+        SQLiteTransactionManager(connection),
+        policy,
+    )
+    backend_api = BackendP0API(backend_service)
+    read_service = WorkspaceControlRoomReadService(
+        InMemoryWorkspaceReadProvider({("T-1", "P-1", 9): snapshot}),
+        policy,
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=SQLiteScheduleInputSnapshotRepository(connection),
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=SQLiteCalculationContextRepository(connection),
+        authorization_policy=policy,
+        backend_p0_api=backend_api,
+        workspace_read_service=read_service,
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    status_line: list[str] = []
+    result: list[bytes] = []
+    environ = {
+        "REQUEST_METHOD": "GET",
+        "PATH_INFO": "/api/v1/workspace/control-room/read",
+        "HTTP_COOKIE": "cp_session=s1",
+        "HTTP_X_TENANT_ID": "T-1",
+        "HTTP_X_PROJECT_ID": "P-1",
+        "HTTP_X_PROJECT_REVISION": "9",
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": BytesIO(b""),
+    }
+
+    def start_response(status: str, headers: list[tuple[str, str]]) -> None:
+        status_line.append(status)
+
+    result.extend(app(environ, start_response))
+    payload_out = json.loads(b"".join(result))
+
+    assert status_line == ["200 OK"]
+    assert payload_out["contract_version"] == WORKSPACE_CONTROL_ROOM_READ_VERSION
+    assert payload_out["context"] == {
+        "tenant_id": "T-1",
+        "project_id": "P-1",
+        "revision": 9,
+    }
+    assert payload_out["workspace"]["activities"] == []
+    connection.close()
