@@ -144,6 +144,7 @@ def build_snapshot(
 
 class SQLiteScheduleInputSnapshotRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS schedule_input_snapshot (
@@ -175,9 +176,11 @@ class SQLiteScheduleInputSnapshotRepository:
             "CREATE INDEX IF NOT EXISTS idx_schedule_input_snapshot_revision "
             "ON schedule_input_snapshot(tenant_id, project_id, project_revision, snapshot_id)"
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot:
+        owns_transaction = not self.connection.in_transaction
         snapshot.validate()
         existing = self.connection.execute(
             "SELECT snapshot_hash,canonical_payload,calculation_identity,"
@@ -215,7 +218,8 @@ class SQLiteScheduleInputSnapshotRepository:
                 snapshot.created_at.isoformat(), snapshot.record_revision,
             ),
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         return snapshot
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
@@ -267,6 +271,7 @@ class SQLiteScheduleInputSnapshotRepository:
         snapshot_id: str,
         context: CalculationContext,
     ) -> ScheduleInputSnapshot:
+        owns_transaction = not self.connection.in_transaction
         snapshot = self.get(scope, snapshot_id)
         if snapshot is None:
             raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
@@ -286,7 +291,8 @@ class SQLiteScheduleInputSnapshotRepository:
         )
         if updated.rowcount != 1:
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
         migrated = self.get(scope, snapshot_id)
         if migrated is None:
             raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")

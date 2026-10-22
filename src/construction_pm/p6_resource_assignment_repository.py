@@ -112,6 +112,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6ResourceAssignm
 
 class SQLiteP6ResourceAssignmentRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        owns_transaction = not connection.in_transaction
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
@@ -142,7 +143,8 @@ class SQLiteP6ResourceAssignmentRepository:
             ON p6_resource_assignment
             (tenant_id, project_id, project_revision, activity_id, resource_id, assignment_id)"""
         )
-        self.connection.commit()
+        if owns_transaction:
+            self.connection.commit()
 
     def upsert(self, assignment: P6ResourceAssignment) -> P6ResourceAssignment:
         assignment.validate()
