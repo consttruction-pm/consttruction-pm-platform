@@ -82,3 +82,38 @@ def test_resource_leveling_facts_reject_capacity_from_wrong_calendar_version():
 
     with pytest.raises(ResourceLevelingFactsError, match="RESOURCE_CAPACITY_CALENDAR_MISMATCH"):
         facts.validate(activity_ids={"A"})
+
+
+def test_resource_leveling_facts_reject_unbounded_capacity_horizon():
+    assignment = ResourceAssignmentLevelingRef(
+        assignment_id="ASSIGN-A",
+        activity_id="A",
+        resource_id="R1",
+        calendar_id="RES-CAL-1",
+        calendar_version="v1",
+        assigned_units=Decimal("8"),
+        remaining_units=Decimal("8"),
+    )
+    start = date(2026, 10, 19)
+    end = date.fromordinal(start.toordinal() + 36501)
+    facts = ResourceLevelingFacts(
+        assignments=(assignment,),
+        demands=(
+            ResourceDemandInput(
+                assignment_id="ASSIGN-A",
+                activity_id="A",
+                resource_id="R1",
+                period=start,
+                units=Decimal("8"),
+            ),
+        ),
+        capacities=(_capacity(start),),
+        capacity_horizon_start=start,
+        capacity_horizon_end=end,
+    )
+
+    with pytest.raises(
+        ResourceLevelingFactsError,
+        match="RESOURCE_LEVELING_CAPACITY_HORIZON_OUT_OF_RANGE",
+    ):
+        facts.validate(activity_ids={"A"})
