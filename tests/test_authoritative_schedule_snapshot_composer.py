@@ -208,6 +208,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "resource_assignments": resource_assignments,
         "resource_periods": resource_periods,
         "resource_rates": resource_rates,
+        "schedule_snapshot_api": snapshot_api,
         "settings_repo": settings_repo,
     }
 
