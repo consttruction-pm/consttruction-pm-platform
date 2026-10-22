@@ -1103,3 +1103,39 @@ def test_relationship_lag_calendar_route_uses_optimistic_revision_on_update(tmp_
     assert status == "409 Conflict"
     assert conflict["code"] == "REVISION_CONFLICT"
     fixture["connection"].close()
+
+
+
+def test_relationship_lag_calendar_api_rejects_unknown_calendar_version_before_persisting(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    fixture["relationship_repo"].save(
+        RelationshipMaster(
+            scope=scope,
+            relationship_id="REL-NO-CAL",
+            predecessor_id="A-NO-CAL",
+            successor_id="B-NO-CAL",
+            relationship_type=RelationshipType.FS,
+            lag_value=Decimal("1"),
+            lag_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships/REL-NO-CAL/lag-calendar",
+        {
+            "contract_version": "p6-relationship-lag-calendar.v1",
+            "option": RelationshipLagCalendar.SUCCESSOR.value,
+            "calendar_id": "MISSING-CAL",
+            "calendar_version": "9",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "CALENDAR_NOT_FOUND"
+    assert fixture["calendar_assignments"].get_relationship_lag(
+        scope, "REL-NO-CAL"
+    ) is None
+    fixture["connection"].close()
