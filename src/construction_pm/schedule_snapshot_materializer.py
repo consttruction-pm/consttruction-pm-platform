@@ -35,6 +35,7 @@ from .scheduling.relationships import Relationship, RelationshipType
 from .scheduling.resource_leveling import ResourceCapacity
 from .scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
+    ResourceCapacityRate,
     ResourceDemandInput,
     ResourceLevelingFacts,
     ResourceLevelingFactsError,
