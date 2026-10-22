@@ -17,7 +17,14 @@ from construction_pm.p6_resource_rate_repository import (
     P6ResourceRatePersistenceError,
     SQLiteP6ResourceRateRepository,
 )
-from construction_pm.scheduling.resource_leveling_input import ResourceCapacityRate
+from construction_pm.scheduling.resource_leveling import ResourceCapacity
+from construction_pm.scheduling.resource_leveling_input import (
+    ResourceAssignmentLevelingRef,
+    ResourceCapacityRate,
+    ResourceDemandInput,
+    ResourceLevelingFacts,
+    ResourceLevelingFactsError,
+)
 
 
 def auth(*roles: str, tenant: str = "tenant-a", project: str = "project-a"):
@@ -224,3 +231,64 @@ def test_p6_max_units_rate_calculates_capacity_from_explicit_period_conversion(
 def test_p6_max_units_rate_rejects_invalid_calendar_work_hours(invalid_hours):
     with pytest.raises(ValueError, match="INVALID_RESOURCE_CALENDAR_WORK_HOURS"):
         rate().capacity_for_work_hours(invalid_hours)
+
+
+
+def test_resource_leveling_facts_reject_named_shift_without_versioned_shift_calendar():
+    scope = BackendScope("tenant-a", "project-a", 1)
+    period = date(2026, 10, 19)
+    capacity_rate = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+        shift_id="night-shift",
+    )
+    facts = ResourceLevelingFacts(
+        assignments=(
+            ResourceAssignmentLevelingRef(
+                assignment_id="AS1",
+                activity_id="A1",
+                resource_id="R1",
+                calendar_id="CAL1",
+                calendar_version="1",
+                unit_of_measure="h",
+                assigned_units=Decimal("8"),
+                remaining_units=Decimal("8"),
+            ),
+        ),
+        demands=(
+            ResourceDemandInput(
+                assignment_id="AS1",
+                activity_id="A1",
+                resource_id="R1",
+                period=period,
+                units=Decimal("8"),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity(
+                resource_id="R1",
+                period=period,
+                units=Decimal("8"),
+                calendar_id="CAL1",
+                calendar_version="1",
+                calendar_snapshot_hash="a" * 64,
+                calendar_work_hours=Decimal("8"),
+                resource_rate_hash=capacity_rate.profile_hash,
+                resource_rate_effective_from=capacity_rate.effective_from,
+            ),
+        ),
+        resource_capacity_rates=(capacity_rate,),
+        capacity_horizon_start=period,
+        capacity_horizon_end=period,
+        calculation_timezone="UTC",
+    )
+    with pytest.raises(
+        ResourceLevelingFactsError,
+        match="RESOURCE_RATE_SHIFT_LEVELING_UNSUPPORTED",
+    ):
+        facts.validate(activity_ids={"A1"})
