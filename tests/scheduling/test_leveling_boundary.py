@@ -131,7 +131,7 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
     ]
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+@pytest.mark.parametrize("field_name", ["planned_start"])
 def test_scheduler_leveling_boundary_rejects_priority_fields_without_distinct_schedule_data(field_name):
     forward, backward, capacities = _slices()
     options = ScheduleOptions(
@@ -215,3 +215,52 @@ def test_scheduler_leveling_boundary_rejects_duplicate_backward_activity_ids():
             options=ScheduleOptions(),
         )
 
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "original_planned_duration",
+        "original_or_planned_duration",
+        "planned_duration",
+        "original_duration",
+        "planned_finish",
+        "project_planned_start",
+        "project_priority",
+        "remaining_duration",
+        "Original/Planned Duration",
+    ],
+)
+def test_scheduler_leveling_boundary_accepts_documented_p6_priority_fields(field_name):
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(
+        priority_list=(PriorityListItem(field_name, PrioritySortOrder.ASCENDING),),
+    )
+
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+    )
+
+    assert len(boundary.options.priorities) == 1
+
+
+def test_leveling_priority_requires_authoritative_values_for_new_fields():
+    from construction_pm.scheduling.resource_leveling import _priority_value
+
+    activity = LevelingActivity(
+        activity_id="A1",
+        start=date(2026, 10, 5),
+        finish=date(2026, 10, 6),
+        total_float=2,
+    )
+    for field_name in (
+        "original_planned_duration",
+        "planned_finish",
+        "project_planned_start",
+        "project_priority",
+        "remaining_duration",
+    ):
+        assert _priority_value(activity, field_name) is None
