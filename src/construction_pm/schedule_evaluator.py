@@ -138,6 +138,20 @@ def _evaluate_materialized(
             )
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
+                # Enforce these gates again in the calculation boundary. Old
+                # or manually constructed snapshots must not bypass composer
+                # safeguards and silently evaluate only a single-project pool.
+                if (
+                    source.schedule_options.include_external_res_ass
+                    or source.schedule_options.external_project_priority_limit > 0
+                ):
+                    raise ScheduleEvaluationError(
+                        "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED"
+                    )
+                if source.schedule_options.recalculate_resource_costs:
+                    raise ScheduleEvaluationError(
+                        "RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED"
+                    )
                 if source.resource_leveling_inputs is not None:
                     if leveling_input is not None:
                         raise ScheduleEvaluationError(
