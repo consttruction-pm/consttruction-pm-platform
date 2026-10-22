@@ -144,6 +144,10 @@ def _bind_activity_master_leveling_fields(
                 )
             if row.activity_priority is None:
                 updates["leveling_priority"] = raw_priority
+            else:
+                # An explicit numeric legacy value is an intentional override;
+                # do not let an old categorical value silently win the sort.
+                updates["leveling_priority"] = None
 
         raw_original_duration = getattr(source, "original_duration", None)
         if raw_original_duration is None:
