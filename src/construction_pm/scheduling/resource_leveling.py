@@ -292,7 +292,7 @@ def _shift_demands(
 
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
-    normalized = field_name.strip().lower().replace(" ", "_")
+    normalized = field_name.strip().lower().replace(" ", "_").replace("/", "_")
     values = {
         "activity_id": activity.activity_id,
         "activity_priority": activity.activity_priority,
