@@ -35,10 +35,7 @@ from construction_pm.project_schedule_settings_repository import (
     SQLiteProjectScheduleSettingsRepository,
     _schedule_options_payload,
 )
-from construction_pm.relationship_master_repository import (
-    RelationshipMaster,
-    SQLiteRelationshipMasterRepository,
-)
+from construction_pm.relationship_master_repository import SQLiteRelationshipMasterRepository
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
 from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
@@ -47,7 +44,6 @@ from construction_pm.scheduling.activity import ActivityLevelingPriority, Activi
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calendar_system import CalendarSystem
-from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -235,17 +231,22 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert created_a["activity"]["record_revision"] == 1
     assert created_b["activity"]["record_revision"] == 1
 
-    fixture["relationship_repo"].save(
-        RelationshipMaster(
-            scope=scope,
-            relationship_id="REL-1",
-            predecessor_id="A-1",
-            successor_id="B-1",
-            relationship_type=RelationshipType.FS,
-            lag_value=Decimal("0"),
-            lag_unit=DurationUnit.WORKING_DAY,
-        )
+    relationship_status, created_relationship = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships",
+        {
+            "relationship_id": "REL-1",
+            "predecessor_id": "A-1",
+            "successor_id": "B-1",
+            "relationship_type": "FS",
+            "lag_value": "0",
+            "lag_unit": DurationUnit.WORKING_DAY.value,
+        },
     )
+    assert relationship_status == "200 OK"
+    assert created_relationship["relationship"]["relationship_id"] == "REL-1"
+    assert created_relationship["relationship"]["record_revision"] == 1
 
     settings_status, stored_settings = _save_settings(app)
     assert settings_status == "201 Created"
