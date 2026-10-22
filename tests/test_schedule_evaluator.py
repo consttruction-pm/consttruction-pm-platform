@@ -172,6 +172,18 @@ def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input
         evaluate_schedule_snapshot(snapshot, context, registry())
 
 
+def test_preserve_scheduled_dates_option_alone_does_not_request_resource_leveling():
+    # In P6 this option controls the result of leveling; it does not enable
+    # resource leveling by itself.
+    snapshot, context = make_snapshot_and_context(
+        options=ScheduleOptions(preserve_scheduled_early_and_late_dates=True)
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, registry())
+
+    assert result.date_result is not None
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

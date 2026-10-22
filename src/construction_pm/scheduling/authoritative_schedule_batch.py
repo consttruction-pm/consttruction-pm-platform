@@ -156,28 +156,31 @@ def execute_authoritative_schedule_batch(
             snapshot_list, calendar_registry
         )
         activity_calendar_resolvers = activity_calendar_context.as_mapping()
-        if leveling_input is not None:
-            activity_calendars = {
-                resolver.calendar for resolver in activity_calendar_resolvers.values()
-            }
-            if len(activity_calendars) > 1:
-                raise UnsupportedMultiProjectSchedulingError(
-                    "MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED"
-                )
+        # Shared-graph resource leveling supports activity-specific calendars.
+        # Every CPM pass, candidate translation, and final load validator receives
+        # this version-pinned resolver map; do not reject a valid mixed-calendar graph.
     executions: list[AuthoritativeProjectScheduleExecution] = []
 
     has_leveling_options = any(
         snapshot.schedule_options.level_all_resources
         or snapshot.schedule_options.level_within_float
-        or snapshot.schedule_options.resource_list
-        or snapshot.schedule_options.priority_list
+        or snapshot.schedule_options.resource_list is not None
+        or snapshot.schedule_options.priority_list is not None
         or snapshot.schedule_options.min_float_to_preserve
         or snapshot.schedule_options.over_allocation_percentage
         for snapshot in snapshot_list
     )
-    if has_leveling_options and len(snapshot_list) > 1 and leveling_input is None:
+    if has_leveling_options and leveling_input is None:
+        if len(snapshot_list) > 1:
+            raise UnsupportedMultiProjectSchedulingError(
+                "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+            )
         raise UnsupportedMultiProjectSchedulingError(
-            "MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+            "SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED"
+        )
+    if len(snapshot_list) == 1 and leveling_input is not None:
+        raise UnsupportedMultiProjectSchedulingError(
+            "SINGLE_PROJECT_LEVELING_INPUT_NOT_SUPPORTED_BY_BATCH"
         )
 
     relationship_settings = {
@@ -304,6 +307,19 @@ def execute_authoritative_schedule_batch(
                 for demands in selected_by_project.values()
                 for demand in demands
             )
+            snapshot_by_project_id = {
+                snapshot.project_id: snapshot for snapshot in snapshot_list
+            }
+            priority_snapshots_by_activity_id = {}
+            for activity_id in sorted(activity_ids):
+                project_id = all_activity_projects.get(activity_id)
+                project_snapshot = snapshot_by_project_id.get(project_id)
+                if project_snapshot is None:
+                    raise UnsupportedMultiProjectSchedulingError(
+                        "MULTI_PROJECT_PLANNED_START_SOURCE_MISSING:" + activity_id
+                    )
+                priority_snapshots_by_activity_id[activity_id] = project_snapshot
+
             def demands_for(activity_id: str, existing: Iterable[ResourceDemand]) -> tuple[ResourceDemand, ...]:
                 merged = tuple(existing) + tuple(
                     demand for demand in selected_demands
@@ -325,6 +341,12 @@ def execute_authoritative_schedule_batch(
                     start=initial.activities[activity.activity_id].start,
                     finish=initial.activities[activity.activity_id].finish,
                     total_float=initial.floats[activity.activity_id].total_float,
+                    project_planned_start=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_start,
+                    project_priority=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_leveling_priority,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),
@@ -343,6 +365,12 @@ def execute_authoritative_schedule_batch(
                     early_finish=early[activity.activity_id].finish,
                     late_start=late[activity.activity_id].start,
                     late_finish=late[activity.activity_id].finish,
+                    project_planned_start=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_start,
+                    project_priority=priority_snapshots_by_activity_id[
+                        activity.activity_id
+                    ].project_leveling_priority,
                     resource_demands=demands_for(
                         activity.activity_id, activity.resource_demands
                     ),

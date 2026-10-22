@@ -98,16 +98,22 @@ def _successor_start(
         return _apply_lag_after(predecessor.finish, relationship.lag, lag_resolver)
 
     if relationship.type is RelationshipType.FF:
+        successor_date_resolver = successor_resolver or resolver
         target_finish = _shift_working_date(
             predecessor.finish, relationship.lag, lag_resolver
         )
-        return (successor_resolver or resolver).subtract_working_duration(target_finish, successor_duration)
+        target_finish = successor_date_resolver.normalize_start(target_finish)
+        return successor_date_resolver.subtract_working_duration(
+            target_finish, successor_duration
+        )
 
     if relationship.type is RelationshipType.SF:
+        successor_date_resolver = successor_resolver or resolver
         target_finish = _shift_working_date(
             predecessor.start, relationship.lag, lag_resolver
         )
-        return (successor_resolver or resolver).subtract_working_duration(
+        target_finish = successor_date_resolver.normalize_start(target_finish)
+        return successor_date_resolver.subtract_working_duration(
             target_finish, successor_duration
         )
 

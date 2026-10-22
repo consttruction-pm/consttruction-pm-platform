@@ -79,14 +79,44 @@ def test_external_assignments_require_authoritative_priority():
         )
 
 
-@pytest.mark.parametrize("limit", [0, 101])
-def test_external_project_priority_limit_rejects_invalid_range(limit):
+def test_external_project_priority_limit_rejects_values_above_supported_range():
     with pytest.raises(ResourceLevelingError, match="INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT"):
         select_resource_assignments_for_scheduling(
             (_assignment("P1", "R1"),),
             scheduled_project_id="P1",
             include_external_res_ass=False,
-            external_project_priority_limit=limit,
+            external_project_priority_limit=101,
+        )
+
+
+def test_default_zero_priority_limit_does_not_reject_local_only_schedule():
+    result = select_resource_assignments_for_scheduling(
+        (_assignment("P1", "R1"),),
+        scheduled_project_id="P1",
+        include_external_res_ass=False,
+        external_project_priority_limit=0,
+    )
+    assert [d.resource_id for d in result] == ["R1"]
+
+
+def test_default_zero_priority_limit_does_not_reject_when_external_assignments_are_disabled():
+    result = select_resource_assignments_for_scheduling(
+        (_assignment("P1", "R1"), _assignment("P2", "R2")),
+        scheduled_project_id="P1",
+        include_external_res_ass=False,
+        external_project_priority_limit=0,
+    )
+    assert [d.resource_id for d in result] == ["R1"]
+
+
+def test_zero_priority_limit_fails_closed_when_external_assignments_are_enabled():
+    with pytest.raises(ResourceLevelingError, match="INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT"):
+        select_resource_assignments_for_scheduling(
+            (_assignment("P1", "R1"), _assignment("P2", "R2")),
+            scheduled_project_id="P1",
+            include_external_res_ass=True,
+            project_leveling_priorities={"P2": 5},
+            external_project_priority_limit=0,
         )
 
 

@@ -5,6 +5,7 @@ from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeReso
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingPriority,
+    ResourceLevelingError,
     ResourceCapacity,
     ResourceDemand,
     SortOrder,
@@ -56,7 +57,6 @@ def test_backward_leveling_advances_activity_from_late_date_using_working_calend
     assert shifts[0].new_finish == date(2026, 10, 2)
     assert shifts[0].advanced_days == 1
 
-
 def test_backward_leveling_is_calendar_aware_over_weekend():
     resolver = WorkingTimeResolver(
         WorkingCalendar(
@@ -101,26 +101,35 @@ def test_backward_leveling_respects_early_date_bound():
     assert propose_backward_leveling((activity,), capacities, resolver=resolver) == ()
 
 
-def test_backward_leveling_uses_supplied_authoritative_total_float_priority():
+def test_backward_leveling_total_float_priority_uses_authoritative_cpm_float():
+    day_one = date(2026, 10, 1)   # Thursday
+    day_two = date(2026, 10, 2)   # Friday
+    day_three = date(2026, 10, 5) # Monday
+    day_four = date(2026, 10, 6)  # Tuesday
     resolver = WorkingTimeResolver(
-        WorkingCalendar(
-            working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}),
-            holidays=frozenset(),
-        )
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
     )
-    day_one = date(2026, 10, 1)
-    day_two = date(2026, 10, 2)
-    day_three = date(2026, 10, 3)
+    # This fixture deliberately supplies authoritative CPM Total Float values
+    # that differ from the early-to-late start movement windows. The priority
+    # rank must consume the configured float basis, not recompute start float.
     activities = (
         BackwardLevelingActivity(
-            "A", day_one, day_one, day_three, day_three,
-            (ResourceDemand("R1", day_three, Decimal("8"), "A"),),
-            total_float=0,
+            activity_id="A",
+            early_start=day_two,
+            early_finish=day_two,
+            late_start=day_three,
+            late_finish=day_three,
+            resource_demands=(ResourceDemand("R1", day_three, Decimal("8"), "A"),),
+            total_float=5,
         ),
         BackwardLevelingActivity(
-            "B", day_one, day_one, day_three, day_three,
-            (ResourceDemand("R1", day_three, Decimal("8"), "B"),),
-            total_float=2,
+            activity_id="B",
+            early_start=day_one,
+            early_finish=day_one,
+            late_start=day_four,
+            late_finish=day_four,
+            resource_demands=(ResourceDemand("R1", day_three, Decimal("8"), "B"),),
+            total_float=1,
         ),
     )
     capacities = (
@@ -132,89 +141,32 @@ def test_backward_leveling_uses_supplied_authoritative_total_float_priority():
         activities,
         capacities,
         resolver=resolver,
-        priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),),
+        priorities=(LevelingPriority("total_float", SortOrder.ASCENDING),),
     )
 
     assert len(shifts) == 1
-    assert shifts[0].activity_id == "A"
-    assert shifts[0].new_start == day_two
+    assert shifts[0].activity_id == "B"
 
+def test_backward_total_float_priority_requires_authoritative_float_value():
+    import pytest
 
-def test_backward_leveling_rejects_total_float_priority_when_cpm_value_is_missing():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
     resolver = WorkingTimeResolver(
-        WorkingCalendar(
-            working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}),
-            holidays=frozenset(),
-        )
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
     )
     activity = BackwardLevelingActivity(
-        "A", date(2026, 10, 1), date(2026, 10, 1),
-        date(2026, 10, 3), date(2026, 10, 3),
-        (ResourceDemand("R1", date(2026, 10, 3), Decimal("8"), "A"),),
+        activity_id="A",
+        early_start=day_one,
+        early_finish=day_one,
+        late_start=day_two,
+        late_finish=day_two,
+        resource_demands=(ResourceDemand("R1", day_two, Decimal("8"), "A"),),
     )
-
-    import pytest
-    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
-
-    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+    with pytest.raises(ResourceLevelingError, match="MISSING_AUTHORITATIVE_TOTAL_FLOAT"):
         propose_backward_leveling(
             (activity,),
-            (ResourceCapacity("R1", date(2026, 10, 3), Decimal("0")),),
+            (ResourceCapacity("R1", day_one, Decimal("8")), ResourceCapacity("R1", day_two, Decimal("0"))),
             resolver=resolver,
-            priorities=(LevelingPriority("Total Float", SortOrder.ASCENDING),),
-        )
-
-
-
-def test_backward_leveling_uses_authoritative_free_float_priority():
-    resolver = WorkingTimeResolver(
-        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
-    )
-    day_one, day_two, day_three = date(2026, 10, 1), date(2026, 10, 2), date(2026, 10, 3)
-    activities = (
-        BackwardLevelingActivity(
-            "A", day_one, day_one, day_three, day_three,
-            (ResourceDemand("R1", day_three, Decimal("8"), "A"),),
-            free_float=0,
-        ),
-        BackwardLevelingActivity(
-            "B", day_one, day_one, day_three, day_three,
-            (ResourceDemand("R1", day_three, Decimal("8"), "B"),),
-            free_float=2,
-        ),
-    )
-    capacities = (
-        ResourceCapacity("R1", day_two, Decimal("8")),
-        ResourceCapacity("R1", day_three, Decimal("8")),
-    )
-
-    shifts = propose_backward_leveling(
-        activities, capacities, resolver=resolver,
-        priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
-    )
-
-    assert len(shifts) == 1
-    assert shifts[0].activity_id == "A"
-    assert shifts[0].new_start == day_two
-
-
-def test_backward_leveling_rejects_free_float_priority_when_cpm_value_is_missing():
-    import pytest
-    from construction_pm.scheduling.resource_leveling import ResourceLevelingError
-
-    resolver = WorkingTimeResolver(
-        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
-    )
-    activity = BackwardLevelingActivity(
-        "A", date(2026, 10, 1), date(2026, 10, 1),
-        date(2026, 10, 3), date(2026, 10, 3),
-        (ResourceDemand("R1", date(2026, 10, 3), Decimal("8"), "A"),),
-    )
-
-    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        propose_backward_leveling(
-            (activity,),
-            (ResourceCapacity("R1", date(2026, 10, 3), Decimal("0")),),
-            resolver=resolver,
-            priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
+            priorities=(LevelingPriority("total_float", SortOrder.ASCENDING),),
         )

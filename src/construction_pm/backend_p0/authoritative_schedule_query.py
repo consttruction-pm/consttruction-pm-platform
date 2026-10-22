@@ -38,8 +38,13 @@ class AuthoritativeScheduleQueryProvider:
         self,
         request: ScheduleQueryRequest,
         *,
+        auth_context: AuthorizationContext,
         calculation_context: CalculationContext | None = None,
     ) -> ScheduleQueryAnswer:
+        # The application service has already validated this context against
+        # request scope and policy. Preserve it at the provider seam so any
+        # future resource reads use the same caller identity; never infer it
+        # from request.requested_by.
         scope = BackendScope(
             request.scope.tenant_id,
             request.scope.project_id,
@@ -274,8 +279,14 @@ class _ContextBoundProvider:
     provider: AuthoritativeScheduleQueryProvider
     calculation_context: CalculationContext | None
 
-    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> ScheduleQueryAnswer:
         return self.provider.execute(
             request,
+            auth_context=auth_context,
             calculation_context=self.calculation_context,
         )

@@ -57,8 +57,13 @@ def evaluate_schedule_snapshot(
 ) -> ScheduleEvaluationResult:
     """Materialize and evaluate one immutable snapshot.
 
-    The evaluator never reads mutable repositories during calculation. The
-    snapshot and CalculationContext are the complete calculation inputs.
+    The evaluator never reads mutable repositories during calculation.
+    For plain scheduling, the immutable snapshot and CalculationContext are
+    the calculation inputs. When resource leveling is requested, the caller
+    must also supply a SchedulerLevelingInput composed from authorized,
+    revision-consistent resource facts; the evaluator fails closed if it is
+    absent. The production query adapter must compose that input before this
+    function is called.
 
     Identity compatibility:
     - New snapshots bind to deterministic v2 semantic identity.
@@ -207,7 +212,6 @@ def _resource_leveling_requested(options: object) -> bool:
             "over_allocation_percentage",
             "resource_list",
             "priority_list",
-            "preserve_scheduled_early_and_late_dates",
         )
     )
 

@@ -85,7 +85,6 @@ def test_linked_leveling_reconstructs_final_resource_demand_by_shifted_period() 
         for key, units in final_demand_by_resource_period.items()
     )
 
-
 def test_linked_leveling_preserves_offsets_for_multi_period_resource_demand() -> None:
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
@@ -160,7 +159,6 @@ def test_linked_leveling_preserves_offsets_for_multi_period_resource_demand() ->
         units <= capacity_by_resource_period.get(key, Decimal("0"))
         for key, units in final_demand_by_resource_period.items()
     )
-
 
 def test_leveling_rejects_activity_missing_from_scheduler_input():
     import pytest
