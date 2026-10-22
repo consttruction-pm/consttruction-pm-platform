@@ -590,6 +590,10 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     assert capacity_by_period["2026-10-20"]["resource_rate_hash"] != (
         capacity_by_period["2026-10-21"]["resource_rate_hash"]
     )
+    # Saturday is non-working in the exact resource-calendar snapshot, so
+    # the effective Max Units/Time profile must yield no available capacity.
+    assert capacity_by_period["2026-10-24"]["calendar_work_hours"] == "0"
+    assert capacity_by_period["2026-10-24"]["units"] == "0"
 
     query_status, query_result = _request(
         app,
