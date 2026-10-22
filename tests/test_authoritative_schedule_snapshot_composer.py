@@ -374,19 +374,52 @@ def test_snapshot_and_context_writes_roll_back_together(tmp_path):
             "duration_unit": "working-day",
         },
     )
+    settings_status, _ = _save_settings(app)
+    assert settings_status == "201 Created"
     status, error = _request(
         app, "POST", "/api/projects/p1/p6/schedule/snapshots",
         {
             "contract_version": "p6-schedule-snapshot-api.v1",
-            "mode": "DATE_BASED",
-            "project_calendar_id": "CAL-1",
-            "project_calendar_version": "1",
-            "project_start": "2026-10-19",
             "timezone": "UTC",
-            "schedule_options": {},
         },
     )
     assert status == "400 Bad Request"
     assert "SIMULATED_CONTEXT_WRITE_FAILURE" in error["code"]
     assert fixture["snapshot_repo"].list(fixture["scope"]) == ()
+    fixture["connection"].close()
+
+
+def test_project_schedule_settings_reject_unknown_fields_and_stale_revision(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+
+    options = _schedule_options_payload(ScheduleOptions(data_date=date(2026, 10, 19)))
+    unknown_payload = {
+        "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+        "expected_record_revision": 0,
+        "mode": "DATE_BASED",
+        "project_calendar_id": "CAL-1",
+        "project_calendar_version": "1",
+        "project_calendar_system": CalendarSystem.GREGORIAN.value,
+        "project_start": "2026-10-19",
+        "project_finish": None,
+        "schedule_options": options,
+        "project_leveling_priority": 10,
+        "unsupported_option": True,
+    }
+    status, error = _request(
+        app, "POST", "/api/projects/p1/p6/schedule/settings", unknown_payload
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PROJECT_SCHEDULE_SETTINGS_FIELDS_INVALID"
+    assert fixture["settings_repo"].get(fixture["scope"]) is None
+
+    status, saved = _save_settings(app, expected_revision=0)
+    assert status == "201 Created"
+    assert saved["record_revision"] == 1
+
+    status, conflict = _save_settings(app, expected_revision=0)
+    assert status == "409 Conflict"
+    assert conflict["code"] == "REVISION_CONFLICT"
+    assert fixture["settings_repo"].get(fixture["scope"]).record_revision == 1
     fixture["connection"].close()
