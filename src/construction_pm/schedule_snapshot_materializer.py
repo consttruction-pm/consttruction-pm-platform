@@ -80,6 +80,13 @@ def materialize_schedule_snapshot(
         raise SnapshotMaterializationError("INVALID_SNAPSHOT_JSON") from exc
     if not isinstance(payload, dict):
         raise SnapshotMaterializationError("INVALID_SNAPSHOT_PAYLOAD")
+    if payload.get("relationship_lag_calendar_assignments"):
+        # Older/nonstandard snapshots may carry per-relationship overrides.
+        # P6 only defines a schedule-wide relationship-lag calendar option;
+        # never ignore persisted nonstandard data and silently change dates.
+        raise SnapshotMaterializationError(
+            "PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE"
+        )
 
     if payload.get("snapshot_id") != snapshot.snapshot_id:
         raise SnapshotMaterializationError("SNAPSHOT_ID_MISMATCH")
