@@ -9,7 +9,7 @@ calendars, or calculate scheduling dates.
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -150,7 +150,7 @@ class ResourceCapacityRate:
     def canonical_payload(self) -> dict[str, object]:
         return {
             "resource_id": self.resource_id,
-            "effective_from": self.effective_from.isoformat(),
+            "effective_from": self.effective_from.astimezone(timezone.utc).isoformat(),
             "max_units_per_time": str(self.max_units_per_time),
             "time_period_unit": self.time_period_unit,
             "hours_per_time_period": str(self.hours_per_time_period),
