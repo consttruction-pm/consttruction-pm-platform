@@ -49,7 +49,7 @@ class ScheduleInputCompositionError(ValueError):
     """Raised when persisted project records cannot safely form a schedule input."""
 
 
-undefinedclass ActivityCalendarAssignments(Protocol):
+class ActivityCalendarAssignments(Protocol):
     def list_activities(self, scope: BackendScope) -> tuple[ActivityCalendarAssignmentMaster, ...]: ...
     def list_relationship_lag(self, scope: BackendScope) -> tuple[RelationshipLagCalendarAssignmentMaster, ...]: ...
 
