@@ -146,7 +146,7 @@ def _bind_activity_master_leveling_fields(
                 updates["leveling_priority"] = raw_priority
 
         raw_original_duration = getattr(source, "original_duration", None)
-        if raw_original_duration is not None and row.original_planned_duration is None:
+        if raw_original_duration is not None:
             if (
                 isinstance(raw_original_duration, bool)
                 or not isinstance(raw_original_duration, int)
@@ -162,7 +162,7 @@ def _bind_activity_master_leveling_fields(
             updates["planned_finish"] = raw_planned_finish
 
         raw_remaining_duration = getattr(source, "remaining_duration", None)
-        if raw_remaining_duration is not None and row.remaining_duration is None:
+        if raw_remaining_duration is not None:
             if (
                 isinstance(raw_remaining_duration, bool)
                 or not isinstance(raw_remaining_duration, int)
