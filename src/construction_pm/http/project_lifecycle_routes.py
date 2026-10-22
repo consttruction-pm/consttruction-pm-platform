@@ -26,8 +26,11 @@ from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDA
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
-from ..scheduling.activity import ActivityLevelingPriority, PercentCompleteType
-from ..scheduling.time_duration import DurationUnit
+from ..scheduling.activity import (
+    ActivityLevelingPriority as P6ActivityLevelingPriority,
+    PercentCompleteType as P6ActivityPercentCompleteType,
+)
+from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
 from ..dependency_graph_api import DependencyGraphAPI
@@ -863,7 +866,7 @@ class ProjectLifecycleHttpRoutes:
                     if isinstance(duration_raw, bool) or duration_raw is None:
                         raise ValueError("INVALID_DURATION_VALUE")
                     duration_value = Decimal(str(duration_raw))
-                    duration_unit = DurationUnit(payload.get("duration_unit"))
+                    duration_unit = P6ActivityDurationUnit(payload.get("duration_unit"))
                     raw_remaining_duration = payload.get("remaining_duration")
                     if raw_remaining_duration is not None and (
                         isinstance(raw_remaining_duration, bool)
@@ -892,13 +895,13 @@ class ProjectLifecycleHttpRoutes:
                         remaining_duration=raw_remaining_duration,
                         remaining_start=parse_activity_date("remaining_start"),
                         percent_complete=None if raw_percent is None else float(raw_percent),
-                        percent_complete_type=PercentCompleteType(
-                            payload.get("percent_complete_type", PercentCompleteType.DURATION.value)
+                        percent_complete_type=P6ActivityPercentCompleteType(
+                            payload.get("percent_complete_type", P6ActivityPercentCompleteType.DURATION.value)
                         ),
                         expected_finish=parse_activity_date("expected_finish"),
                         planned_finish=parse_activity_date("planned_finish"),
-                        leveling_priority=ActivityLevelingPriority.from_p6_value(
-                            payload.get("leveling_priority", ActivityLevelingPriority.NORMAL.value)
+                        leveling_priority=P6ActivityLevelingPriority.from_p6_value(
+                            payload.get("leveling_priority", P6ActivityLevelingPriority.NORMAL.value)
                         ),
                         original_duration=raw_original_duration,
                     )
