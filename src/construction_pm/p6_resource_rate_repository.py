@@ -8,7 +8,7 @@ contract and must not be inferred from these capacity rows.
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Protocol
 
@@ -86,7 +86,7 @@ def _key(scope: BackendScope, rate: ResourceCapacityRate) -> tuple[object, ...]:
         scope.project_id,
         scope.project_revision,
         rate.resource_id,
-        rate.effective_from.isoformat(),
+        rate.effective_from.astimezone(timezone.utc).isoformat(),
         rate.shift_id,
     )
 
