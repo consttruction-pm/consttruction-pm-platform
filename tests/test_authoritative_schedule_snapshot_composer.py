@@ -953,15 +953,26 @@ def test_persisted_relationship_lag_calendar_override_flows_through_snapshot_and
             holidays=frozenset({date(2026, 10, 20)}),
         )
     )
-    fixture["calendar_assignments"].save_relationship_lag(
-        RelationshipLagCalendarAssignmentMaster(
-            scope=scope,
-            relationship_id="REL-LAG-1",
-            option=RelationshipLagCalendar.SUCCESSOR,
-            calendar_id="LAG-CAL",
-            calendar_version="1",
-        )
+    lag_status, lag_saved = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships/REL-LAG-1/lag-calendar",
+        {
+            "contract_version": "p6-relationship-lag-calendar.v1",
+            "option": RelationshipLagCalendar.SUCCESSOR.value,
+            "calendar_id": "LAG-CAL",
+            "calendar_version": "1",
+        },
     )
+    assert lag_status == "201 Created"
+    assert lag_saved["assignment"]["record_revision"] == 1
+    lag_get_status, lag_loaded = _request(
+        app,
+        "GET",
+        "/api/projects/p1/p6/relationships/REL-LAG-1/lag-calendar",
+    )
+    assert lag_get_status == "200 OK"
+    assert lag_loaded["assignment"]["calendar_id"] == "LAG-CAL"
     settings_status, _ = _save_settings(
         app,
         options=ScheduleOptions(
@@ -1018,3 +1029,77 @@ def test_persisted_relationship_lag_calendar_override_flows_through_snapshot_and
     # lag calendar has a Tuesday holiday and drives the successor to Thursday.
     assert activities["B-LAG"]["start"] == "2026-10-22"
     connection.close()
+
+
+
+def test_relationship_lag_calendar_route_enforces_write_permission_and_revision(tmp_path):
+    fixture = _fixture(tmp_path, role="viewer")
+    app = fixture["app"]
+    scope = fixture["scope"]
+    fixture["relationship_repo"].save(
+        RelationshipMaster(
+            scope=scope,
+            relationship_id="REL-VIEW",
+            predecessor_id="A-VIEW",
+            successor_id="B-VIEW",
+            relationship_type=RelationshipType.FS,
+            lag_value=Decimal("0"),
+            lag_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+    status, result = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships/REL-VIEW/lag-calendar",
+        {
+            "contract_version": "p6-relationship-lag-calendar.v1",
+            "option": RelationshipLagCalendar.SUCCESSOR.value,
+        },
+    )
+    assert status == "403 Forbidden"
+    assert result["code"] == "RELATIONSHIP_LAG_CALENDAR_WRITE_NOT_AUTHORIZED"
+
+    connection = fixture["connection"]
+    connection.close()
+
+
+def test_relationship_lag_calendar_route_uses_optimistic_revision_on_update(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    fixture["relationship_repo"].save(
+        RelationshipMaster(
+            scope=scope,
+            relationship_id="REL-REV",
+            predecessor_id="A-REV",
+            successor_id="B-REV",
+            relationship_type=RelationshipType.FS,
+            lag_value=Decimal("0"),
+            lag_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+    status, created = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships/REL-REV/lag-calendar",
+        {
+            "contract_version": "p6-relationship-lag-calendar.v1",
+            "option": RelationshipLagCalendar.PROJECT_DEFAULT.value,
+        },
+    )
+    assert status == "201 Created"
+    assert created["assignment"]["record_revision"] == 1
+
+    status, conflict = _request(
+        app,
+        "PUT",
+        "/api/projects/p1/p6/relationships/REL-REV/lag-calendar",
+        {
+            "contract_version": "p6-relationship-lag-calendar.v1",
+            "expected_revision": 9,
+            "option": RelationshipLagCalendar.SUCCESSOR.value,
+        },
+    )
+    assert status == "409 Conflict"
+    assert conflict["code"] == "REVISION_CONFLICT"
+    fixture["connection"].close()
