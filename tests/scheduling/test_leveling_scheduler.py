@@ -1477,3 +1477,37 @@ def test_public_leveling_priority_boundary_accepts_supported_p6_fields(field_nam
     assert len(mapped) == 1
     assert mapped[0].field_name == field_name
 
+def test_backward_activity_builder_bounds_negative_float_window_to_intermediate_early_dates() -> None:
+    """A negative-float late window must not create an invalid backward proposal window."""
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("1"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 0, (demand,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand,)),
+        ),
+        capacities=(),
+        options=ResourceLevelingOptions(preserve_scheduled_early_and_late_dates=False),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        # This late result represents negative float relative to the current
+        # early schedule and must not be used as a backward target.
+        late_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        resolver=resolver,
+    )
+
+    assert (built[0].late_start, built[0].late_finish) == (day_two, day_two)
+    assert built[0].resource_demands[0].period == day_two

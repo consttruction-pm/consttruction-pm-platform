@@ -202,8 +202,8 @@ def _forward_activities_with_authoritative_floats(
                 total_float=authoritative_total_float,
                 resource_demands=tuple(shifted_demands),
                 free_float=authoritative_free_float,
-                late_start=late.start,
-                late_finish=late.finish,
+                late_start=candidate_late_start,
+                late_finish=candidate_late_finish,
             )
         )
     return tuple(result)
@@ -229,12 +229,19 @@ def _backward_activities_from_intermediate(
         forward_activity = forward_by_id.get(activity.activity_id, activity)
         activity_resolver = (activity_resolvers or {}).get(activity.activity_id, resolver)
         original_start = forward_by_id[activity.activity_id].start
+        # A calculated late window can begin before the intermediate CPM
+        # early dates when a project-finish/constraint creates negative float.
+        # Bound only the backward-leveling proposal window to CPM early dates;
+        # do not rewrite the authoritative result or its reported float.
+        candidate_late_start = max(late.start, early.start)
+        candidate_late_finish = max(late.finish, early.finish)
+
         # A demand for a forward-leveled activity is already occupying its
         # accepted intermediate CPM period. Keep it there in the backward
         # proposal ledger; moving that protected demand to its late window can
         # falsely free capacity and cause a later candidate to overload it.
         demand_target_start = (
-            early.start if activity.activity_id in protected else late.start
+            early.start if activity.activity_id in protected else candidate_late_start
         )
         if demand_target_start > original_start:
             displacement = activity_resolver.working_days_between(
