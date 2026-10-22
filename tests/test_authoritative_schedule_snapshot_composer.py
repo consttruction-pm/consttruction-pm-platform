@@ -546,7 +546,7 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     assert snapshot is not None
     payload = json.loads(snapshot.canonical_payload)
     facts = payload["resource_leveling_inputs"]
-    assert facts["schema_version"] == 1
+    assert facts["schema_version"] == 2
     assert {item["assignment_id"] for item in facts["assignments"]} == {
         "ASSIGN-A-1", "ASSIGN-B-1"
     }
