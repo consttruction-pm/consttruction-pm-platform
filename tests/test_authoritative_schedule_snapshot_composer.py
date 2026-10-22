@@ -493,7 +493,7 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
         ),
     )
 
-    for activity_id in ("A-1", "B-1", "WBS-1"):
+    for activity_id in ("A-1", "B-1", "WBS-1", "LOE-1"):
         status, created = _request(
             app,
             "POST",
@@ -505,7 +505,11 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
                 "duration_value": "1",
                 "duration_unit": "working-day",
                 "percent_complete_type": "DURATION",
-                "activity_type": ("WBS Summary" if activity_id == "WBS-1" else "Task Dependent"),
+                "activity_type": (
+                    "WBS Summary" if activity_id == "WBS-1"
+                    else "Level of Effort" if activity_id == "LOE-1"
+                    else "Task Dependent"
+                ),
                 "status": "Not Started",
                 "status_code": "Planned",
             },
@@ -517,8 +521,8 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     # the same scoped assignment/period rows before the snapshot is hashed.
     assignment_repo = fixture["resource_assignments"]
     period_repo = fixture["resource_periods"]
-    for activity_id in ("A-1", "B-1", "WBS-1"):
-        assigned_units = Decimal("100") if activity_id == "WBS-1" else Decimal("8")
+    for activity_id in ("A-1", "B-1", "WBS-1", "LOE-1"):
+        assigned_units = Decimal("100") if activity_id in {"WBS-1", "LOE-1"} else Decimal("8")
         assignment_repo.upsert(P6ResourceAssignment(
             scope=scope,
             assignment_id=f"ASSIGN-{activity_id}",
@@ -566,7 +570,7 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     facts = payload["resource_leveling_inputs"]
     assert facts["schema_version"] == 2
     assert {item["assignment_id"] for item in facts["assignments"]} == {
-        "ASSIGN-A-1", "ASSIGN-B-1", "ASSIGN-WBS-1"
+        "ASSIGN-A-1", "ASSIGN-B-1", "ASSIGN-WBS-1", "ASSIGN-LOE-1"
     }
     assert facts["capacity_horizon_start"] == "2026-10-19"
     assert facts["capacity_horizon_end"] > "2026-10-19"
@@ -613,13 +617,15 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     )
     assert query_status == "200 OK"
     activities = query_result["data"]["activities"]
-    assert set(activities) == {"A-1", "B-1", "WBS-1"}
-    # P6 ignores WBS Summary resource demand during leveling. A 100-unit
-    # summary rollup must not compete with the two 8-unit executable tasks.
+    assert set(activities) == {"A-1", "B-1", "WBS-1", "LOE-1"}
+    # P6 ignores WBS Summary and Level of Effort resource demand during
+    # leveling. Neither 100-unit summary row may compete with the two
+    # 8-unit Task Dependent activities.
     assert {activities[item]["start"] for item in ("A-1", "B-1")} == {
         "2026-10-19", "2026-10-20"
     }
     assert activities["WBS-1"]["start"] == "2026-10-19"
+    assert activities["LOE-1"]["start"] == "2026-10-19"
     assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
     connection.close()
 
