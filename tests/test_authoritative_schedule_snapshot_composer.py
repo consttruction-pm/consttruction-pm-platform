@@ -35,6 +35,8 @@ from construction_pm.p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
     P6ScheduleSnapshotPublicationAPI,
 )
+from construction_pm.p6_resource_rate_repository import SQLiteP6ResourceRateRepository
+from construction_pm.scheduling.resource_leveling_input import ResourceCapacityRate
 from construction_pm.project_schedule_settings_repository import (
     SQLiteProjectScheduleSettingsRepository,
     _schedule_options_payload,
@@ -115,6 +117,16 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
     resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    resource_rates = SQLiteP6ResourceRateRepository(connection)
+    resource_rates.save(scope, ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 10, 18, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    ))
     settings_repo = SQLiteProjectScheduleSettingsRepository(connection)
     snapshot_repo = SQLiteScheduleInputSnapshotRepository(connection)
     context_repo = SQLiteCalculationContextRepository(connection)
@@ -141,6 +153,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         project_schedule_settings_repository=settings_repo,
         calendar_exception_repository=calendar_exceptions,
         calendar_work_hours_repository=calendar_work_hours,
+        resource_rate_repository=resource_rates,
     )
     if fail_context_write:
         class FailingContextRepository:
@@ -193,6 +206,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "calendar_work_hours": calendar_work_hours,
         "resource_assignments": resource_assignments,
         "resource_periods": resource_periods,
+        "resource_rates": resource_rates,
         "settings_repo": settings_repo,
     }
 
@@ -494,6 +508,7 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
             resource_id="R1",
             units=Decimal("8"),
             remaining_units=Decimal("8"),
+            unit="h",
             calendar_id="RES-CAL-1",
             calendar_version="1",
         ))
