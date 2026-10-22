@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
 
@@ -60,11 +60,18 @@ from ..authoritative_schedule_input_composer import (
     ScheduleInputDefinition,
 )
 from ..p6_schedule_snapshot_publication_api import (
+    P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
     P6_SCHEDULE_SNAPSHOT_API_VERSION,
     P6ScheduleSnapshotPublicationAPI,
 )
 from ..schedule_snapshot_publisher import ScheduleSnapshotPublicationError
 from ..schedule_snapshot_materializer import parse_schedule_options_payload
+from ..project_schedule_settings_repository import (
+    ProjectScheduleSettings,
+    ProjectScheduleSettingsPersistenceError,
+)
+from ..scheduling.calendar_context import CalendarReference
+from ..scheduling.schedule_options import ScheduleOptions
 from ..scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from ..relationship_master_repository import RelationshipPersistenceError
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
@@ -848,6 +855,163 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, KeyError):
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/schedule/settings" in path and self._p6_schedule_snapshot_api is not None:
+                prefix = "/p6/schedule/settings"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID", "error.request.invalid")
+                if suffix.strip("/"):
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
+                if method not in {"GET", "POST"}:
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
+                try:
+                    project_context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = project_context.authorization_context(session.roles)
+                scope = BackendScope(
+                    project_context.tenant_id,
+                    project_context.project_id,
+                    project_context.revision,
+                )
+                try:
+                    if method == "GET":
+                        settings = self._p6_schedule_snapshot_api.get_settings(
+                            scope, auth_context=auth
+                        )
+                        if settings is None:
+                            return self._error(
+                                404, "PROJECT_SCHEDULE_SETTINGS_NOT_FOUND", "error.resource.not_found"
+                            )
+                        return self._json(200, settings)
+
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("INVALID_PAYLOAD")
+                    if payload.get("contract_version") != P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION:
+                        raise ValueError("INVALID_PROJECT_SCHEDULE_SETTINGS_CONTRACT_VERSION")
+
+                    raw_expected_revision = payload.get("expected_record_revision")
+                    if (
+                        isinstance(raw_expected_revision, bool)
+                        or not isinstance(raw_expected_revision, int)
+                        or raw_expected_revision < 0
+                    ):
+                        raise ValueError("EXPECTED_RECORD_REVISION_REQUIRED")
+
+                    raw_mode = payload.get("mode")
+                    if not isinstance(raw_mode, str):
+                        raise ValueError("SCHEDULE_MODE_REQUIRED")
+                    mode = AuthoritativeScheduleMode(raw_mode)
+                    expected_calendar_kind = (
+                        "working-day"
+                        if mode is AuthoritativeScheduleMode.DATE_BASED
+                        else "working-time"
+                    )
+
+                    def required_text(field_name: str) -> str:
+                        raw = payload.get(field_name)
+                        if not isinstance(raw, str) or not raw.strip():
+                            raise ValueError(field_name.upper() + "_REQUIRED")
+                        return raw
+
+                    def date_only(field_name: str, *, required: bool):
+                        if field_name not in payload:
+                            if required:
+                                raise ValueError(field_name.upper() + "_REQUIRED")
+                            return None
+                        raw = payload[field_name]
+                        if raw is None and not required:
+                            return None
+                        if not isinstance(raw, str) or not raw.strip() or "T" in raw:
+                            raise ValueError("INVALID_" + field_name.upper())
+                        try:
+                            result = date.fromisoformat(raw)
+                        except ValueError as exc:
+                            raise ValueError("INVALID_" + field_name.upper()) from exc
+                        if result.isoformat() != raw:
+                            raise ValueError("INVALID_" + field_name.upper())
+                        return result
+
+                    def aware_datetime(field_name: str, *, required: bool):
+                        if field_name not in payload:
+                            if required:
+                                raise ValueError(field_name.upper() + "_REQUIRED")
+                            return None
+                        raw = payload[field_name]
+                        if raw is None and not required:
+                            return None
+                        if not isinstance(raw, str) or not raw.strip():
+                            raise ValueError("INVALID_" + field_name.upper())
+                        try:
+                            result = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                        except ValueError as exc:
+                            raise ValueError("INVALID_" + field_name.upper()) from exc
+                        if result.tzinfo is None or result.utcoffset() is None:
+                            raise ValueError("TIMEZONE_REQUIRED_FOR_" + field_name.upper())
+                        return result
+
+                    if "project_finish" not in payload:
+                        raise ValueError("PROJECT_FINISH_FIELD_REQUIRED")
+                    if mode is AuthoritativeScheduleMode.DATE_BASED:
+                        project_start = date_only("project_start", required=True)
+                        project_finish = date_only("project_finish", required=False)
+                    else:
+                        project_start = aware_datetime("project_start", required=True)
+                        project_finish = aware_datetime("project_finish", required=False)
+
+                    options_payload = payload.get("schedule_options")
+                    if not isinstance(options_payload, dict):
+                        raise ValueError("SCHEDULE_OPTIONS_REQUIRED")
+                    expected_option_fields = {item.name for item in fields(ScheduleOptions)}
+                    if set(options_payload) != expected_option_fields:
+                        raise ValueError("SCHEDULE_OPTIONS_SCHEMA_MISMATCH")
+                    options = parse_schedule_options_payload(options_payload)
+
+                    raw_priority = payload.get("project_leveling_priority")
+                    if isinstance(raw_priority, bool) or not isinstance(raw_priority, int):
+                        raise ValueError("PROJECT_LEVELING_PRIORITY_REQUIRED")
+
+                    calendar_id = required_text("project_calendar_id")
+                    calendar_version = required_text("project_calendar_version")
+                    calendar_system = CalendarSystem(required_text("project_calendar_system"))
+                    settings = ProjectScheduleSettings(
+                        scope=scope,
+                        mode=mode,
+                        project_calendar=CalendarReference(
+                            calendar_id,
+                            calendar_version,
+                            expected_calendar_kind,
+                            calendar_system,
+                        ),
+                        project_start=project_start,
+                        project_finish=project_finish,
+                        schedule_options=options,
+                        project_leveling_priority=raw_priority,
+                    )
+                    result = self._p6_schedule_snapshot_api.save_settings(
+                        scope,
+                        settings=settings,
+                        expected_revision=raw_expected_revision,
+                        auth_context=auth,
+                    )
+                    status_code = 201 if result["record_revision"] == 1 else 200
+                    return self._json(status_code, result)
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except (
+                    ProjectScheduleSettingsPersistenceError,
+                    TypeError,
+                    ValueError,
+                    ArithmeticError,
+                    KeyError,
+                ) as exc:
+                    code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
+                    return self._error(400, code, "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/schedule/snapshots" in path and self._p6_schedule_snapshot_api is not None:
                 prefix = "/p6/schedule/snapshots"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
@@ -873,47 +1037,15 @@ class ProjectLifecycleHttpRoutes:
                     payload = json.loads(body.decode("utf-8") or "{}") if body else {}
                     if not isinstance(payload, dict):
                         raise ValueError("INVALID_PAYLOAD")
+                    if set(payload) != {"contract_version", "timezone"}:
+                        raise ValueError("SCHEDULE_SNAPSHOT_REQUEST_FIELDS_INVALID")
                     if payload.get("contract_version") != P6_SCHEDULE_SNAPSHOT_API_VERSION:
-                        raise ValueError("INVALID_CONTRACT_VERSION")
-
-                    def date_field(field_name: str, *, required: bool = False):
-                        raw = payload.get(field_name)
-                        if raw is None and not required:
-                            return None
-                        if not isinstance(raw, str) or not raw.strip() or "T" in raw:
-                            raise ValueError("INVALID_" + field_name.upper())
-                        try:
-                            parsed = date.fromisoformat(raw)
-                        except ValueError as exc:
-                            raise ValueError("INVALID_" + field_name.upper()) from exc
-                        if parsed.isoformat() != raw:
-                            raise ValueError("INVALID_" + field_name.upper())
-                        return parsed
-
-                    raw_mode = payload.get("mode")
-                    if not isinstance(raw_mode, str):
-                        raise ValueError("SCHEDULE_MODE_REQUIRED")
-                    mode = AuthoritativeScheduleMode(raw_mode)
-                    options_payload = payload.get("schedule_options")
-                    options = parse_schedule_options_payload(options_payload)
+                        raise ValueError("INVALID_SCHEDULE_SNAPSHOT_CONTRACT_VERSION")
                     timezone_name = payload.get("timezone")
                     if not isinstance(timezone_name, str) or not timezone_name.strip():
                         raise ValueError("CALCULATION_TIMEZONE_REQUIRED")
-                    raw_priority = payload.get("project_leveling_priority", 10)
-                    if isinstance(raw_priority, bool) or not isinstance(raw_priority, int):
-                        raise ValueError("INVALID_PROJECT_LEVELING_PRIORITY")
-                    definition = ScheduleInputDefinition(
-                        project_calendar_id=payload.get("project_calendar_id"),
-                        project_calendar_version=payload.get("project_calendar_version"),
-                        project_start=date_field("project_start", required=True),
-                        project_finish=date_field("project_finish"),
-                        schedule_options=options,
-                        mode=mode,
-                        project_leveling_priority=raw_priority,
-                    )
                     result = self._p6_schedule_snapshot_api.publish(
                         scope,
-                        definition=definition,
                         timezone_name=timezone_name,
                         auth_context=auth,
                         request_id=(headers or {}).get("X-Request-Id"),
@@ -925,6 +1057,7 @@ class ProjectLifecycleHttpRoutes:
                 except (
                     ScheduleInputCompositionError,
                     ScheduleSnapshotPublicationError,
+                    ProjectScheduleSettingsPersistenceError,
                     TypeError,
                     ValueError,
                     ArithmeticError,
