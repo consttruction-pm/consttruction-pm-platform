@@ -167,6 +167,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         calculation_context_repository=effective_context_repo,
         authorization_policy=policy,
         activity_master_repository=activity_repo,
+        relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
         clock=type("Clock", (), {"now": lambda self: now})(),
     )
