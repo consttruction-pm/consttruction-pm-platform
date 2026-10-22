@@ -21,7 +21,7 @@
 3. [Oracle Primavera P6 Professional User Guide Version 26 — Specify leveling priorities](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm)
 4. [Oracle Primavera P6 Professional User Guide Version 26 — Leveling priority definitions](https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm)
 5. [Oracle Primavera P6 EPPM User Guide Version 26 — Working with Future Period Planning](https://docs.oracle.com/cd/G48897_01/English/User_Guides/p6_eppm_user/89612.htm)
-6. [Oracle Primavera P6 Professional Help Version 26 — Level Resources Dialog Box](https://docs.oracle.com/cd/G18294_01/p6help/en/91573.htm)
+6. [Oracle Primavera P6 Professional User Guide Version 26 — Level Resources Dialog Box](https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm)
 
 ## Review record for CUBI-RES-005
 
