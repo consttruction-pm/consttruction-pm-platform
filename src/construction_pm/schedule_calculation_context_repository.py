@@ -215,6 +215,7 @@ class SQLiteCalculationContextRepository:
                 return record
             raise CalculationContextPersistenceError("CONTEXT_IMMUTABLE_CONFLICT")
 
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute(
             "INSERT INTO schedule_calculation_context "
             "(tenant_id,project_id,project_revision,snapshot_id,calendar_id,calendar_version,"
@@ -243,7 +244,8 @@ class SQLiteCalculationContextRepository:
                 record.calculation_identity_version,
             ),
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
         return record
 
     def get(
