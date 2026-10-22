@@ -204,6 +204,11 @@ class LevelingActivity:
     free_float: int | None = None
     late_start: date | None = None
     late_finish: date | None = None
+    original_planned_duration: Decimal | None = None
+    planned_finish: date | None = None
+    project_planned_start: date | None = None
+    project_priority: int | None = None
+    remaining_duration: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -228,9 +233,21 @@ class LevelingActivity:
             value is not None and (
                 not isinstance(value, date) or isinstance(value, datetime)
             )
-            for value in (self.late_start, self.late_finish)
+            for value in (self.late_start, self.late_finish, self.planned_finish, self.project_planned_start)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        for name, value in (
+            ("original_planned_duration", self.original_planned_duration),
+            ("remaining_duration", self.remaining_duration),
+        ):
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite() or value < 0
+            ):
+                raise ResourceLevelingError(f"INVALID_{name.upper()}")
+        if self.project_priority is not None and (
+            isinstance(self.project_priority, bool) or not isinstance(self.project_priority, int)
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         # Late dates may precede early dates when CPM reports negative float
         # (for example, an infeasible imposed finish/constraint). Preserve the
         # authoritative dates; feasibility is handled by CPM/constraint checks.
@@ -283,6 +300,14 @@ def _priority_value(activity: LevelingActivity, field_name: str):
         "early_finish": activity.finish,
         "late_start": activity.late_start,
         "late_finish": activity.late_finish,
+        "original_planned_duration": activity.original_planned_duration,
+        "original_or_planned_duration": activity.original_planned_duration,
+        "original_duration": activity.original_planned_duration,
+        "planned_duration": activity.original_planned_duration,
+        "planned_finish": activity.planned_finish,
+        "project_planned_start": activity.project_planned_start,
+        "project_priority": activity.project_priority,
+        "remaining_duration": activity.remaining_duration,
         "total_float": activity.total_float,
         "free_float": activity.free_float,
     }
@@ -383,8 +408,8 @@ def propose_forward_leveling_within_float(
         for priority in priorities:
             normalized = priority.field_name.strip().lower().replace(" ", "_")
             value = _priority_value(activity, priority.field_name)
-            if normalized in {"free_float", "late_start", "late_finish"} and value is None:
-                raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+            if value is None:
+                raise ResourceLevelingError(f"LEVELING_PRIORITY_VALUE_REQUIRED:{normalized}")
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
     selected_resources = set(
