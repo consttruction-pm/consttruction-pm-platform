@@ -40,6 +40,8 @@ The evaluator now uses the shared `resolve_authoritative_activity_calendars` res
 
 P6 v26 defines the available relationship-lag calendar choices as predecessor activity, successor activity, 24-hour, and project default. Source: [P6 EPPM Release 26 — Read ScheduleOptions](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-scheduleoptions-get.html).
 
+**Conformance boundary:** P6 applies this selection as a schedule-wide option across relationships; it does not define an independent lag-calendar override for each relationship. The authoritative composer therefore rejects persisted per-relationship lag-calendar records with `PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE`, and snapshots using that nonstandard field must fail closed rather than silently ignore it. The standard P6 schedule-wide option remains supported and is tested against distinct activity calendars and calendar holidays.
+
 ## Activity-type rules from P6 v26
 
 The shared snapshot evaluator excludes **WBS Summary** and **Level of Effort** (LOE) activity demands from the leveling ledger while retaining source assignment/demand facts in the immutable snapshot for audit. Oracle's LOE help explicitly states these activities are not included during resource leveling, and the v26 activity-type reference confirms LOE is one of the six native P6 activity types. Regression coverage gives both a WBS Summary and an LOE row 100 units on a day when two Task Dependent activities each demand 8 units; neither summary/roll-up row may consume capacity or force the executable tasks to be delayed.
