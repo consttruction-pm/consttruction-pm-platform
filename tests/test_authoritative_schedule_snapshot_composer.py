@@ -15,15 +15,19 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.authoritative_schedule_input_composer import AuthoritativeScheduleInputComposer
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import (
     CalendarMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
 from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
@@ -107,6 +111,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     calendar_repo = SQLiteCalendarMasterRepository(connection)
     calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
     calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
+    calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
+    calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
     resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
     settings_repo = SQLiteProjectScheduleSettingsRepository(connection)
@@ -133,6 +139,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         resource_assignment_repository=resource_assignments,
         resource_period_repository=resource_periods,
         project_schedule_settings_repository=settings_repo,
+        calendar_exception_repository=calendar_exceptions,
+        calendar_work_hours_repository=calendar_work_hours,
     )
     if fail_context_write:
         class FailingContextRepository:
@@ -180,12 +188,17 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
         "calendar_repo": calendar_repo,
+        "calendar_snapshots": calendar_snapshots,
+        "calendar_exceptions": calendar_exceptions,
+        "calendar_work_hours": calendar_work_hours,
+        "resource_assignments": resource_assignments,
+        "resource_periods": resource_periods,
         "settings_repo": settings_repo,
     }
 
 
-def _save_settings(app, *, expected_revision: int = 0):
-    options = ScheduleOptions(data_date=date(2026, 10, 19))
+def _save_settings(app, *, expected_revision: int = 0, options: ScheduleOptions | None = None):
+    options = options or ScheduleOptions(data_date=date(2026, 10, 19))
     payload = {
         "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
         "expected_record_revision": expected_revision,
@@ -425,3 +438,131 @@ def test_project_schedule_settings_reject_unknown_fields_and_stale_revision(tmp_
     assert conflict["code"] == "REVISION_CONFLICT"
     assert fixture["settings_repo"].get(fixture["scope"]).record_revision == 1
     fixture["connection"].close()
+
+
+def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_production_query(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    # The assigned resource calendar is version-pinned and canonicalized before
+    # capacity slices enter the authoritative schedule snapshot.
+    resource_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="RES-CAL-1",
+        calendar_version="1",
+        kind="working-day",
+        name="Resource Calendar",
+        calendar_type="resource",
+    )
+    fixture["calendar_repo"].save(resource_calendar)
+    fixture["calendar_snapshots"].save(
+        resource_calendar,
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()),
+    )
+
+    for activity_id in ("A-1", "B-1"):
+        status, created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "activity_id": activity_id,
+                "name": activity_id,
+                "duration_value": "1",
+                "duration_unit": "working-day",
+                "percent_complete_type": "DURATION",
+                "activity_type": "Task Dependent",
+                "status": "Not Started",
+                "status_code": "Planned",
+            },
+        )
+        assert status == "201 Created"
+        assert created["activity"]["activity_id"] == activity_id
+
+    # Persisted writes are committed before publishing; publication must fresh-read
+    # the same scoped assignment/period rows before the snapshot is hashed.
+    assignment_repo = fixture["resource_assignments"]
+    period_repo = fixture["resource_periods"]
+    for activity_id in ("A-1", "B-1"):
+        assignment_repo.upsert(P6ResourceAssignment(
+            scope=scope,
+            assignment_id=f"ASSIGN-{activity_id}",
+            activity_id=activity_id,
+            resource_id="R1",
+            units=Decimal("8"),
+            remaining_units=Decimal("8"),
+            calendar_id="RES-CAL-1",
+            calendar_version="1",
+        ))
+        period_repo.upsert(P6ResourceAssignmentPeriodValue(
+            scope=scope,
+            assignment_id=f"ASSIGN-{activity_id}",
+            activity_id=activity_id,
+            resource_id="R1",
+            period_start="2026-10-19",
+            units=Decimal("8"),
+            cost=Decimal("0"),
+        ))
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+    assert settings_status == "201 Created"
+
+    publish_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publish_status == "201 Created"
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    payload = json.loads(snapshot.canonical_payload)
+    facts = payload["resource_leveling_inputs"]
+    assert facts["schema_version"] == 1
+    assert {item["assignment_id"] for item in facts["assignments"]} == {
+        "ASSIGN-A-1", "ASSIGN-B-1"
+    }
+    assert facts["capacity_horizon_start"] == "2026-10-19"
+    assert facts["capacity_horizon_end"] > "2026-10-19"
+    assert all(
+        item["calendar_version"] == "1"
+        and len(item["calendar_snapshot_hash"]) == 64
+        for item in facts["capacities"]
+    )
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-LEVELING-PERSISTED",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "level resources",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    activities = query_result["data"]["activities"]
+    assert set(activities) == {"A-1", "B-1"}
+    assert {activities[item]["start"] for item in activities} == {
+        "2026-10-19", "2026-10-20"
+    }
+    assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
+    connection.close()
