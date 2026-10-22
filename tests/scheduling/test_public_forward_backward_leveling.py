@@ -307,12 +307,37 @@ def test_public_forward_leveling_binds_authoritative_activity_master_priority_fi
     )
     leveling_input = SchedulerLevelingInput(
         forward_activities=(
-            LevelingActivity("A", day_one, day_one, 1, (demands[0],)),
-            LevelingActivity("B", day_one, day_one, 1, (demands[1],)),
+            # Deliberately stale fields must be replaced by Activity Master values.
+            LevelingActivity(
+                "A", day_one, day_one, 1, (demands[0],),
+                leveling_priority=ActivityLevelingPriority.LOW,
+                original_planned_duration=Decimal("2"),
+                planned_finish=day_one,
+                remaining_duration=Decimal("2"),
+            ),
+            LevelingActivity(
+                "B", day_one, day_one, 1, (demands[1],),
+                leveling_priority=ActivityLevelingPriority.TOP,
+                original_planned_duration=Decimal("8"),
+                planned_finish=day_two,
+                remaining_duration=Decimal("8"),
+            ),
         ),
         backward_activities=(
-            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],)),
-            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],)),
+            BackwardLevelingActivity(
+                "A", day_one, day_one, day_two, day_two, (demands[0],),
+                leveling_priority=ActivityLevelingPriority.LOW,
+                original_planned_duration=Decimal("2"),
+                planned_finish=day_one,
+                remaining_duration=Decimal("2"),
+            ),
+            BackwardLevelingActivity(
+                "B", day_one, day_one, day_two, day_two, (demands[1],),
+                leveling_priority=ActivityLevelingPriority.TOP,
+                original_planned_duration=Decimal("8"),
+                planned_finish=day_two,
+                remaining_duration=Decimal("8"),
+            ),
         ),
         capacities=(
             ResourceCapacity("R1", day_one, Decimal("8")),
