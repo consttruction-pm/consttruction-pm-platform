@@ -555,3 +555,32 @@ def test_evaluator_prefers_explicit_versioned_per_relationship_lag_calendar():
     # Project Default would put B on Wed 23 with a one-day FS lag;
     # the explicit relationship calendar's Tuesday holiday pushes it later.
     assert result.date_result.activities["B"].start == date(2026, 9, 24)
+
+
+
+def test_snapshot_rejects_ambiguous_lag_calendar_override_for_duplicate_relationship_edges():
+    calendar = CalendarReference("CAL-1", "1")
+    with pytest.raises(ValueError, match="ambiguous for duplicate relationship edge"):
+        AuthoritativeScheduleInput(
+            snapshot_id="S-DUP-EDGE-LAG",
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=7,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
+            project_calendar=calendar,
+            activities=(Activity("A", 1), Activity("B", 1)),
+            relationships=(
+                Relationship("A", "B", RelationshipType.FS, lag=0),
+                Relationship("A", "B", RelationshipType.SS, lag=1),
+            ),
+            activity_calendar_assignments=(),
+            relationship_lag_calendar_assignments=(
+                RelationshipLagCalendarAssignment(
+                    predecessor_id="A",
+                    successor_id="B",
+                    option=RelationshipLagCalendar.SUCCESSOR,
+                    calendar=calendar,
+                ),
+            ),
+            project_start=date(2026, 9, 21),
+        )
