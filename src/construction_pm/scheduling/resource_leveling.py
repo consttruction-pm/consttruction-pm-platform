@@ -234,10 +234,6 @@ class LevelingActivity:
             self.leveling_priority, ActivityLevelingPriority
         ):
             raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
-        if self.leveling_priority is not None and not isinstance(
-            self.leveling_priority, ActivityLevelingPriority
-        ):
-            raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
         if self.free_float is not None and (
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
