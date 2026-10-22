@@ -1,0 +1,104 @@
+from datetime import datetime, timezone
+from decimal import Decimal
+import sqlite3
+
+import pytest
+
+from construction_pm.application.authorization import (
+    AuthorizationContext,
+    AuthorizationError,
+    default_project_policy,
+)
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.p6_resource_rate_api import P6ResourceRateAPI
+from construction_pm.p6_resource_rate_repository import (
+    P6ResourceRatePersistenceError,
+    SQLiteP6ResourceRateRepository,
+)
+from construction_pm.scheduling.resource_leveling_input import ResourceCapacityRate
+
+
+def auth(*roles: str, tenant: str = "tenant-a", project: str = "project-a"):
+    return AuthorizationContext(tenant, project, "user-1", frozenset(roles))
+
+
+def rate(*, resource_id: str = "R1", max_units: str = "8") -> ResourceCapacityRate:
+    return ResourceCapacityRate(
+        resource_id=resource_id,
+        effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+        max_units_per_time=Decimal(max_units),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    )
+
+
+def build_api():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6ResourceRateRepository(connection)
+    return connection, P6ResourceRateAPI(repository, default_project_policy())
+
+
+def test_resource_rate_api_saves_and_reads_version_scoped_capacity_facts():
+    _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 4)
+
+    saved = api.save_rate(scope, rate(), auth_context=auth("planner"))
+    assert saved["contract_version"] == "p6-resource-rate-api.v1"
+    assert saved["scope"]["project_revision"] == 4
+    assert saved["rate"]["max_units_per_time"] == "8"
+    assert len(saved["profile_hash"]) == 64
+
+    listed = api.list_rates(scope, auth_context=auth("viewer"))
+    assert len(listed["items"]) == 1
+    assert listed["items"][0]["rate"]["resource_id"] == "R1"
+
+    # A different project revision must not inherit mutable capacity facts.
+    assert api.list_rates(
+        BackendScope("tenant-a", "project-a", 5), auth_context=auth("viewer")
+    )["items"] == []
+
+
+def test_resource_rate_api_rejects_cross_scope_and_missing_permissions():
+    _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 1)
+
+    with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
+        api.list_rates(scope, auth_context=auth("viewer", tenant="tenant-b"))
+
+    with pytest.raises(AuthorizationError, match="RESOURCE_RATE_READ_NOT_AUTHORIZED"):
+        api.list_rates(scope, auth_context=auth())
+
+    with pytest.raises(AuthorizationError, match="RESOURCE_RATE_WRITE_NOT_AUTHORIZED"):
+        api.save_rate(scope, rate(), auth_context=auth("viewer"))
+
+
+def test_resource_rate_api_does_not_allow_conflicting_rewrite_of_same_effective_date():
+    _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 1)
+    api.save_rate(scope, rate(max_units="8"), auth_context=auth("planner"))
+
+    with pytest.raises(P6ResourceRatePersistenceError, match="IMMUTABLE_RESOURCE_RATE_CONFLICT"):
+        api.save_rate(scope, rate(max_units="10"), auth_context=auth("planner"))
+
+
+def test_resource_rate_api_rejects_percentage_capacity_without_explicit_base():
+    _, api = build_api()
+    invalid = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("100"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+        capacity_basis="percentage",
+        full_time_units_per_time_period=None,
+    )
+    with pytest.raises(ValueError, match="RESOURCE_RATE_PERCENTAGE_BASE_REQUIRED"):
+        api.save_rate(
+            BackendScope("tenant-a", "project-a", 1),
+            invalid,
+            auth_context=auth("planner"),
+        )
