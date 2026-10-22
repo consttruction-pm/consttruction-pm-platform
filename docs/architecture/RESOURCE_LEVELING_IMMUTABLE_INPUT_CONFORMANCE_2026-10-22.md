@@ -5,7 +5,7 @@ Related blockers: [#1462](https://github.com/consttruction-pm/consttruction-pm-p
 
 ## Source-derived behavior
 
-The implementation must remain inside the existing Shared Scheduling Core. Resource-leveling inputs are not inferred from resource spreads or cost fields; assignment-period units provide demand, while the assigned, exact-version resource calendar provides capacity. A schedule calculation must not query mutable repositories mid-evaluation.
+The implementation must remain inside the existing Shared Scheduling Core. Resource-leveling inputs are not inferred from cost fields; assignment-period units provide demand, while capacity is calculated from the assigned, exact-version resource calendar's working hours and the resource's effective-dated Max Units/Time profile. Rate and calendar facts are bound into the immutable snapshot. A schedule calculation must not query mutable repositories mid-evaluation.
 
 The internal conformance references used for this work are:
 
@@ -17,8 +17,8 @@ The internal conformance references used for this work are:
 ## Immutable input invariants
 
 1. Resource assignments and assignment-period demands must be read under the exact `BackendScope` (tenant, project, revision). Each demand must resolve to one assignment and the assignment's activity/resource identity.
-2. Resource capacity must be resolved only from the assigned `calendar_id + calendar_version`, through the existing versioned calendar resolver. No latest-version selection, ID-only fallback, guessed daily capacity, or client-side calendar calculation is permitted.
-3. Every capacity slice must carry the exact calendar version and canonical calendar hash. The resulting input must be canonicalized and included in the schedule snapshot hash, so replay cannot silently adopt changed assignments, periods, or calendar definitions.
+2. Resource capacity must combine the assigned `calendar_id + calendar_version` with the resource's effective-dated Max Units/Time rate profile and explicit time-period factors. No latest-version selection, ID-only fallback, guessed daily capacity, implicit percentage base, or client-side calendar calculation is permitted.
+3. Every capacity slice carries the exact calendar version/hash plus the selected rate profile's effective date/hash; the complete raw fact set is canonicalized into the schedule snapshot hash. Replay therefore cannot silently adopt changed assignments, periods, calendar definitions, or rates.
 4. Before the leveling pass, CPM-derived early/late dates and Total/Free Float remain authoritative outputs from the existing scheduler. Resource-leveling rows may be rebased from these results; they must not replace or approximate CPM formulas.
 5. Resource periods must use an explicit finite capacity horizon. If the scheduler cannot find a legal period inside the materialized horizon, or any required capacity period is absent, the result must fail closed through existing final resource-load validation. Missing capacity must never be treated as known zero capacity in order to claim success.
 6. The authenticated publisher's repository reads and immutable snapshot/context writes must share the existing transaction. The query/evaluator must consume only the persisted immutable snapshot and must not read mutable repositories during calculation.
@@ -26,8 +26,10 @@ The internal conformance references used for this work are:
 
 ## Implementation and verification gate
 
-This is an implementation contract, not a claim of full feature acceptance. The production path is accepted only when tests demonstrate persisted assignment and period writes, commit, fresh scoped reads, exact-version calendar resolution, canonical snapshot hash/replay, a leveling-enabled production Schedule Query, and final CPM constraints plus resource-capacity validation on one exact commit. Scope/version mismatch, stale calendar identity, missing periods, and missing resource input must fail closed.
+This is an implementation contract, not a claim of full P6 feature acceptance. The current implementation now demonstrates the main persisted → snapshot → query path in `test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_production_query`: it seeds activity/assignment/period/rate data, publishes and reads the hash-bound snapshot, verifies effective-date capacity changes and non-work-day zero capacity, then executes authenticated Schedule Query and verifies the resource leveling result. WSGI tests also cover rate read/write authorization, immutable conflicts (HTTP 409), and shared repository wiring. Remaining full-feature acceptance requires multi-shift handling, suspended activity semantics, cross-project leveling priorities, and independent tests for post-level CPM/float/resource-driven-critical-path settings. Scope/version mismatch, stale calendar identity, missing periods, and missing resource input fail closed.
 
-The capacity horizon is intentionally explicit and hash-bound. The initial implementation may choose a conservative finite window from the schedule's dates, constraints, time-phased demand dates, activity durations, and positive relationship lags; it must not silently expand the horizon after snapshot publication. A horizon exhaustion is a validation failure and remains visible to the caller.
+The capacity horizon is intentionally explicit and hash-bound. It must not silently expand after publication; horizon exhaustion remains a validation failure visible to the caller.
 
-Independent semantic review and exact-head CI are required before merge. Until then, Issues #1462 and #1468 remain open and conformance status remains PARTIAL/UNVERIFIED.
+A legacy utility, `p6_resource_leveling_read_adapter.py`, still builds capacity from `ResourceCalendar.capacity_on()` and has no Max Units/Time rate binding. It must not replace the authoritative snapshot composer/evaluator for production P6 leveling. New production leveling requests must use the immutable snapshot path or fail closed.
+
+Exact-head CI currently verifies the implemented slice, but full conformance remains **PARTIAL/UNVERIFIED**. Keep Issues #1462 and #1468 open until the explicit semantic gaps above are implemented and verified; do not mark this entire resource-leveling feature complete.
