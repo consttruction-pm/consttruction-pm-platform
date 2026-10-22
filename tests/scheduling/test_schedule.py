@@ -1023,6 +1023,8 @@ def test_calculate_floats_accepts_one_shot_iterables(resolver, path_type):
     [
         (RelationshipLagCalendar.PREDECESSOR, date(2026, 9, 28)),
         (RelationshipLagCalendar.SUCCESSOR, date(2026, 9, 26)),
+        (RelationshipLagCalendar.TWENTY_FOUR_HOUR, date(2026, 9, 26)),
+        (RelationshipLagCalendar.PROJECT_DEFAULT, date(2026, 9, 28)),
     ],
 )
 def test_schedule_honors_selected_relationship_lag_calendar(
