@@ -18,6 +18,7 @@ from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import (
     CalendarMaster,
+    RelationshipLagCalendarAssignmentMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
@@ -41,17 +42,18 @@ from construction_pm.project_schedule_settings_repository import (
     SQLiteProjectScheduleSettingsRepository,
     _schedule_options_payload,
 )
-from construction_pm.relationship_master_repository import SQLiteRelationshipMasterRepository
+from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
 from construction_pm.schedule_snapshot_materializer import materialize_schedule_snapshot
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from construction_pm.scheduling.activity import ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+from construction_pm.scheduling.calendar_context import CalendarResolverRegistry, RelationshipLagCalendar
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.scheduling.relationships import RelationshipType
 
 
 class Sessions:
@@ -202,6 +204,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
         "calendar_repo": calendar_repo,
+        "calendar_assignments": calendar_assignments,
+        "calendar_registry": registry,
         "calendar_snapshots": calendar_snapshots,
         "calendar_exceptions": calendar_exceptions,
         "calendar_work_hours": calendar_work_hours,
@@ -886,4 +890,131 @@ def test_leveling_snapshot_rejects_unimplemented_cross_project_or_recosting_opti
     assert status == "400 Bad Request"
     assert error["code"] == expected_error
     assert fixture["snapshot_repo"].list(fixture["scope"]) == ()
+    connection.close()
+
+
+
+def test_persisted_relationship_lag_calendar_override_flows_through_snapshot_and_query(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    connection = fixture["connection"]
+
+    for activity_id in ("A-LAG", "B-LAG"):
+        status, result = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "activity_id": activity_id,
+                "name": activity_id,
+                "duration_value": "1",
+                "duration_unit": "working-day",
+                "activity_type": "Task Dependent",
+                "status": "Not Started",
+                "status_code": "Planned",
+            },
+        )
+        assert status == "201 Created"
+        assert result["activity"]["activity_id"] == activity_id
+
+    fixture["relationship_repo"].save(
+        RelationshipMaster(
+            scope=scope,
+            relationship_id="REL-LAG-1",
+            predecessor_id="A-LAG",
+            successor_id="B-LAG",
+            relationship_type=RelationshipType.FS,
+            lag_value=Decimal("1"),
+            lag_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+
+    lag_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="LAG-CAL",
+        calendar_version="1",
+        kind="working-day",
+        name="Relationship Lag Calendar",
+        calendar_type="global",
+    )
+    fixture["calendar_repo"].save(lag_calendar)
+    fixture["calendar_snapshots"].save(
+        lag_calendar,
+        WorkingCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            holidays=frozenset({date(2026, 10, 20)}),
+        ),
+    )
+    fixture["calendar_registry"]._day["LAG-CAL@1"] = WorkingTimeResolver(
+        WorkingCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            holidays=frozenset({date(2026, 10, 20)}),
+        )
+    )
+    fixture["calendar_assignments"].save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope,
+            relationship_id="REL-LAG-1",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="LAG-CAL",
+            calendar_version="1",
+        )
+    )
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            relationship_lag_calendar=RelationshipLagCalendar.PROJECT_DEFAULT,
+        ),
+    )
+    assert settings_status == "201 Created"
+
+    publish_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publish_status == "201 Created"
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["relationship_lag_calendar_assignments"] == [
+        {
+            "calendar": {
+                "calendar_id": "LAG-CAL",
+                "calendar_version": "1",
+                "kind": "working-day",
+                "system": "gregorian",
+            },
+            "option": "SUCCESSOR_ACTIVITY_CALENDAR",
+            "predecessor_id": "A-LAG",
+            "successor_id": "B-LAG",
+        }
+    ]
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-REL-LAG-CALENDAR",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "schedule using relationship lag calendar",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    activities = query_result["data"]["activities"]
+    assert activities["A-LAG"]["start"] == "2026-10-19"
+    # The project-default calendar works Tuesday, but the explicitly assigned
+    # lag calendar has a Tuesday holiday and drives the successor to Thursday.
+    assert activities["B-LAG"]["start"] == "2026-10-22"
     connection.close()
