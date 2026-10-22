@@ -1,7 +1,9 @@
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
+import construction_pm.schedule_evaluator as schedule_evaluator_module
 
 from construction_pm.schedule_evaluator import (
     ScheduleEvaluationError,
@@ -17,6 +19,11 @@ from construction_pm.scheduling.calendar_context import (
     SchedulingCalendarContext,
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
+from construction_pm.scheduling.resource_leveling_input import (
+    ResourceAssignmentLevelingRef,
+    ResourceDemandInput,
+    ResourceLevelingFacts,
+)
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import (
@@ -236,3 +243,82 @@ def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
     assert result.time_activities == result.time_result.early_activities
     assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
     assert result.time_result.floats['B'].total_float_hours == Decimal('2')
+
+
+def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(monkeypatch):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    activity = Activity("A", 1, original_duration=1, planned_finish=day_one)
+    capacity_hash = "a" * 64
+    facts = ResourceLevelingFacts(
+        assignments=(
+            ResourceAssignmentLevelingRef(
+                assignment_id="ASSIGN-A",
+                activity_id="A",
+                resource_id="R1",
+                calendar_id="RES-CAL",
+                calendar_version="v1",
+                assigned_units=Decimal("8"),
+                remaining_units=Decimal("8"),
+            ),
+        ),
+        demands=(
+            ResourceDemandInput(
+                assignment_id="ASSIGN-A",
+                activity_id="A",
+                resource_id="R1",
+                period=day_one,
+                units=Decimal("8"),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity(
+                "R1", day_one, Decimal("8"),
+                calendar_id="RES-CAL", calendar_version="v1",
+                calendar_snapshot_hash=capacity_hash,
+            ),
+            ResourceCapacity(
+                "R1", day_two, Decimal("8"),
+                calendar_id="RES-CAL", calendar_version="v1",
+                calendar_snapshot_hash=capacity_hash,
+            ),
+        ),
+        capacity_horizon_start=day_one,
+        capacity_horizon_end=day_two,
+    )
+    facts.validate(activity_ids={"A"})
+    options = ScheduleOptions(level_all_resources=True)
+    source = SimpleNamespace(
+        activities=(activity,),
+        relationships=(),
+        project_start=day_one,
+        project_finish=day_one,
+        constraints=(),
+        schedule_options=options,
+        project_leveling_priority=10,
+        resource_leveling_inputs=facts,
+    )
+    negative_float_schedule = SimpleNamespace(
+        early_activities={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        late_activities={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        floats={"A": SimpleNamespace(total_float=-1, free_float=0)},
+    )
+    monkeypatch.setattr(
+        schedule_evaluator_module,
+        "schedule",
+        lambda **kwargs: negative_float_schedule,
+    )
+    _, context = make_snapshot_and_context(options=options)
+
+    leveling_input = schedule_evaluator_module._leveling_input_from_snapshot_facts(
+        source,
+        resolver=registry().resolve(CalendarReference("CAL-1", "1")),
+        calculation_context=context,
+    )
+
+    forward = leveling_input.forward_activities[0]
+    backward = leveling_input.backward_activities[0]
+    assert forward.total_float == -1
+    assert backward.total_float == -1
+    assert backward.late_start == day_two
+    assert backward.late_finish == day_two
