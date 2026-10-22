@@ -12,6 +12,7 @@ from typing import Mapping
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import MaterializedScheduleInput, materialize_schedule_snapshot
 from .scheduling.calendar_context import CalendarResolverRegistry
+from .scheduling.calendar_resolution import resolve_authoritative_activity_calendars
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.activity import ActivityType
@@ -121,15 +122,14 @@ def _evaluate_materialized(
     source = materialized.schedule_input
     try:
         if source.mode.value == "DATE_BASED":
-            resolver = materialized.calendar_registry.resolve(source.project_calendar)
-            # The snapshot's version-pinned Activity Calendar assignments are
-            # part of the calculation contract, not display-only metadata.
-            # Resolve each exact reference once and pass it through every CPM
-            # and leveling pass; unassigned activities fall back to project calendar.
-            activity_resolvers = {
-                item.activity_id: materialized.calendar_registry.resolve(item.calendar)
-                for item in source.activity_calendar_assignments
-            }
+            # Resolve all activity calendars through the shared authoritative
+            # resolver; this includes explicit references and project-calendar
+            # fallback for every activity with no override.
+            resolved_calendars = resolve_authoritative_activity_calendars(
+                source, materialized.calendar_registry
+            )
+            resolver = resolved_calendars.project
+            activity_resolvers = resolved_calendars.activities
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if source.resource_leveling_inputs is not None:
