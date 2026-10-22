@@ -18,6 +18,7 @@ from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import (
     CalendarMaster,
+    RelationshipLagCalendarAssignmentMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
@@ -48,7 +49,7 @@ from construction_pm.schedule_snapshot_materializer import materialize_schedule_
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from construction_pm.scheduling.activity import ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+from construction_pm.scheduling.calendar_context import CalendarResolverRegistry, RelationshipLagCalendar
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -893,3 +894,31 @@ def test_leveling_snapshot_rejects_unimplemented_cross_project_or_recosting_opti
 
 
 
+
+
+
+def test_snapshot_rejects_non_p6_per_relationship_lag_calendar_override(tmp_path):
+    fixture = _fixture(tmp_path)
+    scope = fixture["scope"]
+    assignments = fixture["calendar_assignments"]
+    assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope,
+            relationship_id="REL-LEGACY-OVERRIDE",
+            option=RelationshipLagCalendar.SUCCESSOR,
+        )
+    )
+
+    status, error = _request(
+        fixture["app"],
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE"
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
