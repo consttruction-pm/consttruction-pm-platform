@@ -57,7 +57,6 @@ from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API
 from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
 from ..authoritative_schedule_input_composer import (
     ScheduleInputCompositionError,
-    ScheduleInputDefinition,
 )
 from ..p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
