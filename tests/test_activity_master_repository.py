@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 import sqlite3
@@ -10,7 +11,7 @@ from construction_pm.activity_master_repository import (
     ActivityPersistenceError,
     SQLiteActivityMasterRepository,
 )
-from construction_pm.scheduling.activity import PercentCompleteType
+from construction_pm.scheduling.activity import ActivityLevelingPriority, PercentCompleteType
 from construction_pm.scheduling.time_duration import DurationUnit
 
 
@@ -142,3 +143,68 @@ def test_activity_master_preserves_progress_state_on_update():
 
     assert saved.record_revision == 2
     assert repo.get(scope(), "A-UPDATE") == saved
+
+
+def test_activity_master_round_trips_and_updates_distinct_planned_fields():
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    source = replace(
+        activity(),
+        planned_finish=date(2026, 9, 28),
+        leveling_priority=ActivityLevelingPriority.LOWEST,
+        original_duration=14,
+    )
+    stored = repo.save(source)
+    restored = repo.get(scope(), "A-1")
+    assert restored == stored
+    assert restored.planned_finish == date(2026, 9, 28)
+    assert restored.leveling_priority is ActivityLevelingPriority.LOWEST
+    assert restored.original_duration == 14
+    assert repo.list(scope()) == (stored,)
+
+    updated = repo.save(
+        replace(
+            source,
+            planned_finish=date(2026, 9, 29),
+            leveling_priority=ActivityLevelingPriority.HIGH,
+            original_duration=16,
+        ),
+        expected_revision=1,
+    )
+    assert updated.record_revision == 2
+    assert updated.planned_finish == date(2026, 9, 29)
+    assert updated.leveling_priority is ActivityLevelingPriority.HIGH
+    assert updated.original_duration == 16
+    assert repo.get(scope(), "A-1") == updated
+
+
+def test_activity_master_additively_migrates_legacy_schema_for_leveling_fields():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        \"\"\"CREATE TABLE activity_master (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+            activity_id TEXT NOT NULL, duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
+            actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT,
+            percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
+            record_revision INTEGER NOT NULL, expected_finish TEXT,
+            PRIMARY KEY (tenant_id, project_id, activity_id))\"\"\"
+    )
+    connection.commit()
+    repo = SQLiteActivityMasterRepository(connection)
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(activity_master)")}
+    assert {"planned_finish", "leveling_priority", "original_duration"}.issubset(columns)
+    stored = repo.save(
+        replace(
+            activity(),
+            planned_finish=date(2026, 9, 28),
+            leveling_priority=ActivityLevelingPriority.TOP,
+            original_duration=14,
+        )
+    )
+    assert repo.get(scope(), "A-1") == stored
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, "14"])
+def test_activity_master_rejects_invalid_original_duration(value):
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ActivityPersistenceError, match="INVALID_ORIGINAL_DURATION"):
+        repo.save(replace(activity(), original_duration=value))
