@@ -980,7 +980,7 @@ class ProjectLifecycleHttpRoutes:
                     options_payload = payload.get("schedule_options")
                     if not isinstance(options_payload, dict):
                         raise ValueError("SCHEDULE_OPTIONS_REQUIRED")
-                    expected_option_fields = {item.name for item in fields(ScheduleOptions)}
+                    expected_option_fields = {item.name for item in dataclass_fields(ScheduleOptions)}
                     if set(options_payload) != expected_option_fields:
                         raise ValueError("SCHEDULE_OPTIONS_SCHEMA_MISMATCH")
                     options = parse_schedule_options_payload(options_payload)
