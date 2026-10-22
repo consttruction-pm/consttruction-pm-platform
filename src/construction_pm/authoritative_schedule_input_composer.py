@@ -267,10 +267,11 @@ class AuthoritativeScheduleInputComposer:
             if assignment.activity_id not in activity_ids:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY")
             if activity_by_id[assignment.activity_id].activity_type is ActivityType.RESOURCE_DEPENDENT:
-                # P6's Resource Dependent leveling requires identifying driving
-                # vs. nondriving resource assignments. The persisted assignment
-                # contract currently has no driving flag, so treating every
-                # assignment as an activity-driving resource would be wrong.
+                # The driving flag is now persisted, but Resource Dependent
+                # forward/backward date derivation and nondriving placement are
+                # not yet implemented in the shared scheduler. Keep this guard
+                # until those semantics and end-to-end regression tests exist;
+                # a persisted flag alone is not sufficient to schedule safely.
                 raise ScheduleInputCompositionError(
                     "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
                 )
