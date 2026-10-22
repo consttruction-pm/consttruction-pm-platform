@@ -32,8 +32,12 @@ class ResourceAssignmentLevelingRef:
     unit_of_measure: str | None = None
     assigned_units: Decimal | None = None
     remaining_units: Decimal | None = None
+    # Nullable for migrated legacy rows; never infer driving status.
+    is_driving: bool | None = None
 
     def validate(self) -> None:
+        if self.is_driving is not None and not isinstance(self.is_driving, bool):
+            raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_DRIVING_FLAG")
         for value, code in (
             (self.assignment_id, "ASSIGNMENT_ID"),
             (self.activity_id, "ACTIVITY_ID"),
