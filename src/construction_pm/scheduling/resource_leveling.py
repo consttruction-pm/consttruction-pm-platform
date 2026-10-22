@@ -392,6 +392,16 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
     """Return a deterministic P6-style leveling priority key."""
     parts: list[tuple[int, object]] = []
     for priority in priorities:
+        normalized = priority.field_name.strip().lower().replace(" ", "_").replace("/", "_")
+        if normalized == "activity_id":
+            parts.append((
+                0,
+                _activity_id_sort_key(
+                    activity.activity_id,
+                    descending=priority.sort_order is SortOrder.DESCENDING,
+                ),
+            ))
+            continue
         value = _priority_value(activity, priority.field_name)
         if value is None:
             parts.append((1, ""))
@@ -400,7 +410,8 @@ def _priority_sort_key(activity: LevelingActivity, priorities: tuple[LevelingPri
         else:
             parts.append((0, _Descending(value)))
     # Oracle documents Activity ID as the deterministic conflict tie-breaker.
-    parts.append((0, activity.activity_id))
+    # Numeric IDs sort numerically, before alphabetic IDs, in either direction.
+    parts.append((0, _activity_id_sort_key(activity.activity_id)))
     return tuple(parts)
 
 
@@ -417,6 +428,19 @@ class _Descending:
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _Descending) and self.value == other.value
+
+
+def _activity_id_sort_key(value: str, *, descending: bool = False) -> tuple[int, object, str]:
+    """Apply P6's numeric-first, alphabetic-next Activity ID ordering."""
+    raw = value.strip()
+    if not raw:
+        return (2, "", "")
+    if raw.isdecimal():
+        numeric = int(raw)
+        ordered: object = _Descending(numeric) if descending else numeric
+        return (0, ordered, raw)
+    ordered = _Descending(raw.casefold()) if descending else raw.casefold()
+    return (1, ordered, raw)
 
 
 def _resolver_for_activity(
@@ -550,7 +574,7 @@ def propose_forward_leveling_within_float(
                 )
                 units = sum((d.units for d in shifted if d.resource_id == resource_id and d.period == period), Decimal("0"))
                 if units > 0:
-                    priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, activity.activity_id),)
+                    priority_key = _priority_sort_key(activity, priorities) if priorities else ((0, _activity_id_sort_key(activity.activity_id)),)
                     candidates.append((priority_key, -units, activity.activity_id))
         if not candidates:
             break
@@ -978,6 +1002,15 @@ def propose_backward_leveling(
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
                     normalized = priority.field_name.strip().lower().replace(" ", "_").replace("/", "_")
+                    if normalized == "activity_id":
+                        key.append((
+                            0,
+                            _activity_id_sort_key(
+                                activity.activity_id,
+                                descending=priority.sort_order is SortOrder.DESCENDING,
+                            ),
+                        ))
+                        continue
                     value = _backward_priority_value(activity, normalized)
                     if value is None:
                         key.append((1, ""))
@@ -985,7 +1018,7 @@ def propose_backward_leveling(
                         key.append((0, value))
                     else:
                         key.append((0, _Descending(value)))
-                key.append((0, activity.activity_id))
+                key.append((0, _activity_id_sort_key(activity.activity_id)))
                 candidates.append((tuple(key), -units, activity.activity_id))
 
         if not candidates:
