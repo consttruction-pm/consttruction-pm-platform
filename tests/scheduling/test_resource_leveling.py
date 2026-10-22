@@ -21,6 +21,7 @@ from construction_pm.scheduling.resource_leveling import (
     apply_leveling_shifts,
     BackwardLevelingActivity,
     propose_backward_leveling,
+    _priority_value,
 )
 
 
@@ -827,6 +828,19 @@ def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
     assert activity.late_start == late_start
     assert activity.late_finish == late_finish
 
+
+
+def test_forward_priority_normalizes_documented_slash_field_name():
+    activity = LevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+        0,
+        original_planned_duration=Decimal("5"),
+    )
+
+    assert _priority_value(activity, "Original/Planned Duration") == Decimal("5")
+    assert _priority_value(activity, "Original Planned Duration") == Decimal("5")
 
 
 def test_apply_leveling_shifts_preserves_p6_priority_metadata():
