@@ -231,6 +231,11 @@ def _resource_list(raw: Any) -> tuple[str, ...] | None:
     return items
 
 
+def parse_schedule_options_payload(value: Any) -> ScheduleOptions:
+    """Parse explicit JSON ScheduleOptions using the canonical snapshot contract."""
+    return _schedule_options(value)
+
+
 def _schedule_options(value: Any) -> ScheduleOptions:
     if not isinstance(value, dict):
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS")

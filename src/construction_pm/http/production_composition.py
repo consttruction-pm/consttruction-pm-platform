@@ -9,6 +9,7 @@ from construction_pm.backend_p0.authoritative_schedule_query import Authoritativ
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -24,6 +25,7 @@ def build_project_lifecycle_wsgi_app(
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
+    schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
 ) -> ProjectLifecycleWsgiApp:
@@ -54,6 +56,7 @@ def build_project_lifecycle_wsgi_app(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
+        p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
     )

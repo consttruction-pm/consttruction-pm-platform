@@ -203,6 +203,7 @@ class SQLiteScheduleInputSnapshotRepository:
                 return result
             raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
 
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute(
             "INSERT INTO schedule_input_snapshot "
             "(tenant_id,project_id,project_revision,snapshot_id,snapshot_hash,canonical_payload,"
@@ -215,7 +216,8 @@ class SQLiteScheduleInputSnapshotRepository:
                 snapshot.created_at.isoformat(), snapshot.record_revision,
             ),
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
         return snapshot
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:

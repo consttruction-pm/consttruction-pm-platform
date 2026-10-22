@@ -92,6 +92,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     create_payload = {
         "contract_version": "p6-activity-master-api.v1",
         "activity_id": "A-1",
+        "name": "Foundation Slab",
+        "activity_type": "Resource Dependent",
+        "status": "In Progress",
+        "status_code": "Active",
         "duration_value": "12.50",
         "duration_unit": "working-day",
         "actual_start": actual_start,
@@ -109,6 +113,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     status, created = _request(app, "POST", path, create_payload)
     assert status == "201 Created"
     assert created["activity"]["record_revision"] == 1
+    assert created["activity"]["name"] == "Foundation Slab"
+    assert created["activity"]["activity_type"] == "Resource Dependent"
+    assert created["activity"]["status"] == "In Progress"
+    assert created["activity"]["status_code"] == "Active"
     assert created["activity"]["duration_value"] == "12.50"
     assert created["activity"]["actual_start"] == actual_start
     assert created["activity"]["planned_finish"] == "2026-10-23"
@@ -124,6 +132,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert persisted.duration_value == Decimal("12.50")
     assert persisted.leveling_priority is ActivityLevelingPriority.HIGH
     assert persisted.original_duration == 15
+    assert persisted.name == "Foundation Slab"
+    assert persisted.activity_type.value == "Resource Dependent"
+    assert persisted.status.value == "In Progress"
+    assert persisted.status_code.value == "Active"
     fresh_connection.close()
 
     status, loaded = _request(app, "GET", path + "/A-1")
@@ -137,6 +149,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         **create_payload,
         "planned_finish": "2026-10-24",
         "leveling_priority": "Lowest",
+        "name": "Foundation Slab Complete",
+        "activity_type": "Task Dependent",
+        "status": "Completed",
+        "status_code": "Inactive",
         "expected_revision": 1,
     }
     status, updated = _request(app, "PATCH", path + "/A-1", update_payload)
@@ -144,6 +160,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert updated["activity"]["record_revision"] == 2
     assert updated["activity"]["planned_finish"] == "2026-10-24"
     assert updated["activity"]["leveling_priority"] == "Lowest"
+    assert updated["activity"]["name"] == "Foundation Slab Complete"
+    assert updated["activity"]["activity_type"] == "Task Dependent"
+    assert updated["activity"]["status"] == "Completed"
+    assert updated["activity"]["status_code"] == "Inactive"
 
     # PATCH is partial: omitted fields must be retained, not reset to defaults.
     partial_payload = {
@@ -164,6 +184,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert partial["activity"]["percent_complete_type"] == "DURATION"
     assert partial["activity"]["leveling_priority"] == "Lowest"
     assert partial["activity"]["original_duration"] == 15
+    assert partial["activity"]["name"] == "Foundation Slab Complete"
+    assert partial["activity"]["activity_type"] == "Task Dependent"
+    assert partial["activity"]["status"] == "Completed"
+    assert partial["activity"]["status_code"] == "Inactive"
 
     # Explicit null clears an optional value; omission above preserved it.
     clear_payload = {
