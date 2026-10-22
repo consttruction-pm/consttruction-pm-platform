@@ -47,6 +47,11 @@ class ResourceCapacity:
     calendar_id: str | None = None
     calendar_version: str | None = None
     calendar_snapshot_hash: str | None = None
+    # Extra immutable provenance required by the snapshot-bound P6 capacity path.
+    # Legacy scheduler callers may omit these fields; ResourceLevelingFacts may not.
+    calendar_work_hours: Decimal | None = None
+    resource_rate_hash: str | None = None
+    resource_rate_effective_from: datetime | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -79,6 +84,24 @@ class ResourceCapacity:
                 or any(char not in "0123456789abcdef" for char in self.calendar_snapshot_hash)
             ):
                 raise ResourceLevelingError("INVALID_CAPACITY_CALENDAR_SNAPSHOT_HASH")
+        if self.calendar_work_hours is not None and (
+            not isinstance(self.calendar_work_hours, Decimal)
+            or not self.calendar_work_hours.is_finite()
+            or self.calendar_work_hours < 0
+        ):
+            raise ResourceLevelingError("INVALID_CAPACITY_CALENDAR_WORK_HOURS")
+        if self.resource_rate_hash is not None and (
+            not isinstance(self.resource_rate_hash, str)
+            or len(self.resource_rate_hash) != 64
+            or any(char not in "0123456789abcdef" for char in self.resource_rate_hash)
+        ):
+            raise ResourceLevelingError("INVALID_RESOURCE_RATE_HASH")
+        if self.resource_rate_effective_from is not None and (
+            not isinstance(self.resource_rate_effective_from, datetime)
+            or self.resource_rate_effective_from.tzinfo is None
+            or self.resource_rate_effective_from.utcoffset() is None
+        ):
+            raise ResourceLevelingError("INVALID_RESOURCE_RATE_EFFECTIVE_FROM")
 
 
 @dataclass(frozen=True)
