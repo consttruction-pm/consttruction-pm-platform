@@ -34,6 +34,7 @@ on:
       - "src/construction_pm/document_persistence.py"
       - "src/construction_pm/document_search.py"
       - "src/construction_pm/p6_activity_step_template_repository.py"
+      - "src/construction_pm/activity_master_repository.py"
       - "src/construction_pm/p6_cost_account_repository.py"
       - "src/construction_pm/p6_expense_repository.py"
       - "src/construction_pm/p6_resource_assignment_repository.py"
