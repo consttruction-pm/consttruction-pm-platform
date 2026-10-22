@@ -9,7 +9,9 @@ from construction_pm.activity_master_repository import (
     PostgresActivityMasterRepository,
 )
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.scheduling.activity import ActivityLevelingPriority, PercentCompleteType
+from construction_pm.scheduling.activity import (
+    ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType, PercentCompleteType,
+)
 from construction_pm.scheduling.time_duration import DurationUnit
 
 
@@ -42,6 +44,10 @@ def _source_activity(scope: BackendScope) -> ActivityMaster:
         planned_finish=date(2026, 9, 28),
         leveling_priority=ActivityLevelingPriority.TOP,
         original_duration=14,
+        name="Concrete Pour",
+        activity_type=ActivityType.RESOURCE_DEPENDENT,
+        status=ActivityStatus.IN_PROGRESS,
+        status_code=ActivityStatusCode.ACTIVE,
     )
 
 
@@ -72,6 +78,10 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.planned_finish == date(2026, 9, 28)
         assert restored.leveling_priority is ActivityLevelingPriority.TOP
         assert restored.original_duration == 14
+        assert restored.name == "Concrete Pour"
+        assert restored.activity_type is ActivityType.RESOURCE_DEPENDENT
+        assert restored.status is ActivityStatus.IN_PROGRESS
+        assert restored.status_code is ActivityStatus.ACTIVE
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -111,6 +121,10 @@ def test_postgres_activity_master_updates_all_progress_state():
             planned_finish=date(2026, 10, 4),
             leveling_priority=ActivityLevelingPriority.LOWEST,
             original_duration=18,
+            name="Concrete Pour Complete",
+            activity_type=ActivityType.TASK_DEPENDENT,
+            status=ActivityStatus.COMPLETED,
+            status_code=ActivityStatusCode.INACTIVE,
         )
         saved = repo.save(updated, expected_revision=1)
         connection.commit()
@@ -120,6 +134,10 @@ def test_postgres_activity_master_updates_all_progress_state():
         assert repo.get(scope, "A-PROGRESS") == saved
         assert saved.planned_finish == date(2026, 10, 4)
         assert saved.leveling_priority is ActivityLevelingPriority.LOWEST
+        assert saved.name == "Concrete Pour Complete"
+        assert saved.activity_type is ActivityType.TASK_DEPENDENT
+        assert saved.status is ActivityStatus.COMPLETED
+        assert saved.status_code is ActivityStatus.INACTIVE
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",

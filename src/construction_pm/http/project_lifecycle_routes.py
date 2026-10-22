@@ -28,6 +28,9 @@ from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
 from ..scheduling.activity import (
     ActivityLevelingPriority as P6ActivityLevelingPriority,
+    ActivityStatus as P6ActivityStatus,
+    ActivityStatusCode as P6ActivityStatusCode,
+    ActivityType as P6ActivityType,
     PercentCompleteType as P6ActivityPercentCompleteType,
 )
 from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
@@ -897,6 +900,16 @@ class ProjectLifecycleHttpRoutes:
                         percent_complete=None if raw_percent is None else float(raw_percent),
                         percent_complete_type=P6ActivityPercentCompleteType(
                             payload.get("percent_complete_type", P6ActivityPercentCompleteType.DURATION.value)
+                        ),
+                        name=payload.get("name", ""),
+                        activity_type=P6ActivityType.from_p6_value(
+                            payload.get("activity_type", P6ActivityType.TASK_DEPENDENT.value)
+                        ),
+                        status=P6ActivityStatus.from_p6_value(
+                            payload.get("status", P6ActivityStatus.NOT_STARTED.value)
+                        ),
+                        status_code=P6ActivityStatusCode.from_p6_value(
+                            payload.get("status_code", P6ActivityStatusCode.PLANNED.value)
                         ),
                         expected_finish=parse_activity_date("expected_finish"),
                         planned_finish=parse_activity_date("planned_finish"),
