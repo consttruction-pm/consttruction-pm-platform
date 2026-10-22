@@ -434,7 +434,7 @@ class PostgresActivityMasterRepository:
                 raise ActivityPersistenceError("REVISION_CONFLICT")
             revision = 1
             self.connection.execute(
-                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (activity.scope.tenant_id, activity.scope.project_id, activity.scope.project_revision, activity.activity_id,
                  str(activity.duration_value), activity.duration_unit.value,
                  None if activity.actual_start is None else activity.actual_start.isoformat(),
@@ -447,7 +447,8 @@ class PostgresActivityMasterRepository:
                  None if activity.expected_finish is None else activity.expected_finish.isoformat(),
                  None if activity.planned_finish is None else activity.planned_finish.isoformat(),
                  activity.leveling_priority.value,
-                 activity.original_duration))
+                 activity.original_duration,
+                 activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value))
             return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
         current = _from_row(activity.scope, row[:18])
         if int(row[18]) != activity.scope.project_revision:
@@ -456,7 +457,7 @@ class PostgresActivityMasterRepository:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         revision = current.record_revision + 1
         self.connection.execute(
-            "UPDATE activity_master SET project_revision=%s,duration_value=%s,duration_unit=%s,actual_start=%s,actual_finish=%s,remaining_duration=%s,remaining_start=%s,percent_complete=%s,percent_complete_type=%s,record_revision=%s,expected_finish=%s,planned_finish=%s,leveling_priority=%s,original_duration=%s WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
+            "UPDATE activity_master SET project_revision=%s,duration_value=%s,duration_unit=%s,actual_start=%s,actual_finish=%s,remaining_duration=%s,remaining_start=%s,percent_complete=%s,percent_complete_type=%s,record_revision=%s,expected_finish=%s,planned_finish=%s,leveling_priority=%s,original_duration=%s,name=%s,activity_type=%s,status=%s,status_code=%s WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
             (activity.scope.project_revision, str(activity.duration_value), activity.duration_unit.value,
              None if activity.actual_start is None else activity.actual_start.isoformat(),
              None if activity.actual_finish is None else activity.actual_finish.isoformat(),
@@ -469,6 +470,7 @@ class PostgresActivityMasterRepository:
              None if activity.planned_finish is None else activity.planned_finish.isoformat(),
              activity.leveling_priority.value,
              activity.original_duration,
+             activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value,
              activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, current.record_revision))
         return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
 
