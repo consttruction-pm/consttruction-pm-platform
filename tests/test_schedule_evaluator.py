@@ -21,6 +21,7 @@ from construction_pm.scheduling.calendar_context import (
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
+    ResourceCapacityRate,
     ResourceDemandInput,
     ResourceLevelingFacts,
 )
@@ -250,6 +251,15 @@ def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(
     day_two = date(2026, 10, 2)
     activity = Activity("A", 1, original_duration=1, planned_finish=day_one)
     capacity_hash = "a" * 64
+    rate = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    )
     facts = ResourceLevelingFacts(
         assignments=(
             ResourceAssignmentLevelingRef(
@@ -258,6 +268,7 @@ def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(
                 resource_id="R1",
                 calendar_id="RES-CAL",
                 calendar_version="v1",
+                unit_of_measure="h",
                 assigned_units=Decimal("8"),
                 remaining_units=Decimal("8"),
             ),
@@ -276,15 +287,23 @@ def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(
                 "R1", day_one, Decimal("8"),
                 calendar_id="RES-CAL", calendar_version="v1",
                 calendar_snapshot_hash=capacity_hash,
+                calendar_work_hours=Decimal("8"),
+                resource_rate_hash=rate.profile_hash,
+                resource_rate_effective_from=rate.effective_from,
             ),
             ResourceCapacity(
                 "R1", day_two, Decimal("8"),
                 calendar_id="RES-CAL", calendar_version="v1",
                 calendar_snapshot_hash=capacity_hash,
+                calendar_work_hours=Decimal("8"),
+                resource_rate_hash=rate.profile_hash,
+                resource_rate_effective_from=rate.effective_from,
             ),
         ),
+        resource_capacity_rates=(rate,),
         capacity_horizon_start=day_one,
         capacity_horizon_end=day_two,
+        calculation_timezone="UTC",
     )
     facts.validate(activity_ids={"A"})
     options = ScheduleOptions(level_all_resources=True)
