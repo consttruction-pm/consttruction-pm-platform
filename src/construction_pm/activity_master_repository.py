@@ -198,6 +198,33 @@ def _decode_original_duration(value: object) -> int | None:
     return value
 
 
+def _decode_activity_name(value: object) -> str:
+    if not isinstance(value, str):
+        raise ActivityPersistenceError("INVALID_STORED_ACTIVITY_NAME")
+    return value
+
+
+def _decode_activity_type(value: object) -> ActivityType:
+    try:
+        return ActivityType.from_p6_value(str(value))
+    except ValueError as exc:
+        raise ActivityPersistenceError("INVALID_STORED_ACTIVITY_TYPE") from exc
+
+
+def _decode_activity_status(value: object) -> ActivityStatus:
+    try:
+        return ActivityStatus.from_p6_value(str(value))
+    except ValueError as exc:
+        raise ActivityPersistenceError("INVALID_STORED_ACTIVITY_STATUS") from exc
+
+
+def _decode_activity_status_code(value: object) -> ActivityStatusCode:
+    try:
+        return ActivityStatusCode.from_p6_value(str(value))
+    except ValueError as exc:
+        raise ActivityPersistenceError("INVALID_STORED_ACTIVITY_STATUS_CODE") from exc
+
+
 def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
     try:
         result = ActivityMaster(
@@ -216,6 +243,10 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
             planned_finish=_decode_planned_finish(row[11]),
             leveling_priority=_decode_activity_leveling_priority(row[12]),
             original_duration=_decode_original_duration(row[13]),
+            name=_decode_activity_name(row[14]),
+            activity_type=_decode_activity_type(row[15]),
+            status=_decode_activity_status(row[16]),
+            status_code=_decode_activity_status_code(row[17]),
         )
         result.validate()
         return result
@@ -235,6 +266,8 @@ class SQLiteActivityMasterRepository:
             percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
             record_revision INTEGER NOT NULL, expected_finish TEXT, planned_finish TEXT,
             leveling_priority TEXT NOT NULL DEFAULT 'Normal', original_duration INTEGER,
+            name TEXT NOT NULL DEFAULT '', activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
+            status TEXT NOT NULL DEFAULT 'Not Started', status_code TEXT NOT NULL DEFAULT 'Planned',
             PRIMARY KEY (tenant_id, project_id, activity_id))""")
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(activity_master)").fetchall()}
         if "expected_finish" not in columns:
@@ -247,6 +280,14 @@ class SQLiteActivityMasterRepository:
             )
         if "original_duration" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN original_duration INTEGER")
+        for column, definition in (
+            ("name", "TEXT NOT NULL DEFAULT ''"),
+            ("activity_type", "TEXT NOT NULL DEFAULT 'Task Dependent'"),
+            ("status", "TEXT NOT NULL DEFAULT 'Not Started'"),
+            ("status_code", "TEXT NOT NULL DEFAULT 'Planned'"),
+        ):
+            if column not in columns:
+                self.connection.execute(f"ALTER TABLE activity_master ADD COLUMN {column} {definition}")
         self.connection.execute(
             "UPDATE activity_master SET leveling_priority='Normal' WHERE leveling_priority IS NULL"
         )
@@ -352,6 +393,8 @@ class PostgresActivityMasterRepository:
             "percent_complete DOUBLE PRECISION, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION', "
             "record_revision BIGINT NOT NULL, expected_finish TEXT, planned_finish TEXT, "
             "leveling_priority TEXT NOT NULL DEFAULT 'Normal', original_duration INTEGER, "
+            "name TEXT NOT NULL DEFAULT '', activity_type TEXT NOT NULL DEFAULT 'Task Dependent', "
+            "status TEXT NOT NULL DEFAULT 'Not Started', status_code TEXT NOT NULL DEFAULT 'Planned', "
             "PRIMARY KEY (tenant_id, project_id, activity_id))")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS expected_finish TEXT")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS planned_finish TEXT")
@@ -359,6 +402,10 @@ class PostgresActivityMasterRepository:
             "ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS leveling_priority TEXT NOT NULL DEFAULT 'Normal'"
         )
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS original_duration INTEGER")
+        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''")
+        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS activity_type TEXT NOT NULL DEFAULT 'Task Dependent'")
+        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Not Started'")
+        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS status_code TEXT NOT NULL DEFAULT 'Planned'")
         self.connection.execute(
             "ALTER TABLE activity_master ALTER COLUMN leveling_priority SET DEFAULT 'Normal'"
         )
