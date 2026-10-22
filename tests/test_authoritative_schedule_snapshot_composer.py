@@ -653,6 +653,28 @@ def test_authenticated_resource_rate_http_api_reads_and_writes_the_composer_repo
     assert saved["rate"]["max_units_per_time"] == "10"
     assert len(saved["profile_hash"]) == 64
 
+    status, conflict = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/resource-rates",
+        {
+            "rate": {
+                "resource_id": "R1",
+                "effective_from": "2026-11-01T00:00:00+00:00",
+                "max_units_per_time": "12",
+                "time_period_unit": "day",
+                "hours_per_time_period": "8",
+                "unit_of_measure": "h",
+                "time_period_source": "global",
+                "capacity_basis": "absolute",
+                "shift_id": "default",
+                "record_revision": 1,
+            }
+        },
+    )
+    assert status == "409 Conflict"
+    assert conflict["code"] == "IMMUTABLE_RESOURCE_RATE_CONFLICT"
+
     status, refreshed = _request(app, "GET", "/api/projects/p1/p6/resource-rates")
     assert status == "200 OK"
     assert [item["rate"]["effective_from"] for item in refreshed["items"]] == [
