@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Mapping
 
+from .activity import ActivityLevelingPriority
 from .calendar import WorkingTimeResolver
 from enum import Enum
 
@@ -200,7 +201,7 @@ class LevelingActivity:
     finish: date
     total_float: int
     resource_demands: tuple[ResourceDemand, ...] = ()
-    activity_priority: int | None = None
+    activity_priority: int | ActivityLevelingPriority | None = None
     free_float: int | None = None
     late_start: date | None = None
     late_finish: date | None = None
@@ -223,7 +224,9 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
-        if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
+        if self.activity_priority is not None and not isinstance(self.activity_priority, ActivityLevelingPriority) and (
+            isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
+        ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
         if self.free_float is not None and (
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
@@ -290,12 +293,32 @@ def _shift_demands(
     )
 
 
+def _activity_priority_sort_value(value: int | ActivityLevelingPriority | None) -> int | None:
+    """Map P6's categorical activity leveling priority to its ordered rank.
+
+    Lower ranks represent lower priority, so ascending puts Lowest before Top
+    and descending does the reverse. Integer values remain supported for
+    existing typed callers.
+    """
+    if value is None:
+        return None
+    if isinstance(value, ActivityLevelingPriority):
+        return {
+            ActivityLevelingPriority.LOWEST: 1,
+            ActivityLevelingPriority.LOW: 2,
+            ActivityLevelingPriority.NORMAL: 3,
+            ActivityLevelingPriority.HIGH: 4,
+            ActivityLevelingPriority.TOP: 5,
+        }[value]
+    return value
+
+
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
     normalized = field_name.strip().lower().replace(" ", "_").replace("/", "_")
     values = {
         "activity_id": activity.activity_id,
-        "activity_priority": activity.activity_priority,
+        "activity_priority": _activity_priority_sort_value(activity.activity_priority),
         "early_start": activity.start,
         "early_finish": activity.finish,
         "late_start": activity.late_start,
@@ -725,7 +748,7 @@ def _shift_demands_backward(
 def _backward_priority_value(activity: BackwardLevelingActivity, normalized: str):
     values = {
         "activity_id": activity.activity_id,
-        "activity_priority": activity.activity_priority,
+        "activity_priority": _activity_priority_sort_value(activity.activity_priority),
         "early_start": activity.early_start,
         "early_finish": activity.early_finish,
         "late_start": activity.late_start,
