@@ -380,7 +380,7 @@ class SQLiteProjectScheduleSettingsRepository:
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
         stored = replace(settings, record_revision=current.record_revision + 1)
         payload = _canonical_payload(stored)
-        self.connection.execute(
+        cursor = self.connection.execute(
             "UPDATE project_schedule_settings SET project_revision=?,record_revision=?,canonical_payload=?,settings_hash=? "
             "WHERE tenant_id=? AND project_id=? AND project_revision=? AND record_revision=?",
             (
@@ -389,6 +389,10 @@ class SQLiteProjectScheduleSettingsRepository:
                 current.record_revision,
             ),
         )
+        if cursor.rowcount != 1:
+            if not was_in_transaction:
+                self.connection.rollback()
+            raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
         if not was_in_transaction:
             self.connection.commit()
         return stored
