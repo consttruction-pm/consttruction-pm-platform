@@ -146,6 +146,6 @@ def test_concurrent_immutable_rate_writes_return_domain_conflict(tmp_path):
             connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        results = sorted([executor.submit(write, "8"), executor.submit(write, "10")][i].result()
-                         for i in range(2))
+        futures = [executor.submit(write, "8"), executor.submit(write, "10")]
+        results = sorted(future.result() for future in futures)
     assert results == ["IMMUTABLE_RESOURCE_RATE_CONFLICT", "saved"]
