@@ -18,6 +18,7 @@ def scope(revision=1):
 def assignment(
     s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1",
     calendar_version="cal-v1",
+    is_driving=None,
 ):
     return P6ResourceAssignment(
         s, assignment_id, activity_id, resource_id, "role-1",
@@ -25,6 +26,7 @@ def assignment(
         Decimal("850.25"), Decimal("250.00"), Decimal("600.25"),
         "h", "USD", "cal-1", "assignment snapshot",
         calendar_version=calendar_version,
+        is_driving=is_driving,
     )
 
 
@@ -204,3 +206,42 @@ def test_assignment_period_decimal_validation_fails_closed():
         period_value(units="NaN").validate()
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_PERIOD_START"):
         period_value(period_start="").validate()
+
+
+def test_driving_flag_round_trips_and_is_part_of_immutable_payload():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    driving = assignment(scope(), assignment_id="drive", is_driving=True)
+    nondriving = assignment(scope(), assignment_id="non-drive", is_driving=False)
+
+    assert repo.upsert(driving) == driving
+    assert repo.upsert(nondriving) == nondriving
+    assert repo.get(scope(), "drive").is_driving is True
+    assert repo.get(scope(), "non-drive").is_driving is False
+
+    changed = assignment(scope(), assignment_id="drive", is_driving=False)
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="IMMUTABLE_RESOURCE_ASSIGNMENT"):
+        repo.upsert(changed)
+
+
+def test_legacy_driving_flag_migration_stays_unresolved():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE p6_resource_assignment (
+          tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+          assignment_id TEXT NOT NULL, activity_id TEXT NOT NULL, resource_id TEXT NOT NULL,
+          role_id TEXT, units TEXT, actual_units TEXT, remaining_units TEXT, planned_cost TEXT,
+          actual_cost TEXT, remaining_cost TEXT, unit TEXT, currency TEXT, calendar_id TEXT,
+          note TEXT, PRIMARY KEY (tenant_id, project_id, assignment_id))"""
+    )
+    connection.execute(
+        "INSERT INTO p6_resource_assignment VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("tenant-a", "project-a", 1, "legacy", "act-1", "res-1", None, None, None,
+         None, None, None, None, None, None, None, None),
+    )
+    repo = SQLiteP6ResourceAssignmentRepository(connection)
+    assert repo.get(scope(), "legacy").is_driving is None
+
+
+def test_driving_flag_rejects_non_boolean_values():
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_IS_DRIVING"):
+        P6ResourceAssignment(scope(), "bad", "act-1", "res-1", is_driving=1).validate()
