@@ -1037,3 +1037,36 @@ def test_materializer_rejects_invalid_original_duration(value):
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_ORIGINAL_DURATION"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+
+def test_materializer_rejects_non_p6_per_relationship_lag_snapshot_field():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["relationship_lag_calendar_assignments"] = [
+        {
+            "predecessor_id": "A",
+            "successor_id": "B",
+            "option": "SUCCESSOR_ACTIVITY_CALENDAR",
+            "calendar": {
+                "calendar_id": "CAL-1",
+                "calendar_version": "1",
+                "kind": "working-day",
+                "system": "gregorian",
+            },
+        }
+    ]
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    unsupported_snapshot = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    with pytest.raises(
+        SnapshotMaterializationError,
+        match="PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE",
+    ):
+        materialize_schedule_snapshot(unsupported_snapshot, CalendarResolverRegistry())
