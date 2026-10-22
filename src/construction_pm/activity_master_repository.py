@@ -309,14 +309,14 @@ class SQLiteActivityMasterRepository:
         if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id)).fetchone()
         if row is None:
             if expected_revision not in (None, 0):
                 raise ActivityPersistenceError("REVISION_CONFLICT")
-            stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration)
+            stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
             self.connection.execute(
-                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision, stored.activity_id,
                  str(stored.duration_value), stored.duration_unit.value,
                  None if stored.actual_start is None else stored.actual_start.isoformat(),
@@ -329,17 +329,18 @@ class SQLiteActivityMasterRepository:
                  None if stored.expected_finish is None else stored.expected_finish.isoformat(),
                  None if stored.planned_finish is None else stored.planned_finish.isoformat(),
                  stored.leveling_priority.value,
-                 stored.original_duration))
+                 stored.original_duration,
+                 stored.name, stored.activity_type.value, stored.status.value, stored.status_code.value))
             self.connection.commit()
             return stored
-        current = _from_row(activity.scope, row[:14])
-        if int(row[14]) != activity.scope.project_revision:
+        current = _from_row(activity.scope, row[:18])
+        if int(row[18]) != activity.scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=current.record_revision + 1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration)
+        stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=current.record_revision + 1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
         update_cursor = self.connection.execute(
-            "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,leveling_priority=?,original_duration=? WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
+            "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=? WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
             (stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
              None if stored.actual_start is None else stored.actual_start.isoformat(),
              None if stored.actual_finish is None else stored.actual_finish.isoformat(),
@@ -352,6 +353,7 @@ class SQLiteActivityMasterRepository:
              None if stored.planned_finish is None else stored.planned_finish.isoformat(),
              stored.leveling_priority.value,
              stored.original_duration,
+             stored.name, stored.activity_type.value, stored.status.value, stored.status_code.value,
              stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
         if update_cursor.rowcount != 1:
             self.connection.rollback()
@@ -364,18 +366,18 @@ class SQLiteActivityMasterRepository:
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
         if int(row[14]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        return _from_row(scope, row[:14])
+        return _from_row(scope, row[:18])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
 
@@ -425,7 +427,7 @@ class PostgresActivityMasterRepository:
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         activity.validate()
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s FOR UPDATE",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s FOR UPDATE",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id)).fetchone()
         if row is None:
             if expected_revision not in (None, 0):
@@ -446,9 +448,9 @@ class PostgresActivityMasterRepository:
                  None if activity.planned_finish is None else activity.planned_finish.isoformat(),
                  activity.leveling_priority.value,
                  activity.original_duration))
-            return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration)
-        current = _from_row(activity.scope, row[:14])
-        if int(row[14]) != activity.scope.project_revision:
+            return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
+        current = _from_row(activity.scope, row[:18])
+        if int(row[18]) != activity.scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
@@ -468,22 +470,22 @@ class PostgresActivityMasterRepository:
              activity.leveling_priority.value,
              activity.original_duration,
              activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, current.record_revision))
-        return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration)
+        return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
         if int(row[14]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        return _from_row(scope, row[:14])
+        return _from_row(scope, row[:18])
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
+            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         return tuple(_from_row(scope, row) for row in rows)
