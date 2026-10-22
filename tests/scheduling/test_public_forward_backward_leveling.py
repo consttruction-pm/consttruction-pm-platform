@@ -370,3 +370,50 @@ def test_public_forward_leveling_binds_authoritative_activity_master_priority_fi
     assert len(forward) == 1
     assert forward[0].activity_id == expected_shift
     assert backward == ()
+
+
+def test_public_leveling_uses_planned_duration_when_original_duration_is_absent():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    demands = (
+        ResourceDemand("R1", day_one, Decimal("8"), "A"),
+        ResourceDemand("R1", day_one, Decimal("8"), "B"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 10, (demands[0],)),
+            LevelingActivity("B", day_one, day_one, 10, (demands[1],)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],)),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    _, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 8), Activity("B", 2)),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 20),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            priority_list=(PriorityListItem("original_planned_duration", PrioritySortOrder.ASCENDING),),
+        ),
+    )
+
+    # No Original Duration is supplied, so the shorter Planned Duration is the
+    # authoritative value for the "Original or Planned Duration" criterion.
+    assert len(forward) == 1
+    assert forward[0].activity_id == "B"
+    assert backward == ()
