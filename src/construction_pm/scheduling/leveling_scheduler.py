@@ -202,14 +202,14 @@ def _forward_activities_with_authoritative_floats(
                 total_float=authoritative_total_float,
                 resource_demands=tuple(shifted_demands),
                 free_float=authoritative_free_float,
-                late_start=candidate_late_start,
-                late_finish=candidate_late_finish,
+                late_start=late.start,
+                late_finish=late.finish,
             )
         )
     return tuple(result)
 
 
-def _backward_activities_from_intermediate(
+def _backward_activities_from_intermediate(def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
     early_schedule: Mapping[str, object],
@@ -278,8 +278,8 @@ def _backward_activities_from_intermediate(
                 activity_id=activity.activity_id,
                 early_start=early.start,
                 early_finish=early.finish,
-                late_start=late.start,
-                late_finish=late.finish,
+                late_start=candidate_late_start,
+                late_finish=candidate_late_finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
                 total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
