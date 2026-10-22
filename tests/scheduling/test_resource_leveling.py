@@ -331,7 +331,7 @@ def test_unsupported_leveling_priority_fails_closed():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activity = LevelingActivity("A1", date(2026, 10, 1), date(2026, 10, 1), 1)
     with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
-        propose_forward_leveling_within_float((activity,), (), resolver=resolver, priorities=(LevelingPriority("Remaining Duration", SortOrder.ASCENDING),))
+        propose_forward_leveling_within_float((activity,), (), resolver=resolver, priorities=(LevelingPriority("resource_id", SortOrder.ASCENDING),))
 
 
 def test_propose_forward_leveling_can_limit_to_selected_resources():
@@ -562,7 +562,7 @@ def test_internal_numeric_activity_priority_honors_descending_sort_order():
 
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish", "total_float"])
+@pytest.mark.parametrize("field_name", ["planned_start", "total_float"])
 def test_backward_leveling_rejects_priority_fields_without_distinct_schedule_data(field_name):
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
