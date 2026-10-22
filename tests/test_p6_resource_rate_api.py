@@ -149,3 +149,79 @@ def test_concurrent_immutable_rate_writes_return_domain_conflict(tmp_path):
         futures = [executor.submit(write, "8"), executor.submit(write, "10")]
         results = sorted(future.result() for future in futures)
     assert results == ["IMMUTABLE_RESOURCE_RATE_CONFLICT", "saved"]
+
+
+
+@pytest.mark.parametrize(
+    ("rate_value", "calendar_hours", "expected_capacity"),
+    [
+        (
+            ResourceCapacityRate(
+                resource_id="R1",
+                effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+                max_units_per_time=Decimal("8"),
+                time_period_unit="day",
+                hours_per_time_period=Decimal("8"),
+                unit_of_measure="h",
+                time_period_source="global",
+            ),
+            Decimal("4"),
+            Decimal("4"),
+        ),
+        (
+            ResourceCapacityRate(
+                resource_id="R1",
+                effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+                max_units_per_time=Decimal("40"),
+                time_period_unit="week",
+                hours_per_time_period=Decimal("40"),
+                unit_of_measure="h",
+                time_period_source="global",
+            ),
+            Decimal("4"),
+            Decimal("4"),
+        ),
+        (
+            ResourceCapacityRate(
+                resource_id="R1",
+                effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+                max_units_per_time=Decimal("50"),
+                time_period_unit="day",
+                hours_per_time_period=Decimal("8"),
+                unit_of_measure="h",
+                time_period_source="global",
+                capacity_basis="percentage",
+                full_time_units_per_time_period=Decimal("8"),
+            ),
+            Decimal("4"),
+            Decimal("2"),
+        ),
+        (
+            ResourceCapacityRate(
+                resource_id="R1",
+                effective_from=datetime(2026, 10, 19, tzinfo=timezone.utc),
+                max_units_per_time=Decimal("8"),
+                time_period_unit="day",
+                hours_per_time_period=Decimal("8"),
+                unit_of_measure="h",
+                time_period_source="global",
+            ),
+            Decimal("0"),
+            Decimal("0"),
+        ),
+    ],
+)
+def test_p6_max_units_rate_calculates_capacity_from_explicit_period_conversion(
+    rate_value, calendar_hours, expected_capacity
+):
+    rate_value.validate()
+    assert rate_value.capacity_for_work_hours(calendar_hours) == expected_capacity
+
+
+@pytest.mark.parametrize(
+    "invalid_hours",
+    [Decimal("-0.01"), Decimal("NaN"), Decimal("Infinity"), 4, True],
+)
+def test_p6_max_units_rate_rejects_invalid_calendar_work_hours(invalid_hours):
+    with pytest.raises(ValueError, match="INVALID_RESOURCE_CALENDAR_WORK_HOURS"):
+        rate().capacity_for_work_hours(invalid_hours)
