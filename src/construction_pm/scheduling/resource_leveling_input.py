@@ -168,9 +168,14 @@ class ResourceLevelingFacts:
                 raise ResourceLevelingFactsError("RESOURCE_CALENDAR_HASH_MISMATCH")
             calendar_hash_by_resource[capacity.resource_id] = identity
 
-        for demand in self.demands:
-            if (demand.resource_id, demand.period) not in capacity_by_key:
-                raise ResourceLevelingFactsError("RESOURCE_CAPACITY_PERIOD_MISSING")
+        horizon_day_count = (self.capacity_horizon_end - self.capacity_horizon_start).days + 1
         for resource_id in resource_calendar:
             if resource_id not in calendar_hash_by_resource:
                 raise ResourceLevelingFactsError("RESOURCE_CALENDAR_CAPACITY_REQUIRED")
+            for offset in range(horizon_day_count):
+                period = date.fromordinal(self.capacity_horizon_start.toordinal() + offset)
+                if (resource_id, period) not in capacity_by_key:
+                    raise ResourceLevelingFactsError("RESOURCE_CAPACITY_PERIOD_MISSING")
+        for demand in self.demands:
+            if (demand.resource_id, demand.period) not in capacity_by_key:
+                raise ResourceLevelingFactsError("RESOURCE_CAPACITY_PERIOD_MISSING")
