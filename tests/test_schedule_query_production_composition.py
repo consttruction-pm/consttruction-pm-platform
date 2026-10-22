@@ -292,7 +292,6 @@ def test_production_composition_injects_explicit_workspace_read_service():
 
     connection = sqlite3.connect(":memory:")
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
-    scope = BackendScope("T-1", "P-1", 9)
     snapshot = {
         "contract_version": WORKSPACE_CONTROL_ROOM_READ_VERSION,
         "context": {"tenant_id": "T-1", "project_id": "P-1", "revision": 9},
