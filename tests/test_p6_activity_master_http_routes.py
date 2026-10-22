@@ -145,6 +145,39 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert updated["activity"]["planned_finish"] == "2026-10-24"
     assert updated["activity"]["leveling_priority"] == "Lowest"
 
+    # PATCH is partial: omitted fields must be retained, not reset to defaults.
+    partial_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "expected_revision": 2,
+        "planned_finish": "2026-10-25",
+    }
+    status, partial = _request(app, "PATCH", path + "/A-1", partial_payload)
+    assert status == "200 OK"
+    assert partial["activity"]["record_revision"] == 3
+    assert partial["activity"]["planned_finish"] == "2026-10-25"
+    assert partial["activity"]["duration_value"] == "12.50"
+    assert partial["activity"]["duration_unit"] == "working-day"
+    assert partial["activity"]["actual_start"] == actual_start
+    assert partial["activity"]["expected_finish"] == "2026-10-21"
+    assert partial["activity"]["remaining_duration"] == 8
+    assert partial["activity"]["percent_complete"] == 35.5
+    assert partial["activity"]["percent_complete_type"] == "DURATION"
+    assert partial["activity"]["leveling_priority"] == "Lowest"
+    assert partial["activity"]["original_duration"] == 15
+
+    # Explicit null clears an optional value; omission above preserved it.
+    clear_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "expected_revision": 3,
+        "expected_finish": None,
+    }
+    status, cleared = _request(app, "PATCH", path + "/A-1", clear_payload)
+    assert status == "200 OK"
+    assert cleared["activity"]["record_revision"] == 4
+    assert cleared["activity"]["expected_finish"] is None
+    assert cleared["activity"]["planned_finish"] == "2026-10-25"
+    assert cleared["activity"]["original_duration"] == 15
+
     status, conflict = _request(
         app, "PATCH", path + "/A-1", {**update_payload, "expected_revision": 1}
     )
