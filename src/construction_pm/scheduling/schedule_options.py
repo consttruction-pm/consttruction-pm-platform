@@ -90,7 +90,7 @@ class ScheduleOptions:
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
         StartToStartLagCalculationType.EARLY_START
     )
-    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
+    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.SUCCESSOR
     use_expected_finish_dates: bool = False
     recalculate_resource_costs: bool = False
     calculate_float_based_on_finish_date: bool = False
@@ -198,7 +198,7 @@ class ScheduleOptions:
             raise ValueError("external_project_priority_limit must be between 0 and 100")
 
         if self.resource_list is not None:
-            if not isinstance(self.resource_list, tuple) or not self.resource_list:
+            if not isinstance(self.resource_list, tuple):
                 raise ValueError("resource_list must be a non-empty tuple of resource IDs or None")
             if any(not isinstance(item, str) or not item.strip() or item != item.strip() for item in self.resource_list):
                 raise ValueError("resource_list must contain only non-empty resource IDs")
@@ -206,8 +206,8 @@ class ScheduleOptions:
                 raise ValueError("resource_list must not contain duplicate resource IDs")
 
         if self.priority_list is not None:
-            if not isinstance(self.priority_list, tuple) or not self.priority_list:
-                raise ValueError("priority_list must be a non-empty tuple of PriorityListItem")
+            if not isinstance(self.priority_list, tuple):
+                raise ValueError("priority_list must be a tuple of PriorityListItem or None")
             if not all(isinstance(item, PriorityListItem) for item in self.priority_list):
                 raise ValueError("priority_list must contain only PriorityListItem values")
 

@@ -112,6 +112,15 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
     options = ScheduleOptions(
         priority_list=(
             PriorityListItem("total_float", PrioritySortOrder.ASCENDING),
+            PriorityListItem("late_finish", PrioritySortOrder.ASCENDING),
+            PriorityListItem("late_start", PrioritySortOrder.DESCENDING),
+            PriorityListItem("free_float", PrioritySortOrder.ASCENDING),
+            PriorityListItem("remaining_duration", PrioritySortOrder.ASCENDING),
+            PriorityListItem("original_duration", PrioritySortOrder.ASCENDING),
+            PriorityListItem("project_planned_start", PrioritySortOrder.ASCENDING),
+            PriorityListItem("project_priority", PrioritySortOrder.ASCENDING),
+            PriorityListItem("activity_leveling_priority", PrioritySortOrder.ASCENDING),
+            PriorityListItem("planned_finish", PrioritySortOrder.ASCENDING),
             PriorityListItem("activity_priority", PrioritySortOrder.DESCENDING),
             PriorityListItem("activity_id", PrioritySortOrder.ASCENDING),
         ),
@@ -126,12 +135,21 @@ def test_scheduler_leveling_boundary_maps_ordered_priority_list():
 
     assert [(item.field_name, item.sort_order) for item in boundary.options.priorities] == [
         ("total_float", SortOrder.ASCENDING),
+        ("late_finish", SortOrder.ASCENDING),
+        ("late_start", SortOrder.DESCENDING),
+        ("free_float", SortOrder.ASCENDING),
+        ("remaining_duration", SortOrder.ASCENDING),
+        ("original_duration", SortOrder.ASCENDING),
+        ("project_planned_start", SortOrder.ASCENDING),
+        ("project_priority", SortOrder.ASCENDING),
+        ("activity_leveling_priority", SortOrder.ASCENDING),
+        ("planned_finish", SortOrder.ASCENDING),
         ("activity_priority", SortOrder.DESCENDING),
         ("activity_id", SortOrder.ASCENDING),
     ]
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+@pytest.mark.parametrize("field_name", ["planned_start"])
 def test_scheduler_leveling_boundary_rejects_priority_fields_without_distinct_schedule_data(field_name):
     forward, backward, capacities = _slices()
     options = ScheduleOptions(
@@ -215,3 +233,19 @@ def test_scheduler_leveling_boundary_rejects_duplicate_backward_activity_ids():
             options=ScheduleOptions(),
         )
 
+
+
+def test_scheduler_leveling_boundary_maps_p6_original_or_planned_duration_alias():
+    forward, backward, capacities = _slices()
+    options = ScheduleOptions(
+        priority_list=(PriorityListItem("original_or_planned_duration", PrioritySortOrder.ASCENDING),),
+    )
+    boundary = scheduler_leveling_input_from_options(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=capacities,
+        options=options,
+    )
+    assert [(item.field_name, item.sort_order) for item in boundary.options.priorities] == [
+        ("original_or_planned_duration", SortOrder.ASCENDING),
+    ]

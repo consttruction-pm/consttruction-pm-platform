@@ -39,12 +39,21 @@ from construction_pm.scheduling.schedule_options import (
     OutOfSequenceScheduleType,
     ScheduleMode,
     ScheduleOptions,
+    PriorityListItem,
+    PrioritySortOrder,
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
 )
 
 
-def snapshot(project_id, finish, *, options=None, priority=10):
+def snapshot(
+    project_id,
+    finish,
+    *,
+    options=None,
+    priority=10,
+    project_start=date(2026, 10, 1),
+):
     reference = CalendarReference('CAL', '1')
     return AuthoritativeScheduleInput(
         snapshot_id=f's-{project_id}',
@@ -60,7 +69,7 @@ def snapshot(project_id, finish, *, options=None, priority=10):
             ActivityCalendarAssignment(f'{project_id}-A', reference),
         ),
         project_finish=finish,
-        project_start=date(2026, 10, 1),
+        project_start=project_start,
         schedule_options=options or ScheduleOptions(),
     )
 
@@ -243,31 +252,59 @@ def test_authoritative_batch_uses_activity_calendar_context_for_shared_graph():
     assert result.project("P2").result.activities["P2-A"].finish == date(2026, 10, 3)
 
 
-def test_mixed_activity_calendars_are_rejected_for_shared_resource_leveling():
+def test_mixed_activity_calendars_are_supported_for_shared_resource_leveling():
+    day_one = date(2026, 10, 1)  # Thursday
+    day_two = date(2026, 10, 2)  # Friday
+    finish = date(2026, 10, 10)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+    )
     p1 = replace(
-        snapshot("P1", date(2026, 10, 10)),
+        snapshot("P1", finish, options=options),
+        project_start=day_one,
         activity_calendar_assignments=(
             ActivityCalendarAssignment("P1-A", CalendarReference("WEEKEND", "1")),
         ),
     )
-    p2 = snapshot("P2", date(2026, 10, 10))
+    p2 = replace(
+        snapshot("P2", finish, options=options),
+        project_start=day_one,
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
     leveling_input = SchedulerLevelingInput(
-        forward_activities=(),
-        backward_activities=(),
-        capacities=(),
-        options=ResourceLevelingOptions(level_all_resources=True),
+        forward_activities=(
+            LevelingActivity("P1-A", day_one, day_one, 10, (demand_p1,)),
+            LevelingActivity("P2-A", day_one, day_one, 10, (demand_p2,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("P1-A", day_one, day_one, finish, finish, (demand_p1,)),
+            BackwardLevelingActivity("P2-A", day_one, day_one, finish, finish, (demand_p2,)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(
+            preserve_scheduled_early_and_late_dates=True,
+            level_all_resources=True,
+        ),
     )
 
-    with pytest.raises(
-        UnsupportedMultiProjectSchedulingError,
-        match="MULTI_PROJECT_RESOURCE_LEVELING_ACTIVITY_CALENDARS_NOT_SUPPORTED",
-    ):
-        execute_authoritative_schedule_batch(
-            [p1, p2],
-            resolvers={"P1": resolver(), "P2": resolver()},
-            leveling_input=leveling_input,
-            calendar_registry=calendar_registry(),
-        )
+    result = execute_authoritative_schedule_batch(
+        [p1, p2],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+        calendar_registry=calendar_registry(),
+    )
+    p1_activity = result.project("P1").result.activities["P1-A"]
+    p2_activity = result.project("P2").result.activities["P2-A"]
+    assert {p1_activity.start, p2_activity.start} == {day_one, day_two}
+    # The 7-day activity calendar permits P1-A to move on Friday; P2-A's
+    # weekday calendar and the shared capacity ledger keep both loads feasible.
+    assert p1_activity.start == day_two
+    assert p2_activity.start == day_one
 
 
 def test_batch_uses_latest_finish_when_option_disabled():
@@ -448,13 +485,15 @@ def test_combined_external_boundary_options_are_deterministic():
     assert [d.resource_id for d in first.project('P1').resource_demands] == ['R1', 'R2']
 
 
-def test_unsupported_multi_project_resource_leveling_never_silently_falls_back():
-    with pytest.raises(ValueError, match='unsupported schedule options') as exc:
+def test_single_project_resource_leveling_without_executor_is_rejected_explicitly():
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
         execute_authoritative_schedule_batch(
             [snapshot('P1', date(2026, 10, 10), options=ScheduleOptions(level_all_resources=True))],
             resolvers={'P1': resolver()},
         )
-    assert 'level_all_resources' in str(exc.value)
 
 
 def test_missing_external_project_membership_is_explicit():
@@ -504,6 +543,87 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p2 = result.project("P2").result.activities["P2-A"]
     assert p1.finish < p2.start or p2.finish < p1.start
 
+    # Verify capacity against the final combined graph, not just the fact that
+    # the two project activities ended up on different dates.
+    final_demand_by_day = {
+        day: sum(
+            (Decimal("1") for activity in (p1, p2) if activity.start == day),
+            Decimal("0"),
+        )
+        for day in (date(2026, 10, 1), date(2026, 10, 2))
+    }
+    capacity_by_day = {
+        capacity.period: capacity.units
+        for capacity in leveling_input.capacities
+        if capacity.resource_id == "R1"
+    }
+    assert final_demand_by_day == {
+        date(2026, 10, 1): Decimal("1"),
+        date(2026, 10, 2): Decimal("1"),
+    }
+    assert all(
+        final_demand_by_day[day] <= capacity_by_day[day]
+        for day in final_demand_by_day
+    )
+
+
+
+def test_batch_project_planned_start_priority_uses_each_project_snapshot():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+        priority_list=(
+            PriorityListItem("project_planned_start", PrioritySortOrder.ASCENDING),
+        ),
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
+    forward = (
+        LevelingActivity("P1-A", day_one, day_one, 2, (demand_p1,)),
+        LevelingActivity("P2-A", day_one, day_one, 2, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity(
+            "P1-A", day_one, day_one, day_three, day_three, (demand_p1,),
+        ),
+        BackwardLevelingActivity(
+            "P2-A", day_one, day_one, day_three, day_three, (demand_p2,),
+        ),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot(
+                "P1", day_three, options=options, project_start=day_one,
+            ),
+            snapshot(
+                "P2", day_three, options=options, project_start=day_two,
+            ),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    # The batch schedules both root activities from the shared earliest date,
+    # but the priority value itself must remain each owning project's snapshot
+    # Planned Start, not the shared min(project_start) passed to the CPM engine.
+    assert p1.start == day_two
+    assert p2.start == day_one
+    assert p2.finish < p1.start
 
 @pytest.mark.parametrize(
     "changed_option",
@@ -570,3 +690,109 @@ def test_shared_graph_allows_project_routing_options_to_differ_when_not_used_glo
     )
 
     assert {item.project_id for item in result.projects} == {"P1", "P2"}
+
+
+def test_batch_project_priority_uses_each_authoritative_project_snapshot():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 5)
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+        priority_list=(
+            PriorityListItem("project_priority", PrioritySortOrder.ASCENDING),
+        ),
+    )
+    demand_p1 = ResourceDemand("R1", day_one, Decimal("1"), "P1-A")
+    demand_p2 = ResourceDemand("R1", day_one, Decimal("1"), "P2-A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("P1-A", day_one, day_one, 2, (demand_p1,)),
+            LevelingActivity("P2-A", day_one, day_one, 2, (demand_p2,)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "P1-A", day_one, day_one, day_three, day_three, (demand_p1,),
+            ),
+            BackwardLevelingActivity(
+                "P2-A", day_one, day_one, day_three, day_three, (demand_p2,),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("1")),
+            ResourceCapacity("R1", day_two, Decimal("1")),
+            ResourceCapacity("R1", day_three, Decimal("1")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = execute_authoritative_schedule_batch(
+        [
+            snapshot("P1", day_three, options=options, priority=100),
+            snapshot("P2", day_three, options=options, priority=1),
+        ],
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    p1 = result.project("P1").result.activities["P1-A"]
+    p2 = result.project("P2").result.activities["P2-A"]
+    # Rank 1 keeps the first available slot; the lower-ranked project moves.
+    assert p1.start == day_two
+    assert p2.start == day_one
+
+@pytest.mark.parametrize("option_name", ["resource_list", "priority_list"])
+def test_explicit_empty_leveling_lists_require_batch_leveling_input(option_name):
+    options = ScheduleOptions(**{option_name: ()})
+    first = snapshot("P1", date(2026, 10, 10), options=options)
+    second = snapshot("P2", date(2026, 10, 20), options=options)
+
+    # The guard must reject the explicit option before trying to execute an
+    # external project edge through the shared graph.
+    external_edge = Relationship("P1-A", "P2-A", RelationshipType.FS)
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="MULTI_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
+        execute_authoritative_schedule_batch(
+            [first, second],
+            resolvers={"P1": resolver(), "P2": resolver()},
+            external_relationships=(external_edge,),
+        )
+
+def test_single_project_leveling_options_are_rejected_in_batch_without_executor():
+    configured = snapshot(
+        "P1",
+        date(2026, 10, 10),
+        options=ScheduleOptions(level_all_resources=True),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_RESOURCE_LEVELING_INPUT_REQUIRED",
+    ):
+        execute_authoritative_schedule_batch(
+            [configured],
+            resolvers={"P1": resolver()},
+        )
+
+
+def test_single_project_leveling_input_is_not_silently_ignored_by_batch():
+    configured = snapshot("P1", date(2026, 10, 10))
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(),
+        backward_activities=(),
+        capacities=(),
+        options=ResourceLevelingOptions(),
+    )
+
+    with pytest.raises(
+        UnsupportedMultiProjectSchedulingError,
+        match="SINGLE_PROJECT_LEVELING_INPUT_NOT_SUPPORTED_BY_BATCH",
+    ):
+        execute_authoritative_schedule_batch(
+            [configured],
+            resolvers={"P1": resolver()},
+            leveling_input=leveling_input,
+        )
+

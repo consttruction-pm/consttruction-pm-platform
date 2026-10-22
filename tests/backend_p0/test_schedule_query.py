@@ -52,9 +52,16 @@ class Provider:
     def __init__(self, answer: ScheduleQueryAnswer) -> None:
         self.answer = answer
         self.requests: list[ScheduleQueryRequest] = []
+        self.auth_contexts: list[AuthorizationContext] = []
 
-    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> ScheduleQueryAnswer:
         self.requests.append(request)
+        self.auth_contexts.append(auth_context)
         return self.answer
 
 
@@ -84,10 +91,12 @@ def test_application_delegates_to_provider_and_preserves_scope() -> None:
     assert result.query_id == "Q-1"
     assert result.scope == request().scope
     assert provider.requests == [request()]
+    assert provider.auth_contexts == [auth()]
 
 
 def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
-    service = ScheduleQueryApplicationService(Provider(answer()), policy())
+    provider = Provider(answer())
+    service = ScheduleQueryApplicationService(provider, policy())
 
     try:
         service.execute(request(), auth_context=auth(tenant_id="tenant-2"))
@@ -104,6 +113,10 @@ def test_application_rejects_cross_scope_and_forbidden_reads() -> None:
         assert getattr(exc, "code") == "FORBIDDEN"
     else:
         pytest.fail("forbidden query was accepted")
+
+    # Authorization must happen before the provider can read schedule data.
+    assert provider.requests == []
+    assert provider.auth_contexts == []
 
 
 @pytest.mark.parametrize(
@@ -158,7 +171,12 @@ def test_api_maps_authorization_and_validation_errors() -> None:
     assert forbidden["error"]["category"] == ErrorCategory.AUTHORIZATION.value
 
     class InvalidProvider:
-        def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+        def execute(
+            self,
+            request: ScheduleQueryRequest,
+            *,
+            auth_context: AuthorizationContext,
+        ) -> ScheduleQueryAnswer:
             return object()  # type: ignore[return-value]
 
     invalid = ScheduleQueryAPI(

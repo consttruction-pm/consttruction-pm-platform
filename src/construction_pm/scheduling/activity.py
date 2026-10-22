@@ -45,6 +45,25 @@ class ActivityType(str, Enum):
             raise ValueError(f"unsupported P6 Activity.Type value: {value!r}") from exc
 
 
+class ActivityLevelingPriority(str, Enum):
+    """P6's distinct activity resource-leveling priority field."""
+
+    TOP = "Top"
+    HIGH = "High"
+    NORMAL = "Normal"
+    LOW = "Low"
+    LOWEST = "Lowest"
+
+    @classmethod
+    def from_p6_value(cls, value: str) -> "ActivityLevelingPriority":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported P6 Activity.LevelingPriority value: {value!r}"
+            ) from exc
+
+
 class ActivityStatusCode(str, Enum):
     """P6 Activity.StatusCode semantic values."""
 
@@ -82,6 +101,9 @@ class Activity:
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
     name: str = ""
+    original_duration: int | None = None
+    planned_finish: date | None = None
+    leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -90,6 +112,11 @@ class Activity:
             raise TypeError("duration must be an integer working-day value")
         if self.duration < 0:
             raise ValueError("duration must be non-negative")
+        if self.original_duration is not None:
+            if isinstance(self.original_duration, bool) or not isinstance(self.original_duration, int):
+                raise TypeError("original_duration must be an integer working-day value or None")
+            if self.original_duration < 0:
+                raise ValueError("original_duration must be non-negative")
         if not isinstance(self.name, str):
             raise TypeError("name must be a string")
         if self.actual_start is not None and (not isinstance(self.actual_start, date) or isinstance(self.actual_start, datetime)):
@@ -126,6 +153,13 @@ class Activity:
             raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):
             raise TypeError("expected_finish must be a date or None")
+        if self.planned_finish is not None and (
+            not isinstance(self.planned_finish, date)
+            or isinstance(self.planned_finish, datetime)
+        ):
+            raise TypeError("planned_finish must be a date or None")
+        if not isinstance(self.leveling_priority, ActivityLevelingPriority):
+            raise TypeError("leveling_priority must be ActivityLevelingPriority")
         if self.actual_start is not None and self.expected_finish is not None and self.expected_finish < self.actual_start:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
