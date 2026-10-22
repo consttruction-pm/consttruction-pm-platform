@@ -146,6 +146,10 @@ def _bind_activity_master_leveling_fields(
                 updates["leveling_priority"] = raw_priority
 
         raw_original_duration = getattr(source, "original_duration", None)
+        if raw_original_duration is None:
+            # P6's "Original or Planned Duration" uses Planned Duration when an
+            # original/baseline duration is not populated.
+            raw_original_duration = getattr(source, "duration", None)
         if raw_original_duration is not None:
             if (
                 isinstance(raw_original_duration, bool)
