@@ -26,6 +26,11 @@ from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDA
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
+from ..scheduling.activity import (
+    ActivityLevelingPriority as P6ActivityLevelingPriority,
+    PercentCompleteType as P6ActivityPercentCompleteType,
+)
+from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from ..p6_baseline_repository import P6Baseline
 from ..dependency_graph_api import DependencyGraphAPI
@@ -45,6 +50,8 @@ from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
+from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
+from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
 from ..relationship_master_repository import RelationshipPersistenceError
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
 from ..p6_expense_repository import P6Expense
@@ -101,6 +108,7 @@ class ProjectLifecycleHttpRoutes:
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
+        p6_activity_master_api: P6ActivityMasterAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
         p6_role_api: P6RoleAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
@@ -127,6 +135,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
+        self._p6_activity_master_api = p6_activity_master_api
         self._p6_relationship_api = p6_relationship_api
         self._p6_role_api = p6_role_api
         self._p6_mapping_api = p6_mapping_api
@@ -823,6 +832,126 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, KeyError):
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/activities" in path and self._p6_activity_master_api is not None:
+                prefix = "/p6/activities"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+
+                def parse_activity_date(field_name: str) -> date | datetime | None:
+                    value = payload.get(field_name)
+                    if value is None:
+                        return None
+                    if not isinstance(value, str) or not value.strip():
+                        raise ValueError("INVALID_" + field_name.upper())
+                    try:
+                        if "T" in value:
+                            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                        return date.fromisoformat(value)
+                    except ValueError as exc:
+                        raise ValueError("INVALID_" + field_name.upper()) from exc
+
+                def build_activity(activity_id: str) -> ActivityMaster:
+                    duration_raw = payload.get("duration_value")
+                    if isinstance(duration_raw, bool) or duration_raw is None:
+                        raise ValueError("INVALID_DURATION_VALUE")
+                    duration_value = Decimal(str(duration_raw))
+                    duration_unit = P6ActivityDurationUnit(payload.get("duration_unit"))
+                    raw_remaining_duration = payload.get("remaining_duration")
+                    if raw_remaining_duration is not None and (
+                        isinstance(raw_remaining_duration, bool)
+                        or not isinstance(raw_remaining_duration, int)
+                    ):
+                        raise ValueError("INVALID_REMAINING_DURATION")
+                    raw_original_duration = payload.get("original_duration")
+                    if raw_original_duration is not None and (
+                        isinstance(raw_original_duration, bool)
+                        or not isinstance(raw_original_duration, int)
+                    ):
+                        raise ValueError("INVALID_ORIGINAL_DURATION")
+                    raw_percent = payload.get("percent_complete")
+                    if raw_percent is not None and (
+                        isinstance(raw_percent, bool)
+                        or not isinstance(raw_percent, (int, float))
+                    ):
+                        raise ValueError("INVALID_PERCENT_COMPLETE")
+                    return ActivityMaster(
+                        scope=scope,
+                        activity_id=activity_id,
+                        duration_value=duration_value,
+                        duration_unit=duration_unit,
+                        actual_start=parse_activity_date("actual_start"),
+                        actual_finish=parse_activity_date("actual_finish"),
+                        remaining_duration=raw_remaining_duration,
+                        remaining_start=parse_activity_date("remaining_start"),
+                        percent_complete=None if raw_percent is None else float(raw_percent),
+                        percent_complete_type=P6ActivityPercentCompleteType(
+                            payload.get("percent_complete_type", P6ActivityPercentCompleteType.DURATION.value)
+                        ),
+                        expected_finish=parse_activity_date("expected_finish"),
+                        planned_finish=parse_activity_date("planned_finish"),
+                        leveling_priority=P6ActivityLevelingPriority.from_p6_value(
+                            payload.get("leveling_priority", P6ActivityLevelingPriority.NORMAL.value)
+                        ),
+                        original_duration=raw_original_duration,
+                    )
+
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("INVALID_PAYLOAD")
+                    if payload.get("contract_version", P6_ACTIVITY_MASTER_API_VERSION) != P6_ACTIVITY_MASTER_API_VERSION:
+                        raise ValueError("INVALID_CONTRACT_VERSION")
+                    if method == "GET" and not parts:
+                        result = self._p6_activity_master_api.list(scope, auth_context=auth)
+                        return self._json(200, {
+                            "contract_version": P6_ACTIVITY_MASTER_API_VERSION,
+                            "activities": list(result),
+                        })
+                    if method == "POST" and not parts:
+                        activity_id = payload.get("activity_id")
+                        if not isinstance(activity_id, str) or not activity_id.strip():
+                            raise ValueError("INVALID_ACTIVITY_ID")
+                        result = self._p6_activity_master_api.create(
+                            build_activity(activity_id), auth_context=auth
+                        )
+                        return self._json(201, result)
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_activity_master_api.get(
+                            scope, parts[0], auth_context=auth
+                        )
+                        if result is None:
+                            return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
+                        return self._json(200, result)
+                    if method == "PATCH" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        result = self._p6_activity_master_api.update(
+                            build_activity(parts[0]),
+                            expected_revision=expected_revision,
+                            auth_context=auth,
+                        )
+                        return self._json(200, result)
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ActivityPersistenceError as exc:
+                    if str(exc) == "REVISION_CONFLICT":
+                        return self._error(409, str(exc), "error.revision.conflict")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
+                    return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")

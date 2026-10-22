@@ -7,6 +7,8 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
+from construction_pm.activity_master_repository import ActivityMasterRepository
+from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -21,6 +23,7 @@ def build_project_lifecycle_wsgi_app(
     calendar_registry_factory: Callable[[], CalendarResolverRegistry],
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
+    activity_master_repository: ActivityMasterRepository | None = None,
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
 ) -> ProjectLifecycleWsgiApp:
@@ -42,9 +45,15 @@ def build_project_lifecycle_wsgi_app(
             authorization_policy=authorization_policy,
         )
     )
+    activity_master_api = (
+        None
+        if activity_master_repository is None
+        else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
+    )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
+        p6_activity_master_api=activity_master_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
     )
