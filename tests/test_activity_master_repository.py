@@ -180,13 +180,13 @@ def test_activity_master_round_trips_and_updates_distinct_planned_fields():
 def test_activity_master_additively_migrates_legacy_schema_for_leveling_fields():
     connection = sqlite3.connect(":memory:")
     connection.execute(
-        \"\"\"CREATE TABLE activity_master (
+        """CREATE TABLE activity_master (
             tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
             activity_id TEXT NOT NULL, duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
             actual_start TEXT, actual_finish TEXT, remaining_duration INTEGER, remaining_start TEXT,
             percent_complete REAL, percent_complete_type TEXT NOT NULL DEFAULT 'DURATION',
             record_revision INTEGER NOT NULL, expected_finish TEXT,
-            PRIMARY KEY (tenant_id, project_id, activity_id))\"\"\"
+            PRIMARY KEY (tenant_id, project_id, activity_id))"""
     )
     connection.commit()
     repo = SQLiteActivityMasterRepository(connection)
