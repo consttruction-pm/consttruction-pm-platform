@@ -173,8 +173,9 @@ def _resource_leveling_facts(
         assignments_payload = _required(raw, "assignments")
         demands_payload = _required(raw, "demands")
         capacities_payload = _required(raw, "capacities")
+        rates_payload = _required(raw, "resource_capacity_rates")
         if not all(isinstance(items, list) for items in (
-            assignments_payload, demands_payload, capacities_payload
+            assignments_payload, demands_payload, capacities_payload, rates_payload
         )):
             raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUTS")
         assignments = tuple(
@@ -184,6 +185,7 @@ def _resource_leveling_facts(
                 resource_id=_required_string(item, "resource_id"),
                 calendar_id=_required_string(item, "calendar_id"),
                 calendar_version=_required_string(item, "calendar_version"),
+                unit_of_measure=_required_string(item, "unit_of_measure"),
                 assigned_units=(
                     _decimal(item["assigned_units"])
                     if item.get("assigned_units") is not None else None
