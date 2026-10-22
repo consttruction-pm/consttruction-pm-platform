@@ -46,6 +46,7 @@ from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSna
 from construction_pm.scheduling.activity import ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -194,7 +195,7 @@ def _save_settings(app, *, expected_revision: int = 0):
         "mode": "DATE_BASED",
         "project_calendar_id": "CAL-1",
         "project_calendar_version": "1",
-        "project_calendar_system": "GREGORIAN",
+        "project_calendar_system": CalendarSystem.GREGORIAN.value,
         "project_start": "2026-10-19",
         "project_finish": None,
         "schedule_options": _schedule_options_payload(options),
