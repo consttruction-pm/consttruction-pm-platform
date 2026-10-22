@@ -201,7 +201,7 @@ class LevelingActivity:
     finish: date
     total_float: int
     resource_demands: tuple[ResourceDemand, ...] = ()
-    activity_priority: int | ActivityLevelingPriority | None = None
+    activity_priority: int | None = None
     free_float: int | None = None
     late_start: date | None = None
     late_finish: date | None = None
@@ -210,6 +210,8 @@ class LevelingActivity:
     project_planned_start: date | None = None
     project_priority: int | None = None
     remaining_duration: Decimal | None = None
+    # Exact categorical P6 Activity.LevelingPriority, separate from legacy numeric input.
+    leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -224,10 +226,18 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
-        if self.activity_priority is not None and not isinstance(self.activity_priority, ActivityLevelingPriority) and (
+        if self.activity_priority is not None and (
             isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if self.leveling_priority is not None and not isinstance(
+            self.leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
+        if self.leveling_priority is not None and not isinstance(
+            self.leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
         if self.free_float is not None and (
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
@@ -318,7 +328,11 @@ def _priority_value(activity: LevelingActivity, field_name: str):
     normalized = field_name.strip().lower().replace(" ", "_").replace("/", "_")
     values = {
         "activity_id": activity.activity_id,
-        "activity_priority": _activity_priority_sort_value(activity.activity_priority),
+        "activity_priority": _activity_priority_sort_value(
+            activity.leveling_priority
+            if activity.leveling_priority is not None
+            else activity.activity_priority
+        ),
         "early_start": activity.start,
         "early_finish": activity.finish,
         "late_start": activity.late_start,
@@ -634,6 +648,7 @@ def apply_leveling_shifts(
             project_planned_start=activity.project_planned_start,
             project_priority=activity.project_priority,
             remaining_duration=activity.remaining_duration,
+            leveling_priority=activity.leveling_priority,
         ))
     return tuple(result)
 
@@ -657,6 +672,8 @@ class BackwardLevelingActivity:
     project_planned_start: date | None = None
     project_priority: int | None = None
     remaining_duration: Decimal | None = None
+    # Exact categorical P6 Activity.LevelingPriority, separate from legacy numeric input.
+    leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -748,7 +765,11 @@ def _shift_demands_backward(
 def _backward_priority_value(activity: BackwardLevelingActivity, normalized: str):
     values = {
         "activity_id": activity.activity_id,
-        "activity_priority": _activity_priority_sort_value(activity.activity_priority),
+        "activity_priority": _activity_priority_sort_value(
+            activity.leveling_priority
+            if activity.leveling_priority is not None
+            else activity.activity_priority
+        ),
         "early_start": activity.early_start,
         "early_finish": activity.early_finish,
         "late_start": activity.late_start,
