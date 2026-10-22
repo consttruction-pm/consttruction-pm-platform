@@ -604,6 +604,13 @@ def apply_leveling_shifts(
             ),
             activity_priority=activity.activity_priority,
             free_float=activity.free_float,
+            late_start=activity.late_start,
+            late_finish=activity.late_finish,
+            original_planned_duration=activity.original_planned_duration,
+            planned_finish=activity.planned_finish,
+            project_planned_start=activity.project_planned_start,
+            project_priority=activity.project_priority,
+            remaining_duration=activity.remaining_duration,
         ))
     return tuple(result)
 
