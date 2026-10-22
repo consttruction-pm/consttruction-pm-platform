@@ -835,3 +835,49 @@ def test_resource_dependent_leveling_fails_closed_without_driving_assignment_ide
     assert error["code"] == "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
     assert fixture["snapshot_repo"].list(scope) == ()
     connection.close()
+
+
+
+@pytest.mark.parametrize(
+    ("unsupported_options", "expected_error"),
+    [
+        (
+            {"include_external_res_ass": True},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"external_project_priority_limit": 1},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"recalculate_resource_costs": True},
+            "RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED",
+        ),
+    ],
+)
+def test_leveling_snapshot_rejects_unimplemented_cross_project_or_recosting_options(
+    tmp_path, unsupported_options, expected_error
+):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True, **unsupported_options),
+    )
+    assert settings_status == "201 Created"
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == expected_error
+    assert fixture["snapshot_repo"].list(fixture["scope"]) == ()
+    connection.close()
