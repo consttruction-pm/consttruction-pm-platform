@@ -1,4 +1,5 @@
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
+from construction_pm.scheduling.activity import ActivityLevelingPriority
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -872,3 +873,85 @@ def test_apply_leveling_shifts_preserves_p6_priority_metadata():
     assert result[0].project_planned_start == date(2026, 10, 1)
     assert result[0].project_priority == 3
     assert result[0].remaining_duration == Decimal("2")
+
+
+@pytest.mark.parametrize(
+    ("sort_order", "expected_shifted_activity"),
+    [
+        (SortOrder.ASCENDING, "B"),
+        (SortOrder.DESCENDING, "A"),
+    ],
+)
+def test_forward_leveling_uses_p6_categorical_activity_priority_order(
+    sort_order, expected_shifted_activity
+):
+    day = date(2026, 10, 1)
+    next_day = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity(
+            "A", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("8"), "A"),),
+            activity_priority=ActivityLevelingPriority.TOP,
+        ),
+        LevelingActivity(
+            "B", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("8"), "B"),),
+            activity_priority=ActivityLevelingPriority.LOW,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day, Decimal("8")),
+        ResourceCapacity("R1", next_day, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Activity Priority", sort_order),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == expected_shifted_activity
+
+
+@pytest.mark.parametrize(
+    ("sort_order", "expected_shifted_activity"),
+    [
+        (SortOrder.ASCENDING, "B"),
+        (SortOrder.DESCENDING, "A"),
+    ],
+)
+def test_backward_leveling_uses_p6_categorical_activity_priority_order(
+    sort_order, expected_shifted_activity
+):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "A"),),
+            activity_priority=ActivityLevelingPriority.TOP,
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_two, day_two,
+            (ResourceDemand("R1", day_two, Decimal("8"), "B"),),
+            activity_priority=ActivityLevelingPriority.LOW,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Activity Priority", sort_order),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == expected_shifted_activity
