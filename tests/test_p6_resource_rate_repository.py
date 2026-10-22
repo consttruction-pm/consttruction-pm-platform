@@ -36,8 +36,9 @@ def test_sqlite_resource_rate_round_trip_and_exact_scope():
     assert repository.list(scope) == (item,)
     assert repository.get(scope, "R1", item.effective_from) == item
     assert repository.list(BackendScope("tenant-b", "project-a", 7)) == ()
-    with pytest.raises(P6ResourceRatePersistenceError, match="REVISION"):
-        repository.list(BackendScope("tenant-a", "project-a", 8))
+    # A different project revision is a distinct immutable scope, not a
+    # malformed request; it must not see the previous revision's rate.
+    assert repository.list(BackendScope("tenant-a", "project-a", 8)) == ()
     connection.close()
 
 
