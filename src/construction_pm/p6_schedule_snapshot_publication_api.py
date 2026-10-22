@@ -28,6 +28,7 @@ from .schedule_snapshot_publisher import (
 
 
 P6_SCHEDULE_SNAPSHOT_API_VERSION = "p6-schedule-snapshot-api.v1"
+P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION = "p6-project-schedule-settings-api.v1"
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -57,7 +58,7 @@ class P6ScheduleSnapshotPublicationAPI:
     @staticmethod
     def _settings_dto(settings: ProjectScheduleSettings) -> dict[str, Any]:
         return {
-            "contract_version": "p6-project-schedule-settings-api.v1",
+            "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
             "kind": "project_schedule_settings",
             "scope": {
                 "tenant_id": settings.scope.tenant_id,
@@ -159,5 +160,6 @@ class P6ScheduleSnapshotPublicationAPI:
 
 __all__ = [
     "P6_SCHEDULE_SNAPSHOT_API_VERSION",
+    "P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION",
     "P6ScheduleSnapshotPublicationAPI",
 ]
