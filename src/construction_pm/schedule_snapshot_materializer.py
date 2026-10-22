@@ -32,6 +32,14 @@ from .scheduling.calendar_context import (
 from .scheduling.constraints import ActivityConstraint, ConstraintType
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.relationships import Relationship, RelationshipType
+from .scheduling.resource_leveling import ResourceCapacity
+from .scheduling.resource_leveling_input import (
+    ResourceAssignmentLevelingRef,
+    ResourceCapacityRate,
+    ResourceDemandInput,
+    ResourceLevelingFacts,
+    ResourceLevelingFactsError,
+)
 from .scheduling.schedule import (
     CriticalActivityPathType,
     ScheduleMode,
@@ -72,6 +80,13 @@ def materialize_schedule_snapshot(
         raise SnapshotMaterializationError("INVALID_SNAPSHOT_JSON") from exc
     if not isinstance(payload, dict):
         raise SnapshotMaterializationError("INVALID_SNAPSHOT_PAYLOAD")
+    if payload.get("relationship_lag_calendar_assignments"):
+        # Older/nonstandard snapshots may carry per-relationship overrides.
+        # P6 only defines a schedule-wide relationship-lag calendar option;
+        # never ignore persisted nonstandard data and silently change dates.
+        raise SnapshotMaterializationError(
+            "PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE"
+        )
 
     if payload.get("snapshot_id") != snapshot.snapshot_id:
         raise SnapshotMaterializationError("SNAPSHOT_ID_MISMATCH")
@@ -150,6 +165,118 @@ def _date(value: Any) -> date:
     except ValueError as exc:
         raise SnapshotMaterializationError("INVALID_DATE") from exc
     return result
+
+
+def _resource_leveling_facts(
+    raw: Any,
+    *,
+    activity_ids: set[str],
+) -> ResourceLevelingFacts | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUTS")
+    try:
+        assignments_payload = _required(raw, "assignments")
+        demands_payload = _required(raw, "demands")
+        capacities_payload = _required(raw, "capacities")
+        rates_payload = _required(raw, "resource_capacity_rates")
+        if not all(isinstance(items, list) for items in (
+            assignments_payload, demands_payload, capacities_payload, rates_payload
+        )):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUTS")
+        assignments = tuple(
+            ResourceAssignmentLevelingRef(
+                assignment_id=_required_string(item, "assignment_id"),
+                activity_id=_required_string(item, "activity_id"),
+                resource_id=_required_string(item, "resource_id"),
+                calendar_id=_required_string(item, "calendar_id"),
+                calendar_version=_required_string(item, "calendar_version"),
+                unit_of_measure=_required_string(item, "unit_of_measure"),
+                assigned_units=(
+                    _decimal(item["assigned_units"])
+                    if item.get("assigned_units") is not None else None
+                ),
+                remaining_units=(
+                    _decimal(item["remaining_units"])
+                    if item.get("remaining_units") is not None else None
+                ),
+            )
+            for item in assignments_payload
+            if isinstance(item, dict)
+        )
+        if len(assignments) != len(assignments_payload):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_ASSIGNMENT")
+        demands = tuple(
+            ResourceDemandInput(
+                assignment_id=_required_string(item, "assignment_id"),
+                activity_id=_required_string(item, "activity_id"),
+                resource_id=_required_string(item, "resource_id"),
+                period=_date(_required(item, "period")),
+                units=_decimal(_required(item, "units")),
+            )
+            for item in demands_payload
+            if isinstance(item, dict)
+        )
+        if len(demands) != len(demands_payload):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_DEMAND")
+        capacities = tuple(
+            ResourceCapacity(
+                resource_id=_required_string(item, "resource_id"),
+                period=_date(_required(item, "period")),
+                units=_decimal(_required(item, "units")),
+                calendar_id=_required_string(item, "calendar_id"),
+                calendar_version=_required_string(item, "calendar_version"),
+                calendar_snapshot_hash=_required_string(item, "calendar_snapshot_hash"),
+                calendar_work_hours=_decimal(_required(item, "calendar_work_hours")),
+                resource_rate_hash=_required_string(item, "resource_rate_hash"),
+                resource_rate_effective_from=_datetime(_required(item, "resource_rate_effective_from")),
+            )
+            for item in capacities_payload
+            if isinstance(item, dict)
+        )
+        if len(capacities) != len(capacities_payload):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_CAPACITY")
+        rates = tuple(
+            ResourceCapacityRate(
+                resource_id=_required_string(item, "resource_id"),
+                effective_from=_datetime(_required(item, "effective_from")),
+                max_units_per_time=_decimal(_required(item, "max_units_per_time")),
+                time_period_unit=_required_string(item, "time_period_unit"),
+                hours_per_time_period=_decimal(_required(item, "hours_per_time_period")),
+                unit_of_measure=_required_string(item, "unit_of_measure"),
+                time_period_source=_required_string(item, "time_period_source"),
+                capacity_basis=_required_string(item, "capacity_basis"),
+                full_time_units_per_time_period=(
+                    _decimal(item["full_time_units_per_time_period"])
+                    if item.get("full_time_units_per_time_period") is not None else None
+                ),
+                shift_id=_required_string(item, "shift_id"),
+                record_revision=_strict_integer(item.get("record_revision"), "INVALID_RESOURCE_RATE_REVISION"),
+            )
+            for item in rates_payload
+            if isinstance(item, dict)
+        )
+        if len(rates) != len(rates_payload):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_CAPACITY_RATE")
+        facts = ResourceLevelingFacts(
+            assignments=assignments,
+            demands=demands,
+            capacities=capacities,
+            resource_capacity_rates=rates,
+            capacity_horizon_start=_date(_required(raw, "capacity_horizon_start")),
+            capacity_horizon_end=_date(_required(raw, "capacity_horizon_end")),
+            calculation_timezone=_required_string(raw, "calculation_timezone"),
+            schema_version=_strict_integer(raw.get("schema_version", 1), "INVALID_RESOURCE_LEVELING_SCHEMA_VERSION"),
+        )
+        facts.validate(activity_ids=activity_ids)
+        return facts
+    except SnapshotMaterializationError:
+        raise
+    except ResourceLevelingFactsError as exc:
+        raise SnapshotMaterializationError(str(exc)) from exc
+    except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUTS") from exc
 
 
 def _datetime(value: Any) -> datetime:
@@ -601,12 +728,15 @@ def _materialize_payload(
         ActivityCalendarAssignment(activity_id, reference)
         for activity_id, reference in sorted(assignment_refs.items())
     )
-
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
     raw_project_leveling_priority = payload.get("project_leveling_priority", 10)
     if (isinstance(raw_project_leveling_priority, bool) or not isinstance(raw_project_leveling_priority, int) or not 1 <= raw_project_leveling_priority <= 100):
         raise SnapshotMaterializationError("INVALID_PROJECT_LEVELING_PRIORITY")
+    resource_leveling_inputs = _resource_leveling_facts(
+        payload.get("resource_leveling_inputs"),
+        activity_ids={activity.id for activity in activities_tuple},
+    )
     return AuthoritativeScheduleInput(
         snapshot_id=snapshot.snapshot_id,
         tenant_id=snapshot.scope.tenant_id,
@@ -632,4 +762,5 @@ def _materialize_payload(
             else None
         ),
         project_leveling_priority=raw_project_leveling_priority,
+        resource_leveling_inputs=resource_leveling_inputs,
     )

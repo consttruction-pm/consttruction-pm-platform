@@ -88,13 +88,31 @@ def resolve_relationship_lag_calendar(
 def resolve_relationship_lag_resolvers(
     snapshot: AuthoritativeScheduleInput,
     registry: CalendarResolverRegistry,
+    *,
+    activity_calendars: ResolvedActivityCalendars | None = None,
 ) -> dict[tuple[str, str], WorkingTimeResolver]:
-    """Build the authoritative per-relationship lag resolver map for CPM."""
+    """Resolve the project-wide P6 relationship-lag calendar for every edge.
+
+    P6's ScheduleOptions setting applies to all predecessor/successor
+    relationships. Resolve each activity calendar once, then reuse the map
+    for all edges.
+    """
+    calendars = activity_calendars or resolve_authoritative_activity_calendars(
+        snapshot, registry
+    )
     option = snapshot.schedule_options.relationship_lag_calendar
     resolvers: dict[tuple[str, str], WorkingTimeResolver] = {}
     for relationship in snapshot.relationships:
         key = (relationship.predecessor_id, relationship.successor_id)
-        resolvers[key] = resolve_relationship_lag_calendar(
-            snapshot, registry, relationship.predecessor_id, relationship.successor_id, option
+        predecessor_reference = calendars.reference_for(relationship.predecessor_id)
+        successor_reference = calendars.reference_for(relationship.successor_id)
+        context = SchedulingCalendarContext(
+            project=snapshot.project_calendar,
+            activity=successor_reference,
+        )
+        resolvers[key] = registry.resolve_relationship_lag(
+            context,
+            predecessor_reference,
+            option,
         )
     return resolvers

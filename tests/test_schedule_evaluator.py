@@ -1,7 +1,9 @@
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
+import construction_pm.schedule_evaluator as schedule_evaluator_module
 
 from construction_pm.schedule_evaluator import (
     ScheduleEvaluationError,
@@ -14,9 +16,20 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
+    RelationshipLagCalendar,
     SchedulingCalendarContext,
 )
-from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
+from construction_pm.scheduling.authoritative_schedule import (
+    ActivityCalendarAssignment,
+    AuthoritativeScheduleInput,
+    AuthoritativeScheduleMode,
+)
+from construction_pm.scheduling.resource_leveling_input import (
+    ResourceAssignmentLevelingRef,
+    ResourceCapacityRate,
+    ResourceDemandInput,
+    ResourceLevelingFacts,
+)
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_leveling import (
@@ -236,3 +249,244 @@ def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
     assert result.time_activities == result.time_result.early_activities
     assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
     assert result.time_result.floats['B'].total_float_hours == Decimal('2')
+
+
+def test_snapshot_leveling_bounds_backward_proposal_when_cpm_has_negative_float(monkeypatch):
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    activity = Activity("A", 1, original_duration=1, planned_finish=day_one)
+    capacity_hash = "a" * 64
+    rate = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    )
+    facts = ResourceLevelingFacts(
+        assignments=(
+            ResourceAssignmentLevelingRef(
+                assignment_id="ASSIGN-A",
+                activity_id="A",
+                resource_id="R1",
+                calendar_id="RES-CAL",
+                calendar_version="v1",
+                unit_of_measure="h",
+                assigned_units=Decimal("8"),
+                remaining_units=Decimal("8"),
+            ),
+        ),
+        demands=(
+            ResourceDemandInput(
+                assignment_id="ASSIGN-A",
+                activity_id="A",
+                resource_id="R1",
+                period=day_one,
+                units=Decimal("8"),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity(
+                "R1", day_one, Decimal("8"),
+                calendar_id="RES-CAL", calendar_version="v1",
+                calendar_snapshot_hash=capacity_hash,
+                calendar_work_hours=Decimal("8"),
+                resource_rate_hash=rate.profile_hash,
+                resource_rate_effective_from=rate.effective_from,
+            ),
+            ResourceCapacity(
+                "R1", day_two, Decimal("8"),
+                calendar_id="RES-CAL", calendar_version="v1",
+                calendar_snapshot_hash=capacity_hash,
+                calendar_work_hours=Decimal("8"),
+                resource_rate_hash=rate.profile_hash,
+                resource_rate_effective_from=rate.effective_from,
+            ),
+        ),
+        resource_capacity_rates=(rate,),
+        capacity_horizon_start=day_one,
+        capacity_horizon_end=day_two,
+        calculation_timezone="UTC",
+    )
+    facts.validate(activity_ids={"A"})
+    options = ScheduleOptions(level_all_resources=True)
+    source = SimpleNamespace(
+        activities=(activity,),
+        relationships=(),
+        project_start=day_one,
+        project_finish=day_one,
+        constraints=(),
+        schedule_options=options,
+        project_leveling_priority=10,
+        resource_leveling_inputs=facts,
+    )
+    negative_float_schedule = SimpleNamespace(
+        early_activities={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        late_activities={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        floats={"A": SimpleNamespace(total_float=-1, free_float=0)},
+    )
+    monkeypatch.setattr(
+        schedule_evaluator_module,
+        "schedule",
+        lambda **kwargs: negative_float_schedule,
+    )
+    _, context = make_snapshot_and_context(options=options)
+
+    leveling_input = schedule_evaluator_module._leveling_input_from_snapshot_facts(
+        source,
+        resolver=registry().resolve(CalendarReference("CAL-1", "1")),
+        calculation_context=context,
+    )
+
+    forward = leveling_input.forward_activities[0]
+    backward = leveling_input.backward_activities[0]
+    assert forward.total_float == -1
+    assert backward.total_float == -1
+    assert backward.late_start == day_two
+    assert backward.late_finish == day_two
+
+
+
+def test_evaluator_uses_exact_versioned_activity_calendar_for_cpm_dates():
+    project_calendar = CalendarReference("CAL-1", "1")
+    activity_calendar = CalendarReference("CAL-ACT", "4")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-ACTIVITY-CALENDAR",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_calendar,
+        activities=(Activity("A", 1),),
+        relationships=(),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", activity_calendar),
+        ),
+        project_start=date(2026, 9, 21),  # Monday
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-ACTIVITY-CALENDAR",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 9, 30, tzinfo=timezone.utc),
+    )
+    custom_registry = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
+            ),
+            # This activity works only Tuesday and Thursday. The project calendar
+            # works Monday-Friday, so this distinguishes the bound activity ref.
+            "CAL-ACT@4": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({1, 3}))
+            ),
+        }
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, custom_registry)
+
+    assert result.date_result is not None
+    assert result.date_result.activities["A"].start == date(2026, 9, 22)
+    assert result.date_result.activities["A"].finish == date(2026, 9, 22)
+
+
+
+def test_evaluator_applies_configured_predecessor_calendar_to_relationship_lag():
+    project_calendar = CalendarReference("CAL-1", "1")
+    predecessor_calendar = CalendarReference("CAL-PRED", "3")
+    successor_calendar = CalendarReference("CAL-SUCC", "2")
+    options = ScheduleOptions(
+        relationship_lag_calendar=RelationshipLagCalendar.PREDECESSOR,
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RELATIONSHIP-LAG-CALENDAR",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=project_calendar,
+        activities=(Activity("A", 1), Activity("B", 1)),
+        relationships=(Relationship("A", "B", RelationshipType.FS, lag=1),),
+        activity_calendar_assignments=(
+            ActivityCalendarAssignment("A", predecessor_calendar),
+            ActivityCalendarAssignment("B", successor_calendar),
+        ),
+        schedule_options=options,
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-RELATIONSHIP-LAG-CALENDAR",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 9, 30, tzinfo=timezone.utc),
+    )
+    registry_with_lag_holiday = CalendarResolverRegistry(
+        day_resolvers={
+            "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
+            "CAL-PRED@3": WorkingTimeResolver(
+                WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+            ),
+            "CAL-SUCC@2": WorkingTimeResolver(WorkingCalendar()),
+        }
+    )
+
+    result = evaluate_schedule_snapshot(snapshot, context, registry_with_lag_holiday)
+
+    assert result.date_result is not None
+    assert result.date_result.activities["A"].start == date(2026, 9, 21)
+    assert result.date_result.activities["B"].start == date(2026, 9, 24)
+
+
+
+@pytest.mark.parametrize(
+    ("unsupported_options", "expected_error"),
+    [
+        (
+            {"include_external_res_ass": True},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"external_project_priority_limit": 1},
+            "CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED",
+        ),
+        (
+            {"recalculate_resource_costs": True},
+            "RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED",
+        ),
+    ],
+)
+def test_evaluator_fails_closed_even_for_prebuilt_snapshots_with_unsupported_leveling_options(
+    unsupported_options, expected_error
+):
+    options = ScheduleOptions(level_all_resources=True, **unsupported_options)
+    snapshot, context = make_snapshot_and_context(options=options)
+
+    with pytest.raises(ScheduleEvaluationError, match=expected_error):
+        evaluate_schedule_snapshot(snapshot, context, registry())
+
+
+

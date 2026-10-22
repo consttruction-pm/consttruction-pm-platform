@@ -352,6 +352,29 @@ def execute_authoritative_schedule_batch(
                     key=lambda item: item.activity_id,
                 )
             )
+            # Resource-leveling priorities may refer to project-level fields.
+            # Bind them from the same immutable project snapshots before the
+            # global graph enters the shared scheduler; otherwise Project
+            # Priority degrades to a blank-value/activity-ID tie-breaker.
+            project_snapshot_by_activity_id = {
+                activity.id: snapshot
+                for snapshot in snapshot_list
+                for activity in snapshot.activities
+            }
+
+            def bind_project_fields(row: LevelingActivity | BackwardLevelingActivity):
+                source_snapshot = project_snapshot_by_activity_id.get(row.activity_id)
+                if source_snapshot is None:
+                    return row
+                return replace(
+                    row,
+                    project_planned_start=source_snapshot.project_start,
+                    project_priority=source_snapshot.project_leveling_priority,
+                )
+
+            rebased_forward = tuple(bind_project_fields(row) for row in rebased_forward)
+            rebased_backward = tuple(bind_project_fields(row) for row in rebased_backward)
+
             merged_input = SchedulerLevelingInput(
                 forward_activities=rebased_forward,
                 backward_activities=rebased_backward,

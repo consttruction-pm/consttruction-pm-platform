@@ -223,3 +223,36 @@ def test_activity_master_route_enforces_read_write_permission():
     assert status == "403 Forbidden"
     assert error["code"] == "authorization denied for permission=project.write"
     connection.close()
+
+
+
+def test_activity_master_does_not_silently_drop_suspend_resume_dates():
+    app, repository, connection = _app()
+    path = "/api/projects/p1/p6/activities"
+    scope = BackendScope("t1", "p1", 2)
+    base_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "name": "Suspended activity",
+        "duration_value": "3",
+        "duration_unit": "working-day",
+    }
+
+    for field_name, activity_id in (
+        ("suspend_date", "A-SUSPEND"),
+        ("resume_date", "A-RESUME"),
+    ):
+        status, result = _request(
+            app,
+            "POST",
+            path,
+            {
+                **base_payload,
+                "activity_id": activity_id,
+                field_name: "2026-10-21",
+            },
+        )
+        assert status == "400 Bad Request"
+        assert result["code"] == "ACTIVITY_SUSPEND_RESUME_NOT_PERSISTED"
+        assert repository.get(scope, activity_id) is None
+
+    connection.close()

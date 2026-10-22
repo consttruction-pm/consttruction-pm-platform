@@ -20,6 +20,7 @@ from .calendar_context import CalendarReference
 from .constraints import ActivityConstraint
 from .relationships import Relationship
 from .schedule_options import ScheduleOptions
+from .resource_leveling_input import ResourceLevelingFacts
 from .time_forward_pass import TimeActivity, TimeRelationship
 
 
@@ -65,6 +66,7 @@ class AuthoritativeScheduleInput:
     project_start: date | datetime | None = None
     project_finish: date | datetime | None = None
     project_leveling_priority: int = 10
+    resource_leveling_inputs: ResourceLevelingFacts | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
@@ -113,6 +115,11 @@ class AuthoritativeScheduleInput:
             )
         if not isinstance(self.schedule_options, ScheduleOptions):
             raise TypeError("schedule_options must be a ScheduleOptions")
+        if self.resource_leveling_inputs is not None:
+            if self.mode is not AuthoritativeScheduleMode.DATE_BASED:
+                raise ValueError("resource leveling is currently supported only for date-based schedules")
+            if not isinstance(self.resource_leveling_inputs, ResourceLevelingFacts):
+                raise TypeError("resource_leveling_inputs must be ResourceLevelingFacts or None")
 
         activity_ids = [activity.id for activity in self.activities]
         if len(activity_ids) != len(set(activity_ids)):
@@ -157,6 +164,11 @@ class AuthoritativeScheduleInput:
             raise ValueError("project_leveling_priority must be between 1 and 100")
 
         activity_set = set(activity_ids)
+        if self.resource_leveling_inputs is not None:
+            try:
+                self.resource_leveling_inputs.validate(activity_ids=activity_set)
+            except ValueError as exc:
+                raise ValueError(f"invalid resource-leveling inputs: {exc}") from exc
         for relationship in self.relationships:
             if relationship.predecessor_id not in activity_set or relationship.successor_id not in activity_set:
                 raise ValueError("relationship references unknown activity")
@@ -165,7 +177,7 @@ class AuthoritativeScheduleInput:
                 raise ValueError("constraint references unknown activity")
 
     def canonical_payload(self) -> dict[str, Any]:
-        return _canonicalize({
+        payload = {
             "snapshot_id": self.snapshot_id,
             "tenant_id": self.tenant_id,
             "project_id": self.project_id,
@@ -180,7 +192,13 @@ class AuthoritativeScheduleInput:
             "project_start": self.project_start,
             "project_finish": self.project_finish,
             "project_leveling_priority": self.project_leveling_priority,
-        })
+        }
+        # Preserve old canonical JSON and snapshot hashes for legacy/non-leveling
+        # inputs. When populated, the complete resource contract is bound by the
+        # same immutable schedule snapshot hash.
+        if self.resource_leveling_inputs is not None:
+            payload["resource_leveling_inputs"] = self.resource_leveling_inputs
+        return _canonicalize(payload)
 
     def canonical_json(self) -> str:
         return json.dumps(

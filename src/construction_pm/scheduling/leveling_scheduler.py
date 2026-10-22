@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from typing import Iterable, Mapping
 
+from .activity import ActivityLevelingPriority
 from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
@@ -108,6 +110,84 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
         priority_list=None,
         min_float_to_preserve=0,
         preserve_scheduled_early_and_late_dates=False,
+    )
+
+
+def _bind_activity_master_leveling_fields(
+    leveling_input: SchedulerLevelingInput,
+    activities: tuple[object, ...],
+) -> SchedulerLevelingInput:
+    """Bind P6 activity master values to leveling rows before priority comparison.
+
+    The activity snapshot is the authoritative source for its categorical
+    Leveling Priority, Original Duration, Planned Finish, and Remaining Duration.
+    Existing numeric activity_priority values remain a compatibility input for
+    older callers; they are never silently reinterpreted as the P6 enum.
+    """
+    schedule_by_id = {
+        getattr(activity, "id", None): activity
+        for activity in activities
+    }
+
+    def bind(row: LevelingActivity | BackwardLevelingActivity):
+        source = schedule_by_id.get(row.activity_id)
+        if source is None:
+            raise ResourceLevelingError(
+                f"LEVELING_ACTIVITY_NOT_IN_SCHEDULE:{row.activity_id}"
+            )
+        updates: dict[str, object] = {}
+        raw_priority = getattr(source, "leveling_priority", None)
+        if raw_priority is not None:
+            if not isinstance(raw_priority, ActivityLevelingPriority):
+                raise ResourceLevelingError(
+                    f"INVALID_ACTIVITY_MASTER_LEVELING_PRIORITY:{row.activity_id}"
+                )
+            if row.activity_priority is None:
+                updates["leveling_priority"] = raw_priority
+            else:
+                # An explicit numeric legacy value is an intentional override;
+                # do not let an old categorical value silently win the sort.
+                updates["leveling_priority"] = None
+
+        raw_original_duration = getattr(source, "original_duration", None)
+        if raw_original_duration is None:
+            # P6's "Original or Planned Duration" uses Planned Duration when an
+            # original/baseline duration is not populated.
+            raw_original_duration = getattr(source, "duration", None)
+        if raw_original_duration is not None:
+            if (
+                isinstance(raw_original_duration, bool)
+                or not isinstance(raw_original_duration, int)
+                or raw_original_duration < 0
+            ):
+                raise ResourceLevelingError(
+                    f"INVALID_ACTIVITY_MASTER_ORIGINAL_DURATION:{row.activity_id}"
+                )
+            updates["original_planned_duration"] = Decimal(raw_original_duration)
+
+        raw_planned_finish = getattr(source, "planned_finish", None)
+        if raw_planned_finish is not None:
+            updates["planned_finish"] = raw_planned_finish
+
+        raw_remaining_duration = getattr(source, "remaining_duration", None)
+        if raw_remaining_duration is not None:
+            if (
+                isinstance(raw_remaining_duration, bool)
+                or not isinstance(raw_remaining_duration, int)
+                or raw_remaining_duration < 0
+            ):
+                raise ResourceLevelingError(
+                    f"INVALID_ACTIVITY_MASTER_REMAINING_DURATION:{row.activity_id}"
+                )
+            updates["remaining_duration"] = Decimal(raw_remaining_duration)
+
+        return replace(row, **updates) if updates else row
+
+    return SchedulerLevelingInput(
+        forward_activities=tuple(bind(row) for row in leveling_input.forward_activities),
+        backward_activities=tuple(bind(row) for row in leveling_input.backward_activities),
+        capacities=leveling_input.capacities,
+        options=leveling_input.options,
     )
 
 
@@ -281,9 +361,15 @@ def _backward_activities_from_intermediate(
                 late_start=candidate_late_start,
                 late_finish=candidate_late_finish,
                 resource_demands=tuple(shifted_demands),
-                activity_priority=activity.activity_priority,
+                activity_priority=forward_activity.activity_priority,
                 total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
                 free_float=getattr((float_schedule or {}).get(activity.activity_id), "free_float", None),
+                original_planned_duration=forward_activity.original_planned_duration,
+                planned_finish=forward_activity.planned_finish,
+                project_planned_start=forward_activity.project_planned_start,
+                project_priority=forward_activity.project_priority,
+                remaining_duration=forward_activity.remaining_duration,
+                leveling_priority=forward_activity.leveling_priority,
             )
         )
     return tuple(result)
@@ -418,6 +504,8 @@ def schedule_with_resource_leveling(
     if selected_options.resource_list is not None:
         if selected_options.resource_list != leveling_input.options.resource_ids:
             raise ResourceLevelingError("LEVELING_RESOURCE_LIST_MISMATCH")
+
+    leveling_input = _bind_activity_master_leveling_fields(leveling_input, activities)
 
     from .schedule import schedule
 

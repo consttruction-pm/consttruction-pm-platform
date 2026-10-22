@@ -84,10 +84,18 @@ def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]
         "late_finish",
         "free_float",
         "total_float",
+        "original_planned_duration",
+        "original_or_planned_duration",
+        "planned_duration",
+        "original_duration",
+        "planned_finish",
+        "project_planned_start",
+        "project_priority",
+        "remaining_duration",
     }
     priorities: list[LevelingPriority] = []
     for item in options.priority_list:
-        field_name = item.field_name.strip().lower().replace(" ", "_")
+        field_name = item.field_name.strip().lower().replace(" ", "_").replace("/", "_")
         if field_name not in supported:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         sort_order = (

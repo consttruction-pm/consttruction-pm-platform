@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
 
-from construction_pm.scheduling.activity import Activity
+import pytest
+
+from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_scheduler import schedule_with_resource_leveling
@@ -262,3 +264,156 @@ def test_public_backward_leveling_moves_linked_activities_without_breaking_ss(mo
     assert result.project_finish == day_three
     assert len(validator_calls) >= 2  # accepted-candidate check plus final check
     assert all(value is activity_resolvers for value in validator_calls)
+
+
+@pytest.mark.parametrize(
+    ("priority_field", "activity_a", "activity_b", "expected_shift"),
+    [
+        (
+            "activity_priority",
+            {"leveling_priority": ActivityLevelingPriority.TOP},
+            {"leveling_priority": ActivityLevelingPriority.LOW},
+            "B",
+        ),
+        (
+            "planned_finish",
+            {"planned_finish": date(2026, 10, 8)},
+            {"planned_finish": date(2026, 10, 5)},
+            "B",
+        ),
+        (
+            "original_planned_duration",
+            {"original_duration": 8},
+            {"original_duration": 2},
+            "B",
+        ),
+        (
+            "remaining_duration",
+            {"remaining_duration": 8},
+            {"remaining_duration": 2},
+            "B",
+        ),
+    ],
+)
+def test_public_forward_leveling_binds_authoritative_activity_master_priority_fields(
+    priority_field, activity_a, activity_b, expected_shift
+):
+    """P6 priority sorting uses activity-master values, not empty/stale leveling rows."""
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    demands = (
+        ResourceDemand("R1", day_one, Decimal("8"), "A"),
+        ResourceDemand("R1", day_one, Decimal("8"), "B"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            # Deliberately stale fields must be replaced by Activity Master values.
+            LevelingActivity(
+                "A", day_one, day_one, 1, (demands[0],),
+                leveling_priority=ActivityLevelingPriority.LOW,
+                original_planned_duration=Decimal("2"),
+                planned_finish=day_one,
+                remaining_duration=Decimal("2"),
+            ),
+            LevelingActivity(
+                "B", day_one, day_one, 1, (demands[1],),
+                leveling_priority=ActivityLevelingPriority.TOP,
+                original_planned_duration=Decimal("8"),
+                planned_finish=day_two,
+                remaining_duration=Decimal("8"),
+            ),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity(
+                "A", day_one, day_one, day_two, day_two, (demands[0],),
+                leveling_priority=ActivityLevelingPriority.LOW,
+                original_planned_duration=Decimal("2"),
+                planned_finish=day_one,
+                remaining_duration=Decimal("2"),
+            ),
+            BackwardLevelingActivity(
+                "B", day_one, day_one, day_two, day_two, (demands[1],),
+                leveling_priority=ActivityLevelingPriority.TOP,
+                original_planned_duration=Decimal("8"),
+                planned_finish=day_two,
+                remaining_duration=Decimal("8"),
+            ),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    activities = (
+        Activity("A", 1, **activity_a),
+        Activity("B", 1, **activity_b),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    _, forward, backward = schedule_with_resource_leveling(
+        activities,
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 3),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            priority_list=(PriorityListItem(priority_field, PrioritySortOrder.ASCENDING),),
+        ),
+    )
+
+    assert len(forward) == 1
+    assert forward[0].activity_id == expected_shift
+    assert backward == ()
+
+
+def test_public_leveling_uses_planned_duration_when_original_duration_is_absent():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    demands = (
+        ResourceDemand("R1", day_one, Decimal("8"), "A"),
+        ResourceDemand("R1", day_one, Decimal("8"), "B"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", day_one, day_one, 10, (demands[0],)),
+            LevelingActivity("B", day_one, day_one, 10, (demands[1],)),
+        ),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demands[0],)),
+            BackwardLevelingActivity("B", day_one, day_one, day_two, day_two, (demands[1],)),
+        ),
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("8")),
+            ResourceCapacity("R1", day_two, Decimal("8")),
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+
+    _, forward, backward = schedule_with_resource_leveling(
+        (Activity("A", 8), Activity("B", 2)),
+        (),
+        day_one,
+        resolver,
+        leveling_input,
+        project_finish=date(2026, 10, 20),
+        options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            priority_list=(PriorityListItem("original_planned_duration", PrioritySortOrder.ASCENDING),),
+        ),
+    )
+
+    # No Original Duration is supplied, so the shorter Planned Duration is the
+    # authoritative value for the "Original or Planned Duration" criterion.
+    assert len(forward) == 1
+    assert forward[0].activity_id == "B"
+    assert backward == ()

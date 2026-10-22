@@ -80,6 +80,9 @@ from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
+from ..p6_resource_rate_api import P6ResourceRateAPI, P6_RESOURCE_RATE_API_VERSION
+from ..p6_resource_rate_repository import P6ResourceRatePersistenceError
+from ..scheduling.resource_leveling_input import ResourceCapacityRate
 from ..p6_resource_assignment_repository import P6ResourceAssignmentPeriodValue
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
@@ -136,6 +139,7 @@ class ProjectLifecycleHttpRoutes:
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
+        p6_resource_rate_api: P6ResourceRateAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
         dependency_graph_api: DependencyGraphAPI | None = None,
@@ -164,6 +168,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
         self._p6_resource_write_api = p6_resource_write_api
+        self._p6_resource_rate_api = p6_resource_rate_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
         self._dependency_graph_api = dependency_graph_api
@@ -1115,6 +1120,13 @@ class ProjectLifecycleHttpRoutes:
                     activity_id: str,
                     existing: ActivityMaster | None = None,
                 ) -> ActivityMaster:
+                    # These registered P6 fields are not yet persisted by ActivityMaster.
+                    # Reject populated input rather than silently dropping schedule-critical data.
+                    if any(
+                        payload.get(field_name) not in (None, "")
+                        for field_name in ("suspend_date", "resume_date")
+                    ):
+                        raise ValueError("ACTIVITY_SUSPEND_RESUME_NOT_PERSISTED")
                     duration_raw = payload.get(
                         "duration_value",
                         existing.duration_value if existing is not None else None,
@@ -1445,6 +1457,85 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_resource_rate_api.list_rates(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    auth_context=auth,
+                )
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id or "/" in project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    rate_payload = payload.get("rate", payload)
+                    if not isinstance(rate_payload, dict):
+                        raise ValueError("invalid rate payload")
+                    effective_from_value = rate_payload.get("effective_from")
+                    if not isinstance(effective_from_value, str) or not effective_from_value.strip():
+                        raise ValueError("effective_from is required")
+                    effective_from = datetime.fromisoformat(
+                        effective_from_value.replace("Z", "+00:00")
+                    )
+                    record_revision = rate_payload.get("record_revision", 1)
+                    if isinstance(record_revision, bool) or not isinstance(record_revision, int):
+                        raise ValueError("record_revision must be an integer")
+                    rate = ResourceCapacityRate(
+                        resource_id=rate_payload.get("resource_id"),
+                        effective_from=effective_from,
+                        max_units_per_time=Decimal(str(rate_payload.get("max_units_per_time"))),
+                        time_period_unit=rate_payload.get("time_period_unit"),
+                        hours_per_time_period=Decimal(str(rate_payload.get("hours_per_time_period"))),
+                        unit_of_measure=rate_payload.get("unit_of_measure"),
+                        time_period_source=rate_payload.get("time_period_source"),
+                        capacity_basis=rate_payload.get("capacity_basis", "absolute"),
+                        full_time_units_per_time_period=(
+                            None
+                            if rate_payload.get("full_time_units_per_time_period") is None
+                            else Decimal(str(rate_payload["full_time_units_per_time_period"]))
+                        ),
+                        shift_id=rate_payload.get("shift_id", "default"),
+                        record_revision=record_revision,
+                    )
+                    result = self._p6_resource_rate_api.save_rate(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        rate,
+                        auth_context=auth,
+                    )
+                except P6ResourceRatePersistenceError as exc:
+                    code = str(exc)
+                    if code == "IMMUTABLE_RESOURCE_RATE_CONFLICT":
+                        return self._error(409, code, "error.resource_rate.immutable_conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ValueError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
