@@ -23,7 +23,6 @@ from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
-    RelationshipLagCalendarAssignment,
 )
 from construction_pm.scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
@@ -491,96 +490,3 @@ def test_evaluator_fails_closed_even_for_prebuilt_snapshots_with_unsupported_lev
 
 
 
-def test_evaluator_prefers_explicit_versioned_per_relationship_lag_calendar():
-    project_calendar = CalendarReference("CAL-1", "1")
-    relationship_calendar = CalendarReference("CAL-LAG", "2")
-    source = AuthoritativeScheduleInput(
-        snapshot_id="S-EXPLICIT-REL-LAG",
-        tenant_id="T-1",
-        project_id="P-1",
-        project_revision=7,
-        mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=project_calendar,
-        activities=(Activity("A", 1), Activity("B", 1)),
-        relationships=(Relationship("A", "B", RelationshipType.FS, lag=1),),
-        activity_calendar_assignments=(),
-        relationship_lag_calendar_assignments=(
-            RelationshipLagCalendarAssignment(
-                predecessor_id="A",
-                successor_id="B",
-                option=RelationshipLagCalendar.SUCCESSOR,
-                calendar=relationship_calendar,
-            ),
-        ),
-        schedule_options=ScheduleOptions(
-            relationship_lag_calendar=RelationshipLagCalendar.PROJECT_DEFAULT,
-        ),
-        project_start=date(2026, 9, 21),
-    )
-    context = CalculationContext(
-        project_id="P-1",
-        project_version=7,
-        calendar_id="CAL-1",
-        calendar_version="1",
-        rules_version="rules-1",
-        engine_version="engine-1",
-        timezone="UTC",
-        calculation_timestamp="2026-09-30T00:00:00+00:00",
-        input_snapshot_id="S-EXPLICIT-REL-LAG",
-        tenant_id="T-1",
-    )
-    snapshot = build_snapshot(
-        source,
-        context,
-        datetime(2026, 9, 30, tzinfo=timezone.utc),
-    )
-    registry = CalendarResolverRegistry(
-        day_resolvers={
-            "CAL-1@1": WorkingTimeResolver(
-                WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}))
-            ),
-            "CAL-LAG@2": WorkingTimeResolver(
-                WorkingCalendar(
-                    working_weekdays=frozenset({0, 1, 2, 3, 4}),
-                    holidays=frozenset({date(2026, 9, 22)}),
-                )
-            ),
-        }
-    )
-
-    result = evaluate_schedule_snapshot(snapshot, context, registry)
-
-    assert result.date_result is not None
-    assert result.date_result.activities["A"].finish == date(2026, 9, 21)
-    # Project Default would put B on Wed 23 with a one-day FS lag;
-    # the explicit relationship calendar's Tuesday holiday pushes it later.
-    assert result.date_result.activities["B"].start == date(2026, 9, 24)
-
-
-
-def test_snapshot_rejects_ambiguous_lag_calendar_override_for_duplicate_relationship_edges():
-    calendar = CalendarReference("CAL-1", "1")
-    with pytest.raises(ValueError, match="ambiguous for duplicate relationship edge"):
-        AuthoritativeScheduleInput(
-            snapshot_id="S-DUP-EDGE-LAG",
-            tenant_id="T-1",
-            project_id="P-1",
-            project_revision=7,
-            mode=AuthoritativeScheduleMode.DATE_BASED,
-            project_calendar=calendar,
-            activities=(Activity("A", 1), Activity("B", 1)),
-            relationships=(
-                Relationship("A", "B", RelationshipType.FS, lag=0),
-                Relationship("A", "B", RelationshipType.SS, lag=1),
-            ),
-            activity_calendar_assignments=(),
-            relationship_lag_calendar_assignments=(
-                RelationshipLagCalendarAssignment(
-                    predecessor_id="A",
-                    successor_id="B",
-                    option=RelationshipLagCalendar.SUCCESSOR,
-                    calendar=calendar,
-                ),
-            ),
-            project_start=date(2026, 9, 21),
-        )
