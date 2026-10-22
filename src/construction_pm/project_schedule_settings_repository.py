@@ -47,9 +47,9 @@ class ProjectScheduleSettings:
     mode: AuthoritativeScheduleMode
     project_calendar: CalendarReference
     project_start: date | datetime
+    schedule_options: ScheduleOptions
+    project_leveling_priority: int
     project_finish: date | datetime | None = None
-    schedule_options: ScheduleOptions = ScheduleOptions()
-    project_leveling_priority: int = 10
     record_revision: int = 0
 
     def validate(self) -> None:
@@ -373,9 +373,9 @@ class SQLiteProjectScheduleSettingsRepository:
 
         if int(existing[0]) != settings.scope.project_revision:
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
-        current = _from_payload(settings.scope, str(existing[2]), int(existing[1]))
         if _content_hash(str(existing[2])) != str(existing[3]):
             raise ProjectScheduleSettingsPersistenceError("SETTINGS_HASH_MISMATCH")
+        current = _from_payload(settings.scope, str(existing[2]), int(existing[1]))
         if expected_revision is None or expected_revision != current.record_revision:
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
         stored = replace(settings, record_revision=current.record_revision + 1)
