@@ -518,6 +518,18 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
         options = project_settings.schedule_options
         leveling_requested = self._resource_leveling_requested(options)
+        if leveling_requested and (
+            options.include_external_res_ass
+            or options.external_project_priority_limit > 0
+        ):
+            # Cross-project assignments and project leveling-priority ordering
+            # are not in this project's immutable input pool yet. Never level
+            # a single-project subset while the user requested external scope.
+            raise ScheduleInputCompositionError("CROSS_PROJECT_RESOURCE_LEVELING_UNSUPPORTED")
+        if leveling_requested and options.recalculate_resource_costs:
+            # Current Schedule Query produces schedule dates/floats, not
+            # authoritative re-costed resource assignment outputs.
+            raise ScheduleInputCompositionError("RESOURCE_COST_RECALCULATION_AFTER_LEVELING_UNSUPPORTED")
 
         if not persisted_activities:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
