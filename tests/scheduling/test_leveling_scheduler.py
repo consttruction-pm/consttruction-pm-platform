@@ -1511,3 +1511,55 @@ def test_backward_activity_builder_bounds_negative_float_window_to_intermediate_
 
     assert (built[0].late_start, built[0].late_finish) == (day_two, day_two)
     assert built[0].resource_demands[0].period == day_two
+
+def test_backward_activity_builder_preserves_all_typed_p6_priority_values():
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling.leveling_scheduler import _backward_activities_from_intermediate
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    demand = ResourceDemand("R1", day_one, Decimal("8"), "A")
+    forward = LevelingActivity(
+        activity_id="A",
+        start=day_one,
+        finish=day_one,
+        total_float=2,
+        resource_demands=(demand,),
+        activity_priority=4,
+        free_float=1,
+        late_start=day_two,
+        late_finish=day_two,
+        original_planned_duration=Decimal("5"),
+        planned_finish=day_two,
+        project_planned_start=day_one,
+        project_priority=3,
+        remaining_duration=Decimal("2"),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(forward,),
+        backward_activities=(
+            BackwardLevelingActivity("A", day_one, day_one, day_two, day_two, (demand,)),
+        ),
+        capacities=(ResourceCapacity("R1", day_two, Decimal("8")),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    built = _backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": SimpleNamespace(start=day_one, finish=day_one)},
+        late_schedule={"A": SimpleNamespace(start=day_two, finish=day_two)},
+        resolver=resolver,
+    )
+
+    assert len(built) == 1
+    row = built[0]
+    assert row.activity_priority == 4
+    assert row.original_planned_duration == Decimal("5")
+    assert row.planned_finish == day_two
+    assert row.project_planned_start == day_one
+    assert row.project_priority == 3
+    assert row.remaining_duration == Decimal("2")
