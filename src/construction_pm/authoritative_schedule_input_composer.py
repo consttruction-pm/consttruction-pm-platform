@@ -39,7 +39,7 @@ from .project_schedule_settings_repository import (
     ProjectScheduleSettingsPersistenceError,
     ProjectScheduleSettingsRepository,
 )
-from .scheduling.activity import Activity
+from .scheduling.activity import Activity, ActivityType
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -255,6 +255,7 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError(f"RESOURCE_RATE_READ_FAILED:{exc}") from exc
 
         activity_ids = {activity.id for activity in schedule_input.activities}
+        activity_by_id = {activity.id: activity for activity in schedule_input.activities}
         assignment_by_id: dict[str, object] = {}
         resource_calendar_refs: dict[str, tuple[str, str]] = {}
         assignment_refs: list[ResourceAssignmentLevelingRef] = []
@@ -265,6 +266,14 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_SCOPE_MISMATCH")
             if assignment.activity_id not in activity_ids:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY")
+            if activity_by_id[assignment.activity_id].activity_type is ActivityType.RESOURCE_DEPENDENT:
+                # P6's Resource Dependent leveling requires identifying driving
+                # vs. nondriving resource assignments. The persisted assignment
+                # contract currently has no driving flag, so treating every
+                # assignment as an activity-driving resource would be wrong.
+                raise ScheduleInputCompositionError(
+                    "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
+                )
             if assignment.calendar_id is None or assignment.calendar_version is None:
                 raise ScheduleInputCompositionError("MISSING_RESOURCE_CALENDAR_VERSION")
             if not isinstance(assignment.unit, str) or not assignment.unit.strip():
