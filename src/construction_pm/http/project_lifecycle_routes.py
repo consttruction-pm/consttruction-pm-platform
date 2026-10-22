@@ -69,7 +69,7 @@ from ..project_schedule_settings_repository import (
     ProjectScheduleSettings,
     ProjectScheduleSettingsPersistenceError,
 )
-from ..scheduling.calendar_context import CalendarReference
+from ..scheduling.calendar_context import CalendarReference, RelationshipLagCalendar
 from ..scheduling.schedule_options import ScheduleOptions
 from ..scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from ..relationship_master_repository import RelationshipPersistenceError
@@ -81,6 +81,14 @@ from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_rate_api import P6ResourceRateAPI, P6_RESOURCE_RATE_API_VERSION
+from ..p6_relationship_lag_calendar_api import (
+    P6RelationshipLagCalendarAPI,
+    P6_RELATIONSHIP_LAG_CALENDAR_API_VERSION,
+)
+from ..calendar_master_repository import (
+    CalendarPersistenceError,
+    RelationshipLagCalendarAssignmentMaster,
+)
 from ..p6_resource_rate_repository import P6ResourceRatePersistenceError
 from ..scheduling.resource_leveling_input import ResourceCapacityRate
 from ..p6_resource_assignment_repository import P6ResourceAssignmentPeriodValue
@@ -140,6 +148,7 @@ class ProjectLifecycleHttpRoutes:
         p6_resource_read_api: P6ResourceReadAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_rate_api: P6ResourceRateAPI | None = None,
+        p6_relationship_lag_calendar_api: P6RelationshipLagCalendarAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
         dependency_graph_api: DependencyGraphAPI | None = None,
@@ -169,6 +178,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_resource_read_api = p6_resource_read_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_rate_api = p6_resource_rate_api
+        self._p6_relationship_lag_calendar_api = p6_relationship_lag_calendar_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
         self._dependency_graph_api = dependency_graph_api
@@ -1278,6 +1288,82 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, str(exc), "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
+            if (
+                path.startswith("/api/projects/")
+                and "/p6/relationships/" in path
+                and path.endswith("/lag-calendar")
+                and self._p6_relationship_lag_calendar_api is not None
+            ):
+                project_id = path[len("/api/projects/"):].split("/p6/relationships/", 1)[0].rstrip("/")
+                relationship_suffix = path.split("/p6/relationships/", 1)[1]
+                relationship_id = relationship_suffix[:-len("/lag-calendar")].strip("/")
+                if not project_id or not relationship_id or "/" in relationship_id:
+                    return self._error(400, "P6_RELATIONSHIP_LAG_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("invalid payload")
+                    if method == "GET":
+                        result = self._p6_relationship_lag_calendar_api.get(
+                            scope, relationship_id, auth_context=auth
+                        )
+                        if result is None:
+                            return self._error(404, "P6_RELATIONSHIP_LAG_CALENDAR_NOT_FOUND", "error.resource.not_found")
+                        return self._json(200, result)
+                    if method in {"POST", "PUT"}:
+                        if self._p6_relationship_api is None or self._p6_relationship_api.get(
+                            scope, relationship_id, auth_context=auth
+                        ) is None:
+                            return self._error(404, "P6_RELATIONSHIP_NOT_FOUND", "error.p6.relationship.not_found")
+                        version = payload.get("contract_version")
+                        if version != P6_RELATIONSHIP_LAG_CALENDAR_API_VERSION:
+                            raise ValueError("UNSUPPORTED_P6_RELATIONSHIP_LAG_CALENDAR_API_VERSION")
+                        option_value = payload.get("option", RelationshipLagCalendar.SUCCESSOR.value)
+                        option = RelationshipLagCalendar(option_value)
+                        calendar_id = payload.get("calendar_id")
+                        calendar_version = payload.get("calendar_version")
+                        expected_revision = payload.get("expected_revision")
+                        if method == "POST":
+                            if expected_revision not in (None, 0):
+                                raise ValueError("INVALID_EXPECTED_REVISION")
+                        elif (
+                            isinstance(expected_revision, bool)
+                            or not isinstance(expected_revision, int)
+                            or expected_revision < 1
+                        ):
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        assignment = RelationshipLagCalendarAssignmentMaster(
+                            scope=scope,
+                            relationship_id=relationship_id,
+                            option=option,
+                            calendar_id=calendar_id,
+                            calendar_version=calendar_version,
+                            record_revision=0 if expected_revision is None else expected_revision,
+                        )
+                        result = self._p6_relationship_lag_calendar_api.save(
+                            assignment,
+                            expected_revision=expected_revision,
+                            auth_context=auth,
+                        )
+                        return self._json(201 if method == "POST" else 200, result)
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except CalendarPersistenceError as exc:
+                    code = str(exc)
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    return self._error(400, code, "error.request.invalid")
+                except (TypeError, ValueError, ArithmeticError) as exc:
+                    return self._error(400, str(exc) or "P6_RELATIONSHIP_LAG_CALENDAR_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
