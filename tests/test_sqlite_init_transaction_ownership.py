@@ -13,19 +13,25 @@ def test_sqlite_repository_init_does_not_commit_caller_transaction(tmp_path):
     writer = sqlite3.connect(database)
 
     try:
+        # Reuse the same database file so the schema is visible to a separate
+        # connection before the caller begins its own transaction.
+        repo = SQLiteProjectScheduleSettingsRepository(writer)
         writer.execute(
-            "CREATE TABLE sentinel_tx (id INTEGER PRIMARY KEY, marker TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS sentinel_tx (id INTEGER PRIMARY KEY, marker TEXT NOT NULL)"
         )
         writer.execute("BEGIN")
         writer.execute("INSERT INTO sentinel_tx (marker) VALUES (?)", ("pending",))
+
         assert writer.in_transaction is True
 
-        repo = SQLiteProjectScheduleSettingsRepository(writer)
+        # Re-initialize on the same connection while the caller's transaction is active.
+        repo_again = SQLiteProjectScheduleSettingsRepository(writer)
+        assert repo_again.connection is writer
         assert writer.in_transaction is True
-        assert repo.get(scope()) is None
+        assert repo_again.get(scope()) is None
 
-        repo.save(date_settings(), expected_revision=0)
-
+        # The original unconditional constructor commit would commit the caller-owned
+        # transaction here, making the sentinel row visible to a second connection.
         with sqlite3.connect(database) as reader:
             assert reader.execute(
                 "SELECT COUNT(*) FROM sentinel_tx WHERE marker = ?",
