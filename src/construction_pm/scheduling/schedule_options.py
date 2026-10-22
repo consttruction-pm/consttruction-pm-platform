@@ -90,7 +90,7 @@ class ScheduleOptions:
     start_to_start_lag_calculation_type: StartToStartLagCalculationType = (
         StartToStartLagCalculationType.EARLY_START
     )
-    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.SUCCESSOR
+    relationship_lag_calendar: RelationshipLagCalendar = RelationshipLagCalendar.PROJECT_DEFAULT
     use_expected_finish_dates: bool = False
     recalculate_resource_costs: bool = False
     calculate_float_based_on_finish_date: bool = False
