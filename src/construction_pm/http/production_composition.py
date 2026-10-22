@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Callable
 
 from construction_pm.application.authorization import AuthorizationPolicy
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.backend_p0.api import BackendP0API
+from construction_pm.backend_p0.workspace_read import WorkspaceControlRoomReadService
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -30,6 +32,7 @@ def build_project_lifecycle_wsgi_app(
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
+    workspace_read_service: WorkspaceControlRoomReadService | None = None,
     clock: Clock | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
@@ -39,6 +42,16 @@ def build_project_lifecycle_wsgi_app(
     the authoritative snapshot evaluator and persisted CalculationContext;
     HTTP transport remains separate from Shared Core calculations.
     """
+    if workspace_read_service is not None:
+        if backend_p0_api is None:
+            raise ValueError("WORKSPACE_READ_SERVICE_REQUIRES_BACKEND_P0_API")
+        # Preserve the caller's configured backend application service while
+        # explicitly wiring the authoritative read service at composition time.
+        backend_p0_api = replace(
+            backend_p0_api,
+            workspace_read_service=workspace_read_service,
+        )
+
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
