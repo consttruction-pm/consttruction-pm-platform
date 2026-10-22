@@ -114,6 +114,7 @@ def test_resource_leveling_facts_reject_unbounded_capacity_horizon():
         resource_id="R1",
         calendar_id="RES-CAL-1",
         calendar_version="v1",
+        unit_of_measure="h",
         assigned_units=Decimal("8"),
         remaining_units=Decimal("8"),
     )
