@@ -14,6 +14,7 @@ from .schedule_snapshot_materializer import MaterializedScheduleInput, materiali
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
+from .scheduling.activity import ActivityType
 from .scheduling.leveling_scheduler import (
     _schedule_options_without_leveling,
     schedule_with_resource_leveling,
@@ -256,7 +257,17 @@ def _leveling_input_from_snapshot_facts(
     demand_by_activity: dict[str, list[ResourceDemand]] = {
         activity.id: [] for activity in activities
     }
+    # P6 v26 explicitly ignores WBS Summary activities during resource
+    # leveling. Keep their raw assignments in the immutable snapshot for audit,
+    # but do not turn those summary rollups into capacity-consuming demands.
+    wbs_summary_ids = {
+        activity.id
+        for activity in activities
+        if getattr(activity, "activity_type", None) is ActivityType.WBS_SUMMARY
+    }
     for demand in facts.demands:
+        if demand.activity_id in wbs_summary_ids:
+            continue
         demand_by_activity[demand.activity_id].append(
             ResourceDemand(
                 resource_id=demand.resource_id,
