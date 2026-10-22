@@ -7,6 +7,7 @@ from typing import Callable, Iterable, Mapping
 from .activity import Activity
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .calendar_context import Continuous24HourResolver, RelationshipLagCalendar
 from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
@@ -777,6 +778,34 @@ def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
         )
 
 
+def _effective_relationship_lag_resolvers(
+    relationships: Iterable[Relationship],
+    resolver: WorkingTimeResolver,
+    relationship_lag_resolvers: Mapping[tuple[str, str], WorkingTimeResolver] | None,
+    activity_resolvers: Mapping[str, WorkingTimeResolver] | None,
+    lag_calendar: RelationshipLagCalendar,
+) -> Mapping[tuple[str, str], WorkingTimeResolver]:
+    """Resolve P6's relationship-lag calendar option without overriding explicit mappings."""
+    effective = dict(relationship_lag_resolvers or {})
+    if lag_calendar is RelationshipLagCalendar.TWENTY_FOUR_HOUR:
+        selected_default = Continuous24HourResolver()
+    else:
+        selected_default = resolver
+
+    activities = activity_resolvers or {}
+    for relationship in relationships:
+        key = (relationship.predecessor_id, relationship.successor_id)
+        if key in effective:
+            continue
+        if lag_calendar is RelationshipLagCalendar.PREDECESSOR:
+            effective[key] = activities.get(relationship.predecessor_id, resolver)
+        elif lag_calendar is RelationshipLagCalendar.SUCCESSOR:
+            effective[key] = activities.get(relationship.successor_id, resolver)
+        else:
+            effective[key] = selected_default
+    return effective
+
+
 def schedule(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -798,6 +827,13 @@ def schedule(
     activity_list = list(activities)
     relationship_list = list(relationships)
     constraint_list = list(constraints or ())
+    effective_lag_resolvers = _effective_relationship_lag_resolvers(
+        relationship_list,
+        resolver,
+        relationship_lag_resolvers,
+        activity_resolvers,
+        selected_options.relationship_lag_calendar,
+    )
     early = forward_pass(
         activity_list,
         relationship_list,
@@ -807,7 +843,7 @@ def schedule(
         calculation_context,
         selected_options.start_to_start_lag_calculation_type,
         selected_options.data_date,
-        relationship_lag_resolvers,
+        effective_lag_resolvers,
         selected_options.use_expected_finish_dates,
         selected_options.out_of_sequence_schedule_type,
         activity_resolvers,
@@ -824,7 +860,7 @@ def schedule(
     )
     late = backward_pass(
         activity_list, relationship_list, early, float_finish, resolver, constraint_list,
-        relationship_lag_resolvers,
+        effective_lag_resolvers,
         activity_resolvers,
     )
     floats = calculate_floats(
@@ -834,12 +870,12 @@ def schedule(
         late,
         resolver,
         selected_options,
-        relationship_lag_resolvers,
+        effective_lag_resolvers,
         activity_resolvers,
     )
 
     float_paths = _multiple_float_paths(
-        activity_list, relationship_list, early, late, resolver, selected_options, relationship_lag_resolvers, activity_resolvers
+        activity_list, relationship_list, early, late, resolver, selected_options, effective_lag_resolvers, activity_resolvers
     )
     path_by_activity: dict[str, tuple[int, int]] = {}
     for path in float_paths:
