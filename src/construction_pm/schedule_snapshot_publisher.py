@@ -8,6 +8,7 @@ from typing import Callable
 from uuid import uuid4
 
 from .backend_p0.models import BackendScope
+from .backend_p0.transactions import TransactionManager
 from .schedule_calculation_context_repository import (
     CalculationContextRepository,
     PersistedCalculationContext,
@@ -58,13 +59,6 @@ class PublishedScheduleSnapshot:
         )
 
 
-class ScheduleSnapshotTransactionManager:
-    """Small protocol-shaped base contract for SQLite or PostgreSQL transactions."""
-
-    def transaction(self):
-        raise NotImplementedError
-
-
 class AuthoritativeScheduleSnapshotPublisher:
     """Fresh-read, compose, persist and verify a schedule snapshot as one operation."""
 
@@ -74,7 +68,7 @@ class AuthoritativeScheduleSnapshotPublisher:
         composer: AuthoritativeScheduleInputComposer,
         snapshot_repository: ScheduleInputSnapshotRepository,
         calculation_context_repository: CalculationContextRepository,
-        transaction_manager: ScheduleSnapshotTransactionManager,
+        transaction_manager: TransactionManager,
         rules_version: str,
         engine_version: str,
         clock: Callable[[], datetime] | None = None,

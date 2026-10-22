@@ -22,9 +22,7 @@ from construction_pm.calendar_master_repository import (
 )
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
-from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
-from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
-from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
@@ -153,14 +151,19 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         snapshot_id_factory=lambda: "SNAP-PUBLISHED-1",
     )
     snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy)
-    activity_api = P6ActivityMasterAPI(activity_repo, policy)
-    routes = ProjectLifecycleHttpRoutes(
-        lifecycle,
-        clock=type("Clock", (), {"now": lambda self: now})(),
-        p6_activity_master_api=activity_api,
-        p6_schedule_snapshot_api=snapshot_api,
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
     )
-    app = ProjectLifecycleWsgiApp(routes)
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=lifecycle,
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=effective_context_repo,
+        authorization_policy=policy,
+        activity_master_repository=activity_repo,
+        schedule_snapshot_publication_api=snapshot_api,
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
     return {
         "app": app,
         "connection": connection,
@@ -264,6 +267,35 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert by_id["A-1"].status_code is ActivityStatusCode.PLANNED
     assert by_id["A-1"].activity_type is ActivityType.TASK_DEPENDENT
     assert len(materialized.schedule_input.relationships) == 1
+
+    # Exercise the real production Schedule Query provider against the just-
+    # published snapshot/context, not a manually constructed scheduler input.
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-PUBLISHED",
+            "scope": {
+                "tenant_id": "t1",
+                "project_id": "p1",
+                "project_revision": 2,
+            },
+            "requested_by": "u1",
+            "query_text": "show schedule",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    assert query_result["contract_version"] == "schedule-query-result.v1"
+    assert query_result["query_id"] == "Q-PUBLISHED"
+    assert query_result["data"]["activity_count"] == 2
+    assert query_result["data"]["activities"]["A-1"]["start"] == "2026-10-19"
+    assert query_result["data"]["activities"]["B-1"]["start"] == "2026-10-21"
+    assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
     connection.close()
 
 
