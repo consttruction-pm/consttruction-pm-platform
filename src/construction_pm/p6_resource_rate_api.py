@@ -55,7 +55,7 @@ class P6ResourceRateAPI:
         resource_id: str | None = None,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
-        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_SCHEDULE):
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("RESOURCE_RATE_READ_NOT_AUTHORIZED")
         rates = self.repository.list(scope, resource_id)
         return {
