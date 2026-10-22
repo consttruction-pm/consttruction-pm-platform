@@ -208,10 +208,10 @@ class ResourceLevelingFacts:
     capacity_horizon_start: date
     capacity_horizon_end: date
     calculation_timezone: str
-    schema_version: int = 1
+    schema_version: int = 2
 
     def validate(self, *, activity_ids: set[str]) -> None:
-        if self.schema_version != 1:
+        if self.schema_version != 2:
             raise ResourceLevelingFactsError("UNSUPPORTED_RESOURCE_LEVELING_FACTS_VERSION")
         if not isinstance(self.assignments, tuple) or not self.assignments:
             raise ResourceLevelingFactsError("RESOURCE_ASSIGNMENTS_REQUIRED")
