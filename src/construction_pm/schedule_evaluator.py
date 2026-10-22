@@ -13,6 +13,7 @@ from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import MaterializedScheduleInput, materialize_schedule_snapshot
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calendar_resolution import resolve_authoritative_activity_calendars
+from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.activity import ActivityType
@@ -130,6 +131,9 @@ def _evaluate_materialized(
             )
             resolver = resolved_calendars.project
             activity_resolvers = resolved_calendars.activities
+            relationship_lag_resolvers = resolve_relationship_lag_resolvers(
+                source, materialized.calendar_registry
+            )
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if source.resource_leveling_inputs is not None:
@@ -141,6 +145,7 @@ def _evaluate_materialized(
                         source,
                         resolver=resolver,
                         calculation_context=calculation_context,
+                        relationship_lag_resolvers=relationship_lag_resolvers,
                         activity_resolvers=activity_resolvers,
                     )
                 if leveling_input is None:
@@ -155,6 +160,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
                 )
             else:
@@ -167,6 +173,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
                 )
             run_identity = _run_identity(
@@ -237,6 +244,7 @@ def _leveling_input_from_snapshot_facts(
     resolver: object,
     calculation_context: CalculationContext,
     activity_resolvers: Mapping[str, object] | None = None,
+    relationship_lag_resolvers: Mapping[tuple[str, str], object] | None = None,
 ) -> SchedulerLevelingInput:
     """Build typed leveling rows only from the same immutable schedule snapshot."""
     facts = getattr(source, "resource_leveling_inputs", None)
@@ -263,6 +271,7 @@ def _leveling_input_from_snapshot_facts(
         constraints=constraints,
         options=_schedule_options_without_leveling(schedule_options),
         calculation_context=calculation_context,
+        relationship_lag_resolvers=relationship_lag_resolvers,
         activity_resolvers=activity_resolvers,
     )
     early_schedule = initial.early_activities or initial.activities
