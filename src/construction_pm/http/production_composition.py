@@ -11,6 +11,8 @@ from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
+from construction_pm.p6_resource_rate_api import P6ResourceRateAPI
+from construction_pm.p6_resource_rate_repository import P6ResourceRateRepository
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
@@ -29,6 +31,7 @@ def build_project_lifecycle_wsgi_app(
     activity_master_repository: ActivityMasterRepository | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
+    resource_rate_repository: P6ResourceRateRepository | None = None,
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
 ) -> ProjectLifecycleWsgiApp:
@@ -60,12 +63,35 @@ def build_project_lifecycle_wsgi_app(
         if relationship_master_repository is None
         else P6RelationshipAPI(relationship_master_repository, authorization_policy)
     )
+    # Share the exact capacity repository with the authoritative snapshot composer.
+    # When callers pass a precomposed publication API, infer its persisted rate
+    # repository unless one was explicitly supplied. Reject split-brain wiring.
+    publication_composer = (
+        None
+        if schedule_snapshot_publication_api is None
+        else getattr(
+            getattr(schedule_snapshot_publication_api, "publisher", None),
+            "composer",
+            None,
+        )
+    )
+    composer_rate_repository = getattr(publication_composer, "resource_rate_repository", None)
+    if resource_rate_repository is None:
+        resource_rate_repository = composer_rate_repository
+    elif publication_composer is not None and composer_rate_repository is not resource_rate_repository:
+        raise ValueError("RESOURCE_RATE_REPOSITORY_WIRING_MISMATCH")
+    resource_rate_api = (
+        None
+        if resource_rate_repository is None
+        else P6ResourceRateAPI(resource_rate_repository, authorization_policy)
+    )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
+        p6_resource_rate_api=resource_rate_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
     )
