@@ -190,6 +190,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         activity_master_repository=activity_repo,
         relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
+        resource_rate_repository=resource_rates,
         clock=type("Clock", (), {"now": lambda self: now})(),
     )
     return {
@@ -581,3 +582,109 @@ def test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_producti
     }
     assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
     connection.close()
+
+
+def test_authenticated_resource_rate_http_api_reads_and_writes_the_composer_repository(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+
+    status, listed = _request(app, "GET", "/api/projects/p1/p6/resource-rates")
+    assert status == "200 OK"
+    assert listed["contract_version"] == "p6-resource-rate-api.v1"
+    assert listed["scope"] == {
+        "tenant_id": "t1",
+        "project_id": "p1",
+        "project_revision": 2,
+    }
+    assert [item["rate"]["resource_id"] for item in listed["items"]] == ["R1"]
+
+    status, saved = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/resource-rates",
+        {
+            "rate": {
+                "resource_id": "R1",
+                "effective_from": "2026-11-01T00:00:00+00:00",
+                "max_units_per_time": "10",
+                "time_period_unit": "day",
+                "hours_per_time_period": "8",
+                "unit_of_measure": "h",
+                "time_period_source": "global",
+                "capacity_basis": "absolute",
+                "shift_id": "default",
+                "record_revision": 1,
+            }
+        },
+    )
+    assert status == "200 OK"
+    assert saved["rate"]["max_units_per_time"] == "10"
+    assert len(saved["profile_hash"]) == 64
+
+    status, refreshed = _request(app, "GET", "/api/projects/p1/p6/resource-rates")
+    assert status == "200 OK"
+    assert [item["rate"]["effective_from"] for item in refreshed["items"]] == [
+        "2026-10-18T00:00:00+00:00",
+        "2026-11-01T00:00:00+00:00",
+    ]
+
+
+def test_resource_rate_http_api_allows_readers_but_denies_capacity_writes(tmp_path):
+    fixture = _fixture(tmp_path, role="viewer")
+    app = fixture["app"]
+
+    status, result = _request(app, "GET", "/api/projects/p1/p6/resource-rates")
+    assert status == "200 OK"
+    assert len(result["items"]) == 1
+
+    status, result = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/resource-rates",
+        {
+            "rate": {
+                "resource_id": "R1",
+                "effective_from": "2026-11-01T00:00:00+00:00",
+                "max_units_per_time": "10",
+                "time_period_unit": "day",
+                "hours_per_time_period": "8",
+                "unit_of_measure": "h",
+                "time_period_source": "global",
+            }
+        },
+    )
+    assert status == "403 Forbidden"
+    assert result["code"] == "RESOURCE_RATE_WRITE_NOT_AUTHORIZED"
+
+
+def test_production_composition_rejects_split_resource_rate_repository_wiring(tmp_path):
+    fixture = _fixture(tmp_path)
+    # The app factory must not expose writes against a capacity repository that
+    # is different from the repository consumed by the schedule snapshot composer.
+    from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
+
+    connection = fixture["connection"]
+    other_rate_repository = SQLiteP6ResourceRateRepository(
+        sqlite3.connect(":memory:")
+    )
+    with pytest.raises(ValueError, match="RESOURCE_RATE_REPOSITORY_WIRING_MISMATCH"):
+        build_project_lifecycle_wsgi_app(
+            lifecycle_api=ProjectLifecycleAPI(
+                ProjectLifecycleService(
+                    Sessions(
+                        AuthenticatedSession(
+                            "s1", "u1", "t1", frozenset({"project_admin"}),
+                            datetime(2026, 10, 22, 13, 0, tzinfo=timezone.utc),
+                        )
+                    ),
+                    Projects(),
+                    default_project_policy(),
+                )
+            ),
+            snapshot_repository=fixture["snapshot_repo"],
+            calendar_registry_factory=lambda: CalendarResolverRegistry(),
+            calculation_context_repository=fixture["context_repo"],
+            authorization_policy=default_project_policy(),
+            schedule_snapshot_publication_api=fixture.get("schedule_snapshot_api"),
+            resource_rate_repository=other_rate_repository,
+        )
