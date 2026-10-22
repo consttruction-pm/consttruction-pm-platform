@@ -166,6 +166,7 @@ def test_time_aware_project_schedule_settings_preserve_timezone_precision():
         project_start=datetime.fromisoformat("2026-10-01T08:15:30.123456+02:00"),
         project_finish=datetime.fromisoformat("2026-10-31T17:45:00.654321+02:00"),
         schedule_options=ScheduleOptions(data_date=date(2026, 10, 15)),
+        project_leveling_priority=10,
     )
 
     repo.save(original, expected_revision=0)
