@@ -1,7 +1,7 @@
 # Resource Max Units/Time — Immutable Schedule Snapshot Contract
 
 Date: 2026-10-22  
-Status: **Partial implementation. Code checkpoint `b0d10815f6845c7c86be31c76a25460202f01ab9` passed Python CI (2,693 passed, 93 skipped, 1 pre-existing pytest-marker warning), PostgreSQL Integration, and Client Typecheck for web/desktop/mobile/client-sync. This does not establish full P6 feature parity; the unsupported cases below remain open.**
+Status: **Partial implementation. Exact current checkpoint `7d567597b969a2910db3fede3a681c40039fe4fd` passed ConstructionPM CI (2,695 passed, 93 skipped), PostgreSQL Integration, and Client Typecheck for web/desktop/mobile/client-sync. This does not establish full P6 feature parity; the explicit unsupported cases below remain open.**
 
 ## Authoritative references
 
