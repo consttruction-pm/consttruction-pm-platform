@@ -169,6 +169,10 @@ class ResourceLevelingFacts:
             calendar_hash_by_resource[capacity.resource_id] = identity
 
         horizon_day_count = (self.capacity_horizon_end - self.capacity_horizon_start).days + 1
+        # Match the publication composer limit here too: persisted snapshots
+        # are revalidated independently and must not request an unbounded loop.
+        if horizon_day_count > 36501:
+            raise ResourceLevelingFactsError("RESOURCE_LEVELING_CAPACITY_HORIZON_OUT_OF_RANGE")
         for resource_id in resource_calendar:
             if resource_id not in calendar_hash_by_resource:
                 raise ResourceLevelingFactsError("RESOURCE_CALENDAR_CAPACITY_REQUIRED")
