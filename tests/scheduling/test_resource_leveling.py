@@ -219,6 +219,103 @@ def test_priority_based_leveling_uses_configured_priority_before_demand_size():
     assert shifts[0].activity_id == "A2"
 
 
+@pytest.mark.parametrize(
+    ("field_name", "a1_value", "a2_value"),
+    [
+        ("late_start", date(2026, 10, 3), date(2026, 10, 2)),
+        ("late_finish", date(2026, 10, 4), date(2026, 10, 3)),
+    ],
+)
+def test_late_date_leveling_priorities_use_authoritative_values(field_name, a1_value, a2_value):
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()
+    ))
+    day = date(2026, 10, 1)
+    activities = (
+        LevelingActivity(
+            "A1", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("8"), "A1"),),
+            late_start=date(2026, 10, 3), late_finish=date(2026, 10, 4),
+        ),
+        LevelingActivity(
+            "A2", day, day, 2,
+            (ResourceDemand("R1", day, Decimal("4"), "A2"),),
+            late_start=date(2026, 10, 2), late_finish=date(2026, 10, 3),
+        ),
+    )
+    # Keep the case data explicit so a mistaken field mapping cannot pass.
+    assert getattr(activities[0], field_name) == a1_value
+    assert getattr(activities[1], field_name) == a2_value
+    capacities = (ResourceCapacity("R1", day, Decimal("8")),)
+
+    shifts = propose_forward_leveling_within_float(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority(field_name, SortOrder.ASCENDING),),
+    )
+
+    assert shifts[0].activity_id == "A2"
+
+
+@pytest.mark.parametrize(
+    "priority_field",
+    ["late_start", "late_finish", "total_float"],
+)
+def test_unrestricted_forward_leveling_preserves_authoritative_priority_values(
+    priority_field,
+):
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    day = date(2026, 10, 1)
+    early_late_date = date(2026, 10, 2)
+    later_date = date(2026, 10, 7)
+    activities = (
+        # Activity ID A sorts ahead of B, so this assertion proves that the
+        # requested authoritative priority field—not a synthetic tie—wins.
+        LevelingActivity(
+            "A", day, day, 5,
+            (ResourceDemand("R1", day, Decimal("8"), "A"),),
+            late_start=later_date,
+            late_finish=later_date,
+        ),
+        LevelingActivity(
+            "B", day, day, 1,
+            (ResourceDemand("R1", day, Decimal("8"), "B"),),
+            late_start=early_late_date,
+            late_finish=early_late_date,
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day, Decimal("8")),
+        ResourceCapacity("R1", date(2026, 10, 2), Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        level_within_float=False,
+        priorities=(LevelingPriority(priority_field, SortOrder.ASCENDING),),
+    )
+
+    assert shifts[0].activity_id == "B"
+
+
+def test_missing_authoritative_late_date_priority_fails_closed():
+    resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()
+    ))
+    activity = LevelingActivity(
+        "A1", date(2026, 10, 1), date(2026, 10, 1), 1,
+        (ResourceDemand("R1", date(2026, 10, 1), Decimal("8"), "A1"),),
+    )
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_forward_leveling_within_float(
+            (activity,), (), resolver=resolver,
+            priorities=(LevelingPriority("late_start", SortOrder.ASCENDING),),
+        )
+
+
 def test_priority_tie_falls_back_to_activity_id():
     resolver = WorkingTimeResolver(WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset()))
     activities = (
@@ -465,7 +562,7 @@ def test_internal_numeric_activity_priority_honors_descending_sort_order():
 
 
 
-@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish"])
+@pytest.mark.parametrize("field_name", ["planned_start", "planned_finish", "total_float"])
 def test_backward_leveling_rejects_priority_fields_without_distinct_schedule_data(field_name):
     resolver = WorkingTimeResolver(
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
@@ -550,3 +647,182 @@ def test_apply_leveling_shifts_rejects_unknown_activity_ids():
 def test_resource_periods_reject_datetime_values(factory):
     with pytest.raises(ResourceLevelingError, match="INVALID_PERIOD"):
         factory(datetime(2026, 10, 1, 12, 0))
+
+
+def test_backward_leveling_supports_late_finish_priority_from_p6_matrix():
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    day_three = date(2026, 10, 3)
+    day_four = date(2026, 10, 4)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    activities = (
+        BackwardLevelingActivity(
+            "A", day_one, day_one, day_three, day_three,
+            (ResourceDemand("R1", day_three, Decimal("1"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", day_one, day_one, day_four, day_four,
+            (ResourceDemand("R1", day_three, Decimal("1"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_two, Decimal("1")),
+        ResourceCapacity("R1", day_three, Decimal("1")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=resolver,
+        priorities=(LevelingPriority("late_finish", SortOrder.ASCENDING),),
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_two
+    assert shifts[0].new_finish == day_two
+
+
+def test_forward_leveling_uses_supplied_authoritative_free_float_priority():
+    day_one, day_two = date(2026, 10, 1), date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    activities = (
+        LevelingActivity("A", day_one, day_one, 2, (ResourceDemand("R1", day_one, Decimal("8"), "A"),), free_float=0),
+        LevelingActivity("B", day_one, day_one, 2, (ResourceDemand("R1", day_one, Decimal("8"), "B"),), free_float=2),
+    )
+    capacities = (
+        ResourceCapacity("R1", day_one, Decimal("8")),
+        ResourceCapacity("R1", day_two, Decimal("8")),
+    )
+    shifts = propose_forward_leveling(
+        activities, capacities, resolver=resolver,
+        priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
+    )
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "A"
+    assert shifts[0].new_start == day_two
+
+
+def test_forward_leveling_rejects_free_float_priority_when_cpm_value_is_missing():
+    day_one = date(2026, 10, 1)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4, 5, 6}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A", day_one, day_one, 2, (ResourceDemand("R1", day_one, Decimal("8"), "A"),)
+    )
+    with pytest.raises(ResourceLevelingError, match="UNSUPPORTED_LEVELING_PRIORITY"):
+        propose_forward_leveling(
+            (activity,), (ResourceCapacity("R1", day_one, Decimal("0")),),
+            resolver=resolver, priorities=(LevelingPriority("Free Float", SortOrder.ASCENDING),),
+        )
+
+def test_forward_leveling_uses_each_activities_own_calendar():
+    from construction_pm.scheduling.resource_leveling import LevelingActivity
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    four_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    activities = (
+        LevelingActivity(
+            "A", thursday, thursday, 1,
+            (ResourceDemand("R1", thursday, Decimal("8"), "A"),),
+        ),
+        LevelingActivity(
+            "B", thursday, thursday, 1,
+            (ResourceDemand("R1", thursday, Decimal("8"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", thursday, Decimal("8")),
+        ResourceCapacity("R1", monday, Decimal("8")),
+    )
+
+    shifts = propose_forward_leveling(
+        activities,
+        capacities,
+        resolver=project_resolver,
+        level_within_float=True,
+        priorities=(LevelingPriority("Activity ID", SortOrder.DESCENDING),),
+        activity_resolvers={"B": four_day_resolver},
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+    # B's calendar does not work Friday, so its next working day is Monday.
+    assert shifts[0].new_start == monday
+    assert shifts[0].new_finish == monday
+
+def test_backward_leveling_uses_each_activities_own_calendar():
+    from construction_pm.scheduling.resource_leveling import BackwardLevelingActivity
+
+    thursday = date(2026, 10, 1)
+    monday = date(2026, 10, 5)
+    project_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset(),
+    ))
+    four_day_resolver = WorkingTimeResolver(WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3}), holidays=frozenset(),
+    ))
+    activities = (
+        BackwardLevelingActivity(
+            "A", thursday, thursday, monday, monday,
+            (ResourceDemand("R1", monday, Decimal("8"), "A"),),
+        ),
+        BackwardLevelingActivity(
+            "B", thursday, thursday, monday, monday,
+            (ResourceDemand("R1", monday, Decimal("8"), "B"),),
+        ),
+    )
+    capacities = (
+        ResourceCapacity("R1", monday, Decimal("8")),
+        ResourceCapacity("R1", thursday, Decimal("8")),
+    )
+
+    shifts = propose_backward_leveling(
+        activities,
+        capacities,
+        resolver=project_resolver,
+        priorities=(LevelingPriority("Activity ID", SortOrder.DESCENDING),),
+        activity_resolvers={"B": four_day_resolver},
+    )
+
+    assert len(shifts) == 1
+    assert shifts[0].activity_id == "B"
+    assert shifts[0].new_start == thursday
+    assert shifts[0].new_finish == thursday
+
+
+
+@pytest.mark.parametrize(
+    ("late_start", "late_finish"),
+    [
+        (date(2026, 9, 30), date(2026, 10, 1)),
+        (date(2026, 10, 1), date(2026, 9, 30)),
+    ],
+)
+def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
+    late_start, late_finish
+):
+    # Negative total float can produce late dates earlier than early dates.
+    # Preserve CPM output instead of rejecting it as an invalid activity window.
+    activity = LevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+        -2,
+        late_start=late_start,
+        late_finish=late_finish,
+    )
+    assert activity.total_float == -2
+    assert activity.late_start == late_start
+    assert activity.late_finish == late_finish

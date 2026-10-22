@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import date
 from typing import Iterable, Mapping
 
-from .constraints import ActivityConstraint, ConstraintType
+from .constraints import ActivityConstraint, ConstraintType, ConstraintViolation
 from .resource_leveling import (
     BackwardLevelingActivity,
     BackwardLevelingShift,
@@ -45,7 +45,10 @@ def backward_leveling_constraints(
     )
 
 
-def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift]) -> tuple[ActivityConstraint, ...]:
+def backward_leveling_exact_constraints(
+    shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift],
+) -> tuple[ActivityConstraint, ...]:
+    """Pin accepted backward-leveling starts while retaining CPM validation."""
     final_by_activity: dict[str, BackwardLevelingShift] = {}
     for shift in shifts:
         if shift.advanced_days <= 0:
@@ -53,13 +56,37 @@ def backward_leveling_exact_constraints(shifts: tuple[BackwardLevelingShift, ...
         current = final_by_activity.get(shift.activity_id)
         if current is None or shift.advanced_days > current.advanced_days:
             final_by_activity[shift.activity_id] = shift
-    result: list[ActivityConstraint] = []
+    constraints: list[ActivityConstraint] = []
     for shift in sorted(final_by_activity.values(), key=lambda item: item.activity_id):
-        result.extend((
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start),
-            ActivityConstraint(shift.activity_id, ConstraintType.START_NO_LATER_THAN, shift.new_start),
+        constraints.extend((
+            ActivityConstraint(
+                shift.activity_id, ConstraintType.START_NO_EARLIER_THAN, shift.new_start
+            ),
+            ActivityConstraint(
+                shift.activity_id, ConstraintType.START_NO_LATER_THAN, shift.new_start
+            ),
         ))
-    return tuple(result)
+    return tuple(constraints)
+
+
+def _order_backward_leveling_candidates(
+    shifts: tuple[BackwardLevelingShift, ...] | list[BackwardLevelingShift],
+) -> tuple[BackwardLevelingShift, ...]:
+    """Order least-disruptive moves without discarding P6 priority sequence.
+
+    The backward proposal routine already selects overloaded activities using
+    the configured ordered priority rows. Keep that proposal order when two
+    activities need the same number of working-day advances; activity ID is
+    only a deterministic fallback inside the proposal routine, not a reason
+    to reorder its already-prioritized candidates here.
+    """
+    proposal_order: dict[str, int] = {}
+    for shift in shifts:
+        proposal_order.setdefault(shift.activity_id, len(proposal_order))
+    return tuple(sorted(
+        shifts,
+        key=lambda item: (item.advanced_days, proposal_order[item.activity_id]),
+    ))
 
 
 def merge_leveling_constraints(
@@ -84,35 +111,157 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
     )
 
 
+def _forward_activities_with_authoritative_floats(
+    leveling_input: SchedulerLevelingInput,
+    *,
+    initial_schedule: object,
+    resolver: object,
+    activity_resolvers: Mapping[str, object] | None = None,
+) -> tuple[LevelingActivity, ...]:
+    """Rebase leveling rows to the fresh CPM early/late dates and float values.
+
+    ResourceDemand periods must be moved with the same per-activity calendar
+    when the authoritative CPM early start differs from the supplied row.
+    Free Float and Total Float are schedule outputs, never estimates from
+    activity dates or stale request values.
+    """
+    early_schedule = (
+        getattr(initial_schedule, "early_activities", None)
+        or getattr(initial_schedule, "activities", {})
+        or {}
+    )
+    float_schedule = getattr(initial_schedule, "floats", {}) or {}
+    late_schedule = getattr(initial_schedule, "late_activities", {}) or {}
+    result: list[LevelingActivity] = []
+    for activity in leveling_input.forward_activities:
+        early = early_schedule.get(activity.activity_id)
+        floats = float_schedule.get(activity.activity_id)
+        late = late_schedule.get(activity.activity_id)
+        if early is None or floats is None or late is None:
+            raise ResourceLevelingError(
+                f"SCHEDULE_MISSING_LEVELING_ACTIVITY:{activity.activity_id}"
+            )
+        authoritative_total_float = getattr(floats, "total_float", None)
+        authoritative_free_float = getattr(floats, "free_float", None)
+        if (
+            isinstance(authoritative_total_float, bool)
+            or not isinstance(authoritative_total_float, int)
+        ):
+            raise ResourceLevelingError(
+                f"SCHEDULE_TOTAL_FLOAT_MISSING:{activity.activity_id}"
+            )
+
+        activity_resolver = (activity_resolvers or {}).get(
+            activity.activity_id, resolver
+        )
+        if not all(
+            callable(getattr(activity_resolver, name, None))
+            for name in (
+                "working_days_between",
+                "add_working_duration",
+                "subtract_working_duration",
+            )
+        ):
+            raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
+
+        if early.start >= activity.start:
+            start_displacement = activity_resolver.working_days_between(
+                activity.start, early.start
+            )
+        else:
+            start_displacement = -activity_resolver.working_days_between(
+                early.start, activity.start
+            )
+
+        shifted_demands: list[ResourceDemand] = []
+        for demand in activity.resource_demands:
+            if start_displacement > 0:
+                shifted_period = activity_resolver.add_working_duration(
+                    demand.period, start_displacement + 1
+                )
+            elif start_displacement < 0:
+                shifted_period = activity_resolver.subtract_working_duration(
+                    demand.period, abs(start_displacement) + 1
+                )
+            else:
+                shifted_period = demand.period
+            shifted_demands.append(
+                ResourceDemand(
+                    demand.resource_id,
+                    shifted_period,
+                    demand.units,
+                    demand.activity_id,
+                )
+            )
+
+        result.append(
+            replace(
+                activity,
+                start=early.start,
+                finish=early.finish,
+                total_float=authoritative_total_float,
+                resource_demands=tuple(shifted_demands),
+                free_float=authoritative_free_float,
+                late_start=late.start,
+                late_finish=late.finish,
+            )
+        )
+    return tuple(result)
+
+
 def _backward_activities_from_intermediate(
     leveling_input: SchedulerLevelingInput,
     *,
     early_schedule: Mapping[str, object],
     late_schedule: Mapping[str, object],
     resolver: object,
+    float_schedule: Mapping[str, object] | None = None,
+    activity_resolvers: Mapping[str, object] | None = None,
+    protected_activity_ids: tuple[str, ...] = (),
 ) -> tuple[BackwardLevelingActivity, ...]:
+    """Build late-date candidate rows while retaining protected forward demand at CPM dates."""
+    protected = set(protected_activity_ids)
     forward_by_id = {a.activity_id: a for a in leveling_input.forward_activities}
     result: list[BackwardLevelingActivity] = []
     for activity in sorted(leveling_input.backward_activities, key=lambda item: item.activity_id):
         early = early_schedule[activity.activity_id]
         late = late_schedule[activity.activity_id]
         forward_activity = forward_by_id.get(activity.activity_id, activity)
+        activity_resolver = (activity_resolvers or {}).get(activity.activity_id, resolver)
         original_start = forward_by_id[activity.activity_id].start
-        if late.start > original_start:
-            displacement = resolver.working_days_between(original_start, late.start)
-        elif late.start < original_start:
-            displacement = -resolver.working_days_between(late.start, original_start)
+        # A calculated late window can begin before the intermediate CPM
+        # early dates when a project-finish/constraint creates negative float.
+        # Bound only the backward-leveling proposal window to CPM early dates;
+        # do not rewrite the authoritative result or its reported float.
+        candidate_late_start = max(late.start, early.start)
+        candidate_late_finish = max(late.finish, early.finish)
+
+        # A demand for a forward-leveled activity is already occupying its
+        # accepted intermediate CPM period. Keep it there in the backward
+        # proposal ledger; moving that protected demand to its late window can
+        # falsely free capacity and cause a later candidate to overload it.
+        demand_target_start = (
+            early.start if activity.activity_id in protected else candidate_late_start
+        )
+        if demand_target_start > original_start:
+            displacement = activity_resolver.working_days_between(
+                original_start, demand_target_start
+            )
+        elif demand_target_start < original_start:
+            displacement = -activity_resolver.working_days_between(
+                demand_target_start, original_start
+            )
         else:
             displacement = 0
 
         shifted_demands: list[ResourceDemand] = []
         for demand in forward_activity.resource_demands:
             if displacement > 0:
-                shifted_period = resolver.add_working_duration(
+                shifted_period = activity_resolver.add_working_duration(
                     demand.period, displacement + 1
                 )
             elif displacement < 0:
-                shifted_period = resolver.subtract_working_duration(
+                shifted_period = activity_resolver.subtract_working_duration(
                     demand.period, abs(displacement) + 1
                 )
             else:
@@ -129,10 +278,12 @@ def _backward_activities_from_intermediate(
                 activity_id=activity.activity_id,
                 early_start=early.start,
                 early_finish=early.finish,
-                late_start=late.start,
-                late_finish=late.finish,
+                late_start=candidate_late_start,
+                late_finish=candidate_late_finish,
                 resource_demands=tuple(shifted_demands),
                 activity_priority=activity.activity_priority,
+                total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
+                free_float=getattr((float_schedule or {}).get(activity.activity_id), "free_float", None),
             )
         )
     return tuple(result)
@@ -143,6 +294,7 @@ def _validate_final_resource_load(
     result: object,
     leveling_input: SchedulerLevelingInput,
     resolver: object,
+    activity_resolvers: Mapping[str, object] | None = None,
 ) -> None:
     """Reject a CPM result whose dependency propagation reintroduces overloads."""
     forward_by_id = {activity.activity_id: activity for activity in leveling_input.forward_activities}
@@ -156,21 +308,22 @@ def _validate_final_resource_load(
                     f"FINAL_SCHEDULE_MISSING_ACTIVITY:{activity_id}"
                 )
             continue
+        activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         if final_activity.start >= activity_input.start:
-            shift_days = resolver.working_days_between(
+            shift_days = activity_resolver.working_days_between(
                 activity_input.start, final_activity.start
             )
         else:
-            shift_days = -resolver.working_days_between(
+            shift_days = -activity_resolver.working_days_between(
                 final_activity.start, activity_input.start
             )
         for demand in activity_input.resource_demands:
             if shift_days > 0:
-                shifted_period = resolver.add_working_duration(
+                shifted_period = activity_resolver.add_working_duration(
                     demand.period, shift_days + 1
                 )
             elif shift_days < 0:
-                shifted_period = resolver.subtract_working_duration(
+                shifted_period = activity_resolver.subtract_working_duration(
                     demand.period, abs(shift_days) + 1
                 )
             else:
@@ -216,6 +369,7 @@ def schedule_with_resource_leveling(
     calculation_context: object | None = None,
     relationship_lag_resolvers: Mapping[tuple[str, str], object] | None = None,
     batch_scheduled_finish: date | None = None,
+    activity_resolvers: Mapping[str, object] | None = None,
 ):
     """Run resource leveling through the authoritative scheduler.
 
@@ -274,10 +428,25 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
+    forward_activities = _forward_activities_with_authoritative_floats(
+        leveling_input,
+        initial_schedule=initial,
+        resolver=resolver,
+        activity_resolvers=activity_resolvers,
+    )
+    # All following passes must consume the same freshly rebased CPM dates,
+    # float values, and demand periods, not the caller's prior calculation.
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward_activities,
+        backward_activities=leveling_input.backward_activities,
+        capacities=leveling_input.capacities,
+        options=leveling_input.options,
+    )
     forward_shifts = propose_forward_leveling(
-        leveling_input.forward_activities,
+        forward_activities,
         leveling_input.capacities,
         resolver=resolver,
         level_within_float=leveling_input.options.level_within_float,
@@ -286,10 +455,12 @@ def schedule_with_resource_leveling(
         priorities=leveling_input.options.priorities,
         level_all_resources=leveling_input.options.level_all_resources,
         resource_ids=leveling_input.options.resource_ids,
+        activity_resolvers=activity_resolvers,
     )
     shifted_forward = apply_leveling_shifts(
-        leveling_input.forward_activities, forward_shifts, resolver=resolver,
+        forward_activities, forward_shifts, resolver=resolver,
         allow_beyond_float=not leveling_input.options.level_within_float,
+        activity_resolvers=activity_resolvers,
     )
     forward_constraints = merge_leveling_constraints(tuple(constraints or ()), forward=forward_shifts)
 
@@ -299,11 +470,16 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
 
     backward_shifts: tuple[BackwardLevelingShift, ...] = ()
     final_constraints = forward_constraints
     if not leveling_input.options.preserve_scheduled_early_and_late_dates:
+        protected_forward_ids = tuple(sorted({
+            shift.activity_id for shift in forward_shifts
+            if shift.shift_working_days > 0
+        }))
         backward_activities = _backward_activities_from_intermediate(
             leveling_input,
             # Backward candidates must respect the CPM early dates after forward
@@ -311,7 +487,10 @@ def schedule_with_resource_leveling(
             # move that violates a relationship newly activated by a forward shift.
             early_schedule=intermediate.early_activities or intermediate.activities,
             late_schedule=intermediate.late_activities or intermediate.activities,
+            float_schedule=intermediate.floats,
             resolver=resolver,
+            activity_resolvers=activity_resolvers,
+            protected_activity_ids=protected_forward_ids,
         )
         backward_shifts = propose_backward_leveling(
             backward_activities,
@@ -321,11 +500,70 @@ def schedule_with_resource_leveling(
             priorities=leveling_input.options.priorities,
             level_all_resources=leveling_input.options.level_all_resources,
             resource_ids=leveling_input.options.resource_ids,
-            protected_activity_ids=tuple(sorted({
-                shift.activity_id for shift in forward_shifts
-                if shift.shift_working_days > 0
-            })),
+            protected_activity_ids=protected_forward_ids,
+            activity_resolvers=activity_resolvers,
         )
+        # P6 leveling proposals are candidates, not permission to override
+        # CPM or user-entered constraints. Validate each proposed exact-date
+        # move against the authoritative CPM engine before accepting it. This
+        # prevents a backward proposal from turning a valid START_NO_LATER_THAN
+        # constraint into an internally contradictory date window.
+        accepted_backward_shifts: list[BackwardLevelingShift] = []
+        # The proposal algorithm emits cumulative steps for an activity
+        # (advance by one day, then by two, and so on). Treat those as
+        # alternative target dates, not separate accepted shifts. Try the
+        # least disruptive target first and only consider a larger advance
+        # when every smaller target for that activity was rejected.
+        candidates = _order_backward_leveling_candidates(backward_shifts)
+        accepted_activity_ids: set[str] = set()
+        for candidate in candidates:
+            if candidate.activity_id in accepted_activity_ids:
+                continue
+            trial_shifts = tuple(accepted_backward_shifts) + (candidate,)
+            trial_ids = {
+                shift.activity_id for shift in trial_shifts if shift.advanced_days > 0
+            }
+            trial_forward = tuple(
+                shift for shift in forward_shifts if shift.activity_id not in trial_ids
+            )
+            trial_constraints = (
+                tuple(constraints or ())
+                + forward_leveling_constraints(trial_forward)
+                + backward_leveling_exact_constraints(trial_shifts)
+            )
+            try:
+                trial_result = schedule(
+                    activities, relationships, project_start, resolver,
+                    project_finish=project_finish, constraints=trial_constraints,
+                    options=base_options,
+                    calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
+                    batch_scheduled_finish=batch_scheduled_finish,
+                    activity_resolvers=activity_resolvers,
+                )
+            except ConstraintViolation:
+                # Reject only the infeasible candidate; do not weaken existing
+                # constraints or hide unrelated scheduler/resource failures.
+                continue
+            try:
+                _validate_final_resource_load(
+                    result=trial_result,
+                    leveling_input=leveling_input,
+                    resolver=resolver,
+                    activity_resolvers=activity_resolvers,
+                )
+            except ResourceLevelingError as exc:
+                # A candidate is admissible only when the CPM result and the
+                # aggregate resource ledger agree. Reject overload-producing
+                # candidates so a later candidate cannot silently undo a
+                # previously feasible shift.
+                if str(exc).startswith("FINAL_RESOURCE_OVERALLOCATION:"):
+                    continue
+                raise
+            accepted_backward_shifts.append(candidate)
+            accepted_activity_ids.add(candidate.activity_id)
+
+        backward_shifts = tuple(accepted_backward_shifts)
         backward_ids = {shift.activity_id for shift in backward_shifts if shift.advanced_days > 0}
         retained_forward = tuple(
             shift for shift in forward_shifts if shift.activity_id not in backward_ids
@@ -338,10 +576,12 @@ def schedule_with_resource_leveling(
         calculation_context=calculation_context,
         relationship_lag_resolvers=relationship_lag_resolvers,
         batch_scheduled_finish=batch_scheduled_finish,
+        activity_resolvers=activity_resolvers,
     )
     _validate_final_resource_load(
         result=result,
         leveling_input=leveling_input,
         resolver=resolver,
+        activity_resolvers=activity_resolvers,
     )
     return result, forward_shifts, backward_shifts
