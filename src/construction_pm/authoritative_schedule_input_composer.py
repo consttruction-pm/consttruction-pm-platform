@@ -299,6 +299,7 @@ class AuthoritativeScheduleInputComposer:
                 unit_of_measure=assignment.unit,
                 assigned_units=assignment.units,
                 remaining_units=assignment.remaining_units,
+                is_driving=assignment.is_driving,
             ))
 
         demands: list[ResourceDemandInput] = []
