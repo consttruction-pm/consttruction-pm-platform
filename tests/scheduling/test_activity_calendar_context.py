@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from dataclasses import replace
 
 import pytest
 
@@ -113,3 +114,29 @@ def test_activity_calendar_context_has_immutable_resolver_mapping():
     context = ActivityCalendarContext.from_snapshots([snapshot()], registry())
     with pytest.raises(TypeError):
         context.resolvers["A"] = registry().resolve(CAL_PROJECT)
+
+
+def test_authoritative_schedule_rejects_project_finish_before_start():
+    source = snapshot()
+    with pytest.raises(ValueError, match="project_finish must not be earlier than project_start"):
+        replace(source, project_finish=date(2026, 9, 24))
+
+
+def test_time_aware_schedule_rejects_project_finish_before_start():
+    calendar = CalendarReference("PROJECT-TIME", "1", "working-time")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="s-invalid-finish",
+        tenant_id="tenant",
+        project_id="P3",
+        project_revision=1,
+        mode=AuthoritativeScheduleMode.TIME_AWARE,
+        project_calendar=calendar,
+        activities=(TimeActivity("T", TimeQuantity.working_hours(8)),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=datetime(2026, 9, 25, tzinfo=timezone.utc),
+        project_finish=datetime(2026, 9, 24, tzinfo=timezone.utc),
+    )
+    with pytest.raises(ValueError, match="project_finish must not be earlier than project_start"):
+        source
+
