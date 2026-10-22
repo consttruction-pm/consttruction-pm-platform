@@ -826,3 +826,35 @@ def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
     assert activity.total_float == -2
     assert activity.late_start == late_start
     assert activity.late_finish == late_finish
+
+
+
+def test_apply_leveling_shifts_preserves_p6_priority_metadata():
+    from construction_pm.scheduling.resource_leveling import LevelingShift
+
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    activity = LevelingActivity(
+        "A1",
+        date(2026, 10, 1),
+        date(2026, 10, 1),
+        2,
+        original_planned_duration=Decimal("5"),
+        planned_finish=date(2026, 10, 12),
+        project_planned_start=date(2026, 10, 1),
+        project_priority=3,
+        remaining_duration=Decimal("2"),
+    )
+    shift = LevelingShift(
+        "A1", 1, date(2026, 10, 2), date(2026, 10, 2), 1, 1
+    )
+
+    result = apply_leveling_shifts((activity,), (shift,), resolver=resolver)
+
+    assert result[0].start == date(2026, 10, 2)
+    assert result[0].original_planned_duration == Decimal("5")
+    assert result[0].planned_finish == date(2026, 10, 12)
+    assert result[0].project_planned_start == date(2026, 10, 1)
+    assert result[0].project_priority == 3
+    assert result[0].remaining_duration == Decimal("2")
