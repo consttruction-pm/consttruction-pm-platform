@@ -7,9 +7,10 @@ remain in the shared scheduling domain/core. Unsupported date/resource/calendar
 semantics fail closed instead of being coerced or silently omitted.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Protocol
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .activity_master_repository import ActivityMasterRepository
 from .backend_p0.models import BackendScope
@@ -28,6 +29,10 @@ from .relationship_master_repository import RelationshipMasterRepository
 from .p6_resource_assignment_repository import (
     P6ResourceAssignmentPeriodRepository,
     P6ResourceAssignmentRepository,
+)
+from .p6_resource_rate_repository import (
+    P6ResourceRatePersistenceError,
+    P6ResourceRateRepository,
 )
 from .project_schedule_settings_repository import (
     ProjectScheduleSettings,
@@ -48,6 +53,7 @@ from .scheduling.resource_leveling import ResourceCapacity
 from .scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
     ResourceDemandInput,
+    ResourceCapacityRate,
     ResourceLevelingFacts,
     ResourceLevelingFactsError,
 )
@@ -84,6 +90,7 @@ class AuthoritativeScheduleInputComposer:
         project_schedule_settings_repository: ProjectScheduleSettingsRepository,
         calendar_exception_repository: CalendarExceptionRepository | None = None,
         calendar_work_hours_repository: CalendarWorkHourRepository | None = None,
+        resource_rate_repository: P6ResourceRateRepository | None = None,
     ) -> None:
         self.activity_repository = activity_repository
         self.relationship_repository = relationship_repository
@@ -96,6 +103,7 @@ class AuthoritativeScheduleInputComposer:
         self.project_schedule_settings_repository = project_schedule_settings_repository
         self.calendar_exception_repository = calendar_exception_repository
         self.calendar_work_hours_repository = calendar_work_hours_repository
+        self.resource_rate_repository = resource_rate_repository
 
     @staticmethod
     def _date_value(value: date | datetime | None, *, field_name: str, activity_id: str) -> date | None:
@@ -179,25 +187,78 @@ class AuthoritativeScheduleInputComposer:
             getattr(options, "preserve_scheduled_early_and_late_dates"),
         ))
 
+    @staticmethod
+    def _profile_period_hours(rate: ResourceCapacityRate, calendar_snapshot: object) -> Decimal:
+        """Verify the time-period factor against the exact declared P6 source."""
+        if rate.time_period_source == "global":
+            # Global time-period factors are persisted directly with the profile
+            # contract and included in its profile hash; never infer defaults.
+            return rate.hours_per_time_period
+
+        raw_snapshot = getattr(calendar_snapshot, "snapshot", None)
+        if not isinstance(raw_snapshot, dict):
+            raise ScheduleInputCompositionError("RESOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
+        factors = raw_snapshot.get("time_period_factors")
+        if not isinstance(factors, dict):
+            raise ScheduleInputCompositionError("RESOURCE_CALENDAR_TIME_PERIOD_FACTORS_REQUIRED")
+        mapping = {
+            "hour": Decimal("1"),
+            "day": "hours_per_day",
+            "week": "hours_per_week",
+            "month": "hours_per_month",
+            "year": "hours_per_year",
+        }
+        factor_key = mapping.get(rate.time_period_unit)
+        if isinstance(factor_key, Decimal):
+            expected = factor_key
+        elif isinstance(factor_key, str):
+            try:
+                expected = Decimal(str(factors[factor_key]))
+            except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
+                raise ScheduleInputCompositionError(
+                    "RESOURCE_CALENDAR_TIME_PERIOD_FACTOR_MISSING"
+                ) from exc
+        else:
+            raise ScheduleInputCompositionError("INVALID_RESOURCE_RATE_TIME_PERIOD_UNIT")
+        if expected != rate.hours_per_time_period:
+            raise ScheduleInputCompositionError("RESOURCE_RATE_CALENDAR_FACTOR_MISMATCH")
+        return expected
+
     def _compose_resource_leveling_facts(
         self,
         scope: BackendScope,
         schedule_input: AuthoritativeScheduleInput,
         assignments: tuple,
         persisted_periods: tuple,
+        *,
+        calculation_timezone: str,
     ) -> ResourceLevelingFacts:
-        """Compose demand and exact-version capacity before snapshot hashing."""
+        """Compose hash-bound assignment demand and Max Units/Time capacity."""
         if self.calendar_exception_repository is None or self.calendar_work_hours_repository is None:
             raise ScheduleInputCompositionError("RESOURCE_CALENDAR_RESOLVER_NOT_CONFIGURED")
+        if self.resource_rate_repository is None:
+            raise ScheduleInputCompositionError("RESOURCE_MAX_UNITS_PER_TIME_REPOSITORY_NOT_CONFIGURED")
+        if not isinstance(calculation_timezone, str) or not calculation_timezone.strip():
+            raise ScheduleInputCompositionError("CALCULATION_TIMEZONE_REQUIRED")
+        try:
+            calculation_zone = ZoneInfo(calculation_timezone)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ScheduleInputCompositionError("INVALID_CALCULATION_TIMEZONE") from exc
         if not assignments:
             raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENTS_REQUIRED")
         if not persisted_periods:
             raise ScheduleInputCompositionError("RESOURCE_LEVELING_DEMAND_PERIODS_REQUIRED")
 
+        try:
+            persisted_rates = self.resource_rate_repository.list(scope)
+        except (P6ResourceRatePersistenceError, TypeError, ValueError) as exc:
+            raise ScheduleInputCompositionError(f"RESOURCE_RATE_READ_FAILED:{exc}") from exc
+
         activity_ids = {activity.id for activity in schedule_input.activities}
         assignment_by_id: dict[str, object] = {}
         resource_calendar_refs: dict[str, tuple[str, str]] = {}
         assignment_refs: list[ResourceAssignmentLevelingRef] = []
+        resource_units: dict[str, str] = {}
         for assignment in sorted(assignments, key=lambda item: item.assignment_id):
             assignment.validate()
             if assignment.scope != scope:
@@ -206,6 +267,8 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY")
             if assignment.calendar_id is None or assignment.calendar_version is None:
                 raise ScheduleInputCompositionError("MISSING_RESOURCE_CALENDAR_VERSION")
+            if not isinstance(assignment.unit, str) or not assignment.unit.strip():
+                raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNIT_OF_MEASURE_REQUIRED")
             if assignment.assignment_id in assignment_by_id:
                 raise ScheduleInputCompositionError("DUPLICATE_RESOURCE_ASSIGNMENT_ID")
             ref = (assignment.calendar_id, assignment.calendar_version)
@@ -213,6 +276,10 @@ class AuthoritativeScheduleInputComposer:
             if existing_ref is not None and existing_ref != ref:
                 raise ScheduleInputCompositionError("AMBIGUOUS_RESOURCE_CALENDAR")
             resource_calendar_refs[assignment.resource_id] = ref
+            old_unit = resource_units.get(assignment.resource_id)
+            if old_unit is not None and old_unit != assignment.unit:
+                raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNIT_MISMATCH")
+            resource_units[assignment.resource_id] = assignment.unit
             assignment_by_id[assignment.assignment_id] = assignment
             assignment_refs.append(ResourceAssignmentLevelingRef(
                 assignment_id=assignment.assignment_id,
@@ -220,6 +287,7 @@ class AuthoritativeScheduleInputComposer:
                 resource_id=assignment.resource_id,
                 calendar_id=assignment.calendar_id,
                 calendar_version=assignment.calendar_version,
+                unit_of_measure=assignment.unit,
                 assigned_units=assignment.units,
                 remaining_units=assignment.remaining_units,
             ))
@@ -254,11 +322,36 @@ class AuthoritativeScheduleInputComposer:
                 units=period.units,
             ))
 
-        # Publish explicit capacity for the complete finite leveling window:
-        # source/input date anchors plus a conservative serialization bound
-        # (all activity durations, positive relationship lags, and calendar days
-        # around each activity). If the scheduler needs capacity beyond this
-        # immutable horizon, final-load validation fails closed.
+        rates_by_resource: dict[str, list[ResourceCapacityRate]] = {}
+        seen_rate_keys: set[tuple[str, datetime, str]] = set()
+        for rate in sorted(persisted_rates, key=lambda item: (item.resource_id, item.effective_from, item.shift_id)):
+            rate.validate()
+            rate_key = (rate.resource_id, rate.effective_from, rate.shift_id)
+            if rate_key in seen_rate_keys:
+                raise ScheduleInputCompositionError("DUPLICATE_RESOURCE_RATE")
+            seen_rate_keys.add(rate_key)
+            if rate.resource_id not in resource_calendar_refs:
+                continue
+            if rate.unit_of_measure != resource_units[rate.resource_id]:
+                raise ScheduleInputCompositionError("RESOURCE_RATE_UNIT_MISMATCH")
+            local_effective = rate.effective_from.astimezone(calculation_zone)
+            if local_effective.time() != time.min:
+                raise ScheduleInputCompositionError("RESOURCE_RATE_EFFECTIVE_TIME_NOT_REPRESENTABLE")
+            rates_by_resource.setdefault(rate.resource_id, []).append(rate)
+
+        for resource_id in resource_calendar_refs:
+            resource_rates = rates_by_resource.get(resource_id, [])
+            if not resource_rates:
+                raise ScheduleInputCompositionError("RESOURCE_MAX_UNITS_PER_TIME_REQUIRED")
+            # The v1 date-based resource capacity contract cannot model shift
+            # calendars. Refuse ambiguous multi-shift rows rather than summing
+            # overlapping shift capacities or selecting one without authority.
+            if len({rate.shift_id for rate in resource_rates}) != 1:
+                raise ScheduleInputCompositionError("RESOURCE_RATE_SHIFT_LEVELING_UNSUPPORTED")
+            resource_rates.sort(key=lambda item: item.effective_from)
+
+        # Build one immutable, finite calendar-hours envelope. It is not itself
+        # resource capacity: P6 Max Units/Time is applied below for every date.
         anchors: list[date] = [schedule_input.project_start]
         if schedule_input.project_finish is not None:
             anchors.append(schedule_input.project_finish)
@@ -286,9 +379,16 @@ class AuthoritativeScheduleInputComposer:
         )
 
         resolved_calendars: dict[tuple[str, str], object] = {}
+        calendar_snapshots: dict[tuple[str, str], object] = {}
         for calendar_ref in sorted(set(resource_calendar_refs.values())):
             try:
-                resolved_calendars[calendar_ref] = resolve_p6_resource_calendar(
+                master = self.calendar_repository.get(scope, calendar_ref[0], calendar_ref[1])
+                if master is None or master.scope != scope:
+                    raise ScheduleInputCompositionError("RESOURCE_CALENDAR_VERSION_NOT_FOUND")
+                calendar_snapshot = self.calendar_snapshot_repository.get(master)
+                if calendar_snapshot is None:
+                    raise ScheduleInputCompositionError("RESOURCE_CALENDAR_SNAPSHOT_NOT_FOUND")
+                resolved = resolve_p6_resource_calendar(
                     scope=scope,
                     calendar_id=calendar_ref[0],
                     calendar_version=calendar_ref[1],
@@ -298,32 +398,65 @@ class AuthoritativeScheduleInputComposer:
                     exception_repository=self.calendar_exception_repository,
                     work_hours_repository=self.calendar_work_hours_repository,
                 )
+                resolved_calendars[calendar_ref] = resolved
+                calendar_snapshots[calendar_ref] = calendar_snapshot
+            except ScheduleInputCompositionError:
+                raise
             except (P6ResourceCalendarResolutionError, CalendarPersistenceError, TypeError, ValueError) as exc:
                 raise ScheduleInputCompositionError(
                     f"RESOURCE_CALENDAR_RESOLUTION_FAILED:{exc}"
                 ) from exc
 
+        rates_snapshot = tuple(sorted(
+            (rate for resource_rates in rates_by_resource.values() for rate in resource_rates),
+            key=lambda item: (item.resource_id, item.effective_from, item.shift_id),
+        ))
         capacities: list[ResourceCapacity] = []
         for resource_id, calendar_ref in sorted(resource_calendar_refs.items()):
             calendar = resolved_calendars[calendar_ref]
+            calendar_snapshot = calendar_snapshots[calendar_ref]
             if calendar.canonical_snapshot_hash is None or not calendar.capacity_slices:
                 raise ScheduleInputCompositionError("RESOURCE_CALENDAR_CAPACITY_NOT_HASH_BOUND")
-            for period, units in calendar.capacity_slices:
+            factors_snapshot = self._profile_period_hours(
+                rates_by_resource[resource_id][0], calendar_snapshot
+            )
+            del factors_snapshot  # exact period factor is checked for each effective rate below
+            capacity_hours_by_period = dict(calendar.capacity_slices)
+            for period in capacity_periods:
+                local_boundary = datetime.combine(period, time.min, tzinfo=calculation_zone)
+                applicable = [
+                    rate for rate in rates_by_resource[resource_id]
+                    if rate.effective_from <= local_boundary
+                ]
+                if not applicable:
+                    raise ScheduleInputCompositionError("RESOURCE_MAX_UNITS_PER_TIME_NOT_EFFECTIVE")
+                selected_rate = max(applicable, key=lambda item: item.effective_from)
+                if selected_rate.time_period_source == "calendar":
+                    self._profile_period_hours(selected_rate, calendar_snapshot)
+                hours = capacity_hours_by_period.get(period)
+                if hours is None:
+                    raise ScheduleInputCompositionError("RESOURCE_CALENDAR_CAPACITY_PERIOD_MISSING")
+                capacity_units = selected_rate.capacity_for_work_hours(hours)
                 capacities.append(ResourceCapacity(
                     resource_id=resource_id,
                     period=period,
-                    units=units,
+                    units=capacity_units,
                     calendar_id=calendar_ref[0],
                     calendar_version=calendar_ref[1],
                     calendar_snapshot_hash=calendar.canonical_snapshot_hash,
+                    calendar_work_hours=hours,
+                    resource_rate_hash=selected_rate.profile_hash,
+                    resource_rate_effective_from=selected_rate.effective_from,
                 ))
 
         facts = ResourceLevelingFacts(
             assignments=tuple(assignment_refs),
             demands=tuple(demands),
             capacities=tuple(capacities),
+            resource_capacity_rates=rates_snapshot,
             capacity_horizon_start=horizon_start,
             capacity_horizon_end=horizon_end,
+            calculation_timezone=calculation_timezone,
         )
         try:
             facts.validate(activity_ids=activity_ids)
@@ -336,6 +469,7 @@ class AuthoritativeScheduleInputComposer:
         scope: BackendScope,
         *,
         snapshot_id: str,
+        calculation_timezone: str | None = None,
     ) -> AuthoritativeScheduleInput:
         scope.validate()
         if not isinstance(snapshot_id, str) or not snapshot_id.strip():
@@ -525,8 +659,14 @@ class AuthoritativeScheduleInputComposer:
         )
         if not leveling_requested:
             return schedule_input
+        if not isinstance(calculation_timezone, str) or not calculation_timezone.strip():
+            raise ScheduleInputCompositionError("CALCULATION_TIMEZONE_REQUIRED")
         resource_leveling_inputs = self._compose_resource_leveling_facts(
-            scope, schedule_input, resource_assignments, resource_periods
+            scope,
+            schedule_input,
+            resource_assignments,
+            resource_periods,
+            calculation_timezone=calculation_timezone,
         )
         return AuthoritativeScheduleInput(
             snapshot_id=schedule_input.snapshot_id,
