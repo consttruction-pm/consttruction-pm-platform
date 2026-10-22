@@ -281,9 +281,14 @@ def _backward_activities_from_intermediate(
                 late_start=candidate_late_start,
                 late_finish=candidate_late_finish,
                 resource_demands=tuple(shifted_demands),
-                activity_priority=activity.activity_priority,
+                activity_priority=forward_activity.activity_priority,
                 total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
                 free_float=getattr((float_schedule or {}).get(activity.activity_id), "free_float", None),
+                original_planned_duration=forward_activity.original_planned_duration,
+                planned_finish=forward_activity.planned_finish,
+                project_planned_start=forward_activity.project_planned_start,
+                project_priority=forward_activity.project_priority,
+                remaining_duration=forward_activity.remaining_duration,
             )
         )
     return tuple(result)
