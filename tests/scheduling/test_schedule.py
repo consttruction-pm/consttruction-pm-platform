@@ -22,6 +22,7 @@ from construction_pm.scheduling.schedule import (
     _relationship_holds,
     _relationship_total_float,
     backward_pass,
+    calculate_floats,
     schedule,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
@@ -990,6 +991,30 @@ def test_mixed_activity_calendars_preserve_all_relationship_types(
         early["B"],
         predecessor_resolver,
     )
+
+
+@pytest.mark.parametrize(
+    "path_type",
+    [CriticalActivityPathType.CRITICAL_FLOAT, CriticalActivityPathType.LONGEST_PATH],
+)
+def test_calculate_floats_accepts_one_shot_iterables(resolver, path_type):
+    activities = [Activity("A", 1), Activity("B", 1)]
+    relationships = [Relationship("A", "B")]
+    early = forward_pass(activities, relationships, date(2026, 9, 21), resolver)
+    late = backward_pass(activities, relationships, early, None, resolver)
+
+    result = calculate_floats(
+        (item for item in activities),
+        (item for item in relationships),
+        early,
+        late,
+        resolver,
+        ScheduleOptions(critical_activity_path_type=path_type),
+    )
+
+    assert set(result) == {"A", "B"}
+    assert result["B"].critical is True
+    assert result["A"].critical is True
 
 
 def test_schedule_rejects_unsupported_resource_cost_recalculation(resolver):
