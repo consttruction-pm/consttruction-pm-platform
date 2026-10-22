@@ -15,7 +15,13 @@ from decimal import Decimal
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
-from .scheduling.activity import ActivityLevelingPriority, PercentCompleteType
+from .scheduling.activity import (
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityStatusCode,
+    ActivityType,
+    PercentCompleteType,
+)
 from .scheduling.time_duration import DurationUnit
 
 
@@ -40,11 +46,23 @@ class ActivityMaster:
     planned_finish: date | datetime | None = None
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
     original_duration: int | None = None
+    name: str = ""
+    activity_type: ActivityType = ActivityType.TASK_DEPENDENT
+    status: ActivityStatus = ActivityStatus.NOT_STARTED
+    status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
 
     def validate(self) -> None:
         self.scope.validate()
-        if not self.activity_id.strip():
+        if not isinstance(self.activity_id, str) or not self.activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if not isinstance(self.name, str):
+            raise ActivityPersistenceError("INVALID_ACTIVITY_NAME")
+        if not isinstance(self.activity_type, ActivityType):
+            raise ActivityPersistenceError("INVALID_ACTIVITY_TYPE")
+        if not isinstance(self.status, ActivityStatus):
+            raise ActivityPersistenceError("INVALID_ACTIVITY_STATUS")
+        if not isinstance(self.status_code, ActivityStatusCode):
+            raise ActivityPersistenceError("INVALID_ACTIVITY_STATUS_CODE")
         if not isinstance(self.duration_value, Decimal) or not self.duration_value.is_finite():
             raise ActivityPersistenceError("INVALID_DURATION_VALUE")
         if self.duration_value < 0:
@@ -99,6 +117,10 @@ class ActivityMaster:
             None if self.planned_finish is None else self.planned_finish.isoformat(),
             self.leveling_priority.value,
             self.original_duration,
+            self.name,
+            self.activity_type.value,
+            self.status.value,
+            self.status_code.value,
         )
 
 
