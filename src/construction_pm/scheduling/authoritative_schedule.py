@@ -183,11 +183,24 @@ class AuthoritativeScheduleInput:
         ]
         if len(lag_assignment_keys) != len(set(lag_assignment_keys)):
             raise ValueError("relationship lag calendar assignments must be unique")
-        relationship_keys = {
+        relationship_key_list = [
             (item.predecessor_id, item.successor_id) for item in self.relationships
-        }
+        ]
+        relationship_keys = set(relationship_key_list)
         if set(lag_assignment_keys) - relationship_keys:
             raise ValueError("relationship lag calendar assignment references unknown relationship")
+        if lag_assignment_keys:
+            duplicate_relationship_edges = {
+                key for key in relationship_key_list
+                if relationship_key_list.count(key) > 1
+            }
+            if set(lag_assignment_keys) & duplicate_relationship_edges:
+                # This resolver contract indexes calendar policy by edge, not
+                # relationship_id. Two distinct P6 relationships on the same
+                # edge cannot be disambiguated safely in this representation.
+                raise ValueError(
+                    "relationship lag calendar assignment is ambiguous for duplicate relationship edge"
+                )
 
         if self.mode is AuthoritativeScheduleMode.DATE_BASED:
             if not all(isinstance(item, Activity) for item in self.activities):
