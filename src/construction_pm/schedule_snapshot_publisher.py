@@ -114,6 +114,7 @@ class AuthoritativeScheduleSnapshotPublisher:
                 schedule_input = self.composer.compose(
                     scope,
                     snapshot_id=snapshot_id,
+                    calculation_timezone=timezone_name,
                 )
                 context = CalculationContext(
                     project_id=scope.project_id,
