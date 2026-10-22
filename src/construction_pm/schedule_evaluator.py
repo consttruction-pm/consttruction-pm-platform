@@ -132,7 +132,9 @@ def _evaluate_materialized(
             resolver = resolved_calendars.project
             activity_resolvers = resolved_calendars.activities
             relationship_lag_resolvers = resolve_relationship_lag_resolvers(
-                source, materialized.calendar_registry
+                source,
+                materialized.calendar_registry,
+                activity_calendars=resolved_calendars,
             )
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
