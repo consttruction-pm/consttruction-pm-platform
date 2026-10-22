@@ -370,7 +370,7 @@ class SQLiteActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[14]) != scope.project_revision:
+        if int(row[18]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         return _from_row(scope, row[:18])
 
@@ -481,7 +481,7 @@ class PostgresActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[14]) != scope.project_revision:
+        if int(row[18]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         return _from_row(scope, row[:18])
 
