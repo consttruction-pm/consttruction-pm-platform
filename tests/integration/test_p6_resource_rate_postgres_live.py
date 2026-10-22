@@ -118,10 +118,8 @@ def test_postgres_resource_capacity_rate_conflicting_concurrent_writes_are_race_
                     return str(exc)
 
         with ThreadPoolExecutor(max_workers=2) as executor:
-            results = sorted(
-                [executor.submit(write, "8"), executor.submit(write, "10")][i].result()
-                for i in range(2)
-            )
+            futures = [executor.submit(write, "8"), executor.submit(write, "10")]
+            results = sorted(future.result() for future in futures)
         assert results == ["IMMUTABLE_RESOURCE_RATE_CONFLICT", "saved"]
 
         with connect() as connection:
