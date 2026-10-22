@@ -146,7 +146,7 @@ class SQLiteP6ResourceRateRepository:
 
         was_in_transaction = self.connection.in_transaction
         self.connection.execute(
-            """INSERT INTO p6_resource_rate_capacity (
+            """INSERT OR IGNORE INTO p6_resource_rate_capacity (
                 tenant_id,project_id,project_revision,resource_id,effective_from,
                 max_units_per_time,time_period_unit,hours_per_time_period,
                 unit_of_measure,time_period_source,capacity_basis,
@@ -154,6 +154,21 @@ class SQLiteP6ResourceRateRepository:
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             key[:5] + values[:6] + (values[6], key[5], values[7]),
         )
+        # Resolve insert races through the unique key, then report a stable
+        # domain conflict instead of leaking sqlite3.IntegrityError.
+        persisted = self.connection.execute(
+            """SELECT max_units_per_time,time_period_unit,hours_per_time_period,
+                      unit_of_measure,time_period_source,capacity_basis,
+                      full_time_units_per_time_period,record_revision
+               FROM p6_resource_rate_capacity
+               WHERE tenant_id=? AND project_id=? AND project_revision=?
+                 AND resource_id=? AND effective_from=? AND shift_id=?""",
+            key,
+        ).fetchone()
+        if persisted is None:
+            raise P6ResourceRatePersistenceError("RESOURCE_RATE_WRITE_NOT_PERSISTED")
+        if tuple(persisted) != values:
+            raise P6ResourceRatePersistenceError("IMMUTABLE_RESOURCE_RATE_CONFLICT")
         if not was_in_transaction:
             self.connection.commit()
         return rate
@@ -264,9 +279,25 @@ class PostgresP6ResourceRateRepository:
                 max_units_per_time,time_period_unit,hours_per_time_period,
                 unit_of_measure,time_period_source,capacity_basis,
                 full_time_units_per_time_period,shift_id,record_revision
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (
+                tenant_id,project_id,project_revision,resource_id,effective_from,shift_id
+            ) DO NOTHING""",
             key[:5] + values[:6] + (values[6], key[5], values[7]),
         )
+        persisted = self.connection.execute(
+            """SELECT max_units_per_time,time_period_unit,hours_per_time_period,
+                      unit_of_measure,time_period_source,capacity_basis,
+                      full_time_units_per_time_period,record_revision
+               FROM p6_resource_rate_capacity
+               WHERE tenant_id=%s AND project_id=%s AND project_revision=%s
+                 AND resource_id=%s AND effective_from=%s AND shift_id=%s""",
+            key,
+        ).fetchone()
+        if persisted is None:
+            raise P6ResourceRatePersistenceError("RESOURCE_RATE_WRITE_NOT_PERSISTED")
+        if tuple(persisted) != values:
+            raise P6ResourceRatePersistenceError("IMMUTABLE_RESOURCE_RATE_CONFLICT")
         return rate
 
     def get(
