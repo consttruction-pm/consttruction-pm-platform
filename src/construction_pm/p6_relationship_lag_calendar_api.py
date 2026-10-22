@@ -13,6 +13,7 @@ from .application.authorization import (
 )
 from .backend_p0.models import BackendScope
 from .calendar_master_repository import (
+    CalendarMasterRepository,
     CalendarPersistenceError,
     RelationshipLagCalendarAssignmentMaster,
 )
@@ -68,6 +69,7 @@ class P6RelationshipLagCalendarAPI:
 
     repository: RelationshipLagCalendarAssignmentRepository
     authorization_policy: AuthorizationPolicy
+    calendar_repository: CalendarMasterRepository | None = None
 
     def get(
         self,
@@ -95,6 +97,16 @@ class P6RelationshipLagCalendarAPI:
         if not isinstance(assignment, RelationshipLagCalendarAssignmentMaster):
             raise CalendarPersistenceError("INVALID_RELATIONSHIP_LAG_ASSIGNMENT")
         assignment.validate()
+        if assignment.calendar_id is not None:
+            if self.calendar_repository is None:
+                raise CalendarPersistenceError("CALENDAR_REPOSITORY_UNAVAILABLE")
+            calendar = self.calendar_repository.get(
+                assignment.scope,
+                assignment.calendar_id,
+                assignment.calendar_version or "",
+            )
+            if calendar is None:
+                raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
         stored = self.repository.save_relationship_lag(
             assignment, expected_revision=expected_revision
         )
