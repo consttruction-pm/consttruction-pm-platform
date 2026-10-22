@@ -1,7 +1,7 @@
 # Resource Max Units/Time — Immutable Schedule Snapshot Contract
 
 Date: 2026-10-22  
-Status: **Partial implementation: immutable capacity inputs, SQLite/PostgreSQL repositories, authenticated HTTP read/write routes, and production composition are implemented; exact-head verification and P6 edge-case parity remain gated.**
+Status: **Partial implementation: immutable capacity inputs, SQLite/PostgreSQL repositories, authenticated HTTP read/write routes, production wiring, effective-date boundary tests, and conflict-safe persistence are implemented. The latest verified checkpoint passed Python CI (2,674 passed, 93 skipped), PostgreSQL integration (127 passed), and client typecheck; P6 edge-case parity and independent semantic review remain gated.**
 
 ## Authoritative references
 
