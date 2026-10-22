@@ -72,6 +72,7 @@ def test_sqlite_repository_init_standalone_connection_creates_schema(tmp_path):
     finally:
         connection.close()
 
+
 def test_failed_repository_write_preserves_caller_owned_transaction(tmp_path):
     database = str(tmp_path / "repo-failed-write-outer-transaction.sqlite")
     writer = sqlite3.connect(database)
