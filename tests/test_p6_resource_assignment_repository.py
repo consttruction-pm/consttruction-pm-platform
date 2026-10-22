@@ -217,6 +217,9 @@ def test_driving_flag_round_trips_and_is_part_of_immutable_payload():
     assert repo.upsert(nondriving) == nondriving
     assert repo.get(scope(), "drive").is_driving is True
     assert repo.get(scope(), "non-drive").is_driving is False
+    listed = {item.assignment_id: item.is_driving for item in repo.list(scope())}
+    assert listed["drive"] is True
+    assert listed["non-drive"] is False
 
     changed = assignment(scope(), assignment_id="drive", is_driving=False)
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="IMMUTABLE_RESOURCE_ASSIGNMENT"):
