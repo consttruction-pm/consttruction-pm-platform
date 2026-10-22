@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 from datetime import date, datetime
 from typing import Mapping
 
@@ -13,8 +14,19 @@ from .schedule_snapshot_materializer import MaterializedScheduleInput, materiali
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
-from .scheduling.leveling_scheduler import schedule_with_resource_leveling
-from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.leveling_scheduler import (
+    _schedule_options_without_leveling,
+    schedule_with_resource_leveling,
+)
+from .scheduling.leveling_boundary import (
+    SchedulerLevelingInput,
+    scheduler_leveling_input_from_options,
+)
+from .scheduling.resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    ResourceDemand,
+)
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
@@ -111,6 +123,16 @@ def _evaluate_materialized(
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
+                if source.resource_leveling_inputs is not None:
+                    if leveling_input is not None:
+                        raise ScheduleEvaluationError(
+                            "EXTERNAL_LEVELING_INPUT_CANNOT_OVERRIDE_SNAPSHOT_INPUT"
+                        )
+                    leveling_input = _leveling_input_from_snapshot_facts(
+                        source,
+                        resolver=resolver,
+                        calculation_context=calculation_context,
+                    )
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
                 result, _, _ = schedule_with_resource_leveling(
@@ -195,6 +217,121 @@ def _evaluate_materialized(
         raise
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
+
+
+def _leveling_input_from_snapshot_facts(
+    source: object,
+    *,
+    resolver: object,
+    calculation_context: CalculationContext,
+) -> SchedulerLevelingInput:
+    """Build typed leveling rows only from the same immutable schedule snapshot."""
+    facts = getattr(source, "resource_leveling_inputs", None)
+    if facts is None:
+        raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
+    activities = tuple(getattr(source, "activities", ()))
+    relationships = tuple(getattr(source, "relationships", ()))
+    project_start = getattr(source, "project_start", None)
+    project_finish = getattr(source, "project_finish", None)
+    constraints = tuple(getattr(source, "constraints", ()))
+    schedule_options = getattr(source, "schedule_options", None)
+    if not activities or not isinstance(project_start, date) or isinstance(project_start, datetime):
+        raise ScheduleEvaluationError("INVALID_RESOURCE_LEVELING_SCHEDULE_SOURCE")
+
+    # The existing Shared Scheduling Core calculates the authoritative early,
+    # late and float values first. The leveling rows are only a transport slice;
+    # they do not derive or approximate CPM dates/floats.
+    initial = schedule(
+        activities=activities,
+        relationships=relationships,
+        project_start=project_start,
+        resolver=resolver,
+        project_finish=project_finish,
+        constraints=constraints,
+        options=_schedule_options_without_leveling(schedule_options),
+        calculation_context=calculation_context,
+    )
+    early_schedule = initial.early_activities or initial.activities
+    late_schedule = initial.late_activities or initial.activities
+    demand_by_activity: dict[str, list[ResourceDemand]] = {
+        activity.id: [] for activity in activities
+    }
+    for demand in facts.demands:
+        demand_by_activity[demand.activity_id].append(
+            ResourceDemand(
+                resource_id=demand.resource_id,
+                period=demand.period,
+                units=demand.units,
+                activity_id=demand.activity_id,
+            )
+        )
+
+    forward_rows: list[LevelingActivity] = []
+    backward_rows: list[BackwardLevelingActivity] = []
+    for activity in sorted(activities, key=lambda item: item.id):
+        early = early_schedule.get(activity.id)
+        late = late_schedule.get(activity.id)
+        float_values = initial.floats.get(activity.id)
+        if early is None or late is None or float_values is None:
+            raise ScheduleEvaluationError(
+                f"SCHEDULE_MISSING_LEVELING_ACTIVITY:{activity.id}"
+            )
+        demands = tuple(sorted(
+            demand_by_activity.get(activity.id, ()),
+            key=lambda item: (item.period, item.resource_id, item.activity_id or ""),
+        ))
+        original_duration = Decimal(
+            activity.original_duration
+            if activity.original_duration is not None
+            else activity.duration
+        )
+        remaining_duration = Decimal(
+            activity.remaining_duration
+            if activity.remaining_duration is not None
+            else activity.duration
+        )
+        metadata = {
+            "activity_priority": None,
+            "total_float": float_values.total_float,
+            "free_float": float_values.free_float,
+            "original_planned_duration": original_duration,
+            "planned_finish": activity.planned_finish,
+            "project_planned_start": project_start,
+            "project_priority": source.project_leveling_priority,
+            "remaining_duration": remaining_duration,
+            "leveling_priority": activity.leveling_priority,
+        }
+        forward_rows.append(LevelingActivity(
+            activity_id=activity.id,
+            start=early.start,
+            finish=early.finish,
+            resource_demands=demands,
+            **metadata,
+        ))
+        backward_rows.append(BackwardLevelingActivity(
+            activity_id=activity.id,
+            early_start=early.start,
+            early_finish=early.finish,
+            late_start=late.start,
+            late_finish=late.finish,
+            resource_demands=demands,
+            activity_priority=None,
+            total_float=float_values.total_float,
+            free_float=float_values.free_float,
+            original_planned_duration=original_duration,
+            planned_finish=activity.planned_finish,
+            project_planned_start=project_start,
+            project_priority=source.project_leveling_priority,
+            remaining_duration=remaining_duration,
+            leveling_priority=activity.leveling_priority,
+        ))
+
+    return scheduler_leveling_input_from_options(
+        forward_activities=tuple(forward_rows),
+        backward_activities=tuple(backward_rows),
+        capacities=facts.capacities,
+        options=schedule_options,
+    )
 
 
 def _resource_leveling_requested(options: object) -> bool:
