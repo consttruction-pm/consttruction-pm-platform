@@ -649,7 +649,7 @@ class BackwardLevelingActivity:
     late_start: date
     late_finish: date
     resource_demands: tuple[ResourceDemand, ...] = ()
-    activity_priority: int | None = None
+    activity_priority: int | ActivityLevelingPriority | None = None
     total_float: int | None = None
     free_float: int | None = None
     original_planned_duration: Decimal | None = None
@@ -668,7 +668,7 @@ class BackwardLevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if self.late_start < self.early_start or self.late_finish < self.early_finish:
             raise ResourceLevelingError("INVALID_LATE_WINDOW")
-        if self.activity_priority is not None and (
+        if self.activity_priority is not None and not isinstance(self.activity_priority, ActivityLevelingPriority) and (
             isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
