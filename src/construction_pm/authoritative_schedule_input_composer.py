@@ -426,20 +426,27 @@ class AuthoritativeScheduleInputComposer:
             calendar_snapshot = calendar_snapshots[calendar_ref]
             if calendar.canonical_snapshot_hash is None or not calendar.capacity_slices:
                 raise ScheduleInputCompositionError("RESOURCE_CALENDAR_CAPACITY_NOT_HASH_BOUND")
+            resource_rates = rates_by_resource[resource_id]
             factors_snapshot = self._profile_period_hours(
-                rates_by_resource[resource_id][0], calendar_snapshot
+                resource_rates[0], calendar_snapshot
             )
             del factors_snapshot  # exact period factor is checked for each effective rate below
             capacity_hours_by_period = dict(calendar.capacity_slices)
+            # Periods and rate rows are ordered. Advance one pointer instead
+            # of rescanning every historical rate for every date (O(days*rates)
+            # becomes O(days+rates) for long-horizon construction schedules).
+            rate_index = 0
+            selected_rate: ResourceCapacityRate | None = None
             for period in capacity_periods:
                 local_boundary = datetime.combine(period, time.min, tzinfo=calculation_zone)
-                applicable = [
-                    rate for rate in rates_by_resource[resource_id]
-                    if rate.effective_from <= local_boundary
-                ]
-                if not applicable:
+                while (
+                    rate_index < len(resource_rates)
+                    and resource_rates[rate_index].effective_from <= local_boundary
+                ):
+                    selected_rate = resource_rates[rate_index]
+                    rate_index += 1
+                if selected_rate is None:
                     raise ScheduleInputCompositionError("RESOURCE_MAX_UNITS_PER_TIME_NOT_EFFECTIVE")
-                selected_rate = max(applicable, key=lambda item: item.effective_from)
                 if selected_rate.time_period_source == "calendar":
                     self._profile_period_hours(selected_rate, calendar_snapshot)
                 hours = capacity_hours_by_period.get(period)
