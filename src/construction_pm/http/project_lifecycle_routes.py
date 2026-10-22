@@ -1120,6 +1120,13 @@ class ProjectLifecycleHttpRoutes:
                     activity_id: str,
                     existing: ActivityMaster | None = None,
                 ) -> ActivityMaster:
+                    # These registered P6 fields are not yet persisted by ActivityMaster.
+                    # Reject populated input rather than silently dropping schedule-critical data.
+                    if any(
+                        payload.get(field_name) not in (None, "")
+                        for field_name in ("suspend_date", "resume_date")
+                    ):
+                        raise ValueError("ACTIVITY_SUSPEND_RESUME_NOT_PERSISTED")
                     duration_raw = payload.get(
                         "duration_value",
                         existing.duration_value if existing is not None else None,
