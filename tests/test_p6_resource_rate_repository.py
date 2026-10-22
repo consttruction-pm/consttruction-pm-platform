@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import sqlite3
 
@@ -60,3 +61,35 @@ def test_capacity_rate_profile_hash_and_unit_conversion_are_deterministic():
     assert item.profile_hash == profile(max_units="8").profile_hash
     # 8 units/day at 8 hours/day, with a 4-hour resource-calendar work period.
     assert item.capacity_for_work_hours(Decimal("4")) == Decimal("4")
+
+
+
+def test_resource_rate_effective_identity_is_canonical_across_timezone_offsets():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6ResourceRateRepository(connection)
+    scope = BackendScope("tenant-canonical", "project-canonical", 3)
+    utc_rate = profile(max_units="8")
+    equivalent_offset_rate = replace(
+        utc_rate,
+        effective_from=datetime(
+            2026, 10, 19, 2, 0, tzinfo=timezone(timedelta(hours=2))
+        ),
+    )
+
+    assert equivalent_offset_rate.effective_from == utc_rate.effective_from
+    assert equivalent_offset_rate.profile_hash == utc_rate.profile_hash
+    assert repository.save(scope, utc_rate) == utc_rate
+    assert repository.save(scope, equivalent_offset_rate) == equivalent_offset_rate
+    stored = repository.list(scope)
+    assert len(stored) == 1
+    assert stored[0].effective_from == utc_rate.effective_from
+
+    conflicting_rate = replace(
+        equivalent_offset_rate, max_units_per_time=Decimal("12")
+    )
+    with pytest.raises(
+        P6ResourceRatePersistenceError,
+        match="IMMUTABLE_RESOURCE_RATE_CONFLICT",
+    ):
+        repository.save(scope, conflicting_rate)
+    connection.close()
