@@ -136,6 +136,8 @@ def test_project_schedule_settings_rejects_calendar_mode_mismatch_and_naive_date
             mode=AuthoritativeScheduleMode.DATE_BASED,
             project_calendar=CalendarReference("CAL-1", "1", "working-time"),
             project_start=date(2026, 10, 1),
+            schedule_options=ScheduleOptions(),
+            project_leveling_priority=10,
         ).validate()
 
     with pytest.raises(
@@ -147,6 +149,8 @@ def test_project_schedule_settings_rejects_calendar_mode_mismatch_and_naive_date
             mode=AuthoritativeScheduleMode.TIME_AWARE,
             project_calendar=CalendarReference("CAL-1", "1", "working-time"),
             project_start=datetime(2026, 10, 1, 8, 0),
+            schedule_options=ScheduleOptions(),
+            project_leveling_priority=10,
         ).validate()
 
 
@@ -179,10 +183,11 @@ def test_sqlite_settings_repository_preserves_caller_owned_transaction(tmp_path)
     repo = SQLiteProjectScheduleSettingsRepository(writer)
     original = date_settings()
 
-    writer.execute("BEGIN")
-    repo.save(original, expected_revision=0)
     reader = sqlite3.connect(database)
     reader_repo = SQLiteProjectScheduleSettingsRepository(reader)
+
+    writer.execute("BEGIN")
+    repo.save(original, expected_revision=0)
     assert reader_repo.get(scope()) is None
 
     writer.rollback()
