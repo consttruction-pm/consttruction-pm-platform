@@ -295,16 +295,18 @@ def _leveling_input_from_snapshot_facts(
     demand_by_activity: dict[str, list[ResourceDemand]] = {
         activity.id: [] for activity in activities
     }
-    # P6 v26 explicitly ignores WBS Summary activities during resource
-    # leveling. Keep their raw assignments in the immutable snapshot for audit,
-    # but do not turn those summary rollups into capacity-consuming demands.
-    wbs_summary_ids = {
+    # P6 excludes WBS Summary and Level of Effort activities during
+    # resource leveling. Keep their raw assignments and demand periods in the
+    # immutable snapshot for audit, but do not let roll-up/summary demand
+    # consume capacity in the leveling ledger.
+    non_levelable_activity_ids = {
         activity.id
         for activity in activities
-        if getattr(activity, "activity_type", None) is ActivityType.WBS_SUMMARY
+        if getattr(activity, "activity_type", None)
+        in {ActivityType.WBS_SUMMARY, ActivityType.LEVEL_OF_EFFORT}
     }
     for demand in facts.demands:
-        if demand.activity_id in wbs_summary_ids:
+        if demand.activity_id in non_levelable_activity_ids:
             continue
         demand_by_activity[demand.activity_id].append(
             ResourceDemand(
