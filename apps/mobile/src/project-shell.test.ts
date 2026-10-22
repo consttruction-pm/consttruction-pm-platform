@@ -301,3 +301,39 @@ test("rejects persisted projects whose stored context does not match the request
   });
   await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT_CONTEXT/);
 });
+
+
+test("rejects persisted WBS nodes with duplicate IDs, missing parents, or cycles", async () => {
+  const cases = [
+    { ...fixture, wbs: [...fixture.wbs, { ...fixture.wbs[0] }] },
+    { ...fixture, wbs: [{ ...fixture.wbs[0], parent_id: "missing" }, fixture.wbs[1]] },
+    { ...fixture, wbs: [
+      { ...fixture.wbs[0], parent_id: "W2" },
+      { ...fixture.wbs[1], parent_id: "W1" },
+    ] },
+  ];
+  for (const project of cases) {
+    const store = new PersistentMobileLocalProjectStore({
+      async read() { return JSON.stringify(project); },
+      async write() {},
+    });
+    await assert.rejects(store.load("t1", "p1"), /INVALID_LOCAL_PROJECT_WBS/);
+  }
+});
+
+test("rejects persisted activities with duplicate IDs or missing WBS references", async () => {
+  const cases = [
+    { ...fixture, activities: [...fixture.activities, { ...fixture.activities[0] }] },
+    { ...fixture, activities: [{ ...fixture.activities[0], wbs_id: "missing" }] },
+  ];
+  for (const project of cases) {
+    const store = new PersistentMobileLocalProjectStore({
+      async read() { return JSON.stringify(project); },
+      async write() {},
+    });
+    await assert.rejects(
+      store.load("t1", "p1"),
+      /INVALID_LOCAL_PROJECT_ACTIVITY/,
+    );
+  }
+});
