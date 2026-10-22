@@ -24,7 +24,7 @@ from construction_pm.p6_resource_spread_repository import (
 )
 from construction_pm.resources.calendar import ResourceCalendar
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
-from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceLevelingOptions
+from construction_pm.scheduling.resource_leveling import LevelingActivity, ResourceCapacity, ResourceLevelingError, ResourceLevelingOptions
 
 
 class TransactionManager:
@@ -349,3 +349,25 @@ def test_adapter_enforces_existing_read_api_authorization_boundary():
             periods=(date(2026, 10, 1),),
             options=ResourceLevelingOptions(),
         )
+
+
+def test_resource_capacity_allows_legacy_calendar_id_without_version_metadata():
+    capacity = ResourceCapacity(
+        "resource-1", date(2026, 10, 2), Decimal("8"), calendar_id="calendar-1"
+    )
+    assert capacity.calendar_id == "calendar-1"
+    assert capacity.calendar_version is None
+    assert capacity.calendar_snapshot_hash is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"calendar_id": "calendar-1", "calendar_version": "v1"},
+        {"calendar_id": "calendar-1", "calendar_snapshot_hash": "a" * 64},
+        {"calendar_version": "v1", "calendar_snapshot_hash": "a" * 64},
+    ],
+)
+def test_resource_capacity_rejects_partial_versioned_calendar_identity(kwargs):
+    with pytest.raises(ResourceLevelingError, match="INCOMPLETE_CAPACITY_CALENDAR_IDENTITY"):
+        ResourceCapacity("resource-1", date(2026, 10, 2), Decimal("8"), **kwargs)

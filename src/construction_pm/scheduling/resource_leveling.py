@@ -41,6 +41,8 @@ class ResourceCapacity:
     resource_id: str
     period: date
     units: Decimal
+    # calendar_id alone is supported for legacy, unversioned callers.
+    # A versioned identity must supply all three fields (ID, version, hash).
     calendar_id: str | None = None
     calendar_version: str | None = None
     calendar_snapshot_hash: str | None = None
@@ -52,9 +54,23 @@ class ResourceCapacity:
             raise ResourceLevelingError("INVALID_PERIOD")
         if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
             raise ResourceLevelingError("INVALID_CAPACITY_UNITS")
-        metadata = (self.calendar_id, self.calendar_version, self.calendar_snapshot_hash)
-        if any(value is not None for value in metadata):
-            if not all(isinstance(value, str) and value.strip() for value in metadata):
+
+        if self.calendar_id is not None and (
+            not isinstance(self.calendar_id, str) or not self.calendar_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_CAPACITY_CALENDAR_ID")
+        # Legacy callers may identify a calendar by ID only. Version/hash are
+        # inseparable: once either is supplied, require the complete immutable
+        # calendar identity so a stale or partial version can never be implied.
+        if self.calendar_version is not None or self.calendar_snapshot_hash is not None:
+            if not all(
+                isinstance(value, str) and value.strip()
+                for value in (
+                    self.calendar_id,
+                    self.calendar_version,
+                    self.calendar_snapshot_hash,
+                )
+            ):
                 raise ResourceLevelingError("INCOMPLETE_CAPACITY_CALENDAR_IDENTITY")
             assert self.calendar_snapshot_hash is not None
             if (
