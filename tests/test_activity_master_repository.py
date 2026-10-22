@@ -12,7 +12,11 @@ from construction_pm.activity_master_repository import (
     SQLiteActivityMasterRepository,
 )
 from construction_pm.scheduling.activity import (
-    ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType, PercentCompleteType,
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityStatusCode,
+    ActivityType,
+    PercentCompleteType,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -226,7 +230,7 @@ def test_activity_master_round_trips_distinct_name_type_status_and_status_code()
     assert stored.name == "Bridge Deck"
     assert stored.activity_type is ActivityType.LEVEL_OF_EFFORT
     assert stored.status is ActivityStatus.IN_PROGRESS
-    assert stored.status_code is ActivityStatus.ACTIVE
+    assert stored.status_code is ActivityStatusCode.ACTIVE
 
     updated = repo.save(
         replace(
@@ -242,5 +246,5 @@ def test_activity_master_round_trips_distinct_name_type_status_and_status_code()
     assert updated.name == "Bridge Deck Inspection"
     assert updated.activity_type is ActivityType.TASK_DEPENDENT
     assert updated.status is ActivityStatus.COMPLETED
-    assert updated.status_code is ActivityStatus.INACTIVE
+    assert updated.status_code is ActivityStatusCode.INACTIVE
     assert repo.get(scope(), "A-1") == updated

@@ -14,9 +14,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
-from construction_pm.scheduling.activity import (
-    ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType,
-)
+from construction_pm.scheduling.activity import ActivityLevelingPriority
 
 
 class Sessions:
@@ -94,7 +92,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     create_payload = {
         "contract_version": "p6-activity-master-api.v1",
         "activity_id": "A-1",
-        "name": "Foundation Pour",
+        "name": "Foundation Slab",
         "activity_type": "Resource Dependent",
         "status": "In Progress",
         "status_code": "Active",
@@ -115,7 +113,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     status, created = _request(app, "POST", path, create_payload)
     assert status == "201 Created"
     assert created["activity"]["record_revision"] == 1
-    assert created["activity"]["name"] == "Foundation Pour"
+    assert created["activity"]["name"] == "Foundation Slab"
     assert created["activity"]["activity_type"] == "Resource Dependent"
     assert created["activity"]["status"] == "In Progress"
     assert created["activity"]["status_code"] == "Active"
@@ -134,10 +132,10 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert persisted.duration_value == Decimal("12.50")
     assert persisted.leveling_priority is ActivityLevelingPriority.HIGH
     assert persisted.original_duration == 15
-    assert persisted.name == "Foundation Pour"
-    assert persisted.activity_type is ActivityType.RESOURCE_DEPENDENT
-    assert persisted.status is ActivityStatus.IN_PROGRESS
-    assert persisted.status_code is ActivityStatusCode.ACTIVE
+    assert persisted.name == "Foundation Slab"
+    assert persisted.activity_type.value == "Resource Dependent"
+    assert persisted.status.value == "In Progress"
+    assert persisted.status_code.value == "Active"
     fresh_connection.close()
 
     status, loaded = _request(app, "GET", path + "/A-1")
@@ -151,7 +149,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         **create_payload,
         "planned_finish": "2026-10-24",
         "leveling_priority": "Lowest",
-        "name": "Pumped Foundation Concrete",
+        "name": "Foundation Slab Complete",
         "activity_type": "Task Dependent",
         "status": "Completed",
         "status_code": "Inactive",
@@ -162,10 +160,47 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert updated["activity"]["record_revision"] == 2
     assert updated["activity"]["planned_finish"] == "2026-10-24"
     assert updated["activity"]["leveling_priority"] == "Lowest"
-    assert updated["activity"]["name"] == "Pumped Foundation Concrete"
+    assert updated["activity"]["name"] == "Foundation Slab Complete"
     assert updated["activity"]["activity_type"] == "Task Dependent"
     assert updated["activity"]["status"] == "Completed"
     assert updated["activity"]["status_code"] == "Inactive"
+
+    # PATCH is partial: omitted fields must be retained, not reset to defaults.
+    partial_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "expected_revision": 2,
+        "planned_finish": "2026-10-25",
+    }
+    status, partial = _request(app, "PATCH", path + "/A-1", partial_payload)
+    assert status == "200 OK"
+    assert partial["activity"]["record_revision"] == 3
+    assert partial["activity"]["planned_finish"] == "2026-10-25"
+    assert partial["activity"]["duration_value"] == "12.50"
+    assert partial["activity"]["duration_unit"] == "working-day"
+    assert partial["activity"]["actual_start"] == actual_start
+    assert partial["activity"]["expected_finish"] == "2026-10-21"
+    assert partial["activity"]["remaining_duration"] == 8
+    assert partial["activity"]["percent_complete"] == 35.5
+    assert partial["activity"]["percent_complete_type"] == "DURATION"
+    assert partial["activity"]["leveling_priority"] == "Lowest"
+    assert partial["activity"]["original_duration"] == 15
+    assert partial["activity"]["name"] == "Foundation Slab Complete"
+    assert partial["activity"]["activity_type"] == "Task Dependent"
+    assert partial["activity"]["status"] == "Completed"
+    assert partial["activity"]["status_code"] == "Inactive"
+
+    # Explicit null clears an optional value; omission above preserved it.
+    clear_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "expected_revision": 3,
+        "expected_finish": None,
+    }
+    status, cleared = _request(app, "PATCH", path + "/A-1", clear_payload)
+    assert status == "200 OK"
+    assert cleared["activity"]["record_revision"] == 4
+    assert cleared["activity"]["expected_finish"] is None
+    assert cleared["activity"]["planned_finish"] == "2026-10-25"
+    assert cleared["activity"]["original_duration"] == 15
 
     status, conflict = _request(
         app, "PATCH", path + "/A-1", {**update_payload, "expected_revision": 1}

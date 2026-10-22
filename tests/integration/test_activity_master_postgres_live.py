@@ -10,7 +10,11 @@ from construction_pm.activity_master_repository import (
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.scheduling.activity import (
-    ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType, PercentCompleteType,
+    ActivityLevelingPriority,
+    ActivityStatus,
+    ActivityStatusCode,
+    ActivityType,
+    PercentCompleteType,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -137,7 +141,7 @@ def test_postgres_activity_master_updates_all_progress_state():
         assert saved.name == "Concrete Pour Complete"
         assert saved.activity_type is ActivityType.TASK_DEPENDENT
         assert saved.status is ActivityStatus.COMPLETED
-        assert saved.status_code is ActivityStatus.INACTIVE
+        assert saved.status_code is ActivityStatusCode.INACTIVE
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
