@@ -75,12 +75,33 @@ const copy: Record<LandingLocale, LandingCopy> = {
     footerNote: "برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
 };
+const LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale";
 let locale: LandingLocale = "en";
+function restoreLandingLocale(): void {
+  try {
+    const saved = window.localStorage.getItem(LANDING_LOCALE_STORAGE_KEY);
+    if (saved === "en" || saved === "fa") locale = saved;
+  } catch {
+    // Storage may be disabled in private browsing or restricted contexts.
+    // The homepage must remain usable with the default English locale.
+  }
+}
+function persistLandingLocale(): void {
+  try {
+    window.localStorage.setItem(LANDING_LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Language switching still works for the current page if storage is unavailable.
+  }
+}
 function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
 }
 function renderLanding(container: HTMLElement): void {
+  if (container.dataset.localeInitialized !== "true") {
+    restoreLandingLocale();
+    container.dataset.localeInitialized = "true";
+  }
   const t = copy[locale];
   setLandingDocumentLocale();
   container.innerHTML = `
@@ -133,6 +154,7 @@ function renderLanding(container: HTMLElement): void {
     </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     locale = locale === "en" ? "fa" : "en";
+    persistLandingLocale();
     renderLanding(container);
   });
 }
