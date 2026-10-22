@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Callable, Mapping
 
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
+from construction_pm.backend_p0.errors import BackendApplicationError, ErrorCategory
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 
@@ -14,7 +15,11 @@ from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
-from construction_pm.schedule_evaluator import ScheduleEvaluationResult, evaluate_schedule_snapshot
+from construction_pm.schedule_evaluator import (
+    ScheduleEvaluationError,
+    ScheduleEvaluationResult,
+    evaluate_schedule_snapshot,
+)
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
@@ -80,11 +85,22 @@ class AuthoritativeScheduleQueryProvider:
                 source_refs=(source,),
             )
 
-        result = evaluate_schedule_snapshot(
-            snapshot,
-            calculation_context,
-            self.calendar_registry_factory(),
-        )
+        try:
+            result = evaluate_schedule_snapshot(
+                snapshot,
+                calculation_context,
+                self.calendar_registry_factory(),
+            )
+        except ScheduleEvaluationError as exc:
+            # Keep fail-closed calculation behavior while translating a core
+            # rejection into the stable Schedule Query validation contract.
+            # In particular, missing immutable resource-leveling input must
+            # not escape the authenticated HTTP boundary as an unhandled error.
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                str(exc) or "SCHEDULE_EVALUATION_FAILED",
+                "Schedule evaluation could not be completed from the immutable inputs.",
+            ) from exc
         source = SourceReference(
             source_id=snapshot.snapshot_id,
             source_type="schedule-calculation",
