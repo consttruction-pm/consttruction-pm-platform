@@ -279,7 +279,12 @@ class ResourceLevelingFacts:
             rows = rates_by_resource.get(resource_id, [])
             if not rows:
                 raise ResourceLevelingFactsError("RESOURCE_MAX_UNITS_PER_TIME_REQUIRED")
-            if len({row.shift_id for row in rows}) != 1:
+            if len({row.shift_id for row in rows}) != 1 or any(
+                row.shift_id != "default" for row in rows
+            ):
+                # There is no versioned shift definition/working-time resolver
+                # in this date-based input schema. A single named shift is still
+                # unsupported; it cannot safely inherit the generic calendar.
                 raise ResourceLevelingFactsError("RESOURCE_RATE_SHIFT_LEVELING_UNSUPPORTED")
             rows.sort(key=lambda row: row.effective_from)
 
