@@ -44,7 +44,6 @@ from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
-    RelationshipLagCalendarAssignment,
 )
 from .scheduling.calendar_context import CalendarReference
 from .scheduling.calendar_system import CalendarSystem
@@ -506,6 +505,14 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("PROJECT_SCHEDULE_SETTINGS_NOT_FOUND")
         if project_settings.scope != scope:
             raise ScheduleInputCompositionError("PROJECT_SCHEDULE_SETTINGS_SCOPE_MISMATCH")
+        if relationship_lag_assignments:
+            # P6 v26 exposes one schedule-wide "Calendar for scheduling
+            # Relationship Lag" option. Per-relationship overrides are not
+            # part of that P6 calculation profile; fail closed rather than
+            # silently produce different dates under the P6 label.
+            raise ScheduleInputCompositionError(
+                "PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE"
+            )
         try:
             project_settings.validate()
         except ProjectScheduleSettingsPersistenceError as exc:
@@ -616,52 +623,6 @@ class AuthoritativeScheduleInputComposer:
                     f"INVALID_PERSISTED_RELATIONSHIP:{item.relationship_id}:{exc}"
                 ) from exc
 
-        persisted_relationship_by_id = {
-            item.relationship_id: item for item in persisted_relationships
-        }
-        relationship_lag_calendar_assignments: list[RelationshipLagCalendarAssignment] = []
-        seen_lag_assignment_edges: set[tuple[str, str]] = set()
-        for assignment in relationship_lag_assignments:
-            if assignment.scope != scope:
-                raise ScheduleInputCompositionError(
-                    f"RELATIONSHIP_LAG_ASSIGNMENT_SCOPE_MISMATCH:{assignment.relationship_id}"
-                )
-            stored_relationship = persisted_relationship_by_id.get(assignment.relationship_id)
-            if stored_relationship is None:
-                raise ScheduleInputCompositionError(
-                    f"RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP:{assignment.relationship_id}"
-                )
-            edge = (stored_relationship.predecessor_id, stored_relationship.successor_id)
-            if edge in seen_lag_assignment_edges:
-                raise ScheduleInputCompositionError(
-                    f"DUPLICATE_RELATIONSHIP_LAG_CALENDAR_ASSIGNMENT:{assignment.relationship_id}"
-                )
-            seen_lag_assignment_edges.add(edge)
-            explicit_calendar = None
-            if assignment.calendar_id is not None:
-                if assignment.calendar_version is None:
-                    raise ScheduleInputCompositionError(
-                        f"RELATIONSHIP_LAG_CALENDAR_VERSION_REQUIRED:{assignment.relationship_id}"
-                    )
-                explicit_calendar = self._load_calendar_reference(
-                    scope,
-                    assignment.calendar_id,
-                    assignment.calendar_version,
-                )
-            try:
-                relationship_lag_calendar_assignments.append(
-                    RelationshipLagCalendarAssignment(
-                        predecessor_id=edge[0],
-                        successor_id=edge[1],
-                        option=assignment.option,
-                        calendar=explicit_calendar,
-                    )
-                )
-            except (TypeError, ValueError) as exc:
-                raise ScheduleInputCompositionError(
-                    f"INVALID_RELATIONSHIP_LAG_CALENDAR_ASSIGNMENT:{assignment.relationship_id}:{exc}"
-                ) from exc
-
         constraints: list[ActivityConstraint] = []
         for item in sorted(persisted_constraints, key=lambda value: value.constraint_id):
             if item.scope != scope:
@@ -716,12 +677,6 @@ class AuthoritativeScheduleInputComposer:
             activity_calendar_assignments=tuple(
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
-            relationship_lag_calendar_assignments=tuple(
-                sorted(
-                    relationship_lag_calendar_assignments,
-                    key=lambda item: (item.predecessor_id, item.successor_id),
-                )
-            ),
             constraints=tuple(constraints),
             schedule_options=project_settings.schedule_options,
             project_start=project_settings.project_start,
@@ -749,7 +704,6 @@ class AuthoritativeScheduleInputComposer:
             activities=schedule_input.activities,
             relationships=schedule_input.relationships,
             activity_calendar_assignments=schedule_input.activity_calendar_assignments,
-            relationship_lag_calendar_assignments=schedule_input.relationship_lag_calendar_assignments,
             constraints=schedule_input.constraints,
             schedule_options=schedule_input.schedule_options,
             project_start=schedule_input.project_start,
