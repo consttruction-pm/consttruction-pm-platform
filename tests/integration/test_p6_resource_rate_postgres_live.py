@@ -85,14 +85,13 @@ def test_postgres_resource_capacity_rate_conflicting_concurrent_writes_are_race_
             self._waited = False
 
         def execute(self, statement, parameters=()):
-            cursor = self._connection.execute(statement, parameters)
             if (
                 not self._waited
-                and statement.lstrip().startswith("SELECT max_units_per_time")
+                and statement.lstrip().startswith("INSERT INTO p6_resource_rate_capacity")
             ):
                 self._waited = True
                 barrier.wait(timeout=10)
-            return cursor
+            return self._connection.execute(statement, parameters)
 
         def __getattr__(self, name):
             return getattr(self._connection, name)
