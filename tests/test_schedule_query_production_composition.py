@@ -17,6 +17,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.schedule_options import ScheduleOptions
 
 
 class Sessions:
@@ -196,3 +197,84 @@ def test_production_composition_wires_backend_p0_workspace_control_room():
         "project_id": "P-1",
         "project_revision": 9,
     }
+
+
+def test_leveling_enabled_snapshot_without_immutable_leveling_input_returns_structured_query_error():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    scope = BackendScope("T-1", "P-1", 9)
+
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-LEVELING-MISSING",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-LEVELING-MISSING",
+        tenant_id="T-1",
+        actor_id="authoritative-actor",
+    )
+    snapshot_repo.save(build_snapshot(source, context, now))
+    context_repo.save(build_persisted_context(scope, context))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+    payload = {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-LEVELING-MISSING",
+        "scope": {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9},
+        "requested_by": "u1",
+        "query_text": "level resources",
+        "kind": "fact",
+        "language": "en",
+        "constraints": {"snapshot_id": "S-LEVELING-MISSING"},
+    }
+    body = json.dumps(payload).encode()
+    status_line: list[str] = []
+    result: list[bytes] = []
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "PATH_INFO": "/api/v1/schedule/query",
+        "HTTP_COOKIE": "cp_session=s1",
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+
+    def start_response(status: str, headers: list[tuple[str, str]]) -> None:
+        status_line.append(status)
+
+    result.extend(app(environ, start_response))
+    payload_out = json.loads(b"".join(result))
+
+    assert status_line == ["400 Bad Request"]
+    assert payload_out["error"]["category"] == "validation"
+    assert payload_out["error"]["code"] == "SCHEDULE_LEVELING_INPUT_REQUIRED"
+    assert payload_out["error"]["retryable"] is False
+    assert "data" not in payload_out
+    conn.close()
