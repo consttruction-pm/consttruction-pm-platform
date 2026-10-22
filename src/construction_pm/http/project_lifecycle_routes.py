@@ -892,6 +892,20 @@ class ProjectLifecycleHttpRoutes:
                     payload = json.loads(body.decode("utf-8") or "{}") if body else {}
                     if not isinstance(payload, dict):
                         raise ValueError("INVALID_PAYLOAD")
+                    expected_fields = {
+                        "contract_version",
+                        "expected_record_revision",
+                        "mode",
+                        "project_calendar_id",
+                        "project_calendar_version",
+                        "project_calendar_system",
+                        "project_start",
+                        "project_finish",
+                        "schedule_options",
+                        "project_leveling_priority",
+                    }
+                    if set(payload) != expected_fields:
+                        raise ValueError("PROJECT_SCHEDULE_SETTINGS_FIELDS_INVALID")
                     if payload.get("contract_version") != P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION:
                         raise ValueError("INVALID_PROJECT_SCHEDULE_SETTINGS_CONTRACT_VERSION")
 
@@ -1003,13 +1017,12 @@ class ProjectLifecycleHttpRoutes:
                     return self._json(status_code, result)
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")
-                except (
-                    ProjectScheduleSettingsPersistenceError,
-                    TypeError,
-                    ValueError,
-                    ArithmeticError,
-                    KeyError,
-                ) as exc:
+                except ProjectScheduleSettingsPersistenceError as exc:
+                    code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    return self._error(400, code, "error.request.invalid")
+                except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
                     return self._error(400, code, "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/schedule/snapshots" in path and self._p6_schedule_snapshot_api is not None:
@@ -1054,15 +1067,13 @@ class ProjectLifecycleHttpRoutes:
                     return self._json(201, result)
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")
-                except (
-                    ScheduleInputCompositionError,
-                    ScheduleSnapshotPublicationError,
-                    ProjectScheduleSettingsPersistenceError,
-                    TypeError,
-                    ValueError,
-                    ArithmeticError,
-                    KeyError,
-                ) as exc:
+                except ProjectScheduleSettingsPersistenceError as exc:
+                    code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    return self._error(400, code, "error.request.invalid")
+                except (ScheduleInputCompositionError, ScheduleSnapshotPublicationError,
+                        TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
                     return self._error(400, code, "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/activities" in path and self._p6_activity_master_api is not None:
