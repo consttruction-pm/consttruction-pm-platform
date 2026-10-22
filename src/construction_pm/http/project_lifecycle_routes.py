@@ -55,6 +55,17 @@ from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVI
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
 from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
+from ..authoritative_schedule_input_composer import (
+    ScheduleInputCompositionError,
+    ScheduleInputDefinition,
+)
+from ..p6_schedule_snapshot_publication_api import (
+    P6_SCHEDULE_SNAPSHOT_API_VERSION,
+    P6ScheduleSnapshotPublicationAPI,
+)
+from ..schedule_snapshot_publisher import ScheduleSnapshotPublicationError
+from ..schedule_snapshot_materializer import parse_schedule_options_payload
+from ..scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from ..relationship_master_repository import RelationshipPersistenceError
 from ..p6_role_api import P6RoleAPI, P6_ROLE_API_VERSION
 from ..p6_expense_repository import P6Expense
@@ -112,6 +123,7 @@ class ProjectLifecycleHttpRoutes:
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
+        p6_schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
         p6_role_api: P6RoleAPI | None = None,
         p6_mapping_api: P6MappingAPI | None = None,
@@ -139,6 +151,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
+        self._p6_schedule_snapshot_api = p6_schedule_snapshot_api
         self._p6_relationship_api = p6_relationship_api
         self._p6_role_api = p6_role_api
         self._p6_mapping_api = p6_mapping_api
@@ -835,6 +848,90 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, KeyError):
                     return self._error(400, "P6_COST_ACCOUNT_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/schedule/snapshots" in path and self._p6_schedule_snapshot_api is not None:
+                prefix = "/p6/schedule/snapshots"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID", "error.request.invalid")
+                if method != "POST" or suffix.strip("/"):
+                    return self._error(405, "P6_SCHEDULE_SNAPSHOT_METHOD_NOT_ALLOWED", "error.request.invalid")
+                try:
+                    project_context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = project_context.authorization_context(session.roles)
+                scope = BackendScope(
+                    project_context.tenant_id,
+                    project_context.project_id,
+                    project_context.revision,
+                )
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("INVALID_PAYLOAD")
+                    if payload.get("contract_version") != P6_SCHEDULE_SNAPSHOT_API_VERSION:
+                        raise ValueError("INVALID_CONTRACT_VERSION")
+
+                    def date_field(field_name: str, *, required: bool = False):
+                        raw = payload.get(field_name)
+                        if raw is None and not required:
+                            return None
+                        if not isinstance(raw, str) or not raw.strip() or "T" in raw:
+                            raise ValueError("INVALID_" + field_name.upper())
+                        try:
+                            parsed = date.fromisoformat(raw)
+                        except ValueError as exc:
+                            raise ValueError("INVALID_" + field_name.upper()) from exc
+                        if parsed.isoformat() != raw:
+                            raise ValueError("INVALID_" + field_name.upper())
+                        return parsed
+
+                    raw_mode = payload.get("mode")
+                    if not isinstance(raw_mode, str):
+                        raise ValueError("SCHEDULE_MODE_REQUIRED")
+                    mode = AuthoritativeScheduleMode(raw_mode)
+                    options_payload = payload.get("schedule_options")
+                    options = parse_schedule_options_payload(options_payload)
+                    timezone_name = payload.get("timezone")
+                    if not isinstance(timezone_name, str) or not timezone_name.strip():
+                        raise ValueError("CALCULATION_TIMEZONE_REQUIRED")
+                    raw_priority = payload.get("project_leveling_priority", 10)
+                    if isinstance(raw_priority, bool) or not isinstance(raw_priority, int):
+                        raise ValueError("INVALID_PROJECT_LEVELING_PRIORITY")
+                    definition = ScheduleInputDefinition(
+                        project_calendar_id=payload.get("project_calendar_id"),
+                        project_calendar_version=payload.get("project_calendar_version"),
+                        project_start=date_field("project_start", required=True),
+                        project_finish=date_field("project_finish"),
+                        schedule_options=options,
+                        mode=mode,
+                        project_leveling_priority=raw_priority,
+                    )
+                    result = self._p6_schedule_snapshot_api.publish(
+                        scope,
+                        definition=definition,
+                        timezone_name=timezone_name,
+                        auth_context=auth,
+                        request_id=environ.get("HTTP_X_REQUEST_ID"),
+                        idempotency_key=environ.get("HTTP_IDEMPOTENCY_KEY"),
+                    )
+                    return self._json(201, result)
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except (
+                    ScheduleInputCompositionError,
+                    ScheduleSnapshotPublicationError,
+                    TypeError,
+                    ValueError,
+                    ArithmeticError,
+                    KeyError,
+                ) as exc:
+                    code = str(exc) or "P6_SCHEDULE_SNAPSHOT_REQUEST_INVALID"
+                    return self._error(400, code, "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/activities" in path and self._p6_activity_master_api is not None:
                 prefix = "/p6/activities"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")

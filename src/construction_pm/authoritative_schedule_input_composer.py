@@ -149,7 +149,7 @@ class AuthoritativeScheduleInputComposer:
         snapshot_data = getattr(snapshot, "snapshot", None)
         if not isinstance(snapshot_data, dict):
             raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_NOT_FOUND_OR_INVALID")
-        if snapshot_data.get("kind") != calendar.kind:
+        if getattr(snapshot, "kind", None) != calendar.kind:
             raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_KIND_MISMATCH")
         raw_system = snapshot_data.get("system")
         if not isinstance(raw_system, str):
