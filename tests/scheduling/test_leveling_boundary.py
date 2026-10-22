@@ -247,7 +247,7 @@ def test_scheduler_leveling_boundary_accepts_documented_p6_priority_fields(field
     assert len(boundary.options.priorities) == 1
 
 
-def test_leveling_priority_requires_authoritative_values_for_new_fields():
+def test_leveling_priority_reads_typed_p6_fields_without_substituting_other_values():
     from construction_pm.scheduling.resource_leveling import _priority_value
 
     activity = LevelingActivity(
@@ -255,12 +255,34 @@ def test_leveling_priority_requires_authoritative_values_for_new_fields():
         start=date(2026, 10, 5),
         finish=date(2026, 10, 6),
         total_float=2,
+        original_planned_duration=Decimal("5.5"),
+        planned_finish=date(2026, 10, 12),
+        project_planned_start=date(2026, 10, 1),
+        project_priority=3,
+        remaining_duration=Decimal("2.25"),
     )
-    for field_name in (
-        "original_planned_duration",
-        "planned_finish",
-        "project_planned_start",
-        "project_priority",
-        "remaining_duration",
-    ):
-        assert _priority_value(activity, field_name) is None
+    assert _priority_value(activity, "original_planned_duration") == Decimal("5.5")
+    assert _priority_value(activity, "planned_finish") == date(2026, 10, 12)
+    assert _priority_value(activity, "project_planned_start") == date(2026, 10, 1)
+    assert _priority_value(activity, "project_priority") == 3
+    assert _priority_value(activity, "remaining_duration") == Decimal("2.25")
+
+
+def test_backward_leveling_activity_carries_typed_p6_priority_fields():
+    activity = BackwardLevelingActivity(
+        activity_id="A1",
+        early_start=date(2026, 10, 5),
+        early_finish=date(2026, 10, 6),
+        late_start=date(2026, 10, 7),
+        late_finish=date(2026, 10, 8),
+        original_planned_duration=Decimal("5.5"),
+        planned_finish=date(2026, 10, 12),
+        project_planned_start=date(2026, 10, 1),
+        project_priority=3,
+        remaining_duration=Decimal("2.25"),
+    )
+    assert activity.original_planned_duration == Decimal("5.5")
+    assert activity.planned_finish == date(2026, 10, 12)
+    assert activity.project_planned_start == date(2026, 10, 1)
+    assert activity.project_priority == 3
+    assert activity.remaining_duration == Decimal("2.25")
