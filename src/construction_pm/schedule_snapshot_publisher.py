@@ -24,7 +24,6 @@ from .scheduling.calculation_context import CalculationContext
 from .authoritative_schedule_input_composer import (
     AuthoritativeScheduleInputComposer,
     ScheduleInputCompositionError,
-    ScheduleInputDefinition,
 )
 
 
@@ -91,7 +90,6 @@ class AuthoritativeScheduleSnapshotPublisher:
         self,
         scope: BackendScope,
         *,
-        definition: ScheduleInputDefinition,
         timezone_name: str,
         actor_id: str,
         request_id: str | None = None,
@@ -116,7 +114,6 @@ class AuthoritativeScheduleSnapshotPublisher:
                 schedule_input = self.composer.compose(
                     scope,
                     snapshot_id=snapshot_id,
-                    definition=definition,
                 )
                 context = CalculationContext(
                     project_id=scope.project_id,
