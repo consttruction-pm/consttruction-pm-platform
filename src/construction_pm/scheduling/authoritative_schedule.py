@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any, Mapping
 
 from .activity import Activity
-from .calendar_context import CalendarReference
+from .calendar_context import CalendarReference, RelationshipLagCalendar
 from .constraints import ActivityConstraint
 from .relationships import Relationship
 from .schedule_options import ScheduleOptions
@@ -44,6 +44,36 @@ class ActivityCalendarAssignment:
 
 
 @dataclass(frozen=True)
+class RelationshipLagCalendarAssignment:
+    """Versioned per-relationship lag-calendar override for a schedule snapshot.
+
+    When `calendar` is present it explicitly selects that calendar for the
+    relationship lag. Otherwise `option` selects predecessor, successor,
+    project-default, or continuous 24-hour semantics.
+    """
+
+    predecessor_id: str
+    successor_id: str
+    option: RelationshipLagCalendar
+    calendar: CalendarReference | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.predecessor_id, str) or not self.predecessor_id.strip():
+            raise ValueError("predecessor_id must be a non-empty string")
+        if not isinstance(self.successor_id, str) or not self.successor_id.strip():
+            raise ValueError("successor_id must be a non-empty string")
+        if not isinstance(self.option, RelationshipLagCalendar):
+            raise TypeError("option must be a RelationshipLagCalendar")
+        if self.calendar is not None and not isinstance(self.calendar, CalendarReference):
+            raise TypeError("calendar must be a CalendarReference or None")
+        if self.calendar is not None and self.option in {
+            RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+            RelationshipLagCalendar.PROJECT_DEFAULT,
+        }:
+            raise ValueError("explicit calendar reference conflicts with relationship lag option")
+
+
+@dataclass(frozen=True)
 class AuthoritativeScheduleInput:
     """Immutable, calculation-ready schedule input contract.
 
@@ -61,6 +91,7 @@ class AuthoritativeScheduleInput:
     activities: tuple[Activity | TimeActivity, ...]
     relationships: tuple[Relationship | TimeRelationship, ...]
     activity_calendar_assignments: tuple[ActivityCalendarAssignment, ...]
+    relationship_lag_calendar_assignments: tuple[RelationshipLagCalendarAssignment, ...] = ()
     constraints: tuple[ActivityConstraint, ...] = ()
     schedule_options: ScheduleOptions = ScheduleOptions()
     project_start: date | datetime | None = None
@@ -87,6 +118,8 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must be a tuple")
         if not isinstance(self.activity_calendar_assignments, tuple):
             raise TypeError("activity_calendar_assignments must be a tuple")
+        if not isinstance(self.relationship_lag_calendar_assignments, tuple):
+            raise TypeError("relationship_lag_calendar_assignments must be a tuple")
         if not isinstance(self.constraints, tuple):
             raise TypeError("constraints must be a tuple")
         if not all(isinstance(item, (Activity, TimeActivity)) for item in self.activities):
@@ -95,6 +128,13 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must contain scheduling relationships")
         if not all(isinstance(item, ActivityCalendarAssignment) for item in self.activity_calendar_assignments):
             raise TypeError("activity_calendar_assignments must contain ActivityCalendarAssignment items")
+        if not all(
+            isinstance(item, RelationshipLagCalendarAssignment)
+            for item in self.relationship_lag_calendar_assignments
+        ):
+            raise TypeError(
+                "relationship_lag_calendar_assignments must contain RelationshipLagCalendarAssignment items"
+            )
         if not all(isinstance(item, ActivityConstraint) for item in self.constraints):
             raise TypeError("constraints must contain ActivityConstraint items")
         if not isinstance(self.project_calendar, CalendarReference):
@@ -109,6 +149,10 @@ class AuthoritativeScheduleInput:
         if any(
             assignment.calendar.kind != expected_calendar_kind
             for assignment in self.activity_calendar_assignments
+        ) or any(
+            assignment.calendar is not None
+            and assignment.calendar.kind != expected_calendar_kind
+            for assignment in self.relationship_lag_calendar_assignments
         ):
             raise ValueError(
                 f"{self.mode.value} snapshot requires {expected_calendar_kind} activity calendars"
@@ -133,6 +177,17 @@ class AuthoritativeScheduleInput:
         unknown_assignments = set(assignment_ids) - set(activity_ids)
         if unknown_assignments:
             raise ValueError("calendar assignment references unknown activity")
+        lag_assignment_keys = [
+            (item.predecessor_id, item.successor_id)
+            for item in self.relationship_lag_calendar_assignments
+        ]
+        if len(lag_assignment_keys) != len(set(lag_assignment_keys)):
+            raise ValueError("relationship lag calendar assignments must be unique")
+        relationship_keys = {
+            (item.predecessor_id, item.successor_id) for item in self.relationships
+        }
+        if set(lag_assignment_keys) - relationship_keys:
+            raise ValueError("relationship lag calendar assignment references unknown relationship")
 
         if self.mode is AuthoritativeScheduleMode.DATE_BASED:
             if not all(isinstance(item, Activity) for item in self.activities):
@@ -193,6 +248,12 @@ class AuthoritativeScheduleInput:
             "project_finish": self.project_finish,
             "project_leveling_priority": self.project_leveling_priority,
         }
+        # Keep prior hashes stable for snapshots that have no explicit
+        # per-relationship lag-calendar overrides.
+        if self.relationship_lag_calendar_assignments:
+            payload["relationship_lag_calendar_assignments"] = (
+                self.relationship_lag_calendar_assignments
+            )
         # Preserve old canonical JSON and snapshot hashes for legacy/non-leveling
         # inputs. When populated, the complete resource contract is bound by the
         # same immutable schedule snapshot hash.
