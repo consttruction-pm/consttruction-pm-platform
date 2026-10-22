@@ -34,6 +34,14 @@ Publication/materialization rejects missing or ambiguous rate data, an ineffecti
 P6 documentation states that resource curves are not used by resource leveling, while manually entered future-period assignment values are considered. The snapshot therefore uses persisted period-demand values for the leveling input and does not treat a distribution curve as a capacity limit.
 
 ## Implemented path and current limitations
+## Activity-type rules from P6 v26
+
+The shared snapshot evaluator now excludes **WBS Summary** activity demands from the leveling ledger while retaining source assignment/demand facts in the immutable snapshot for audit. Regression coverage gives a WBS Summary activity 100 units on a day when two Task Dependent activities each demand 8 units; those two executable tasks must still level based on actual capacity, and the summary row must not consume capacity.
+
+P6 v26 distinguishes Task Dependent and Resource Dependent activities: Task Dependent work requires all assigned resources to be available; Resource Dependent work uses driving resources to determine activity dates while nondriving assignments may be leveled separately on/after those dates. The persisted resource-assignment contract does not yet record a driving/nondriving flag, and the Shared Core does not yet return independently shifted nondriving assignment dates. The composer therefore rejects a leveling snapshot with Resource Dependent assignments using `RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED`, instead of treating every assignment as activity-driving.
+
+Source: [P6 Professional v26 — Leveling resources on Task, Resource Dependent, and WBS summary activities](https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_resources_on_task_resource_dependent_wbs_activities.htm).
+
 
 The authenticated HTTP boundary now exposes `GET /api/projects/{project_id}/p6/resource-rates` and `POST /api/projects/{project_id}/p6/resource-rates`. It derives tenant, project, revision, and actor roles from the authenticated project session rather than trusting the request body. The production composition uses the same rate repository as the snapshot composer; an explicitly different repository is rejected as `RESOURCE_RATE_REPOSITORY_WIRING_MISMATCH`. WSGI integration tests cover read-after-write, revision scope, reader-versus-writer authorization, split-repository wiring, and immutable profile conflicts reported as HTTP `409 Conflict`. The end-to-end snapshot test also covers a rate effective-date boundary and a non-working Saturday where both calendar work-hours and capacity must be zero.
 
@@ -53,8 +61,8 @@ Do not mark resource leveling complete until all of the following are evidenced 
 - Production composition binds the authenticated rate API to the exact same version-scoped repository used by the authoritative snapshot composer; the WSGI test proves read/write wiring at the app boundary.
 - The authenticated write/read surface persists effective dates, Max Units/Time, unit, time-period source/conversion and percentage base without lossy defaults; tests reject invalid percentage rates and unauthorized writes.
 - The snapshot publication route reads assignments, demand periods, rates and calendar versions in one transaction and commits their complete immutable payload/hash.
-- The schedule query materializer reproduces the same facts from the saved snapshot and performs no mutable repository reads.
-- Regression tests cover rate changes at an effective-date boundary, absolute and percentage limits, calendar/global time-period settings, zero/nonwork capacity, missing data, cross-tenant/revision isolation, concurrent conflicting writes, and the explicitly unsupported shift case. Suspended-activity intervals, cross-project leveling, and post-level resource-driven critical paths must receive dedicated tests before claiming parity.
+- The schedule query materializer reproduces leveling input from the saved snapshot and performs no mutable repository reads. The current end-to-end test `test_leveling_snapshot_binds_persisted_resource_inputs_and_executes_production_query` covers persisted assignments/period demands/rates, publication, rate effective-date selection, non-work-day zero capacity, and an authenticated leveling-enabled Schedule Query that recalculates task dates.
+- Regression tests cover rate changes at an effective-date boundary, absolute and percentage limits, calendar/global time-period settings, zero/nonwork capacity, missing data, cross-tenant/revision isolation, concurrent conflicting writes, WBS Summary exclusion, the Resource Dependent fail-closed guard, and the explicitly unsupported shift case. Suspended-activity intervals, cross-project leveling, and post-level resource-driven critical paths must receive dedicated tests before claiming parity.
 - CI and PostgreSQL integration pass on the exact candidate commit, followed by independent review.
 
 Until these gates are satisfied, this work remains a tested partial integration rather than a claim of complete P6 resource-leveling parity.
