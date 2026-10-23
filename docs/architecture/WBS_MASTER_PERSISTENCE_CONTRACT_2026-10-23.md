@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This contract defines the first persistence boundary for CUBI's canonical Work Breakdown Structure (WBS) nodes. It does **not** claim that the end-to-end workspace read model, Activity-to-WBS linkage, HTTP API, production composition, or Web hierarchy is complete. Issues #1384, #1359, and #1515 remain open until those separate gates are demonstrated.
+This contract defines CUBI's canonical Work Breakdown Structure (WBS) identity and the current WBS/Activity persistence and authenticated API boundary. The repository now stores tenant/project-scoped WBS nodes, persists an optional backwards-compatible Activity-to-WBS reference, enforces a valid same-scope WBS at authenticated Activity create/update, and exposes authenticated WBS CRUD-read routes through explicit production composition. This does **not** claim the persistence-backed workspace read model, versioned workspace node collection, Web tree renderer, or authenticated `/app/` runtime journey is complete. Issues #1384, #1359, and #1515 remain open until those gates are demonstrated.
 
 ## Source-derived model rules
 
@@ -32,16 +32,17 @@ Official references:
 4. Sibling node-local codes must be unique under a WBS parent. The same local code may exist under different parents because those nodes have different hierarchical codes.
 5. Stale or mixed project revisions fail closed; list must not quietly omit stale nodes and return a partial hierarchy.
 6. SQLite foreign keys and PostgreSQL foreign keys/unique indexes enforce scope and identity constraints at the storage layer as well as in application checks.
-7. SQLite repository writes leave an application-owned transaction open; the PostgreSQL adapter never commits an application transaction.
-8. WorkPackage is intentionally not modeled as an alias for WBS. Activity-to-WBS reference persistence and distinct WorkPackage metadata require their own reviewed contract.
+7. The canonical WBS repositories preserve the established transaction-ownership rule: SQLite only commits when it began the transaction; PostgreSQL leaves commit/rollback to its caller. Activity Master assignment writes are persisted atomically with the Activity record in each adapter's existing transaction policy.
+8. Activity-to-WBS assignment is stored separately from Activity payload data, tied to the same tenant/project/activity, and validated against a persisted WBS at the requested project revision. Unassigned legacy records remain readable; authenticated Activity creation/update requires an explicit non-empty WBS reference.
+9. WorkPackage is intentionally not modeled as an alias for WBS. Distinct WorkPackage identity and semantics require their own reviewed contract.
 
-## Explicitly not implemented by this persistence slice
+## Explicitly not implemented by this persistence/API slice
 
-- Mapping the internal project-parent reference to a numeric P6 ParentObjectId; the REST adapter must reconcile this against the authoritative project ObjectId rather than guessing from a CUBI project string.
-- Activity-to-WBS foreign-key/contract integration.
-- WBS CRUD HTTP endpoints and production API composition.
-- Persistence-backed workspace-control-room-read.v1 projection.
-- Versioned Web read-contract extension and nested WBS renderer.
+- Mapping the internal project-parent reference to a numeric P6 ParentObjectId, or the internal `wbs_id` to external numeric `WBSObjectId`; any P6 integration adapter must reconcile those values against authoritative project/WBS ObjectIds rather than guessing.
+- A certified P6 `Code`/`WBSCode` and `WBSNamePath`/`WBSPath` projection, including project-specific separators and path semantics. `code` in the canonical CUBI node remains the node-local code; it must not be mislabeled as the concatenated external P6 display code.
+- Persistence-backed `workspace-control-room-read.v1` projection and a reviewed/versioned workspace contract that includes full WBS nodes.
+- Web workspace tree consuming those authoritative nodes, including parent-child navigation and nodes with zero activities.
+- Authenticated Web `/app/` runtime proof with a real persisted project.
 - WorkPackage identity or WBS summary/EVM roll-up calculations.
 
 No schedule/CPM, calendar, resource, cost, progress/EVM, or financial calculation semantics are changed by this contract.
