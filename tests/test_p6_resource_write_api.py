@@ -11,9 +11,12 @@ from construction_pm.application.authorization import (
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService,
     P6ResourceAssignmentPeriodValue,
     SQLiteP6ResourceAssignmentPeriodRepository,
+    SQLiteP6ResourceAssignmentRepository,
 )
 from construction_pm.p6_resource_write_api import (
     P6_RESOURCE_WRITE_API_VERSION,
@@ -40,7 +43,15 @@ def build_api():
     manager = TransactionManager(connection)
     repository = SQLiteP6ResourceAssignmentPeriodRepository(connection)
     service = P6ResourceAssignmentPeriodApplicationService(repository, manager)
-    return connection, repository, P6ResourceWriteAPI(service, default_project_policy())
+    assignment_repository = SQLiteP6ResourceAssignmentRepository(connection)
+    assignment_service = P6ResourceAssignmentApplicationService(assignment_repository, manager)
+    return (
+        connection,
+        repository,
+        P6ResourceWriteAPI(
+            service, default_project_policy(), assignment_service=assignment_service
+        ),
+    )
 
 
 def value(scope, period_start="2026-10-01", units="4.25", cost="425.50"):
@@ -110,3 +121,43 @@ def test_resource_write_api_preserves_revision_conflict_from_repository():
 
     with pytest.raises(ValueError, match="REVISION_CONFLICT"):
         api.save_assignment_period(value(stale_scope), auth_context=auth())
+
+
+
+@pytest.mark.parametrize("is_driving", [True, False, None])
+def test_resource_write_api_persists_and_returns_explicit_assignment_driving_status(is_driving):
+    connection, _, api = build_api()
+    repository = SQLiteP6ResourceAssignmentRepository(connection)
+    scope = BackendScope("tenant-a", "project-a", 7)
+    item = P6ResourceAssignment(
+        scope=scope,
+        assignment_id=f"ra-{is_driving}",
+        activity_id="act-1",
+        resource_id="res-1",
+        units=Decimal("8"),
+        unit="hours",
+        is_driving=is_driving,
+    )
+
+    created = api.save_assignment(item, auth_context=auth())
+
+    assert created["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
+    assert created["kind"] == "resource_assignment"
+    assert created["scope"]["project_revision"] == 7
+    assert created["assignment"]["is_driving"] is is_driving
+    assert repository.get(scope, item.assignment_id) == item
+    assert api.save_assignment(item, auth_context=auth()) == created
+
+
+def test_resource_write_api_enforces_scope_and_project_write_for_assignments():
+    _, _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 1)
+    item = P6ResourceAssignment(
+        scope=scope, assignment_id="ra-1", activity_id="act-1",
+        resource_id="res-1", is_driving=True,
+    )
+
+    with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
+        api.save_assignment(item, auth_context=auth("tenant-b", "project-a"))
+    with pytest.raises(AuthorizationError, match="RESOURCE_WRITE_NOT_AUTHORIZED"):
+        api.save_assignment(item, auth_context=auth(writer=False))
