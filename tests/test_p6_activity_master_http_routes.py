@@ -320,3 +320,23 @@ def test_authenticated_wbs_routes_preserve_parent_identity_and_revision():
     )
     assert stale_status == "409 Conflict"
     connection.close()
+
+
+
+def test_authenticated_activity_create_requires_existing_wbs_assignment():
+    app, _repository, connection = _app()
+    status, response = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-NO-WBS",
+            "name": "Unassigned Activity",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert response["error"]["code"] == "WBS_REQUIRED"
+    connection.close()
