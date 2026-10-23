@@ -5,6 +5,10 @@ from decimal import Decimal
 import pytest
 
 from construction_pm.scheduling.resource_leveling import ResourceCapacity
+from construction_pm.scheduling.resource_assignment_schedule import (
+    AssignmentPlacementStatus,
+    ResourceAssignmentScheduleResult,
+)
 from construction_pm.scheduling.resource_leveling_input import (
     ResourceAssignmentLevelingRef,
     ResourceCapacityRate,
@@ -264,3 +268,64 @@ def test_legacy_unknown_driving_status_is_serialized_as_unknown_not_inferred():
     payload = facts.canonical_payload()
 
     assert payload["assignments"][0]["is_driving"] is None
+
+
+
+def _assignment_result(**overrides):
+    values = {
+        "snapshot_hash": "a" * 64,
+        "assignment_id": "ASSIGN-A",
+        "activity_id": "A",
+        "resource_id": "R1",
+        "is_driving": True,
+        "early_start": date(2026, 10, 19),
+        "early_finish": date(2026, 10, 20),
+        "late_start": date(2026, 10, 19),
+        "late_finish": date(2026, 10, 20),
+        "status": AssignmentPlacementStatus.SCHEDULED,
+    }
+    values.update(overrides)
+    return ResourceAssignmentScheduleResult(**values)
+
+
+def test_assignment_schedule_result_rejects_datetime_for_date_only_fields():
+    with pytest.raises(TypeError, match="date-only"):
+        _assignment_result(early_start=datetime(2026, 10, 19, 9, 0))
+
+
+def test_assignment_schedule_result_requires_diagnostic_for_unscheduled_result():
+    with pytest.raises(ValueError, match="diagnostic_code"):
+        _assignment_result(
+            status=AssignmentPlacementStatus.UNSCHEDULED,
+            early_start=None,
+            early_finish=None,
+            late_start=None,
+            late_finish=None,
+        )
+
+
+def test_assignment_schedule_result_rejects_dates_for_unscheduled_result():
+    with pytest.raises(ValueError, match="must not expose calculated dates"):
+        _assignment_result(
+            status=AssignmentPlacementStatus.UNSCHEDULED,
+            diagnostic_code="CAPACITY_UNAVAILABLE",
+        )
+
+
+def test_assignment_schedule_result_requires_diagnostic_for_capacity_delay():
+    with pytest.raises(ValueError, match="capacity-delayed"):
+        _assignment_result(status=AssignmentPlacementStatus.DELAYED_FOR_CAPACITY)
+
+
+def test_assignment_schedule_result_accepts_explicit_unscheduled_result():
+    result = _assignment_result(
+        status=AssignmentPlacementStatus.UNSCHEDULED,
+        early_start=None,
+        early_finish=None,
+        late_start=None,
+        late_finish=None,
+        diagnostic_code="CAPACITY_UNAVAILABLE",
+    )
+
+    assert result.status is AssignmentPlacementStatus.UNSCHEDULED
+    assert result.diagnostic_code == "CAPACITY_UNAVAILABLE"
