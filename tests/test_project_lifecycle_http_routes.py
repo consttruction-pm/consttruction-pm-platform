@@ -823,6 +823,9 @@ def test_authenticated_resource_assignment_http_write_accepts_driver_flag_and_re
     fetched = json.loads(raw)
     assert fetched["contract_version"] == P6_RESOURCE_READ_API_VERSION
     assert fetched["assignment"]["is_driving"] is True
+    assert fetched["assignment"]["units_per_time"] == "2.5"
+    assert fetched["assignment"]["units_per_time_period"] == "day"
+    assert fetched["assignment"]["hours_per_units_time_period"] == "8"
 
 
 def test_resource_assignment_http_write_rejects_non_boolean_driving_flag():
