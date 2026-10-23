@@ -13,11 +13,13 @@
 
 All endpoints require the existing cp_session cookie and an authenticated user who has the current project's project.write permission. expected_revision is mandatory.
 
+- GET /api/projects/{project_id}/ai/actions/proposals: lists up to 100 recent proposals in the authorized project scope.
+- GET /api/projects/{project_id}/ai/actions/proposals/{proposal_id}: reads one proposal in the authorized project scope.
 - POST /api/projects/{project_id}/ai/actions/proposals: body carries expected_revision, registered tool_name, validated payload, and optional evidence_refs.
 - POST /api/projects/{project_id}/ai/actions/proposals/{proposal_id}/decision: body carries expected_revision and Boolean approved.
 - POST /api/projects/{project_id}/ai/actions/proposals/{proposal_id}/execute: body carries expected_revision.
 
-User, tenant, roles, project revision, tool action/domain and approval policy are derived server-side. Client-supplied tenant_id, requested_by and requires_human_approval are not authorization inputs.
+Every route requires the existing cp_session cookie. Proposal list/detail requires project.write because returned payloads can contain actionable changes; it is not exposed to a read-only viewer. Decision and execution additionally recheck the exact current AI tool grant and current project revision. User, tenant, roles, project revision, tool action/domain and approval policy are derived server-side. Client-supplied tenant_id, requested_by and requires_human_approval are not authorization inputs.
 
 ## Mandatory deployment wiring before real project actions can ship
 
