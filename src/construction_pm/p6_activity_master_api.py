@@ -67,6 +67,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
             "planned_finish": _optional_iso(item.planned_finish),
             "leveling_priority": item.leveling_priority.value,
             "original_duration": item.original_duration,
+            "wbs_id": item.wbs_id,
             "record_revision": item.record_revision,
         },
     }
