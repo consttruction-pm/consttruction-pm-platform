@@ -139,7 +139,7 @@ def test_scoped_grant_rejects_invalid_grant_data():
     grants = [scoped_grant(project_revision_id=" ")]
     adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
     with pytest.raises(AIActionBoundaryError, match="INVALID_AI_PERMISSION_GRANT_PROJECT_REVISION_ID"):
-        adapter.allowed(scoped_proposal())
+        adapter.allowed(scoped_proposal(), subject_id="user-7")
 
 
 def test_denied_action_does_not_misrepresent_requesting_user_as_audit_actor():
