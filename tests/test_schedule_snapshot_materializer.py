@@ -1099,6 +1099,9 @@ def test_materializer_preserves_resource_assignment_driving_status(is_driving):
         "unit_of_measure": "h",
         "assigned_units": "8",
         "remaining_units": "8",
+        "units_per_time": "2.5",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
     }
     if is_driving is not None:
         assignment["is_driving"] = is_driving
@@ -1147,6 +1150,9 @@ def test_materializer_preserves_resource_assignment_driving_status(is_driving):
     facts = materialized.schedule_input.resource_leveling_inputs
     assert facts is not None
     assert facts.assignments[0].is_driving is is_driving
+    assert facts.assignments[0].units_per_time == Decimal("2.5")
+    assert facts.assignments[0].units_per_time_period == "day"
+    assert facts.assignments[0].hours_per_units_time_period == Decimal("8")
 
 
 def test_materializer_rejects_non_boolean_resource_assignment_driving_status():
