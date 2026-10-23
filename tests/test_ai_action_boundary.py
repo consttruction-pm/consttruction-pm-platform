@@ -24,7 +24,8 @@ def test_human_approval_is_required_before_approval_decision():
     svc,sink=service()
     with pytest.raises(AIActionBoundaryError, match="AI_ACTION_HUMAN_APPROVAL_REQUIRED"):
         svc.decide(proposal(), actor_id=None, approved=True)
-    assert sink.records == []
+    assert len(sink.records) == 1
+    assert sink.records[0][1].decision == "denied"
 
 
 def test_permitted_approved_action_is_audited_with_actor():
@@ -36,10 +37,12 @@ def test_permitted_approved_action_is_audited_with_actor():
     assert len(sink.records) == 1
 
 
-def test_unpermitted_tool_cannot_be_decided():
-    svc,_=service()
+def test_unpermitted_tool_cannot_be_decided_and_denial_is_audited():
+    svc,sink=service()
     with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
         svc.decide(proposal(tool="project.mutate"), actor_id="user-7", approved=True)
+    assert len(sink.records) == 1
+    assert sink.records[0][1].decision == "denied"
 
 
 def test_rejection_can_be_audited_without_approval_actor():
@@ -125,7 +128,8 @@ def test_scoped_grant_revocation_is_checked_on_each_decision():
     grants.clear()
     with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
         svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
-    assert len(sink.records) == 1
+    assert len(sink.records) == 2
+    assert sink.records[-1][1].decision == "denied"
 
 
 def test_scoped_grant_rejects_invalid_grant_data():
