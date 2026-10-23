@@ -49,6 +49,36 @@ Do not silently substitute a calendar by ID when its version/hash differs. Do no
 
 The caller-provided `periods` list and dates appearing in demand rows are not, by themselves, proof of complete coverage. Derive a declared horizon from the authoritative CPM windows and leveling policy; validate every selected resource's capacity for every period in that horizon, using the exact versioned calendar snapshot. Document how nonworking days, partial periods, and manual future-period capacity values are represented. No calculation may proceed with unknown capacity in a period that can affect the result.
 
+## Proposed finite-horizon policy for independent review (not yet approved)
+
+P6 v26 documents the movement semantics, but it does **not** define a universal arbitrary date-range cap for the resource leveler. The finite bound below is therefore a CUBI execution-safety contract, not a claim that P6 itself exposes a matching option. Farmj / the independent scheduling reviewer must accept or amend it before production calculation changes.
+
+The companion schema should carry an explicit `horizon_policy_version`, `horizon_mode`, `horizon_start`, `horizon_end`, and the source values needed to reproduce those boundaries. The bounds must be computed before the companion hash is finalized.
+
+### Mode A — float-bounded forward leveling
+
+- Allow only when the persisted options explicitly preserve scheduled early/late dates and limit leveling to activity Total Float. If the selected P6 option combination cannot be supported exactly, reject it rather than switching modes.
+- Derive each activity's maximum allowed forward shift from the authoritative intermediate CPM output (the appropriate late-date boundary and configured minimum preserved float), using the exact activity calendar resolver. The resource input itself must not supply early/late dates or floats.
+- Project every persisted period-demand slice for that activity through its maximum allowed shift using the same activity calendar semantics as the Shared Core leveler. The declared window must include the baseline scheduled windows and all original/projected demand dates; this matters because manually entered future-period values can extend beyond the activity's nominal finish.
+- Require a resolved capacity value for every resource/date needed through the entire declared window. A nonworking date is a known zero only when established by the versioned calendar definition; an absent capacity slice is unknown data and must fail closed.
+
+### Mode B — explicitly bounded movement
+
+- When leveling may move work beyond the baseline float window or invoke the backward pass, require a positive, finite `max_shift_working_days` in the immutable request/companion. Do not quietly inherit the core's internal safety-loop limit as a product default.
+- Use each activity's authoritative calendar to project its demand dates by the declared forward and/or backward movement bound. Set the companion window to cover the union of original demand dates, all projected candidate demand dates, and every date used by final resource-load validation.
+- If an activity/calendar combination cannot be projected deterministically, a capacity date is uncovered, or a remaining overload reaches the declared movement bound, return a stable “horizon/movement bound exceeded” failure. Do not treat an absent capacity bucket as zero and do not report a completed leveling run.
+- The run output/audit record must say which bound policy was applied and whether the final resource ledger passed. This operational bound is an explicit CUBI limitation/guard; it must not be represented as a Primavera setting.
+
+### Acceptance questions for the independent reviewer
+
+1. Do the two modes preserve the official V26 forward-only / backward-pass and Total-Float-limit semantics without silently changing the selected mode?
+2. Does demand projection use the same authoritative activity-calendar arithmetic as the Shared Core leveling engine, including weekends, holidays, calendar exceptions, and user-entered future periods?
+3. Is complete capacity coverage proven for every date that can affect proposal and final-load validation, and is missing data distinguished from calendar-derived zero capacity?
+4. Are the movement bound, companion hash, calculation-run identity, and failure result deterministic and auditable?
+5. Are the unbounded/unsupported option combinations explicitly rejected until an exact finite coverage proof exists?
+
+No answer is pre-approved by this proposal. Keep `CUBI-RES-005` BLOCKED until the independent review outcome is recorded.
+
 ## Priority conformance gate
 
 The P6 Professional v26 priority list has 13 fields: Activity ID, Activity Priority, Early Finish, Early Start, Free Float, Late Finish, Late Start, Original/Planned Duration, Planned Finish, Project Planned Start, Project Priority, Remaining Duration and Total Float. Current shared-core mapping/comparison supports only a subset. Do not allow-list missing fields until each is backed by a typed authoritative value and tests cover ascending/descending, blank values, numeric-vs-text ordering, precedence of priority rows, and deterministic fallback behavior.
