@@ -104,7 +104,7 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
   const currentLocaleIndex = availableLocales.indexOf(locale);
   const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
   const translate = (key: string, fallback: string) => translateWorkspaceText(locale, `landing.${key}`, fallback);
-  return {
+  const localized: LandingCopy = {
     ...baseline,
     nav: baseline.nav.map((value, index) => translate(`nav.${index}`, value)),
     eyebrow: translate("eyebrow", baseline.eyebrow),
@@ -138,6 +138,20 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
     })),
     footerNote: translate("footerNote", baseline.footerNote),
   };
+  return escapeLandingCopy(localized);
+}
+
+function escapeLandingCopy<T>(value: T): T {
+  if (typeof value === "string") return escapeHtml(value) as T;
+  if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, escapeLandingCopy(item)])) as T;
+  }
+  return value;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"\']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"' : "&quot;", "\'": "&#39;" })[character]!);
 }
 
 function renderLanding(container: HTMLElement): void {
