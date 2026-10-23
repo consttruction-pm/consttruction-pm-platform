@@ -5,6 +5,7 @@ from .authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    RelationshipLagCalendarAssignment,
 )
 from .calendar import WorkingCalendar, WorkingTimeResolver
 from .calendar_periods import CalendarTimePeriodFactors, P6_CALENDAR_PERIOD_FIELDS
@@ -90,6 +91,7 @@ __all__ = [
     "ActivityCalendarAssignment",
     "AuthoritativeScheduleInput",
     "AuthoritativeScheduleMode",
+    "RelationshipLagCalendarAssignment",
     "ActivityConstraint",
     "ActivitySecondaryConstraint",
     "ConstraintType",

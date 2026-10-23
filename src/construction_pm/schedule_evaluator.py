@@ -15,6 +15,7 @@ from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
@@ -109,6 +110,9 @@ def _evaluate_materialized(
     try:
         if source.mode.value == "DATE_BASED":
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
+            relationship_lag_resolvers = resolve_relationship_lag_resolvers(
+                source, materialized.calendar_registry
+            )
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if leveling_input is None:
@@ -123,6 +127,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
                 )
             else:
                 result = schedule(
@@ -134,6 +139,7 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
