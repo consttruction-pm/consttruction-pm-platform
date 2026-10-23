@@ -13,6 +13,8 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.p6_resource_rate_api import P6ResourceRateAPI
 from construction_pm.p6_resource_rate_repository import P6ResourceRateRepository
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
@@ -32,6 +34,8 @@ def build_project_lifecycle_wsgi_app(
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     resource_rate_repository: P6ResourceRateRepository | None = None,
+    p6_resource_read_api: P6ResourceReadAPI | None = None,
+    p6_resource_write_api: P6ResourceWriteAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
 ) -> ProjectLifecycleWsgiApp:
@@ -92,6 +96,8 @@ def build_project_lifecycle_wsgi_app(
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         p6_resource_rate_api=resource_rate_api,
+        p6_resource_read_api=p6_resource_read_api,
+        p6_resource_write_api=p6_resource_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
     )
