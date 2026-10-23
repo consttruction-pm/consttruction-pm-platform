@@ -44,6 +44,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Assemble and validate production-shaped Pages artifact
+        env:
+          SITE_BASE_URL: https://cubi.example.test
+        run: node scripts/assemble-pages-site.mjs "$RUNNER_TEMP/cubi-pages-site"
+
       - name: Preview runtime smoke test
         run: |
           node --input-type=module <<'NODE'
