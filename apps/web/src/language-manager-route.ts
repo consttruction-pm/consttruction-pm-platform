@@ -3,6 +3,7 @@ import type { LanguagePackResource } from "../../client-sync/src/language-pack-r
 import type { LanguagePackSignatureVerifier } from "../../client-sync/src/language-pack-integrity.js";
 import type { ActivatedLanguagePack } from "../../client-sync/src/language-pack-activation.js";
 import type { WebSyncRuntime } from "./sync-runtime.js";
+import { readWorkspaceLocaleDefinitionFromPack, registerWorkspaceLocale } from "./workspace-localization.js";
 
 export type LanguageManagerRouteState = Readonly<{
   active: ActivatedLanguagePack | null;
@@ -59,6 +60,7 @@ export function createLanguageManagerRoute(
     useOffline: () => {
       try {
         const active = runtime.languagePacks().activateOffline();
+        registerActivatedPackLocale(active);
         state = { active, offline: true, status: "idle", error: null };
         publish(mounted ?? undefined);
         return active;
@@ -73,6 +75,7 @@ export function createLanguageManagerRoute(
         state = { ...state, status: "rolling-back", error: null };
         publish(mounted ?? undefined);
         const active = runtime.languagePacks().rollback();
+        registerActivatedPackLocale(active);
         state = { active, offline: false, status: "idle", error: null };
         publish(mounted ?? undefined);
         return active;
@@ -86,15 +89,20 @@ export function createLanguageManagerRoute(
       try {
         state = { ...state, status: "updating", error: null };
         publish(mounted ?? undefined);
+        // Validate the UI resource shape before changing the active pack. Registration is deferred
+        // until the runtime has verified the artifact and activated the pack successfully.
+        readWorkspaceLocaleDefinitionFromPack(options.manifest, options.resources);
         const result = runtime.languagePacks().update(
           options.artifact,
           options.manifest,
           options.resources,
           options.verifySignature,
         );
+        const active = runtime.languagePacks().getActive();
+        if (active) registerActivatedPackLocale(active);
         state = {
           active: result.updated
-            ? runtime.languagePacks().getActive()
+            ? active
             : state.active,
           offline: false,
           status: "idle",
@@ -124,6 +132,15 @@ export function createLanguageManagerRoute(
   };
 
   return route;
+}
+
+function registerActivatedPackLocale(pack: ActivatedLanguagePack): void {
+  const resources: LanguagePackResource[] = Array.from(
+    pack.resources,
+    ([path, bytes]) => ({ path, bytes }),
+  );
+  const definition = readWorkspaceLocaleDefinitionFromPack(pack.manifest, resources);
+  if (definition) registerWorkspaceLocale(definition);
 }
 
 export function renderLanguageManagerRoute(
