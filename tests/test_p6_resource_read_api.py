@@ -69,6 +69,9 @@ def test_resource_read_api_exposes_typed_assignment_period_and_spread_data():
         unit="hours", currency="USD", calendar_id="calendar-1",
         calendar_version="cal-v7",
         is_driving=True,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
     )
     period = P6ResourceAssignmentPeriodValue(
         scope, "a-1", "activity-1", "resource-1",
@@ -89,6 +92,9 @@ def test_resource_read_api_exposes_typed_assignment_period_and_spread_data():
     assert result["assignment"]["calendar_id"] == "calendar-1"
     assert result["assignment"]["calendar_version"] == "cal-v7"
     assert result["assignment"]["is_driving"] is True
+    assert result["assignment"]["units_per_time"] == Decimal("2.5")
+    assert result["assignment"]["units_per_time_period"] == "day"
+    assert result["assignment"]["hours_per_units_time_period"] == Decimal("8")
 
     periods = api.list_assignment_periods(scope, assignment_id="a-1", auth_context=auth())
     assert periods[0]["period"]["cost"] == Decimal("425.125")
