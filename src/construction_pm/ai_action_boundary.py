@@ -19,6 +19,8 @@ class AIActionProposal:
     requested_by: str | None = None
     evidence_refs: tuple[str, ...] = ()
     contract_version: str = "1.0"
+    project_revision_id: str | None = None
+    resource_domain: str | None = None
 
     def validate(self) -> None:
         if self.contract_version != "1.0":
