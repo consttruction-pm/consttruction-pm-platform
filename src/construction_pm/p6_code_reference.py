@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.0"
+REFERENCE_VERSION: Final[str] = "0.8.1"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -827,6 +827,29 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         product_context="Native P6 Earned Value settings plus clearly separated CUBI Earned Schedule extensions",
         known_gap="Native EV field definitions and each WBS ETC/performance-factor formula are not yet traced to exact CUBI calculation functions and denominator/rounding tests.",
     ),
+
+    P6CodeReference(
+        id="SCH-014", area="Scheduling / Schedule checks", feature="Check Schedule diagnostics",
+        p6_ui_entry="Tools > Check Schedule",
+        required_semantics="Run explicit schedule-quality checks against the selected project revision and schedule settings. Each finding identifies the rule, affected activities/relationships and actionable evidence. A diagnostic check does not silently rewrite the schedule and is distinct from a separate Project Checker workflow.",
+        user_options=("Check selected project/scope", "Selected check rules where supported", "Severity/report results", "Open affected activities", "Re-run after fixes"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["schedule"], ORACLE_SOURCES["critical"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule.py", "src/construction_pm/scheduling/relationships.py", "src/construction_pm/scheduling/constraints.py", "src/construction_pm/schedule_evaluator.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
+        coverage=INVENTORY_REQUIRED,
+        known_gap="P6 Check Schedule rule catalog, severity mapping and result presentation are not yet enumerated against a CUBI checker implementation.",
+    ),
+    P6CodeReference(
+        id="ADMIN-003", area="Administration / Category dictionaries", feature="Baseline, expense, WBS, document, risk, notebook and units-of-measure categories",
+        p6_ui_entry="Admin Categories",
+        required_semantics="Treat category dictionaries as their own versioned domain/enum with stable IDs, allowed usages, rename/delete constraints and reference checks. Renaming/deleting must not orphan assigned values or silently change semantic meaning.",
+        user_options=("Baseline types", "Expense categories", "WBS categories", "Document categories/statuses", "Risk categories", "Notebook topics", "Units of Measure", "Create/edit/rename/delete/assign"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["pro_user_guide_portal"]),
+        cubi_code_paths=("src/construction_pm/p6_code_repository.py", "src/construction_pm/p6_cost_account_repository.py", "src/construction_pm/p6_expense_repository.py", "src/construction_pm/p6_baseline_repository.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="A complete Version 26 admin-category schema and foreign-reference behavior matrix remains required; the shared code repository does not prove every category exists.",
+    ),
+
 )
 
 
@@ -1060,6 +1083,21 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
         known_gap="Rate-source precedence, component rollups, currency precision and multi-rate acceptance vectors still require full Version 26 field/formula mapping.",
     ),
+    P6FormulaReference(
+        id="FRM-EVM-003",
+        feature="Earned Value when resource curves or future-period buckets are selected",
+        formula_or_algorithm="For eligible activities assigned a resource curve, the Version 26 WBS Earned Value option specifies EV = Units Percent Complete × Budget at Completion (BAC), overriding the ordinary Activity Percent Complete technique. The WBS option also covers manually entered future-period bucket values; curve-assigned activity behavior and manually entered bucket behavior must be verified separately rather than assumed identical.",
+        input_fields=("WBS Earned Value technique", "BAC", "Units Percent Complete", "Assigned resource curve", "Manual future-period bucket values"),
+        controlling_options=("Use resource curves/future-period buckets", "Activity Percent Complete", "WBS milestone percent complete", "0/100", "50/50", "Custom percent complete"),
+        units_and_calendar_rules="Units Percent Complete uses eligible assignment quantities and the time-phased bucket/calendar basis. BAC and EV must refer to the selected baseline and cost structure.",
+        edge_cases=("Curve assigned to one of multiple resource assignments", "Manual future-period values", "No curve/bucket data", "WBS milestone technique", "Zero BAC", "Missing baseline"),
+        official_sources=(ORACLE_SOURCES["wbs_earned_value"], ORACLE_SOURCES["resource_planning"]),
+        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_spread_repository.py", "src/construction_pm/project_schedule_settings_repository.py"),
+        regression_tests=(),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="Curve-only and manually-entered-bucket scenarios must be tested separately against Version 26; this formula is documented, not claimed implemented.",
+    ),
+
 )
 
 
