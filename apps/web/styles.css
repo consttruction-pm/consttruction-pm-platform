@@ -1732,3 +1732,29 @@ th {
   [dir="rtl"] .cubi-exact-dashboard { margin-right: 0; }
   [dir="rtl"] .cubi-progress-card { margin-left: 7px; }
 }
+
+
+/* Shared public-page shell keeps standalone marketing pages consistent with the homepage. */
+.cubi-public-page{min-height:100vh;color:var(--cp-text);background:var(--cp-bg)}
+.cubi-public-header{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1rem clamp(1rem,5vw,5rem);background:#fff;border-bottom:1px solid var(--cp-border)}
+.cubi-public-header img{display:block;width:132px;height:auto}
+.cubi-public-nav{display:flex;flex-wrap:wrap;gap:1.1rem;align-items:center}
+.cubi-public-nav a{color:var(--cubi-deep-navy);font-weight:600;text-decoration:none}
+.cubi-public-nav a:hover,.cubi-public-nav a:focus-visible{color:var(--cubi-engineering-blue);text-decoration:underline}
+.cubi-public-hero{padding:clamp(3rem,8vw,7rem) clamp(1rem,8vw,8rem);color:#fff;background:linear-gradient(125deg,var(--cubi-navy-dark),var(--cubi-deep-navy))}
+.cubi-public-hero .eyebrow{color:#ffbd75;font-size:.8rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.cubi-public-hero h1{max-width:900px;margin:.75rem 0 1rem;font-size:clamp(2.25rem,5vw,4.25rem);line-height:1.12}
+.cubi-public-hero p{max-width:760px;color:#e1eaf4;font-size:clamp(1rem,1.5vw,1.2rem);line-height:1.8}
+.cubi-public-content{max-width:1180px;margin:auto;padding:clamp(2rem,5vw,5rem) 1.25rem}
+.cubi-public-content h2{color:var(--cubi-deep-navy);font-size:clamp(1.5rem,3vw,2.2rem)}
+.cubi-public-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
+.cubi-public-card{padding:1.5rem;background:#fff;border:1px solid var(--cp-border);border-radius:1rem;box-shadow:0 8px 28px rgb(15 39 71 / 5%)}
+.cubi-public-card h3{margin-top:0;color:var(--cubi-deep-navy)}
+.cubi-public-card p{color:#4e5b6a;line-height:1.75}
+.cubi-public-card a,.cubi-public-action{color:var(--cubi-engineering-blue);font-weight:700}
+.cubi-public-cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:2rem;padding:1.5rem;border-radius:1rem;background:#eaf0f6}
+.cubi-public-cta a{display:inline-block;padding:.8rem 1.1rem;border-radius:.6rem;background:var(--cubi-copper-orange);color:#17202a;font-weight:800;text-decoration:none}
+.cubi-public-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem;padding:1.5rem clamp(1rem,5vw,5rem);color:#d9e4ef;background:var(--cubi-navy-dark)}
+.cubi-public-footer a{color:#fff}
+[dir=rtl] .cubi-public-page{font-family:'Vazirmatn',system-ui,sans-serif}
+@media(max-width:760px){.cubi-public-header{align-items:flex-start;flex-direction:column}.cubi-public-grid{grid-template-columns:1fr}.cubi-public-nav{gap:.75rem}}
