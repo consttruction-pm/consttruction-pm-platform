@@ -12,11 +12,32 @@ The authoritative query provider evaluates a `ScheduleInputSnapshot` and `Calcul
 
 1. Perform fresh, tenant/project/revision-scoped reads in the application composition boundary.
 2. Normalize assignments, assignment-period demand, resource calendars, calendar versions and capacity slices into a deterministic canonical resource-leveling payload.
-3. Bind that payload to the same tenant ID, project ID, project revision, schedule snapshot ID, schedule snapshot hash and calculation identity as the CPM input. The resource payload must have its own canonical SHA-256 hash and explicit schema/version.
-4. Persist the companion payload immutably (or embed it in the canonical schedule snapshot). If stored separately, persist a reference containing the companion snapshot ID, schema version, content hash and source project revision in the schedule snapshot before evaluation.
-5. On read, verify tenant/project/revision, schedule snapshot ID/hash, calculation identity, schema version, canonical hash and all referenced calendar ID/version/hash identities. Any mismatch must fail closed.
-6. Materialize the companion payload into a typed `SchedulerLevelingInput` before calling `evaluate_schedule_snapshot(..., leveling_input=...)`. The evaluator must not query repositories or depend on mutable state.
-7. Include the resource payload hash in the calculation-run identity so a change in resource demand/capacity cannot replay as the same calculation.
+3. Bind that payload to the same tenant ID, project ID, project revision, schedule snapshot ID/hash and base CalculationContext identity as the CPM input. The resource payload must have its own canonical SHA-256 hash and explicit schema/version.
+4. Prefer embedding the fully prepared facts in the canonical schedule snapshot when its capacity horizon can be derived before final serialization. If stored separately, preallocate an immutable companion ID and include only that ID, schema version and source project revision in the schedule-snapshot payload. Save/fresh-read the companion atomically with the base snapshot and CalculationContext.
+5. Keep the content-hash graph acyclic: when a companion payload includes the parent schedule snapshot hash, do **not** put the companion's content hash back into the parent's canonical payload. The parent hash covers the companion reference ID; the companion binds to that final parent hash and has its own independently verified hash. The combined calculation-run identity must include both hashes. This prevents a self-referential hash contract.
+6. On read, verify tenant/project/revision, schedule snapshot ID/hash, base calculation identity, schema version, canonical hash and all referenced calendar ID/version/hash identities. Any mismatch must fail closed.
+7. Materialize the immutable payload into a typed `SchedulerLevelingInput` before calling `evaluate_schedule_snapshot(..., leveling_input=...)`. The evaluator must not query repositories or depend on mutable state.
+
+## Hash dependency graph (mandatory contract invariant)
+
+For an embedded input, one canonical schedule payload and one SHA-256 hash cover schedule data plus resource assignments, period demand, capacity, and the explicit horizon.
+
+For a separate companion, use this one-way dependency graph:
+
+```
+preallocated companion_id
+        ↓ included in base payload
+schedule snapshot payload → schedule_snapshot_hash
+        ↓                                   ↓
+base CalculationContext identity           resource companion payload
+                                            (includes schedule_snapshot_hash)
+                                                     ↓
+                                            resource_facts_hash
+                                                     ↓
+combined calculation_run_identity
+```
+
+The schedule snapshot must **not** also include `resource_facts_hash` when the companion includes `schedule_snapshot_hash`; that would create a hash cycle. The base snapshot's immutable companion ID/schema/source-revision reference plus one-to-one immutable repository key identifies the expected companion. Fresh-read verification recomputes its content hash and validates its parent bindings. Resource facts still affect replay identity because `resource_facts_hash` is an explicit input to `calculation_run_identity`. If the implementation cannot enforce this one-way graph and atomicity, keep the separate-companion architecture blocked; do not weaken hash validation to make it work.
 
 ## Canonical payload minimum
 
