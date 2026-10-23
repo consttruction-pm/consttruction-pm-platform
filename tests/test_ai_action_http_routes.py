@@ -108,6 +108,19 @@ def test_authenticated_project_action_route_runs_propose_approve_execute():
     assert proposal["payload"] == {"name": "Excavation"}
     assert proposal["project_revision_id"] == "2"
 
+    status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {}, method="GET")
+    assert status == 200
+    listing = json.loads(body)
+    assert listing["contract_version"] == "ai-action-runtime.v1"
+    assert [item["proposal_id"] for item in listing["proposals"]] == [proposal_id]
+    assert listing["proposals"][0]["status"] == "proposed"
+
+    status, _, body = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}", {}, method="GET")
+    assert status == 200
+    detail = json.loads(body)["proposal"]
+    assert detail["proposal_id"] == proposal_id
+    assert detail["payload"] == {"name": "Excavation"}
+
     status, _, body = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}/decision", {
         "expected_revision": 2, "approved": True,
     })
