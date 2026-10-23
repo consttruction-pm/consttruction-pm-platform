@@ -87,10 +87,10 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(activity.scope, auth_context)
-        if not activity.wbs_id:
-            raise ValueError("WBS_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        if not activity.wbs_id:
+            raise ValueError("WBS_REQUIRED")
         return _dto(self.repository.save(activity, expected_revision=0))
 
     def update(
@@ -101,12 +101,12 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(activity.scope, auth_context)
-        if not activity.wbs_id:
-            raise ValueError("WBS_REQUIRED")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        if not activity.wbs_id:
+            raise ValueError("WBS_REQUIRED")
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
     def get(
