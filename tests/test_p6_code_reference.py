@@ -104,3 +104,16 @@ def test_data_date_boundary_has_its_own_versioned_formula_reference():
     item = get_formula_reference("FRM-DATA-DATE-001")
     assert "start of the current scheduling workperiod" in item.formula_or_algorithm
     assert "src/construction_pm/scheduling/progress_state.py" in item.cubi_code_paths
+
+
+
+def test_check_schedule_and_admin_category_inventory_remain_explicit_gaps():
+    assert get_reference("SCH-014").coverage == INVENTORY_REQUIRED
+    assert get_reference("ADMIN-003").coverage == INVENTORY_REQUIRED
+
+
+def test_curve_earned_value_formula_is_separately_tracked():
+    item = get_formula_reference("FRM-EVM-003")
+    assert "Units Percent Complete" in item.formula_or_algorithm
+    assert "BAC" in item.formula_or_algorithm
+    assert item.status == "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED"
