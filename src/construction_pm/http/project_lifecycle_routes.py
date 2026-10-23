@@ -1581,6 +1581,15 @@ class ProjectLifecycleHttpRoutes:
                         # Do not coerce strings/numbers to bool: the domain
                         # validates a strict bool or preserves unresolved None.
                         is_driving=payload.get("is_driving"),
+                        units_per_time=(
+                            None if payload.get("units_per_time") is None
+                            else Decimal(str(payload["units_per_time"]))
+                        ),
+                        units_per_time_period=payload.get("units_per_time_period"),
+                        hours_per_units_time_period=(
+                            None if payload.get("hours_per_units_time_period") is None
+                            else Decimal(str(payload["hours_per_units_time_period"]))
+                        ),
                     )
                     result = self._p6_resource_write_api.save_assignment(
                         assignment, auth_context=auth
