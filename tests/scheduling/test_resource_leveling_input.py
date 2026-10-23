@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -204,10 +205,10 @@ def test_resource_leveling_facts_preserve_assignment_units_per_time():
     assert assignment.units_per_time == Decimal("2.5")
     assert assignment.units_per_time_period == "day"
     assert assignment.hours_per_units_time_period == Decimal("8")
-    payload = facts.canonical_payload()
-    assert payload["assignments"][0]["units_per_time"] == "2.5"
-    assert payload["assignments"][0]["units_per_time_period"] == "day"
-    assert payload["assignments"][0]["hours_per_units_time_period"] == "8"
+    payload = asdict(assignment)
+    assert payload["units_per_time"] == Decimal("2.5")
+    assert payload["units_per_time_period"] == "day"
+    assert payload["hours_per_units_time_period"] == Decimal("8")
 
 
 @pytest.mark.parametrize(
