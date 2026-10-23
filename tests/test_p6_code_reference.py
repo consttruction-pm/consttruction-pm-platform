@@ -10,11 +10,20 @@ from construction_pm.p6_code_reference import (
     INVENTORY_REQUIRED,
     KNOWN_GAP,
     MAPPED_NOT_PROVEN,
+    DOC_CORE_RULES_EXTRACTED,
+    DOC_INDEXED_NOT_LINE_REVIEWED,
+    DOC_PRODUCT_SCOPE_PENDING,
+    DOC_TOPIC_MAP_PARTIAL,
     FORMULA_REFERENCE,
+    ORACLE_SOURCES,
     P6_CODE_REFERENCE,
+    P6_DOCUMENTATION_AUDIT,
     coverage_summary,
+    documentation_audit_summary,
     get_formula_reference,
     get_reference,
+    validate_all_reference_data,
+    validate_documentation_audit,
     validate_formula_registry,
     validate_registry,
 )
@@ -132,3 +141,48 @@ def test_every_referenced_cubi_repository_path_exists():
     }
     missing = sorted(path for path in paths if not (repo_root / path).exists())
     assert not missing, "Reference paths do not exist in this checkout: " + ", ".join(missing)
+
+
+
+def test_documentation_audit_manifest_has_no_internal_integrity_errors():
+    assert validate_documentation_audit() == ()
+    assert validate_all_reference_data() == ()
+
+
+def test_documentation_audit_ids_sources_and_open_review_boundaries_are_explicit():
+    ids = [item.id for item in P6_DOCUMENTATION_AUDIT]
+    assert ids
+    assert len(ids) == len(set(ids))
+    requirement_ids = {item.id for item in P6_CODE_REFERENCE}
+    for item in P6_DOCUMENTATION_AUDIT:
+        assert item.title.strip()
+        assert item.official_url.startswith("https://docs.oracle.com/")
+        assert item.reviewed_scope.strip()
+        assert item.remaining_work.strip()
+        assert set(item.linked_requirement_ids).issubset(requirement_ids)
+    assert any(item.review_status == DOC_CORE_RULES_EXTRACTED for item in P6_DOCUMENTATION_AUDIT)
+    assert any(item.review_status == DOC_INDEXED_NOT_LINE_REVIEWED for item in P6_DOCUMENTATION_AUDIT)
+    assert any(item.review_status == DOC_TOPIC_MAP_PARTIAL for item in P6_DOCUMENTATION_AUDIT)
+    assert any(item.review_status == DOC_PRODUCT_SCOPE_PENDING for item in P6_DOCUMENTATION_AUDIT)
+
+
+def test_documentation_summary_is_not_reported_as_completion_percentage():
+    summary = documentation_audit_summary()
+    assert summary["TOTAL_DOCUMENT_FAMILIES"] == len(P6_DOCUMENTATION_AUDIT)
+    assert sum(
+        summary[key]
+        for key in (
+            DOC_CORE_RULES_EXTRACTED,
+            DOC_INDEXED_NOT_LINE_REVIEWED,
+            DOC_TOPIC_MAP_PARTIAL,
+            DOC_PRODUCT_SCOPE_PENDING,
+        )
+    ) == len(P6_DOCUMENTATION_AUDIT)
+    # The manifest must stay honest: index discovery is not line-by-line review.
+    assert summary[DOC_INDEXED_NOT_LINE_REVIEWED] >= 1
+    assert summary[DOC_PRODUCT_SCOPE_PENDING] >= 1
+
+
+def test_calendar_and_data_date_links_point_to_current_official_p6_help_pages():
+    assert ORACLE_SOURCES["calendars"].endswith("/calendars.htm")
+    assert ORACLE_SOURCES["data_date"].endswith("/data_date.htm")

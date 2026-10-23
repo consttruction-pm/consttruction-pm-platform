@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.5"
+REFERENCE_VERSION: Final[str] = "0.8.6"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -90,7 +90,7 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "schedule_options": ORACLE_ROOT + "general_tab_-_schedule_options_dialog_box.htm",
     "constraints": ORACLE_ROOT + "types_of_constraints.htm",
     "critical": ORACLE_ROOT + "define_critical_activities.htm",
-    "data_date": ORACLE_ROOT + "using_the_data_date.htm",
+    "data_date": ORACLE_ROOT + "data_date.htm",
     "relationships": ORACLE_ROOT + "relationships.htm",
     "relationship_details": ORACLE_ROOT + "relationships_tab_-_activity_details.htm",
     "activity_general": ORACLE_ROOT + "general_tab_-_activity_details.htm",
@@ -99,7 +99,7 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "resources": ORACLE_ROOT + "resources_tab_-_activity_details.htm",
     "driving": ORACLE_ROOT + "driving_resource.htm",
     "nondriving": ORACLE_ROOT + "scheduling__nondriving__resource_assignments.htm",
-    "calendars": ORACLE_ROOT + "calendar_dialog_box.htm",
+    "calendars": ORACLE_ROOT + "calendars.htm",
     "edit_calendar": ORACLE_ROOT + "edit_a_global_calendar.htm",
     "assignment_calculations": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/select_calculation_options_for_resource_and_role_assignments.htm",
     "unit_entry": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/enter_unit_information_for_resource_assignments.htm",
@@ -1170,8 +1170,239 @@ def coverage_summary() -> dict[str, int]:
     return result
 
 
+
+# Documentation audit manifest. This deliberately distinguishes an indexed page from a
+# page reviewed in detail and a behavior proven by tests; these are three separate gates.
+DOC_CORE_RULES_EXTRACTED: Final[str] = "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN"
+DOC_INDEXED_NOT_LINE_REVIEWED: Final[str] = "INDEXED_NOT_LINE_REVIEWED"
+DOC_TOPIC_MAP_PARTIAL: Final[str] = "TOPIC_MAP_PARTIAL"
+DOC_PRODUCT_SCOPE_PENDING: Final[str] = "PRODUCT_SCOPE_AND_DETAIL_REVIEW_PENDING"
+
+
+@dataclass(frozen=True, slots=True)
+class P6DocumentationAudit:
+    """One official document/page family and its explicit review state."""
+
+    id: str
+    title: str
+    product_scope: str
+    official_url: str
+    review_status: str
+    reviewed_scope: str
+    linked_requirement_ids: tuple[str, ...] = ()
+    remaining_work: str = ""
+
+
+P6_DOCUMENTATION_AUDIT: Final[tuple[P6DocumentationAudit, ...]] = (
+    P6DocumentationAudit(
+        id="DOC-PRO-TOC-V26",
+        title="P6 Professional Help Version 26 — full topic tree",
+        product_scope="P6 Professional desktop Help",
+        official_url=ORACLE_SOURCES["help_toc"],
+        review_status=DOC_TOPIC_MAP_PARTIAL,
+        reviewed_scope="Topic tree scanned to establish feature families; leaf pages are not all reviewed line by line yet.",
+        linked_requirement_ids=("SCH-001", "SCH-008", "ACT-001", "CAL-001", "RES-001", "DATA-002"),
+        remaining_work="Enumerate every menu, submenu, dialog, tab, option, field and linked help topic from the entire TOC; assign a stable requirement ID and exact page URL to each.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-USER-GUIDE-V26",
+        title="P6 Professional User Guide Version 26",
+        product_scope="P6 Professional desktop workflows and UI behavior",
+        official_url=ORACLE_SOURCES["pro_user_guide_portal"],
+        review_status=DOC_INDEXED_NOT_LINE_REVIEWED,
+        reviewed_scope="Official current guide entry point identified; chapter-by-chapter and figure/table-level behavior review remains open.",
+        remaining_work="Review every chapter and each linked detailed topic, including project/WBS setup, activities, layouts, tracking, import/export and multi-project workflows.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-SCHEDULING-V26",
+        title="Scheduling Projects and Schedule Options",
+        product_scope="P6 Professional scheduling calculation and settings",
+        official_url=ORACLE_SOURCES["schedule"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="Core CPM flow, Data Date, criticality modes, multiple float paths, constraints, progressed activities and scheduling entry points summarized into the register.",
+        linked_requirement_ids=("SCH-001", "SCH-002", "SCH-003", "SCH-004", "SCH-005", "SCH-006", "SCH-007", "SCH-008", "SCH-009", "SCH-010", "SCH-011", "SCH-012", "SCH-013", "SCH-014"),
+        remaining_work="Extract every General and Advanced tab option including enabled/disabled conditions, default values, interactions, precision/calendar rules and test vectors; prove behavior against P6 reference fixtures.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-ACTIVITY-V26",
+        title="Activity Details, Activity Types, Duration Types and Status",
+        product_scope="P6 Professional activity editor and activity scheduling semantics",
+        official_url=ORACLE_SOURCES["activity_general"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="Activity type/calendar differences and core duration/percent-complete concepts entered in the code reference.",
+        linked_requirement_ids=("ACT-001", "ACT-002", "ACT-003", "ACT-004", "ACT-005"),
+        remaining_work="Enumerate every activity field across every tab, status-specific editability, duration type recomputation triggers, remaining units/duration and zero-denominator rules.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-RELATIONSHIPS-V26",
+        title="Relationships, Lag and Relationship Lag Calendar",
+        product_scope="P6 Professional activity dependencies and scheduling",
+        official_url=ORACLE_SOURCES["relationship_details"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="FS/SS/FF/SF, signed lag and calendar choice are in the rule register.",
+        linked_requirement_ids=("SCH-008", "SCH-012"),
+        remaining_work="Audit each relationship field, predecessor/successor UI operation, external relationship behavior, circular logic rejection and all calendar/actual-progress edge cases.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-CALENDAR-V26",
+        title="Calendars, Work Time, Exceptions and Conversion Factors",
+        product_scope="P6 Professional global/project/resource calendar pools",
+        official_url=ORACLE_SOURCES["calendars"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="Calendar pools, assignment differences, exceptions and default work-time conversion recorded at a high level.",
+        linked_requirement_ids=("CAL-001", "CAL-002", "CAL-003"),
+        remaining_work="Line-review calendar editing dialogs, inheritance/linked calendars, holidays, work intervals, default hours per period, DST/time-zone assumptions and date round-trips.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-CONSTRAINTS-V26",
+        title="Activity Constraints",
+        product_scope="P6 Professional forward/backward calculation rules",
+        official_url=ORACLE_SOURCES["constraints"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="Hard versus soft constraints and the named constraint families are inventoried.",
+        linked_requirement_ids=("SCH-009",),
+        remaining_work="Verify exact boundary handling, secondary constraints, ALAP context, conflicting constraints, negative float and each constraint/calendar combination.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-RESOURCE-DRIVING-V26",
+        title="Driving and Nondriving Resource Assignments",
+        product_scope="P6 Professional Resource Dependent activities and assignment placement",
+        official_url=ORACLE_SOURCES["driving"],
+        review_status=DOC_CORE_RULES_EXTRACTED,
+        reviewed_scope="Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
+        linked_requirement_ids=("RES-001", "RES-002", "RES-003", "RES-004", "RES-005", "RES-006"),
+        remaining_work="Build and pass multiple-driving-resource, calendar-specific duration, unit/time conversion, nondriving placement, out-of-sequence and backward-pass fixtures. The existing Draft PR blocker remains open.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-PROGRESS-EVM-V26",
+        title="Update Progress, Earned Value, Resource Curves and Future Period Buckets",
+        product_scope="P6 Professional progress update and native earned-value options",
+        official_url=ORACLE_SOURCES["progress"],
+        review_status=DOC_TOPIC_MAP_PARTIAL,
+        reviewed_scope="Core Data Date/progress and selected WBS Earned Value options are summarized; this is not yet a line-by-line formula catalog.",
+        linked_requirement_ids=("PROG-001", "EVM-001", "EVM-002", "RES-006"),
+        remaining_work="For every EV method and ETC/performance-factor selector, record baseline basis, numerator/denominator, period, currency/unit, defaults, overrides, null/zero handling and a numeric reference fixture.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-BASELINE-V26",
+        title="Maintain, Assign, Update and Compare Baselines",
+        product_scope="P6 Professional baseline and variance workflows",
+        official_url=ORACLE_SOURCES["create_baseline"],
+        review_status=DOC_TOPIC_MAP_PARTIAL,
+        reviewed_scope="Baseline creation/assignment/update scope has requirement entries; every field and calculation has not been enumerated.",
+        linked_requirement_ids=("BAS-001", "BAS-002"),
+        remaining_work="Trace primary/secondary/tertiary baseline roles, assignment scope, selective update, variance formulas and baseline selection per project/user.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-RESOURCE-CALCULATIONS-V26",
+        title="Resource/Roles Units, Rates and Cost Calculations",
+        product_scope="P6 Professional resource assignment and cost calculation",
+        official_url=ORACLE_SOURCES["resources"],
+        review_status=DOC_TOPIC_MAP_PARTIAL,
+        reviewed_scope="Assignment Units/Time is explicitly distinguished from resource Max Units/Time; multi-rate cost and resource curves remain incomplete.",
+        linked_requirement_ids=("RES-003", "RES-004", "CST-001", "CST-002", "ROLE-001"),
+        remaining_work="Audit all resource/role fields, price/unit type precedence, effective dates, assignment calculation preferences, resource curve shapes and cost roll-up precision.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-REPORTING-ADMIN-V26",
+        title="Reporting Guide, Administration Guide and Admin Categories",
+        product_scope="P6 Professional reports and configuration dictionaries",
+        official_url=ORACLE_SOURCES["pro_all_guides"],
+        review_status=DOC_INDEXED_NOT_LINE_REVIEWED,
+        reviewed_scope="Official all-guides landing page identified; individual guides and details have not all been read line by line.",
+        remaining_work="Open each applicable guide and all its chapters; enumerate Reports, Admin Preferences, calendars/time periods, currencies, categories, UDFs, security, project publishing and summary services.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-PRO-VISUALIZER-V26",
+        title="P6 Visualizer Help",
+        product_scope="Standalone charts, Gantt and Timescaled Logic Diagrams",
+        official_url=ORACLE_SOURCES["pro_all_guides"],
+        review_status=DOC_INDEXED_NOT_LINE_REVIEWED,
+        reviewed_scope="Visualizer identified as a separate guide family; its own chart/report options have not been exhaustively inventoried.",
+        remaining_work="Trace visualizer data sources, time scales, chart series, logic diagrams, export/print options and which configuration is distinct from the P6 Activities Gantt.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-EPPM-API-V26",
+        title="P6 EPPM REST API and Integration Guides",
+        product_scope="P6 EPPM APIs/integration; not automatically equivalent to P6 Professional UI",
+        official_url=ORACLE_SOURCES["eppm_rest_api"],
+        review_status=DOC_PRODUCT_SCOPE_PENDING,
+        reviewed_scope="Version-26 API entry point found and kept separate from the desktop UI specification.",
+        remaining_work="Map each API resource/property/enum/version and import/export contract only where CUBI needs interoperability; do not infer an undocumented desktop calculation rule from an API schema.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-EPPM-IMPORT-EXPORT-V26",
+        title="P6 EPPM Import/Export and Data Maps",
+        product_scope="Import/export interoperability, product/version specific",
+        official_url=ORACLE_SOURCES["eppm_import_export"],
+        review_status=DOC_PRODUCT_SCOPE_PENDING,
+        reviewed_scope="Official import/export entry point identified; per-format and per-field round-trip mappings are not complete.",
+        linked_requirement_ids=("DATA-001", "DATA-002"),
+        remaining_work="Catalog XER, resource-only XER, XLSX, XML/MPX and other documented formats separately; map field, nullable/default semantics, read/write support, version, precision and loss reporting.",
+    ),
+    P6DocumentationAudit(
+        id="DOC-P6-ALL-GUIDES-V26",
+        title="Oracle P6 Professional Version 26 — All Guides Index",
+        product_scope="Official version-26 documentation-set inventory",
+        official_url=ORACLE_SOURCES["pro_all_guides"],
+        review_status=DOC_TOPIC_MAP_PARTIAL,
+        reviewed_scope="The guide-family listing has been checked to establish source inventory; each guide's contents remain tracked separately above.",
+        remaining_work="Mark every guide as intentionally applicable/not applicable and keep product version/context on every requirement.",
+    ),
+)
+
+
+def validate_documentation_audit(items: Iterable[P6DocumentationAudit] = P6_DOCUMENTATION_AUDIT) -> tuple[str, ...]:
+    """Validate audit-manifest completeness; this does not claim every page has been read."""
+    errors: list[str] = []
+    seen: set[str] = set()
+    allowed = {
+        DOC_CORE_RULES_EXTRACTED,
+        DOC_INDEXED_NOT_LINE_REVIEWED,
+        DOC_TOPIC_MAP_PARTIAL,
+        DOC_PRODUCT_SCOPE_PENDING,
+    }
+    requirement_ids = {item.id for item in P6_CODE_REFERENCE}
+    for item in items:
+        if item.id in seen:
+            errors.append(f"DUPLICATE_DOCUMENT_ID:{item.id}")
+        seen.add(item.id)
+        if not item.title.strip():
+            errors.append(f"MISSING_DOCUMENT_TITLE:{item.id}")
+        if not item.official_url.startswith("https://docs.oracle.com/"):
+            errors.append(f"NON_ORACLE_DOCUMENT_SOURCE:{item.id}")
+        if item.review_status not in allowed:
+            errors.append(f"INVALID_DOCUMENT_REVIEW_STATUS:{item.id}:{item.review_status}")
+        if not item.reviewed_scope.strip() or not item.remaining_work.strip():
+            errors.append(f"MISSING_DOCUMENT_REVIEW_BOUNDARY:{item.id}")
+        for requirement_id in item.linked_requirement_ids:
+            if requirement_id not in requirement_ids:
+                errors.append(f"UNKNOWN_REQUIREMENT_ID:{item.id}:{requirement_id}")
+        if item.review_status == DOC_CORE_RULES_EXTRACTED and not item.linked_requirement_ids:
+            errors.append(f"REVIEWED_DOCUMENT_WITHOUT_REQUIREMENTS:{item.id}")
+    return tuple(errors)
+
+
+def documentation_audit_summary() -> dict[str, int]:
+    """Report document-page review state separately from feature coverage."""
+    result = {
+        DOC_CORE_RULES_EXTRACTED: 0,
+        DOC_INDEXED_NOT_LINE_REVIEWED: 0,
+        DOC_TOPIC_MAP_PARTIAL: 0,
+        DOC_PRODUCT_SCOPE_PENDING: 0,
+    }
+    for item in P6_DOCUMENTATION_AUDIT:
+        result[item.review_status] += 1
+    result["TOTAL_DOCUMENT_FAMILIES"] = len(P6_DOCUMENTATION_AUDIT)
+    return result
+
+
+def validate_all_reference_data() -> tuple[str, ...]:
+    """Run structural checks for rule, formula and official-document registers."""
+    return validate_registry() + validate_formula_registry() + validate_documentation_audit()
+
 if __name__ == "__main__":
-    defects = validate_registry() + validate_formula_registry()
+    defects = validate_all_reference_data()
     if defects:
         raise SystemExit("\n".join(defects))
-    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}, formula_refs={len(FORMULA_REFERENCE)}")
+    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}, formula_refs={len(FORMULA_REFERENCE)}, documentation={documentation_audit_summary()}")
