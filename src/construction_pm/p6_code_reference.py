@@ -79,7 +79,7 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "assign_baseline": ORACLE_ROOT + "assign_baselines_to_projects.htm",
     "update_baseline": ORACLE_ROOT + "update_baseline_dialog_box.htm",
     "resource_planning": ORACLE_ROOT + "planning_tab_-_resource_assignments_details.htm",
-    "parity_baseline": "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md",
+    "parity_baseline": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf",
 }
 
 
