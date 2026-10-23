@@ -338,5 +338,5 @@ def test_authenticated_activity_create_requires_existing_wbs_assignment():
         },
     )
     assert status == "400 Bad Request"
-    assert response["error"]["code"] == "WBS_REQUIRED"
+    assert response["code"] == "WBS_REQUIRED"
     connection.close()
