@@ -2054,9 +2054,12 @@ class ProjectLifecycleHttpRoutes:
                         read_proposal_id = parts[4]
                     else:
                         return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                    # Proposal payloads may contain actionable or sensitive project changes.
+                    # Only project editors can inspect them; execution still rechecks the
+                    # exact AI tool grant and the current revision independently.
                     try:
                         authorized = self._api.authorize_project(
-                            session_id, project_id, Permission.PROJECT_READ, now=now
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
                         )
                         session = self._api.get_session(session_id, now=now)
                     except ProjectLifecycleError as exc:
