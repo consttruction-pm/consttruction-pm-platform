@@ -201,6 +201,9 @@ def _resource_leveling_facts(
                     _decimal(item["remaining_units"])
                     if item.get("remaining_units") is not None else None
                 ),
+                # Older immutable snapshots have no flag; preserve unresolved
+                # legacy state instead of inferring driving semantics.
+                is_driving=item.get("is_driving"),
             )
             for item in assignments_payload
             if isinstance(item, dict)
