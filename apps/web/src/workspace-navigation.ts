@@ -1,4 +1,5 @@
 import type { WorkspaceLocale, WorkspaceMenuKey, WorkspaceState } from "./workspace-model.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 export type WorkspaceSurfaceStatus = "implemented" | "partial" | "preview";
 
@@ -29,11 +30,17 @@ export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceN
 }
 
 export function getWorkspaceNavigationLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  return item.label[locale];
+  return translateWorkspaceText(locale, `navigation.${item.key}`, item.label[locale as "en" | "fa"] ?? item.label.en);
 }
 
 export function getWorkspaceNavigationStatusLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  return item.statusLabel[locale];
+  return translateWorkspaceText(locale, `navigation.${item.key}.status`, item.statusLabel[locale as "en" | "fa"] ?? item.statusLabel.en);
+}
+
+export function getWorkspaceNavigationSubmenuLabel(item: WorkspaceNavigationItem, index: number, locale: WorkspaceLocale): string {
+  const submenu = item.submenus[index];
+  if (!submenu) throw new Error("WORKSPACE_SUBMENU_NOT_FOUND");
+  return translateWorkspaceText(locale, `navigation.${item.key}.submenu.${index}`, submenu[locale as "en" | "fa"] ?? submenu.en);
 }
 
 export function getWorkspaceNavigationStatus(state: WorkspaceState): WorkspaceSurfaceStatus {
