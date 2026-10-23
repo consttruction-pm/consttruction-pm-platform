@@ -163,7 +163,8 @@ class AIActionApprovalService:
             denied.validate()
             self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_TOOL_NOT_PERMITTED")
-        if proposal.requires_human_approval and (not isinstance(actor_id, str) or not actor_id.strip()):
+        trusted_actor_id = actor_id if isinstance(actor_id, str) and actor_id.strip() else None
+        if proposal.requires_human_approval and trusted_actor_id is None:
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id,
                 decision="denied",
@@ -173,10 +174,20 @@ class AIActionApprovalService:
             denied.validate()
             self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_ACTION_HUMAN_APPROVAL_REQUIRED")
+        if approved and trusted_actor_id is None:
+            denied = AIActionDecision(
+                proposal_id=proposal.proposal_id,
+                decision="denied",
+                actor_id=None,
+                audit_event="ai_action_decision",
+            )
+            denied.validate()
+            self.audit_sink.record(proposal, denied)
+            raise AIActionBoundaryError("AI_ACTION_APPROVAL_REQUIRES_ACTOR")
         decision = AIActionDecision(
             proposal_id=proposal.proposal_id,
             decision="approved" if approved else "rejected",
-            actor_id=actor_id,
+            actor_id=trusted_actor_id,
             audit_event="ai_action_decision",
         )
         decision.validate()
