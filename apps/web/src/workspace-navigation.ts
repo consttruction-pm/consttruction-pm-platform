@@ -30,17 +30,20 @@ export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceN
 }
 
 export function getWorkspaceNavigationLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  return translateWorkspaceText(locale, `navigation.${item.key}`, item.label[locale as "en" | "fa"] ?? item.label.en);
+  const baseLocale = locale.split("-")[0] as "en" | "fa";
+  return translateWorkspaceText(locale, `navigation.${item.key}`, item.label[baseLocale] ?? item.label.en);
 }
 
 export function getWorkspaceNavigationStatusLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  return translateWorkspaceText(locale, `navigation.${item.key}.status`, item.statusLabel[locale as "en" | "fa"] ?? item.statusLabel.en);
+  const baseLocale = locale.split("-")[0] as "en" | "fa";
+  return translateWorkspaceText(locale, `navigation.${item.key}.status`, item.statusLabel[baseLocale] ?? item.statusLabel.en);
 }
 
 export function getWorkspaceNavigationSubmenuLabel(item: WorkspaceNavigationItem, index: number, locale: WorkspaceLocale): string {
   const submenu = item.submenus[index];
   if (!submenu) throw new Error("WORKSPACE_SUBMENU_NOT_FOUND");
-  return translateWorkspaceText(locale, `navigation.${item.key}.submenu.${index}`, submenu[locale as "en" | "fa"] ?? submenu.en);
+  const baseLocale = locale.split("-")[0] as "en" | "fa";
+  return translateWorkspaceText(locale, `navigation.${item.key}.submenu.${index}`, submenu[baseLocale] ?? submenu.en);
 }
 
 export function getWorkspaceNavigationStatus(state: WorkspaceState): WorkspaceSurfaceStatus {
