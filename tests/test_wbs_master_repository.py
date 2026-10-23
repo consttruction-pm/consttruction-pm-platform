@@ -75,7 +75,7 @@ def test_wbs_master_update_requires_expected_revision_and_advances_record_revisi
     repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
     repo.save(root())
 
-    updated = repo.save(replace(root(name="Revised Project Root"), name="Revised Project Root"), expected_revision=1)
+    updated = repo.save(replace(root(), name="Revised Project Root"), expected_revision=1)
 
     assert updated.record_revision == 2
     assert updated.name == "Revised Project Root"
@@ -97,10 +97,6 @@ def test_wbs_master_rejects_child_without_parent_and_cross_project_parent():
     with pytest.raises(WBSPersistenceError, match="WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"):
         repo.save(child("W-ORPHAN", "MISSING"))
 
-    repo.save(root())
-    repo.save(root(wbs_id="OTHER-ROOT", code="1", name="Other project") if False else root(
-        wbs_id="OTHER-ROOT", code="1", name="Other project"
-    )) if False else None
     other_repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
     other_repo.save(WBSMaster(
         scope(tenant="T-OTHER", project="P-OTHER"),
@@ -111,6 +107,8 @@ def test_wbs_master_rejects_child_without_parent_and_cross_project_parent():
         "Other root",
         0,
     ))
+    # A node with the same ID in another tenant/project does not satisfy this
+    # project's parent reference.
     with pytest.raises(WBSPersistenceError, match="WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"):
         repo.save(WBSMaster(
             scope(),
@@ -121,6 +119,8 @@ def test_wbs_master_rejects_child_without_parent_and_cross_project_parent():
             "Must not bind across projects",
             2,
         ))
+    with pytest.raises(WBSPersistenceError, match="WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"):
+        repo.save(child("W-ORPHAN", "MISSING"))
 
 
 def test_wbs_master_enforces_unique_sibling_codes_but_keeps_codes_local():
