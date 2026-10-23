@@ -27,6 +27,8 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
+from construction_pm.p6_wbs_master_api import P6_WBS_MASTER_API_VERSION
+from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
     P6ScheduleSnapshotPublicationAPI,
@@ -102,6 +104,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
 
     activity_repo = SQLiteActivityMasterRepository(connection)
+    wbs_repo = SQLiteWBSMasterRepository(connection)
+    wbs_repo.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0))
     relationship_repo = SQLiteRelationshipMasterRepository(connection)
     constraint_repo = SQLiteConstraintMasterRepository(connection)
     calendar_repo = SQLiteCalendarMasterRepository(connection)
@@ -167,6 +171,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         calculation_context_repository=effective_context_repo,
         authorization_policy=policy,
         activity_master_repository=activity_repo,
+        wbs_master_repository=wbs_repo,
         relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -218,6 +223,7 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
         "leveling_priority": "High",
         "original_duration": 2,
         "planned_finish": "2026-10-22",
+        "wbs_id": "W-ROOT",
     }
     status_a, created_a = _request(
         app, "POST", "/api/projects/p1/p6/activities",
@@ -346,6 +352,7 @@ def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp
             "duration_value": "1",
             "duration_unit": "working-day",
             "actual_start": "2026-10-19T09:15:00+00:00",
+            "wbs_id": "W-ROOT",
         },
     )
     settings_status, _ = _save_settings(app)
@@ -374,6 +381,7 @@ def test_snapshot_and_context_writes_roll_back_together(tmp_path):
             "name": "Foundation",
             "duration_value": "1",
             "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
         },
     )
     settings_status, _ = _save_settings(app)
