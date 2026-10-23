@@ -15,6 +15,8 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.api import BackendP0API
+from ..backend_p0.errors import BackendApplicationError
+from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
@@ -144,6 +146,7 @@ class ProjectLifecycleHttpRoutes:
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
         backend_p0_api: BackendP0API | None = None,
+        workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
     ) -> None:
         self._api = api
@@ -173,6 +176,7 @@ class ProjectLifecycleHttpRoutes:
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
         self._backend_p0_api = backend_p0_api
+        self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
 
     def handle(
@@ -205,8 +209,14 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
-            if method == "GET" and path == "/api/v1/workspace/control-room/read":
-                if self._backend_p0_api is None:
+            if method == "GET" and path in (
+                "/api/v1/workspace/control-room/read",
+                "/api/v2/workspace/control-room/read",
+            ):
+                is_v2_workspace_read = path == "/api/v2/workspace/control-room/read"
+                if is_v2_workspace_read and self._workspace_read_v2_service is None:
+                    return self._error(404, "WORKSPACE_READ_NOT_CONFIGURED", "error.route.not_found")
+                if not is_v2_workspace_read and self._backend_p0_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 tenant_id = request_headers.get("X-Tenant-Id")
                 project_id = request_headers.get("X-Project-Id")
@@ -229,12 +239,21 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
-                result = self._backend_p0_api.read_workspace_control_room(
-                    tenant_id=context.tenant_id,
-                    project_id=context.project_id,
-                    revision=revision,
-                    auth_context=auth,
-                )
+                if is_v2_workspace_read:
+                    try:
+                        result = self._workspace_read_v2_service.read(
+                            BackendScope(context.tenant_id, context.project_id, revision),
+                            auth_context=auth,
+                        )
+                    except BackendApplicationError as exc:
+                        result = exc.to_dto()
+                else:
+                    result = self._backend_p0_api.read_workspace_control_room(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        revision=revision,
+                        auth_context=auth,
+                    )
                 if result is None:
                     return self._error(404, "WORKSPACE_READ_NOT_FOUND", "error.workspace_read.not_found")
                 if not isinstance(result, dict):
