@@ -83,7 +83,10 @@ from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VE
 from ..p6_resource_rate_api import P6ResourceRateAPI, P6_RESOURCE_RATE_API_VERSION
 from ..p6_resource_rate_repository import P6ResourceRatePersistenceError
 from ..scheduling.resource_leveling_input import ResourceCapacityRate
-from ..p6_resource_assignment_repository import P6ResourceAssignmentPeriodValue
+from ..p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
+)
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
 from ..p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
@@ -1535,6 +1538,64 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
+                if self._p6_resource_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                    assignment = P6ResourceAssignment(
+                        scope=scope,
+                        assignment_id=payload.get("assignment_id", ""),
+                        activity_id=payload.get("activity_id", ""),
+                        resource_id=payload.get("resource_id", ""),
+                        role_id=payload.get("role_id"),
+                        units=None if payload.get("units") is None else Decimal(str(payload["units"])),
+                        actual_units=None if payload.get("actual_units") is None else Decimal(str(payload["actual_units"])),
+                        remaining_units=None if payload.get("remaining_units") is None else Decimal(str(payload["remaining_units"])),
+                        planned_cost=None if payload.get("planned_cost") is None else Decimal(str(payload["planned_cost"])),
+                        actual_cost=None if payload.get("actual_cost") is None else Decimal(str(payload["actual_cost"])),
+                        remaining_cost=None if payload.get("remaining_cost") is None else Decimal(str(payload["remaining_cost"])),
+                        unit=payload.get("unit"),
+                        currency=payload.get("currency"),
+                        calendar_id=payload.get("calendar_id"),
+                        calendar_version=payload.get("calendar_version"),
+                        note=payload.get("note"),
+                        # Do not coerce strings/numbers to bool: the domain
+                        # validates a strict bool or preserves unresolved None.
+                        is_driving=payload.get("is_driving"),
+                    )
+                    result = self._p6_resource_write_api.save_assignment(
+                        assignment, auth_context=auth
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "IMMUTABLE_RESOURCE_ASSIGNMENT":
+                        return self._error(409, code, "error.resource_assignment.immutable_conflict")
+                    if code == "RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.resource_assignment.unavailable")
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
