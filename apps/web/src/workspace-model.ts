@@ -196,7 +196,7 @@ export function setLocale(state: WorkspaceState, locale: WorkspaceLocale): Works
   return {
     ...state,
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction: getWorkspaceLocaleDirection(locale),
     columns: state.p6Layout ? state.columns : getDefaultWorkspaceColumns(locale),
   };
 }
