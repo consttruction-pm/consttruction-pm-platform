@@ -1118,7 +1118,7 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         known_gap="Curve-only and manually-entered-bucket scenarios must be tested separately against Version 26; this formula is documented, not claimed implemented.",
     ),
 
-);
+)
 
 
 P6_OPTION_REFERENCE: Final[tuple[P6OptionReference, ...]] = (
@@ -1863,7 +1863,47 @@ P6_OPTION_REFERENCE: Final[tuple[P6OptionReference, ...]] = (
         known_gap="Each format requires field-level mapping, version fixtures and round-trip tests before being declared supported.",
         product_context="P6 Professional vs EPPM differences must be recorded per format; EPPM data maps are not automatically Professional UI contracts",
     ),
-);
+)
+
+
+def validate_option_registry(items: Iterable[P6OptionReference] = P6_OPTION_REFERENCE) -> tuple[str, ...]:
+    """Validate option-level IDs and mappings without claiming behavioral parity."""
+    errors: list[str] = []
+    seen: set[str] = set()
+    requirement_ids = {item.id for item in P6_CODE_REFERENCE}
+    allowed = {MAPPED_NOT_PROVEN, KNOWN_GAP, INVENTORY_REQUIRED}
+    for item in items:
+        if item.id in seen:
+            errors.append(f"DUPLICATE_OPTION_ID:{item.id}")
+        seen.add(item.id)
+        if item.requirement_id not in requirement_ids:
+            errors.append(f"UNKNOWN_REQUIREMENT_ID:{item.id}:{item.requirement_id}")
+        if item.coverage not in allowed:
+            errors.append(f"INVALID_OPTION_COVERAGE:{item.id}:{item.coverage}")
+        if not item.official_sources:
+            errors.append(f"MISSING_OPTION_SOURCE:{item.id}")
+        if not item.cubi_code_paths:
+            errors.append(f"MISSING_OPTION_CODE_MAPPING:{item.id}")
+        if item.coverage == KNOWN_GAP and not item.known_gap.strip():
+            errors.append(f"MISSING_OPTION_GAP_EXPLANATION:{item.id}")
+    return tuple(errors)
+
+
+def get_option_reference(option_id: str) -> P6OptionReference:
+    """Look up a selectable P6 option by its stable ID."""
+    for item in P6_OPTION_REFERENCE:
+        if item.id == option_id:
+            return item
+    raise KeyError(option_id)
+
+
+def option_coverage_summary() -> dict[str, int]:
+    """Count option-level evidence labels; counts are not implementation percentages."""
+    result = {MAPPED_NOT_PROVEN: 0, KNOWN_GAP: 0, INVENTORY_REQUIRED: 0}
+    for item in P6_OPTION_REFERENCE:
+        result[item.coverage] += 1
+    result["TOTAL_OPTIONS_REGISTERED"] = len(P6_OPTION_REFERENCE)
+    return result
 
 
 def validate_formula_registry(items: Iterable[P6FormulaReference] = FORMULA_REFERENCE) -> tuple[str, ...]:
@@ -1937,7 +1977,7 @@ def coverage_summary() -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    defects = validate_registry() + validate_formula_registry()
+    defects = validate_registry() + validate_formula_registry() + validate_option_registry()
     if defects:
         raise SystemExit("\n".join(defects))
-    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}, formula_refs={len(FORMULA_REFERENCE)}")
+    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}, formula_refs={len(FORMULA_REFERENCE)}, options={option_coverage_summary()}")
