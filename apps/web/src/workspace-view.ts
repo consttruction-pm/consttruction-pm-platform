@@ -1,6 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceColumn, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale, type GanttBarGeometry } from "./workspace-gantt.js";
-import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
+import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 const labels = {
   en: {
@@ -15,6 +16,14 @@ const labels = {
 } as const;
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
+
+function getWorkspaceLabels(locale: string): WorkspaceLabels {
+  const baseline = labels[locale as keyof typeof labels] ?? labels.en;
+  return Object.fromEntries(Object.entries(labels.en).map(([key, fallback]) => [
+    key,
+    translateWorkspaceText(locale, `workspace.${key}`, (baseline as Record<string, string>)[key] ?? fallback),
+  ])) as WorkspaceLabels;
+}
 
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
@@ -124,7 +133,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   });
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
-    const t = labels[next.locale];
+    const t = getWorkspaceLabels(next.locale);
     details.innerHTML = `<h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${next.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(next.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}`;
   }
   return true;
@@ -150,7 +159,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     workspaceRenderRecords.set(container, { state, options });
     return;
   }
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const cachedWbsIds = workspaceWbsIdsCache.get(state.activities);
   const wbsIds = cachedWbsIds ?? [...new Set(state.activities.map((activity) => activity.wbsId))];
   if (!cachedWbsIds) workspaceWbsIdsCache.set(state.activities, wbsIds);
@@ -227,7 +236,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
         return anchor
-          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(submenu[state.locale])}</a>`
+          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
           : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(submenu[state.locale])}</span>`;
       }).join("")}
     </nav>
