@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.3"
+REFERENCE_VERSION: Final[str] = "0.8.4"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -110,7 +110,6 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "assign_baseline": ORACLE_ROOT + "assign_baselines_to_projects.htm",
     "update_baseline": ORACLE_ROOT + "update_baseline_dialog_box.htm",
     "resource_planning": ORACLE_ROOT + "planning_tab_-_resource_assignments_details.htm",
-    "cubi_scope_baseline": "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md",
 }
 
 
