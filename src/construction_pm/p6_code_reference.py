@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.2"
+REFERENCE_VERSION: Final[str] = "0.8.3"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -548,8 +548,8 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="PROG-001", area="Progress / Update workflow", feature="Update progress, apply actuals and close periods",
         p6_ui_entry="Tools > Update Progress / Tools > Store Period Performance",
-        required_semantics="Distinguish entered status/progress from a scheduling run and from applying actuals. Changes must reconcile actual start/finish, actual and remaining units/cost/duration, Data Date and out-of-sequence policy. Stored period performance must be immutable/period-addressed and must not be silently recalculated from current state.",
-        user_options=("Update selected/all applicable activities", "Apply actuals", "Data Date advance", "Store period performance", "Financial period", "Remaining Duration/Units", "Actual Start/Finish", "Out-of-sequence policy"),
+        required_semantics="Distinguish entered status/progress from a scheduling run and from applying actuals. Update Progress uses Current Data Date and New Data Date; the user can update all activities highlighted by Progress Spotlight or only selected activities. When actuals are applied from timesheets, remaining duration can be recalculated based on activity Duration Type, or always recalculated under the documented Fixed Units and Fixed Units/Time behavior. Reconcile actual start/finish, actual/remaining units/cost/duration and out-of-sequence policy. Store Period Performance is a period-addressed operation distinct from an ordinary current-state update.",
+        user_options=("Current Data Date", "New Data Date", "Update all highlighted activities / selected activities", "Apply actuals from timesheets", "Recalculate remaining duration based on activity Duration Type", "Always recalculate remaining duration (activities treated as Fixed Units and Fixed Units/Time)", "Remaining Duration/Units", "Actual Start/Finish", "Out-of-sequence policy", "Store period performance", "Financial period"),
         official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["progress"], ORACLE_SOURCES["data_date"]),
         cubi_code_paths=("src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py", "src/construction_pm/scheduling/out_of_sequence.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
         regression_tests=("tests/scheduling/test_schedule.py",),
