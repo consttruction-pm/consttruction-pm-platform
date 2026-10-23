@@ -70,7 +70,7 @@ class Projects:
         return ProjectSummary(project_id, tenant_id, name, 2)
 
 
-def _request(app, method: str, path: str, payload: dict | None = None):
+def _request(app, method: str, path: str, payload: dict | None = None, headers: dict[str, str] | None = None):
     body = json.dumps(payload or {}).encode("utf-8")
     status: list[str] = []
     chunks: list[bytes] = []
@@ -81,6 +81,8 @@ def _request(app, method: str, path: str, payload: dict | None = None):
         "CONTENT_LENGTH": str(len(body)),
         "wsgi.input": BytesIO(body),
     }
+    for name, value in (headers or {}).items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
 
     def start_response(value, headers):
         status.append(value)
@@ -431,4 +433,42 @@ def test_project_schedule_settings_reject_unknown_fields_and_stale_revision(tmp_
     assert status == "409 Conflict"
     assert conflict["code"] == "REVISION_CONFLICT"
     assert fixture["settings_repo"].get(fixture["scope"]).record_revision == 1
+    fixture["connection"].close()
+
+
+def test_authenticated_persisted_workspace_v2_returns_canonical_wbs_tree(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "activity_id": "A-WBS-READ",
+        "name": "Install Foundation",
+        "duration_value": "3",
+        "duration_unit": "working-day",
+        "wbs_id": "W-ROOT",
+    }
+    status, created = _request(
+        app, "POST", "/api/projects/p1/p6/activities", payload
+    )
+    assert status == "201 Created"
+    assert created["activity"]["wbs_id"] == "W-ROOT"
+
+    read_status, snapshot = _request(
+        app,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        headers={
+            "X-Tenant-Id": scope.tenant_id,
+            "X-Project-Id": scope.project_id,
+            "X-Project-Revision": str(scope.project_revision),
+        },
+    )
+    assert read_status == "200 OK"
+    assert snapshot["contract_version"] == "workspace-control-room-read.v2"
+    assert snapshot["workspace"]["contract_version"] == "workspace-control-room.v2"
+    assert [node["wbs_id"] for node in snapshot["workspace"]["wbs_nodes"]] == ["W-ROOT"]
+    assert snapshot["workspace"]["activities"][0]["wbs_id"] == "W-ROOT"
+    assert snapshot["workspace"]["activities"][0]["name"] == "Install Foundation"
+    assert snapshot["workspace"]["activities"][0]["gantt"] is None
     fixture["connection"].close()
