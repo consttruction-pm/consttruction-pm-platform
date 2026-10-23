@@ -43,6 +43,7 @@ class LearningRetrievalScope:
     user_id: str
     tenant_id: str | None = None
     project_id: str | None = None
+    tenant_shared_access_granted: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.user_id, str) or not self.user_id.strip():
@@ -194,5 +195,10 @@ class AILearningMemoryRecord:
                 and self.project_id == scope.project_id
             )
         if self.scope is LearningScope.TENANT_SHARED:
-            return bool(scope.tenant_id) and self.tenant_id == scope.tenant_id
+            return (
+                scope.tenant_shared_access_granted
+                and bool(scope.tenant_id)
+                and self.tenant_id == scope.tenant_id
+                and self.status in {LearningStatus.VALIDATED, LearningStatus.PUBLISHED}
+            )
         return False
