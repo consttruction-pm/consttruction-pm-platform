@@ -13,7 +13,10 @@ from construction_pm.scheduling.resource_leveling_input import (
 )
 
 
-def _facts(*, capacities, is_driving=None):
+def _facts(
+    *, capacities, is_driving=None, units_per_time=None,
+    units_per_time_period=None, hours_per_units_time_period=None,
+):
     assignment = ResourceAssignmentLevelingRef(
         assignment_id="ASSIGN-A",
         activity_id="A",
@@ -24,6 +27,9 @@ def _facts(*, capacities, is_driving=None):
         assigned_units=Decimal("8"),
         remaining_units=Decimal("8"),
         is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
     return ResourceLevelingFacts(
         assignments=(assignment,),
@@ -175,4 +181,56 @@ def test_resource_leveling_facts_reject_non_boolean_assignment_driving_status():
         ResourceLevelingFactsError,
         match="INVALID_ASSIGNMENT_DRIVING_FLAG",
     ):
+        facts.validate(activity_ids={"A"})
+
+
+
+def test_resource_leveling_facts_preserve_assignment_units_per_time():
+    facts = _facts(
+        capacities=(
+            _capacity(date(2026, 10, 19)),
+            _capacity(date(2026, 10, 20)),
+        ),
+        is_driving=True,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+
+    facts.validate(activity_ids={"A"})
+
+    assignment = facts.assignments[0]
+    assert assignment.is_driving is True
+    assert assignment.units_per_time == Decimal("2.5")
+    assert assignment.units_per_time_period == "day"
+    assert assignment.hours_per_units_time_period == Decimal("8")
+    payload = facts.canonical_payload()
+    assert payload["assignments"][0]["units_per_time"] == "2.5"
+    assert payload["assignments"][0]["units_per_time_period"] == "day"
+    assert payload["assignments"][0]["hours_per_units_time_period"] == "8"
+
+
+@pytest.mark.parametrize(
+    "kwargs, error",
+    [
+        (
+            {"units_per_time": Decimal("2")},
+            "INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME",
+        ),
+        (
+            {"units_per_time": Decimal("2"), "units_per_time_period": "decade",
+             "hours_per_units_time_period": Decimal("8")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD",
+        ),
+    ],
+)
+def test_resource_leveling_facts_reject_incomplete_assignment_units_per_time(kwargs, error):
+    facts = _facts(
+        capacities=(
+            _capacity(date(2026, 10, 19)),
+            _capacity(date(2026, 10, 20)),
+        ),
+        **kwargs,
+    )
+    with pytest.raises(ResourceLevelingFactsError, match=error):
         facts.validate(activity_ids={"A"})
