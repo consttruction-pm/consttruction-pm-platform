@@ -100,9 +100,11 @@ def test_scoped_grant_allows_only_exact_subject_project_revision_domain_operatio
     adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
     svc = AIActionApprovalService(adapter, InMemoryAIActionAuditSink())
 
-    assert adapter.allowed(scoped_proposal())
+    assert adapter.allowed(scoped_proposal(), subject_id="user-7")
+    # Model/client-supplied requested_by cannot impersonate the authenticated subject.
+    assert adapter.allowed(scoped_proposal(requested_by="user-8"), subject_id="user-7")
+    assert not adapter.allowed(scoped_proposal(requested_by="user-7"), subject_id="user-8")
     denied = [
-        scoped_proposal(requested_by="user-8"),
         scoped_proposal(tenant_id="tenant-other"),
         scoped_proposal(project_id="project-other"),
         scoped_proposal(project_revision_id="revision-old"),
@@ -112,8 +114,9 @@ def test_scoped_grant_allows_only_exact_subject_project_revision_domain_operatio
         scoped_proposal(project_revision_id=None),
         scoped_proposal(resource_domain=None),
     ]
-    assert all(not adapter.allowed(item) for item in denied)
-    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True).decision == "approved"
+    assert all(not adapter.allowed(item, subject_id="user-7") for item in denied)
+    assert not adapter.allowed(scoped_proposal(), subject_id=None)
+    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True, subject_id="user-7").decision == "approved"
 
 
 def test_scoped_grant_revocation_is_checked_on_each_decision():
@@ -123,11 +126,11 @@ def test_scoped_grant_revocation_is_checked_on_each_decision():
         UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)),
         sink,
     )
-    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True).decision == "approved"
+    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True, subject_id="user-7").decision == "approved"
 
     grants.clear()
     with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
-        svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
+        svc.decide(scoped_proposal(), actor_id="user-7", approved=True, subject_id="user-7")
     assert len(sink.records) == 2
     assert sink.records[-1][1].decision == "denied"
 
@@ -136,7 +139,7 @@ def test_scoped_grant_rejects_invalid_grant_data():
     grants = [scoped_grant(project_revision_id=" ")]
     adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
     with pytest.raises(AIActionBoundaryError, match="INVALID_AI_PERMISSION_GRANT_PROJECT_REVISION_ID"):
-        adapter.allowed(scoped_proposal())
+        adapter.allowed(scoped_proposal(), subject_id="user-7")
 
 
 def test_denied_action_does_not_misrepresent_requesting_user_as_audit_actor():
@@ -172,3 +175,18 @@ def test_blank_actor_is_not_preserved_as_a_rejection_actor():
     assert decision.decision == "rejected"
     assert decision.actor_id is None
     assert len(sink.records) == 1
+
+
+def test_permission_service_ignores_spoofed_requester_and_requires_authenticated_subject():
+    grants = [scoped_grant()]
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)), sink)
+
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(scoped_proposal(requested_by="user-7"), actor_id="user-8", approved=True, subject_id="user-8")
+    assert sink.records[-1][1].decision == "denied"
+    assert sink.records[-1][1].actor_id == "user-8"
+
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
+    assert len(sink.records) == 2

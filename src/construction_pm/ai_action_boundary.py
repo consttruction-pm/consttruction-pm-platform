@@ -63,7 +63,7 @@ class AIActionDecision:
 
 
 class AIToolPermissionAdapter(Protocol):
-    def allowed(self, proposal: AIActionProposal) -> bool: ...
+    def allowed(self, proposal: AIActionProposal, *, subject_id: str | None = None) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -102,14 +102,19 @@ class UserConfiguredAIActionPermissionAdapter:
     def __init__(self, grant_provider: Callable[[], Iterable[AIActionPermissionGrant]]) -> None:
         self.grant_provider = grant_provider
 
-    def allowed(self, proposal: AIActionProposal) -> bool:
+    def allowed(self, proposal: AIActionProposal, *, subject_id: str | None = None) -> bool:
         proposal.validate()
-        if not proposal.requested_by or not proposal.project_revision_id or not proposal.resource_domain:
+        # requested_by is model/client-controlled proposal data, not an authorization
+        # credential. Only a subject resolved by the authenticated application layer
+        # may be matched to a user-configured grant.
+        if not isinstance(subject_id, str) or not subject_id.strip():
+            return False
+        if not proposal.project_revision_id or not proposal.resource_domain:
             return False
         for grant in self.grant_provider():
             grant.validate()
             if (
-                grant.subject_id == proposal.requested_by
+                grant.subject_id == subject_id
                 and grant.tenant_id == proposal.tenant_id
                 and grant.project_id == proposal.project_id
                 and grant.project_revision_id == proposal.project_revision_id
@@ -129,7 +134,7 @@ class ReferenceAIToolPermissionAdapter:
     def __init__(self, allowed_tools: set[str]) -> None:
         self.allowed_tools = frozenset(allowed_tools)
 
-    def allowed(self, proposal: AIActionProposal) -> bool:
+    def allowed(self, proposal: AIActionProposal, *, subject_id: str | None = None) -> bool:
         proposal.validate()
         return proposal.tool_name in self.allowed_tools
 
@@ -149,11 +154,18 @@ class AIActionApprovalService:
         self.permission_adapter = permission_adapter
         self.audit_sink = audit_sink
 
-    def decide(self, proposal: AIActionProposal, *, actor_id: str | None, approved: bool) -> AIActionDecision:
+    def decide(
+        self,
+        proposal: AIActionProposal,
+        *,
+        actor_id: str | None,
+        approved: bool,
+        subject_id: str | None = None,
+    ) -> AIActionDecision:
         proposal.validate()
         if not isinstance(approved, bool):
             raise AIActionBoundaryError("INVALID_AI_ACTION_APPROVAL_DECISION")
-        if not self.permission_adapter.allowed(proposal):
+        if not self.permission_adapter.allowed(proposal, subject_id=subject_id):
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id,
                 decision="denied",
