@@ -9,6 +9,7 @@ from construction_pm.scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    RelationshipLagCalendarAssignment,
 )
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import (
@@ -796,3 +797,44 @@ def test_calendar_inheritance_cycle_fails_fast():
 
     with pytest.raises(ValueError, match="CALENDAR_INHERITANCE_CYCLE"):
         registry.resolve(ref_a)
+
+
+def test_persisted_relationship_lag_assignment_overrides_project_default():
+    snapshot = replace(
+        _snapshot(RelationshipLagCalendar.SUCCESSOR),
+        relationship_lag_calendar_assignments=(
+            RelationshipLagCalendarAssignment(
+                relationship_id="REL-A-B",
+                predecessor_id="A",
+                successor_id="B",
+                option=RelationshipLagCalendar.PREDECESSOR,
+            ),
+        ),
+    )
+    project_resolver = WorkingTimeResolver(WorkingCalendar())
+    predecessor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 22)}))
+    )
+    successor_resolver = WorkingTimeResolver(
+        WorkingCalendar(holidays=frozenset({date(2026, 9, 23)}))
+    )
+    registry = CalendarResolverRegistry(
+        day_resolvers={
+            "project@1": project_resolver,
+            "pred@1": predecessor_resolver,
+            "succ@1": successor_resolver,
+        }
+    )
+
+    resolvers = resolve_relationship_lag_resolvers(snapshot, registry)
+    assert resolvers[("A", "B")] is predecessor_resolver
+
+    result = schedule(
+        snapshot.activities,
+        snapshot.relationships,
+        snapshot.project_start,
+        project_resolver,
+        options=snapshot.schedule_options,
+        relationship_lag_resolvers=resolvers,
+    )
+    assert result.early_activities["B"].start == date(2026, 9, 24)
