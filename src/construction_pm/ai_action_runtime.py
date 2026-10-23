@@ -207,8 +207,8 @@ class _SqlAIActionRuntimeStore:
                 ),
             )
         except Exception as exc:
-            # Duplicate proposal IDs must never overwrite the original proposal.
-            raise AIActionRuntimeError("AI_ACTION_PROPOSAL_ID_CONFLICT") from exc
+            # Keep storage failures distinct from an actual duplicate-ID conflict.
+            raise AIActionRuntimeError("AI_ACTION_PROPOSAL_PERSISTENCE_FAILED") from exc
         fresh = self.get(
             proposal.proposal_id, tenant_id=proposal.tenant_id, project_id=proposal.project_id
         )
@@ -424,6 +424,10 @@ class AIActionRuntime:
         self._assert_current_revision(record, context)
         proposal = record.proposal
         if record.status != "proposed" or not proposal.requires_human_approval:
+            self.audit_sink.record_event(
+                proposal, "decision_replay_or_state_conflict", actor_id=context.subject_id,
+                metadata={"current_status": record.status}, happened_at=self._now(),
+            )
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_PENDING")
         decision_service = AIActionApprovalService(self.permission_adapter, self.audit_sink)
         try:
@@ -468,6 +472,10 @@ class AIActionRuntime:
         if definition is None:
             raise AIActionRuntimeError("AI_ACTION_TOOL_NOT_REGISTERED")
         if record.status != "approved":
+            self.audit_sink.record_event(
+                proposal, "execution_replay_or_race_blocked", actor_id=context.subject_id,
+                metadata={"current_status": record.status}, happened_at=self._now(),
+            )
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_APPROVED")
         # Re-check the exact grant immediately before claiming the action for execution.
         self._require_permission(proposal, context.subject_id, actor_id=context.subject_id)
