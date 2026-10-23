@@ -11,6 +11,8 @@ from .application.authorization import (
 )
 from .backend_p0.models import BackendScope
 from .p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentApplicationService,
     P6ResourceAssignmentPeriodApplicationService,
     P6ResourceAssignmentPeriodValue,
 )
@@ -44,6 +46,22 @@ class P6ResourceWriteAPI:
 
     period_service: P6ResourceAssignmentPeriodApplicationService
     authorization_policy: AuthorizationPolicy
+    # Optional for backwards-compatible composition; assignment creation is
+    # enabled only when the deployment explicitly injects its repository-backed service.
+    assignment_service: P6ResourceAssignmentApplicationService | None = None
+
+    def save_assignment(
+        self,
+        value: P6ResourceAssignment,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        if self.assignment_service is None:
+            raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
+        _require_scope(value.scope, auth_context)
+        _require_write(self.authorization_policy, auth_context)
+        stored = self.assignment_service.save(value)
+        return _assignment_dto(stored)
 
     def save_assignment_period(
         self,
@@ -55,6 +73,32 @@ class P6ResourceWriteAPI:
         _require_write(self.authorization_policy, auth_context)
         stored = self.period_service.save(value)
         return _period_dto(stored)
+
+
+def _assignment_dto(item: P6ResourceAssignment) -> dict[str, Any]:
+    return {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "kind": "resource_assignment",
+        "scope": _scope_dto(item.scope),
+        "assignment": {
+            "assignment_id": item.assignment_id,
+            "activity_id": item.activity_id,
+            "resource_id": item.resource_id,
+            "role_id": item.role_id,
+            "units": item.units,
+            "actual_units": item.actual_units,
+            "remaining_units": item.remaining_units,
+            "planned_cost": item.planned_cost,
+            "actual_cost": item.actual_cost,
+            "remaining_cost": item.remaining_cost,
+            "unit": item.unit,
+            "currency": item.currency,
+            "calendar_id": item.calendar_id,
+            "calendar_version": item.calendar_version,
+            "note": item.note,
+            "is_driving": item.is_driving,
+        },
+    }
 
 
 def _period_dto(item: P6ResourceAssignmentPeriodValue) -> dict[str, Any]:
