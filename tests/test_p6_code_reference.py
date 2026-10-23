@@ -11,11 +11,14 @@ from construction_pm.p6_code_reference import (
     KNOWN_GAP,
     MAPPED_NOT_PROVEN,
     FORMULA_REFERENCE,
+    P6_OPTION_REFERENCE,
     P6_CODE_REFERENCE,
     coverage_summary,
     get_formula_reference,
+    get_option_reference,
     get_reference,
     validate_formula_registry,
+    validate_option_registry,
     validate_registry,
 )
 
@@ -122,12 +125,50 @@ def test_curve_earned_value_formula_is_separately_tracked():
 
 
 
+def test_p6_option_reference_registry_has_no_internal_integrity_errors():
+    assert validate_option_registry() == ()
+
+
+def test_option_ids_are_unique_and_each_option_has_source_and_code_mapping():
+    option_ids = [item.id for item in P6_OPTION_REFERENCE]
+    assert option_ids
+    assert len(option_ids) == len(set(option_ids))
+    for item in P6_OPTION_REFERENCE:
+        assert item.requirement_id
+        assert item.menu_path
+        assert item.option_name
+        assert item.official_sources
+        assert item.cubi_code_paths
+        assert item.selectable_values
+
+
+def test_core_schedule_options_have_independent_lookup_ids():
+    ids = {item.id for item in P6_OPTION_REFERENCE}
+    assert {
+        "OPT-GEN-007",   # Retained Logic / Progress Override / Actual Dates
+        "OPT-GEN-010",   # Total Float calculation basis
+        "OPT-GEN-012",   # Relationship lag calendar
+        "OPT-ADV-002",   # Total Float vs Free Float paths
+        "OPT-LVL-007",   # Level within Total Float
+        "OPT-UPDATE-003",# Remaining Duration when applying timesheet actuals
+        "OPT-EV-002",    # WBS ETC technique
+        "OPT-RES-001",   # Resource driving default
+    }.issubset(ids)
+    assert get_option_reference("OPT-GEN-010").requirement_id == "SCH-003"
+
+
+def test_documented_sources_are_urls_not_internal_repository_paths():
+    entries = (*P6_CODE_REFERENCE, *FORMULA_REFERENCE, *P6_OPTION_REFERENCE)
+    for item in entries:
+        assert all(source.startswith(("https://", "http://")) for source in item.official_sources)
+
+
 def test_every_referenced_cubi_repository_path_exists():
     repo_root = Path(__file__).resolve().parents[1]
     paths = {
         path
-        for item in (*P6_CODE_REFERENCE, *FORMULA_REFERENCE)
-        for path in item.cubi_code_paths
+        for item in (*P6_CODE_REFERENCE, *FORMULA_REFERENCE, *P6_OPTION_REFERENCE)
+        for path in (*item.cubi_code_paths, *getattr(item, "regression_tests", ()))
         if path.startswith(("src/", "apps/", "shared/", "docs/", "tests/"))
     }
     missing = sorted(path for path in paths if not (repo_root / path).exists())
