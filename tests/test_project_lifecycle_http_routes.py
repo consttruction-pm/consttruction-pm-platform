@@ -762,7 +762,9 @@ def resource_assignment_routes():
     assignment_service.save(P6ResourceAssignment(BackendScope("t1", "p1", 2), "A-R-1", "ACT-1", "RES-1", role_id="ROLE-1", units=Decimal("8"), planned_cost=Decimal("100")))
     spread_service = P6ResourceSpreadApplicationService(SQLiteP6ResourceSpreadRepository(connection), transaction_manager)
     read_api = P6ResourceReadAPI(assignment_service, period_service, spread_service, default_project_policy())
-    write_api = P6ResourceWriteAPI(period_service, default_project_policy())
+    write_api = P6ResourceWriteAPI(
+        period_service, default_project_policy(), assignment_service=assignment_service
+    )
     return ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service), clock=type("Clock", (), {"now": lambda self: now})(), p6_resource_read_api=read_api, p6_resource_write_api=write_api)
 
 
@@ -783,6 +785,56 @@ def test_authenticated_resource_assignment_http_boundary_reads_assignment_and_pe
     assert fetched["kind"] == period["kind"]
     assert fetched["scope"] == period["scope"]
     assert fetched["period"] == period["period"]
+
+
+def test_authenticated_resource_assignment_http_write_accepts_driver_flag_and_read_back():
+    r = resource_assignment_routes()
+    request = {
+        "assignment_id": "A-R-2",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "units": "8",
+        "unit": "hours",
+        "is_driving": True,
+    }
+    status, _, raw = r.handle(
+        "POST",
+        "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(request).encode(),
+    )
+    assert status == 200
+    created = json.loads(raw)
+    assert created["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
+    assert created["kind"] == "resource_assignment"
+    assert created["assignment"]["is_driving"] is True
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-assignments/A-R-2",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    fetched = json.loads(raw)
+    assert fetched["contract_version"] == P6_RESOURCE_READ_API_VERSION
+    assert fetched["assignment"]["is_driving"] is True
+
+
+def test_resource_assignment_http_write_rejects_non_boolean_driving_flag():
+    r = resource_assignment_routes()
+    request = {
+        "assignment_id": "A-R-BAD",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "is_driving": "false",
+    }
+    status, _, raw = r.handle(
+        "POST",
+        "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(request).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
 
 
 def test_resource_assignment_http_boundary_enforces_scope_and_payload():
