@@ -21,7 +21,7 @@ test("registered third language renders workspace strings without source edits",
     direction: "ltr",
     translations: {
       "workspace.project": "Projekt",
-      "workspace.details": "Einzelheiten",
+      "workspace.details": "<img src=x onerror=alert(1)>",
       "navigation.schedule": "Zeitplan",
       "navigation.schedule.status": "Implementiert",
       "navigation.schedule.submenu.0": "Aktivitätenraster",
@@ -42,6 +42,8 @@ test("registered third language renders workspace strings without source edits",
   assert.match(container.innerHTML, /Zeitplan/);
   assert.match(container.innerHTML, /Aktivitätenraster/);
   assert.match(container.innerHTML, /Balkenplan/);
+  assert.match(container.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(container.innerHTML, /<img src=x onerror/);
   assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "Aktivitätsname");
 });
 
