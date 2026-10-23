@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Mapping, Protocol
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy, Permission
-from construction_pm.activity_master_repository import ActivityMasterRepository
-from construction_pm.wbs_master_repository import WBSMasterRepository
+from construction_pm.activity_master_repository import ActivityMasterRepository, ActivityPersistenceError
+from construction_pm.wbs_master_repository import WBSMasterRepository, WBSPersistenceError
 
 from .errors import BackendApplicationError, ErrorCategory
 from .models import (
@@ -53,8 +53,18 @@ class PersistedWBSWorkspaceReadProvider:
 
     def read(self, scope: BackendScope) -> Mapping[str, object]:
         scope.validate()
-        wbs_records = self.wbs_repository.list(scope)
-        activities = self.activity_repository.list(scope)
+        try:
+            wbs_records = self.wbs_repository.list(scope)
+            activities = self.activity_repository.list(scope)
+        except (ActivityPersistenceError, WBSPersistenceError) as exc:
+            code = str(exc) or "WORKSPACE_PERSISTENCE_READ_FAILED"
+            category = ErrorCategory.CONFLICT if code == "REVISION_CONFLICT" else ErrorCategory.VALIDATION
+            raise BackendApplicationError(
+                category,
+                code,
+                "Persisted Activity/WBS data could not be read consistently for this project revision",
+                retryable=category is ErrorCategory.CONFLICT,
+            ) from exc
         wbs_by_id = {node.wbs_id: node for node in wbs_records}
         if len(wbs_by_id) != len(wbs_records):
             raise BackendApplicationError(
