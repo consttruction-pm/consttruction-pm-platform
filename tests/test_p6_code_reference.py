@@ -97,3 +97,10 @@ def test_resource_dependent_formula_remains_marked_as_a_known_gap():
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
     assert item.status == "KNOWN_GAP"
     assert "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED" in item.known_gap
+
+
+
+def test_data_date_boundary_has_its_own_versioned_formula_reference():
+    item = get_formula_reference("FRM-DATA-DATE-001")
+    assert "start of the current scheduling workperiod" in item.formula_or_algorithm
+    assert "src/construction_pm/scheduling/progress_state.py" in item.cubi_code_paths
