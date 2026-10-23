@@ -107,6 +107,9 @@ def build_scheduler_leveling_input(
                 note=assignment.get("note"),
                 calendar_version=assignment.get("calendar_version"),
                 is_driving=assignment.get("is_driving"),
+                units_per_time=assignment.get("units_per_time"),
+                units_per_time_period=assignment.get("units_per_time_period"),
+                hours_per_units_time_period=assignment.get("hours_per_units_time_period"),
             )
         )
     typed_assignments.sort(key=lambda item: item.assignment_id)
