@@ -55,11 +55,12 @@ P6 v26 documents the movement semantics, but it does **not** define a universal 
 
 The companion schema should carry an explicit `horizon_policy_version`, `horizon_mode`, `horizon_start`, `horizon_end`, and the source values needed to reproduce those boundaries. The bounds must be computed before the companion hash is finalized.
 
-### Mode A — float-bounded forward leveling
+### Mode A — float-bounded leveling
 
-- Allow only when the persisted options explicitly preserve scheduled early/late dates and limit leveling to activity Total Float. If the selected P6 option combination cannot be supported exactly, reject it rather than switching modes.
-- Derive each activity's maximum allowed forward shift from the authoritative intermediate CPM output (the appropriate late-date boundary and configured minimum preserved float), using the exact activity calendar resolver. The resource input itself must not supply early/late dates or floats.
-- Project every persisted period-demand slice for that activity through its maximum allowed shift using the same activity calendar semantics as the Shared Core leveler. The declared window must include the baseline scheduled windows and all original/projected demand dates; this matters because manually entered future-period values can extend beyond the activity's nominal finish.
+- This mode is available only when the persisted options explicitly enable `level_within_float`; the baseline early/late dates and float must come from the authoritative Shared Core CPM pass. Never take those calculated values from request or resource-assignment data.
+- The exact `preserve_scheduled_early_and_late_dates` option still selects the pass strategy and must be preserved: when selected, use the supported forward-only leveling behavior and preserve the scheduled late-date boundary; when cleared, use the documented forward-and-backward behavior and recalculate early/late dates. Do not silently flip the option to make the horizon easier.
+- Derive each activity's permissible movement boundary from its baseline CPM early/late window, its float and configured minimum preserved float, applying the same exact activity-calendar resolver used by the Shared Core leveler. Any option combination for which that boundary cannot be proven remains unsupported and must fail closed.
+- Project every persisted period-demand slice for each activity through all positions permitted by that movement boundary. The declared window must include the baseline scheduled windows and all original/projected demand dates; manually entered future-period assignment values can extend beyond an activity's nominal finish.
 - Require a resolved capacity value for every resource/date needed through the entire declared window. A nonworking date is a known zero only when established by the versioned calendar definition; an absent capacity slice is unknown data and must fail closed.
 
 ### Mode B — explicitly bounded movement
