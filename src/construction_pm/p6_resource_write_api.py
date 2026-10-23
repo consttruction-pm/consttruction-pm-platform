@@ -97,6 +97,9 @@ def _assignment_dto(item: P6ResourceAssignment) -> dict[str, Any]:
             "calendar_version": item.calendar_version,
             "note": item.note,
             "is_driving": item.is_driving,
+            "units_per_time": item.units_per_time,
+            "units_per_time_period": item.units_per_time_period,
+            "hours_per_units_time_period": item.hours_per_units_time_period,
         },
     }
 
