@@ -175,3 +175,18 @@ def test_blank_actor_is_not_preserved_as_a_rejection_actor():
     assert decision.decision == "rejected"
     assert decision.actor_id is None
     assert len(sink.records) == 1
+
+
+def test_permission_service_ignores_spoofed_requester_and_requires_authenticated_subject():
+    grants = [scoped_grant()]
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)), sink)
+
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(scoped_proposal(requested_by="user-7"), actor_id="user-8", approved=True, subject_id="user-8")
+    assert sink.records[-1][1].decision == "denied"
+    assert sink.records[-1][1].actor_id == "user-8"
+
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
+    assert len(sink.records) == 2
