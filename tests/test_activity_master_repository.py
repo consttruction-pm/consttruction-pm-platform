@@ -19,6 +19,11 @@ from construction_pm.scheduling.activity import (
     PercentCompleteType,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.wbs_master_repository import (
+    SQLiteWBSMasterRepository,
+    WBSMaster,
+    WBSParentKind,
+)
 
 
 def scope(revision: int = 7) -> BackendScope:
@@ -248,3 +253,65 @@ def test_activity_master_round_trips_distinct_name_type_status_and_status_code()
     assert updated.status is ActivityStatus.COMPLETED
     assert updated.status_code is ActivityStatusCode.INACTIVE
     assert repo.get(scope(), "A-1") == updated
+
+
+
+def test_activity_master_persists_and_reassigns_canonical_wbs():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    wbs_repo = SQLiteWBSMasterRepository(connection)
+    root = wbs_repo.save(
+        WBSMaster(scope(), "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project", 0)
+    )
+    child = wbs_repo.save(
+        WBSMaster(scope(), "W-CHILD", WBSParentKind.WBS, "W-ROOT", "2", "Package", 1)
+    )
+
+    saved = repo.save(replace(activity(), wbs_id=root.wbs_id))
+    assert saved.wbs_id == "W-ROOT"
+    assert repo.get(scope(), "A-1") == saved
+    assert repo.list(scope()) == (saved,)
+
+    reassigned = repo.save(
+        replace(saved, duration_value=Decimal("3"), wbs_id=child.wbs_id),
+        expected_revision=1,
+    )
+    assert reassigned.record_revision == 2
+    assert reassigned.wbs_id == "W-CHILD"
+    assert repo.get(scope(), "A-1") == reassigned
+    assert repo.list(scope()) == (reassigned,)
+
+    cleared = repo.save(replace(reassigned, wbs_id=None), expected_revision=2)
+    assert cleared.record_revision == 3
+    assert cleared.wbs_id is None
+    assert repo.get(scope(), "A-1") == cleared
+    connection.close()
+
+
+def test_activity_master_rejects_missing_cross_scope_and_stale_wbs_references():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    wbs_repo = SQLiteWBSMasterRepository(connection)
+
+    with pytest.raises(ActivityPersistenceError, match="WBS_NOT_FOUND_OR_SCOPE_MISMATCH"):
+        repo.save(replace(activity(), wbs_id="W-MISSING"))
+
+    other_scope = BackendScope("T-OTHER", "P-OTHER", 7)
+    wbs_repo.save(
+        WBSMaster(other_scope, "W-OTHER", WBSParentKind.PROJECT, None, "1", "Other", 0)
+    )
+    with pytest.raises(ActivityPersistenceError, match="WBS_NOT_FOUND_OR_SCOPE_MISMATCH"):
+        repo.save(replace(activity(), wbs_id="W-OTHER"))
+
+    stale_scope = BackendScope(scope().tenant_id, scope().project_id, 8)
+    wbs_repo.save(
+        WBSMaster(stale_scope, "W-STALE", WBSParentKind.PROJECT, None, "1", "Stale", 0)
+    )
+    with pytest.raises(ActivityPersistenceError, match="REVISION_CONFLICT"):
+        repo.save(replace(activity(), wbs_id="W-STALE"))
+
+    with pytest.raises(ActivityPersistenceError, match="INVALID_WBS_ID"):
+        repo.save(replace(activity(), wbs_id=123))
+
+    assert repo.get(scope(), "A-1") is None
+    connection.close()
