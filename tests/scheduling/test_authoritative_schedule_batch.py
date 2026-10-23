@@ -38,6 +38,8 @@ from construction_pm.scheduling.schedule_options import (
     CriticalActivityPathType,
     OutOfSequenceScheduleType,
     ScheduleMode,
+    PriorityListItem,
+    PrioritySortOrder,
     ScheduleOptions,
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
@@ -471,6 +473,7 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
         level_all_resources=True,
         include_external_res_ass=False,
         calculate_float_based_on_finish_date=False,
+        priority_list=(PriorityListItem("project_priority", PrioritySortOrder.ASCENDING),),
     )
     leveling_options = ResourceLevelingOptions(level_all_resources=True)
     demand_p1 = ResourceDemand("R1", date(2026, 10, 1), Decimal("1"), "P1-A")
@@ -494,8 +497,8 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     )
     result = execute_authoritative_schedule_batch(
         [
-            snapshot("P1", date(2026, 10, 10), options=options),
-            snapshot("P2", date(2026, 10, 10), options=options),
+            snapshot("P1", date(2026, 10, 10), options=options, priority=1),
+            snapshot("P2", date(2026, 10, 10), options=options, priority=100),
         ],
         resolvers={"P1": resolver(), "P2": resolver()},
         leveling_input=leveling_input,
@@ -504,7 +507,8 @@ def test_shared_resource_leveling_runs_once_for_the_batch_graph():
     p2 = result.project("P2").result.activities["P2-A"]
     day_one = date(2026, 10, 1)
     day_two = date(2026, 10, 2)
-    assert {p1.start, p2.start} == {day_one, day_two}
+    assert p1.start == day_one
+    assert p2.start == day_two
 
     # Assert the recalculated shared graph, not only the proposal output:
     # each occupied resource period must fit the aggregate batch capacity.
