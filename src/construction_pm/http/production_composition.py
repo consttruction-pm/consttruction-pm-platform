@@ -13,6 +13,7 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
+from construction_pm.ai_action_runtime import AIActionRuntime
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
@@ -31,13 +32,17 @@ def build_project_lifecycle_wsgi_app(
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
+    ai_action_runtime: AIActionRuntime | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
     Deployment owns the outer server/runtime and calls this function with its
     concrete lifecycle/session dependencies. Schedule Query is wired here to
     the authoritative snapshot evaluator and persisted CalculationContext;
-    HTTP transport remains separate from Shared Core calculations.
+    HTTP transport remains separate from Shared Core calculations. The optional
+    AI action runtime exposes proposal/approval/execution routes only when a
+    deployment supplies its current grant provider, durable store, and real
+    application-tool handlers. There is deliberately no permissive fallback.
     """
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
@@ -68,6 +73,7 @@ def build_project_lifecycle_wsgi_app(
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
+        ai_action_runtime=ai_action_runtime,
     )
     return ProjectLifecycleWsgiApp(routes)
 
