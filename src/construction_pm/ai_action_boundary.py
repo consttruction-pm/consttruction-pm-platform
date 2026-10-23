@@ -54,7 +54,7 @@ class AIActionDecision:
     def validate(self) -> None:
         if not isinstance(self.proposal_id, str) or not self.proposal_id.strip():
             raise AIActionBoundaryError("INVALID_AI_ACTION_PROPOSAL_ID")
-        if self.decision not in {"approved", "rejected"}:
+        if self.decision not in {"approved", "rejected", "denied"}:
             raise AIActionBoundaryError("INVALID_AI_ACTION_DECISION")
         if self.decision == "approved" and (not isinstance(self.actor_id, str) or not self.actor_id.strip()):
             raise AIActionBoundaryError("AI_ACTION_APPROVAL_REQUIRES_ACTOR")
@@ -152,8 +152,24 @@ class AIActionApprovalService:
     def decide(self, proposal: AIActionProposal, *, actor_id: str | None, approved: bool) -> AIActionDecision:
         proposal.validate()
         if not self.permission_adapter.allowed(proposal):
+            denied = AIActionDecision(
+                proposal_id=proposal.proposal_id,
+                decision="denied",
+                actor_id=actor_id if isinstance(actor_id, str) and actor_id.strip() else proposal.requested_by,
+                audit_event="ai_action_decision",
+            )
+            denied.validate()
+            self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_TOOL_NOT_PERMITTED")
         if proposal.requires_human_approval and (not isinstance(actor_id, str) or not actor_id.strip()):
+            denied = AIActionDecision(
+                proposal_id=proposal.proposal_id,
+                decision="denied",
+                actor_id=None,
+                audit_event="ai_action_decision",
+            )
+            denied.validate()
+            self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_ACTION_HUMAN_APPROVAL_REQUIRED")
         decision = AIActionDecision(
             proposal_id=proposal.proposal_id,
