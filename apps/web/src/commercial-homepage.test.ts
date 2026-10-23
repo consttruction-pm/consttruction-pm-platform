@@ -45,7 +45,7 @@ test("commercial surface stays independent of external product provenance", () =
 test("landing language preference is restored and persisted safely", () => {
   assert.match(landing, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
   assert.match(landing, /function restoreLandingLocale\(\): void/);
-  assert.match(landing, /saved === "en" \|\| saved === "fa"/);
+  assert.match(landing, /getAvailableWorkspaceLocales\(\)\.includes\(saved\)/);
   assert.match(landing, /function persistLandingLocale\(\): void/);
   assert.match(landing, /restoreLandingLocale\(\);/);
   assert.match(landing, /persistLandingLocale\(\);/);
@@ -53,8 +53,10 @@ test("landing language preference is restored and persisted safely", () => {
 });
 
 test("full homepage keeps bilingual control and the six capability areas", () => {
-  assert.match(landing, /type LandingLocale = "en" \| "fa"/);
+  assert.match(landing, /type LandingLocale = string/);
   assert.match(landing, /cubi-language/);
+  assert.match(landing, /getAvailableWorkspaceLocales\(\)/);
+  assert.match(landing, /translateWorkspaceText/);
   for (const pattern of [
     /Project Controls|کنترل پروژه/,
     /AI Assistant|دستیار هوشمند/,
