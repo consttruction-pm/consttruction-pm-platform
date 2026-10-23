@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.1"
+REFERENCE_VERSION: Final[str] = "0.8.2"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -110,7 +110,7 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "assign_baseline": ORACLE_ROOT + "assign_baselines_to_projects.htm",
     "update_baseline": ORACLE_ROOT + "update_baseline_dialog_box.htm",
     "resource_planning": ORACLE_ROOT + "planning_tab_-_resource_assignments_details.htm",
-    "parity_baseline": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf",
+    "cubi_scope_baseline": "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md",
 }
 
 
@@ -238,7 +238,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project calendar settings / localized date fields / timeline",
         required_semantics="Keep stable canonical storage/calculation dates separate from Jalali/Gregorian display. Changing locale must not shift a stored instant or schedule date.",
         user_options=("Gregorian display", "Jalali display", "Project calculation time zone"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("src/construction_pm/scheduling/calendar_system.py", "src/construction_pm/scheduling/time_calendar.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Localization date-boundary and round-trip tests are required; this is a CUBI extension, not a native P6 feature claim.",
@@ -284,7 +284,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project > WBS; Project > Activities; activity columns and codes",
         required_semantics="Keep hierarchy identity separate from display order, preserve stable field/code IDs, validate activity-to-WBS membership and expose editable fields through typed permission-checked contracts. WBS Summary behavior remains distinct from ordinary tasks.",
         user_options=("WBS hierarchy", "Activity ID/name", "Activity codes", "UDF/custom fields", "Status/status code"),
-        official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["parity_baseline"]),
+        official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["help_toc"]),
         cubi_code_paths=("src/construction_pm/activity_master_repository.py", "src/construction_pm/p6_code_repository.py", "src/construction_pm/http/project_lifecycle_routes.py", "apps/web/src/p6-activity-wbs-grid.ts"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Full field registry, hierarchy contract, UI column inventory and import/export mapping remain to be reconciled.",
@@ -344,7 +344,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project > Activities > Activity Details > Expenses / Cost Accounts",
         required_semantics="Keep expense item, cost account, accrual timing, planned/actual cost and assignment/resource cost as separate concepts. Activity/WBS/project linkage and rollup rules must be explicit.",
         user_options=("Expense item/type", "Accrual type", "Cost account", "Planned/Actual cost"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("src/construction_pm/p6_expense_repository.py", "src/construction_pm/p6_cost_account_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Official field-by-field expense semantics and rollup/rounding test cases remain to be completed.",
@@ -364,7 +364,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project control reports / progress and performance analysis",
         required_semantics="Keep earned-value schedule indicators distinct from time-based Earned Schedule measures. Document each metric's definition, period basis, zero-denominator behavior, calendar/time unit and reconciliation between schedule variance/index and duration/time variance/index.",
         user_options=("Reporting period", "Baseline selection", "Calculation date/Data Date", "Time unit and calendar"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/__init__.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="CUBI Earned Schedule extension formulas and native P6 metric boundaries must be documented separately.",
@@ -393,7 +393,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project > Activities; Layout / columns / filters / group and sort / Gantt timescale",
         required_semantics="Separate stored field identity from each view's column settings. Persist stable field IDs, order, visibility, width, sort/group/filter definitions and timescale. Timeline/grid edits must call authoritative typed APIs and must not calculate schedule dates in the UI.",
         user_options=("Show/hide columns", "Reorder/resize", "Sort", "Group", "Filter", "Gantt timescale", "Layout scope and persistence"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("apps/web/src/p6-activity-wbs-grid.ts", "apps/web/src/workspace-model.ts", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Full menu/column/field inventory, persistence and end-to-end timeline edit tests are still required.",
@@ -403,7 +403,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Reports / Layouts / print-preview and export workflows",
         required_semantics="A saved report profile is configuration, not output. Bind reports to project revision/Data Date/baseline and selected fields; preserve units/localization and report missing/unsupported fields instead of silently dropping them.",
         user_options=("Report profile", "Selected fields", "Project/revision", "Baseline", "Date range", "Locale", "Page layout/output format"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("src/construction_pm/p6_report_profile_repository.py", "docs/architecture/P6_REPORT_PROFILE_MAPPING_PERSISTENCE_V1.md"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="P6 report menu inventory and CUBI A4/PDF/XLSX output parity are not certified by this registry.",
@@ -435,7 +435,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Formula-capable fields/columns and project-control calculations",
         required_semantics="If custom formulas are offered, compile through tokenizer/parser/typed AST/dependency graph, detect cycles, enforce units/null behavior, evaluate deterministically and never execute arbitrary Python/JavaScript via eval-style execution.",
         user_options=("Formula definition", "Result type", "Units", "Null behavior", "Dependency/recalculation policy"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"],),
         cubi_code_paths=("docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md",),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="The CUBI formula field catalog and executable evaluator path must be linked and tested before any formula-parity claim.",
@@ -445,7 +445,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Schedule/recalculation command and every action that changes scheduling inputs",
         required_semantics="Read authoritative activities, relationships, constraints, settings, calendars and resources within tenant/project/revision scope; validate them; bind exact versions to an immutable snapshot/hash; calculate from that snapshot; publish with revision checks. Unsupported semantics must fail closed rather than be omitted.",
         user_options=("Project revision", "Schedule mode", "Calculation time zone", "Calendar versions", "Resource/relationship settings", "Snapshot identity"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"], ORACLE_SOURCES["schedule"]),
+        official_sources=(ORACLE_SOURCES["help_toc"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/schedule_snapshot_materializer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/http/production_composition.py", "src/construction_pm/http/project_lifecycle_routes.py"),
         regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",),
         coverage=MAPPED_NOT_PROVEN,
