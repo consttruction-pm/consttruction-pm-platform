@@ -27,7 +27,6 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
-from construction_pm.p6_wbs_master_api import P6_WBS_MASTER_API_VERSION
 from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
