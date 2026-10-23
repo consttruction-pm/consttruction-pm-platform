@@ -165,17 +165,28 @@ class AIActionApprovalService:
         proposal.validate()
         if not isinstance(approved, bool):
             raise AIActionBoundaryError("INVALID_AI_ACTION_APPROVAL_DECISION")
-        if not self.permission_adapter.allowed(proposal, subject_id=subject_id):
+        trusted_subject_id = subject_id if isinstance(subject_id, str) and subject_id.strip() else None
+        trusted_actor_id = actor_id if isinstance(actor_id, str) and actor_id.strip() else None
+        if trusted_subject_id is None:
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id,
                 decision="denied",
-                actor_id=actor_id if isinstance(actor_id, str) and actor_id.strip() else None,
+                actor_id=trusted_actor_id,
+                audit_event="ai_action_decision",
+            )
+            denied.validate()
+            self.audit_sink.record(proposal, denied)
+            raise AIActionBoundaryError("AI_ACTION_AUTHENTICATED_SUBJECT_REQUIRED")
+        if not self.permission_adapter.allowed(proposal, subject_id=trusted_subject_id):
+            denied = AIActionDecision(
+                proposal_id=proposal.proposal_id,
+                decision="denied",
+                actor_id=trusted_actor_id,
                 audit_event="ai_action_decision",
             )
             denied.validate()
             self.audit_sink.record(proposal, denied)
             raise AIActionBoundaryError("AI_TOOL_NOT_PERMITTED")
-        trusted_actor_id = actor_id if isinstance(actor_id, str) and actor_id.strip() else None
         if proposal.requires_human_approval and trusted_actor_id is None:
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id,
