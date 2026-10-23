@@ -8,7 +8,7 @@ cannot silently substitute activity dates for resource dates.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -48,8 +48,11 @@ class ResourceAssignmentScheduleResult:
         if not isinstance(self.status, AssignmentPlacementStatus):
             raise TypeError("status must be an AssignmentPlacementStatus")
         dates = (self.early_start, self.early_finish, self.late_start, self.late_finish)
-        if any(value is not None and (not isinstance(value, date)) for value in dates):
-            raise TypeError("assignment schedule dates must be date values or None")
+        if any(
+            value is not None and (not isinstance(value, date) or isinstance(value, datetime))
+            for value in dates
+        ):
+            raise TypeError("assignment schedule dates must be date-only values or None")
         if self.status is AssignmentPlacementStatus.UNSCHEDULED:
             if any(value is not None for value in dates):
                 raise ValueError("unscheduled assignments must not expose calculated dates")
