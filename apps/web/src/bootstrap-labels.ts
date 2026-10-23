@@ -1,4 +1,5 @@
 import type { WorkspaceLocale } from "./workspace-model.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 export type BootstrapLabels = {
   loading: string;
@@ -17,7 +18,7 @@ export type BootstrapLabels = {
   refresh: string;
 };
 
-const labels: Record<WorkspaceLocale, BootstrapLabels> = {
+const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
   en: {
     loading: "Loading workspace…",
     opening: "Opening project…",
@@ -53,5 +54,6 @@ const labels: Record<WorkspaceLocale, BootstrapLabels> = {
 };
 
 export function getBootstrapLabels(locale: WorkspaceLocale): BootstrapLabels {
-  return labels[locale];
+  const baseline = labels[locale] ?? labels.en!;
+  return Object.fromEntries(Object.entries(baseline).map(([key, value]) => [key, translateWorkspaceText(locale, `bootstrap.${key}`, value)])) as BootstrapLabels;
 }
