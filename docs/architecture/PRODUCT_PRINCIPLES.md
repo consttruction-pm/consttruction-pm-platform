@@ -130,6 +130,14 @@ A language is not considered supported merely because a selector or a few transl
 
 Every feature PR must state which localization resources, languages, layouts and tests it affects. A missing translation, broken RTL/LTR layout, untranslated generated output, or language-dependent change to calculation results is a defect and release blocker for the affected supported language. Language coverage must be re-audited at each release gate.
 
+## Principle 9 — User-controlled AI permissions and auditable execution
+
+The detailed binding contract is `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PERMISSION_REQUIREMENTS.md`. The assistant must enforce explicit user-controlled, least-privilege grants at tenant/project/revision, data-domain, operation and tool level. Default is deny; read, analyze, propose and mutate are distinct capabilities. A user interface toggle or a tool allowlist alone is not sufficient authorization. Permissions are checked again immediately before execution, consequential actions require actor-bound approval, and all attempts/outcomes are auditable. The assistant must use real application operations and the authoritative Shared Domain/Calculation Core; it must not claim a tool or workflow exists merely because it is specified. Offline/voice commands use the same permission and approval policy.
+
+## Principle 10 — Multilingual support is end-to-end, extensible and evidence-gated
+
+Principle 8 is elaborated by `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PERMISSION_REQUIREMENTS.md`. Persian and English are initial baseline languages, not a two-language ceiling. Only explicitly declared languages with end-to-end acceptance evidence may be advertised as supported. Language-pack infrastructure, client integration and translated product coverage are separate completion items. The same rule applies to AI language capabilities, voice, generated outputs and offline behavior. Locale/display translation must never alter project data or calculation semantics.
+
 ## Release Gate
 
 Every release candidate must pass two sequential product gates:

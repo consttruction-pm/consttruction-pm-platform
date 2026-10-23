@@ -77,9 +77,19 @@
 |---|---|---|
 | Shared language-pack infrastructure | Client-sync language manifest/resource/activation infrastructure exists. | Verified |
 | Web language-manager route | `apps/web/src/language-manager-route.ts` supports active pack, offline activation, update, rollback and error state. | Verified |
-| Workspace locale coverage | Current workspace navigation and rendering provide Persian/English plus RTL/LTR coverage; the product-wide all-language requirement remains a separate localization gap. | Gap |
+| Workspace locale coverage | `workspace-model.ts`, `workspace-view.ts`, `workspace-navigation.ts` and `landing.ts` use hard-coded `fa`/`en` locale unions/maps. Verified language-pack lifecycle is not yet the source of all rendered workspace strings. Issue #1531 tracks extensible resource integration. | Gap — hard-coded two-language surface |
 | All-language requirement | Product requirement is all-language UI/data with offline downloadable packs, RTL/LTR and typography support. Current workspace does not yet satisfy the all-language surface. | Gap |
 | README terminology | README still says “bilingual Persian/English”; this is stale relative to the current all-language requirement and should be corrected in a documentation-only follow-up. | Gap |
+
+## Multilingual and AI permission contract — corrected disposition
+
+| Area | Current evidence / required disposition | Status |
+|---|---|---|
+| Binding multilingual scope | `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PERMISSION_REQUIREMENTS.md` defines all declared supported languages, per-surface coverage, RTL/LTR, language packs, offline and release evidence. Persian/English are initial baselines, not a two-language ceiling. | Requirement recorded; implementation gap remains |
+| Language-pack infrastructure vs product translation | Manifest/resource/activation and Web language-manager infrastructure exist, but do not prove every language is integrated across every workspace surface, report/help output or AI capability. | Partial / Gap |
+| Assistant operation-level permissions | PR #1529 adds an exact-scope, default-deny grant adapter and tests for subject/tenant/project/revision/domain/operation/tool matching, per-decision grant refresh and denial audit. It is not yet wired to a production assistant executor or persistent grant provider; issue #1530 tracks end-to-end integration. | Partial implementation; production gap |
+| Assistant end-to-end execution | Specification requires real tool calls, proposal/approval, authoritative Core calculation, persistence/read-back and audit. Existing contracts/classes are not proof of the full flow. | Audit / runtime evidence required |
+| Language and permission regression matrix | Add tests for each declared language/surface and operation × grant × scope, including RTL/mixed script, fallback, default deny, revocation, stale proposal, cross-tenant rejection and audit. | Gap |
 
 ## Help / documentation
 
