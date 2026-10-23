@@ -500,22 +500,6 @@ class AIActionRuntime:
             if not isinstance(result, Mapping):
                 raise TypeError("AI action executor must return a mapping")
             _json_object(result, "AI_ACTION_EXECUTOR_RESULT_INVALID")
-            completed_at = self._now()
-            if not self.store.transition(
-                proposal, expected_status="executing", next_status="executed",
-                updated_at=completed_at, result=result,
-            ):
-                self.audit_sink.record_event(
-                    proposal, "execution_persistence_uncertain", actor_id=context.subject_id,
-                    metadata={"reason_code": "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED"},
-                    happened_at=completed_at,
-                )
-                raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
-            self.audit_sink.record_event(
-                proposal, "execution_succeeded", actor_id=context.subject_id,
-                metadata={"result_keys": sorted(str(key) for key in result.keys())},
-                happened_at=completed_at,
-            )
         except Exception as exc:
             failed_at = self._now()
             self.store.transition(
@@ -529,6 +513,31 @@ class AIActionRuntime:
             if isinstance(exc, AIActionRuntimeError):
                 raise
             raise AIActionRuntimeError("AI_ACTION_EXECUTION_FAILED") from exc
+
+        completed_at = self._now()
+        try:
+            persisted = self.store.transition(
+                proposal, expected_status="executing", next_status="executed",
+                updated_at=completed_at, result=result,
+            )
+        except Exception as exc:
+            self.audit_sink.record_event(
+                proposal, "execution_persistence_uncertain", actor_id=context.subject_id,
+                metadata={"failure_type": type(exc).__name__}, happened_at=completed_at,
+            )
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED") from exc
+        if not persisted:
+            self.audit_sink.record_event(
+                proposal, "execution_persistence_uncertain", actor_id=context.subject_id,
+                metadata={"reason_code": "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED"},
+                happened_at=completed_at,
+            )
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
+        self.audit_sink.record_event(
+            proposal, "execution_succeeded", actor_id=context.subject_id,
+            metadata={"result_keys": sorted(str(key) for key in result.keys())},
+            happened_at=completed_at,
+        )
         fresh = self._get_scoped(context, proposal_id)
         if fresh is None or fresh.status != "executed":
             raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
