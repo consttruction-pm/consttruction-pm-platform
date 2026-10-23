@@ -235,3 +235,32 @@ def test_resource_leveling_facts_reject_incomplete_assignment_units_per_time(kwa
     )
     with pytest.raises(ResourceLevelingFactsError, match=error):
         facts.validate(activity_ids={"A"})
+
+
+
+def test_assignment_driving_status_is_bound_to_canonical_snapshot_hash():
+    capacities = (
+        _capacity(date(2026, 10, 19)),
+        _capacity(date(2026, 10, 20)),
+    )
+    driving = _facts(capacities=capacities, is_driving=True)
+    nondriving = _facts(capacities=capacities, is_driving=False)
+    legacy_unknown = _facts(capacities=capacities, is_driving=None)
+
+    assert driving.canonical_hash != nondriving.canonical_hash
+    assert driving.canonical_hash != legacy_unknown.canonical_hash
+    assert nondriving.canonical_hash != legacy_unknown.canonical_hash
+
+
+def test_legacy_unknown_driving_status_is_serialized_as_unknown_not_inferred():
+    facts = _facts(
+        capacities=(
+            _capacity(date(2026, 10, 19)),
+            _capacity(date(2026, 10, 20)),
+        ),
+        is_driving=None,
+    )
+
+    payload = facts.canonical_payload()
+
+    assert payload["assignments"][0]["is_driving"] is None
