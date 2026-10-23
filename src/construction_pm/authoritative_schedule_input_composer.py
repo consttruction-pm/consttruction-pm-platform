@@ -267,11 +267,17 @@ class AuthoritativeScheduleInputComposer:
             if assignment.activity_id not in activity_ids:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY")
             if activity_by_id[assignment.activity_id].activity_type is ActivityType.RESOURCE_DEPENDENT:
-                # The driving flag is now persisted, but Resource Dependent
-                # forward/backward date derivation and nondriving placement are
-                # not yet implemented in the shared scheduler. Keep this guard
-                # until those semantics and end-to-end regression tests exist;
-                # a persisted flag alone is not sufficient to schedule safely.
+                # Do not collapse missing legacy metadata into the broader
+                # unsupported-engine condition: callers need to know whether
+                # the persisted driving semantics are incomplete or the shared
+                # scheduling algorithm itself is not implemented yet.
+                if assignment.is_driving is None:
+                    raise ScheduleInputCompositionError(
+                        "RESOURCE_DEPENDENT_DRIVING_STATUS_REQUIRED"
+                    )
+                # Keep fail-closed until the shared scheduler calculates
+                # driving-resource early/late dates and independently places
+                # nondriving assignments. Persisting the flag is not enough.
                 raise ScheduleInputCompositionError(
                     "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
                 )
