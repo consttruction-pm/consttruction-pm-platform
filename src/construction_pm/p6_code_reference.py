@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.4.0"
+REFERENCE_VERSION: Final[str] = "0.5.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -648,6 +648,93 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/multi_project_float.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="CUBI offline contracts exist in the architecture; full P6 workflow equivalence and multi-project cache consistency remain unverified.",
+    ),
+
+    P6CodeReference(
+        id="ROLE-001", area="Resources / Roles", feature="Roles, proficiency, limits and role-rate calculations",
+        p6_ui_entry="Enterprise > Roles; Activity Details > Resources > Assign by Role",
+        required_semantics="Keep role definitions, proficiency, role limits, role-to-resource mapping, assignment role, role rate and actual assigned resource distinct. Role-based planning differs from assigning a named resource; substitution must preserve quantities, rate source and cost basis.",
+        user_options=("Role", "Proficiency", "Role limit by time", "Price/unit rates over time", "Assign role to activity", "Assign resource from role", "Rate type", "Rate source", "Replace resource/role"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["resources"], ORACLE_SOURCES["assignment_calculations"]),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_cost_account_repository.py"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py",),
+        coverage=INVENTORY_REQUIRED,
+        product_context="P6 Professional Version 26; validate role parity separately",
+        known_gap="No verified full role-master, role-rate and role-limit persistence chain was found in the current source inventory.",
+    ),
+    P6CodeReference(
+        id="PREF-001", area="Preferences / Calculation defaults", feature="User and project resource/role assignment calculation options",
+        p6_ui_entry="Edit > User Preferences > Calculations / Projects > Defaults / Admin Preferences",
+        required_semantics="Calculation preferences must be explicit and versioned. Assignment changes must honor preserve/recalculate rules for duration, units and Units/Time. Project defaults for activity type, duration type, percent complete, rate type and calendar apply to new records unless the user explicitly requests a bulk change.",
+        user_options=("Preserve Units, Duration and Units/Time", "Recalculate Units, Duration and Units/Time", "Default activity type", "Default duration type", "Default percent complete type", "Default activity calendar", "Default resource rate type", "Default cost account", "Hours per time period"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["assignment_calculations"], ORACLE_SOURCES["edit_calendar"]),
+        cubi_code_paths=("src/construction_pm/project_schedule_settings_repository.py", "src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/calendar_periods.py", "src/construction_pm/p6_resource_assignment_repository.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Each preference needs schema/version, persisted setting, UI binding and regression proving a changed default does not silently mutate existing data.",
+    ),
+    P6CodeReference(
+        id="REFL-001", area="Projects / Reflection and what-if", feature="Reflection creation, comparison and controlled merge",
+        p6_ui_entry="Project > Create Reflection / Reflection differences / Merge with source project",
+        required_semantics="A what-if/reflection copy preserves source identity and revision; differences are compared by typed entities; merge requires explicit scope and conflict policy; stale updates are rejected and accepted changes audited. A reflection must not silently overwrite authoritative activity/relationship data.",
+        user_options=("Create reflection", "Compare differences", "Print difference report", "Select merge scope", "Conflict handling", "Merge/cancel"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["pro_user_guide_portal"]),
+        cubi_code_paths=("src/construction_pm/schedule_snapshot_materializer.py", "src/construction_pm/http/project_lifecycle_routes.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        product_context="P6 Professional Version 26 / CUBI what-if workflow",
+        known_gap="No complete reflection entity, difference-report or merge-conflict implementation was verified in this review.",
+    ),
+    P6CodeReference(
+        id="NOTE-001", area="Activities / Notes and documents", feature="Activity notebooks, topics and timeline attachments",
+        p6_ui_entry="Activity Details > Notebook / Gantt Chart > Text and Curtain Attachments / Admin Categories > Notebook Topics",
+        required_semantics="Keep a notebook record separate from the activity, support topic/sequence and access context, and link attachments through stable references. Hiding/removing a visual Gantt attachment must not delete its source note/document unless explicitly requested.",
+        user_options=("Notebook topic", "Note text", "Activity/WBS/project association", "Gantt text attachment", "Curtain attachment", "Show/hide attachment", "Permission and audit"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/activity_master_repository.py", "apps/web/src/p6-activity-wbs-grid.ts", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Dedicated notebook/topic/attachment domain and storage paths are not yet mapped; activity-grid support does not prove notebook parity.",
+    ),
+    P6CodeReference(
+        id="ANALYSIS-001", area="Resource analysis / Forecasting", feature="Resource explorer, analysis profiles and dynamic leveling",
+        p6_ui_entry="Tracking > Project Gantt/Profile and Resource Analysis / Resource Explorer",
+        required_semantics="Forecast capacity and demand as a time-phased view bound to assignment periods, current rates, calendar snapshots and project scope. Dynamic leveling proposals explain assumed availability and do not change the authoritative schedule until explicitly applied.",
+        user_options=("Resource/project scope", "Profile/spreadsheet display", "Availability/limits/overtime", "Time scale", "Forecast/dynamic leveling", "Save tracking layout", "Apply/cancel proposal"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["leveling_dialog"]),
+        cubi_code_paths=("src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_capacity_contract.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Profiles and dynamic resource-analysis forecasting need a dedicated read model and UI/contract/test mapping; existing leveling code alone does not prove parity.",
+    ),
+    P6CodeReference(
+        id="VIZ-001", area="Visualization / P6 Visualizer", feature="Time-scaled logic diagrams and advanced visual output",
+        p6_ui_entry="Tools > P6 Visualizer",
+        required_semantics="Visualizer outputs derive from the same schedule snapshot as the activity grid/Gantt. Relationship logic, calendar-scaled duration, path highlighting and selected baseline remain consistent; visual positioning cannot recalculate the network.",
+        user_options=("Timescaled logic diagram", "Selected activities/relationships", "Calendar/time scale", "Critical/float-path highlighting", "Baseline/actual/remaining display", "Export/print layout"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["pro_all_guides"]),
+        cubi_code_paths=("src/construction_pm/scheduling/p6_activity_scheduler_outputs.py", "src/construction_pm/scheduling/authoritative_schedule.py", "apps/web/src/p6-activity-wbs-grid.ts"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        product_context="P6 Visualizer is a separate companion product; treat this as an equivalent CUBI visualization capability",
+        known_gap="A separate visualizer-equivalent layout/output and logic-diagram regression suite are not mapped in this catalog.",
+    ),
+    P6CodeReference(
+        id="DATA-004", area="Interoperability / API", feature="REST, SOAP and data dictionary contracts",
+        p6_ui_entry="Integration > P6 EPPM REST API / Web Services / Data Dictionary",
+        required_semantics="Maintain API endpoint/entity/field mappings separately from UI fields. Record HTTP operation, read/write behavior, ID mapping, nullability, enumerations, date/time serialization, errors, paging and concurrency. Do not infer that the API exposes every Professional UI field.",
+        user_options=("API release/version", "Endpoint/entity", "Read/write capability", "Authentication/permission", "Paging/filtering", "Error mapping", "Date/time serialization"),
+        official_sources=(ORACLE_SOURCES["eppm_rest_api"], ORACLE_SOURCES["eppm_integration"], ORACLE_SOURCES["eppm_all_guides"]),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "src/construction_pm/http/production_composition.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        product_context="P6 EPPM REST API Version 26; separate from Professional UI semantics",
+        known_gap="Endpoint-by-endpoint API coverage, data-dictionary field mapping and contract round-trip evidence remain unenumerated.",
+    ),
+    P6CodeReference(
+        id="DATA-005", area="Interoperability / Exchange formats", feature="Format-specific import/export semantics and loss reporting",
+        p6_ui_entry="File > Import / Export",
+        required_semantics="For each supported format map relevant fields, dependencies, enums, calendars, baselines, assignments, codes and custom fields. Report unsupported/transformed information before exchange; round-trip tests distinguish intentionally nonportable values from implementation loss.",
+        user_options=("XER project", "XER resource-only", "XER role-only", "XLSX", "P6 XML", "Microsoft Project MPX/XML where supported", "CPP", "IPMDAR", "UN/CEFACT", "Unifier schedule-sheet integration", "Conflict/update option", "Validation report"),
+        official_sources=(ORACLE_SOURCES["eppm_import_export"], ORACLE_SOURCES["eppm_all_guides"], ORACLE_SOURCES["pro_user_guide_portal"]),
+        cubi_code_paths=("docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md", "src/construction_pm/activity_master_repository.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_baseline_repository.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        product_context="Format/product-specific; verify support for Professional versus EPPM per format",
+        known_gap="No format should be treated as implemented until a versioned field map and fixture-based round-trip tests exist.",
     ),
 )
 
