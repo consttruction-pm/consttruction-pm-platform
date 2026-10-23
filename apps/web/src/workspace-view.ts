@@ -237,7 +237,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
         const anchor = links[index];
         return anchor
           ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
-          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(submenu[state.locale])}</span>`;
+          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
       }).join("")}
     </nav>
   </section>`;
