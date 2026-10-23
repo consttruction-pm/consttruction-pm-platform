@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.7.0"
+REFERENCE_VERSION: Final[str] = "0.7.1"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -90,7 +90,7 @@ ORACLE_SOURCES: Final[dict[str, str]] = {
     "schedule_options": ORACLE_ROOT + "general_tab_-_schedule_options_dialog_box.htm",
     "constraints": ORACLE_ROOT + "types_of_constraints.htm",
     "critical": ORACLE_ROOT + "define_critical_activities.htm",
-    "data_date": "https://docs.oracle.com/cd/F74771_01/client_help/en_US/using_the_data_date.htm",
+    "data_date": ORACLE_ROOT + "using_the_data_date.htm",
     "relationships": ORACLE_ROOT + "relationships.htm",
     "relationship_details": ORACLE_ROOT + "relationships_tab_-_activity_details.htm",
     "activity_general": ORACLE_ROOT + "general_tab_-_activity_details.htm",
@@ -976,6 +976,19 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         regression_tests=(),
         status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
         known_gap="Implement and test each P6 WBS ETC option separately; zero-index and missing-input behavior must be confirmed from Version 26 behavior.",
+    ),
+    P6FormulaReference(
+        id="FRM-DATA-DATE-001",
+        feature="Data Date as the start boundary of the next work period",
+        formula_or_algorithm="Treat Data Date as the start of the current scheduling workperiod. Reconcile progress through the end of the preceding period, record actual dates/quantities and remaining work, then advance Data Date and reschedule. Work performed on the Data Date itself belongs to the work period beginning at that date and is not counted as pre-Data-Date progress by default.",
+        input_fields=("Current Data Date", "New Data Date", "Actual Start/Finish", "Actual quantities/costs", "Remaining duration/units", "Calculation time zone"),
+        controlling_options=("Data Date", "Apply selected Data Date to open projects or use each project's own date", "Retained Logic / Progress Override / Actual Dates"),
+        units_and_calendar_rules="Treat the date as a configured workperiod boundary; do not derive progress from wall-clock elapsed time without project/resource calendar and actual-value evidence.",
+        edge_cases=("Data Date on nonworkday", "Update through prior period close", "Actual on/after Data Date", "Time-aware schedules", "Different project Data Dates", "Data Date and forecast-start option"),
+        official_sources=(ORACLE_SOURCES["data_date"], ORACLE_SOURCES["schedule_dialog"], ORACLE_SOURCES["schedule_options"]),
+        cubi_code_paths=("src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
     ),
 )
 
