@@ -42,6 +42,16 @@ test("commercial surface stays independent of external product provenance", () =
 });
 
 
+test("landing language preference is restored and persisted safely", () => {
+  assert.match(landing, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
+  assert.match(landing, /function restoreLandingLocale\(\): void/);
+  assert.match(landing, /saved === "en" \|\| saved === "fa"/);
+  assert.match(landing, /function persistLandingLocale\(\): void/);
+  assert.match(landing, /restoreLandingLocale\(\);/);
+  assert.match(landing, /persistLandingLocale\(\);/);
+  assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
+});
+
 test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = "en" \| "fa"/);
   assert.match(landing, /cubi-language/);
@@ -61,7 +71,26 @@ test("Persian homepage mirrors dashboard and technology layout in RTL mode", () 
   assert.match(styles, /\[dir="rtl"\] \.cubi-footer-brand img\s*\{[^}]*object-position:\s*right center/);
 });
 
-test("homepage footer links target the relevant page sections", () => {
-  assert.match(landing, /targets = \[\["#capabilities", "#technology", "#capabilities"\], \["#capabilities", "#technology", "#resources"\], \["#resources", "#technology", "#resources"\]\]/);
-  assert.doesNotMatch(landing, /col\.links\.map\(\(link\) => `<a href="#resources">/);
+test("homepage navigation and footer connect to real public routes", () => {
+  for (const route of ["./platform/", "./solutions/", "./resources/", "./contact/"]) {
+    assert.ok(landing.includes(route), "Expected homepage link to " + route);
+  }
+  assert.match(landing, /\.\/platform\/#project-controls/);
+  assert.match(landing, /\.\/solutions\/#construction-teams/);
+  assert.match(landing, /\.\/resources\/#documentation/);
+});
+
+test("standalone public pages have unique metadata and expected content", () => {
+  const pages = [
+    ["public/platform/index.html", "CUBI Platform | Construction Project Controls", "scheduling"],
+    ["public/solutions/index.html", "CUBI Solutions | Construction Project Delivery", "construction-teams"],
+    ["public/resources/index.html", "CUBI Resources | Product Overview and Documentation", "documentation"],
+    ["public/contact/index.html", "Contact CUBI | Account Access and Product Information", "Direct contact channel"],
+  ];
+  for (const [path, title, marker] of pages) {
+    const html = readFileSync(join(root, path), "utf8");
+    assert.ok(html.includes("<title>" + title + "</title>"), path + " should have a unique title");
+    assert.ok(html.includes('name="description"'), path + " should have a description");
+    assert.ok(html.includes(marker), path + " should have its expected content");
+  }
 });

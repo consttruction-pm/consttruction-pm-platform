@@ -75,7 +75,23 @@ const copy: Record<LandingLocale, LandingCopy> = {
     footerNote: "برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
 };
+const LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale";
 let locale: LandingLocale = "en";
+function restoreLandingLocale(): void {
+  try {
+    const saved = window.localStorage.getItem(LANDING_LOCALE_STORAGE_KEY);
+    if (saved === "en" || saved === "fa") locale = saved;
+  } catch {
+    // Storage may be disabled; the language switch must still work.
+  }
+}
+function persistLandingLocale(): void {
+  try {
+    window.localStorage.setItem(LANDING_LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Keep the selected language for the current render even without storage.
+  }
+}
 function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
@@ -88,7 +104,7 @@ function renderLanding(container: HTMLElement): void {
       <header class="cubi-exact-header">
         <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
-          <a class="is-active" href="#home">${t.nav[0]}</a><a href="#capabilities">${t.nav[1]}</a><a href="#technology">${t.nav[2]}</a><a href="#resources">${t.nav[3]}</a>
+          <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="./resources/">${t.nav[3]}</a>
         </nav>
         <div class="cubi-exact-actions">
           <button class="cubi-exact-language" id="cubi-language" type="button" aria-label="Change language">${t.language}</button>
@@ -127,15 +143,20 @@ function renderLanding(container: HTMLElement): void {
       </main>
       <footer class="cubi-exact-footer">
         <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
-        ${t.footerColumns.map((col, columnIndex) => { const targets = [["#capabilities", "#technology", "#capabilities"], ["#capabilities", "#technology", "#resources"], ["#resources", "#technology", "#resources"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "#home"}">${link}</a>`).join("")}</div>`; }).join("")}
+        ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
     </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     locale = locale === "en" ? "fa" : "en";
+    persistLandingLocale();
     renderLanding(container);
   });
 }
 export function renderLandingPage(container: HTMLElement): void {
+  if (container.dataset.localeInitialized !== "true") {
+    restoreLandingLocale();
+    container.dataset.localeInitialized = "true";
+  }
   renderLanding(container);
 }

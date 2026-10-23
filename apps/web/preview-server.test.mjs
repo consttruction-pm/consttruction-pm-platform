@@ -28,3 +28,11 @@ test("preview resolver rejects path traversal outside the preview roots", () => 
   assert.equal(resolveRequestFile("/../package.json"), null);
   assert.equal(resolveRequestFile("/%2e%2e/package.json"), null);
 });
+
+test("preview resolver serves public marketing pages with and without trailing slash", () => {
+  for (const route of ["/platform/", "/platform", "/solutions/", "/resources/", "/contact/"]) {
+    const resolved = resolveRequestFile(route);
+    assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
+    assert.ok(resolved?.includes("/public/"), "Expected " + route + " to resolve from public assets");
+  }
+});
