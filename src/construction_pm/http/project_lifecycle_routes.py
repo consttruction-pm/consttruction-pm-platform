@@ -1215,6 +1215,9 @@ class ProjectLifecycleHttpRoutes:
                             )
                         ),
                         original_duration=raw_original_duration,
+                        wbs_id=payload.get(
+                            "wbs_id", existing.wbs_id if existing is not None else None
+                        ),
                     )
 
                 try:
