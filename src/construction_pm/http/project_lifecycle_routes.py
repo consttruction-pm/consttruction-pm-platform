@@ -14,6 +14,7 @@ from ..change_claim_api import (
 from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
+from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..control_intelligence.contracts import ControlScope
@@ -142,6 +143,7 @@ class ProjectLifecycleHttpRoutes:
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
         backend_p0_api: BackendP0API | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
+        ai_action_runtime: AIActionRuntime | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -170,6 +172,7 @@ class ProjectLifecycleHttpRoutes:
         self._sync_endpoint_factory = sync_endpoint_factory
         self._backend_p0_api = backend_p0_api
         self._schedule_query_api = schedule_query_api
+        self._ai_action_runtime = ai_action_runtime
 
     def handle(
         self,
@@ -2033,6 +2036,178 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/ai/actions/" in path:
+                if self._ai_action_runtime is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method not in {"GET", "POST"}:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                parts = path[len("/api/projects/"):].split("/")
+                if not parts or not parts[0] or parts[1:3] != ["ai", "actions"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = parts[0]
+                if method == "GET":
+                    if len(parts) == 4 and parts[3] == "proposals":
+                        read_operation = "list"
+                        read_proposal_id = None
+                    elif len(parts) == 5 and parts[3] == "proposals" and parts[4]:
+                        read_operation = "get"
+                        read_proposal_id = parts[4]
+                    else:
+                        return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                    # Proposal payloads may contain actionable or sensitive project changes.
+                    # Only project editors can inspect them; execution still rechecks the
+                    # exact AI tool grant and the current revision independently.
+                    try:
+                        authorized = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        )
+                        session = self._api.get_session(session_id, now=now)
+                    except ProjectLifecycleError as exc:
+                        if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                            return self._error(403, str(exc), "error.authorization.denied")
+                        raise
+                    context = authorized.context
+                    runtime_context = AIActionRuntimeContext(
+                        subject_id=session.user_id,
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        project_revision_id=str(context.revision),
+                    )
+                    if read_operation == "list":
+                        records = self._ai_action_runtime.list_proposals(runtime_context)
+                    else:
+                        records = (self._ai_action_runtime.get_proposal(runtime_context, read_proposal_id or ""),)
+                    proposals = []
+                    for record in records:
+                        proposals.append({
+                            "proposal_id": record.proposal.proposal_id,
+                            "tool_name": record.proposal.tool_name,
+                            "action": record.proposal.action,
+                            "status": record.status,
+                            "requires_human_approval": record.proposal.requires_human_approval,
+                            "requested_by": record.proposal.requested_by,
+                            "evidence_refs": list(record.proposal.evidence_refs),
+                            "project_revision_id": record.proposal.project_revision_id,
+                            "resource_domain": record.proposal.resource_domain,
+                            "payload": dict(record.payload),
+                            "result": None if record.result is None else dict(record.result),
+                            "created_at": record.created_at.isoformat(),
+                            "updated_at": record.updated_at.isoformat(),
+                            "decided_by": record.decided_by,
+                            "is_stale": record.proposal.project_revision_id != runtime_context.project_revision_id,
+                        })
+                    if read_operation == "get":
+                        return self._json(200, {
+                            "contract_version": "ai-action-runtime.v1",
+                            "proposal": proposals[0],
+                        })
+                    return self._json(200, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "proposals": proposals,
+                    })
+                operation = None
+                proposal_id = None
+                if len(parts) == 4 and parts[3] == "proposals":
+                    operation = "propose"
+                elif len(parts) == 6 and parts[3] == "proposals" and parts[4] and parts[5] in {"decision", "execute"}:
+                    operation = parts[5]
+                    proposal_id = parts[4]
+                else:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                expected_revision = payload.get("expected_revision")
+                if (
+                    isinstance(expected_revision, bool)
+                    or not isinstance(expected_revision, int)
+                    or expected_revision < 0
+                ):
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                context = authorized.context
+                runtime_context = AIActionRuntimeContext(
+                    subject_id=session.user_id,
+                    tenant_id=context.tenant_id,
+                    project_id=context.project_id,
+                    project_revision_id=str(context.revision),
+                )
+                if expected_revision != context.revision:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "stale_expected_revision",
+                        proposal_id=proposal_id,
+                        metadata={
+                            "operation": operation,
+                            "expected_revision": expected_revision,
+                            "current_revision": context.revision,
+                        },
+                    )
+                    return self._error(409, "AI_ACTION_PROPOSAL_STALE_REVISION", "error.conflict.stale_revision")
+                if operation == "propose":
+                    tool_name = payload.get("tool_name")
+                    action_payload = payload.get("payload")
+                    evidence_refs = payload.get("evidence_refs", [])
+                    if (
+                        not isinstance(tool_name, str)
+                        or not tool_name.strip()
+                        or not isinstance(action_payload, dict)
+                        or not isinstance(evidence_refs, list)
+                        or any(not isinstance(ref, str) or not ref.strip() for ref in evidence_refs)
+                    ):
+                        return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                    record = self._ai_action_runtime.propose(
+                        runtime_context,
+                        tool_name=tool_name,
+                        payload=action_payload,
+                        evidence_refs=tuple(evidence_refs),
+                    )
+                    return self._json(201, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "status": record.status,
+                        "proposal": {
+                            "proposal_id": record.proposal.proposal_id,
+                            "tool_name": record.proposal.tool_name,
+                            "action": record.proposal.action,
+                            "requires_human_approval": record.proposal.requires_human_approval,
+                            "evidence_refs": list(record.proposal.evidence_refs),
+                            "project_revision_id": record.proposal.project_revision_id,
+                            "resource_domain": record.proposal.resource_domain,
+                            "payload": dict(record.payload),
+                            "created_at": record.created_at.isoformat(),
+                        },
+                    })
+                if operation == "decision":
+                    approved = payload.get("approved")
+                    if not isinstance(approved, bool):
+                        return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                    record = self._ai_action_runtime.decide(
+                        runtime_context, proposal_id or "", approved=approved
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "proposal_id": record.proposal.proposal_id,
+                        "status": record.status,
+                        "decided_by": record.decided_by,
+                    })
+                record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
+                return self._json(200, {
+                    "contract_version": "ai-action-runtime.v1",
+                    "proposal_id": record.proposal.proposal_id,
+                    "status": record.status,
+                    "result": None if record.result is None else dict(record.result),
+                })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
                 if not project_id:
@@ -2053,6 +2228,23 @@ class ProjectLifecycleHttpRoutes:
             return self._error(401, str(exc), "error.session.invalid")
         except AuthorizationError as exc:
             return self._error(403, str(exc), "error.authorization.denied")
+        except AIActionRuntimeError as exc:
+            code = str(exc)
+            status = 400
+            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED"}:
+                status = 403
+            elif code == "AI_ACTION_PROPOSAL_NOT_FOUND":
+                status = 404
+            elif code in {"AI_ACTION_PROPOSAL_STALE_REVISION", "AI_ACTION_PROPOSAL_NOT_PENDING", "AI_ACTION_PROPOSAL_NOT_APPROVED", "AI_ACTION_PROPOSAL_ID_CONFLICT", "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED"}:
+                status = 409
+            elif code == "AI_ACTION_EXECUTION_FAILED":
+                status = 502
+            elif code.startswith("AI_ACTION_AUDIT_") or code in {
+                "AI_ACTION_PROPOSAL_PERSISTENCE_FAILED",
+                "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+            }:
+                status = 500
+            return self._error(status, code, "error.ai_action.request_failed")
         except ProjectLifecycleError as exc:
             return self._error(400, str(exc), "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
