@@ -137,3 +137,20 @@ def test_scoped_grant_rejects_invalid_grant_data():
     adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
     with pytest.raises(AIActionBoundaryError, match="INVALID_AI_PERMISSION_GRANT_PROJECT_REVISION_ID"):
         adapter.allowed(scoped_proposal())
+
+
+def test_denied_action_does_not_misrepresent_requesting_user_as_audit_actor():
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(ReferenceAIToolPermissionAdapter(set()), sink)
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(proposal(), actor_id=None, approved=True)
+    assert len(sink.records) == 1
+    assert sink.records[0][1].decision == "denied"
+    assert sink.records[0][1].actor_id is None
+
+
+def test_approval_decision_must_be_a_boolean():
+    svc, sink = service()
+    with pytest.raises(AIActionBoundaryError, match="INVALID_AI_ACTION_APPROVAL_DECISION"):
+        svc.decide(proposal(), actor_id="user-7", approved="yes")
+    assert sink.records == []
