@@ -98,6 +98,23 @@ External libraries must not become an ungoverned second source of truth for P6 s
 
 AI results that influence project decisions must expose source context where available, distinguish facts from predictions, record the model/action context, preserve human approval for consequential changes and never silently mutate authoritative project data.
 
+### Principle 6A — Production AI Project Controls Assistant is mandatory for V1
+
+The production AI Project Controls Assistant is a mandatory cross-cutting V1 capability, not an optional chatbot or a post-V1 enhancement. It must connect natural-language and supported file inputs to real CUBI application services, authorized tools, persistent project data, authoritative Shared Core calculations, grounded explanations, actionable reports and auditable user-controlled changes. A UI shell, mock provider, capability flag or proposal-only demo does not satisfy this requirement.
+
+### Principle 6B — Desktop AI must execute on the user's computer without Internet
+
+The Desktop product must include or support a provisionable local AI model and executable inference runtime so the assistant can actually run on the user's personal computer while completely disconnected from the Internet. This is a fundamental product requirement, not an optional offline enhancement. The default Web assistant may use the project's server-hosted model; the Desktop assistant must not depend on that server or any external AI provider to perform its declared offline capabilities.
+
+Minimum requirements:
+- The desktop distribution must provide a documented, verifiable way to provision the runtime and compatible model assets, either in the installer or through an offline-installable model package. After provisioning, first use, model inference and the declared offline assistant workflow must work with networking disabled.
+- At minimum, offline mode must support local text interaction, context-grounded assistance over locally available project data/files, and calls to permitted Desktop/Application/Shared Core operations. Voice, OCR and other modalities must work offline where they are declared available for Desktop; a cloud-dependent feature must never be presented as offline-capable.
+- Offline model/runtime selection must account for supported OS, CPU/GPU, memory, storage and model version. If a device cannot meet requirements, report the exact capability limitation and a supported alternative; never silently route the user's content to a cloud provider.
+- Server-hosted and local models must use the same versioned assistant/tool contracts and the same authoritative Shared Domain/Calculation Core. A local model must not calculate or redefine P6 scheduling, calendar, duration, Progress/EVM, resource, cost or financial semantics independently.
+- Desktop offline reads and mutations must respect the same user/project permissions and source boundaries. Local writes must use explicit revision, audit, idempotency and sync/conflict contracts; reconnection must not silently overwrite newer server state.
+- Privacy disclosure, model/version provenance, local-vs-server execution mode, error handling and resource controls must be explicit. External network access must not be required for local inference and must not occur as a hidden fallback.
+- Acceptance must include automated and manual end-to-end tests with network interfaces disabled, proving local model loading, real inference, grounded project/file queries, a permitted local action, a rejected unauthorized action, authoritative calculation identity, and no outbound AI-provider request. Test reports must identify the exact model/runtime/device profile and tested commit.
+
 ## Principle 7 — Typed interoperability
 
 Dates, durations, decimals, currencies, quantities, IDs, versions, revisions and statuses must be represented as typed contracts. Excel, Project, API and offline packages must preserve calculation-ready types.
