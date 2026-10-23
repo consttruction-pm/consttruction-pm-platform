@@ -30,9 +30,42 @@ class P6ResourceAssignment:
     calendar_id: str | None = None
     note: str | None = None
     calendar_version: str | None = None
+    # None means legacy/unresolved; migration must never guess a default.
+    is_driving: bool | None = None
+    # Assignment Units/Time is distinct from a resource's Max Units/Time.
+    # The period conversion is explicit because it affects duration.
+    units_per_time: Decimal | None = None
+    units_per_time_period: str | None = None
+    hours_per_units_time_period: Decimal | None = None
 
     def validate(self) -> None:
         self.scope.validate()
+        if self.is_driving is not None and not isinstance(self.is_driving, bool):
+            raise P6ResourceAssignmentPersistenceError("INVALID_IS_DRIVING")
+        rate_fields = (
+            self.units_per_time,
+            self.units_per_time_period,
+            self.hours_per_units_time_period,
+        )
+        if any(value is not None for value in rate_fields) and not all(
+            value is not None for value in rate_fields
+        ):
+            raise P6ResourceAssignmentPersistenceError("INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME")
+        if self.units_per_time is not None:
+            if (
+                not isinstance(self.units_per_time, Decimal)
+                or not self.units_per_time.is_finite()
+                or self.units_per_time <= 0
+            ):
+                raise P6ResourceAssignmentPersistenceError("INVALID_ASSIGNMENT_UNITS_PER_TIME")
+            if self.units_per_time_period not in {"hour", "day", "week", "month", "year"}:
+                raise P6ResourceAssignmentPersistenceError("INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD")
+            if (
+                not isinstance(self.hours_per_units_time_period, Decimal)
+                or not self.hours_per_units_time_period.is_finite()
+                or self.hours_per_units_time_period <= 0
+            ):
+                raise P6ResourceAssignmentPersistenceError("INVALID_ASSIGNMENT_UNITS_PER_TIME_CONVERSION")
         if not 0 <= self.scope.project_revision <= MAX_SAFE_REVISION:
             raise P6ResourceAssignmentPersistenceError("INVALID_PROJECT_REVISION")
         for value, code in (
@@ -86,7 +119,10 @@ def _payload(a: P6ResourceAssignment) -> tuple[object, ...]:
         None if a.planned_cost is None else str(a.planned_cost),
         None if a.actual_cost is None else str(a.actual_cost),
         None if a.remaining_cost is None else str(a.remaining_cost),
-        a.unit, a.currency, a.calendar_id, a.note, a.calendar_version,
+        a.unit, a.currency, a.calendar_id, a.note, a.calendar_version, a.is_driving,
+        None if a.units_per_time is None else str(a.units_per_time),
+        a.units_per_time_period,
+        None if a.hours_per_units_time_period is None else str(a.hours_per_units_time_period),
     )
 
 
@@ -106,6 +142,10 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6ResourceAssignm
             None if row[13] is None else str(row[13]),
             None if row[14] is None else str(row[14]),
             None if row[15] is None else str(row[15]),
+            None if row[16] is None else bool(row[16]),
+            None if row[17] is None else Decimal(str(row[17])),
+            None if row[18] is None else str(row[18]),
+            None if row[19] is None else Decimal(str(row[19])),
         )
         result.validate()
         return result
@@ -140,12 +180,24 @@ class SQLiteP6ResourceAssignmentRepository:
               calendar_id TEXT,
               note TEXT,
               calendar_version TEXT,
+              is_driving INTEGER CHECK (is_driving IS NULL OR is_driving IN (0,1)),
+              units_per_time TEXT,
+              units_per_time_period TEXT,
+              hours_per_units_time_period TEXT,
               PRIMARY KEY (tenant_id, project_id, assignment_id)
             )"""
         )
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(p6_resource_assignment)").fetchall()}
         if "calendar_version" not in columns:
             self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN calendar_version TEXT")
+        if "is_driving" not in columns:
+            self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN is_driving INTEGER CHECK (is_driving IS NULL OR is_driving IN (0,1))")
+        if "units_per_time" not in columns:
+            self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN units_per_time TEXT")
+        if "units_per_time_period" not in columns:
+            self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN units_per_time_period TEXT")
+        if "hours_per_units_time_period" not in columns:
+            self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN hours_per_units_time_period TEXT")
         self.connection.execute(
             """CREATE INDEX IF NOT EXISTS idx_p6_resource_assignment_scope
             ON p6_resource_assignment
@@ -157,7 +209,7 @@ class SQLiteP6ResourceAssignmentRepository:
         assignment.validate()
         row = self.connection.execute(
             "SELECT project_revision,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=? AND project_id=? AND assignment_id=?",
             (assignment.scope.tenant_id, assignment.scope.project_id, assignment.assignment_id),
         ).fetchone()
@@ -170,8 +222,8 @@ class SQLiteP6ResourceAssignmentRepository:
         self.connection.execute(
             "INSERT INTO p6_resource_assignment "
             "(tenant_id,project_id,project_revision,assignment_id,activity_id,resource_id,role_id,"
-            "units,actual_units,remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "units,actual_units,remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assignment.scope.tenant_id, assignment.scope.project_id,
                 assignment.scope.project_revision, assignment.assignment_id,
@@ -183,6 +235,10 @@ class SQLiteP6ResourceAssignmentRepository:
                 None if assignment.actual_cost is None else str(assignment.actual_cost),
                 None if assignment.remaining_cost is None else str(assignment.remaining_cost),
                 assignment.unit, assignment.currency, assignment.calendar_id, assignment.note, assignment.calendar_version,
+                assignment.is_driving,
+                None if assignment.units_per_time is None else str(assignment.units_per_time),
+                assignment.units_per_time_period,
+                None if assignment.hours_per_units_time_period is None else str(assignment.hours_per_units_time_period),
             ),
         )
         return assignment
@@ -193,7 +249,7 @@ class SQLiteP6ResourceAssignmentRepository:
             raise P6ResourceAssignmentPersistenceError("INVALID_ASSIGNMENT_ID")
         row = self.connection.execute(
             "SELECT project_revision,assignment_id,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=? AND project_id=? AND assignment_id=?",
             (scope.tenant_id, scope.project_id, assignment_id),
         ).fetchone()
@@ -210,7 +266,7 @@ class SQLiteP6ResourceAssignmentRepository:
         scope.validate()
         query = (
             "SELECT project_revision,assignment_id,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=? AND project_id=? AND project_revision=?"
         )
         params: tuple[object, ...] = (scope.tenant_id, scope.project_id, scope.project_revision)
@@ -275,10 +331,18 @@ class PostgresP6ResourceAssignmentRepository:
               calendar_id TEXT,
               note TEXT,
               calendar_version TEXT,
+              is_driving BOOLEAN,
+              units_per_time TEXT,
+              units_per_time_period TEXT,
+              hours_per_units_time_period TEXT,
               PRIMARY KEY (tenant_id, project_id, assignment_id)
             )"""
         )
         self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN IF NOT EXISTS calendar_version TEXT")
+        self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN IF NOT EXISTS is_driving BOOLEAN")
+        self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN IF NOT EXISTS units_per_time TEXT")
+        self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN IF NOT EXISTS units_per_time_period TEXT")
+        self.connection.execute("ALTER TABLE p6_resource_assignment ADD COLUMN IF NOT EXISTS hours_per_units_time_period TEXT")
         self.connection.execute(
             """CREATE INDEX IF NOT EXISTS idx_p6_resource_assignment_scope
             ON p6_resource_assignment
@@ -289,7 +353,7 @@ class PostgresP6ResourceAssignmentRepository:
         assignment.validate()
         row = self.connection.execute(
             "SELECT project_revision,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
             (assignment.scope.tenant_id, assignment.scope.project_id, assignment.assignment_id),
         ).fetchone()
@@ -302,8 +366,8 @@ class PostgresP6ResourceAssignmentRepository:
         inserted = self.connection.execute(
             "INSERT INTO p6_resource_assignment "
             "(tenant_id,project_id,project_revision,assignment_id,activity_id,resource_id,role_id,"
-            "units,actual_units,remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "units,actual_units,remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (tenant_id,project_id,assignment_id) DO NOTHING "
             "RETURNING tenant_id",
             (
@@ -317,13 +381,17 @@ class PostgresP6ResourceAssignmentRepository:
                 None if assignment.actual_cost is None else str(assignment.actual_cost),
                 None if assignment.remaining_cost is None else str(assignment.remaining_cost),
                 assignment.unit, assignment.currency, assignment.calendar_id, assignment.note, assignment.calendar_version,
+                assignment.is_driving,
+                None if assignment.units_per_time is None else str(assignment.units_per_time),
+                assignment.units_per_time_period,
+                None if assignment.hours_per_units_time_period is None else str(assignment.hours_per_units_time_period),
             ),
         )
         if inserted.fetchone() is not None:
             return assignment
         row = self.connection.execute(
             "SELECT project_revision,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment "
             "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
             (assignment.scope.tenant_id, assignment.scope.project_id, assignment.assignment_id),
@@ -342,7 +410,7 @@ class PostgresP6ResourceAssignmentRepository:
             raise P6ResourceAssignmentPersistenceError("INVALID_ASSIGNMENT_ID")
         row = self.connection.execute(
             "SELECT project_revision,assignment_id,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
             (scope.tenant_id, scope.project_id, assignment_id),
         ).fetchone()
@@ -359,7 +427,7 @@ class PostgresP6ResourceAssignmentRepository:
         scope.validate()
         query = (
             "SELECT project_revision,assignment_id,activity_id,resource_id,role_id,units,actual_units,"
-            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version "
+            "remaining_units,planned_cost,actual_cost,remaining_cost,unit,currency,calendar_id,note,calendar_version,is_driving,units_per_time,units_per_time_period,hours_per_units_time_period "
             "FROM p6_resource_assignment WHERE tenant_id=%s AND project_id=%s AND project_revision=%s"
         )
         params: tuple[object, ...] = (scope.tenant_id, scope.project_id, scope.project_revision)

@@ -267,10 +267,17 @@ class AuthoritativeScheduleInputComposer:
             if assignment.activity_id not in activity_ids:
                 raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY")
             if activity_by_id[assignment.activity_id].activity_type is ActivityType.RESOURCE_DEPENDENT:
-                # P6's Resource Dependent leveling requires identifying driving
-                # vs. nondriving resource assignments. The persisted assignment
-                # contract currently has no driving flag, so treating every
-                # assignment as an activity-driving resource would be wrong.
+                # Do not collapse missing legacy metadata into the broader
+                # unsupported-engine condition: callers need to know whether
+                # the persisted driving semantics are incomplete or the shared
+                # scheduling algorithm itself is not implemented yet.
+                if assignment.is_driving is None:
+                    raise ScheduleInputCompositionError(
+                        "RESOURCE_DEPENDENT_DRIVING_STATUS_REQUIRED"
+                    )
+                # Keep fail-closed until the shared scheduler calculates
+                # driving-resource early/late dates and independently places
+                # nondriving assignments. Persisting the flag is not enough.
                 raise ScheduleInputCompositionError(
                     "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
                 )
@@ -299,6 +306,10 @@ class AuthoritativeScheduleInputComposer:
                 unit_of_measure=assignment.unit,
                 assigned_units=assignment.units,
                 remaining_units=assignment.remaining_units,
+                is_driving=assignment.is_driving,
+                units_per_time=assignment.units_per_time,
+                units_per_time_period=assignment.units_per_time_period,
+                hours_per_units_time_period=assignment.hours_per_units_time_period,
             ))
 
         demands: list[ResourceDemandInput] = []

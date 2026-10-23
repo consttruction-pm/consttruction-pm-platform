@@ -32,8 +32,60 @@ class ResourceAssignmentLevelingRef:
     unit_of_measure: str | None = None
     assigned_units: Decimal | None = None
     remaining_units: Decimal | None = None
+    # Nullable for migrated legacy rows; never infer driving status.
+    is_driving: bool | None = None
+    # Assignment Units/Time is not the same as resource Max Units/Time.
+    units_per_time: Decimal | None = None
+    units_per_time_period: str | None = None
+    hours_per_units_time_period: Decimal | None = None
+
+    def canonical_payload(self) -> dict[str, object]:
+        return {
+            "assignment_id": self.assignment_id,
+            "activity_id": self.activity_id,
+            "resource_id": self.resource_id,
+            "calendar_id": self.calendar_id,
+            "calendar_version": self.calendar_version,
+            "unit_of_measure": self.unit_of_measure,
+            "assigned_units": None if self.assigned_units is None else str(self.assigned_units),
+            "remaining_units": None if self.remaining_units is None else str(self.remaining_units),
+            "is_driving": self.is_driving,
+            "units_per_time": None if self.units_per_time is None else str(self.units_per_time),
+            "units_per_time_period": self.units_per_time_period,
+            "hours_per_units_time_period": (
+                None
+                if self.hours_per_units_time_period is None
+                else str(self.hours_per_units_time_period)
+            ),
+        }
 
     def validate(self) -> None:
+        if self.is_driving is not None and not isinstance(self.is_driving, bool):
+            raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_DRIVING_FLAG")
+        rate_fields = (
+            self.units_per_time,
+            self.units_per_time_period,
+            self.hours_per_units_time_period,
+        )
+        if any(value is not None for value in rate_fields) and not all(
+            value is not None for value in rate_fields
+        ):
+            raise ResourceLevelingFactsError("INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME")
+        if self.units_per_time is not None:
+            if (
+                not isinstance(self.units_per_time, Decimal)
+                or not self.units_per_time.is_finite()
+                or self.units_per_time <= 0
+            ):
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME")
+            if self.units_per_time_period not in {"hour", "day", "week", "month", "year"}:
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD")
+            if (
+                not isinstance(self.hours_per_units_time_period, Decimal)
+                or not self.hours_per_units_time_period.is_finite()
+                or self.hours_per_units_time_period <= 0
+            ):
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME_CONVERSION")
         for value, code in (
             (self.assignment_id, "ASSIGNMENT_ID"),
             (self.activity_id, "ACTIVITY_ID"),
@@ -209,6 +261,57 @@ class ResourceLevelingFacts:
     capacity_horizon_end: date
     calculation_timezone: str
     schema_version: int = 2
+
+    def canonical_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "capacity_horizon_start": self.capacity_horizon_start.isoformat(),
+            "capacity_horizon_end": self.capacity_horizon_end.isoformat(),
+            "calculation_timezone": self.calculation_timezone,
+            "assignments": [assignment.canonical_payload() for assignment in self.assignments],
+            "demands": [
+                {
+                    "assignment_id": demand.assignment_id,
+                    "activity_id": demand.activity_id,
+                    "resource_id": demand.resource_id,
+                    "period": demand.period.isoformat(),
+                    "units": str(demand.units),
+                }
+                for demand in self.demands
+            ],
+            "capacities": [
+                {
+                    "resource_id": capacity.resource_id,
+                    "period": capacity.period.isoformat(),
+                    "units": str(capacity.units),
+                    "calendar_id": capacity.calendar_id,
+                    "calendar_version": capacity.calendar_version,
+                    "calendar_snapshot_hash": capacity.calendar_snapshot_hash,
+                    "calendar_work_hours": (
+                        None
+                        if capacity.calendar_work_hours is None
+                        else str(capacity.calendar_work_hours)
+                    ),
+                    "resource_rate_hash": capacity.resource_rate_hash,
+                    "resource_rate_effective_from": (
+                        None
+                        if capacity.resource_rate_effective_from is None
+                        else capacity.resource_rate_effective_from.isoformat()
+                    ),
+                }
+                for capacity in self.capacities
+            ],
+            "resource_capacity_rates": [
+                rate.canonical_payload() for rate in self.resource_capacity_rates
+            ],
+        }
+
+    @property
+    def canonical_hash(self) -> str:
+        payload = json.dumps(
+            self.canonical_payload(), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def validate(self, *, activity_ids: set[str]) -> None:
         if self.schema_version != 2:

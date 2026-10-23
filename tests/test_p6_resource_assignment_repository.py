@@ -18,6 +18,10 @@ def scope(revision=1):
 def assignment(
     s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1",
     calendar_version="cal-v1",
+    is_driving=None,
+    units_per_time=None,
+    units_per_time_period=None,
+    hours_per_units_time_period=None,
 ):
     return P6ResourceAssignment(
         s, assignment_id, activity_id, resource_id, "role-1",
@@ -25,6 +29,10 @@ def assignment(
         Decimal("850.25"), Decimal("250.00"), Decimal("600.25"),
         "h", "USD", "cal-1", "assignment snapshot",
         calendar_version=calendar_version,
+        is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
 
 
@@ -76,6 +84,10 @@ def test_legacy_sqlite_schema_migrates_without_guessing_calendar_version():
     assert legacy.calendar_id == "cal-1"
     # Old rows remain explicitly unversioned; migrations must never guess latest.
     assert legacy.calendar_version is None
+    assert legacy.is_driving is None
+    assert legacy.units_per_time is None
+    assert legacy.units_per_time_period is None
+    assert legacy.hours_per_units_time_period is None
 
     versioned = assignment(scope(), assignment_id="new", calendar_version="cal-v3")
     repo.upsert(versioned)
@@ -204,3 +216,97 @@ def test_assignment_period_decimal_validation_fails_closed():
         period_value(units="NaN").validate()
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_PERIOD_START"):
         period_value(period_start="").validate()
+
+
+def test_driving_flag_round_trips_and_is_part_of_immutable_payload():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    driving = assignment(scope(), assignment_id="drive", is_driving=True)
+    nondriving = assignment(scope(), assignment_id="non-drive", is_driving=False)
+
+    assert repo.upsert(driving) == driving
+    assert repo.upsert(nondriving) == nondriving
+    assert repo.get(scope(), "drive").is_driving is True
+    assert repo.get(scope(), "non-drive").is_driving is False
+    listed = {item.assignment_id: item.is_driving for item in repo.list(scope())}
+    assert listed["drive"] is True
+    assert listed["non-drive"] is False
+
+    changed = assignment(scope(), assignment_id="drive", is_driving=False)
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="IMMUTABLE_RESOURCE_ASSIGNMENT"):
+        repo.upsert(changed)
+
+
+def test_legacy_driving_flag_migration_stays_unresolved():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE p6_resource_assignment (
+          tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
+          assignment_id TEXT NOT NULL, activity_id TEXT NOT NULL, resource_id TEXT NOT NULL,
+          role_id TEXT, units TEXT, actual_units TEXT, remaining_units TEXT, planned_cost TEXT,
+          actual_cost TEXT, remaining_cost TEXT, unit TEXT, currency TEXT, calendar_id TEXT,
+          note TEXT, PRIMARY KEY (tenant_id, project_id, assignment_id))"""
+    )
+    connection.execute(
+        "INSERT INTO p6_resource_assignment VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("tenant-a", "project-a", 1, "legacy", "act-1", "res-1", None, None, None,
+         None, None, None, None, None, None, None, None),
+    )
+    repo = SQLiteP6ResourceAssignmentRepository(connection)
+    assert repo.get(scope(), "legacy").is_driving is None
+
+
+def test_driving_flag_rejects_non_boolean_values():
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_IS_DRIVING"):
+        P6ResourceAssignment(scope(), "bad", "act-1", "res-1", is_driving=1).validate()
+
+
+
+def test_assignment_units_per_time_round_trip_and_are_immutable():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    original = assignment(
+        scope(),
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    repo.upsert(original)
+
+    assert repo.get(scope(), original.assignment_id) == original
+
+    changed_rate = assignment(
+        scope(),
+        units_per_time=Decimal("3"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="IMMUTABLE_RESOURCE_ASSIGNMENT",
+    ):
+        repo.upsert(changed_rate)
+
+
+@pytest.mark.parametrize(
+    "kwargs, error",
+    [
+        ({"units_per_time": Decimal("2")}, "INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME"),
+        (
+            {"units_per_time": Decimal("0"), "units_per_time_period": "day",
+             "hours_per_units_time_period": Decimal("8")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME",
+        ),
+        (
+            {"units_per_time": Decimal("2"), "units_per_time_period": "decade",
+             "hours_per_units_time_period": Decimal("8")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD",
+        ),
+        (
+            {"units_per_time": Decimal("2"), "units_per_time_period": "day",
+             "hours_per_units_time_period": Decimal("0")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME_CONVERSION",
+        ),
+    ],
+)
+def test_assignment_units_per_time_contract_rejects_incomplete_or_invalid_rate(kwargs, error):
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match=error):
+        assignment(scope(), **kwargs).validate()
