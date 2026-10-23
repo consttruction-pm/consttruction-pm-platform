@@ -94,6 +94,18 @@ class AIActionRuntimeAuditSink(AIActionAuditSink, Protocol):
         happened_at: datetime | None = None,
     ) -> None: ...
 
+    def record_scope_event(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        actor_id: str,
+        event_type: str,
+        metadata: Mapping[str, object],
+        happened_at: datetime,
+        proposal_id: str | None = None,
+    ) -> None: ...
+
 
 class AIActionRuntimeStore(Protocol):
     def create(self, record: AIActionStoredProposal) -> None: ...
@@ -313,6 +325,45 @@ class _SqlAIActionRuntimeStore:
             metadata={"decision": decision.decision, "audit_event": decision.audit_event},
         )
 
+    def record_scope_event(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        actor_id: str,
+        event_type: str,
+        metadata: Mapping[str, object],
+        happened_at: datetime,
+        proposal_id: str | None = None,
+    ) -> None:
+        for name, value in (
+            ("tenant_id", tenant_id), ("project_id", project_id),
+            ("actor_id", actor_id), ("event_type", event_type),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise AIActionRuntimeError(f"AI_ACTION_AUDIT_{name.upper()}_REQUIRED")
+        if happened_at.tzinfo is None or happened_at.utcoffset() is None:
+            raise AIActionRuntimeError("AI_ACTION_AUDIT_TIMESTAMP_MUST_BE_AWARE")
+        if proposal_id is not None and (not isinstance(proposal_id, str) or not proposal_id.strip()):
+            raise AIActionRuntimeError("AI_ACTION_AUDIT_PROPOSAL_ID_INVALID")
+        event_id = str(uuid4())
+        metadata_json = _json_object(metadata, "AI_ACTION_AUDIT_METADATA_INVALID")
+        event_json = _json_object({
+            "scope": {"tenant_id": tenant_id, "project_id": project_id},
+            "proposal_id": proposal_id,
+            "metadata": json.loads(metadata_json),
+        }, "AI_ACTION_AUDIT_EVENT_INVALID")
+        p = self.placeholder
+        self.connection.execute(
+            "INSERT INTO ai_action_audit_events "
+            "(event_id, happened_at, event_type, tenant_id, project_id, proposal_id, actor_id, event_json) "
+            f"VALUES ({p},{p},{p},{p},{p},{p},{p},{p})",
+            (
+                event_id, happened_at.isoformat(), event_type, tenant_id,
+                project_id, proposal_id or f"request:{event_id}", actor_id, event_json,
+            ),
+        )
+
     def record_event(
         self,
         proposal: AIActionProposal,
@@ -436,6 +487,26 @@ class AIActionRuntime:
             happened_at=now,
         )
         return record
+
+    def record_request_event(
+        self,
+        context: AIActionRuntimeContext,
+        event_type: str,
+        *,
+        metadata: Mapping[str, object],
+        proposal_id: str | None = None,
+    ) -> None:
+        """Persist a scoped HTTP-level event that occurs before a proposal can be created."""
+        context.validate()
+        self.audit_sink.record_scope_event(
+            tenant_id=context.tenant_id,
+            project_id=context.project_id,
+            actor_id=context.subject_id,
+            event_type=event_type,
+            metadata=metadata,
+            happened_at=self._now(),
+            proposal_id=proposal_id,
+        )
 
     def list_proposals(
         self, context: AIActionRuntimeContext, *, limit: int = 100
