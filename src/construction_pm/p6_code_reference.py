@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.3.1"
+REFERENCE_VERSION: Final[str] = "0.4.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -50,11 +50,19 @@ class P6CodeReference:
     coverage: str = INVENTORY_REQUIRED
     known_gap: str = ""
     acceptance_evidence: tuple[str, ...] = ()
+    product_context: str = "P6_PROFESSIONAL_HELP_V26; verify product-specific applicability"
 
 
 ORACLE_ROOT: Final[str] = "https://docs.oracle.com/cd/G48902_01/client_help/en_US/"
-ORACLE_USER_GUIDE: Final[str] = "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/"
+ORACLE_USER_GUIDE: Final[str] = "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html"
 ORACLE_SOURCES: Final[dict[str, str]] = {
+    "help_toc": ORACLE_ROOT + "toc.htm",
+    "pro_user_guide_portal": ORACLE_USER_GUIDE,
+    "pro_all_guides": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html",
+    "eppm_all_guides": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/books.html",
+    "eppm_rest_api": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/index.html",
+    "eppm_import_export": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/importexport.html",
+    "eppm_integration": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/integration.html",
     "schedule": ORACLE_ROOT + "scheduling_projects.htm",
     "schedule_dialog": ORACLE_ROOT + "schedule_dialog_box.htm",
     "schedule_options_advanced": ORACLE_ROOT + "advanced_tab_-_schedule_options_dialog_box.htm",
@@ -387,20 +395,22 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="File > Import / Export and supported integration APIs",
         required_semantics="Maintain versioned field maps for project XER, resource-only XER, XLSX and APIs where supported. Record type, units, nullable/default behavior, read/write capability, version provenance and round-trip behavior. Report unsupported data rather than silently dropping it.",
         user_options=("Format/version", "Project vs resource-only export", "Selected scope", "Conflict/update behavior", "Import validation report"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"], ORACLE_SOURCES["pro_user_guide_portal"], ORACLE_SOURCES["eppm_import_export"], ORACLE_SOURCES["eppm_rest_api"]),
         cubi_code_paths=("docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md", "src/construction_pm/activity_master_repository.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_baseline_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
-        known_gap="Official Version 26 XER/XLSX data-map guides and API catalogs must be enumerated field-by-field; this is not yet a completed mapping.",
+        product_context="P6 Professional Version 26 + EPPM Version 26 import/export/API sources; record applicability per format",
+        known_gap="Current official portals list project XER, resource-only XER, role-only XER, XLSX, MPX/XML, CPP, IPMDAR, UN/CEFACT and Unifier maps as applicable. Every field and round-trip rule still needs a concrete CUBI mapping.",
     ),
     P6CodeReference(
         id="DATA-002", area="Data model / Field registry", feature="Complete field, column, enum and formula catalog",
         p6_ui_entry="All P6 menus, tabs, dialogs, Activity/WBS/resource tables and layouts",
         required_semantics="For every field record stable ID, display name, business object, type, unit, read/write status, null/default rule, calculated/stored status, sort/filter support, product context, version, API/database/import/export mapping and test evidence.",
         user_options=("Filter/sort", "Editable/read-only", "Calculated/stored", "Version/context", "UDF/custom field"),
-        official_sources=(ORACLE_SOURCES["parity_baseline"],),
+        official_sources=(ORACLE_SOURCES["help_toc"], ORACLE_SOURCES["pro_user_guide_portal"], ORACLE_SOURCES["eppm_all_guides"], ORACLE_SOURCES["eppm_rest_api"]),
         cubi_code_paths=("docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md", "src/construction_pm/p6_code_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
-        known_gap="The complete source-topic inventory and exhaustive field-level mapping remain open. This registry is an index, not a claim that all P6 fields are already listed.",
+        product_context="P6 Professional UI field catalog + P6 EPPM data dictionary/API where applicable",
+        known_gap="The full P6 Professional UI/field inventory must remain separate from EPPM data dictionary/API objects; exhaustive field-level mapping remains open.",
     ),
     P6CodeReference(
         id="DATA-003", area="Data model / Custom formulas", feature="Safe formula engine and recalculation dependencies",
