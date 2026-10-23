@@ -17,7 +17,7 @@ import {
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-import { getBootstrapLabels } from "./bootstrap-labels.js";
+import { getBootstrapErrorMessage, getBootstrapLabels } from "./bootstrap-labels.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 
@@ -246,7 +246,7 @@ function renderBootstrapState(
   error.append(heading);
 
   const message = document.createElement("p");
-  message.textContent = state.error.message_key;
+  message.textContent = getBootstrapErrorMessage(state.error.message_key, locale);
   error.append(message);
 
   if (state.error.available_actions.includes("retry") || state.error.retryable) {
