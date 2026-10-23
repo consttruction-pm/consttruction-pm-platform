@@ -139,8 +139,8 @@ def test_authenticated_project_action_route_runs_propose_approve_execute():
     assert conn.execute("SELECT COUNT(*) FROM ai_action_audit_events").fetchone()[0] == 5
 
 
-def test_ai_action_route_rejects_stale_request_revision():
-    routes, _, executed = build_routes()
+def test_ai_action_route_rejects_and_audits_stale_request_revision():
+    routes, conn, executed = build_routes()
     status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {
         "expected_revision": 1,
         "tool_name": "activity.create",
@@ -149,6 +149,11 @@ def test_ai_action_route_rejects_stale_request_revision():
     assert status == 409
     assert json.loads(body)["code"] == "AI_ACTION_PROPOSAL_STALE_REVISION"
     assert executed == []
+    audit_count = conn.execute(
+        "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type=?",
+        ("stale_expected_revision",),
+    ).fetchone()[0]
+    assert audit_count == 1
 
 
 def test_ai_action_route_is_fail_closed_when_runtime_is_not_composed():
