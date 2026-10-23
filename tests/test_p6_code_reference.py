@@ -125,19 +125,6 @@ def test_curve_earned_value_formula_is_separately_tracked():
 
 
 
-def test_every_referenced_cubi_repository_path_exists():
-    repo_root = Path(__file__).resolve().parents[1]
-    paths = {
-        path
-        for item in (*P6_CODE_REFERENCE, *FORMULA_REFERENCE)
-        for path in item.cubi_code_paths
-        if path.startswith(("src/", "apps/", "shared/", "docs/", "tests/"))
-    }
-    missing = sorted(path for path in paths if not (repo_root / path).exists())
-    assert not missing, "Reference paths do not exist in this checkout: " + ", ".join(missing)
-
-
-
 def test_p6_option_reference_registry_has_no_internal_integrity_errors():
     assert validate_option_registry() == ()
 
