@@ -45,8 +45,9 @@ The schedule snapshot must **not** also include `resource_facts_hash` when the c
 - Tenant, project, project revision.
 - Schedule snapshot ID, snapshot hash and calculation identity.
 - Resource assignment IDs, activity IDs, resource IDs, units, units/cost metadata required by the leveling algorithm, and resource calendar ID + version.
+- Effective-dated Resource Max Units/Time records, their exact unit/time basis, source revision/hash, and the documented conversion into each period's capacity ceiling.
 - Assignment period values with ISO date, units, assignment ID, activity ID and resource ID.
-- Calendar snapshot hashes and normalized capacity slices.
+- Calendar snapshot hashes, normalized calendar working-time factors, resource Max Units/Time provenance, and normalized capacity slices.
 - Explicit leveling horizon start/end and the policy used to derive it from the authoritative CPM schedule.
 - Deterministic ordering and duplicate/aggregation rules. Duplicate capacity slices must be rejected; demand aggregation must be specified by assignment/resource/period before implementation.
 - Hash algorithm and canonical serialization rules.
@@ -65,6 +66,24 @@ Use stable machine-readable error codes for missing or mismatched data. At minim
 - unsupported priority field or unavailable authoritative priority value.
 
 Do not silently substitute a calendar by ID when its version/hash differs. Do not infer capacity for unrepresented periods from a default unless the domain contract explicitly defines that behavior.
+
+## Capacity ceiling versus calendar working time (P6 v26 conformance blocker)
+
+The official V26 resource-planning documentation distinguishes the resource's effective capacity limit from the resource calendar's working-time pattern. The resource's **Max Units/Time** is the maximum work units that resource can perform per time period; the calendar supplies the working hours for that period. The V26 resource planning reference describes a resource limit as Max Units/Time applied to the working hours available under its calendar. Consequently, the calendar definition alone is not a complete capacity source.
+
+- Source: [P6 Professional Version 26 — Max Units/Time (Resources)](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/maxunits_timeresources-31188a.html)
+- Source: [P6 Professional Version 26 — Resource assignments Spreadsheet View / Limit field](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/101011.html)
+- Source: [P6 Professional User Guide Version 26 — Assign a Calendar to a Project Resource](https://docs.oracle.com/cd/E80480_01/help/en/user/96368.htm)
+
+**Current code gap from source inspection:** `p6_resource_capacity_contract.py::build_resource_capacity_slices` reads capacity directly from `ResourceCalendar.capacity_on(period)`; the current source inventory did not expose a typed, versioned Resource Master Max Units/Time/effective-date contract consumed by this capacity path. That means the current adapter proves calendar ID/version/hash but does not yet prove that its numeric capacity matches P6's resource limit semantics for resources whose Max Units/Time is non-default or changes over time.
+
+Before production wiring, the independent reviewer must define the units and normalization equation against project time-period preferences and the effective-dated Max Units/Time records. Do not simply multiply or replace values based on names: the representation must be derived from the official dimensional convention and tested at least for a single-person resource, a multi-person resource, a changed effective date, a nonworking date and a resource-calendar exception. If the repository cannot provide the required typed values/version history, resource leveling stays blocked; no calendar-only fallback may be described as full P6 capacity parity.
+
+The immutable resource facts must therefore bind both:
+- versioned calendar working-time/exception facts and the calendar hash; and
+- the effective-dated Resource Max Units/Time values, their units/time basis and source revision/hash.
+
+The normalized per-period capacity slice and the exact transformation/provenance must be part of the canonical resource-facts hash.
 
 ## Leveling horizon and coverage
 
