@@ -37,6 +37,7 @@ from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    RelationshipLagCalendarAssignment,
 )
 from .scheduling.calendar_context import CalendarReference
 from .scheduling.calendar_system import CalendarSystem
@@ -207,9 +208,6 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
         if resource_assignments or resource_periods:
             raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
-        if relationship_lag_assignments:
-            raise ScheduleInputCompositionError("RELATIONSHIP_LAG_CALENDAR_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
-
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
@@ -260,6 +258,12 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError(
                     f"INVALID_PERSISTED_ACTIVITY:{item.activity_id}:{exc}"
                 ) from exc
+
+        relationship_records_by_id = {
+            item.relationship_id: item for item in persisted_relationships
+        }
+        if len(relationship_records_by_id) != len(persisted_relationships):
+            raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RELATIONSHIP_ID")
 
         relationships: list[Relationship] = []
         for item in sorted(persisted_relationships, key=lambda value: value.relationship_id):
@@ -332,6 +336,51 @@ class AuthoritativeScheduleInputComposer:
                     assignment.activity_id, reference
                 )
 
+        relationship_lag_calendar_items: list[RelationshipLagCalendarAssignment] = []
+        for assignment in sorted(
+            relationship_lag_assignments, key=lambda item: item.relationship_id
+        ):
+            assignment.validate()
+            if assignment.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RELATIONSHIP_LAG_ASSIGNMENT_SCOPE_MISMATCH:{assignment.relationship_id}"
+                )
+            relationship = relationship_records_by_id.get(assignment.relationship_id)
+            if relationship is None:
+                raise ScheduleInputCompositionError(
+                    f"RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP:{assignment.relationship_id}"
+                )
+            lag_calendar = None
+            if assignment.calendar_id is not None:
+                if assignment.calendar_version is None:
+                    raise ScheduleInputCompositionError(
+                        f"RELATIONSHIP_LAG_CALENDAR_VERSION_REQUIRED:{assignment.relationship_id}"
+                    )
+                lag_calendar = self._load_calendar_reference(
+                    scope,
+                    assignment.calendar_id,
+                    assignment.calendar_version,
+                    expected_kind=(
+                        "working-day"
+                        if project_settings.mode is AuthoritativeScheduleMode.DATE_BASED
+                        else "working-time"
+                    ),
+                )
+            try:
+                relationship_lag_calendar_items.append(
+                    RelationshipLagCalendarAssignment(
+                        relationship_id=assignment.relationship_id,
+                        predecessor_id=relationship.predecessor_id,
+                        successor_id=relationship.successor_id,
+                        option=assignment.option,
+                        calendar=lag_calendar,
+                    )
+                )
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RELATIONSHIP_LAG_ASSIGNMENT:{assignment.relationship_id}:{exc}"
+                ) from exc
+
         return AuthoritativeScheduleInput(
             snapshot_id=snapshot_id,
             tenant_id=scope.tenant_id,
@@ -344,6 +393,7 @@ class AuthoritativeScheduleInputComposer:
             activity_calendar_assignments=tuple(
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
+            relationship_lag_calendar_assignments=tuple(relationship_lag_calendar_items),
             constraints=tuple(constraints),
             schedule_options=project_settings.schedule_options,
             project_start=project_settings.project_start,
