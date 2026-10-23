@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.6.0"
+REFERENCE_VERSION: Final[str] = "0.7.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -51,6 +51,24 @@ class P6CodeReference:
     known_gap: str = ""
     acceptance_evidence: tuple[str, ...] = ()
     product_context: str = "P6_PROFESSIONAL_HELP_V26; verify product-specific applicability"
+
+
+@dataclass(frozen=True, slots=True)
+class P6FormulaReference:
+    """A source-linked equation/algorithm contract, not an independent scheduler."""
+
+    id: str
+    feature: str
+    formula_or_algorithm: str
+    input_fields: tuple[str, ...]
+    controlling_options: tuple[str, ...]
+    units_and_calendar_rules: str
+    edge_cases: tuple[str, ...]
+    official_sources: tuple[str, ...]
+    cubi_code_paths: tuple[str, ...]
+    regression_tests: tuple[str, ...]
+    status: str = "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    known_gap: str = ""
 
 
 ORACLE_ROOT: Final[str] = "https://docs.oracle.com/cd/G48902_01/client_help/en_US/"
@@ -812,6 +830,184 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
 )
 
 
+
+FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
+    P6FormulaReference(
+        id="FRM-TF-001",
+        feature="Total Float — selected calculation option",
+        formula_or_algorithm="Start Float = Late Start - Early Start; Finish Float = Late Finish - Early Finish; Smallest Float = min(Start Float, Finish Float). Publish the value selected by Tools > Schedule > Options > General.",
+        input_fields=("Early Start", "Late Start", "Early Finish", "Late Finish"),
+        controlling_options=("Compute Total Float as: Start Float / Finish Float / Smallest of Start Float and Finish Float", "Hours-per-time-period administrative/calendar policy"),
+        units_and_calendar_rules="Convert the date/time difference using the P6-compatible working-time and hours-per-time-period policy. Do not assume that a calendar-day subtraction equals P6 duration hours.",
+        edge_cases=("Missing early/late dates", "Different activity calendars", "Negative float", "Time-aware versus date-only calculation", "Hours/day, hours/week and hours/month policy changes"),
+        official_sources=(ORACLE_SOURCES["schedule_options"],),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/scheduling/time_schedule.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_time_schedule.py"),
+    ),
+    P6FormulaReference(
+        id="FRM-CRIT-001",
+        feature="Critical activity classification",
+        formula_or_algorithm="Threshold mode: activity is critical when selected Total Float <= configured threshold. Longest Path mode: identify terminal activities with the latest calculated Early Finish and trace all driving relationships back through the network. Multiple Float Paths is a separate path-analysis feature and does not replace the General-tab criticality option.",
+        input_fields=("Early/Late dates", "Selected Total Float", "Finish boundary", "Relationships and driving relationships"),
+        controlling_options=("Total Float <= threshold", "Longest Path", "Each Project / Opened Projects", "Multiple paths: Total Float / Free Float; endpoint and count"),
+        units_and_calendar_rules="The threshold must be converted with the selected P6 time-period rules. Longest Path must respect multi-calendar scheduling and the selected project/open-project boundary.",
+        edge_cases=("Open-ended activities", "Non-driving relationships", "Hard/soft constraints", "Multiple open projects", "Multiple calendars"),
+        official_sources=(ORACLE_SOURCES["critical"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["schedule_options_advanced"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/p6_activity_scheduler_outputs.py", "src/construction_pm/scheduling/multi_project_float.py"),
+        regression_tests=("tests/scheduling/test_schedule.py",),
+    ),
+    P6FormulaReference(
+        id="FRM-REL-001",
+        feature="Relationship lower bounds in the scheduling passes",
+        formula_or_algorithm="FS: Successor Start >= Predecessor Finish + Lag; SS: Successor Start >= Predecessor Start + Lag; FF: Successor Finish >= Predecessor Finish + Lag; SF: Successor Finish >= Predecessor Start + Lag. These are boundary constraints; date/time boundaries and lag are resolved with the configured P6 calendar rules, then evaluated in forward/backward passes.",
+        input_fields=("Predecessor Start/Finish", "Successor Start/Finish", "Relationship type", "Signed lag", "Predecessor/successor/project/24-hour lag calendar choice"),
+        controlling_options=("FS / SS / FF / SF", "Signed Lag/Lead", "Calendar for scheduling Relationship Lag", "SS lag expiry basis"),
+        units_and_calendar_rules="Do not add raw calendar days. Convert lag through the selected lag calendar and duration through the applicable activity/resource calendar; preserve date-only or time-aware precision required by the schedule mode.",
+        edge_cases=("Negative lag", "Zero-duration milestones", "Different calendars", "Out-of-sequence status", "Actual Dates mode disabling the SS lag-expiry selector"),
+        official_sources=(ORACLE_SOURCES["relationships"], ORACLE_SOURCES["relationship_details"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["relationship_lag"]),
+        cubi_code_paths=("src/construction_pm/scheduling/relationships.py", "src/construction_pm/scheduling/forward_pass.py", "src/construction_pm/scheduling/time_forward_pass.py", "src/construction_pm/scheduling/calendar_context.py", "src/construction_pm/scheduling/calendar_resolution.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_time_schedule.py"),
+    ),
+    P6FormulaReference(
+        id="FRM-DURTYPE-001",
+        feature="Activity duration type dependency rules",
+        formula_or_algorithm="Fixed Units/Time: hold Units/Time constant and derive quantity/duration according to the edited independent value. Fixed Duration & Units/Time: duration and Units/Time are fixed; total units are derived. Fixed Units: total units are fixed and duration/Units-Time adjust according to the edited value. Fixed Duration & Units: duration and units are fixed; Units/Time is derived. Apply the selected P6 assignment recalculation preference and do not use one generic equation for all change events.",
+        input_fields=("Original/remaining duration", "Budgeted/planned units", "Units/Time", "Activity duration type", "Resource/role assignment", "Edit operation"),
+        controlling_options=("Fixed Units/Time", "Fixed Duration & Units/Time", "Fixed Units", "Fixed Duration & Units", "Preserve or recalculate Units/Duration/Units-Time"),
+        units_and_calendar_rules="Units/Time is a rate whose time-period conversion must be explicit. Working-time duration must use the applicable calendar; resource/role rate types are separate cost settings.",
+        edge_cases=("Add/remove resource", "Change duration", "Change total units", "Change Units/Time", "Milestones", "Zero duration", "Multiple resources and roles"),
+        official_sources=(ORACLE_SOURCES["duration_types"], ORACLE_SOURCES["assignment_calculations"], ORACLE_SOURCES["unit_entry"]),
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py",),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Change-event-specific P6 recalculation behavior requires reference test vectors for all four duration types and resource/role assignment paths.",
+    ),
+    P6FormulaReference(
+        id="FRM-ACDUR-001",
+        feature="At Complete Duration",
+        formula_or_algorithm="At Complete Duration = Actual Duration + Remaining Duration.",
+        input_fields=("Actual Duration", "Remaining Duration"),
+        controlling_options=("Progress state", "Duration percent complete type", "Data Date"),
+        units_and_calendar_rules="Both durations must share the same normalized unit and calendar interpretation before summing.",
+        edge_cases=("Not-started activity", "In-progress activity", "Completed activity", "Milestone/zero duration", "Missing/invalid actuals"),
+        official_sources=(ORACLE_SOURCES["activity_status"], ORACLE_SOURCES["progress"]),
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py"),
+        regression_tests=("tests/scheduling/test_schedule.py",),
+    ),
+    P6FormulaReference(
+        id="FRM-PC-001",
+        feature="Duration Percent Complete",
+        formula_or_algorithm="Duration % Complete = 100 * (Original/Planned Duration - Remaining Duration) / Original/Planned Duration when Original/Planned Duration is non-zero. The zero-denominator behavior must follow a separately verified P6 rule rather than an assumed default.",
+        input_fields=("Original/Planned Duration", "Remaining Duration", "Percent Complete Type"),
+        controlling_options=("Duration percent complete", "Schedule Data Date", "Progress update method"),
+        units_and_calendar_rules="Normalize duration units before arithmetic. Do not compute date subtraction in the UI or mix elapsed hours with working-day durations.",
+        edge_cases=("Original duration zero", "Negative remaining duration", "Duration beyond original", "Completed activity", "Milestone"),
+        official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["activity_status"]),
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py"),
+        regression_tests=("tests/scheduling/test_schedule.py",),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="The zero-original-duration result and boundary clamping must be verified against P6 Version 26 behavior before copying as production logic.",
+    ),
+    P6FormulaReference(
+        id="FRM-PC-002",
+        feature="Units Percent Complete",
+        formula_or_algorithm="Units % Complete = 100 * Actual Labor and Nonlabor Units / (Actual Labor and Nonlabor Units + Remaining Labor and Nonlabor Units), subject to the applicable P6 unit/assignment rules.",
+        input_fields=("Actual labor units", "Actual nonlabor units", "Remaining labor units", "Remaining nonlabor units"),
+        controlling_options=("Percent Complete Type = Units", "Resource/role assignments", "Assignment units and conversions"),
+        units_and_calendar_rules="Normalize compatible unit-of-measure quantities before summation. Material units cannot be added to hours without an explicit unit conversion.",
+        edge_cases=("Zero total units", "Mixed unit types", "No resource assignments", "Negative/invalid remaining units", "Multiple resource rates"),
+        official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["activity_status"], ORACLE_SOURCES["resources"]),
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/p6_resource_assignment_repository.py"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py",),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="Exact handling of zero total units and eligible assignment units must be verified with P6 Version 26 fixtures.",
+    ),
+    P6FormulaReference(
+        id="FRM-RESOURCE-DUR-001",
+        feature="Resource Dependent activity duration from driving resources",
+        formula_or_algorithm="For each driving assignment, estimate remaining duration from quantity/work remaining divided by the driving assignment's Units/Time on its applicable resource calendar. When multiple driving resources exist, the resource taking the longest to complete governs activity duration; then place nondriving assignments under their own calendar/date rules.",
+        input_fields=("Remaining work/units", "Assignment Units/Time", "Driving flag", "Resource calendar/version", "Effective rate/period conversion"),
+        controlling_options=("Activity Type = Resource Dependent", "Drive Activity Dates by Default", "Per-assignment driving override", "Assignment units/time period"),
+        units_and_calendar_rules="Calendar-aware inverse-rate calculation is required; never use resource Max Units/Time as a substitute for assignment Units/Time.",
+        edge_cases=("Missing driving flag", "No driving assignments", "Multiple driving resources", "Different resource calendars", "Rate changes/effective dates", "Actual/remaining work", "Nondriving placement"),
+        official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resources"]),
+        cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_leveling.py"),
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_p6_resource_assignment_repository.py"),
+        status=KNOWN_GAP,
+        known_gap="Current authoritative composer explicitly rejects Resource Dependent assignments with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED; this formula must not be treated as implemented.",
+    ),
+    P6FormulaReference(
+        id="FRM-CAP-001",
+        feature="Resource capacity normalization from rate and available work hours",
+        formula_or_algorithm="For absolute rate basis: Capacity = Max Units/Time * Available Work Hours / Hours per rate period. For percent capacity where supported: Capacity = Percent/100 * Full-Time Units per rate period * Available Work Hours / Hours per rate period.",
+        input_fields=("Max Units/Time", "Available work hours", "Hours per rate period", "Capacity basis", "Full-time capacity base", "Unit of measure"),
+        controlling_options=("Resource rate time period", "Calendar/global conversion source", "Resource calendar", "Absolute/percentage capacity basis"),
+        units_and_calendar_rules="The conversion period and work-hours factor must be explicitly versioned with the resource/calendar snapshot; no assumed 8-hour day. Output remains in the same unit of measure as capacity input.",
+        edge_cases=("Zero availability", "Percent basis without full-time base", "Mismatched units", "Rate effective-date transition", "Shift-specific capacity", "Nonworking calendar exceptions"),
+        official_sources=(ORACLE_SOURCES["calendars"], ORACLE_SOURCES["resources"], ORACLE_SOURCES["resource_planning"]),
+        cubi_code_paths=("src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_versioned_resource_calendar_resolver.py", "src/construction_pm/scheduling/resource_leveling.py"),
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+    ),
+    P6FormulaReference(
+        id="FRM-EVM-001",
+        feature="Earned Value cost and schedule variances / performance indices",
+        formula_or_algorithm="CV = EV - AC; SV = EV - PV; CPI = EV / AC; SPI = EV / PV. EV, PV and AC must be drawn from the selected baseline, status date, WBS Earned Value technique and applicable activity/resource values.",
+        input_fields=("Earned Value EV", "Planned Value PV", "Actual Cost AC", "Baseline", "Data Date", "WBS Earned Value technique"),
+        controlling_options=("Selected baseline", "WBS performance percent-complete technique", "Status/Data Date", "Currency and reporting period"),
+        units_and_calendar_rules="Money values must be converted/compared in a consistent project currency and financial period. SPI is a ratio of value measures; it is not automatically identical to an Earned Schedule time index.",
+        edge_cases=("AC=0", "PV=0", "No baseline", "WBS override", "Different currencies", "Unclosed financial period"),
+        official_sources=(ORACLE_SOURCES["wbs_earned_value"], ORACLE_SOURCES["progress"]),
+        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
+        regression_tests=(),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="CUBI must explicitly define zero-denominator behavior and prove source values/rollups using Version 26 acceptance fixtures.",
+    ),
+    P6FormulaReference(
+        id="FRM-EVM-002",
+        feature="ETC, EAC and VAC under selected WBS technique",
+        formula_or_algorithm="VAC = BAC - EAC. If the selected ETC technique is performance-factor based: ETC = PF * (BAC - EV); EAC = AC + ETC. The selected WBS ETC method determines whether PF=1, PF=1/CPI, PF=1/(CPI*SPI) or a user-entered PF is used; a single universal EAC formula is not valid for all P6 settings.",
+        input_fields=("BAC", "EV", "AC", "CPI", "SPI", "Remaining activity cost", "PF", "WBS EV technique"),
+        controlling_options=("ETC = Remaining Activity Cost", "PF=1", "PF=1/CPI", "PF=1/(CPI*SPI)", "User-defined PF", "WBS-specific override"),
+        units_and_calendar_rules="BAC, EV, AC, ETC and EAC must be comparable cost values in the same currency and reporting context.",
+        edge_cases=("CPI=0", "SPI=0", "Missing BAC/EV/AC", "WBS-specific method override", "Resource curve/manual future bucket methods"),
+        official_sources=(ORACLE_SOURCES["wbs_earned_value"],),
+        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py"),
+        regression_tests=(),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="Implement and test each P6 WBS ETC option separately; zero-index and missing-input behavior must be confirmed from Version 26 behavior.",
+    ),
+)
+
+
+def validate_formula_registry(items: Iterable[P6FormulaReference] = FORMULA_REFERENCE) -> tuple[str, ...]:
+    """Validate formula catalog structure; does not prove calculation parity."""
+    errors: list[str] = []
+    seen: set[str] = set()
+    allowed_statuses = {"FORMULA_DOCUMENTED_PARITY_NOT_PROVEN", "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED", KNOWN_GAP}
+    for item in items:
+        if item.id in seen:
+            errors.append(f"DUPLICATE_FORMULA_ID:{item.id}")
+        seen.add(item.id)
+        if not item.official_sources:
+            errors.append(f"MISSING_FORMULA_SOURCE:{item.id}")
+        if not item.cubi_code_paths:
+            errors.append(f"MISSING_FORMULA_CODE_MAPPING:{item.id}")
+        if item.status not in allowed_statuses:
+            errors.append(f"INVALID_FORMULA_STATUS:{item.id}:{item.status}")
+        if item.status == KNOWN_GAP and not item.known_gap:
+            errors.append(f"MISSING_FORMULA_GAP_EXPLANATION:{item.id}")
+    return tuple(errors)
+
+
+def get_formula_reference(formula_id: str) -> P6FormulaReference:
+    """Look up a formula/algorithm contract by stable ID."""
+    for item in FORMULA_REFERENCE:
+        if item.id == formula_id:
+            return item
+    raise KeyError(formula_id)
+
+
 def validate_registry(items: Iterable[P6CodeReference] = P6_CODE_REFERENCE) -> tuple[str, ...]:
     """Return catalog defects without filesystem, network, or project-data access."""
     errors: list[str] = []
@@ -855,7 +1051,7 @@ def coverage_summary() -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    defects = validate_registry()
+    defects = validate_registry() + validate_formula_registry()
     if defects:
         raise SystemExit("\n".join(defects))
-    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}")
+    print(f"{REFERENCE_ID} v{REFERENCE_VERSION}: {coverage_summary()}, formula_refs={len(FORMULA_REFERENCE)}")
