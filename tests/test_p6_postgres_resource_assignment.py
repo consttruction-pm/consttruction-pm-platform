@@ -39,15 +39,21 @@ def _scope() -> BackendScope:
     return BackendScope(f"tenant-{suffix}", f"project-{suffix}", 7)
 
 
-def _assignment(scope: BackendScope, calendar_version: str = "calendar-v3") -> P6ResourceAssignment:
+def _assignment(
+    scope: BackendScope,
+    calendar_version: str = "calendar-v3",
+    is_driving: bool | None = None,
+    assignment_id: str = "assignment-1",
+) -> P6ResourceAssignment:
     return P6ResourceAssignment(
         scope=scope,
-        assignment_id="assignment-1",
+        assignment_id=assignment_id,
         activity_id="activity-1",
         resource_id="resource-1",
         units=Decimal("8.50"),
         calendar_id="calendar-1",
         calendar_version=calendar_version,
+        is_driving=is_driving,
     )
 
 
@@ -66,6 +72,38 @@ def test_postgres_resource_assignment_round_trips_exact_calendar_version(connect
     assert stored.calendar_id == "calendar-1"
     assert stored.calendar_version == "calendar-v3"
     assert repository.list(scope) == (item,)
+
+
+@pytest.mark.parametrize("is_driving", [True, False])
+def test_postgres_resource_assignment_round_trips_driving_status(connection, is_driving):
+    repository = PostgresP6ResourceAssignmentRepository(connection)
+    repository.initialize()
+    scope = _scope()
+    item = _assignment(scope, is_driving=is_driving)
+
+    with connection.transaction():
+        assert repository.upsert(item) == item
+
+    stored = repository.get(scope, item.assignment_id)
+    assert stored is not None
+    assert stored.is_driving is is_driving
+    assert repository.list(scope) == (item,)
+
+
+def test_postgres_resource_assignment_driving_status_is_immutable(connection):
+    repository = PostgresP6ResourceAssignmentRepository(connection)
+    repository.initialize()
+    scope = _scope()
+    original = _assignment(scope, is_driving=True)
+
+    with connection.transaction():
+        repository.upsert(original)
+
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="IMMUTABLE_RESOURCE_ASSIGNMENT",
+    ):
+        repository.upsert(_assignment(scope, is_driving=False))
 
 
 def test_postgres_legacy_assignment_table_migrates_without_guessing_version(connection):
@@ -109,6 +147,8 @@ def test_postgres_legacy_assignment_table_migrates_without_guessing_version(conn
     assert legacy.calendar_id == "calendar-1"
     # Migration preserves unknown provenance as NULL; it never guesses a version.
     assert legacy.calendar_version is None
+    # New nullable fields must also remain unresolved for pre-existing rows.
+    assert legacy.is_driving is None
 
     versioned = _assignment(scope, "calendar-v9")
     assert repository.upsert(versioned) == versioned
