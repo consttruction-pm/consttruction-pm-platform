@@ -763,7 +763,13 @@ def test_production_composition_rejects_split_resource_rate_repository_wiring(tm
 
 
 
-def test_resource_dependent_leveling_fails_closed_without_driving_assignment_identity(tmp_path):
+@pytest.mark.parametrize("is_driving", [None, True, False])
+def test_resource_dependent_leveling_fails_closed_until_assignment_date_semantics_exist(
+    tmp_path, is_driving
+):
+    # P6 requires driving assignments to determine activity dates and places
+    # nondriving assignments independently. Persisting the flag alone must not
+    # accidentally enable either path before the shared engine implements both.
     fixture = _fixture(tmp_path)
     app = fixture["app"]
     connection = fixture["connection"]
@@ -811,6 +817,7 @@ def test_resource_dependent_leveling_fails_closed_without_driving_assignment_ide
         unit="h",
         calendar_id="RES-CAL-RD",
         calendar_version="1",
+        is_driving=is_driving,
     ))
     fixture["resource_periods"].upsert(P6ResourceAssignmentPeriodValue(
         scope=scope,
