@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation } from "./workspace-model.js";
+import { createWorkspaceState, setP6Presentation, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -797,4 +797,36 @@ test("Activity Grid offsets multiple pinned/frozen columns without overlap", () 
   assert.match(container.innerHTML, /data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-pinned="true"[^>]*style="[^"]*--cp-p6-sticky-offset:140px/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
+});
+
+
+test("WBS panel renders the persisted hierarchy including nodes with no activities", () => {
+  let state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  state = withWbsNodes(state, [
+    {
+      id: "W-ROOT", parentKind: "project", parentWbsId: null,
+      localCode: "1", name: "Project <Root>", sequenceNumber: 0, recordRevision: 1,
+    },
+    {
+      id: "W-FOUNDATION", parentKind: "wbs", parentWbsId: "W-ROOT",
+      localCode: "2", name: "Foundation", sequenceNumber: 10, recordRevision: 1,
+    },
+    {
+      id: "W-EMPTY", parentKind: "wbs", parentWbsId: "W-ROOT",
+      localCode: "3", name: "Package with no activities", sequenceNumber: 20, recordRevision: 1,
+    },
+  ]);
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-wbs-tree" role="tree"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-ROOT"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-FOUNDATION"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-EMPTY"/);
+  assert.match(container.innerHTML, /aria-level="2"/);
+  assert.match(container.innerHTML, /Project &lt;Root&gt;/);
+  assert.ok(container.innerHTML.indexOf("Foundation") < container.innerHTML.indexOf("Package with no activities"));
+  assert.doesNotMatch(container.innerHTML, /data-wbs-id="A-/);
 });

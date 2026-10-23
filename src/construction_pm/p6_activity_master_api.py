@@ -67,6 +67,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
             "planned_finish": _optional_iso(item.planned_finish),
             "leveling_priority": item.leveling_priority.value,
             "original_duration": item.original_duration,
+            "wbs_id": item.wbs_id,
             "record_revision": item.record_revision,
         },
     }
@@ -88,6 +89,8 @@ class P6ActivityMasterAPI:
         _require_scope(activity.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        if not activity.wbs_id:
+            raise ValueError("WBS_REQUIRED")
         return _dto(self.repository.save(activity, expected_revision=0))
 
     def update(
@@ -102,6 +105,8 @@ class P6ActivityMasterAPI:
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
+        if not activity.wbs_id:
+            raise ValueError("WBS_REQUIRED")
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
     def get(

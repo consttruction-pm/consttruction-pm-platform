@@ -77,6 +77,17 @@ export type WorkspaceActivityRow = {
   gantt?: WorkspaceGanttData;
 };
 
+export type WorkspaceWbsNode = {
+  id: string;
+  parentKind: "project" | "wbs";
+  parentWbsId: string | null;
+  /** The node-local code; it is not the concatenated P6 WBS display path. */
+  localCode: string;
+  name: string;
+  sequenceNumber: number;
+  recordRevision: number;
+};
+
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
@@ -88,6 +99,7 @@ export type WorkspaceState = {
   selectedActivityId: string | null;
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
+  wbsNodes: readonly WorkspaceWbsNode[];
   controlSummary: WorkspaceControlSummary | null;
   smartGuide: WorkspaceSmartGuide | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
@@ -151,6 +163,7 @@ export function createWorkspaceState(
     selectedActivityId: null,
     columns: getDefaultWorkspaceColumns(locale),
     activities: [],
+    wbsNodes: [],
     controlSummary: null,
     smartGuide: null,
     siteDailyLogs: [],
@@ -431,6 +444,61 @@ export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn)
   return {
     ...state,
     columns: [...state.columns, Object.freeze({ ...column })],
+  };
+}
+
+export function withWbsNodes(
+  state: WorkspaceState,
+  nodes: readonly WorkspaceWbsNode[],
+): WorkspaceState {
+  const nodesById = new Map<string, WorkspaceWbsNode>();
+  let rootCount = 0;
+  for (const node of nodes) {
+    if (
+      !node.id ||
+      nodesById.has(node.id) ||
+      !node.name.trim() ||
+      !node.localCode.trim() ||
+      (node.parentKind !== "project" && node.parentKind !== "wbs") ||
+      !Number.isSafeInteger(node.sequenceNumber) ||
+      node.sequenceNumber < 0 ||
+      !Number.isSafeInteger(node.recordRevision) ||
+      node.recordRevision < 1
+    ) {
+      throw new Error("INVALID_WBS_NODES");
+    }
+    if (node.parentKind === "project") {
+      if (node.parentWbsId !== null) throw new Error("INVALID_WBS_PARENT");
+      rootCount += 1;
+    } else if (!node.parentWbsId || node.parentWbsId === node.id) {
+      throw new Error("INVALID_WBS_PARENT");
+    }
+    nodesById.set(node.id, node);
+  }
+  if (nodes.length && rootCount !== 1) throw new Error("INVALID_WBS_ROOT");
+
+  for (const node of nodes) {
+    if (node.parentKind === "wbs" && !nodesById.has(node.parentWbsId ?? "")) {
+      throw new Error("INVALID_WBS_PARENT");
+    }
+    const visited = new Set<string>();
+    let current: WorkspaceWbsNode | undefined = node;
+    while (current?.parentKind === "wbs") {
+      if (visited.has(current.id)) throw new Error("WORKSPACE_WBS_CYCLE");
+      visited.add(current.id);
+      current = nodesById.get(current.parentWbsId ?? "");
+    }
+  }
+  for (const activity of state.activities) {
+    if (!nodesById.has(activity.wbsId)) throw new Error("INVALID_ACTIVITY_WBS_REFERENCE");
+  }
+
+  return {
+    ...state,
+    wbsNodes: nodes.map((node) => Object.freeze({ ...node })),
+    selectedWbsId: state.selectedWbsId && nodesById.has(state.selectedWbsId)
+      ? state.selectedWbsId
+      : null,
   };
 }
 

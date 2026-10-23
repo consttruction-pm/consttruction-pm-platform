@@ -15,6 +15,8 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.api import BackendP0API
+from ..backend_p0.errors import BackendApplicationError
+from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
@@ -54,6 +56,8 @@ from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
+from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
+from ..wbs_master_repository import WBSMaster, WBSParentKind, WBSPersistenceError
 from ..activity_master_repository import ActivityMaster, ActivityPersistenceError
 from ..authoritative_schedule_input_composer import (
     ScheduleInputCompositionError,
@@ -129,6 +133,7 @@ class ProjectLifecycleHttpRoutes:
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
+        p6_wbs_master_api: P6WBSMasterAPI | None = None,
         p6_schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
         p6_relationship_api: P6RelationshipAPI | None = None,
         p6_role_api: P6RoleAPI | None = None,
@@ -141,6 +146,7 @@ class ProjectLifecycleHttpRoutes:
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
         backend_p0_api: BackendP0API | None = None,
+        workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
     ) -> None:
         self._api = api
@@ -157,6 +163,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
+        self._p6_wbs_master_api = p6_wbs_master_api
         self._p6_schedule_snapshot_api = p6_schedule_snapshot_api
         self._p6_relationship_api = p6_relationship_api
         self._p6_role_api = p6_role_api
@@ -169,6 +176,7 @@ class ProjectLifecycleHttpRoutes:
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
         self._backend_p0_api = backend_p0_api
+        self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
 
     def handle(
@@ -201,8 +209,14 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
-            if method == "GET" and path == "/api/v1/workspace/control-room/read":
-                if self._backend_p0_api is None:
+            if method == "GET" and path in (
+                "/api/v1/workspace/control-room/read",
+                "/api/v2/workspace/control-room/read",
+            ):
+                is_v2_workspace_read = path == "/api/v2/workspace/control-room/read"
+                if is_v2_workspace_read and self._workspace_read_v2_service is None:
+                    return self._error(404, "WORKSPACE_READ_NOT_CONFIGURED", "error.route.not_found")
+                if not is_v2_workspace_read and self._backend_p0_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 tenant_id = request_headers.get("X-Tenant-Id")
                 project_id = request_headers.get("X-Project-Id")
@@ -225,12 +239,21 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
-                result = self._backend_p0_api.read_workspace_control_room(
-                    tenant_id=context.tenant_id,
-                    project_id=context.project_id,
-                    revision=revision,
-                    auth_context=auth,
-                )
+                if is_v2_workspace_read:
+                    try:
+                        result = self._workspace_read_v2_service.read(
+                            BackendScope(context.tenant_id, context.project_id, revision),
+                            auth_context=auth,
+                        )
+                    except BackendApplicationError as exc:
+                        result = exc.to_dto()
+                else:
+                    result = self._backend_p0_api.read_workspace_control_room(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        revision=revision,
+                        auth_context=auth,
+                    )
                 if result is None:
                     return self._error(404, "WORKSPACE_READ_NOT_FOUND", "error.workspace_read.not_found")
                 if not isinstance(result, dict):
@@ -1215,6 +1238,9 @@ class ProjectLifecycleHttpRoutes:
                             )
                         ),
                         original_duration=raw_original_duration,
+                        wbs_id=payload.get(
+                            "wbs_id", existing.wbs_id if existing is not None else None
+                        ),
                     )
 
                 try:
@@ -1266,6 +1292,99 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, str(exc), "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
+            if path.startswith("/api/projects/") and "/p6/wbs" in path and self._p6_wbs_master_api is not None:
+                prefix = "/p6/wbs"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(400, "P6_WBS_MASTER_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+
+                def build_wbs(wbs_id: str, existing: WBSMaster | None = None) -> WBSMaster:
+                    parent_kind_raw = payload.get(
+                        "parent_kind",
+                        existing.parent_kind.value if existing is not None else None,
+                    )
+                    parent_kind = WBSParentKind(parent_kind_raw)
+                    parent_wbs_id = payload.get(
+                        "parent_wbs_id",
+                        existing.parent_wbs_id if existing is not None else None,
+                    )
+                    raw_sequence = payload.get(
+                        "sequence_number",
+                        existing.sequence_number if existing is not None else 0,
+                    )
+                    if isinstance(raw_sequence, bool) or not isinstance(raw_sequence, int):
+                        raise ValueError("INVALID_WBS_SEQUENCE_NUMBER")
+                    return WBSMaster(
+                        scope=scope,
+                        wbs_id=wbs_id,
+                        parent_kind=parent_kind,
+                        parent_wbs_id=parent_wbs_id,
+                        code=payload.get("code", existing.code if existing is not None else ""),
+                        name=payload.get("name", existing.name if existing is not None else ""),
+                        sequence_number=raw_sequence,
+                        record_revision=0 if existing is None else existing.record_revision,
+                    )
+
+                try:
+                    parts = suffix.strip("/").split("/") if suffix.strip("/") else []
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError("INVALID_PAYLOAD")
+                    if payload.get("contract_version", P6_WBS_MASTER_API_VERSION) != P6_WBS_MASTER_API_VERSION:
+                        raise ValueError("INVALID_CONTRACT_VERSION")
+                    if method == "GET" and not parts:
+                        result = self._p6_wbs_master_api.list(scope, auth_context=auth)
+                        return self._json(200, {
+                            "contract_version": P6_WBS_MASTER_API_VERSION,
+                            "wbs_nodes": list(result),
+                        })
+                    if method == "POST" and not parts:
+                        wbs_id = payload.get("wbs_id")
+                        if not isinstance(wbs_id, str) or not wbs_id.strip():
+                            raise ValueError("INVALID_WBS_ID")
+                        return self._json(
+                            201,
+                            self._p6_wbs_master_api.create(build_wbs(wbs_id), auth_context=auth),
+                        )
+                    if method == "GET" and len(parts) == 1 and parts[0]:
+                        result = self._p6_wbs_master_api.get(scope, parts[0], auth_context=auth)
+                        if result is None:
+                            return self._error(404, "P6_WBS_MASTER_NOT_FOUND", "error.resource.not_found")
+                        return self._json(200, result)
+                    if method == "PATCH" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        existing = self._p6_wbs_master_api.repository.get(scope, parts[0])
+                        if existing is None:
+                            return self._error(404, "P6_WBS_MASTER_NOT_FOUND", "error.resource.not_found")
+                        return self._json(
+                            200,
+                            self._p6_wbs_master_api.update(
+                                build_wbs(parts[0], existing=existing),
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
+                    return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except WBSPersistenceError as exc:
+                    if str(exc) == "REVISION_CONFLICT":
+                        return self._error(409, str(exc), "error.revision.conflict")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except (TypeError, ValueError, KeyError) as exc:
+                    return self._error(400, str(exc) or "P6_WBS_MASTER_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
                 prefix = "/p6/relationships"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")

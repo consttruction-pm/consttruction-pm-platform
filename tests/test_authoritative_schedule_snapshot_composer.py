@@ -27,6 +27,7 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
+from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
     P6ScheduleSnapshotPublicationAPI,
@@ -69,7 +70,7 @@ class Projects:
         return ProjectSummary(project_id, tenant_id, name, 2)
 
 
-def _request(app, method: str, path: str, payload: dict | None = None):
+def _request(app, method: str, path: str, payload: dict | None = None, headers: dict[str, str] | None = None):
     body = json.dumps(payload or {}).encode("utf-8")
     status: list[str] = []
     chunks: list[bytes] = []
@@ -80,6 +81,8 @@ def _request(app, method: str, path: str, payload: dict | None = None):
         "CONTENT_LENGTH": str(len(body)),
         "wsgi.input": BytesIO(body),
     }
+    for name, value in (headers or {}).items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
 
     def start_response(value, headers):
         status.append(value)
@@ -102,6 +105,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
 
     activity_repo = SQLiteActivityMasterRepository(connection)
+    wbs_repo = SQLiteWBSMasterRepository(connection)
+    wbs_repo.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0))
     relationship_repo = SQLiteRelationshipMasterRepository(connection)
     constraint_repo = SQLiteConstraintMasterRepository(connection)
     calendar_repo = SQLiteCalendarMasterRepository(connection)
@@ -167,6 +172,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         calculation_context_repository=effective_context_repo,
         authorization_policy=policy,
         activity_master_repository=activity_repo,
+        wbs_master_repository=wbs_repo,
         relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -218,6 +224,7 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
         "leveling_priority": "High",
         "original_duration": 2,
         "planned_finish": "2026-10-22",
+        "wbs_id": "W-ROOT",
     }
     status_a, created_a = _request(
         app, "POST", "/api/projects/p1/p6/activities",
@@ -346,6 +353,7 @@ def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp
             "duration_value": "1",
             "duration_unit": "working-day",
             "actual_start": "2026-10-19T09:15:00+00:00",
+            "wbs_id": "W-ROOT",
         },
     )
     settings_status, _ = _save_settings(app)
@@ -374,6 +382,7 @@ def test_snapshot_and_context_writes_roll_back_together(tmp_path):
             "name": "Foundation",
             "duration_value": "1",
             "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
         },
     )
     settings_status, _ = _save_settings(app)
@@ -424,4 +433,42 @@ def test_project_schedule_settings_reject_unknown_fields_and_stale_revision(tmp_
     assert status == "409 Conflict"
     assert conflict["code"] == "REVISION_CONFLICT"
     assert fixture["settings_repo"].get(fixture["scope"]).record_revision == 1
+    fixture["connection"].close()
+
+
+def test_authenticated_persisted_workspace_v2_returns_canonical_wbs_tree(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "activity_id": "A-WBS-READ",
+        "name": "Install Foundation",
+        "duration_value": "3",
+        "duration_unit": "working-day",
+        "wbs_id": "W-ROOT",
+    }
+    status, created = _request(
+        app, "POST", "/api/projects/p1/p6/activities", payload
+    )
+    assert status == "201 Created"
+    assert created["activity"]["wbs_id"] == "W-ROOT"
+
+    read_status, snapshot = _request(
+        app,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        headers={
+            "X-Tenant-Id": scope.tenant_id,
+            "X-Project-Id": scope.project_id,
+            "X-Project-Revision": str(scope.project_revision),
+        },
+    )
+    assert read_status == "200 OK"
+    assert snapshot["contract_version"] == "workspace-control-room-read.v2"
+    assert snapshot["workspace"]["contract_version"] == "workspace-control-room.v2"
+    assert [node["wbs_id"] for node in snapshot["workspace"]["wbs_nodes"]] == ["W-ROOT"]
+    assert snapshot["workspace"]["activities"][0]["wbs_id"] == "W-ROOT"
+    assert snapshot["workspace"]["activities"][0]["name"] == "Install Foundation"
+    assert snapshot["workspace"]["activities"][0]["gantt"] is None
     fixture["connection"].close()
