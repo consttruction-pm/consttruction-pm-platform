@@ -68,6 +68,7 @@ def test_resource_read_api_exposes_typed_assignment_period_and_spread_data():
         units=Decimal("8.50"), planned_cost=Decimal("850.25"),
         unit="hours", currency="USD", calendar_id="calendar-1",
         calendar_version="cal-v7",
+        is_driving=True,
     )
     period = P6ResourceAssignmentPeriodValue(
         scope, "a-1", "activity-1", "resource-1",
