@@ -18,7 +18,8 @@ const labels = {
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
 function getWorkspaceLabels(locale: string): WorkspaceLabels {
-  const baseline = labels[locale as keyof typeof labels] ?? labels.en;
+  const baseLocale = locale.split("-")[0] as keyof typeof labels;
+  const baseline = labels[locale as keyof typeof labels] ?? labels[baseLocale] ?? labels.en;
   return Object.fromEntries(Object.entries(labels.en).map(([key, fallback]) => [
     key,
     translateWorkspaceText(locale, `workspace.${key}`, (baseline as Record<string, string>)[key] ?? fallback),
