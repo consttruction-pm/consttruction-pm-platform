@@ -164,3 +164,60 @@ Conflicts are resolved in this order:
 The 2026 competitive review considered Oracle Primavera Cloud/P6, Procore, InEight, Autodesk Construction Cloud/Forma, Bentley SYNCHRO, nPlan, ALICE, Planera, Pillar, MeltPlan, Jet.Build, Anyset AI, Mastt, Nodes & Links, Trunk Tools, OpenSpace, Buildots and Document Crunch. The benchmark must be refreshed before release.
 
 This is a product-governance benchmark, not a claim that every listed vendor implements every capability.
+
+## Principle 11 — Cumulative, privacy-safe interactive engineering learning and durable knowledge
+
+This principle **adds mandatory capabilities** to Principles 1–10 and every previously approved CUBI requirement, issue, product contract, schedule, release gate and assistant workflow. It does not delete, replace, weaken, defer or silently reinterpret any existing requirement. In a conflict, preserve the stricter compatible requirements and record an explicit owner-approved decision; never resolve a conflict by quietly shrinking scope.
+
+### 11.1 Professional interactive assistant, adapted to each user
+
+The CUBI assistant must operate as an interactive engineering/project-controls partner, not only a question-answer chatbot. During a project discussion it must:
+- infer the depth needed from the current task and demonstrated context, offer concise or specialist-level explanations, and let the user set/correct the level; never stereotype or assume credentials;
+- identify missing information, ask focused clarifying questions, compare viable alternatives, state assumptions/risks/trade-offs and give comprehensive but relevant recommendations;
+- invite the user's critique and preferences, discuss competing approaches, revise recommendations when new evidence or constraints arrive, and explain why the recommendation changed;
+- distinguish user preference, unverified feedback, engineering hypothesis, sourced claim, validated rule, authoritative calculation and observed outcome;
+- suggest professional report content/structure, project page/layout improvements, staffing/person-day and equipment estimation approaches, construction methods, risks, controls and next actions, with explicit assumptions, units, confidence and project-specific inputs needed;
+- when a project type is understood, identify relevant comparable project patterns and current public engineering sources before offering a recommendation where Internet research is authorized and materially useful.
+
+### 11.2 Learning from interactions without leaking project data
+
+At the end of useful interactions, the assistant should propose or capture a versioned candidate lesson about a correction, misunderstood term, successful method, failure mode, decision rationale or limitation. It must not treat agreement, popularity or a user's assertion alone as proof of engineering truth. Candidate lessons must be evaluated against source evidence, validated calculations, tests, standards or observed outcomes as applicable.
+
+Knowledge is divided into distinct security scopes:
+1. private user preferences/experience;
+2. private project lessons;
+3. explicitly authorized tenant/organization methods;
+4. unapproved generalized candidates;
+5. validated and approved general engineering methods.
+
+A different user may benefit from **generalized methods, reasoning patterns, formulas with assumptions/units/limits, checklists and process recommendations only**. They must never receive another user's project name, identity, documents, transcript, schedule, cost, quantities, dates, staffing numbers, outputs or other private/project-specific values, nor information that could reasonably reconstruct them. Generalization is not achieved merely by changing a scope field or removing a name. It requires minimization, privacy/re-identification review, policy and consent authorization, validation evidence and authorized approval. Repository-level authorization and query scoping are mandatory; prompt instructions alone are not a security boundary.
+
+### 11.3 Admin-authorized engineering knowledge refresh
+
+An authenticated admin panel must support manual, explicitly authorized Internet research cycles and proposed periodic cadences. Every cycle must have a human-triggered authorization or an explicitly configured grant; a timer is not permission by itself. Separate grants are required to search, ingest, validate, approve/publish, export/backup, restore and retire knowledge.
+
+The workflow is: authorize → search approved public sources → preserve provenance and source/version/date → extract bounded candidate knowledge → compare with existing knowledge and identify contradictions → validate and test → review privacy and reuse rights → preview changes → human approve/reject → publish a version → run regression/quality checks → retain rollback. Web pages, papers and uploaded documents are untrusted content and must not override system policies or grant tools access. The assistant must distinguish published knowledge from pending research and state uncertainty or conflicting evidence.
+
+### 11.4 Durable database, backup, migration and no regression
+
+Learning cannot rely solely on the model's transient context, chat window, or process memory. Persist approved records in a versioned database with stable IDs, scope, lifecycle state, provenance, source/model/schema version, confidence, conditions, units, limitations, validation evidence, approval, timestamps, lineage/supersession and applicable retention policy.
+
+Provide exportable full backups, incremental backups where supported, integrity verification, tested restoration, migration bundles and a documented V2+ upgrade path. Migration must preserve stable IDs, provenance, access scope, approval state, lineage and retrieval behavior. Schema migrations must be versioned and idempotent; backups must be tested by restoration, not merely by successful file creation. New knowledge/model versions must pass golden benchmarks against the prior release, with staged rollout, version pinning and rollback. Rejected, superseded, stale or unsupported knowledge must not silently remain active.
+
+### 11.5 Engineering authority and safety boundaries
+
+The assistant's learning improves explanation, retrieval, analysis and recommendations; it does **not** silently modify the authoritative Shared Domain/Calculation Core or its P6-compatible scheduling, calendar, resource, cost, progress or EVM calculations. Numeric results must be produced by the authoritative deterministic core/application services and tied to the project revision used. New formulas/methods require source/version, variable definitions, units, assumptions, validity limits, fixtures and review before becoming trusted engineering knowledge. Project mutations continue to require authenticated current grants, exact-scope approval where required, revision recheck, idempotency, persistence verification and durable audit under Principle 9 and the existing AI action boundary.
+
+### 11.6 Required traceability, schedule and release gate
+
+This principle is linked to GitHub Issue #1540 and extends, rather than replaces, the mandatory production assistant in #1423 and production authorization/audit integration in #1530. Every capability must be traced to a schedule activity, implementation path, tests, owner, exact commit/CI evidence and release gate. The Jalal 5 schedule must be re-baselined from accepted estimates and dependencies; the complete plan must remain exactly 100.00 weighted points. Until the authoritative workbook and its formulas/dependencies/owner-lane forecast are updated and verified, new activity weights/dates are **Pending re-baseline**, and this learning scope receives zero earned completion credit. Do not count this principle or a documentation-only change as implementation completion.
+
+Release acceptance requires:
+- interactive critique/revision loops with explanations;
+- durable capture and retrieval across restart;
+- strict user/project/tenant isolation and negative cross-tenant tests;
+- generalized cross-user knowledge that passes privacy/reconstruction checks;
+- separately authorized admin search, publication, backup and restore;
+- provenance, deletion/retention, export, tested backup/restore and V2 migration;
+- golden engineering/interaction/privacy benchmarks and demonstrated regression rollback;
+- no regression to existing P6 compatibility, project capabilities, localization, offline behavior, permissions, audit, desktop/web/mobile scope or any previously approved requirement.
