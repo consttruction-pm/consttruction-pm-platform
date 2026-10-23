@@ -2137,14 +2137,24 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(403, str(exc), "error.authorization.denied")
                     raise
                 context = authorized.context
-                if expected_revision != context.revision:
-                    return self._error(409, "AI_ACTION_PROPOSAL_STALE_REVISION", "error.conflict.stale_revision")
                 runtime_context = AIActionRuntimeContext(
                     subject_id=session.user_id,
                     tenant_id=context.tenant_id,
                     project_id=context.project_id,
                     project_revision_id=str(context.revision),
                 )
+                if expected_revision != context.revision:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "stale_expected_revision",
+                        proposal_id=proposal_id,
+                        metadata={
+                            "operation": operation,
+                            "expected_revision": expected_revision,
+                            "current_revision": context.revision,
+                        },
+                    )
+                    return self._error(409, "AI_ACTION_PROPOSAL_STALE_REVISION", "error.conflict.stale_revision")
                 if operation == "propose":
                     tool_name = payload.get("tool_name")
                     action_payload = payload.get("payload")
@@ -2229,6 +2239,11 @@ class ProjectLifecycleHttpRoutes:
                 status = 409
             elif code == "AI_ACTION_EXECUTION_FAILED":
                 status = 502
+            elif code.startswith("AI_ACTION_AUDIT_") or code in {
+                "AI_ACTION_PROPOSAL_PERSISTENCE_FAILED",
+                "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+            }:
+                status = 500
             return self._error(status, code, "error.ai_action.request_failed")
         except ProjectLifecycleError as exc:
             return self._error(400, str(exc), "error.project.lifecycle")
