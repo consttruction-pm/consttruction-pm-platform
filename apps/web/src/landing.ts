@@ -100,6 +100,9 @@ function setLandingDocumentLocale(): void {
 }
 function getLandingCopy(locale: LandingLocale): LandingCopy {
   const baseline = copy[locale] ?? copy.en!;
+  const availableLocales = getAvailableWorkspaceLocales();
+  const currentLocaleIndex = availableLocales.indexOf(locale);
+  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
   const translate = (key: string, fallback: string) => translateWorkspaceText(locale, `landing.${key}`, fallback);
   return {
     ...baseline,
@@ -128,7 +131,7 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
     ctaBody: translate("ctaBody", baseline.ctaBody),
     signIn: translate("signIn", baseline.signIn),
     start: translate("start", baseline.start),
-    language: translate("language", getWorkspaceLocaleDisplayName(locale)),
+    language: translate("language", getWorkspaceLocaleDisplayName(nextLocale)),
     footerColumns: baseline.footerColumns.map((column, columnIndex) => ({
       title: translate(`footerColumns.${columnIndex}.title`, column.title),
       links: column.links.map((value, linkIndex) => translate(`footerColumns.${columnIndex}.links.${linkIndex}`, value)),
