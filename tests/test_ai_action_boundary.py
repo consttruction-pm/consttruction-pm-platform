@@ -154,3 +154,21 @@ def test_approval_decision_must_be_a_boolean():
     with pytest.raises(AIActionBoundaryError, match="INVALID_AI_ACTION_APPROVAL_DECISION"):
         svc.decide(proposal(), actor_id="user-7", approved="yes")
     assert sink.records == []
+
+
+def test_automatic_approval_without_trusted_actor_is_denied_and_audited():
+    svc, sink = service()
+    item = proposal(approval=False)
+    with pytest.raises(AIActionBoundaryError, match="AI_ACTION_APPROVAL_REQUIRES_ACTOR"):
+        svc.decide(item, actor_id=None, approved=True)
+    assert len(sink.records) == 1
+    assert sink.records[0][1].decision == "denied"
+    assert sink.records[0][1].actor_id is None
+
+
+def test_blank_actor_is_not_preserved_as_a_rejection_actor():
+    svc, sink = service()
+    decision = svc.decide(proposal(approval=False), actor_id="   ", approved=False)
+    assert decision.decision == "rejected"
+    assert decision.actor_id is None
+    assert len(sink.records) == 1
