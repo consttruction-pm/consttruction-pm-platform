@@ -137,6 +137,9 @@ def test_resource_write_api_persists_and_returns_explicit_assignment_driving_sta
         units=Decimal("8"),
         unit="hours",
         is_driving=is_driving,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
     )
 
     created = api.save_assignment(item, auth_context=auth())
@@ -145,6 +148,9 @@ def test_resource_write_api_persists_and_returns_explicit_assignment_driving_sta
     assert created["kind"] == "resource_assignment"
     assert created["scope"]["project_revision"] == 7
     assert created["assignment"]["is_driving"] is is_driving
+    assert created["assignment"]["units_per_time"] == Decimal("2.5")
+    assert created["assignment"]["units_per_time_period"] == "day"
+    assert created["assignment"]["hours_per_units_time_period"] == Decimal("8")
     assert repository.get(scope, item.assignment_id) == item
     assert api.save_assignment(item, auth_context=auth()) == created
 
