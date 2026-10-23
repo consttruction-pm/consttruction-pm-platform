@@ -77,7 +77,6 @@ jobs:
           printf 'User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n' "$SITE_BASE_URL" > "${{ github.workspace }}/_site/robots.txt"
           printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>%s/</loc></url>\n<url><loc>%s/platform/</loc></url>\n<url><loc>%s/solutions/</loc></url>\n<url><loc>%s/resources/</loc></url>\n<url><loc>%s/contact/</loc></url>\n</urlset>\n' "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" > "${{ github.workspace }}/_site/sitemap.xml"
           touch "${{ github.workspace }}/_site/.nojekyll"
-          touch "${{ github.workspace }}/_site/.nojekyll"
           # The TypeScript build writes the commercial entry to dist/web/src/landing-entry.js because
           # tsconfig.build.json uses rootDir=.. and outDir=dist.
           # Create correct asset paths for both the root site and /app route.
@@ -115,6 +114,14 @@ jobs:
           test ! -f "${{ github.workspace }}/_site/logo-dark.svg"
           test ! -f "${{ github.workspace }}/_site/cubi-platform-logo-primary-dark.svg"
           test -f "${{ github.workspace }}/_site/.nojekyll"
+          test -f "${{ github.workspace }}/_site/robots.txt"
+          test -f "${{ github.workspace }}/_site/sitemap.xml"
+          grep -q "Sitemap: ${SITE_BASE_URL}/sitemap.xml" "${{ github.workspace }}/_site/robots.txt"
+          grep -q "${SITE_BASE_URL}/platform/" "${{ github.workspace }}/_site/sitemap.xml"
+          grep -q "${SITE_BASE_URL}/contact/" "${{ github.workspace }}/_site/sitemap.xml"
+          grep -q "<link rel=\"canonical\" href=\"${SITE_BASE_URL}/\"" "${{ github.workspace }}/_site/index.html"
+          grep -q "<link rel=\"canonical\" href=\"${SITE_BASE_URL}/platform/\"" "${{ github.workspace }}/_site/platform/index.html"
+          ! grep -R -q "__CUBI_BASE_URL__" "${{ github.workspace }}/_site"
           grep -q 'dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/index.html"
           grep -q '../dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/app/index.html"
           grep -q 'app/' "${{ github.workspace }}/_site/dist/web/src/landing.js"
