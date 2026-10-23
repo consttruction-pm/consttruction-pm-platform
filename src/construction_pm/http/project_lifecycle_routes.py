@@ -2039,12 +2039,69 @@ class ProjectLifecycleHttpRoutes:
             if path.startswith("/api/projects/") and "/ai/actions/" in path:
                 if self._ai_action_runtime is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                if method != "POST":
+                if method not in {"GET", "POST"}:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 parts = path[len("/api/projects/"):].split("/")
                 if not parts or not parts[0] or parts[1:3] != ["ai", "actions"]:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = parts[0]
+                if method == "GET":
+                    if len(parts) == 4 and parts[3] == "proposals":
+                        read_operation = "list"
+                        read_proposal_id = None
+                    elif len(parts) == 5 and parts[3] == "proposals" and parts[4]:
+                        read_operation = "get"
+                        read_proposal_id = parts[4]
+                    else:
+                        return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                    try:
+                        authorized = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_READ, now=now
+                        )
+                        session = self._api.get_session(session_id, now=now)
+                    except ProjectLifecycleError as exc:
+                        if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                            return self._error(403, str(exc), "error.authorization.denied")
+                        raise
+                    context = authorized.context
+                    runtime_context = AIActionRuntimeContext(
+                        subject_id=session.user_id,
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        project_revision_id=str(context.revision),
+                    )
+                    if read_operation == "list":
+                        records = self._ai_action_runtime.list_proposals(runtime_context)
+                    else:
+                        records = (self._ai_action_runtime.get_proposal(runtime_context, read_proposal_id or ""),)
+                    proposals = []
+                    for record in records:
+                        proposals.append({
+                            "proposal_id": record.proposal.proposal_id,
+                            "tool_name": record.proposal.tool_name,
+                            "action": record.proposal.action,
+                            "status": record.status,
+                            "requires_human_approval": record.proposal.requires_human_approval,
+                            "requested_by": record.proposal.requested_by,
+                            "evidence_refs": list(record.proposal.evidence_refs),
+                            "project_revision_id": record.proposal.project_revision_id,
+                            "resource_domain": record.proposal.resource_domain,
+                            "payload": dict(record.payload),
+                            "result": None if record.result is None else dict(record.result),
+                            "created_at": record.created_at.isoformat(),
+                            "updated_at": record.updated_at.isoformat(),
+                            "decided_by": record.decided_by,
+                            "is_stale": record.proposal.project_revision_id != runtime_context.project_revision_id,
+                        })
+                    if read_operation == "get":
+                        return self._json(200, {
+                            "contract_version": "ai-action-runtime.v1",
+                            "proposal": proposals[0],
+                        })
+                    return self._json(200, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "proposals": proposals,
+                    })
                 operation = None
                 proposal_id = None
                 if len(parts) == 4 and parts[3] == "proposals":
