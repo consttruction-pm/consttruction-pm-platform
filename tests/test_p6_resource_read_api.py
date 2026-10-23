@@ -88,6 +88,7 @@ def test_resource_read_api_exposes_typed_assignment_period_and_spread_data():
     assert result["assignment"]["units"] == Decimal("8.50")
     assert result["assignment"]["calendar_id"] == "calendar-1"
     assert result["assignment"]["calendar_version"] == "cal-v7"
+    assert result["assignment"]["is_driving"] is True
 
     periods = api.list_assignment_periods(scope, assignment_id="a-1", auth_context=auth())
     assert periods[0]["period"]["cost"] == Decimal("425.125")
@@ -99,9 +100,11 @@ def test_resource_read_api_exposes_typed_assignment_period_and_spread_data():
 def test_resource_read_api_preserves_scope_and_deterministic_ordering():
     _, api, assignment_repo, period_repo, _ = build_api()
     scope = BackendScope("tenant-a", "project-a", 1)
-    for assignment_id in ("b-2", "a-1"):
+    for assignment_id, is_driving in (("b-2", False), ("a-1", True)):
         assignment_repo.upsert(
-            P6ResourceAssignment(scope, assignment_id, "activity-1", "resource-1")
+            P6ResourceAssignment(
+                scope, assignment_id, "activity-1", "resource-1", is_driving=is_driving
+            )
         )
     period_repo.upsert(
         P6ResourceAssignmentPeriodValue(
@@ -118,6 +121,7 @@ def test_resource_read_api_preserves_scope_and_deterministic_ordering():
 
     assignments = api.list_assignments(scope, auth_context=auth())
     assert [item["assignment"]["assignment_id"] for item in assignments] == ["a-1", "b-2"]
+    assert [item["assignment"]["is_driving"] for item in assignments] == [True, False]
     periods = api.list_assignment_periods(scope, assignment_id="a-1", auth_context=auth())
     assert [item["period"]["period_start"] for item in periods] == ["2026-10-01", "2026-10-02"]
     assert api.get_assignment(BackendScope("tenant-b", "project-a", 1), "a-1", auth_context=auth("tenant-b")) is None
