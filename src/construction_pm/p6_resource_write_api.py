@@ -56,10 +56,10 @@ class P6ResourceWriteAPI:
         *,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
-        if self.assignment_service is None:
-            raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
         _require_scope(value.scope, auth_context)
         _require_write(self.authorization_policy, auth_context)
+        if self.assignment_service is None:
+            raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
         stored = self.assignment_service.save(value)
         return _assignment_dto(stored)
 
