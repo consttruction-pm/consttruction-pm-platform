@@ -1,3 +1,4 @@
+import { getWorkspaceLocaleDefinition } from "./workspace-localization.js";
 import {
   projectControlIntelligence,
   type ControlRoomIntelligenceSnapshot,
