@@ -92,7 +92,7 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.name == "Concrete Pour"
         assert restored.activity_type is ActivityType.RESOURCE_DEPENDENT
         assert restored.status is ActivityStatus.IN_PROGRESS
-        assert restored.status_code is ActivityStatus.ACTIVE
+        assert restored.status_code is ActivityStatusCode.ACTIVE
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
