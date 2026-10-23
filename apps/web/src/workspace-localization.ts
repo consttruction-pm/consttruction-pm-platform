@@ -75,6 +75,9 @@ export function readWorkspaceLocaleDefinitionFromPack(
     }
     translations[key] = translated;
   }
+  if (!/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(manifest.language_tag)) {
+    throw new Error("INVALID_WORKSPACE_LOCALE");
+  }
   return {
     locale: manifest.language_tag,
     displayName: record.display_name,
