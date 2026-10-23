@@ -34,10 +34,38 @@ class ResourceAssignmentLevelingRef:
     remaining_units: Decimal | None = None
     # Nullable for migrated legacy rows; never infer driving status.
     is_driving: bool | None = None
+    # Assignment Units/Time is not the same as resource Max Units/Time.
+    units_per_time: Decimal | None = None
+    units_per_time_period: str | None = None
+    hours_per_units_time_period: Decimal | None = None
 
     def validate(self) -> None:
         if self.is_driving is not None and not isinstance(self.is_driving, bool):
             raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_DRIVING_FLAG")
+        rate_fields = (
+            self.units_per_time,
+            self.units_per_time_period,
+            self.hours_per_units_time_period,
+        )
+        if any(value is not None for value in rate_fields) and not all(
+            value is not None for value in rate_fields
+        ):
+            raise ResourceLevelingFactsError("INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME")
+        if self.units_per_time is not None:
+            if (
+                not isinstance(self.units_per_time, Decimal)
+                or not self.units_per_time.is_finite()
+                or self.units_per_time <= 0
+            ):
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME")
+            if self.units_per_time_period not in {"hour", "day", "week", "month", "year"}:
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD")
+            if (
+                not isinstance(self.hours_per_units_time_period, Decimal)
+                or not self.hours_per_units_time_period.is_finite()
+                or self.hours_per_units_time_period <= 0
+            ):
+                raise ResourceLevelingFactsError("INVALID_ASSIGNMENT_UNITS_PER_TIME_CONVERSION")
         for value, code in (
             (self.assignment_id, "ASSIGNMENT_ID"),
             (self.activity_id, "ACTIVITY_ID"),
