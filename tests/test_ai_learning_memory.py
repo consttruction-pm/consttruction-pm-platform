@@ -57,22 +57,28 @@ def test_project_private_learning_requires_exact_user_tenant_and_project_scope()
     )
 
 
-def test_tenant_shared_learning_requires_same_tenant_and_explicit_grant():
-    item = record(
+def test_tenant_shared_learning_requires_same_tenant_explicit_grant_and_validated_status():
+    candidate = record(
         scope=LearningScope.TENANT_SHARED,
         owner_user_id=None,
         tenant_id="tenant-1",
     )
-    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1"))
-    assert item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", tenant_shared_access_granted=True)
+    granted_scope = LearningRetrievalScope(
+        user_id="user-1", tenant_id="tenant-1", tenant_shared_access_granted=True
     )
+    assert not candidate.is_retrievable_for(granted_scope)
+
+    item = record(
+        scope=LearningScope.TENANT_SHARED,
+        status=LearningStatus.VALIDATED,
+        owner_user_id=None,
+        tenant_id="tenant-1",
+    )
+    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1"))
+    assert item.is_retrievable_for(granted_scope)
     assert not item.is_retrievable_for(
         LearningRetrievalScope(user_id="user-2", tenant_id="tenant-2", tenant_shared_access_granted=True)
     )
-    assert not item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", tenant_shared_access_granted=True),
-    ) if item.status is LearningStatus.CANDIDATE else None
 
 
 def test_general_candidate_never_enters_general_retrieval():
