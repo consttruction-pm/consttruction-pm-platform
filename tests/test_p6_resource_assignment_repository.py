@@ -19,6 +19,9 @@ def assignment(
     s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1",
     calendar_version="cal-v1",
     is_driving=None,
+    units_per_time=None,
+    units_per_time_period=None,
+    hours_per_units_time_period=None,
 ):
     return P6ResourceAssignment(
         s, assignment_id, activity_id, resource_id, "role-1",
@@ -27,6 +30,9 @@ def assignment(
         "h", "USD", "cal-1", "assignment snapshot",
         calendar_version=calendar_version,
         is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
 
 
@@ -248,3 +254,55 @@ def test_legacy_driving_flag_migration_stays_unresolved():
 def test_driving_flag_rejects_non_boolean_values():
     with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_IS_DRIVING"):
         P6ResourceAssignment(scope(), "bad", "act-1", "res-1", is_driving=1).validate()
+
+
+
+def test_assignment_units_per_time_round_trip_and_are_immutable():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    original = assignment(
+        scope(),
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    repo.upsert(original)
+
+    assert repo.get(scope(), original.assignment_id) == original
+
+    changed_rate = assignment(
+        scope(),
+        units_per_time=Decimal("3"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="IMMUTABLE_RESOURCE_ASSIGNMENT",
+    ):
+        repo.upsert(changed_rate)
+
+
+@pytest.mark.parametrize(
+    "kwargs, error",
+    [
+        ({"units_per_time": Decimal("2")}, "INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME"),
+        (
+            {"units_per_time": Decimal("0"), "units_per_time_period": "day",
+             "hours_per_units_time_period": Decimal("8")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME",
+        ),
+        (
+            {"units_per_time": Decimal("2"), "units_per_time_period": "decade",
+             "hours_per_units_time_period": Decimal("8")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME_PERIOD",
+        ),
+        (
+            {"units_per_time": Decimal("2"), "units_per_time_period": "day",
+             "hours_per_units_time_period": Decimal("0")},
+            "INVALID_ASSIGNMENT_UNITS_PER_TIME_CONVERSION",
+        ),
+    ],
+)
+def test_assignment_units_per_time_contract_rejects_incomplete_or_invalid_rate(kwargs, error):
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match=error):
+        assignment(scope(), **kwargs).validate()
