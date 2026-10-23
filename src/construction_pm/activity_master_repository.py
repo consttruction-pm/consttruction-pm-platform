@@ -9,12 +9,13 @@ by this master store.
 
 import math
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
+from .wbs_master_repository import PostgresWBSMasterRepository, SQLiteWBSMasterRepository
 from .scheduling.activity import (
     ActivityLevelingPriority,
     ActivityStatus,
@@ -50,6 +51,7 @@ class ActivityMaster:
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
+    wbs_id: str | None = None
 
     def validate(self) -> None:
         self.scope.validate()
@@ -101,6 +103,10 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_RECORD_REVISION")
         if self.record_revision > MAX_SAFE_REVISION:
             raise ActivityPersistenceError("INVALID_RECORD_REVISION")
+        if self.wbs_id is not None and (
+            not isinstance(self.wbs_id, str) or not self.wbs_id.strip()
+        ):
+            raise ActivityPersistenceError("INVALID_WBS_ID")
 
     def payload(self) -> tuple[object, ...]:
         return (
@@ -121,7 +127,20 @@ class ActivityMaster:
             self.activity_type.value,
             self.status.value,
             self.status_code.value,
+            self.wbs_id,
         )
+
+
+_ACTIVITY_MASTER_SELECT_COLUMNS = (
+    "activity_id,duration_value,duration_unit,actual_start,actual_finish,"
+    "remaining_duration,remaining_start,percent_complete,percent_complete_type,"
+    "record_revision,expected_finish,planned_finish,leveling_priority,"
+    "original_duration,name,activity_type,status,status_code,"
+    "(SELECT assignment.wbs_id FROM activity_wbs_assignment AS assignment "
+    "WHERE assignment.tenant_id=activity_master.tenant_id "
+    "AND assignment.project_id=activity_master.project_id "
+    "AND assignment.activity_id=activity_master.activity_id) AS wbs_id"
+)
 
 
 class ActivityMasterRepository(Protocol):
@@ -247,6 +266,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
             activity_type=_decode_activity_type(row[15]),
             status=_decode_activity_status(row[16]),
             status_code=_decode_activity_status_code(row[17]),
+            wbs_id=None if row[18] is None else str(row[18]),
         )
         result.validate()
         return result
@@ -259,6 +279,7 @@ class SQLiteActivityMasterRepository:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
+        SQLiteWBSMasterRepository(self.connection)
         self.connection.execute("""CREATE TABLE IF NOT EXISTS activity_master (
             tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
             activity_id TEXT NOT NULL, duration_value TEXT NOT NULL, duration_unit TEXT NOT NULL,
@@ -302,19 +323,49 @@ class SQLiteActivityMasterRepository:
         if "percent_complete_type" not in columns:
             self.connection.execute("ALTER TABLE activity_master ADD COLUMN percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_master_revision ON activity_master(tenant_id, project_id, project_revision, activity_id)")
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS activity_wbs_assignment (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                activity_id TEXT NOT NULL,
+                wbs_id TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, activity_id),
+                FOREIGN KEY (tenant_id, project_id, activity_id)
+                    REFERENCES activity_master (tenant_id, project_id, activity_id) ON DELETE CASCADE,
+                FOREIGN KEY (tenant_id, project_id, wbs_id)
+                    REFERENCES wbs_master (tenant_id, project_id, wbs_id) ON DELETE RESTRICT
+            )"""
+        )
+        self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_wbs_assignment_wbs ON activity_wbs_assignment(tenant_id, project_id, wbs_id)")
         self.connection.commit()
+
+    def _validate_wbs_assignment(self, scope: BackendScope, wbs_id: str | None) -> None:
+        if wbs_id is None:
+            return
+        row = self.connection.execute("SELECT project_revision FROM wbs_master WHERE tenant_id=? AND project_id=? AND wbs_id=?", (scope.tenant_id, scope.project_id, wbs_id)).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("WBS_NOT_FOUND_OR_SCOPE_MISMATCH")
+        if int(row[0]) != scope.project_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+
+    def _sync_wbs_assignment(self, activity: ActivityMaster) -> None:
+        if activity.wbs_id is None:
+            self.connection.execute("DELETE FROM activity_wbs_assignment WHERE tenant_id=? AND project_id=? AND activity_id=?", (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id))
+            return
+        self.connection.execute("INSERT INTO activity_wbs_assignment (tenant_id,project_id,activity_id,wbs_id) VALUES (?,?,?,?) ON CONFLICT(tenant_id,project_id,activity_id) DO UPDATE SET wbs_id=excluded.wbs_id", (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, activity.wbs_id))
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         activity.validate()
+        self._validate_wbs_assignment(activity.scope, activity.wbs_id)
         if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id)).fetchone()
         if row is None:
             if expected_revision not in (None, 0):
                 raise ActivityPersistenceError("REVISION_CONFLICT")
-            stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
+            stored = replace(activity, record_revision=1)
             self.connection.execute(
                 "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision, stored.activity_id,
@@ -331,14 +382,15 @@ class SQLiteActivityMasterRepository:
                  stored.leveling_priority.value,
                  stored.original_duration,
                  stored.name, stored.activity_type.value, stored.status.value, stored.status_code.value))
+            self._sync_wbs_assignment(stored)
             self.connection.commit()
             return stored
-        current = _from_row(activity.scope, row[:18])
-        if int(row[18]) != activity.scope.project_revision:
+        current = _from_row(activity.scope, row[:19])
+        if int(row[19]) != activity.scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        stored = ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=current.record_revision + 1, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
+        stored = replace(activity, record_revision=current.record_revision + 1)
         update_cursor = self.connection.execute(
             "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=? WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
             (stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
@@ -358,6 +410,7 @@ class SQLiteActivityMasterRepository:
         if update_cursor.rowcount != 1:
             self.connection.rollback()
             raise ActivityPersistenceError("REVISION_CONFLICT")
+        self._sync_wbs_assignment(stored)
         self.connection.commit()
         return stored
 
@@ -366,20 +419,25 @@ class SQLiteActivityMasterRepository:
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[18]) != scope.project_revision:
+        if int(row[19]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        return _from_row(scope, row[:18])
+        result = _from_row(scope, row[:19])
+        self._validate_wbs_assignment(scope, result.wbs_id)
+        return result
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS} FROM activity_master WHERE tenant_id=? AND project_id=? AND project_revision=? ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
-        return tuple(_from_row(scope, row) for row in rows)
+        result = tuple(_from_row(scope, row) for row in rows)
+        for item in result:
+            self._validate_wbs_assignment(scope, item.wbs_id)
+        return result
 
 
 class PostgresActivityMasterRepository:
@@ -387,6 +445,7 @@ class PostgresActivityMasterRepository:
         self.connection = connection
 
     def initialize(self) -> None:
+        PostgresWBSMasterRepository(self.connection).initialize()
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS activity_master ("
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
@@ -423,11 +482,34 @@ class PostgresActivityMasterRepository:
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS percent_complete DOUBLE PRECISION")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS percent_complete_type TEXT NOT NULL DEFAULT 'DURATION'")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_master_revision ON activity_master(tenant_id, project_id, project_revision, activity_id)")
+        self.connection.execute("""CREATE TABLE IF NOT EXISTS activity_wbs_assignment (
+            tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, activity_id TEXT NOT NULL,
+            wbs_id TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, activity_id),
+            FOREIGN KEY (tenant_id, project_id, activity_id) REFERENCES activity_master(tenant_id, project_id, activity_id) ON DELETE CASCADE,
+            FOREIGN KEY (tenant_id, project_id, wbs_id) REFERENCES wbs_master(tenant_id, project_id, wbs_id) ON DELETE RESTRICT
+        )""")
+        self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_wbs_assignment_wbs ON activity_wbs_assignment(tenant_id, project_id, wbs_id)")
+
+    def _validate_wbs_assignment(self, scope: BackendScope, wbs_id: str | None) -> None:
+        if wbs_id is None:
+            return
+        row = self.connection.execute("SELECT project_revision FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s", (scope.tenant_id, scope.project_id, wbs_id)).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("WBS_NOT_FOUND_OR_SCOPE_MISMATCH")
+        if int(row[0]) != scope.project_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+
+    def _sync_wbs_assignment(self, activity: ActivityMaster) -> None:
+        if activity.wbs_id is None:
+            self.connection.execute("DELETE FROM activity_wbs_assignment WHERE tenant_id=%s AND project_id=%s AND activity_id=%s", (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id))
+            return
+        self.connection.execute("INSERT INTO activity_wbs_assignment (tenant_id,project_id,activity_id,wbs_id) VALUES (%s,%s,%s,%s) ON CONFLICT (tenant_id,project_id,activity_id) DO UPDATE SET wbs_id=EXCLUDED.wbs_id", (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, activity.wbs_id))
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         activity.validate()
+        self._validate_wbs_assignment(activity.scope, activity.wbs_id)
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s FOR UPDATE",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s FOR UPDATE",
             (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id)).fetchone()
         if row is None:
             if expected_revision not in (None, 0):
@@ -449,13 +531,16 @@ class PostgresActivityMasterRepository:
                  activity.leveling_priority.value,
                  activity.original_duration,
                  activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value))
-            return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
-        current = _from_row(activity.scope, row[:18])
-        if int(row[18]) != activity.scope.project_revision:
+            stored = replace(activity, record_revision=revision)
+            self._sync_wbs_assignment(stored)
+            return stored
+        current = _from_row(activity.scope, row[:19])
+        if int(row[19]) != activity.scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         revision = current.record_revision + 1
+        stored = replace(activity, record_revision=revision)
         self.connection.execute(
             "UPDATE activity_master SET project_revision=%s,duration_value=%s,duration_unit=%s,actual_start=%s,actual_finish=%s,remaining_duration=%s,remaining_start=%s,percent_complete=%s,percent_complete_type=%s,record_revision=%s,expected_finish=%s,planned_finish=%s,leveling_priority=%s,original_duration=%s,name=%s,activity_type=%s,status=%s,status_code=%s WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
             (activity.scope.project_revision, str(activity.duration_value), activity.duration_unit.value,
@@ -472,22 +557,28 @@ class PostgresActivityMasterRepository:
              activity.original_duration,
              activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value,
              activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, current.record_revision))
-        return ActivityMaster(scope=activity.scope, activity_id=activity.activity_id, duration_value=activity.duration_value, duration_unit=activity.duration_unit, actual_start=activity.actual_start, record_revision=revision, expected_finish=activity.expected_finish, actual_finish=activity.actual_finish, remaining_duration=activity.remaining_duration, remaining_start=activity.remaining_start, percent_complete=activity.percent_complete, percent_complete_type=activity.percent_complete_type, planned_finish=activity.planned_finish, leveling_priority=activity.leveling_priority, original_duration=activity.original_duration, name=activity.name, activity_type=activity.activity_type, status=activity.status, status_code=activity.status_code)
+        self._sync_wbs_assignment(stored)
+        return stored
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[18]) != scope.project_revision:
+        if int(row[19]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        return _from_row(scope, row[:18])
+        result = _from_row(scope, row[:19])
+        self._validate_wbs_assignment(scope, result.wbs_id)
+        return result
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
         scope.validate()
         rows = self.connection.execute(
-            "SELECT activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
+            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS} FROM activity_master WHERE tenant_id=%s AND project_id=%s AND project_revision=%s ORDER BY activity_id",
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
-        return tuple(_from_row(scope, row) for row in rows)
+        result = tuple(_from_row(scope, row) for row in rows)
+        for item in result:
+            self._validate_wbs_assignment(scope, item.wbs_id)
+        return result
