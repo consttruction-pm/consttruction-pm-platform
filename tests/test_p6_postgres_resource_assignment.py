@@ -44,6 +44,9 @@ def _assignment(
     calendar_version: str = "calendar-v3",
     is_driving: bool | None = None,
     assignment_id: str = "assignment-1",
+    units_per_time: Decimal | None = None,
+    units_per_time_period: str | None = None,
+    hours_per_units_time_period: Decimal | None = None,
 ) -> P6ResourceAssignment:
     return P6ResourceAssignment(
         scope=scope,
@@ -54,6 +57,9 @@ def _assignment(
         calendar_id="calendar-1",
         calendar_version=calendar_version,
         is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
 
 
@@ -169,3 +175,25 @@ def test_postgres_resource_assignment_calendar_version_is_immutable(connection):
         match="IMMUTABLE_RESOURCE_ASSIGNMENT",
     ):
         repository.upsert(_assignment(scope, "calendar-v4"))
+
+
+
+def test_postgres_resource_assignment_round_trips_assignment_units_per_time(connection):
+    repository = PostgresP6ResourceAssignmentRepository(connection)
+    repository.initialize()
+    scope = _scope()
+    item = _assignment(
+        scope,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+
+    with connection.transaction():
+        assert repository.upsert(item) == item
+
+    stored = repository.get(scope, item.assignment_id)
+    assert stored == item
+    assert stored.units_per_time == Decimal("2.5")
+    assert stored.units_per_time_period == "day"
+    assert stored.hours_per_units_time_period == Decimal("8")
