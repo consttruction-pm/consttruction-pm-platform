@@ -1070,3 +1070,141 @@ def test_materializer_rejects_non_p6_per_relationship_lag_snapshot_field():
         match="PER_RELATIONSHIP_LAG_CALENDAR_NOT_SUPPORTED_BY_P6_PROFILE",
     ):
         materialize_schedule_snapshot(unsupported_snapshot, CalendarResolverRegistry())
+
+
+
+@pytest.mark.parametrize("is_driving", [True, False, None])
+def test_materializer_preserves_resource_assignment_driving_status(is_driving):
+    """A hash-valid immutable snapshot must retain explicit assignment semantics."""
+    from decimal import Decimal
+    from construction_pm.scheduling.resource_leveling_input import ResourceCapacityRate
+
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    rate = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 9, 21, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    )
+    assignment = {
+        "assignment_id": "ASSIGN-A",
+        "activity_id": "A",
+        "resource_id": "R1",
+        "calendar_id": "RES-CAL",
+        "calendar_version": "v1",
+        "unit_of_measure": "h",
+        "assigned_units": "8",
+        "remaining_units": "8",
+    }
+    if is_driving is not None:
+        assignment["is_driving"] = is_driving
+
+    payload["resource_leveling_inputs"] = {
+        "assignments": [assignment],
+        "demands": [{
+            "assignment_id": "ASSIGN-A",
+            "activity_id": "A",
+            "resource_id": "R1",
+            "period": "2026-09-21",
+            "units": "8",
+        }],
+        "capacities": [{
+            "resource_id": "R1",
+            "period": "2026-09-21",
+            "units": "8",
+            "calendar_id": "RES-CAL",
+            "calendar_version": "v1",
+            "calendar_snapshot_hash": "a" * 64,
+            "calendar_work_hours": "8",
+            "resource_rate_hash": rate.profile_hash,
+            "resource_rate_effective_from": rate.effective_from.isoformat(),
+        }],
+        "resource_capacity_rates": [rate.canonical_payload()],
+        "capacity_horizon_start": "2026-09-21",
+        "capacity_horizon_end": "2026-09-21",
+        "calculation_timezone": "UTC",
+        "schema_version": 2,
+    }
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    snapshot_with_resource_facts = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    materialized = materialize_schedule_snapshot(
+        snapshot_with_resource_facts, CalendarResolverRegistry()
+    )
+
+    facts = materialized.schedule_input.resource_leveling_inputs
+    assert facts is not None
+    assert facts.assignments[0].is_driving is is_driving
+
+
+def test_materializer_rejects_non_boolean_resource_assignment_driving_status():
+    from decimal import Decimal
+    from construction_pm.scheduling.resource_leveling_input import ResourceCapacityRate
+
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    rate = ResourceCapacityRate(
+        resource_id="R1",
+        effective_from=datetime(2026, 9, 21, tzinfo=timezone.utc),
+        max_units_per_time=Decimal("8"),
+        time_period_unit="day",
+        hours_per_time_period=Decimal("8"),
+        unit_of_measure="h",
+        time_period_source="global",
+    )
+    payload["resource_leveling_inputs"] = {
+        "assignments": [{
+            "assignment_id": "ASSIGN-A",
+            "activity_id": "A",
+            "resource_id": "R1",
+            "calendar_id": "RES-CAL",
+            "calendar_version": "v1",
+            "unit_of_measure": "h",
+            "assigned_units": "8",
+            "remaining_units": "8",
+            "is_driving": "true",
+        }],
+        "demands": [{
+            "assignment_id": "ASSIGN-A", "activity_id": "A", "resource_id": "R1",
+            "period": "2026-09-21", "units": "8",
+        }],
+        "capacities": [{
+            "resource_id": "R1", "period": "2026-09-21", "units": "8",
+            "calendar_id": "RES-CAL", "calendar_version": "v1",
+            "calendar_snapshot_hash": "a" * 64, "calendar_work_hours": "8",
+            "resource_rate_hash": rate.profile_hash,
+            "resource_rate_effective_from": rate.effective_from.isoformat(),
+        }],
+        "resource_capacity_rates": [rate.canonical_payload()],
+        "capacity_horizon_start": "2026-09-21",
+        "capacity_horizon_end": "2026-09-21",
+        "calculation_timezone": "UTC",
+        "schema_version": 2,
+    }
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    invalid_snapshot = snapshot.__class__(
+        **{
+            **snapshot.__dict__,
+            "canonical_payload": canonical,
+            "snapshot_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    with pytest.raises(
+        SnapshotMaterializationError, match="INVALID_ASSIGNMENT_DRIVING_FLAG"
+    ):
+        materialize_schedule_snapshot(invalid_snapshot, CalendarResolverRegistry())
