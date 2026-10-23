@@ -84,6 +84,10 @@ def test_legacy_sqlite_schema_migrates_without_guessing_calendar_version():
     assert legacy.calendar_id == "cal-1"
     # Old rows remain explicitly unversioned; migrations must never guess latest.
     assert legacy.calendar_version is None
+    assert legacy.is_driving is None
+    assert legacy.units_per_time is None
+    assert legacy.units_per_time_period is None
+    assert legacy.hours_per_units_time_period is None
 
     versioned = assignment(scope(), assignment_id="new", calendar_version="cal-v3")
     repo.upsert(versioned)
