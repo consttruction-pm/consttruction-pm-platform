@@ -16,6 +16,7 @@ from construction_pm.relationship_master_repository import RelationshipMasterRep
 from construction_pm.wbs_master_repository import WBSMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
+from construction_pm.backend_p0.workspace_read import PersistedWBSWorkspaceReadProvider, WorkspaceControlRoomReadService
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
@@ -68,11 +69,22 @@ def build_project_lifecycle_wsgi_app(
         if relationship_master_repository is None
         else P6RelationshipAPI(relationship_master_repository, authorization_policy)
     )
+    workspace_read_v2_service = (
+        None
+        if activity_master_repository is None or wbs_master_repository is None
+        else WorkspaceControlRoomReadService(
+            provider=PersistedWBSWorkspaceReadProvider(
+                activity_master_repository, wbs_master_repository
+            ),
+            authorization_policy=authorization_policy,
+        )
+    )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
         p6_wbs_master_api=wbs_master_api,
+        workspace_read_v2_service=workspace_read_v2_service,
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         backend_p0_api=backend_p0_api,
