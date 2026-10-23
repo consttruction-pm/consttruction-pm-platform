@@ -4,6 +4,8 @@ These tests validate registry integrity only; they do not prove the scheduler
 implements the behavior described by a requirement.
 """
 
+from pathlib import Path
+
 from construction_pm.p6_code_reference import (
     INVENTORY_REQUIRED,
     KNOWN_GAP,
@@ -117,3 +119,16 @@ def test_curve_earned_value_formula_is_separately_tracked():
     assert "Units Percent Complete" in item.formula_or_algorithm
     assert "BAC" in item.formula_or_algorithm
     assert item.status == "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED"
+
+
+
+def test_every_referenced_cubi_repository_path_exists():
+    repo_root = Path(__file__).resolve().parents[1]
+    paths = {
+        path
+        for item in (*P6_CODE_REFERENCE, *FORMULA_REFERENCE)
+        for path in item.cubi_code_paths
+        if path.startswith(("src/", "apps/", "shared/", "docs/", "tests/"))
+    }
+    missing = sorted(path for path in paths if not (repo_root / path).exists())
+    assert not missing, "Reference paths do not exist in this checkout: " + ", ".join(missing)
