@@ -13,7 +13,7 @@ from construction_pm.scheduling.resource_leveling_input import (
 )
 
 
-def _facts(*, capacities):
+def _facts(*, capacities, is_driving=None):
     assignment = ResourceAssignmentLevelingRef(
         assignment_id="ASSIGN-A",
         activity_id="A",
@@ -23,6 +23,7 @@ def _facts(*, capacities):
         unit_of_measure="h",
         assigned_units=Decimal("8"),
         remaining_units=Decimal("8"),
+        is_driving=is_driving,
     )
     return ResourceLevelingFacts(
         assignments=(assignment,),
@@ -141,5 +142,37 @@ def test_resource_leveling_facts_reject_unbounded_capacity_horizon():
     with pytest.raises(
         ResourceLevelingFactsError,
         match="RESOURCE_LEVELING_CAPACITY_HORIZON_OUT_OF_RANGE",
+    ):
+        facts.validate(activity_ids={"A"})
+
+
+
+@pytest.mark.parametrize("is_driving", [True, False])
+def test_resource_leveling_facts_preserve_explicit_assignment_driving_status(is_driving):
+    facts = _facts(
+        capacities=(
+            _capacity(date(2026, 10, 19)),
+            _capacity(date(2026, 10, 20)),
+        ),
+        is_driving=is_driving,
+    )
+
+    facts.validate(activity_ids={"A"})
+
+    assert facts.assignments[0].is_driving is is_driving
+
+
+def test_resource_leveling_facts_reject_non_boolean_assignment_driving_status():
+    facts = _facts(
+        capacities=(
+            _capacity(date(2026, 10, 19)),
+            _capacity(date(2026, 10, 20)),
+        ),
+        is_driving="true",
+    )
+
+    with pytest.raises(
+        ResourceLevelingFactsError,
+        match="INVALID_ASSIGNMENT_DRIVING_FLAG",
     ):
         facts.validate(activity_ids={"A"})
