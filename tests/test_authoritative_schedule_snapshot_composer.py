@@ -763,9 +763,16 @@ def test_production_composition_rejects_split_resource_rate_repository_wiring(tm
 
 
 
-@pytest.mark.parametrize("is_driving", [None, True, False])
+@pytest.mark.parametrize(
+    ("is_driving", "expected_error"),
+    [
+        (None, "RESOURCE_DEPENDENT_DRIVING_STATUS_REQUIRED"),
+        (True, "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"),
+        (False, "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"),
+    ],
+)
 def test_resource_dependent_leveling_fails_closed_until_assignment_date_semantics_exist(
-    tmp_path, is_driving
+    tmp_path, is_driving, expected_error
 ):
     # P6 requires driving assignments to determine activity dates and places
     # nondriving assignments independently. Persisting the flag alone must not
@@ -849,7 +856,7 @@ def test_resource_dependent_leveling_fails_closed_until_assignment_date_semantic
         },
     )
     assert status == "400 Bad Request"
-    assert error["code"] == "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED"
+    assert error["code"] == expected_error
     assert fixture["snapshot_repo"].list(scope) == ()
     connection.close()
 
