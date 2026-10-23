@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Mapping, Protocol
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy, Permission
+from construction_pm.activity_master_repository import ActivityMasterRepository
+from construction_pm.wbs_master_repository import WBSMasterRepository
 
 from .errors import BackendApplicationError, ErrorCategory
 from .models import (
@@ -19,6 +21,9 @@ from .repository import BackendP0Repository
 
 WORKSPACE_CONTROL_ROOM_READ_VERSION = "workspace-control-room-read.v1"
 WORKSPACE_CONTROL_ROOM_READ_PATH = "/api/v1/workspace/control-room/read"
+WORKSPACE_CONTROL_ROOM_READ_V2_VERSION = "workspace-control-room-read.v2"
+WORKSPACE_CONTROL_ROOM_READ_V2_PATH = "/api/v2/workspace/control-room/read"
+WORKSPACE_CONTROL_ROOM_V2_VERSION = "workspace-control-room.v2"
 
 
 class WorkspaceReadProvider(Protocol):
@@ -33,6 +38,116 @@ class InMemoryWorkspaceReadProvider:
 
     def read(self, scope: BackendScope) -> Mapping[str, object] | None:
         return self._snapshots.get((scope.tenant_id, scope.project_id, scope.project_revision))
+
+
+class PersistedWBSWorkspaceReadProvider:
+    """Build workspace v2 from persisted WBS/Activity data without inventing schedule values."""
+
+    def __init__(
+        self,
+        activity_repository: ActivityMasterRepository,
+        wbs_repository: WBSMasterRepository,
+    ) -> None:
+        self.activity_repository = activity_repository
+        self.wbs_repository = wbs_repository
+
+    def read(self, scope: BackendScope) -> Mapping[str, object]:
+        scope.validate()
+        wbs_records = self.wbs_repository.list(scope)
+        activities = self.activity_repository.list(scope)
+        wbs_by_id = {node.wbs_id: node for node in wbs_records}
+        if len(wbs_by_id) != len(wbs_records):
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "DUPLICATE_WORKSPACE_WBS_ID",
+                "Persisted WBS IDs must be unique within the requested scope",
+            )
+
+        wbs_nodes = [
+            {
+                "wbs_id": node.wbs_id,
+                "parent_kind": node.parent_kind.value,
+                "parent_wbs_id": node.parent_wbs_id,
+                "local_code": node.code,
+                "name": node.name,
+                "sequence_number": node.sequence_number,
+                "record_revision": node.record_revision,
+            }
+            for node in wbs_records
+        ]
+        workspace_activities: list[dict[str, object]] = []
+        for activity in activities:
+            if not activity.wbs_id:
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "ACTIVITY_WBS_REQUIRED",
+                    "An activity without a canonical WBS assignment cannot be published to the workspace",
+                )
+            if activity.wbs_id not in wbs_by_id:
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "ACTIVITY_WBS_REFERENCE_INVALID",
+                    "Activity WBS must resolve inside the requested project revision",
+                )
+            if not activity.name.strip():
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "INVALID_WORKSPACE_ACTIVITY_NAME",
+                    "Activity names are required for workspace publication",
+                )
+            workspace_activities.append({
+                "id": activity.activity_id,
+                "wbs_id": activity.wbs_id,
+                # Activity ID is not the distinct P6 Activity Code field.
+                "code": "",
+                "name": activity.name,
+                "cells": {
+                    "activity_id": activity.activity_id,
+                    "activity_code": None,
+                    "activity_name": activity.name,
+                    "start": None,
+                    "finish": None,
+                    "duration": str(activity.duration_value),
+                    "progress": activity.percent_complete,
+                },
+                # Gantt data is supplied only by the authoritative schedule result.
+                "gantt": None,
+            })
+
+        scope_dto = {
+            "tenant_id": scope.tenant_id,
+            "project_id": scope.project_id,
+            "revision": scope.project_revision,
+        }
+        columns = [
+            {"id": "activity_id", "label": "Activity ID", "data_type": "text", "editable": False, "formula": None, "width": 120},
+            {"id": "activity_code", "label": "Code", "data_type": "text", "editable": False, "formula": None, "width": 100},
+            {"id": "activity_name", "label": "Activity Name", "data_type": "text", "editable": False, "formula": None, "width": 260},
+            {"id": "start", "label": "Start", "data_type": "date", "editable": False, "formula": None, "width": 120},
+            {"id": "finish", "label": "Finish", "data_type": "date", "editable": False, "formula": None, "width": 120},
+            {"id": "duration", "label": "Duration", "data_type": "duration", "editable": False, "formula": None, "width": 110},
+            {"id": "progress", "label": "Progress", "data_type": "decimal", "editable": False, "formula": None, "width": 100},
+        ]
+        return {
+            "contract_version": WORKSPACE_CONTROL_ROOM_READ_V2_VERSION,
+            "context": scope_dto,
+            "workspace": {
+                "contract_version": WORKSPACE_CONTROL_ROOM_V2_VERSION,
+                "context": dict(scope_dto),
+                "columns": columns,
+                "activities": workspace_activities,
+                "wbs_nodes": wbs_nodes,
+            },
+            "control_intelligence": None,
+            "field_daily_logs": [],
+            "field_issues": [],
+            "field_timecards": [],
+            "equipment_status_reports": [],
+            "inspections": [],
+            "quality_records": [],
+            "safety_observations": [],
+            "punch_items": [],
+        }
 
 
 @dataclass(frozen=True)
