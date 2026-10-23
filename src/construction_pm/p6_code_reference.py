@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.7.1"
+REFERENCE_VERSION: Final[str] = "0.8.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -989,6 +989,76 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         cubi_code_paths=("src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
         regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
         status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+    ),
+    P6FormulaReference(
+        id="FRM-CPM-PASS-001",
+        feature="CPM early/late date passes",
+        formula_or_algorithm="Forward pass: derive each Early Start from the project boundary, applicable start constraints and all predecessor relationship lower bounds; derive Early Finish by advancing the activity's duration on its applicable scheduling calendar. Backward pass: derive each Late Finish from the project finish boundary, applicable finish constraints and successor relationship upper bounds; derive Late Start by subtracting duration on the correct calendar. Then compute selected float from early/late values. A date-only shortcut is not a valid replacement for calendar-aware/time-aware passes.",
+        input_fields=("Activity duration/type", "Relationships and lag", "Activity/resource calendars", "Constraints", "Data Date/progress policy", "Project/opened-project finish boundary"),
+        controlling_options=("Schedule mode", "Retained Logic / Progress Override / Actual Dates", "Total Float method", "Critical activity method", "Relationship lag calendar", "Open-ended activity and expected-finish options"),
+        units_and_calendar_rules="All date boundaries and durations must be resolved through shared calendar logic; record both calendar reference/version and date/time precision in the snapshot.",
+        edge_cases=("Multiple predecessors/successors", "Negative lag", "Mandatory and soft constraints", "Different calendars", "Open ends", "Out-of-sequence progress", "Zero-duration milestones", "Time-aware schedules"),
+        official_sources=(ORACLE_SOURCES["schedule"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["constraints"], ORACLE_SOURCES["calendars"]),
+        cubi_code_paths=("src/construction_pm/scheduling/forward_pass.py", "src/construction_pm/scheduling/time_forward_pass.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/scheduling/time_schedule.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_time_schedule.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Exact P6 reference scenario coverage for every option interaction is still required; this contract is not an assertion that all interactions already pass.",
+    ),
+    P6FormulaReference(
+        id="FRM-MFP-001",
+        feature="Multiple critical float paths",
+        formula_or_algorithm="When enabled, identify a configured number of paths to the selected endpoint. Record path rank and within-path activity order. Total Float mode uses relationship float-path selection; Free Float mode selects the path by longest-path semantics. The result ranks/analyses paths; it does not replace the General-tab critical-activity method.",
+        input_fields=("Calculated early/late dates", "Relationship graph", "Selected endpoint", "Number of paths", "Float values"),
+        controlling_options=("Calculate multiple float paths", "Number of paths", "Total Float / Free Float", "Endpoint activity"),
+        units_and_calendar_rules="Consume the completed calendar-aware schedule and its driving-relationship facts; never compute paths from displayed Gantt coordinates.",
+        edge_cases=("No endpoint selected", "Multiple terminal activities", "Tied paths", "Open ends", "Multi-project boundary", "Activities critical but outside selected paths"),
+        official_sources=(ORACLE_SOURCES["multiple_float_paths"], ORACLE_SOURCES["schedule_options_advanced"], ORACLE_SOURCES["critical"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/p6_activity_scheduler_outputs.py", "src/construction_pm/scheduling/multi_project_float.py"),
+        regression_tests=("tests/scheduling/test_schedule.py",),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Version 26 Total Float versus Free Float selection behavior needs targeted end-to-end oracle fixtures and stable path-order tests.",
+    ),
+    P6FormulaReference(
+        id="FRM-LEVEL-001",
+        feature="Resource leveling decision loop",
+        formula_or_algorithm="For every resource/time period, compare time-phased demand with effective available capacity. For an overallocated period, rank competing assignments using the selected priority fields/order, then apply delay/placement decisions subject to activity relationships, selected float limits, maximum over-allocation and preserve-Early/Late settings. Recalculate dates and demand after each accepted change; publish a result/log that explains unresolved overallocations.",
+        input_fields=("Time-phased resource demand", "Effective capacity", "Activity network and float", "Leveling priorities", "Selected resource scope"),
+        controlling_options=("Level all/selected resources", "Level within activity Total Float", "Minimum float to preserve", "Max percent to over-allocate", "Preserve early/late dates", "Priority fields/order", "Cross-project priority threshold", "Recalculate assignment costs"),
+        units_and_calendar_rules="Demand and capacity use the same resource unit/time-period basis and versioned resource calendar/rate inputs. Never level against a guessed capacity or silently collapse shift calendars.",
+        edge_cases=("Unresolvable overload", "Priority ties", "Cross-project assignments", "Resource Dependent activities", "WBS Summary assignments", "Resource shifts", "No float", "Max over-allocation threshold reached"),
+        official_sources=(ORACLE_SOURCES["leveling_dialog"], ORACLE_SOURCES["schedule"], ORACLE_SOURCES["resource_planning"]),
+        cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/p6_resource_capacity_contract.py"),
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="P6 leveling heuristic/order and output parity must be established with reference fixtures; current presence of a leveling engine is not proof of equivalent results.",
+    ),
+    P6FormulaReference(
+        id="FRM-ACT-TYPES-001",
+        feature="Activity type-specific scheduling behavior",
+        formula_or_algorithm="Do not run every activity type through the task-duration algorithm: milestones represent zero-duration events; Task Dependent timing follows the activity calendar; Resource Dependent timing follows assigned driving resource calendars; Level of Effort and WBS Summary derive timing from their supported relationship/child-activity semantics. Exact type-specific constraints and invalid operations must be enforced at the domain boundary.",
+        input_fields=("Activity Type", "Activity/resource calendar", "Relationships", "Child WBS activities", "Driving resource assignments"),
+        controlling_options=("Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"),
+        units_and_calendar_rules="Milestone date conventions, resource calendars and start/finish boundaries must be handled by the shared scheduler; never assign fictitious working duration to a milestone.",
+        edge_cases=("Milestone duration edit", "WBS Summary with child activities", "Level of Effort start/finish relationships", "Resource Dependent with missing driving flag", "Mixed calendars"),
+        official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["schedule"]),
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="Level of Effort and WBS Summary date-derivation rules still require type-specific Version 26 fixtures; this entry deliberately does not invent a single formula for them.",
+    ),
+    P6FormulaReference(
+        id="FRM-COST-001",
+        feature="Resource/role assignment costs with multiple rates",
+        formula_or_algorithm="For each cost component and period: calculate cost from the applicable quantity (budgeted/planned, actual, or remaining) × the rate selected by rate type/source and effective date; then aggregate periods/components in the selected currency. Resource/role, labor/nonlabor/material, expense and cost-account values remain distinct until the documented rollup stage.",
+        input_fields=("Budgeted/planned units", "Actual units", "Remaining units", "Rate type/source", "Price per unit", "Effective date", "Currency", "Cost component"),
+        controlling_options=("Rate type", "Rate source", "Multiple effective-dated rates", "Recalculate assignment costs after scheduling/leveling", "Currency/precision", "Resource curve/future-period buckets"),
+        units_and_calendar_rules="The quantity and rate units must be compatible; effective dates and bucket time periods must be honored. Do not apply one current price to all historical/future periods unless selected source semantics require it.",
+        edge_cases=("Rate change in the middle of an assignment", "Zero units", "Material units", "Role/resource substitution", "Currency conversion", "Expense accrual timing", "Future-period manual values"),
+        official_sources=(ORACLE_SOURCES["resources"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["assignment_calculations"]),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_cost_account_repository.py", "src/construction_pm/p6_expense_repository.py"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py",),
+        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
+        known_gap="Rate-source precedence, component rollups, currency precision and multi-rate acceptance vectors still require full Version 26 field/formula mapping.",
     ),
 )
 
