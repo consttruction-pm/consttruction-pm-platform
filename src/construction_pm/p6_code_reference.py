@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.3.0"
+REFERENCE_VERSION: Final[str] = "0.3.1"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -269,10 +269,10 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="A driving resource can determine Resource Dependent activity duration from remaining work and assignment Units/Time. With multiple driving assignments, the limiting/longest completion time determines activity duration. Nondriving assignments are placed using their own schedule rules after activity dates are determined; persisting the flag alone is insufficient.",
         user_options=("Default driving flag", "Per-assignment driving override", "Assignment Units/Time and conversion period"),
         official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resource_planning"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/resource_leveling_input.py", "src/construction_pm/scheduling/authoritative_schedule.py"),
-        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/scheduling/test_resource_leveling_input.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
         coverage=KNOWN_GAP,
-        known_gap="Observed on fix/p6-resource-assignment-driving-flag: the authoritative composer still rejects Resource Dependent activities with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED. Forward/backward date derivation and nondriving placement are not complete.",
+        known_gap="Observed on fix/p6-resource-assignment-driving-flag / Draft PR #1518: the authoritative composer still rejects Resource Dependent activities with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED. Forward/backward date derivation and nondriving placement are not complete. Proposed scheduling/resource-leveling input and its dedicated tests are not yet present on main; do not count them as shipped code.",
         acceptance_evidence=("Driving flag traverses persistence/read/write/snapshot/hash", "Multiple-driver limiting-duration tests pass", "Nondriving placement is calendar-aware", "SQLite/PostgreSQL parity passes"),
     ),
     P6CodeReference(
@@ -282,7 +282,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Level all resources", "Selected resource list", "Level within activity Total Float", "Minimum float to preserve", "Maximum percent to over-allocate", "Consider assignments in other projects with priority equal/higher than", "Preserve scheduled Early/Late dates", "Recalculate assignment costs after leveling", "Priority field", "Sort: Ascending/Descending/Hierarchy where allowed", "Write leveling log / View log", "Projects whose scheduling options control leveling"),
         official_sources=(ORACLE_SOURCES["schedule"], "https://docs.oracle.com/cd/F88968_01/client_help/en_US/leveling_resources.htm", ORACLE_SOURCES["leveling_dialog"]),
         cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/scheduling/resource_leveling_input.py", "src/construction_pm/scheduling/schedule_options.py"),
-        regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=MAPPED_NOT_PROVEN,
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",), coverage=MAPPED_NOT_PROVEN,
     ),
     P6CodeReference(
         id="RES-003", area="Resources / Capacity and calendars", feature="Max Units/Time, effective rates and unit/time conversion",
@@ -290,7 +290,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Resource capacity is effective-dated and unit-aware. Use the selected time-period conversion and calendar work hours for each capacity slice. Percentage capacity requires an explicit full-time base. Resource Max Units/Time is not assignment Units/Time.",
         user_options=("Max Units/Time", "Effective date", "Rate time period", "Calendar/global time-period source", "Unit of measure", "Percentage or absolute capacity where supported"),
         official_sources=(ORACLE_SOURCES["calendars"], ORACLE_SOURCES["resource_planning"], ORACLE_SOURCES["resources"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_rate_repository.py", "src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_versioned_resource_calendar_resolver.py", "src/construction_pm/scheduling/resource_leveling_input.py"),
+        cubi_code_paths=("src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_versioned_resource_calendar_resolver.py", "src/construction_pm/p6_resource_assignment_repository.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
         regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=MAPPED_NOT_PROVEN,
     ),
     P6CodeReference(
