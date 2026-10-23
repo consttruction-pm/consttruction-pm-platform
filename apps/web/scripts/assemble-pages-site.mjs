@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = dirname(fileURLToPath(import.meta.url));
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const output = resolve(process.argv[2] || join(root, "../../_site"));
 const rawBaseUrl = process.env.SITE_BASE_URL;
 if (!rawBaseUrl) throw new Error("SITE_BASE_URL_REQUIRED");
