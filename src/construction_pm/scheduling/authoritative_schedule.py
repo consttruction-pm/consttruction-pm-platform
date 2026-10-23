@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any, Mapping
 
 from .activity import Activity
-from .calendar_context import CalendarReference
+from .calendar_context import CalendarReference, RelationshipLagCalendar
 from .constraints import ActivityConstraint
 from .relationships import Relationship
 from .schedule_options import ScheduleOptions
@@ -43,6 +43,44 @@ class ActivityCalendarAssignment:
 
 
 @dataclass(frozen=True)
+class RelationshipLagCalendarAssignment:
+    """Persisted per-relationship lag-calendar choice embedded in a schedule snapshot.
+
+    An explicit calendar is a version-pinned override. When it is absent,
+    option selects predecessor, successor, project-default, or 24-hour logic.
+    The relationship ID is retained for traceability; the Shared Core resolver is
+    keyed by the stable predecessor/successor pair.
+    """
+
+    relationship_id: str
+    predecessor_id: str
+    successor_id: str
+    option: RelationshipLagCalendar
+    calendar: CalendarReference | None = None
+
+    def __post_init__(self) -> None:
+        for value, field_name in (
+            (self.relationship_id, "relationship_id"),
+            (self.predecessor_id, "predecessor_id"),
+            (self.successor_id, "successor_id"),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field_name} must be a non-empty string")
+        if self.predecessor_id == self.successor_id:
+            raise ValueError("relationship lag assignment cannot reference a self relationship")
+        if not isinstance(self.option, RelationshipLagCalendar):
+            raise TypeError("option must be a RelationshipLagCalendar")
+        if self.calendar is not None:
+            if not isinstance(self.calendar, CalendarReference):
+                raise TypeError("calendar must be a CalendarReference or None")
+            if self.option in {
+                RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+                RelationshipLagCalendar.PROJECT_DEFAULT,
+            }:
+                raise ValueError("explicit calendar conflicts with selected relationship lag option")
+
+
+@dataclass(frozen=True)
 class AuthoritativeScheduleInput:
     """Immutable, calculation-ready schedule input contract.
 
@@ -60,6 +98,7 @@ class AuthoritativeScheduleInput:
     activities: tuple[Activity | TimeActivity, ...]
     relationships: tuple[Relationship | TimeRelationship, ...]
     activity_calendar_assignments: tuple[ActivityCalendarAssignment, ...]
+    relationship_lag_calendar_assignments: tuple[RelationshipLagCalendarAssignment, ...] = ()
     constraints: tuple[ActivityConstraint, ...] = ()
     schedule_options: ScheduleOptions = ScheduleOptions()
     project_start: date | datetime | None = None
@@ -85,6 +124,15 @@ class AuthoritativeScheduleInput:
             raise TypeError("relationships must be a tuple")
         if not isinstance(self.activity_calendar_assignments, tuple):
             raise TypeError("activity_calendar_assignments must be a tuple")
+        if not isinstance(self.relationship_lag_calendar_assignments, tuple):
+            raise TypeError("relationship_lag_calendar_assignments must be a tuple")
+        if not all(
+            isinstance(item, RelationshipLagCalendarAssignment)
+            for item in self.relationship_lag_calendar_assignments
+        ):
+            raise TypeError(
+                "relationship_lag_calendar_assignments must contain RelationshipLagCalendarAssignment items"
+            )
         if not isinstance(self.constraints, tuple):
             raise TypeError("constraints must be a tuple")
         if not all(isinstance(item, (Activity, TimeActivity)) for item in self.activities):
@@ -117,6 +165,32 @@ class AuthoritativeScheduleInput:
         activity_ids = [activity.id for activity in self.activities]
         if len(activity_ids) != len(set(activity_ids)):
             raise ValueError("activity ids must be unique")
+
+        lag_assignment_ids = [
+            item.relationship_id for item in self.relationship_lag_calendar_assignments
+        ]
+        if len(lag_assignment_ids) != len(set(lag_assignment_ids)):
+            raise ValueError("relationship lag calendar assignments must be unique")
+        if self.relationship_lag_calendar_assignments and self.mode is AuthoritativeScheduleMode.TIME_AWARE:
+            raise ValueError("TIME_AWARE_RELATIONSHIP_LAG_ASSIGNMENTS_UNSUPPORTED")
+        relationships_by_pair: dict[tuple[str, str], int] = {}
+        for relationship in self.relationships:
+            pair = (relationship.predecessor_id, relationship.successor_id)
+            relationships_by_pair[pair] = relationships_by_pair.get(pair, 0) + 1
+        seen_lag_pairs: set[tuple[str, str]] = set()
+        for item in self.relationship_lag_calendar_assignments:
+            pair = (item.predecessor_id, item.successor_id)
+            if relationships_by_pair.get(pair, 0) == 0:
+                raise ValueError("relationship lag calendar assignment references unknown relationship")
+            if relationships_by_pair[pair] != 1:
+                raise ValueError("relationship lag calendar assignment is ambiguous for duplicate relationship pair")
+            if pair in seen_lag_pairs:
+                raise ValueError("relationship lag calendar assignments must have unique pairs")
+            seen_lag_pairs.add(pair)
+            if item.calendar is not None and item.calendar.kind != expected_calendar_kind:
+                raise ValueError(
+                    f"{self.mode.value} snapshot requires {expected_calendar_kind} relationship lag calendars"
+                )
 
         assignment_ids = [
             assignment.activity_id for assignment in self.activity_calendar_assignments
@@ -175,6 +249,7 @@ class AuthoritativeScheduleInput:
             "activities": self.activities,
             "relationships": self.relationships,
             "activity_calendar_assignments": self.activity_calendar_assignments,
+            "relationship_lag_calendar_assignments": self.relationship_lag_calendar_assignments,
             "constraints": self.constraints,
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,
