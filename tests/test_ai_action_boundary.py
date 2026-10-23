@@ -23,14 +23,14 @@ def service():
 def test_human_approval_is_required_before_approval_decision():
     svc,sink=service()
     with pytest.raises(AIActionBoundaryError, match="AI_ACTION_HUMAN_APPROVAL_REQUIRED"):
-        svc.decide(proposal(), actor_id=None, approved=True)
+        svc.decide(proposal(), actor_id=None, approved=True, subject_id="user-7")
     assert len(sink.records) == 1
     assert sink.records[0][1].decision == "denied"
 
 
 def test_permitted_approved_action_is_audited_with_actor():
     svc,sink=service()
-    decision=svc.decide(proposal(), actor_id="user-7", approved=True)
+    decision=svc.decide(proposal(), actor_id="user-7", approved=True, subject_id="user-7")
     assert decision.decision == "approved"
     assert decision.actor_id == "user-7"
     assert decision.audit_event == "ai_action_decision"
@@ -40,14 +40,14 @@ def test_permitted_approved_action_is_audited_with_actor():
 def test_unpermitted_tool_cannot_be_decided_and_denial_is_audited():
     svc,sink=service()
     with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
-        svc.decide(proposal(tool="project.mutate"), actor_id="user-7", approved=True)
+        svc.decide(proposal(tool="project.mutate"), actor_id="user-7", approved=True, subject_id="user-7")
     assert len(sink.records) == 1
     assert sink.records[0][1].decision == "denied"
 
 
 def test_rejection_can_be_audited_without_approval_actor():
     svc,sink=service()
-    decision=svc.decide(proposal(), actor_id="user-7", approved=False)
+    decision=svc.decide(proposal(), actor_id="user-7", approved=False, subject_id="user-7")
     assert decision.decision == "rejected"
     assert len(sink.records) == 1
 
@@ -146,7 +146,7 @@ def test_denied_action_does_not_misrepresent_requesting_user_as_audit_actor():
     sink = InMemoryAIActionAuditSink()
     svc = AIActionApprovalService(ReferenceAIToolPermissionAdapter(set()), sink)
     with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
-        svc.decide(proposal(), actor_id=None, approved=True)
+        svc.decide(proposal(), actor_id=None, approved=True, subject_id="user-7")
     assert len(sink.records) == 1
     assert sink.records[0][1].decision == "denied"
     assert sink.records[0][1].actor_id is None
@@ -155,7 +155,7 @@ def test_denied_action_does_not_misrepresent_requesting_user_as_audit_actor():
 def test_approval_decision_must_be_a_boolean():
     svc, sink = service()
     with pytest.raises(AIActionBoundaryError, match="INVALID_AI_ACTION_APPROVAL_DECISION"):
-        svc.decide(proposal(), actor_id="user-7", approved="yes")
+        svc.decide(proposal(), actor_id="user-7", approved="yes", subject_id="user-7")
     assert sink.records == []
 
 
@@ -163,7 +163,7 @@ def test_automatic_approval_without_trusted_actor_is_denied_and_audited():
     svc, sink = service()
     item = proposal(approval=False)
     with pytest.raises(AIActionBoundaryError, match="AI_ACTION_APPROVAL_REQUIRES_ACTOR"):
-        svc.decide(item, actor_id=None, approved=True)
+        svc.decide(item, actor_id=None, approved=True, subject_id="user-7")
     assert len(sink.records) == 1
     assert sink.records[0][1].decision == "denied"
     assert sink.records[0][1].actor_id is None
@@ -171,7 +171,7 @@ def test_automatic_approval_without_trusted_actor_is_denied_and_audited():
 
 def test_blank_actor_is_not_preserved_as_a_rejection_actor():
     svc, sink = service()
-    decision = svc.decide(proposal(approval=False), actor_id="   ", approved=False)
+    decision = svc.decide(proposal(approval=False), actor_id="   ", approved=False, subject_id="user-7")
     assert decision.decision == "rejected"
     assert decision.actor_id is None
     assert len(sink.records) == 1
@@ -187,6 +187,20 @@ def test_permission_service_ignores_spoofed_requester_and_requires_authenticated
     assert sink.records[-1][1].decision == "denied"
     assert sink.records[-1][1].actor_id == "user-8"
 
-    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+    with pytest.raises(AIActionBoundaryError, match="AI_ACTION_AUTHENTICATED_SUBJECT_REQUIRED"):
         svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
     assert len(sink.records) == 2
+    assert sink.records[-1][1].decision == "denied"
+    assert sink.records[-1][1].actor_id == "user-7"
+
+
+def test_every_permission_adapter_requires_authenticated_subject_before_allowing_action():
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(ReferenceAIToolPermissionAdapter({"document.search"}), sink)
+
+    with pytest.raises(AIActionBoundaryError, match="AI_ACTION_AUTHENTICATED_SUBJECT_REQUIRED"):
+        svc.decide(proposal(), actor_id="user-7", approved=True)
+
+    assert len(sink.records) == 1
+    assert sink.records[0][1].decision == "denied"
+    assert sink.records[0][1].actor_id == "user-7"
