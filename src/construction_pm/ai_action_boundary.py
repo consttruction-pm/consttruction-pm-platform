@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Callable, Iterable, Protocol
 
 
 class AIActionBoundaryError(ValueError):
@@ -58,6 +58,61 @@ class AIActionDecision:
 
 class AIToolPermissionAdapter(Protocol):
     def allowed(self, proposal: AIActionProposal) -> bool: ...
+
+
+@dataclass(frozen=True)
+class AIActionPermissionGrant:
+    """Explicit grant for one subject and one exact action scope.
+
+    No implicit tenant/project/revision/domain wildcards are supported. The grant
+    provider is consulted on every decision so revocation is observed immediately.
+    """
+
+    subject_id: str
+    tenant_id: str
+    project_id: str
+    project_revision_id: str
+    resource_domain: str
+    operation: str
+    tool_name: str
+
+    def validate(self) -> None:
+        for name, value in (
+            ("subject_id", self.subject_id),
+            ("tenant_id", self.tenant_id),
+            ("project_id", self.project_id),
+            ("project_revision_id", self.project_revision_id),
+            ("resource_domain", self.resource_domain),
+            ("operation", self.operation),
+            ("tool_name", self.tool_name),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise AIActionBoundaryError(f"INVALID_AI_PERMISSION_GRANT_{name.upper()}")
+
+
+class UserConfiguredAIActionPermissionAdapter:
+    """Default-deny operation-level permission adapter."""
+
+    def __init__(self, grant_provider: Callable[[], Iterable[AIActionPermissionGrant]]) -> None:
+        self.grant_provider = grant_provider
+
+    def allowed(self, proposal: AIActionProposal) -> bool:
+        proposal.validate()
+        if not proposal.requested_by or not proposal.project_revision_id or not proposal.resource_domain:
+            return False
+        for grant in self.grant_provider():
+            grant.validate()
+            if (
+                grant.subject_id == proposal.requested_by
+                and grant.tenant_id == proposal.tenant_id
+                and grant.project_id == proposal.project_id
+                and grant.project_revision_id == proposal.project_revision_id
+                and grant.resource_domain == proposal.resource_domain
+                and grant.operation == proposal.action
+                and grant.tool_name == proposal.tool_name
+            ):
+                return True
+        return False
 
 
 class AIActionAuditSink(Protocol):
