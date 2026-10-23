@@ -151,11 +151,13 @@ class AIActionApprovalService:
 
     def decide(self, proposal: AIActionProposal, *, actor_id: str | None, approved: bool) -> AIActionDecision:
         proposal.validate()
+        if not isinstance(approved, bool):
+            raise AIActionBoundaryError("INVALID_AI_ACTION_APPROVAL_DECISION")
         if not self.permission_adapter.allowed(proposal):
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id,
                 decision="denied",
-                actor_id=actor_id if isinstance(actor_id, str) and actor_id.strip() else proposal.requested_by,
+                actor_id=actor_id if isinstance(actor_id, str) and actor_id.strip() else None,
                 audit_event="ai_action_decision",
             )
             denied.validate()
