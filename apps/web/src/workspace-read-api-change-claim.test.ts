@@ -20,7 +20,7 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
     contract_version: WORKSPACE_CONTROL_ROOM_READ_VERSION,
     context,
     workspace: {
-      contract_version: "workspace-control-room.v1",
+      contract_version: "workspace-control-room.v2",
       context,
       columns: [{
         id: "activity_id",
@@ -37,6 +37,15 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
         name: "Foundation",
         cells: { activity_id: "A-101" },
         gantt: null,
+      }],
+      wbs_nodes: [{
+        wbs_id: "WBS-1",
+        parent_kind: "project",
+        parent_wbs_id: null,
+        local_code: "1",
+        name: "Project",
+        sequence_number: 0,
+        record_revision: 1,
       }],
     },
     control_intelligence: null,
