@@ -17,6 +17,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_master_repository import (
     CalendarMaster,
+    RelationshipLagCalendarAssignmentMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
@@ -42,7 +43,10 @@ from construction_pm.schedule_snapshot_materializer import materialize_schedule_
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from construction_pm.scheduling.activity import ActivityLevelingPriority, ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
-from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+from construction_pm.scheduling.calendar_context import (
+    CalendarResolverRegistry,
+    RelationshipLagCalendar,
+)
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -180,6 +184,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
         "calendar_repo": calendar_repo,
+        "calendar_assignments": calendar_assignments,
         "settings_repo": settings_repo,
     }
 
@@ -249,6 +254,16 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert created_relationship["relationship"]["relationship_id"] == "REL-1"
     assert created_relationship["relationship"]["record_revision"] == 1
 
+    # Persist a per-relationship lag-calendar choice in its authoritative
+    # repository; publication must read it back into the immutable snapshot.
+    fixture["calendar_assignments"].save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope,
+            relationship_id="REL-1",
+            option=RelationshipLagCalendar.PREDECESSOR,
+        )
+    )
+
     settings_status, stored_settings = _save_settings(app)
     assert settings_status == "201 Created"
     assert stored_settings["record_revision"] == 1
@@ -289,6 +304,15 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert len(payload["relationships"]) == 1
     assert payload["relationships"][0]["predecessor_id"] == "A-1"
     assert payload["relationships"][0]["successor_id"] == "B-1"
+    assert payload["relationship_lag_calendar_assignments"] == [
+        {
+            "calendar": None,
+            "option": "PREDECESSOR_ACTIVITY_CALENDAR",
+            "predecessor_id": "A-1",
+            "relationship_id": "REL-1",
+            "successor_id": "B-1",
+        }
+    ]
 
     registry = CalendarResolverRegistry(
         day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
@@ -302,6 +326,11 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert by_id["A-1"].status_code is ActivityStatusCode.PLANNED
     assert by_id["A-1"].activity_type is ActivityType.TASK_DEPENDENT
     assert len(materialized.schedule_input.relationships) == 1
+    assert len(materialized.schedule_input.relationship_lag_calendar_assignments) == 1
+    assert (
+        materialized.schedule_input.relationship_lag_calendar_assignments[0].option
+        is RelationshipLagCalendar.PREDECESSOR
+    )
 
     # Exercise the real production Schedule Query provider against the just-
     # published snapshot/context, not a manually constructed scheduler input.
