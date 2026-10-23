@@ -796,6 +796,9 @@ def test_authenticated_resource_assignment_http_write_accepts_driver_flag_and_re
         "units": "8",
         "unit": "hours",
         "is_driving": True,
+        "units_per_time": "2.5",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
     }
     status, _, raw = r.handle(
         "POST",
@@ -808,6 +811,9 @@ def test_authenticated_resource_assignment_http_write_accepts_driver_flag_and_re
     assert created["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
     assert created["kind"] == "resource_assignment"
     assert created["assignment"]["is_driving"] is True
+    assert created["assignment"]["units_per_time"] == "2.5"
+    assert created["assignment"]["units_per_time_period"] == "day"
+    assert created["assignment"]["hours_per_units_time_period"] == "8"
 
     status, _, raw = r.handle(
         "GET", "/api/projects/p1/p6/resource-assignments/A-R-2",
