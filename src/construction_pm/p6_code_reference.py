@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.9.0"
+REFERENCE_VERSION: Final[str] = "0.9.1"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -326,7 +326,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Tools > Level Resources / Tools > Schedule > Options > Level Resources",
         required_semantics="Leveling must respect resource capacity and activity logic. Preserve selected resources, priority rules, float limits, allowed overallocation, whether Early/Late dates are preserved and whether all resources are leveled. It is not just a UI conflict highlight.",
         user_options=("Level all resources", "Selected resource list", "Level within activity Total Float", "Minimum float to preserve", "Maximum percent to over-allocate", "Consider assignments in other projects with priority equal/higher than", "Preserve scheduled Early/Late dates", "Recalculate assignment costs after leveling", "Priority field", "Sort: Ascending/Descending/Hierarchy where allowed", "Write leveling log / View log", "Projects whose scheduling options control leveling"),
-        official_sources=(ORACLE_SOURCES["schedule"], "https://docs.oracle.com/cd/F88968_01/client_help/en_US/leveling_resources.htm", ORACLE_SOURCES["leveling_dialog"]),
+        official_sources=(ORACLE_SOURCES["schedule"], ORACLE_SOURCES["leveling_dialog"], ORACLE_SOURCES["leveling_dialog"]),
         cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/schedule_options.py"),
         regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",), coverage=MAPPED_NOT_PROVEN,
     ),
