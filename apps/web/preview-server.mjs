@@ -62,6 +62,11 @@ export function resolveRequestFile(requestPath) {
     }
   }
 
+  // Resolve static public routes such as /platform/ to their index.html file.
+  if (existsSync(candidate) && statSync(candidate).isDirectory()) {
+    candidate = join(candidate, "index.html");
+  }
+
   const normalized = normalize(candidate);
   if (!within(root, normalized) && !within(distRoot, normalized) && !within(publicRoot, normalized)) {
     return null;
