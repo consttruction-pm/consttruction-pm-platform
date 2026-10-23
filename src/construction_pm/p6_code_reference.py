@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.5.0"
+REFERENCE_VERSION: Final[str] = "0.6.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -169,7 +169,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="SCH-008", area="Scheduling / Relationships", feature="Relationship types, lead/lag and selected lag calendar",
         p6_ui_entry="Project > Activities > Activity Details > Relationships / Tools > Schedule > Options",
-        required_semantics="Support FS, SS, FF, SF and signed lag/lead. Lag duration must be converted with the selected P6-compatible lag calendar; do not use a single global weekday rule or discard negative lag.",
+        required_semantics="Support FS, SS, FF, SF and signed lag/lead. Boundary constraints are: FS successor start >= predecessor finish + lag; SS successor start >= predecessor start + lag; FF successor finish >= predecessor finish + lag; SF successor finish >= predecessor start + lag. These are working-calendar/time-boundary constraints, not naive Gregorian date arithmetic: resolve duration/lag through the correct activity and lag calendars, actual/progress state and time precision. Use the selected P6-compatible lag calendar; never discard negative lag.",
         user_options=("FS", "SS", "FF", "SF", "Positive lag", "Negative lag/lead", "Successor calendar", "Predecessor calendar", "24-hour calendar", "Project default calendar"),
         official_sources=(ORACLE_SOURCES["relationships"], ORACLE_SOURCES["relationship_details"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["relationship_lag"]),
         cubi_code_paths=("src/construction_pm/scheduling/relationships.py", "src/construction_pm/scheduling/forward_pass.py", "src/construction_pm/scheduling/time_forward_pass.py", "src/construction_pm/scheduling/calendar_context.py", "src/construction_pm/scheduling/calendar_resolution.py", "src/construction_pm/scheduling/schedule_options.py"),
@@ -237,7 +237,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="ACT-002", area="Activities", feature="Activity duration type and recalculation relationships",
         p6_ui_entry="Project > Activities > Activity Details > General > Duration Type",
-        required_semantics="Implement each duration-type invariant across duration, total units and Units/Time. Updating a variable must recalculate other values according to the selected duration type and assignment preference.",
+        required_semantics="Enforce each duration-type invariant across duration, total units and Units/Time. Fixed Units/Time keeps Units/Time fixed as duration changes; Fixed Duration & Units/Time fixes duration and rate so units are derived; Fixed Units keeps total units fixed so duration/rate depend on the edited variable; Fixed Duration & Units keeps duration and units fixed so Units/Time is derived. Implement trigger-specific recalculation when duration, total units or rate changes; respect resource/role assignment calculation preferences and working-time conversions. Milestones must reject duration-type operations where P6 disables them.",
         user_options=("Fixed Units/Time", "Fixed Duration & Units/Time", "Fixed Units", "Fixed Duration & Units"),
         official_sources=(ORACLE_SOURCES["duration_types"], ORACLE_SOURCES["assignment_calculations"]),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py"),
@@ -255,7 +255,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="ACT-004", area="Activities / Percent complete", feature="Duration, Units, Physical and scope percent complete",
         p6_ui_entry="Project > Activities > Activity Details > General / Status",
-        required_semantics="Duration % = (Original/Planned Duration - Remaining Duration) / Original/Planned Duration with explicit zero-duration handling. Units % is actual labor plus nonlabor units divided by total actual plus remaining labor/nonlabor units. Physical is user-entered. Scope is product/context-specific and must not be equated to Physical.",
+        required_semantics="Duration % = 100 × (Original/Planned Duration - Remaining Duration) / Original/Planned Duration, with an explicit P6-compatible zero-duration/zero-plan rule. Units % = 100 × actual labor+nonlabor units / (actual labor+nonlabor units + remaining labor+nonlabor units), using the applicable P6 labor/nonlabor/unit rules and explicit zero-denominator behavior. Physical % is separately entered/computed from configured weighted steps where applicable. Scope is product/context-specific and must not be equated to Physical. Store the percent-complete type with the value and recalculate only through shared calculation logic.",
         user_options=("Duration", "Units", "Physical", "Scope only where supported by selected P6 product/context"),
         official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["activity_status"], ORACLE_SOURCES["physical_percent"]),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py"),
@@ -314,7 +314,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="CST-001", area="Cost / Resource and role rates", feature="Resource and role cost calculation",
         p6_ui_entry="Activity Details > Resources > Rate Type / Resource Details > Units & Prices",
-        required_semantics="Costs derive from typed units, applicable rate type, currency, resource/role price per unit and effective period. Planned, actual and remaining costs are distinct; scheduling triggers cost recalculation only when selected.",
+        required_semantics="For each assigned resource/role, calculate planned/budgeted, actual and remaining cost separately from the applicable quantity × price/unit and selected rate type/source/effective time period. Preserve currency and precision. At-completion cost and variance rollups must identify their source baseline and cost components. Scheduling/leveling recalculates multi-rate costs only when the configured option requests it; never use one current rate for all periods without checking effective dates.",
         user_options=("Rate Type", "Currency", "Recalculate assignment costs after scheduling", "Planned/Actual/Remaining values"),
         official_sources=(ORACLE_SOURCES["resources"], ORACLE_SOURCES["schedule_options"]),
         cubi_code_paths=("src/construction_pm/p6_resource_rate_repository.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_cost_account_repository.py"),
@@ -551,12 +551,12 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
     P6CodeReference(
         id="RISK-001", area="Project controls / Risks and issues", feature="Issues, thresholds, risks and linked project documents",
         p6_ui_entry="Project > Issues / Thresholds / Risks / Project Documents",
-        required_semantics="Maintain stable object identity, project/activity/WBS links, ownership, status, due/target dates, risk probability/impact and evidence/document relationships. Threshold warnings must be reproducible from explicit metrics and configurable thresholds; a risk score must not be hard-coded in the UI.",
-        user_options=("Issue status/priority/owner", "Target date", "Threshold metric/operator/value", "Risk probability/impact/response", "Linked activity/WBS/document", "Alert/report settings"),
+        required_semantics="Maintain a risk as a distinct entity with stable identity, risk category, cause/event/effect, probability, impact, response/owner/status and linked activity/WBS scope. Risk assessment and response state must be auditable and must not be conflated with threshold-generated issues or ordinary issues.",
+        user_options=("Risk category", "Probability/impact", "Response/owner/status", "Assign/remove risk from activity", "Linked WBS/activity/evidence"),
         official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
         cubi_code_paths=("docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md", "src/construction_pm/http/project_lifecycle_routes.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
-        known_gap="Dedicated P6 issue/threshold/risk menu inventories, canonical schemas and end-to-end behavior mappings are not verified by this registry.",
+        known_gap="P6 Professional Help labels this risk feature as Professional-only; the risk model, risk assignment behavior and response history do not yet have a verified dedicated CUBI domain/path and end-to-end tests.",
     ),
     P6CodeReference(
         id="VIEW-003", area="Views / Timeline", feature="Gantt editing, data-date/progress lines, bars and timescale",
@@ -735,6 +735,79 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         product_context="Format/product-specific; verify support for Professional versus EPPM per format",
         known_gap="No format should be treated as implemented until a versioned field map and fixture-based round-trip tests exist.",
+    ),
+
+    P6CodeReference(
+        id="ISSUE-001", area="Project controls / Issues", feature="Issues, ownership, history and linked tracking layouts",
+        p6_ui_entry="Project > Issues / Assign responsibility / Issue Navigator",
+        required_semantics="An issue is its own record with status, priority/owner, dates/duration, history and linked project/WBS/activity/resource references. Issue duration and risk duration are not activity duration. Status changes and responsibility reassignment must be audited.",
+        user_options=("Create/edit/delete issue", "Issue status", "Assign responsible OBS/resource", "Link activity/WBS/resource", "Tracking layout", "Issue history", "Email/notification"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=("tests/test_project_lifecycle_http_routes.py",),
+        coverage=INVENTORY_REQUIRED,
+        known_gap="A dedicated issue record/repository, duration/history behavior and every issue UI operation were not verified in the current CUBI code scan.",
+    ),
+    P6CodeReference(
+        id="THRESH-001", area="Project controls / Thresholds", feature="Threshold definitions and threshold-generated issues",
+        p6_ui_entry="Project > Thresholds / Threshold Parameter Definitions / Monitor Threshold",
+        required_semantics="A threshold includes a specific monitored parameter, comparison rule/value, applicable project/WBS scope, responsible owner and assigned tracking layout. Monitoring must evaluate the selected period/revision deterministically and create/update/remove alerts according to explicit lifecycle rules; never rely on hard-coded UI warning logic.",
+        user_options=("Parameter", "Comparison/operator", "Threshold value", "Project/WBS scope", "Responsible OBS", "Tracking layout", "Enable/disable", "Monitor/delete generated issue"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="No verified threshold definition model/evaluator or threshold-to-issue lifecycle path is mapped to CUBI yet.",
+    ),
+    P6CodeReference(
+        id="DOC-001", area="Project controls / Work products and documents", feature="Document library, deliverables, status and activity/WBS association",
+        p6_ui_entry="Project > Work Products and Documents / Assign to Activities or WBS",
+        required_semantics="A document/work product record holds stable identity, category/status, location/version reference and deliverable flag; associations to activity, WBS and project are separate links. Removing a link must not delete the underlying stored file or record. Access, revision and integrity checks are required for every attachment.",
+        user_options=("Create/delete document record", "Category/status", "Work product/deliverable flags", "Location reference", "Assign/remove activity/WBS link", "Open document", "Document revision/access"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="CUBI has general document-control domains, but P6-style Work Products and Documents fields/associations need an explicit parity mapping and round-trip tests.",
+    ),
+    P6CodeReference(
+        id="ORG-001", area="Organization / OBS", feature="OBS hierarchy, WBS responsibility and scope security",
+        p6_ui_entry="Enterprise > OBS / WBS Details > Responsible Manager / OBS Security",
+        required_semantics="Keep OBS hierarchy and responsible-manager assignment independent of WBS and user profile records. Responsibility and security scope must be enforced in API/domain authorization, not only by hiding UI items. Moving an OBS node must preserve valid assignments and audit scope changes.",
+        user_options=("Create/edit/delete OBS node", "Hierarchy/order", "Assign OBS to WBS", "Issue responsibility", "Resource/project security scope"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "src/construction_pm/http/production_composition.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=("tests/test_project_lifecycle_http_routes.py",), coverage=INVENTORY_REQUIRED,
+        known_gap="A dedicated OBS domain/repository and the complete P6 OBS-to-user/resource-security matrix are not verified in this reference pass.",
+    ),
+    P6CodeReference(
+        id="PORTFOLIO-001", area="Portfolio / Project selection", feature="Portfolios, included projects and project-window scope",
+        p6_ui_entry="Enterprise > Portfolios / Projects window > Current Portfolio",
+        required_semantics="Portfolio membership, access and displayed portfolio details are distinct from the EPS hierarchy. Any portfolio-level summary or calculation must explicitly state which projects and revisions are included; it must not silently alter project membership or schedule calculations.",
+        user_options=("Create/edit/delete portfolio", "Add/remove projects", "Portfolio membership", "Add/remove users", "Change current portfolio", "Portfolio scope for summaries"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",),
+        cubi_code_paths=("src/construction_pm/http/project_lifecycle_routes.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Portfolio data model, membership permissions and summary aggregation have not been verified as an end-to-end CUBI feature.",
+    ),
+    P6CodeReference(
+        id="RES-007", area="Resources / Shifts", feature="Resource shifts and shift-aware leveling",
+        p6_ui_entry="Enterprise > Resources > Define Resource Shifts / Resource Calendar",
+        required_semantics="Shift capacity and shift time windows must be explicit, time-zone-aware, calendar-versioned and associated with a resource/rate. Leveling cannot silently treat multiple shifts as a single default shift or aggregate overlapping shift capacity twice.",
+        user_options=("Shift definition", "Working interval", "Resource/shift assignment", "Calendar version", "Shift effective period", "Capacity/unit rate per shift"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["calendars"], ORACLE_SOURCES["leveling_dialog"]),
+        cubi_code_paths=("src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_versioned_resource_calendar_resolver.py", "src/construction_pm/scheduling/resource_leveling.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
+        regression_tests=(), coverage=KNOWN_GAP,
+        known_gap="The current resource-leveling input contract explicitly lacks full shift-level leveling support; do not model multiple shifts as the generic default calendar.",
+    ),
+    P6CodeReference(
+        id="EVM-003", area="Progress / EVM formulas", feature="EV, PV, AC, CV/SV, CPI/SPI, EAC/ETC/VAC formula definitions",
+        p6_ui_entry="Activity/WBS Earned Value fields / earned-value report",
+        required_semantics="For a selected status date and selected baseline, preserve the definitions EV (earned budget value), PV (planned budget value), AC (actual cost), CV=EV-AC, SV=EV-PV, CPI=EV/AC and SPI=EV/PV. EAC/ETC must follow the selected WBS ETC technique and performance-factor choice; do not impose one universal EAC formula. VAC=BAC-EAC. Each denominator-zero, missing-baseline, currency and period rule must be explicit and tested.",
+        user_options=("Baseline", "Status/Data Date", "WBS EV technique", "ETC method", "Performance factor", "Cost currency", "Financial/reporting period"),
+        official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["wbs_earned_value"], ORACLE_SOURCES["pro_user_guide_portal"]),
+        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        product_context="Native P6 Earned Value settings plus clearly separated CUBI Earned Schedule extensions",
+        known_gap="Native EV field definitions and each WBS ETC/performance-factor formula are not yet traced to exact CUBI calculation functions and denominator/rounding tests.",
     ),
 )
 
