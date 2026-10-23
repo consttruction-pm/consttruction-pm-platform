@@ -91,6 +91,8 @@ test("standalone public pages have unique metadata and expected content", () => 
     const html = readFileSync(join(root, path), "utf8");
     assert.ok(html.includes("<title>" + title + "</title>"), path + " should have a unique title");
     assert.ok(html.includes('name="description"'), path + " should have a description");
+    assert.ok(html.includes('rel="canonical" href="__CUBI_BASE_URL__/'), path + " should have a canonical URL placeholder for deployment");
+    assert.ok(html.includes('property="og:url" content="__CUBI_BASE_URL__/'), path + " should have an absolute social URL after deployment");
     assert.ok(html.includes(marker), path + " should have its expected content");
   }
 });
