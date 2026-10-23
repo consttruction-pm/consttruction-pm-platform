@@ -1,6 +1,6 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
-import { workspaceActivitiesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
+import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { workspaceActivitiesFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
@@ -20,8 +20,8 @@ import {
   type PunchItemSnapshot,
 } from "./workspace-field-assurance.js";
 
-export const WORKSPACE_CONTROL_ROOM_READ_VERSION = "workspace-control-room-read.v1" as const;
-export const WORKSPACE_CONTROL_ROOM_READ_PATH = "/api/v1/workspace/control-room/read" as const;
+export const WORKSPACE_CONTROL_ROOM_READ_VERSION = "workspace-control-room-read.v2" as const;
+export const WORKSPACE_CONTROL_ROOM_READ_PATH = "/api/v2/workspace/control-room/read" as const;
 
 export type WorkspaceControlRoomReadSnapshot = {
   contract_version: typeof WORKSPACE_CONTROL_ROOM_READ_VERSION;
@@ -95,6 +95,7 @@ export class WorkspaceReadClient {
 
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
       state = withActivities(state, activities);
+      state = withWbsNodes(state, workspaceWbsNodesFromSnapshot(result.data.workspace));
 
       const summary = result.data.control_intelligence
         ? projectControlIntelligence(result.data.control_intelligence, context)
@@ -226,7 +227,7 @@ function validateReadEnvelope(
   if (!isRecord(snapshot.workspace)) {
     throw new Error("INVALID_WORKSPACE_READ_WORKSPACE");
   }
-  if (snapshot.workspace.contract_version !== "workspace-control-room.v1") {
+  if (snapshot.workspace.contract_version !== "workspace-control-room.v2") {
     throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
   }
   if (
