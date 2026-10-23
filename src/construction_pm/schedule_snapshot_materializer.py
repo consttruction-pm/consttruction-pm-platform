@@ -204,6 +204,15 @@ def _resource_leveling_facts(
                 # Older immutable snapshots have no flag; preserve unresolved
                 # legacy state instead of inferring driving semantics.
                 is_driving=item.get("is_driving"),
+                units_per_time=(
+                    _decimal(item["units_per_time"])
+                    if item.get("units_per_time") is not None else None
+                ),
+                units_per_time_period=item.get("units_per_time_period"),
+                hours_per_units_time_period=(
+                    _decimal(item["hours_per_units_time_period"])
+                    if item.get("hours_per_units_time_period") is not None else None
+                ),
             )
             for item in assignments_payload
             if isinstance(item, dict)
