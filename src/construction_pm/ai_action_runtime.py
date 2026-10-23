@@ -102,6 +102,10 @@ class AIActionRuntimeStore(Protocol):
         self, proposal_id: str, *, tenant_id: str, project_id: str
     ) -> AIActionStoredProposal | None: ...
 
+    def list_for_project(
+        self, tenant_id: str, project_id: str, *, limit: int = 100
+    ) -> tuple[AIActionStoredProposal, ...]: ...
+
     def transition(
         self,
         proposal: AIActionProposal,
@@ -248,6 +252,29 @@ class _SqlAIActionRuntimeStore:
             )
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise AIActionRuntimeError("AI_ACTION_STORED_PROPOSAL_INVALID") from exc
+
+    def list_for_project(
+        self, tenant_id: str, project_id: str, *, limit: int = 100
+    ) -> tuple[AIActionStoredProposal, ...]:
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise AIActionRuntimeError("AI_ACTION_TENANT_SCOPE_REQUIRED")
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise AIActionRuntimeError("AI_ACTION_PROJECT_SCOPE_REQUIRED")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise AIActionRuntimeError("AI_ACTION_LIST_LIMIT_INVALID")
+        p = self.placeholder
+        rows = self.connection.execute(
+            "SELECT proposal_id FROM ai_action_proposals "
+            "WHERE tenant_id=" + p + " AND project_id=" + p
+            + " ORDER BY updated_at DESC, proposal_id DESC LIMIT " + p,
+            (tenant_id, project_id, limit),
+        ).fetchall()
+        records = []
+        for row in rows:
+            record = self.get(str(row[0]), tenant_id=tenant_id, project_id=project_id)
+            if record is not None:
+                records.append(record)
+        return tuple(records)
 
     def transition(
         self,
@@ -409,6 +436,24 @@ class AIActionRuntime:
             happened_at=now,
         )
         return record
+
+    def list_proposals(
+        self, context: AIActionRuntimeContext, *, limit: int = 100
+    ) -> tuple[AIActionStoredProposal, ...]:
+        """Return recent proposals only within the authenticated tenant/project scope."""
+        context.validate()
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise AIActionRuntimeError("AI_ACTION_LIST_LIMIT_INVALID")
+        return self.store.list_for_project(
+            context.tenant_id, context.project_id, limit=limit
+        )
+
+    def get_proposal(
+        self, context: AIActionRuntimeContext, proposal_id: str
+    ) -> AIActionStoredProposal:
+        """Read a proposal within trusted tenant/project scope, including stale proposals."""
+        context.validate()
+        return self._get_scoped(context, proposal_id)
 
     def decide(
         self,
