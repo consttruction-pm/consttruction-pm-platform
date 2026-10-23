@@ -42,6 +42,16 @@ test("commercial surface stays independent of external product provenance", () =
 });
 
 
+test("landing language preference is restored and persisted safely", () => {
+  assert.match(landing, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
+  assert.match(landing, /function restoreLandingLocale\(\): void/);
+  assert.match(landing, /saved === "en" \|\| saved === "fa"/);
+  assert.match(landing, /function persistLandingLocale\(\): void/);
+  assert.match(landing, /restoreLandingLocale\(\);/);
+  assert.match(landing, /persistLandingLocale\(\);/);
+  assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
+});
+
 test("full homepage keeps bilingual control and the six capability areas", () => {
   assert.match(landing, /type LandingLocale = "en" \| "fa"/);
   assert.match(landing, /cubi-language/);
