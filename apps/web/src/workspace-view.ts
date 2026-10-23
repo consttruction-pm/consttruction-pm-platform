@@ -199,23 +199,23 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
         <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
-          <h2>${t.wbs}</h2>
-          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
+          <h2>${escapeHtml(t.wbs)}</h2>
+          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${escapeHtml(t.noActivities)}</div>`}
         </aside>
         <section class="cp-center">
           <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
-            <h2>${t.activities}</h2>
+            <h2>${escapeHtml(t.activities)}</h2>
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false">
                 <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
-                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
+                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${escapeHtml(t.noActivities)}</td></tr>`}</tbody>
               </table>
             </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
         </section>
-        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
     </section>
   `;
@@ -232,7 +232,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const links = navigationAnchors(item.key);
 
   return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
-    <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
+    <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
@@ -281,7 +281,7 @@ function renderSmartGuide(
             `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
-              <span>${action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag}</span>
+              <span>${escapeHtml(action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag)}</span>
               <span>${action.sourceCount} ${escapeHtml(t.sourceUnit)}</span>
             </article>`,
         )
@@ -563,7 +563,7 @@ function renderChangeClaimControl(
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
+          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${escapeHtml(document.hasStorageRef ? t.stored : t.noStorage)}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -676,7 +676,7 @@ function renderCellValue(columnId: string, value: WorkspaceCellValue): string {
 }
 
 function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string, selectedActivityId: string | null): string {
-  if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
+  if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${escapeHtml(noScheduleLabel)}</div>`;
   const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is GanttBarGeometry => bar !== null);
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(ariaLabel)}">${bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + criticalLabel : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("")}</div>`;
