@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.4"
+REFERENCE_VERSION: Final[str] = "0.8.5"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -306,7 +306,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Leveling must respect resource capacity and activity logic. Preserve selected resources, priority rules, float limits, allowed overallocation, whether Early/Late dates are preserved and whether all resources are leveled. It is not just a UI conflict highlight.",
         user_options=("Level all resources", "Selected resource list", "Level within activity Total Float", "Minimum float to preserve", "Maximum percent to over-allocate", "Consider assignments in other projects with priority equal/higher than", "Preserve scheduled Early/Late dates", "Recalculate assignment costs after leveling", "Priority field", "Sort: Ascending/Descending/Hierarchy where allowed", "Write leveling log / View log", "Projects whose scheduling options control leveling"),
         official_sources=(ORACLE_SOURCES["schedule"], "https://docs.oracle.com/cd/F88968_01/client_help/en_US/leveling_resources.htm", ORACLE_SOURCES["leveling_dialog"]),
-        cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/scheduling/resource_leveling_input.py", "src/construction_pm/scheduling/schedule_options.py"),
+        cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/schedule_options.py"),
         regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",), coverage=MAPPED_NOT_PROVEN,
     ),
     P6CodeReference(
@@ -316,7 +316,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Max Units/Time", "Effective date", "Rate time period", "Calendar/global time-period source", "Unit of measure", "Percentage or absolute capacity where supported"),
         official_sources=(ORACLE_SOURCES["calendars"], ORACLE_SOURCES["resource_planning"], ORACLE_SOURCES["resources"]),
         cubi_code_paths=("src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_versioned_resource_calendar_resolver.py", "src/construction_pm/p6_resource_assignment_repository.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
-        regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=MAPPED_NOT_PROVEN,
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",), coverage=MAPPED_NOT_PROVEN,
     ),
     P6CodeReference(
         id="RES-004", area="Resources / Assignment calculations", feature="Assignment units, actual units, remaining units and Units/Time",
@@ -324,7 +324,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Preserve assignment Units/Time separately from resource Max Units/Time. When staffing changes, honor preserve-versus-recalculate preference and activity duration type. Validate actual/remaining values against activity state and retain explicit units.",
         user_options=("Preserve Units, Duration and Units/Time", "Recalculate Units, Duration and Units/Time", "Rate type", "Role/resource assignment"),
         official_sources=(ORACLE_SOURCES["assignment_calculations"], ORACLE_SOURCES["unit_entry"], ORACLE_SOURCES["resources"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/scheduling/resource_leveling_input.py"),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py"),
         regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py"),
         coverage=MAPPED_NOT_PROVEN,
     ),
@@ -334,7 +334,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="For each assigned resource/role, calculate planned/budgeted, actual and remaining cost separately from the applicable quantity × price/unit and selected rate type/source/effective time period. Preserve currency and precision. At-completion cost and variance rollups must identify their source baseline and cost components. Scheduling/leveling recalculates multi-rate costs only when the configured option requests it; never use one current rate for all periods without checking effective dates.",
         user_options=("Rate Type", "Currency", "Recalculate assignment costs after scheduling", "Planned/Actual/Remaining values"),
         official_sources=(ORACLE_SOURCES["resources"], ORACLE_SOURCES["schedule_options"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_rate_repository.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_cost_account_repository.py"),
+        cubi_code_paths=("src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_cost_account_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Complete P6 cost field/rate precedence, effective-date and rounding policies need exhaustive reference and formula tests.",
     ),
@@ -488,7 +488,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Scheduling options source project", "Include other projects with priority at or above configured threshold", "Project leveling priority 1-100", "Field priorities", "Ascending/Descending/Hierarchy", "Level all/selected resources", "Write/View log", "Default settings"),
         official_sources=(ORACLE_SOURCES["leveling_dialog"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/p6_resource_leveling_read_adapter.py"),
-        regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=INVENTORY_REQUIRED,
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",), coverage=INVENTORY_REQUIRED,
         known_gap="Cross-project priority thresholds and leveling-log behavior are not yet proven by the current registry's test mapping.",
     ),
 
@@ -591,7 +591,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Views must render from versioned schedule, relationship and time-phased assignment facts. Trace Logic should show the actual driving predecessor/successor chain from the calculation result. Usage profile values must reconcile to assignment-period data; zoom/scale must not alter underlying values.",
         user_options=("Activity Network display", "Trace Logic path", "Activity/resource usage profile", "Spreadsheet time scale", "Unit/cost display", "Tracking layout", "Baseline/actual/remaining series"),
         official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["critical"], ORACLE_SOURCES["resource_planning"]),
-        cubi_code_paths=("src/construction_pm/scheduling/p6_activity_scheduler_outputs.py", "src/construction_pm/scheduling/resource_leveling_input.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_spread_repository.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
+        cubi_code_paths=("src/construction_pm/scheduling/p6_activity_scheduler_outputs.py", "src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_spread_repository.py", "docs/architecture/P6_26_4_PARITY_AND_NO_OMISSION.md"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="No exhaustive source-to-renderer map for Activity Network, Trace Logic, profiles, and tracking layouts has yet been established.",
     ),
@@ -641,7 +641,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Central defaults such as hours/day, hours/week, hours/month, hours/year, currency precision/exchange rate and financial period definitions must be versioned and explicit in calculations. A user locale or UI preference must not silently change a project calculation's persisted unit conversions.",
         user_options=("Hours per day/week/month/year", "Standard time period", "Currency/precision/exchange rate", "Financial periods", "Week start/day preferences", "Default duration/EV settings"),
         official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["calendars"]),
-        cubi_code_paths=("src/construction_pm/scheduling/calendar_periods.py", "src/construction_pm/scheduling/calendar.py", "src/construction_pm/project_schedule_settings_repository.py", "src/construction_pm/p6_resource_rate_repository.py", "src/construction_pm/p6_cost_account_repository.py"),
+        cubi_code_paths=("src/construction_pm/scheduling/calendar_periods.py", "src/construction_pm/scheduling/calendar.py", "src/construction_pm/project_schedule_settings_repository.py", "src/construction_pm/p6_resource_capacity_contract.py", "src/construction_pm/p6_cost_account_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
         known_gap="Admin-category complete list, currency/time-period precedence, precision and financial period rules are not fully mapped to source and tests.",
     ),
