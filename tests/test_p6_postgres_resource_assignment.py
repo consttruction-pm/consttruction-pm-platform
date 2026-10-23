@@ -155,6 +155,9 @@ def test_postgres_legacy_assignment_table_migrates_without_guessing_version(conn
     assert legacy.calendar_version is None
     # New nullable fields must also remain unresolved for pre-existing rows.
     assert legacy.is_driving is None
+    assert legacy.units_per_time is None
+    assert legacy.units_per_time_period is None
+    assert legacy.hours_per_units_time_period is None
 
     versioned = _assignment(scope, "calendar-v9")
     assert repository.upsert(versioned) == versioned
