@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.1.0"
+REFERENCE_VERSION: Final[str] = "0.2.0"
 REFERENCE_AS_OF: Final[str] = "2026-10-23"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
@@ -56,6 +56,11 @@ ORACLE_ROOT: Final[str] = "https://docs.oracle.com/cd/G48902_01/client_help/en_U
 ORACLE_USER_GUIDE: Final[str] = "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/"
 ORACLE_SOURCES: Final[dict[str, str]] = {
     "schedule": ORACLE_ROOT + "scheduling_projects.htm",
+    "schedule_dialog": ORACLE_ROOT + "schedule_dialog_box.htm",
+    "schedule_options_advanced": ORACLE_ROOT + "advanced_tab_-_schedule_options_dialog_box.htm",
+    "leveling_dialog": ORACLE_ROOT + "level_resources_dialog_box.htm",
+    "multiple_float_paths": ORACLE_ROOT + "analyzing_the_schedule_using_multiple_critical_float_paths.htm",
+    "relationship_lag": ORACLE_ROOT + "choose_a_calendar_for_relationship_lag.htm",
     "schedule_options": ORACLE_ROOT + "general_tab_-_schedule_options_dialog_box.htm",
     "constraints": ORACLE_ROOT + "types_of_constraints.htm",
     "critical": ORACLE_ROOT + "define_critical_activities.htm",
@@ -129,7 +134,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         id="SCH-005", area="Scheduling / Multiple float paths", feature="Multiple critical float paths and path ordering",
         p6_ui_entry="Tools > Schedule > Options > Advanced; Activity fields FloatPath / FloatPathOrder",
         required_semantics="When enabled, calculate the configured number of paths using the selected endpoint and path method; persist stable path rank/order. These outputs are calculated fields, not manually edited values.",
-        user_options=("Enable/disable", "Maximum path count", "Ending activity", "Float-based or relationship-based path selection"),
+        user_options=("Enable/disable", "Maximum path count", "Ending activity", "Total Float or Free Float method"),
         official_sources=(ORACLE_SOURCES["critical"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/p6_activity_scheduler_outputs.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
@@ -158,7 +163,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         p6_ui_entry="Project > Activities > Activity Details > Relationships / Tools > Schedule > Options",
         required_semantics="Support FS, SS, FF, SF and signed lag/lead. Lag duration must be converted with the selected P6-compatible lag calendar; do not use a single global weekday rule or discard negative lag.",
         user_options=("FS", "SS", "FF", "SF", "Positive lag", "Negative lag/lead", "Successor calendar", "Predecessor calendar", "24-hour calendar", "Project default calendar"),
-        official_sources=(ORACLE_SOURCES["relationships"], ORACLE_SOURCES["relationship_details"], ORACLE_SOURCES["schedule_options"]),
+        official_sources=(ORACLE_SOURCES["relationships"], ORACLE_SOURCES["relationship_details"], ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["relationship_lag"]),
         cubi_code_paths=("src/construction_pm/scheduling/relationships.py", "src/construction_pm/scheduling/forward_pass.py", "src/construction_pm/scheduling/time_forward_pass.py", "src/construction_pm/scheduling/calendar_context.py", "src/construction_pm/scheduling/calendar_resolution.py", "src/construction_pm/scheduling/schedule_options.py"),
         regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_time_schedule.py"),
         coverage=MAPPED_NOT_PROVEN,
@@ -274,8 +279,8 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         id="RES-002", area="Resources / Leveling", feature="Resource leveling controls and priority order",
         p6_ui_entry="Tools > Level Resources / Tools > Schedule > Options > Level Resources",
         required_semantics="Leveling must respect resource capacity and activity logic. Preserve selected resources, priority rules, float limits, allowed overallocation, whether Early/Late dates are preserved and whether all resources are leveled. It is not just a UI conflict highlight.",
-        user_options=("Level all resources", "Selected resource list", "Level within float", "Minimum float to preserve", "Over-allocation percentage", "Priority field/order", "Preserve scheduled Early/Late dates"),
-        official_sources=(ORACLE_SOURCES["schedule"], "https://docs.oracle.com/cd/F88968_01/client_help/en_US/leveling_resources.htm"),
+        user_options=("Level all resources", "Selected resource list", "Level within activity Total Float", "Minimum float to preserve", "Maximum percent to over-allocate", "Consider assignments in other projects with priority equal/higher than", "Preserve scheduled Early/Late dates", "Recalculate assignment costs after leveling", "Priority field", "Sort: Ascending/Descending/Hierarchy where allowed", "Write leveling log / View log", "Projects whose scheduling options control leveling"),
+        official_sources=(ORACLE_SOURCES["schedule"], "https://docs.oracle.com/cd/F88968_01/client_help/en_US/leveling_resources.htm", ORACLE_SOURCES["leveling_dialog"]),
         cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/scheduling/resource_leveling_input.py", "src/construction_pm/scheduling/schedule_options.py"),
         regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=MAPPED_NOT_PROVEN,
     ),
@@ -322,7 +327,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         id="EVM-001", area="Progress / Earned Value", feature="WBS Earned Value technique settings",
         p6_ui_entry="Project > WBS > WBS Details > Earned Value",
         required_semantics="Honor WBS-level technique for performance percent complete and ETC. Methods such as 0/100, 50/50 and custom percent complete have distinct earning rules; ETC may use remaining cost or configured performance factor. Overrides/default inheritance must be traceable.",
-        user_options=("Performance percent-complete technique", "ETC technique", "Performance factor PF", "WBS-specific setting"),
+        user_options=("Activity Percent Complete", "Resource curves/future-period buckets", "WBS milestones/weighted milestones", "0/100", "50/50", "Custom Percent Complete", "ETC = remaining activity cost", "PF=1", "PF=1/CPI", "PF=1/(CPI*SPI)", "User-defined PF", "WBS-specific setting"),
         official_sources=(ORACLE_SOURCES["wbs_earned_value"],),
         cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
         regression_tests=(), coverage=INVENTORY_REQUIRED,
@@ -416,6 +421,48 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/schedule_snapshot_materializer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/http/production_composition.py", "src/construction_pm/http/project_lifecycle_routes.py"),
         regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py",),
         coverage=MAPPED_NOT_PROVEN,
+    ),
+
+    P6CodeReference(
+        id="SCH-011", area="Scheduling / General controls", feature="Automatic scheduling and coupled schedule actions",
+        p6_ui_entry="Tools > Schedule > Options > General",
+        required_semantics="Represent automatic recalculation after date-affecting changes, automatic resource leveling during scheduling, and cost recalculation after scheduling as separate user-selected settings. Do not silently turn on leveling or cost recalculation merely because schedule calculation runs. Record which open project's schedule options control a multi-project scheduling run.",
+        user_options=("Schedule automatically when a change affects dates", "Level resources during scheduling", "Recalculate assignment costs after scheduling", "Use scheduling options from selected open project", "Default settings/reset"),
+        official_sources=(ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["schedule_dialog"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/schedule_evaluator.py", "src/construction_pm/project_schedule_settings_repository.py", "src/construction_pm/http/project_lifecycle_routes.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Each general-option persisted value must be traced into production composition and tested for both enabled and disabled behavior.",
+    ),
+    P6CodeReference(
+        id="SCH-012", area="Scheduling / Out-of-sequence SS logic", feature="Start-to-start lag expiry basis",
+        p6_ui_entry="Tools > Schedule > Options > General > Calculate start-to-start lag from",
+        required_semantics="When an SS predecessor is out of sequence, the chosen basis changes how expired and remaining lag are computed. Early Start bases expiry on the predecessor internal Early Start and elapsed work periods; Actual Start bases it on the recorded actual start and elapsed time. This selector is disabled when Actual Dates mode is used and must not be treated as active in that mode.",
+        user_options=("Early Start", "Actual Start", "Disabled under Actual Dates mode"),
+        official_sources=(ORACLE_SOURCES["schedule_options"], ORACLE_SOURCES["relationship_lag"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/out_of_sequence.py", "src/construction_pm/scheduling/relationships.py", "src/construction_pm/scheduling/time_forward_pass.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_time_schedule.py"),
+        coverage=MAPPED_NOT_PROVEN,
+        acceptance_evidence=("SS out-of-sequence tests distinguish Early Start from Actual Start", "Actual Dates mode rejects/ignores no user option silently; behavior matches official rule"),
+    ),
+    P6CodeReference(
+        id="SCH-013", area="Scheduling / Schedule dialog", feature="Multi-project Data Date, forecast start and scheduling log",
+        p6_ui_entry="Tools > Schedule dialog",
+        required_semantics="Support each project's own Data Date or applying one selected Data Date to all open projects. The forecast-start option, when selected, uses the forecast date rather than the project's planned start/current Data Date. Scheduling logs must report the run and distinguish append/overwrite and HTML/plain output where offered.",
+        user_options=("All projects use their own Data Date", "Apply selected Data Date to all opened projects", "Set Data Date and Project Planned Start to Project Forecast Start during scheduling", "Log to file", "HTML/plain log", "Overwrite/append existing log", "Schedule/Cancel/View Log"),
+        official_sources=(ORACLE_SOURCES["schedule_dialog"], ORACLE_SOURCES["schedule"]),
+        cubi_code_paths=("src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/schedule_evaluator.py"),
+        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        known_gap="Multi-project run orchestration, forecast-start handling and schedule-log fidelity require dedicated contracts and end-to-end tests.",
+    ),
+    P6CodeReference(
+        id="RES-005", area="Resources / Cross-project leveling", feature="Leveler project priority, resource selection and result log",
+        p6_ui_entry="Tools > Level Resources dialog",
+        required_semantics="In addition to per-activity priority, record the selected project settings source and any threshold for including assignments from other projects. Project leveling priority is ranked 1 (highest) through 100 (lowest). Respect hierarchical priority sort where available, output the requested leveling log, and never hide remaining over-allocation.",
+        user_options=("Scheduling options source project", "Include other projects with priority at or above configured threshold", "Project leveling priority 1-100", "Field priorities", "Ascending/Descending/Hierarchy", "Level all/selected resources", "Write/View log", "Default settings"),
+        official_sources=(ORACLE_SOURCES["leveling_dialog"], ORACLE_SOURCES["schedule"]),
+        cubi_code_paths=("src/construction_pm/scheduling/resource_leveling.py", "src/construction_pm/scheduling/leveling_scheduler.py", "src/construction_pm/scheduling/schedule_options.py", "src/construction_pm/p6_resource_leveling_read_adapter.py"),
+        regression_tests=("tests/scheduling/test_resource_leveling_input.py",), coverage=INVENTORY_REQUIRED,
+        known_gap="Cross-project priority thresholds and leveling-log behavior are not yet proven by the current registry's test mapping.",
     ),
 )
 
