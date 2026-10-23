@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Configure GitHub Pages
+        id: pages
         uses: actions/configure-pages@v5
 
       - name: Set up Node
@@ -53,6 +54,9 @@ jobs:
 
       - name: Assemble Pages site
         run: |
+          SITE_BASE_URL="${{ steps.pages.outputs.base_url }}"
+          SITE_BASE_URL="${SITE_BASE_URL%/}"
+          test -n "$SITE_BASE_URL"
           rm -rf "${{ github.workspace }}/_site"
           mkdir -p "${{ github.workspace }}/_site/app"
           cp index.html "${{ github.workspace }}/_site/index.html"
@@ -63,6 +67,16 @@ jobs:
           # The shared landing component uses document-relative logo paths on both routes.
           # Copy the same canonical asset into /app so those references resolve there too.
           cp public/cubi-platform-logo-primary.svg "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
+          # Resolve canonical and social URLs against the actual configured Pages base URL.
+          find "${{ github.workspace }}/_site" -name index.html -not -path "*/app/*" -exec sed -i "s#__CUBI_BASE_URL__#${SITE_BASE_URL}#g" {} +
+          sed -i "s#<link rel=\"canonical\" href=\"./\" />#<link rel=\"canonical\" href=\"${SITE_BASE_URL}/\" />#" "${{ github.workspace }}/_site/index.html"
+          sed -i "s#<meta property=\"og:url\" content=\"./\" />#<meta property=\"og:url\" content=\"${SITE_BASE_URL}/\" />#" "${{ github.workspace }}/_site/index.html"
+          sed -i "s#<meta property=\"og:image\" content=\"./cubi-platform-logo-primary.svg\" />#<meta property=\"og:image\" content=\"${SITE_BASE_URL}/cubi-platform-logo-primary.svg\" />#" "${{ github.workspace }}/_site/index.html"
+          sed -i "s#<meta name=\"twitter:image\" content=\"./cubi-platform-logo-primary.svg\" />#<meta name=\"twitter:image\" content=\"${SITE_BASE_URL}/cubi-platform-logo-primary.svg\" />#" "${{ github.workspace }}/_site/index.html"
+          sed -i "s#\"url\": \"./\"#\"url\": \"${SITE_BASE_URL}/\"#" "${{ github.workspace }}/_site/index.html"
+          printf 'User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n' "$SITE_BASE_URL" > "${{ github.workspace }}/_site/robots.txt"
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>%s/</loc></url>\n<url><loc>%s/platform/</loc></url>\n<url><loc>%s/solutions/</loc></url>\n<url><loc>%s/resources/</loc></url>\n<url><loc>%s/contact/</loc></url>\n</urlset>\n' "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" > "${{ github.workspace }}/_site/sitemap.xml"
+          touch "${{ github.workspace }}/_site/.nojekyll"
           touch "${{ github.workspace }}/_site/.nojekyll"
           # The TypeScript build writes the commercial entry to dist/web/src/landing-entry.js because
           # tsconfig.build.json uses rootDir=.. and outDir=dist.
