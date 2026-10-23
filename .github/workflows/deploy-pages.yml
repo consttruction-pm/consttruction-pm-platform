@@ -29,10 +29,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure GitHub Pages
-        id: pages
-        uses: actions/configure-pages@v5
-
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
@@ -52,82 +48,14 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Assemble Pages site
-        run: |
-          SITE_BASE_URL="${{ steps.pages.outputs.base_url }}"
-          SITE_BASE_URL="${SITE_BASE_URL%/}"
-          test -n "$SITE_BASE_URL"
-          rm -rf "${{ github.workspace }}/_site"
-          mkdir -p "${{ github.workspace }}/_site/app"
-          cp index.html "${{ github.workspace }}/_site/index.html"
-          cp styles.css "${{ github.workspace }}/_site/styles.css"
-          cp -R public/. "${{ github.workspace }}/_site/"
-          cp -R dist "${{ github.workspace }}/_site/dist"
-          cp index.html "${{ github.workspace }}/_site/app/index.html"
-          # The shared landing component uses document-relative logo paths on both routes.
-          # Copy the same canonical asset into /app so those references resolve there too.
-          cp public/cubi-platform-logo-primary.svg "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
-          # Resolve canonical and social URLs against the actual configured Pages base URL.
-          find "${{ github.workspace }}/_site" -name index.html -not -path "*/app/*" -exec sed -i "s#__CUBI_BASE_URL__#${SITE_BASE_URL}#g" {} +
-          sed -i "s#<link rel=\"canonical\" href=\"./\" />#<link rel=\"canonical\" href=\"${SITE_BASE_URL}/\" />#" "${{ github.workspace }}/_site/index.html"
-          sed -i "s#<meta property=\"og:url\" content=\"./\" />#<meta property=\"og:url\" content=\"${SITE_BASE_URL}/\" />#" "${{ github.workspace }}/_site/index.html"
-          sed -i "s#<meta property=\"og:image\" content=\"./cubi-platform-logo-primary.svg\" />#<meta property=\"og:image\" content=\"${SITE_BASE_URL}/cubi-platform-logo-primary.svg\" />#" "${{ github.workspace }}/_site/index.html"
-          sed -i "s#<meta name=\"twitter:image\" content=\"./cubi-platform-logo-primary.svg\" />#<meta name=\"twitter:image\" content=\"${SITE_BASE_URL}/cubi-platform-logo-primary.svg\" />#" "${{ github.workspace }}/_site/index.html"
-          sed -i "s#\"url\": \"./\"#\"url\": \"${SITE_BASE_URL}/\"#" "${{ github.workspace }}/_site/index.html"
-          printf 'User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n' "$SITE_BASE_URL" > "${{ github.workspace }}/_site/robots.txt"
-          printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>%s/</loc></url>\n<url><loc>%s/platform/</loc></url>\n<url><loc>%s/solutions/</loc></url>\n<url><loc>%s/resources/</loc></url>\n<url><loc>%s/contact/</loc></url>\n</urlset>\n' "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" "$SITE_BASE_URL" > "${{ github.workspace }}/_site/sitemap.xml"
-          touch "${{ github.workspace }}/_site/.nojekyll"
-          # The TypeScript build writes the commercial entry to dist/web/src/landing-entry.js because
-          # tsconfig.build.json uses rootDir=.. and outDir=dist.
-          # Create correct asset paths for both the root site and /app route.
-          sed -i 's#\./dist/landing-entry\.js#./dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/index.html"
-          sed -i 's#\./styles\.css#./styles.css#' "${{ github.workspace }}/_site/index.html"
-          sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#\./dist/landing-entry\.js#../dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/app/index.html"
-          # Workspace pages are private product surfaces, not public marketing content.
-          sed -i 's#<title>.*</title>#<title>CUBI Platform | Workspace</title>#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#<meta name="description" content="[^"]*" />#<meta name="description" content="CUBI Platform workspace." />#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#<meta name="robots" content="[^"]*" />#<meta name="robots" content="noindex,nofollow" />#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i '/<link rel="canonical"/d; /<meta property="og:/d; /<meta name="twitter:/d; /<script type="application\/ld+json">/,/<\/script>/d' "${{ github.workspace }}/_site/app/index.html"
-          test -f "${{ github.workspace }}/_site/index.html"
-          test -f "${{ github.workspace }}/_site/app/index.html"
-          test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
-          test -f "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          test -f "${{ github.workspace }}/_site/styles.css"
-          test -f "${{ github.workspace }}/_site/cubi-platform-logo-primary.svg"
-          test -f "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
-          test -f "${{ github.workspace }}/_site/platform/index.html"
-          test -f "${{ github.workspace }}/_site/solutions/index.html"
-          test -f "${{ github.workspace }}/_site/resources/index.html"
-          test -f "${{ github.workspace }}/_site/contact/index.html"
-          grep -q '<title>CUBI Platform | Construction Project Controls</title>' "${{ github.workspace }}/_site/platform/index.html"
-          grep -q '<title>CUBI Solutions | Construction Project Delivery</title>' "${{ github.workspace }}/_site/solutions/index.html"
-          grep -q '<title>CUBI Resources | Product Overview and Documentation</title>' "${{ github.workspace }}/_site/resources/index.html"
-          grep -q '<title>Contact CUBI | Account Access and Product Information</title>' "${{ github.workspace }}/_site/contact/index.html"
-          grep -q '<title>CUBI Platform | Workspace</title>' "${{ github.workspace }}/_site/app/index.html"
-          grep -q '<meta name="robots" content="noindex,nofollow" />' "${{ github.workspace }}/_site/app/index.html"
-          grep -q '<link rel="canonical"' "${{ github.workspace }}/_site/index.html"
-          ! grep -q 'rel="canonical"' "${{ github.workspace }}/_site/app/index.html"
-          ! grep -q 'name="robots" content="index,follow' "${{ github.workspace }}/_site/app/index.html"
-          ! grep -q 'application/ld+json' "${{ github.workspace }}/_site/app/index.html"
-          test ! -f "${{ github.workspace }}/_site/logo.svg"
-          test ! -f "${{ github.workspace }}/_site/logo-dark.svg"
-          test ! -f "${{ github.workspace }}/_site/cubi-platform-logo-primary-dark.svg"
-          test -f "${{ github.workspace }}/_site/.nojekyll"
-          test -f "${{ github.workspace }}/_site/robots.txt"
-          test -f "${{ github.workspace }}/_site/sitemap.xml"
-          grep -q "Sitemap: ${SITE_BASE_URL}/sitemap.xml" "${{ github.workspace }}/_site/robots.txt"
-          grep -q "${SITE_BASE_URL}/platform/" "${{ github.workspace }}/_site/sitemap.xml"
-          grep -q "${SITE_BASE_URL}/contact/" "${{ github.workspace }}/_site/sitemap.xml"
-          grep -q "<link rel=\"canonical\" href=\"${SITE_BASE_URL}/\"" "${{ github.workspace }}/_site/index.html"
-          grep -q "<link rel=\"canonical\" href=\"${SITE_BASE_URL}/platform/\"" "${{ github.workspace }}/_site/platform/index.html"
-          ! grep -R -q "__CUBI_BASE_URL__" "${{ github.workspace }}/_site"
-          grep -q 'dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/index.html"
-          grep -q '../dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/app/index.html"
-          grep -q 'app/' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          grep -q 'cubi-platform-logo-primary.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          ! grep -q 'cubi-platform-logo-primary-dark.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          echo "Pages artifact ready: $(find "${{ github.workspace }}/_site" -type f | wc -l) files"
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble and validate Pages site
+        env:
+          SITE_BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: node scripts/assemble-pages-site.mjs "${{ github.workspace }}/_site"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
