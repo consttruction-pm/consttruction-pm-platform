@@ -224,7 +224,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
@@ -626,7 +626,7 @@ function renderChangeClaimControl(
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
