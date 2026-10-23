@@ -127,7 +127,7 @@ const DEFAULT_WORKSPACE_COLUMN_LABELS: Record<WorkspaceLocale, Record<string, st
 };
 
 export function getDefaultWorkspaceColumns(locale: WorkspaceLocale = "en"): readonly WorkspaceColumn[] {
-  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: translateWorkspaceText(locale, `column.${column.id}`, DEFAULT_WORKSPACE_COLUMN_LABELS[locale as "en" | "fa"]?.[column.id] ?? column.label) }));
+  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: translateWorkspaceText(locale, `column.${column.id}`, DEFAULT_WORKSPACE_COLUMN_LABELS[locale.split("-")[0] as "en" | "fa"]?.[column.id] ?? column.label) }));
 }
 
 export function createWorkspaceState(
