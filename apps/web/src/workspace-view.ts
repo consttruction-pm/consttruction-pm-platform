@@ -1,6 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceCellValue, WorkspaceColumn, WorkspaceState } from "./workspace-model.js";
 import { createGanttBarGeometry, createGanttScale, type GanttBarGeometry } from "./workspace-gantt.js";
-import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel } from "./workspace-navigation.js";
+import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 const labels = {
   en: {
@@ -15,6 +16,15 @@ const labels = {
 } as const;
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
+
+function getWorkspaceLabels(locale: string): WorkspaceLabels {
+  const baseLocale = locale.split("-")[0] as keyof typeof labels;
+  const baseline = labels[locale as keyof typeof labels] ?? labels[baseLocale] ?? labels.en;
+  return Object.fromEntries(Object.entries(labels.en).map(([key, fallback]) => [
+    key,
+    translateWorkspaceText(locale, `workspace.${key}`, (baseline as Record<string, string>)[key] ?? fallback),
+  ])) as WorkspaceLabels;
+}
 
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
@@ -124,7 +134,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   });
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
-    const t = labels[next.locale];
+    const t = getWorkspaceLabels(next.locale);
     details.innerHTML = `<h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${next.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(next.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}`;
   }
   return true;
@@ -150,7 +160,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     workspaceRenderRecords.set(container, { state, options });
     return;
   }
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const cachedWbsIds = workspaceWbsIdsCache.get(state.activities);
   const wbsIds = cachedWbsIds ?? [...new Set(state.activities.map((activity) => activity.wbsId))];
   if (!cachedWbsIds) workspaceWbsIdsCache.set(state.activities, wbsIds);
@@ -189,23 +199,23 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
         <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
-          <h2>${t.wbs}</h2>
-          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${t.noActivities}</div>`}
+          <h2>${escapeHtml(t.wbs)}</h2>
+          ${wbsIds.length ? wbsIds.map((wbsId) => `<button type="button" class="cp-wbs-node${state.selectedWbsId === wbsId ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(wbsId)}" aria-current="${state.selectedWbsId === wbsId ? "true" : "false"}">${escapeHtml(wbsId)}</button>`).join("") : `<div class="cp-empty">${escapeHtml(t.noActivities)}</div>`}
         </aside>
         <section class="cp-center">
           <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
-            <h2>${t.activities}</h2>
+            <h2>${escapeHtml(t.activities)}</h2>
             ${renderP6FieldChooser(state)}
             <div class="cp-table-wrap">
               <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false">
                 <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}</tr></thead>
-                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${t.noActivities}</td></tr>`}</tbody>
+                <tbody>${state.activities.length ? state.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length)}">${escapeHtml(t.noActivities)}</td></tr>`}</tbody>
               </table>
             </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${t.gantt}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(state.activities, scale, t.gantt, t.noSchedule, t.critical, state.selectedActivityId)}</section>
         </section>
-        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${t.details}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
       </main>
     </section>
   `;
@@ -215,20 +225,20 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const item = getWorkspaceNavigation(state.activeMenu);
   const statusLabel = getWorkspaceNavigationStatusLabel(item, state.locale);
   const label = getWorkspaceNavigationLabel(item, state.locale);
   const links = navigationAnchors(item.key);
 
   return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
-    <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${statusLabel}</span></div>
+    <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
         return anchor
-          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(submenu[state.locale])}</a>`
-          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(submenu[state.locale])}</span>`;
+          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
+          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
       }).join("")}
     </nav>
   </section>`;
@@ -271,7 +281,7 @@ function renderSmartGuide(
             `<article class="cp-field-card" data-ai-action-id="${escapeAttribute(action.actionId)}">
               <strong>${escapeHtml(action.titleKey)}</strong>
               <span>${escapeHtml(action.actionType)}</span>
-              <span>${action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag}</span>
+              <span>${escapeHtml(action.requiresApproval ? t.humanApprovalRequired : t.noApprovalFlag)}</span>
               <span>${action.sourceCount} ${escapeHtml(t.sourceUnit)}</span>
             </article>`,
         )
@@ -553,7 +563,7 @@ function renderChangeClaimControl(
           <strong>${escapeHtml(document.documentId)}</strong>
           <span>${escapeHtml(document.title)}</span>
           <span>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · Rev ${document.revision}</span>
-          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${document.hasStorageRef ? t.stored : t.noStorage}</small>
+          <small>${document.linkedEntityRefs.length} ${escapeHtml(t.linkedReferenceUnit)} · ${escapeHtml(document.hasStorageRef ? t.stored : t.noStorage)}</small>
         </article>`).join("")}
       </div>
     </section>`;
@@ -617,7 +627,7 @@ function renderChangeClaimControl(
 }
 
 function renderP6FieldChooser(state: WorkspaceState): string {
-  const t = labels[state.locale];
+  const t = getWorkspaceLabels(state.locale);
   const registry = state.p6FieldRegistry;
   const layout = state.p6Layout;
   if (!registry || !layout) return "";
@@ -666,7 +676,7 @@ function renderCellValue(columnId: string, value: WorkspaceCellValue): string {
 }
 
 function renderGantt(activities: readonly WorkspaceActivityRow[], scale: ReturnType<typeof createGanttScale>, ariaLabel: string, noScheduleLabel: string, criticalLabel: string, selectedActivityId: string | null): string {
-  if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
+  if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${escapeHtml(noScheduleLabel)}</div>`;
   const bars = activities.map((activity) => createGanttBarGeometry(activity, scale)).filter((bar): bar is GanttBarGeometry => bar !== null);
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(ariaLabel)}">${noScheduleLabel}</div>`;
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(ariaLabel)}">${bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + criticalLabel : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("")}</div>`;

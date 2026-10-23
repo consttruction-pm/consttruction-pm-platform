@@ -1,4 +1,5 @@
 import type { WorkspaceLocale } from "./workspace-model.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 export type WorkspaceShellLabels = {
   status: string;
@@ -6,7 +7,7 @@ export type WorkspaceShellLabels = {
   switchToPersian: string;
 };
 
-const labels: Record<WorkspaceLocale, WorkspaceShellLabels> = {
+const labels: Partial<Record<WorkspaceLocale, WorkspaceShellLabels>> = {
   en: {
     status: "Web shell · Authenticated workspace",
     switchToEnglish: "Switch to English",
@@ -20,5 +21,10 @@ const labels: Record<WorkspaceLocale, WorkspaceShellLabels> = {
 };
 
 export function getWorkspaceShellLabels(locale: WorkspaceLocale): WorkspaceShellLabels {
-  return labels[locale];
+  const baseline = labels[locale] ?? labels.en!;
+  return {
+    status: translateWorkspaceText(locale, "shell.status", baseline.status),
+    switchToEnglish: translateWorkspaceText(locale, "shell.switchToEnglish", baseline.switchToEnglish),
+    switchToPersian: translateWorkspaceText(locale, "shell.switchToPersian", baseline.switchToPersian),
+  };
 }

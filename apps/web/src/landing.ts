@@ -1,4 +1,4 @@
-type LandingLocale = "en" | "fa";
+type LandingLocale = string;
 type Feature = { icon: string; title: string; body: string };
 type LandingCopy = {
   nav: string[]; eyebrow: string; title: string; accent: string; subtitle: string; body: string;
@@ -7,7 +7,7 @@ type LandingCopy = {
   ctaTitle: string; ctaBody: string; signIn: string; start: string; language: string;
   footerColumns: Array<{ title: string; links: string[] }>; footerNote: string;
 };
-const copy: Record<LandingLocale, LandingCopy> = {
+const copy: Partial<Record<LandingLocale, LandingCopy>> = {
   en: {
     nav: ["Home", "Platform", "Solutions", "Resources"],
     eyebrow: "CONSTRUCTION & BUILDING INTELLIGENCE",
@@ -75,12 +75,14 @@ const copy: Record<LandingLocale, LandingCopy> = {
     footerNote: "برنامه‌ریزی. کنترل. ساخت هوشمندتر."
   }
 };
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceText } from "./workspace-localization.js";
+
 const LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale";
 let locale: LandingLocale = "en";
 function restoreLandingLocale(): void {
   try {
     const saved = window.localStorage.getItem(LANDING_LOCALE_STORAGE_KEY);
-    if (saved === "en" || saved === "fa") locale = saved;
+    if (saved && getAvailableWorkspaceLocales().includes(saved)) locale = saved;
   } catch {
     // Storage may be disabled; the language switch must still work.
   }
@@ -94,10 +96,66 @@ function persistLandingLocale(): void {
 }
 function setLandingDocumentLocale(): void {
   document.documentElement.lang = locale;
-  document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+  document.documentElement.dir = getWorkspaceLocaleDirection(locale);
 }
+function getLandingCopy(locale: LandingLocale): LandingCopy {
+  const baseline = copy[locale] ?? copy.en!;
+  const availableLocales = getAvailableWorkspaceLocales();
+  const currentLocaleIndex = availableLocales.indexOf(locale);
+  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
+  const translate = (key: string, fallback: string) => translateWorkspaceText(locale, `landing.${key}`, fallback);
+  const localized: LandingCopy = {
+    ...baseline,
+    nav: baseline.nav.map((value, index) => translate(`nav.${index}`, value)),
+    eyebrow: translate("eyebrow", baseline.eyebrow),
+    title: translate("title", baseline.title),
+    accent: translate("accent", baseline.accent),
+    subtitle: translate("subtitle", baseline.subtitle),
+    body: translate("body", baseline.body),
+    primary: translate("primary", baseline.primary),
+    secondary: translate("secondary", baseline.secondary),
+    featuresEyebrow: translate("featuresEyebrow", baseline.featuresEyebrow),
+    featuresTitle: translate("featuresTitle", baseline.featuresTitle),
+    featuresBody: translate("featuresBody", baseline.featuresBody),
+    features: baseline.features.map((feature, index) => ({
+      icon: translate(`features.${index}.icon`, feature.icon),
+      title: translate(`features.${index}.title`, feature.title),
+      body: translate(`features.${index}.body`, feature.body),
+    })),
+    techEyebrow: translate("techEyebrow", baseline.techEyebrow),
+    techTitle: translate("techTitle", baseline.techTitle),
+    techBody: translate("techBody", baseline.techBody),
+    techLink: translate("techLink", baseline.techLink),
+    techNodes: baseline.techNodes.map((value, index) => translate(`techNodes.${index}`, value)),
+    ctaTitle: translate("ctaTitle", baseline.ctaTitle),
+    ctaBody: translate("ctaBody", baseline.ctaBody),
+    signIn: translate("signIn", baseline.signIn),
+    start: translate("start", baseline.start),
+    language: translate("language", getWorkspaceLocaleDisplayName(nextLocale)),
+    footerColumns: baseline.footerColumns.map((column, columnIndex) => ({
+      title: translate(`footerColumns.${columnIndex}.title`, column.title),
+      links: column.links.map((value, linkIndex) => translate(`footerColumns.${columnIndex}.links.${linkIndex}`, value)),
+    })),
+    footerNote: translate("footerNote", baseline.footerNote),
+  };
+  return escapeLandingCopy(localized);
+}
+
+function escapeLandingCopy<T>(value: T): T {
+  if (typeof value === "string") return escapeHtml(value) as T;
+  if (Array.isArray(value)) return value.map((item) => escapeLandingCopy(item)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, escapeLandingCopy(item)])) as T;
+  }
+  return value;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"\']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"' : "&quot;", "\'": "&#39;" })[character]!);
+}
+
 function renderLanding(container: HTMLElement): void {
-  const t = copy[locale];
+  const t = getLandingCopy(locale);
   setLandingDocumentLocale();
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
@@ -148,7 +206,9 @@ function renderLanding(container: HTMLElement): void {
       </footer>
     </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
-    locale = locale === "en" ? "fa" : "en";
+    const available = getAvailableWorkspaceLocales();
+    const index = available.indexOf(locale);
+    locale = available[(index + 1) % available.length] ?? "en";
     persistLandingLocale();
     renderLanding(container);
   });

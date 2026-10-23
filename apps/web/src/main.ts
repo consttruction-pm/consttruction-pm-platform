@@ -20,6 +20,7 @@ import { renderMainWorkspace } from "./workspace-view.js";
 import { getBootstrapLabels } from "./bootstrap-labels.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -40,10 +41,13 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
 
   const languageButton = document.createElement("button");
   languageButton.type = "button";
-  languageButton.textContent = state.locale === "fa" ? "English" : "فارسی";
-  languageButton.setAttribute("aria-label", state.locale === "fa" ? shellLabels.switchToEnglish : shellLabels.switchToPersian);
+  const availableLocales = getAvailableWorkspaceLocales();
+  const currentLocaleIndex = availableLocales.indexOf(state.locale);
+  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
+  languageButton.textContent = getWorkspaceLocaleDisplayName(nextLocale);
+  languageButton.setAttribute("aria-label", `Switch language to ${getWorkspaceLocaleDisplayName(nextLocale)}`);
   languageButton.onclick = () => {
-    const next: WorkspaceLocale = state.locale === "fa" ? "en" : "fa";
+    const next: WorkspaceLocale = nextLocale;
     renderApp(container, setLocale(state, next), persistence);
   };
 
