@@ -573,6 +573,44 @@ th {
   color: var(--cp-navy);
 }
 
+.cp-wbs-tree,
+.cp-wbs-children {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 0;
+}
+
+.cp-wbs-children {
+  margin-inline-start: .65rem;
+  padding-inline-start: .55rem;
+  border-inline-start: 1px solid var(--cubi-neutral-border);
+}
+
+.cp-wbs-item {
+  min-width: 0;
+  margin: 2px 0;
+}
+
+.cp-wbs-node {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  text-align: start;
+}
+
+.cp-wbs-code {
+  flex: 0 0 auto;
+  color: var(--cp-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-wbs-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-wbs-invalid { list-style: none; }
+
 .cp-gantt-board {
   width: 100%;
   min-width: 0;
