@@ -4,6 +4,8 @@ from construction_pm.ai_action_boundary import (
     AIActionApprovalService,
     AIActionBoundaryError,
     AIActionProposal,
+    AIActionPermissionGrant,
+    UserConfiguredAIActionPermissionAdapter,
     InMemoryAIActionAuditSink,
     ReferenceAIToolPermissionAdapter,
 )
@@ -57,3 +59,77 @@ def test_unsupported_contract_version_is_rejected():
     item = AIActionProposal("tenant-1", "project-1", "proposal-1", "document.search", "search", True, evidence_refs=("doc-1",), contract_version="2.0")
     with pytest.raises(AIActionBoundaryError, match="UNSUPPORTED_AI_ACTION_CONTRACT_VERSION"):
         item.validate()
+
+
+def scoped_proposal(**overrides):
+    values = {
+        "tenant_id": "tenant-1",
+        "project_id": "project-1",
+        "proposal_id": "proposal-scoped",
+        "tool_name": "activity.update",
+        "action": "update",
+        "requires_human_approval": True,
+        "requested_by": "user-7",
+        "evidence_refs": ("activity-12",),
+        "project_revision_id": "revision-9",
+        "resource_domain": "activities",
+    }
+    values.update(overrides)
+    return AIActionProposal(**values)
+
+
+def scoped_grant(**overrides):
+    values = {
+        "subject_id": "user-7",
+        "tenant_id": "tenant-1",
+        "project_id": "project-1",
+        "project_revision_id": "revision-9",
+        "resource_domain": "activities",
+        "operation": "update",
+        "tool_name": "activity.update",
+    }
+    values.update(overrides)
+    return AIActionPermissionGrant(**values)
+
+
+def test_scoped_grant_allows_only_exact_subject_project_revision_domain_operation_and_tool():
+    grants = [scoped_grant()]
+    adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
+    svc = AIActionApprovalService(adapter, InMemoryAIActionAuditSink())
+
+    assert adapter.allowed(scoped_proposal())
+    denied = [
+        scoped_proposal(requested_by="user-8"),
+        scoped_proposal(tenant_id="tenant-other"),
+        scoped_proposal(project_id="project-other"),
+        scoped_proposal(project_revision_id="revision-old"),
+        scoped_proposal(resource_domain="cost"),
+        scoped_proposal(action="delete"),
+        scoped_proposal(tool_name="project.admin"),
+        scoped_proposal(project_revision_id=None),
+        scoped_proposal(resource_domain=None),
+    ]
+    assert all(not adapter.allowed(item) for item in denied)
+    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True).decision == "approved"
+
+
+def test_scoped_grant_revocation_is_checked_on_each_decision():
+    grants = [scoped_grant()]
+    sink = InMemoryAIActionAuditSink()
+    svc = AIActionApprovalService(
+        UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)),
+        sink,
+    )
+    assert svc.decide(scoped_proposal(), actor_id="user-7", approved=True).decision == "approved"
+
+    grants.clear()
+    with pytest.raises(AIActionBoundaryError, match="AI_TOOL_NOT_PERMITTED"):
+        svc.decide(scoped_proposal(), actor_id="user-7", approved=True)
+    assert len(sink.records) == 1
+
+
+def test_scoped_grant_rejects_invalid_grant_data():
+    grants = [scoped_grant(project_revision_id=" ")]
+    adapter = UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants))
+    with pytest.raises(AIActionBoundaryError, match="INVALID_AI_PERMISSION_GRANT_PROJECT_REVISION_ID"):
+        adapter.allowed(scoped_proposal())
