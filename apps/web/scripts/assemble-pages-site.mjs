@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,11 +29,9 @@ function assert(condition, message) {
   if (!condition) throw new Error("PAGES_ARTIFACT_VALIDATION_FAILED: " + message);
 }
 
+// Rebuild from a clean output directory to prevent stale pages from leaking into the artifact.
+rmSync(output, { recursive: true, force: true });
 mkdirSync(output, { recursive: true });
-for (const name of readdirSync(output)) {
-  // Rebuild from a clean output directory to prevent stale pages from leaking into the artifact.
-  cpSync(join(output, name), join(output, name), { recursive: true, force: true });
-}
 copyDirectoryContents(join(root, "public"), output);
 cpSync(join(root, "dist"), join(output, "dist"), { recursive: true, force: true });
 cpSync(join(root, "index.html"), join(output, "index.html"));
