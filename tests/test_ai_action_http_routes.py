@@ -41,9 +41,9 @@ class Projects:
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 
-def build_routes(*, runtime_enabled=True):
+def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"})):
     now = datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc)
-    session = AuthenticatedSession("session-1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    session = AuthenticatedSession("session-1", "u1", "t1", frozenset(roles), now + timedelta(hours=1))
     api = ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy()))
     conn = sqlite3.connect(":memory:")
     store = SQLiteAIActionRuntimeStore(conn)
@@ -160,3 +160,10 @@ def test_ai_action_route_is_fail_closed_when_runtime_is_not_composed():
     })
     assert status == 404
     assert json.loads(body)["code"] == "ROUTE_NOT_FOUND"
+
+
+def test_read_only_project_user_cannot_inspect_actionable_proposal_payloads():
+    routes, _, _ = build_routes(roles=frozenset({"viewer"}))
+    status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {}, method="GET")
+    assert status == 403
+    assert json.loads(body)["code"].startswith("authorization denied")
