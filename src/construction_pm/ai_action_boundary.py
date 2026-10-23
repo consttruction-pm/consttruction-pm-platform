@@ -38,6 +38,10 @@ class AIActionProposal:
             raise AIActionBoundaryError("INVALID_AI_ACTION_APPROVAL_FLAG")
         if any(not isinstance(ref, str) or not ref.strip() for ref in self.evidence_refs):
             raise AIActionBoundaryError("INVALID_AI_ACTION_EVIDENCE_REFS")
+        if self.project_revision_id is not None and (not isinstance(self.project_revision_id, str) or not self.project_revision_id.strip()):
+            raise AIActionBoundaryError("INVALID_AI_ACTION_PROJECT_REVISION_ID")
+        if self.resource_domain is not None and (not isinstance(self.resource_domain, str) or not self.resource_domain.strip()):
+            raise AIActionBoundaryError("INVALID_AI_ACTION_RESOURCE_DOMAIN")
 
 
 @dataclass(frozen=True)
