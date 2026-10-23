@@ -10,8 +10,9 @@ import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObserv
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
+import { getWorkspaceLocaleDirection, translateWorkspaceText } from "./workspace-localization.js";
 
-export type WorkspaceLocale = "fa" | "en";
+export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
@@ -126,7 +127,7 @@ const DEFAULT_WORKSPACE_COLUMN_LABELS: Record<WorkspaceLocale, Record<string, st
 };
 
 export function getDefaultWorkspaceColumns(locale: WorkspaceLocale = "en"): readonly WorkspaceColumn[] {
-  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: DEFAULT_WORKSPACE_COLUMN_LABELS[locale][column.id] ?? column.label }));
+  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: translateWorkspaceText(locale, `column.${column.id}`, DEFAULT_WORKSPACE_COLUMN_LABELS[locale as "en" | "fa"]?.[column.id] ?? column.label) }));
 }
 
 export function createWorkspaceState(
@@ -138,7 +139,7 @@ export function createWorkspaceState(
   return {
     context: Object.freeze({ ...context }),
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     activeMenu: "schedule",
     visiblePanels: {
