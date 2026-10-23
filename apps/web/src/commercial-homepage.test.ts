@@ -82,10 +82,10 @@ test("homepage navigation and footer connect to real public routes", () => {
 
 test("standalone public pages have unique metadata and expected content", () => {
   const pages = [
-    ["../public/platform/index.html", "CUBI Platform | Construction Project Controls", "scheduling"],
-    ["../public/solutions/index.html", "CUBI Solutions | Construction Project Delivery", "construction-teams"],
-    ["../public/resources/index.html", "CUBI Resources | Product Overview and Documentation", "documentation"],
-    ["../public/contact/index.html", "Contact CUBI | Account Access and Product Information", "Direct contact channel"],
+    ["public/platform/index.html", "CUBI Platform | Construction Project Controls", "scheduling"],
+    ["public/solutions/index.html", "CUBI Solutions | Construction Project Delivery", "construction-teams"],
+    ["public/resources/index.html", "CUBI Resources | Product Overview and Documentation", "documentation"],
+    ["public/contact/index.html", "Contact CUBI | Account Access and Product Information", "Direct contact channel"],
   ];
   for (const [path, title, marker] of pages) {
     const html = readFileSync(join(root, path), "utf8");
