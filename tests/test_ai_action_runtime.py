@@ -155,21 +155,33 @@ def test_proposal_is_not_discoverable_across_project_or_tenant_scope():
         runtime.decide(other_scope, record.proposal.proposal_id, approved=True)
 
 
-def test_execution_failure_is_recorded_and_cannot_be_replayed():
-    def fail(payload, proposal, idempotency_key):
-        raise RuntimeError("do not expose implementation detail")
+def test_execution_failure_is_marked_uncertain_and_cannot_be_replayed():
+    side_effects = []
 
-    conn, _, runtime, context, _, _ = setup_runtime(executor=fail)
+    def fail_after_possible_commit(payload, proposal, idempotency_key):
+        # Simulate an executor that has applied a side effect but fails before returning
+        # the result to the orchestration layer.
+        side_effects.append((proposal.proposal_id, dict(payload)))
+        raise RuntimeError("executor response lost after a possible commit")
+
+    conn, _, runtime, context, _, _ = setup_runtime(executor=fail_after_possible_commit)
     record = runtime.propose(context, tool_name="activity.create", payload={"name": "Excavation"})
     runtime.decide(context, record.proposal.proposal_id, approved=True)
 
-    with pytest.raises(AIActionRuntimeError, match="AI_ACTION_EXECUTION_FAILED"):
+    with pytest.raises(AIActionRuntimeError, match="AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN"):
         runtime.execute(context, record.proposal.proposal_id)
-    failed = conn.execute(
+    state = conn.execute(
         "SELECT status FROM ai_action_proposals WHERE proposal_id=?",
         (record.proposal.proposal_id,),
     ).fetchone()
-    assert failed[0] == "failed"
+    assert state[0] == "uncertain"
     assert conn.execute(
-        "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type='execution_failed'"
+        "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type='execution_outcome_uncertain'"
     ).fetchone()[0] == 1
+    assert len(side_effects) == 1
+
+    # Normal execution only accepts "approved"; an uncertain outcome is never replayed
+    # without an explicit reconciliation workflow.
+    with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_NOT_APPROVED"):
+        runtime.execute(context, record.proposal.proposal_id)
+    assert len(side_effects) == 1
