@@ -7,8 +7,10 @@ remain in the shared scheduling domain/core. Unsupported date/resource/calendar
 semantics fail closed instead of being coerced or silently omitted.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+import hashlib
+import json
 from typing import Protocol
 
 from .activity_master_repository import ActivityMasterRepository
@@ -21,9 +23,16 @@ from .calendar_master_repository import (
     RelationshipLagCalendarAssignmentMaster,
 )
 from .calendar_snapshot_repository import CalendarSnapshotRepository
+from .calendar_exception_repository import CalendarExceptionRepository
+from .calendar_work_hours_repository import CalendarWorkHourRepository
+from .p6_versioned_resource_calendar_resolver import resolve_p6_resource_calendar
+from .p6_resource_capacity_contract import build_resource_capacity_slices
+from .resources.calendar import ResourceCalendar
 from .constraint_master_repository import ConstraintMasterRepository
 from .relationship_master_repository import RelationshipMasterRepository
 from .p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
     P6ResourceAssignmentPeriodRepository,
     P6ResourceAssignmentRepository,
 )
@@ -38,6 +47,9 @@ from .scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
     RelationshipLagCalendarAssignment,
+    ResourceLevelingDemandSnapshot,
+    ResourceLevelingCapacitySnapshot,
+    ResourceLevelingInputSnapshot,
 )
 from .scheduling.calendar_context import CalendarReference
 from .scheduling.calendar_system import CalendarSystem
@@ -70,6 +82,8 @@ class AuthoritativeScheduleInputComposer:
         resource_assignment_repository: P6ResourceAssignmentRepository,
         resource_period_repository: P6ResourceAssignmentPeriodRepository,
         project_schedule_settings_repository: ProjectScheduleSettingsRepository,
+        calendar_exception_repository: CalendarExceptionRepository | None = None,
+        calendar_work_hours_repository: CalendarWorkHourRepository | None = None,
     ) -> None:
         self.activity_repository = activity_repository
         self.relationship_repository = relationship_repository
@@ -80,6 +94,8 @@ class AuthoritativeScheduleInputComposer:
         self.resource_assignment_repository = resource_assignment_repository
         self.resource_period_repository = resource_period_repository
         self.project_schedule_settings_repository = project_schedule_settings_repository
+        self.calendar_exception_repository = calendar_exception_repository
+        self.calendar_work_hours_repository = calendar_work_hours_repository
 
     @staticmethod
     def _date_value(value: date | datetime | None, *, field_name: str, activity_id: str) -> date | None:
@@ -150,6 +166,206 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_IDENTITY_MISMATCH")
         return self._calendar_reference(calendar, snapshot)
 
+    def _compose_resource_leveling_input(
+        self,
+        scope: BackendScope,
+        project_settings: ProjectScheduleSettings,
+        persisted_activities: tuple[object, ...],
+        assignments: tuple[P6ResourceAssignment, ...],
+        period_values: tuple[P6ResourceAssignmentPeriodValue, ...],
+        activity_ids: set[str],
+    ) -> ResourceLevelingInputSnapshot:
+        """Bind exact resource demand and versioned calendar capacity into the snapshot.
+
+        The forecast window is deliberately finite: project_start through the
+        furthest explicitly persisted project finish, activity finish, or
+        time-phased resource period. The evaluator will never level outside this
+        window; impossible loads fail final allocation validation rather than
+        receiving guessed/default capacity.
+        """
+        if not assignments:
+            raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENTS_REQUIRED")
+        if not period_values:
+            raise ScheduleInputCompositionError("RESOURCE_LEVELING_PERIODS_REQUIRED")
+        if (
+            self.calendar_exception_repository is None
+            or self.calendar_work_hours_repository is None
+        ):
+            raise ScheduleInputCompositionError("RESOURCE_LEVELING_CALENDAR_REPOSITORIES_REQUIRED")
+
+        assignments_by_id: dict[str, P6ResourceAssignment] = {}
+        for assignment in assignments:
+            try:
+                assignment.validate()
+            except (TypeError, ValueError, ArithmeticError) as exc:
+                raise ScheduleInputCompositionError("INVALID_RESOURCE_LEVELING_ASSIGNMENT") from exc
+            if assignment.scope != scope:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_SCOPE_MISMATCH")
+            if assignment.assignment_id in assignments_by_id:
+                raise ScheduleInputCompositionError("DUPLICATE_RESOURCE_LEVELING_ASSIGNMENT")
+            if assignment.activity_id not in activity_ids:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_UNKNOWN_ACTIVITY")
+            if not assignment.calendar_id or not assignment.calendar_version:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_CALENDAR_VERSION_REQUIRED")
+            assignments_by_id[assignment.assignment_id] = assignment
+
+        periods_by_assignment: dict[str, list[P6ResourceAssignmentPeriodValue]] = {}
+        demand_dates: set[date] = set()
+        for period_value in period_values:
+            try:
+                period_value.validate()
+            except (TypeError, ValueError, ArithmeticError) as exc:
+                raise ScheduleInputCompositionError("INVALID_RESOURCE_LEVELING_PERIOD") from exc
+            if period_value.scope != scope:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_PERIOD_SCOPE_MISMATCH")
+            assignment = assignments_by_id.get(period_value.assignment_id)
+            if assignment is None:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_PERIOD_ASSIGNMENT_NOT_FOUND")
+            if (
+                period_value.activity_id != assignment.activity_id
+                or period_value.resource_id != assignment.resource_id
+            ):
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_PERIOD_ASSIGNMENT_MISMATCH")
+            if period_value.units < 0:
+                raise ScheduleInputCompositionError("NEGATIVE_RESOURCE_LEVELING_DEMAND")
+            try:
+                period_date = date.fromisoformat(period_value.period_start)
+            except ValueError as exc:
+                raise ScheduleInputCompositionError("INVALID_RESOURCE_LEVELING_PERIOD_DATE") from exc
+            if period_date.isoformat() != period_value.period_start:
+                raise ScheduleInputCompositionError("NON_CANONICAL_RESOURCE_LEVELING_PERIOD_DATE")
+            demand_dates.add(period_date)
+            periods_by_assignment.setdefault(period_value.assignment_id, []).append(period_value)
+
+        # The resource-calendar resolver's full output hash includes the exact
+        # calendar master, base chain, canonical calendar snapshot, work-hour
+        # declarations and exceptions for every required date.
+        schedule_finish_candidates: list[date] = list(demand_dates)
+        if project_settings.project_finish is not None:
+            schedule_finish_candidates.append(project_settings.project_finish)
+        for item in persisted_activities:
+            for value in (item.expected_finish, item.planned_finish, item.actual_finish):
+                if value is not None:
+                    if not isinstance(value, date) or isinstance(value, datetime):
+                        raise ScheduleInputCompositionError("RESOURCE_LEVELING_FINISH_DATE_MUST_BE_DATE")
+                    schedule_finish_candidates.append(value)
+        start_candidates = [project_settings.project_start, *demand_dates]
+        for item in persisted_activities:
+            if item.actual_start is not None:
+                if not isinstance(item.actual_start, date) or isinstance(item.actual_start, datetime):
+                    raise ScheduleInputCompositionError("RESOURCE_LEVELING_START_DATE_MUST_BE_DATE")
+                start_candidates.append(item.actual_start)
+        window_start = min(start_candidates)
+        window_end = max(schedule_finish_candidates)
+        if window_end < window_start:
+            raise ScheduleInputCompositionError("INVALID_RESOURCE_LEVELING_CAPACITY_HORIZON")
+        horizon_days = (window_end - window_start).days
+        # Prevent accidental unbounded allocation of calendar-capacity rows.
+        # The cap is an explicit fail-closed boundary, not a substituted default
+        # capacity or a change to any CPM/leveling priority calculation.
+        if horizon_days > 10000:
+            raise ScheduleInputCompositionError("RESOURCE_LEVELING_CAPACITY_HORIZON_TOO_LARGE")
+        capacity_periods = tuple(
+            window_start + timedelta(days=offset)
+            for offset in range(horizon_days + 1)
+        )
+
+        calendars: dict[tuple[str, str], ResourceCalendar] = {}
+        calendar_references = sorted({
+            (assignment.calendar_id, assignment.calendar_version)
+            for assignment in assignments.values()
+            if assignment.resource_id in {p.resource_id for p in period_values}
+        })
+        try:
+            for calendar_id, calendar_version in calendar_references:
+                assert calendar_id is not None and calendar_version is not None
+                calendars[(calendar_id, calendar_version)] = resolve_p6_resource_calendar(
+                    scope=scope,
+                    calendar_id=calendar_id,
+                    calendar_version=calendar_version,
+                    periods=capacity_periods,
+                    calendar_repository=self.calendar_repository,
+                    snapshot_repository=self.calendar_snapshot_repository,
+                    exception_repository=self.calendar_exception_repository,
+                    work_hours_repository=self.calendar_work_hours_repository,
+                )
+            capacity_slices = build_resource_capacity_slices(
+                scope,
+                assignments,
+                calendars,
+                capacity_periods,
+                require_calendar_versions=True,
+            )
+        except (TypeError, ValueError, ArithmeticError) as exc:
+            if isinstance(exc, ScheduleInputCompositionError):
+                raise
+            raise ScheduleInputCompositionError(
+                f"RESOURCE_LEVELING_CAPACITY_RESOLUTION_FAILED:{exc}"
+            ) from exc
+
+        demands: list[ResourceLevelingDemandSnapshot] = []
+        for period_value in sorted(
+            period_values,
+            key=lambda item: (item.assignment_id, item.period_start),
+        ):
+            assignment = assignments_by_id[period_value.assignment_id]
+            assert assignment.calendar_id is not None and assignment.calendar_version is not None
+            demands.append(ResourceLevelingDemandSnapshot(
+                assignment_id=period_value.assignment_id,
+                activity_id=period_value.activity_id,
+                resource_id=period_value.resource_id,
+                period=date.fromisoformat(period_value.period_start),
+                units=period_value.units,
+                calendar_id=assignment.calendar_id,
+                calendar_version=assignment.calendar_version,
+            ))
+
+        capacities = tuple(ResourceLevelingCapacitySnapshot(
+            resource_id=item.resource_id,
+            period=item.period,
+            units=item.units,
+            calendar_id=item.calendar_id,
+            calendar_version=item.calendar_version or "",
+            calendar_snapshot_hash=item.calendar_snapshot_hash or "",
+        ) for item in capacity_slices)
+        source_payload = {
+            "scope": {
+                "tenant_id": scope.tenant_id,
+                "project_id": scope.project_id,
+                "project_revision": scope.project_revision,
+            },
+            "assignments": [{
+                "assignment_id": item.assignment_id,
+                "activity_id": item.activity_id,
+                "resource_id": item.resource_id,
+                "calendar_id": item.calendar_id,
+                "calendar_version": item.calendar_version,
+                "units": None if item.units is None else str(item.units),
+                "actual_units": None if item.actual_units is None else str(item.actual_units),
+                "remaining_units": None if item.remaining_units is None else str(item.remaining_units),
+                "periods": [{
+                    "period_start": row.period_start,
+                    "units": str(row.units),
+                    "cost": str(row.cost),
+                } for row in sorted(periods_by_assignment.get(item.assignment_id, ()), key=lambda row: row.period_start)],
+            } for item in sorted(assignments, key=lambda item: item.assignment_id)],
+            "calendar_hashes": [{
+                "calendar_id": calendar_id,
+                "calendar_version": calendar_version,
+                "snapshot_hash": calendars[(calendar_id, calendar_version)].canonical_snapshot_hash,
+            } for calendar_id, calendar_version in calendar_references],
+        }
+        source_hash = hashlib.sha256(
+            json.dumps(source_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return ResourceLevelingInputSnapshot(
+            schema_version="resource-leveling-input.v1",
+            source_data_hash=source_hash,
+            demands=tuple(demands),
+            capacities=capacities,
+            max_shift_working_days=horizon_days,
+        )
+
     def compose(
         self,
         scope: BackendScope,
@@ -193,7 +409,7 @@ class AuthoritativeScheduleInputComposer:
         ):
             raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
         options = project_settings.schedule_options
-        if any((
+        leveling_requested = any((
             options.level_all_resources,
             options.level_within_float,
             options.resource_list is not None,
@@ -201,12 +417,14 @@ class AuthoritativeScheduleInputComposer:
             options.min_float_to_preserve != 0,
             options.over_allocation_percentage != 0,
             options.preserve_scheduled_early_and_late_dates,
-        )):
-            raise ScheduleInputCompositionError("RESOURCE_LEVELING_REQUIRES_HASH_BOUND_INPUT")
+        ))
 
         if not persisted_activities:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
-        if resource_assignments or resource_periods:
+        if not leveling_requested and (resource_assignments or resource_periods):
+            # Resource data must not disappear silently from a plain schedule
+            # snapshot. The separate Activity Master -> schedule resource binding
+            # remains a distinct governed path; do not infer it here.
             raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
@@ -381,6 +599,17 @@ class AuthoritativeScheduleInputComposer:
                     f"INVALID_RELATIONSHIP_LAG_ASSIGNMENT:{assignment.relationship_id}:{exc}"
                 ) from exc
 
+        resource_leveling_input = None
+        if leveling_requested:
+            resource_leveling_input = self._compose_resource_leveling_input(
+                scope,
+                project_settings,
+                persisted_activities,
+                resource_assignments,
+                resource_periods,
+                activity_ids,
+            )
+
         return AuthoritativeScheduleInput(
             snapshot_id=snapshot_id,
             tenant_id=scope.tenant_id,
@@ -399,6 +628,7 @@ class AuthoritativeScheduleInputComposer:
             project_start=project_settings.project_start,
             project_finish=project_settings.project_finish,
             project_leveling_priority=project_settings.project_leveling_priority,
+            resource_leveling_input=resource_leveling_input,
         )
 
 
