@@ -4,6 +4,8 @@ from typing import Callable
 
 from construction_pm.application.authorization import AuthorizationPolicy
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.ai_action_boundary import AIToolPermissionAdapter
+from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
@@ -13,7 +15,11 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
-from construction_pm.ai_action_runtime import AIActionRuntime
+from construction_pm.ai_action_runtime import (
+    AIActionRuntime,
+    AIActionRuntimeError,
+    AIActionTransactionManager,
+)
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
@@ -33,6 +39,8 @@ def build_project_lifecycle_wsgi_app(
     backend_p0_api: BackendP0API | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
+    ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
+    ai_action_transaction_manager: AIActionTransactionManager | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -55,6 +63,27 @@ def build_project_lifecycle_wsgi_app(
             authorization_policy=authorization_policy,
         )
     )
+    runtime_config_requested = (
+        ai_action_permission_adapter is not None
+        or ai_action_transaction_manager is not None
+    )
+    if ai_action_runtime is not None and runtime_config_requested:
+        raise AIActionRuntimeError("AI_ACTION_RUNTIME_CONFIGURATION_CONFLICT")
+    if runtime_config_requested:
+        if (
+            ai_action_permission_adapter is None
+            or ai_action_transaction_manager is None
+            or activity_master_repository is None
+        ):
+            raise AIActionRuntimeError("AI_ACTION_RUNTIME_DEPENDENCIES_INCOMPLETE")
+        ai_action_runtime = build_activity_create_runtime(
+            activity_master_repository=activity_master_repository,
+            authorization_policy=authorization_policy,
+            permission_adapter=ai_action_permission_adapter,
+            transaction_manager=ai_action_transaction_manager,
+            clock=None if clock is None else clock.now,
+        )
+
     activity_master_api = (
         None
         if activity_master_repository is None
