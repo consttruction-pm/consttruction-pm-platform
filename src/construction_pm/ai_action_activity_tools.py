@@ -3,19 +3,28 @@ from __future__ import annotations
 import json
 import sqlite3
 from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from typing import Callable, Mapping
 
-from .ai_action_boundary import AIActionProposal
+from .ai_action_boundary import AIActionProposal, AIToolPermissionAdapter
 from .ai_action_runtime import (
+    AIActionRuntime,
     AIActionRuntimeContext,
     AIActionRuntimeError,
     AIActionToolDefinition,
+    PostgresAIActionRuntimeStore,
+    SQLiteAIActionRuntimeStore,
 )
-from .application.authorization import AuthorizationContext
+from .application.authorization import AuthorizationContext, AuthorizationPolicy
 from .backend_p0.idempotency import fingerprint
 from .backend_p0.models import BackendScope
 from .p6_activity_master_api import P6ActivityMasterAPI
-from .activity_master_repository import ActivityMaster
+from .activity_master_repository import (
+    ActivityMaster,
+    ActivityMasterRepository,
+    PostgresActivityMasterRepository,
+    SQLiteActivityMasterRepository,
+)
 from .scheduling.activity import (
     ActivityLevelingPriority,
     ActivityStatus,
@@ -132,6 +141,51 @@ class SQLiteAIActionExecutionIdempotencyStore(AIActionExecutionIdempotencyStore)
 class PostgresAIActionExecutionIdempotencyStore(AIActionExecutionIdempotencyStore):
     def __init__(self, connection: object) -> None:
         super().__init__(connection, placeholder="%s")
+
+
+def build_activity_create_runtime(
+    *,
+    activity_master_repository: ActivityMasterRepository,
+    authorization_policy: AuthorizationPolicy,
+    permission_adapter: AIToolPermissionAdapter,
+    transaction_manager: object,
+    clock: Callable[[], datetime] | None = None,
+) -> AIActionRuntime:
+    """Compose the first production typed tool only when real dependencies are supplied.
+
+    There is intentionally no default grant adapter and no in-memory fallback. The
+    activity repository, action proposal/audit tables, tool idempotency table and
+    transaction manager are all bound to one supported SQLite or PostgreSQL connection.
+    """
+    connection = getattr(transaction_manager, "connection", None)
+    repository_connection = getattr(activity_master_repository, "connection", None)
+    if connection is None or repository_connection is not connection:
+        raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_TRANSACTION_CONNECTION_MISMATCH")
+
+    if isinstance(activity_master_repository, SQLiteActivityMasterRepository):
+        if not isinstance(connection, sqlite3.Connection):
+            raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_MISMATCH")
+        runtime_store = SQLiteAIActionRuntimeStore(connection)
+        idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
+    elif isinstance(activity_master_repository, PostgresActivityMasterRepository):
+        runtime_store = PostgresAIActionRuntimeStore(connection)
+        idempotency_store = PostgresAIActionExecutionIdempotencyStore(connection)
+    else:
+        raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_UNSUPPORTED")
+
+    tool = build_activity_create_tool(
+        activity_api=P6ActivityMasterAPI(activity_master_repository, authorization_policy),
+        idempotency_store=idempotency_store,
+        transaction_manager=transaction_manager,
+    )
+    return AIActionRuntime(
+        store=runtime_store,
+        permission_adapter=permission_adapter,
+        audit_sink=runtime_store,
+        tools=(tool,),
+        clock=clock,
+        transaction_manager=transaction_manager,
+    )
 
 
 def build_activity_create_tool(
@@ -278,4 +332,5 @@ __all__ = [
     "SQLiteAIActionExecutionIdempotencyStore",
     "PostgresAIActionExecutionIdempotencyStore",
     "build_activity_create_tool",
+    "build_activity_create_runtime",
 ]
