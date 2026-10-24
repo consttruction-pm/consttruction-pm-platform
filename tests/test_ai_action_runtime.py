@@ -52,7 +52,7 @@ def setup_runtime(*, grants=None, executor=None):
     current_grants = list([grant()] if grants is None else grants)
     calls = []
 
-    def run(payload, proposal, idempotency_key):
+    def run(payload, proposal, idempotency_key, context):
         calls.append((dict(payload), proposal.project_revision_id, idempotency_key))
         return {"activity_id": "activity-1", "name": payload["name"]}
 
@@ -158,7 +158,7 @@ def test_proposal_is_not_discoverable_across_project_or_tenant_scope():
 def test_execution_failure_is_marked_uncertain_and_cannot_be_replayed():
     side_effects = []
 
-    def fail_after_possible_commit(payload, proposal, idempotency_key):
+    def fail_after_possible_commit(payload, proposal, idempotency_key, context):
         # Simulate an executor that has applied a side effect but fails before returning
         # the result to the orchestration layer.
         side_effects.append((proposal.proposal_id, dict(payload)))
