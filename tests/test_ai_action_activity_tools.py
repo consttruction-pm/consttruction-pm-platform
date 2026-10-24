@@ -6,39 +6,25 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.ai_action_activity_tools import (
-    SQLiteAIActionExecutionIdempotencyStore,
-    build_activity_create_tool,
-)
+from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
 from construction_pm.ai_action_runtime import (
-    AIActionRuntime,
     AIActionRuntimeContext,
     AIActionRuntimeError,
-    SQLiteAIActionRuntimeStore,
 )
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
-from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 
 
 def build_runtime(database_path):
     connection = sqlite3.connect(str(database_path))
     transaction_manager = SQLiteTransactionManager(connection)
     activity_repository = SQLiteActivityMasterRepository(connection)
-    activity_api = P6ActivityMasterAPI(activity_repository, default_project_policy())
-    runtime_store = SQLiteAIActionRuntimeStore(connection)
-    idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
-    tool = build_activity_create_tool(
-        activity_api=activity_api,
-        idempotency_store=idempotency_store,
-        transaction_manager=transaction_manager,
-    )
     grants = [
         AIActionPermissionGrant(
             subject_id="user-1",
@@ -50,13 +36,13 @@ def build_runtime(database_path):
             tool_name="activity.create",
         )
     ]
-    runtime = AIActionRuntime(
-        store=runtime_store,
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=default_project_policy(),
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)),
-        audit_sink=runtime_store,
-        tools=[tool],
         transaction_manager=transaction_manager,
     )
+    runtime_store = runtime.store
     context = AIActionRuntimeContext(
         subject_id="user-1",
         tenant_id="tenant-1",
@@ -64,7 +50,7 @@ def build_runtime(database_path):
         project_revision_id="12",
         roles=frozenset({"project_admin"}),
     )
-    return connection, transaction_manager, activity_repository, runtime_store, idempotency_store, runtime, context, grants
+    return connection, transaction_manager, activity_repository, runtime_store, runtime, context, grants
 
 
 def activity_payload(**overrides):
@@ -80,7 +66,7 @@ def activity_payload(**overrides):
 
 def test_activity_create_tool_uses_authenticated_api_and_shared_transaction(tmp_path):
     database_path = tmp_path / "activity-tool.sqlite"
-    connection, manager, repo, store, idempotency, runtime, context, _ = build_runtime(database_path)
+    connection, manager, repo, store, runtime, context, _ = build_runtime(database_path)
     try:
         proposed = runtime.propose(
             context, tool_name="activity.create", payload=activity_payload(),
@@ -136,7 +122,7 @@ def test_activity_create_tool_uses_authenticated_api_and_shared_transaction(tmp_
 
 def test_activity_create_tool_denies_revoked_grant_before_mutation(tmp_path):
     database_path = tmp_path / "activity-tool-deny.sqlite"
-    connection, _, repo, store, _, runtime, context, grants = build_runtime(database_path)
+    connection, _, repo, store, runtime, context, grants = build_runtime(database_path)
     try:
         proposed = runtime.propose(context, tool_name="activity.create", payload=activity_payload())
         runtime.decide(context, proposed.proposal.proposal_id, approved=True)
@@ -162,7 +148,7 @@ def test_activity_create_tool_denies_revoked_grant_before_mutation(tmp_path):
 
 def test_activity_create_payload_rejects_invalid_duration_and_unknown_fields(tmp_path):
     database_path = tmp_path / "activity-tool-validation.sqlite"
-    connection, _, _, _, _, runtime, context, _ = build_runtime(database_path)
+    connection, _, _, _, runtime, context, _ = build_runtime(database_path)
     try:
         with pytest.raises(AIActionRuntimeError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"):
             runtime.propose(
