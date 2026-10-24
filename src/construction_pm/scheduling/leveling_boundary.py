@@ -28,6 +28,10 @@ class SchedulerLevelingInput:
     backward_activities: tuple[BackwardLevelingActivity, ...]
     capacities: tuple[ResourceCapacity, ...]
     options: ResourceLevelingOptions
+    # Finite movement bounds derived from the immutable capacity period window.
+    # None preserves the historical 10,000-working-day engine default.
+    max_shift_working_days: int | None = None
+    max_shift_working_days_by_activity: tuple[tuple[str, int], ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.forward_activities, tuple):
@@ -38,6 +42,26 @@ class SchedulerLevelingInput:
             raise TypeError("capacities must be a tuple")
         if not isinstance(self.options, ResourceLevelingOptions):
             raise TypeError("options must be ResourceLevelingOptions")
+        if self.max_shift_working_days is not None and (
+            isinstance(self.max_shift_working_days, bool)
+            or not isinstance(self.max_shift_working_days, int)
+            or self.max_shift_working_days < 0
+        ):
+            raise ValueError("INVALID_MAX_LEVELING_SHIFT")
+        if not isinstance(self.max_shift_working_days_by_activity, tuple):
+            raise TypeError("max_shift_working_days_by_activity must be a tuple")
+        limit_ids: set[str] = set()
+        for item in self.max_shift_working_days_by_activity:
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise ValueError("INVALID_ACTIVITY_LEVELING_SHIFT_LIMIT")
+            activity_id, limit = item
+            if not isinstance(activity_id, str) or not activity_id.strip():
+                raise ValueError("INVALID_ACTIVITY_LEVELING_SHIFT_LIMIT")
+            if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+                raise ValueError("INVALID_ACTIVITY_LEVELING_SHIFT_LIMIT")
+            if activity_id in limit_ids:
+                raise ValueError("DUPLICATE_ACTIVITY_LEVELING_SHIFT_LIMIT")
+            limit_ids.add(activity_id)
 
         forward_ids = {item.activity_id for item in self.forward_activities}
         backward_ids = {item.activity_id for item in self.backward_activities}
@@ -105,6 +129,8 @@ def scheduler_leveling_input_from_options(
     backward_activities: tuple[BackwardLevelingActivity, ...],
     capacities: tuple[ResourceCapacity, ...],
     options: ScheduleOptions,
+    max_shift_working_days: int | None = None,
+    max_shift_working_days_by_activity: tuple[tuple[str, int], ...] = (),
 ) -> SchedulerLevelingInput:
     """Map typed ScheduleOptions into the existing Shared Core leveling options.
 
@@ -125,4 +151,6 @@ def scheduler_leveling_input_from_options(
         backward_activities=backward_activities,
         capacities=capacities,
         options=leveling_options,
+        max_shift_working_days=max_shift_working_days,
+        max_shift_working_days_by_activity=max_shift_working_days_by_activity,
     )
