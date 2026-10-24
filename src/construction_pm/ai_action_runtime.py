@@ -617,18 +617,31 @@ class AIActionRuntime:
                 raise TypeError("AI action executor must return a mapping")
             _json_object(result, "AI_ACTION_EXECUTOR_RESULT_INVALID")
         except Exception as exc:
-            failed_at = self._now()
-            self.store.transition(
-                proposal, expected_status="executing", next_status="failed",
-                updated_at=failed_at,
-            )
+            # An executor can fail after its authoritative mutation committed but before
+            # returning a result. Treat the outcome as uncertain by default; marking it
+            # "failed" would be a false claim and could encourage an unsafe retry.
+            uncertain_at = self._now()
+            state_persisted = False
+            try:
+                state_persisted = self.store.transition(
+                    proposal, expected_status="executing", next_status="uncertain",
+                    updated_at=uncertain_at,
+                )
+            except Exception:
+                # Keep the request fail-closed even if the state store is unavailable.
+                # The proposal will remain executing/uncertain and cannot be replayed
+                # through the normal approved-only execution path.
+                state_persisted = False
             self.audit_sink.record_event(
-                proposal, "execution_failed", actor_id=context.subject_id,
-                metadata={"failure_type": type(exc).__name__}, happened_at=failed_at,
+                proposal, "execution_outcome_uncertain", actor_id=context.subject_id,
+                metadata={
+                    "failure_type": type(exc).__name__,
+                    "uncertain_state_persisted": state_persisted,
+                    "automatic_retry_allowed": False,
+                },
+                happened_at=uncertain_at,
             )
-            if isinstance(exc, AIActionRuntimeError):
-                raise
-            raise AIActionRuntimeError("AI_ACTION_EXECUTION_FAILED") from exc
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN") from exc
 
         completed_at = self._now()
         try:
