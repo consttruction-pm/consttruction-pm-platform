@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -22,6 +23,13 @@ from construction_pm.application.authorization import default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.application.project_lifecycle import (
+    AuthenticatedSession,
+    ProjectLifecycleService,
+    ProjectSummary,
+)
+from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
 
 def build_runtime(database_path):
@@ -258,5 +266,125 @@ def test_atomic_executor_error_rolls_back_partial_sql_and_blocks_replay(tmp_path
             runtime.execute(context, proposal.proposal.proposal_id)
         assert calls == [proposal.proposal.proposal_id]
         assert connection.execute("SELECT COUNT(*) FROM action_probe").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+
+class _RouteSessions:
+    def __init__(self, session):
+        self.session = session
+
+    def get(self, session_id):
+        return self.session if session_id == self.session.session_id else None
+
+
+class _RouteProjects:
+    def list_for_user(self, tenant_id, user_id):
+        if tenant_id != "tenant-1" or user_id != "user-1":
+            return ()
+        return (ProjectSummary("project-1", tenant_id, "Route test project", 12),)
+
+    def get_for_user(self, tenant_id, project_id, user_id):
+        if tenant_id != "tenant-1" or project_id != "project-1" or user_id != "user-1":
+            return None
+        return ProjectSummary("project-1", tenant_id, "Route test project", 12)
+
+    def create_for_user(self, tenant_id, user_id, project_id, name):
+        return ProjectSummary(project_id, tenant_id, name, 0)
+
+
+def test_authenticated_http_route_executes_real_activity_create_and_fresh_readback(tmp_path):
+    database_path = tmp_path / "activity-route-e2e.sqlite"
+    connection = sqlite3.connect(str(database_path))
+    manager = SQLiteTransactionManager(connection)
+    activity_repository = SQLiteActivityMasterRepository(connection)
+    now = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "session-1", "user-1", "tenant-1", frozenset({"project_admin"}),
+        now + timedelta(hours=2),
+    )
+    lifecycle_api = ProjectLifecycleAPI(
+        ProjectLifecycleService(
+            _RouteSessions(session), _RouteProjects(), default_project_policy()
+        )
+    )
+    grant = AIActionPermissionGrant(
+        subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+        project_revision_id="12", resource_domain="activities",
+        operation="create", tool_name="activity.create",
+    )
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=default_project_policy(),
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
+        transaction_manager=manager,
+        clock=lambda: now,
+    )
+
+    class FixedClock:
+        def now(self):
+            return now
+
+    routes = ProjectLifecycleHttpRoutes(
+        lifecycle_api, clock=FixedClock(), ai_action_runtime=runtime
+    )
+
+    def request(path, payload):
+        return routes.handle(
+            "POST", path, cookies={"cp_session": "session-1"},
+            body=json.dumps(payload).encode("utf-8"),
+        )
+
+    try:
+        status, _, body = request("/api/projects/project-1/ai/actions/proposals", {
+            "expected_revision": 12,
+            "tool_name": "activity.create",
+            "payload": {
+                "activity_id": "A-HTTP-1",
+                "name": "Blinding concrete",
+                "duration_value": "1.5",
+                "duration_unit": "working-day",
+            },
+            "tenant_id": "client-spoofed-tenant",
+            "requested_by": "client-spoofed-user",
+            "requires_human_approval": False,
+        })
+        assert status == 201
+        proposal_dto = json.loads(body)["proposal"]
+        proposal_id = proposal_dto["proposal_id"]
+        assert proposal_dto["requires_human_approval"] is True
+
+        status, _, body = request(
+            f"/api/projects/project-1/ai/actions/proposals/{proposal_id}/decision",
+            {"expected_revision": 12, "approved": True},
+        )
+        assert status == 200
+        assert json.loads(body)["status"] == "approved"
+
+        status, _, body = request(
+            f"/api/projects/project-1/ai/actions/proposals/{proposal_id}/execute",
+            {"expected_revision": 12},
+        )
+        assert status == 200
+        outcome = json.loads(body)
+        assert outcome["status"] == "executed"
+        assert outcome["result"]["activity"]["activity_id"] == "A-HTTP-1"
+
+        fresh = sqlite3.connect(str(database_path))
+        try:
+            fresh_repo = SQLiteActivityMasterRepository(fresh)
+            persisted = fresh_repo.get(BackendScope("tenant-1", "project-1", 12), "A-HTTP-1")
+            assert persisted is not None
+            assert persisted.name == "Blinding concrete"
+            fresh_store = SQLiteAIActionRuntimeStore(fresh)
+            final_proposal = fresh_store.get(
+                proposal_id, tenant_id="tenant-1", project_id="project-1"
+            )
+            assert final_proposal is not None
+            assert final_proposal.status == "executed"
+            assert final_proposal.proposal.requested_by == "user-1"
+        finally:
+            fresh.close()
     finally:
         connection.close()
