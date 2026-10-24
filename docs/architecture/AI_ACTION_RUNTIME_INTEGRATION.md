@@ -36,6 +36,12 @@ If a registered handler raises after the runtime has moved a proposal to `execut
 
 This is deliberately fail-closed, not a complete recovery system. An operator/reconciliation workflow must compare the proposal/idempotency key with authoritative project state and then resolve the outcome; until that exists, uncertain proposals remain a release blocker. Tool handlers still need idempotency and optimistic-lock enforcement inside the authoritative transaction, plus fresh-connection verification.
 
+## Mainline alignment — 2026-10-25
+
+The branch now includes the current `main` merge commit `7eaeea4fda70f447c4ad1969d52a18ffaaac8ceb`, which contains the SQLite Activity Master transaction-ownership fix from PR #1548 (`7eaeea4fda70f447c4ad1969d52a18ffaaac8ceb` is the squash merge SHA). Its repository save method now preserves caller-owned transactions and only commits/rolls back transactions it started itself. This is an enabling persistence correction, not evidence that this AI runtime is already bound to the Activity Master handler or that proposal state, audit and business mutation share one production transaction.
+
+The runtime code head was realigned to current main on 2026-10-25. New exact-head CI must pass on the resulting commit before this PR is eligible for merge. The release blockers listed below remain open.
+
 ## Current acceptance boundary
 
 The runtime and authenticated HTTP seam are implemented as an incremental integration, not a complete assistant. Until deployment wiring and the above integration tests pass on an exact merged main SHA, the following remain open: real project-creation/editing tools, model/provider orchestration, document/voice intake, authoritative result grounding/report generation, admin knowledge research/review/publication, generalization privacy review, and client UI wiring. The runtime does not silently infer or enable any of these.
