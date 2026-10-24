@@ -2,80 +2,85 @@
 
 **Snapshot date:** 2026-10-25
 **Repository:** `consttruction-pm/consttruction-pm-platform`
-**State rule:** Main-only completion; update this ledger whenever implementation or acceptance materially changes.
+**State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
 ## Current baseline
 
 | Item | Verified state |
 |---|---|
-| Current main SHA inspected | `259461b18d71d8185ad02cfb9f443e05cdad2648` |
+| Current main SHA inspected | `7606c8cea841fd18455b7c263ef3148251d7246d` |
 | Default branch | `main` |
-| Current website schedule of record | ChatGPT Library workbook `/cubisite.xlsx` (v3 after reconciliation on 2026-10-25); companion copy `/CUBISITE/cubisite.xlsx` is maintained as an identical mirror |
-| Current CUBISITE scope | Original T01–T45 and risk reserve BUF retained; AI-C01–AI-C07 added |
-| CUBISITE schedule arithmetic | 193 active effort-days proposed (previous 171 + 22 proposed AI days), 25-day risk reserve, 218 total; 52 capability activities plus separate BUF; active capability weights total 100.00 points |
-| Estimated weighted progress | 26.89% formula estimate after denominator expansion; **not QA-certified**. The previous 30.4% is historical only |
-| Forecast assumption | Single executor, half-day sequencing, Mon–Fri; public holidays, leave and external waiting excluded. Proposed base finish 2027-05-21; finish with 25-day reserve 2027-06-25. Dates are not an accepted contractual baseline |
-| CUBISITE exit gate | Full production website E2E and release sign-off remain open |
+| CUBISITE schedule of record | ChatGPT Library workbook `/cubisite.xlsx` version 6; mirror `/CUBISITE/cubisite.xlsx` version 6. Both are the same size (122,288 bytes) and contain the same reconciled schedule snapshot. |
+| CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
+| Schedule arithmetic | 193 active effort-days proposed (171 previous + 22 proposed AI), 25-day risk reserve, 218 total; 52 unique capability activity IDs plus BUF; active capability weights sum to exactly 100.00 points |
+| Weighted progress | 26.89% formula estimate after denominator expansion; **not QA acceptance**. Prior 30.4% is historical only. All seven added AI activities keep earned completion at zero. |
+| Forecast assumptions | One executor; half-day sequencing; Monday–Friday; excludes public holidays, leave and external waiting. Proposed base finish 2027-05-21; with 25-day risk reserve 2027-06-25. This is a forecast, not an approved contractual baseline. |
+| CUBISITE exit gate | Full production site E2E and release sign-off remain open |
 
-## Current implementation evidence
+## Implementation evidence on main
 
-### Production AI action path — PR #1547 (merged)
+### PR #1548 — SQLite Activity Master transaction ownership (merged)
 
-- PR: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1547
-- Source branch: `feat/ai-action-runtime-production-20261023`
-- Merged main SHA (squash): `259461b18d71d8185ad02cfb9f443e05cdad2648`
-- Source PR head: `8232a74cdf566de0c31e6d4332e16aa2541eb835`; last code/test head was `bf110ac62b9ff88539ced03b6bd16952df83a4de` (later change only updated the integration document).
-- Exact code-head gates:
-  - ConstructionPM CI: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930835 — PASS, Python 3.11/3.12/3.13.
-  - PostgreSQL Integration: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930827 — PASS.
-  - Client Typecheck: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930828 — PASS for Web, Desktop, Mobile and Client Sync.
-- Main post-merge runs for SHA `259461b18d71d8185ad02cfb9f443e05cdad2648` were queued at ledger update time and must be recorded after they finish.
-- The merged production slice includes authenticated Web proposal/list/detail/approve/reject/execute routes, fail-closed server tool registry, scoped proposal/audit stores, exact current-grant checks, durable execution reservation, non-replayable stale/denied/uncertain states, and idempotency.
-- First real typed mutation `activity.create` now goes through the existing `P6ActivityMasterAPI` and Activity Master repository; mutation and idempotency share a transaction, and SQLite plus live PostgreSQL tests verify fresh-connection read-back.
-- `uncertain` and interrupted `executing` states are safely non-replayable, but an admin-authorized reconciliation/recovery workflow remains open. The first create tool does not yet call the Shared Core to run a schedule and ground a returned schedule result. This is an incremental production slice, **not full assistant completion**.
+- Merge SHA: `7eaeea4fda70f447c4ad1969d52a18ffaaac8ceb`
+- Source: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1548
+- The repository commits/rolls back only a transaction it started itself. Caller-owned transaction boundaries survive successful writes and revision-conflict failures.
+- Regression coverage includes outer rollback, revision conflicts, and rollback of a repository-owned failed write.
 
-### Activity Master SQLite transaction ownership — PR #1548 (merged)
+### PR #1547 — authenticated AI action runtime and Activity Master create (merged)
 
-- PR: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1548
-- Merged main SHA: `7eaeea4fda70f447c4ad1969d52a18ffaaac8ceb`
-- The repository commits or rolls back only a transaction it started itself; a caller-owned transaction is preserved, including on revision conflict. Tests cover outer rollback, conflict behavior and failed owned writes.
+- Merge SHA: `259461b18d71d8185ad02cfb9f443e05cdad2648`
+- Source: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1547
+- Tested code head: `bf110ac62b9ff88539ced03b6bd16952df83a4de`; its later commit only updated the integration document.
+- Exact code-head checks: [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930835) — PASS on Python 3.11/3.12/3.13; [PostgreSQL Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930827) — PASS; [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930828) — PASS for Web, Desktop, Mobile and Client Sync.
+- Main post-merge check set on `259461b...` also passed ConstructionPM CI, Client Typecheck and PostgreSQL Sync State Integration.
+- Implemented: authenticated proposal list/detail/create/approve/reject/execute; fail-closed server-owned registry; scope and grant rechecks; stale/denied/uncertain non-replayable states; explicit execution reservation; typed `activity.create` via existing `P6ActivityMasterAPI`; transaction-bound idempotency and audit; fresh-connection SQLite and live PostgreSQL read-back tests.
+- Remaining: admin-authorized reconciliation of interrupted/uncertain actions; other mutation tools; scheduling recalculation and result grounding via the Shared Domain/Calculation Core; model/provider orchestration and conversation flow.
 
-### Explicitly open assistant gaps
+### PR #1550 — web action proposal/approval panel (merged)
 
-- The model/provider orchestration and natural-language tool selection are still not wired into a conversational assistant turn; there is no production assistant client flow.
-- Only the first real Activity Master creation tool is registered through the explicit production composition; WBS, activity edit, relationships, calendars, resources/cost and other project-control actions remain unregistered.
-- Production deployment must supply the trusted current-grant adapter and transaction manager. The first Activity Create handler enforces proposal scope and uses idempotency in the shared transaction; revision lifecycle integration across every write handler remains to be proven.
-- No end-to-end proof yet of mutation → commit → fresh-connection read-back → Shared Core calculation identity → grounded explanation/report.
-- Document/voice/Excel intake and mapping/preview, final AI client UI, report/chart/export integration remain incomplete.
-- Knowledge research/review/human publication, privacy-safe generalization, retention/deletion propagation, backup/restore drills, migration lineage and model/knowledge golden benchmarks remain incomplete.
-- The `uncertain` status prevents an unsafe blind retry but remains without an operator-authorized, authoritative reconciliation/recovery workflow.
-- PR #1547 is merged as an incremental slice. #1423 and #1530 must remain open until their full acceptance criteria are evidenced.
+- Merge SHA / current main SHA: `7606c8cea841fd18455b7c263ef3148251d7246d`
+- Source: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1550
+- Tested PR head: `407b24dd4cc7b8417e850814dbfcdde384967877`.
+- Exact PR head checks: [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349490) — PASS on Python 3.11/3.12/3.13; [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349499) — PASS for Web/Desktop/Mobile/Client Sync; [ConstructionPM Web CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349497) — PASS.
+- Added typed client and localized English/Persian workspace panel for first `activity.create` proposal: prepare → inspect → explicit approve/reject → explicit execute. Stale, executing, blocked or uncertain records cannot be replayed through the panel. It fails honestly when server runtime isn't composed; no mock success is shown.
+- Post-merge on current main `7606c8...`: [ConstructionPM Web CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142526994) — PASS and [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142527026) — PASS. [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142526937) and [PostgreSQL Sync State Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142526995) were still running at snapshot time and must be recorded after completion.
 
-## Canonical CUBISITE schedule reconciliation
+### Release deployment — unresolved environment configuration
 
-Updated in the ChatGPT Library workbook on 2026-10-25:
+- [Deploy CUBI Web to GitHub Pages](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142526930) built and tested the web app successfully, then failed at `actions/configure-pages@v5` with 404 `Get Pages site failed`; the job skipped site assembly, artifact upload and deploy.
+- This is a repository Pages enablement/access configuration blocker, not a TypeScript/build/test failure. The workflow currently uses the default `GITHUB_TOKEN`; the official `actions/configure-pages` input contract says enabling a missing Pages site requires a token other than `GITHUB_TOKEN` with appropriate repository administration + Pages write permission. Do not mark website release complete until Pages configuration is fixed and the actual public deployment URL is smoke-tested.
+- Issue #82 and the full-site E2E exit gate remain open.
 
-- Added AI-C01–AI-C07 for interactive/adaptive dialogue, candidate-lesson capture, durable scoped memory and lineage, privacy/tenant firewall, admin research/review/publish, backup/restore/migration, and golden benchmarks/version rollback.
-- Preserved T01–T45 and BUF, added dependency mapping and acceptance tests, and recalculated suggested effort weights to exactly 100.00 points.
-- All seven AI activities have zero earned completion. Their effort, weights and dates remain **proposed / pending acceptance**, not an approved rebaseline.
-- No progress credit is awarded for documentation or an open PR.
-- Original 30.4% figure retained only as historical; current 26.89% is a formula estimate with the expanded denominator and is not QA acceptance.
-- The workbook is still a Library artifact rather than a versioned file committed to this repository. Preserve the Library file as the user-requested schedule of record and keep this ledger synchronized to it.
+## Explicitly open assistant V1 gaps
+
+- Natural-language model/provider orchestration and a complete conversation turn are not wired; the merged panel covers only the first Activity Create action.
+- WBS create/edit, activity edit, relationships, calendars, resources/cost and other project-control actions are not yet registered as production AI tools.
+- The first create tool does not itself trigger a new authoritative Shared Core calculation run or return a revision-bound run ID plus grounded explanation/report.
+- File/Excel/document/voice intake and mapping preview; report/chart/export integration; admin knowledge research/review and human publication; memory retention/deletion; backups/restore/migration; golden model/knowledge benchmarks and rollback remain open.
+- `uncertain` and interrupted `executing` proposals are protected from blind retry, but no admin-authorized reconciliation/recovery workflow has been implemented.
+- #1423, #1530 and #1540 remain open until a complete end-to-end acceptance path is proven.
+
+## Canonical CUBISITE reconciliation
+
+- Workbook version 6 (both Library paths) includes AI-C01–AI-C07; original T01–T45 and BUF are preserved; weight sum verified at exactly 100.00%.
+- 52 capability IDs are unique; formula error scan found no `#REF!`, `#DIV/0!`, `#VALUE!`, `#NAME?` or `#N/A` matches.
+- The seven AI added activities remain proposed estimates with zero earned completion. Current 26.89% is a formula-derived forecast indicator only and is not QA-certified.
+- The schedule remains a Library artifact, not a committed workbook in the repository. Preserve both paths as synchronized mirrors and keep the version and snapshot SHA aligned with this ledger.
 
 ## Other active pull requests / audits to reconcile
 
-- #1545 — CUBISITE AI learning schedule addendum; open draft, internal package weights only; do not treat as replacing the whole CUBISITE schedule.
-- #1522 — option-level scheduling compatibility reference; open, not exhaustive; resource-dependent behavior and calendar inheritance remain explicit gaps.
-- #1520 — WBS persistence; open draft and separate persistence slice, not full WBS production UI.
-- #1518 / #1511 / #1509 — resource-driving/leveling slices; remain gated by exact-head checks and complete end-to-end semantics.
-- #1519 — Web localization error-message slice, open draft; does not prove all-language coverage.
-- #1486 — whole-product V1 Mobile requirement and continuity gate; must remain separate from CUBISITE-only schedule.
-- #680 — evidence-based weighted progress governance; no percentages from PR/commit counts.
+- #1545 — CUBISITE AI learning schedule addendum; do not treat it as replacing the whole website schedule.
+- #1522 — option-level scheduling compatibility reference; resource-dependent behavior and calendar inheritance still need complete proof.
+- #1520 — WBS persistence slice; not proof of complete WBS production UI.
+- #1518 / #1511 / #1509 — resource-driving/leveling items remain gated by full end-to-end semantics and latest-head CI.
+- #1519 — localization error-message slice; not proof of every-language coverage.
+- #1486 — whole-product V1 Mobile requirement and continuity gate; separate from CUBISITE website schedule.
+- #680 — evidence-based weighted progress rules; do not infer completion percentages from PR/commit counts.
 
-## Governance repair being proposed in this branch
+## Required next actions
 
-GitHub issue #1486 requires `docs/governance/PROJECT_CONTINUITY_PROTOCOL.md` and `docs/governance/PROJECT_STATE_LEDGER.md` to be the read-first entrypoint. At the time of inspection (2026-10-25), those paths were not retrievable from `main` via the GitHub Contents API or repository code search. This branch creates them as a continuity repair; they are **not main-current until merged**.
-
-## Next concrete action
-
-Next P0: implement the actual server-side assistant-turn/provider orchestration and conversational Web UI, with constrained server-owned tool selection that can only create proposals—not mutate without explicit approval. After the first turn is functional, implement human-admin reconciliation for `uncertain`/interrupted actions with fresh authoritative read-back and audit. Add remaining WBS/relationship/calendar/resource/cost tools and Shared Core schedule-result grounding; keep #1423/#1530/#1540 open until one integrated exact-head E2E path proves the full flow.
+1. Fix the Pages enablement barrier with valid repository-level authority, then rerun deploy and verify the actual published site and `/app` routes.
+2. Finish the merged-main CI and PostgreSQL Sync State Integration runs for `7606c8...`; record the exact results.
+3. Implement the server-side model/provider orchestration and conversation endpoint around the proposal-only boundary; all side effects must still require explicit approval and current-scope authorization.
+4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
+5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
