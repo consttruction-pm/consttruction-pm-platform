@@ -30,6 +30,12 @@ Every route requires the existing cp_session cookie. Proposal list/detail requir
 5. Ensure handlers invoke the authoritative Shared Domain/Calculation Core for schedule/resource/cost/progress calculations; this runtime is orchestration and must not implement a parallel calculation engine.
 6. Add integration tests with the real grant repository, each registered tool/use case, persistence read-back through a fresh connection, cross-tenant denial, grant revocation between approval and execution, stale-revision conflicts, idempotency replay, and failure/compensation behavior.
 
+## Executor error and uncertain outcome
+
+If a registered handler raises after the runtime has moved a proposal to `executing`, the runtime records `uncertain` and audits `execution_outcome_uncertain`. It does **not** claim the project mutation definitely failed, and normal execution cannot replay an uncertain proposal. This protects against duplicate writes when a handler may have committed before its response was lost.
+
+This is deliberately fail-closed, not a complete recovery system. An operator/reconciliation workflow must compare the proposal/idempotency key with authoritative project state and then resolve the outcome; until that exists, uncertain proposals remain a release blocker. Tool handlers still need idempotency and optimistic-lock enforcement inside the authoritative transaction, plus fresh-connection verification.
+
 ## Current acceptance boundary
 
 The runtime and authenticated HTTP seam are implemented as an incremental integration, not a complete assistant. Until deployment wiring and the above integration tests pass on an exact merged main SHA, the following remain open: real project-creation/editing tools, model/provider orchestration, document/voice intake, authoritative result grounding/report generation, admin knowledge research/review/publication, generalization privacy review, and client UI wiring. The runtime does not silently infer or enable any of these.
