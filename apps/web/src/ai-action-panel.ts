@@ -1,5 +1,5 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
-import { AIActionClient, type AIActionProposal } from "./ai-action-client.js";
+import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
 
 type PanelLabels = {
   title: string; description: string; createTitle: string; activityId: string;
