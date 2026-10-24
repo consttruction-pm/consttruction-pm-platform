@@ -165,23 +165,22 @@ def test_activity_create_payload_rejects_invalid_duration_and_unknown_fields(tmp
         connection.close()
 
 
-def test_activity_create_tool_rejects_split_connection_wiring(tmp_path):
+def test_activity_create_runtime_rejects_split_connection_wiring(tmp_path):
     database_path = tmp_path / "activity-tool-split.sqlite"
     connection = sqlite3.connect(str(database_path))
     other_connection = sqlite3.connect(":memory:")
     try:
-        manager = SQLiteTransactionManager(connection)
-        repo = SQLiteActivityMasterRepository(connection)
-        api = P6ActivityMasterAPI(repo, default_project_policy())
-        idem = SQLiteAIActionExecutionIdempotencyStore(other_connection)
+        SQLiteActivityMasterRepository(connection)
+        mismatched_manager = SQLiteTransactionManager(other_connection)
         with pytest.raises(
             AIActionRuntimeError,
             match="AI_ACTION_ACTIVITY_TOOL_TRANSACTION_CONNECTION_MISMATCH",
         ):
-            build_activity_create_tool(
-                activity_api=api,
-                idempotency_store=idem,
-                transaction_manager=manager,
+            build_activity_create_runtime(
+                activity_master_repository=SQLiteActivityMasterRepository(connection),
+                authorization_policy=default_project_policy(),
+                permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: ()),
+                transaction_manager=mismatched_manager,
             )
     finally:
         connection.close()
