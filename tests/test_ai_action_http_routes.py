@@ -60,7 +60,7 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"})):
             raise ValueError("invalid activity payload")
         return {"name": payload["name"].strip()}
 
-    def execute(payload, proposal, idempotency_key):
+    def execute(payload, proposal, idempotency_key, context):
         executed.append((dict(payload), proposal.project_revision_id, idempotency_key))
         return {"activity_id": "a-1", "name": payload["name"]}
 
