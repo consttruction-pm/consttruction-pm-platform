@@ -81,6 +81,122 @@ class RelationshipLagCalendarAssignment:
 
 
 @dataclass(frozen=True)
+class ResourceLevelingDemandSnapshot:
+    """Versioned, immutable time-phased resource demand embedded in a schedule snapshot."""
+
+    assignment_id: str
+    activity_id: str
+    resource_id: str
+    period: date
+    units: Decimal
+    calendar_id: str
+    calendar_version: str
+
+    def __post_init__(self) -> None:
+        for value, name in (
+            (self.assignment_id, "assignment_id"),
+            (self.activity_id, "activity_id"),
+            (self.resource_id, "resource_id"),
+            (self.calendar_id, "calendar_id"),
+            (self.calendar_version, "calendar_version"),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"resource leveling {name} must be non-empty")
+        if not isinstance(self.period, date) or isinstance(self.period, datetime):
+            raise ValueError("resource leveling demand period must be a date")
+        if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
+            raise ValueError("resource leveling demand units must be a finite non-negative Decimal")
+
+
+@dataclass(frozen=True)
+class ResourceLevelingCapacitySnapshot:
+    """Capacity derived from a pinned resource-calendar snapshot for one date."""
+
+    resource_id: str
+    period: date
+    units: Decimal
+    calendar_id: str
+    calendar_version: str
+    calendar_snapshot_hash: str
+
+    def __post_init__(self) -> None:
+        for value, name in (
+            (self.resource_id, "resource_id"),
+            (self.calendar_id, "calendar_id"),
+            (self.calendar_version, "calendar_version"),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"resource leveling capacity {name} must be non-empty")
+        if not isinstance(self.period, date) or isinstance(self.period, datetime):
+            raise ValueError("resource leveling capacity period must be a date")
+        if not isinstance(self.units, Decimal) or not self.units.is_finite() or self.units < 0:
+            raise ValueError("resource leveling capacity units must be a finite non-negative Decimal")
+        if (
+            not isinstance(self.calendar_snapshot_hash, str)
+            or len(self.calendar_snapshot_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.calendar_snapshot_hash)
+        ):
+            raise ValueError("resource leveling capacity requires a canonical calendar snapshot hash")
+
+
+@dataclass(frozen=True)
+class ResourceLevelingInputSnapshot:
+    """Hash-bound raw inputs for the existing Shared Scheduling Core leveling boundary.
+
+    The input is embedded in AuthoritativeScheduleInput's canonical payload so
+    assignments, time-phased demand, capacity, resource-calendar versions and
+    the schedule calculation identity are pinned together. It contains no
+    computed dates/float values; those are recomputed from this same schedule
+    snapshot by the Shared Scheduling Core at evaluation time.
+    """
+
+    schema_version: str
+    source_data_hash: str
+    demands: tuple[ResourceLevelingDemandSnapshot, ...]
+    capacities: tuple[ResourceLevelingCapacitySnapshot, ...]
+    max_shift_working_days: int
+
+    def __post_init__(self) -> None:
+        if self.schema_version != "resource-leveling-input.v1":
+            raise ValueError("UNSUPPORTED_RESOURCE_LEVELING_INPUT_SCHEMA")
+        if (
+            not isinstance(self.source_data_hash, str)
+            or len(self.source_data_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.source_data_hash)
+        ):
+            raise ValueError("INVALID_RESOURCE_LEVELING_SOURCE_HASH")
+        if not isinstance(self.demands, tuple) or not all(
+            isinstance(item, ResourceLevelingDemandSnapshot) for item in self.demands
+        ):
+            raise TypeError("resource leveling demands must be a tuple of demand snapshots")
+        if not isinstance(self.capacities, tuple) or not all(
+            isinstance(item, ResourceLevelingCapacitySnapshot) for item in self.capacities
+        ):
+            raise TypeError("resource leveling capacities must be a tuple of capacity snapshots")
+        if (
+            isinstance(self.max_shift_working_days, bool)
+            or not isinstance(self.max_shift_working_days, int)
+            or self.max_shift_working_days < 0
+        ):
+            raise ValueError("INVALID_RESOURCE_LEVELING_SHIFT_HORIZON")
+        demand_keys = [
+            (item.assignment_id, item.activity_id, item.resource_id, item.period)
+            for item in self.demands
+        ]
+        if len(demand_keys) != len(set(demand_keys)):
+            raise ValueError("DUPLICATE_RESOURCE_LEVELING_DEMAND")
+        capacity_keys = [(item.resource_id, item.period) for item in self.capacities]
+        if len(capacity_keys) != len(set(capacity_keys)):
+            raise ValueError("DUPLICATE_RESOURCE_LEVELING_CAPACITY")
+        calendar_by_resource: dict[str, tuple[str, str, str]] = {}
+        for item in self.capacities:
+            identity = (item.calendar_id, item.calendar_version, item.calendar_snapshot_hash)
+            if item.resource_id in calendar_by_resource and calendar_by_resource[item.resource_id] != identity:
+                raise ValueError("RESOURCE_LEVELING_CAPACITY_CALENDAR_CONFLICT")
+            calendar_by_resource[item.resource_id] = identity
+
+
+@dataclass(frozen=True)
 class AuthoritativeScheduleInput:
     """Immutable, calculation-ready schedule input contract.
 
@@ -105,6 +221,9 @@ class AuthoritativeScheduleInput:
     project_leveling_priority: int = 10
     # Appended to preserve the positional constructor order of existing snapshots.
     relationship_lag_calendar_assignments: tuple[RelationshipLagCalendarAssignment, ...] = ()
+    # Versioned resource demands and capacities are part of the same immutable
+    # snapshot/hash, never read from mutable repositories during evaluation.
+    resource_leveling_input: ResourceLevelingInputSnapshot | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
@@ -174,6 +293,22 @@ class AuthoritativeScheduleInput:
             raise ValueError("relationship lag calendar assignments must be unique")
         if self.relationship_lag_calendar_assignments and self.mode is AuthoritativeScheduleMode.TIME_AWARE:
             raise ValueError("TIME_AWARE_RELATIONSHIP_LAG_ASSIGNMENTS_UNSUPPORTED")
+        if self.resource_leveling_input is not None:
+            if not isinstance(self.resource_leveling_input, ResourceLevelingInputSnapshot):
+                raise TypeError("resource_leveling_input must be ResourceLevelingInputSnapshot or None")
+            if self.mode is AuthoritativeScheduleMode.TIME_AWARE:
+                raise ValueError("TIME_AWARE_RESOURCE_LEVELING_SNAPSHOT_UNSUPPORTED")
+            activity_ids_set = {activity.id for activity in self.activities}
+            if any(item.activity_id not in activity_ids_set for item in self.resource_leveling_input.demands):
+                raise ValueError("RESOURCE_LEVELING_DEMAND_UNKNOWN_ACTIVITY")
+            assigned_resources = {
+                item.resource_id for item in self.resource_leveling_input.demands
+            }
+            capacity_resources = {
+                item.resource_id for item in self.resource_leveling_input.capacities
+            }
+            if not assigned_resources.issubset(capacity_resources):
+                raise ValueError("RESOURCE_LEVELING_DEMAND_WITHOUT_CAPACITY")
         relationships_by_pair: dict[tuple[str, str], int] = {}
         for relationship in self.relationships:
             pair = (relationship.predecessor_id, relationship.successor_id)
@@ -251,6 +386,7 @@ class AuthoritativeScheduleInput:
             "relationships": self.relationships,
             "activity_calendar_assignments": self.activity_calendar_assignments,
             "relationship_lag_calendar_assignments": self.relationship_lag_calendar_assignments,
+            "resource_leveling_input": self.resource_leveling_input,
             "constraints": self.constraints,
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,
