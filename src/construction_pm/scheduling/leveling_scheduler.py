@@ -413,6 +413,8 @@ def schedule_with_resource_leveling(
             backward_activities=leveling_input.backward_activities,
             capacities=leveling_input.capacities,
             options=selected_options,
+            max_shift_working_days=leveling_input.max_shift_working_days,
+            max_shift_working_days_by_activity=leveling_input.max_shift_working_days_by_activity,
         )
 
     if selected_options.resource_list is not None:
@@ -444,6 +446,8 @@ def schedule_with_resource_leveling(
         backward_activities=leveling_input.backward_activities,
         capacities=leveling_input.capacities,
         options=leveling_input.options,
+        max_shift_working_days=leveling_input.max_shift_working_days,
+        max_shift_working_days_by_activity=leveling_input.max_shift_working_days_by_activity,
     )
     forward_shifts = propose_forward_leveling(
         forward_activities,
@@ -456,6 +460,14 @@ def schedule_with_resource_leveling(
         level_all_resources=leveling_input.options.level_all_resources,
         resource_ids=leveling_input.options.resource_ids,
         activity_resolvers=activity_resolvers,
+        max_shift_working_days=(
+            leveling_input.max_shift_working_days
+            if leveling_input.max_shift_working_days is not None
+            else 10000
+        ),
+        max_shift_working_days_by_activity=dict(
+            leveling_input.max_shift_working_days_by_activity
+        ) if leveling_input.max_shift_working_days_by_activity else None,
     )
     shifted_forward = apply_leveling_shifts(
         forward_activities, forward_shifts, resolver=resolver,
