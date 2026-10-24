@@ -807,14 +807,22 @@ class AIActionRuntime:
             # only failures after handler start have an uncertain side-effect outcome.
             if not executor_started:
                 code = str(exc) if isinstance(exc, AIActionRuntimeError) else "AI_ACTION_EXECUTION_PRECONDITION_FAILED"
-                self._persist_preexecution_outcome(context, proposal_id, code)
+                try:
+                    self._persist_preexecution_outcome(context, proposal_id, code)
+                except Exception as persistence_exc:
+                    raise AIActionRuntimeError("AI_ACTION_EXECUTION_STATE_NOT_PERSISTED") from persistence_exc
                 if isinstance(exc, AIActionRuntimeError):
                     raise
                 raise AIActionRuntimeError("AI_ACTION_EXECUTION_PRECONDITION_FAILED") from exc
             # The authoritative transaction is rolled back first. The durable
             # reservation then moves to uncertain in a separate transaction so
             # a lost response cannot permit a second ordinary execution.
-            self._persist_uncertain_outcome(context, proposal_id, exc)
+            try:
+                self._persist_uncertain_outcome(context, proposal_id, exc)
+            except Exception as persistence_exc:
+                # The already committed "executing" reservation remains blocked
+                # from ordinary replay even when the uncertainty audit cannot persist.
+                raise AIActionRuntimeError("AI_ACTION_EXECUTION_STATE_NOT_PERSISTED") from persistence_exc
             raise AIActionRuntimeError("AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN") from exc
 
         # Phase 3: persist the returned result after the use-case transaction has
