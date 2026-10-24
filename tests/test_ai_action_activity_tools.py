@@ -14,6 +14,8 @@ from construction_pm.ai_action_boundary import (
 from construction_pm.ai_action_runtime import (
     AIActionRuntimeContext,
     AIActionRuntimeError,
+    AIActionToolDefinition,
+    AIActionRuntime,
     SQLiteAIActionRuntimeStore,
 )
 from construction_pm.application.authorization import default_project_policy
@@ -186,3 +188,75 @@ def test_activity_create_runtime_rejects_split_connection_wiring(tmp_path):
     finally:
         connection.close()
         other_connection.close()
+
+
+
+def test_atomic_executor_error_rolls_back_partial_sql_and_blocks_replay(tmp_path):
+    database_path = tmp_path / "activity-tool-uncertain.sqlite"
+    connection = sqlite3.connect(str(database_path))
+    manager = SQLiteTransactionManager(connection)
+    connection.execute("CREATE TABLE action_probe (probe_value TEXT NOT NULL)")
+    connection.commit()
+    store = SQLiteAIActionRuntimeStore(connection)
+    grants = [
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="activities",
+            operation="create", tool_name="probe.create",
+        )
+    ]
+    calls = []
+
+    def validate_payload(payload):
+        if set(payload) != {"value"} or not isinstance(payload.get("value"), str):
+            raise ValueError("invalid probe")
+        return {"value": payload["value"]}
+
+    def execute(payload, proposal, idempotency_key, context):
+        calls.append(proposal.proposal_id)
+        connection.execute("INSERT INTO action_probe (probe_value) VALUES (?)", (payload["value"],))
+        raise RuntimeError("simulated lost tool response")
+
+    runtime = AIActionRuntime(
+        store=store,
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)),
+        audit_sink=store,
+        tools=[AIActionToolDefinition(
+            tool_name="probe.create",
+            action="create",
+            resource_domain="activities",
+            requires_human_approval=True,
+            validate_payload=validate_payload,
+            execute=execute,
+        )],
+        transaction_manager=manager,
+    )
+    context = AIActionRuntimeContext(
+        subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+        project_revision_id="12", roles=frozenset({"project_admin"}),
+    )
+    try:
+        proposal = runtime.propose(context, tool_name="probe.create", payload={"value": "one"})
+        runtime.decide(context, proposal.proposal.proposal_id, approved=True)
+
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN"):
+            runtime.execute(context, proposal.proposal.proposal_id)
+
+        persisted = store.get(
+            proposal.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert persisted is not None
+        assert persisted.status == "uncertain"
+        assert connection.execute("SELECT COUNT(*) FROM action_probe").fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM ai_action_audit_events "
+            "WHERE proposal_id=? AND event_type='execution_outcome_uncertain'",
+            (proposal.proposal.proposal_id,),
+        ).fetchone()[0] == 1
+
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_NOT_APPROVED"):
+            runtime.execute(context, proposal.proposal.proposal_id)
+        assert calls == [proposal.proposal.proposal_id]
+        assert connection.execute("SELECT COUNT(*) FROM action_probe").fetchone()[0] == 0
+    finally:
+        connection.close()
