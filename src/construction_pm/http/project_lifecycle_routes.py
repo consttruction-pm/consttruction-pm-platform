@@ -2072,6 +2072,7 @@ class ProjectLifecycleHttpRoutes:
                         tenant_id=context.tenant_id,
                         project_id=context.project_id,
                         project_revision_id=str(context.revision),
+                        roles=session.roles,
                     )
                     if read_operation == "list":
                         records = self._ai_action_runtime.list_proposals(runtime_context)
@@ -2142,6 +2143,7 @@ class ProjectLifecycleHttpRoutes:
                     tenant_id=context.tenant_id,
                     project_id=context.project_id,
                     project_revision_id=str(context.revision),
+                    roles=session.roles,
                 )
                 if expected_revision != context.revision:
                     self._ai_action_runtime.record_request_event(
