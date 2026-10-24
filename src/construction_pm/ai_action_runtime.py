@@ -969,6 +969,11 @@ class AIActionRuntime:
                     "proposal_revision": proposal.project_revision_id,
                     "current_revision": context.project_revision_id,
                 }
+                if record.status == "approved":
+                    self.store.transition(
+                        proposal, expected_status="approved", next_status="stale",
+                        updated_at=self._now(),
+                    )
             elif code in {"AI_ACTION_PROPOSAL_NOT_APPROVED", "AI_ACTION_PROPOSAL_NOT_EXECUTING"}:
                 event_type = "execution_replay_or_race_blocked"
                 metadata = {"current_status": record.status, "reason_code": code}
@@ -1014,6 +1019,11 @@ class AIActionRuntime:
                     "proposal_revision": proposal.project_revision_id,
                     "current_revision": context.project_revision_id,
                 }
+                if record.status == "proposed":
+                    self.store.transition(
+                        proposal, expected_status="proposed", next_status="stale",
+                        updated_at=self._now(),
+                    )
             elif code == "AI_ACTION_PROPOSAL_NOT_PENDING":
                 event_type = "decision_replay_or_state_conflict"
                 metadata = {"current_status": record.status}
