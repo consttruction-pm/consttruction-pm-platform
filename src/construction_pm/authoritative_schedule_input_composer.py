@@ -205,8 +205,6 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError("DUPLICATE_RESOURCE_LEVELING_ASSIGNMENT")
             if assignment.activity_id not in activity_ids:
                 raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_UNKNOWN_ACTIVITY")
-            if not assignment.calendar_id or not assignment.calendar_version:
-                raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_CALENDAR_VERSION_REQUIRED")
             assignments_by_id[assignment.assignment_id] = assignment
 
         periods_by_assignment: dict[str, list[P6ResourceAssignmentPeriodValue]] = {}
@@ -236,6 +234,11 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError("NON_CANONICAL_RESOURCE_LEVELING_PERIOD_DATE")
             demand_dates.add(period_date)
             periods_by_assignment.setdefault(period_value.assignment_id, []).append(period_value)
+
+        for assignment_id in periods_by_assignment:
+            assignment = assignments_by_id[assignment_id]
+            if not assignment.calendar_id or not assignment.calendar_version:
+                raise ScheduleInputCompositionError("RESOURCE_LEVELING_ASSIGNMENT_CALENDAR_VERSION_REQUIRED")
 
         # The resource-calendar resolver's full output hash includes the exact
         # calendar master, base chain, canonical calendar snapshot, work-hour
@@ -271,10 +274,13 @@ class AuthoritativeScheduleInputComposer:
         )
 
         calendars: dict[tuple[str, str], ResourceCalendar] = {}
+        leveling_assignments = tuple(
+            assignments_by_id[assignment_id]
+            for assignment_id in sorted(periods_by_assignment)
+        )
         calendar_references = sorted({
             (assignment.calendar_id, assignment.calendar_version)
-            for assignment in assignments.values()
-            if assignment.resource_id in {p.resource_id for p in period_values}
+            for assignment in leveling_assignments
         })
         try:
             for calendar_id, calendar_version in calendar_references:
@@ -291,7 +297,7 @@ class AuthoritativeScheduleInputComposer:
                 )
             capacity_slices = build_resource_capacity_slices(
                 scope,
-                assignments,
+                leveling_assignments,
                 calendars,
                 capacity_periods,
                 require_calendar_versions=True,
