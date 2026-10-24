@@ -2237,13 +2237,26 @@ class ProjectLifecycleHttpRoutes:
                 status = 403
             elif code == "AI_ACTION_PROPOSAL_NOT_FOUND":
                 status = 404
-            elif code in {"AI_ACTION_PROPOSAL_STALE_REVISION", "AI_ACTION_PROPOSAL_NOT_PENDING", "AI_ACTION_PROPOSAL_NOT_APPROVED", "AI_ACTION_PROPOSAL_ID_CONFLICT", "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED", "AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN"}:
+            elif code in {
+                "AI_ACTION_PROPOSAL_STALE_REVISION",
+                "AI_ACTION_PROPOSAL_NOT_PENDING",
+                "AI_ACTION_PROPOSAL_NOT_APPROVED",
+                "AI_ACTION_PROPOSAL_ID_CONFLICT",
+                "AI_ACTION_IDEMPOTENCY_KEY_REUSE",
+                "AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN",
+                "AI_ACTION_EXECUTION_PRECONDITION_FAILED",
+            }:
                 status = 409
             elif code == "AI_ACTION_EXECUTION_FAILED":
                 status = 502
             elif code.startswith("AI_ACTION_AUDIT_") or code in {
                 "AI_ACTION_PROPOSAL_PERSISTENCE_FAILED",
                 "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+                "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED",
+                "AI_ACTION_EXECUTION_RESERVATION_FAILED",
+                "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
+                "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+                "AI_ACTION_TRANSACTION_FAILED",
             }:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")
@@ -2264,9 +2277,17 @@ class ProjectLifecycleHttpRoutes:
     def _error(
         cls, status: int, code: str, message_key: str
     ) -> tuple[int, dict[str, str], bytes]:
+        non_retryable_integrity_errors = {
+            "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+            "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED",
+            "AI_ACTION_EXECUTION_RESERVATION_FAILED",
+            "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
+            "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+        }
+        retryable = status >= 500 and code not in non_retryable_integrity_errors
         return cls._json(status, {
             "code": code,
-            "retryable": status >= 500,
+            "retryable": retryable,
             "message_key": message_key,
-            "available_actions": ["retry"] if status >= 500 else [],
+            "available_actions": ["retry"] if retryable else [],
         })
