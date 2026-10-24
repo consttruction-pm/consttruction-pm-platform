@@ -105,8 +105,12 @@ def test_authenticated_project_action_route_runs_propose_approve_execute():
     proposal = json.loads(body)["proposal"]
     proposal_id = proposal["proposal_id"]
     assert proposal["requires_human_approval"] is True
+    assert proposal["requested_by"] == "u1"
     assert proposal["payload"] == {"name": "Excavation"}
     assert proposal["project_revision_id"] == "2"
+    assert proposal["updated_at"] == proposal["created_at"]
+    assert proposal["decided_by"] is None
+    assert proposal["is_stale"] is False
 
     status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {}, method="GET")
     assert status == 200
