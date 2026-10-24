@@ -42,6 +42,25 @@ The branch now includes the current `main` merge commit `7eaeea4fda70f447c4ad196
 
 The runtime code head was realigned to current main on 2026-10-25. New exact-head CI must pass on the resulting commit before this PR is eligible for merge. The release blockers listed below remain open.
 
+## First real project mutation vertical slice — 2026-10-25
+
+The branch now includes an explicit first typed production tool, `activity.create`, in `src/construction_pm/ai_action_activity_tools.py`:
+
+- The tool validates a bounded payload and constructs the existing `ActivityMaster` domain record. It writes only through the authenticated `P6ActivityMasterAPI` and its configured Activity Master repository; it does not write directly around the application API.
+- Request identity, tenant, project, role and revision are passed from the authenticated `ProjectLifecycleHttpRoutes` context. Client-supplied identity or approval-policy fields are not accepted as authority.
+- An explicitly composed runtime requires the real Activity Master repository, authorization policy, current-grant adapter and transaction manager. It fails closed if a dependency is absent, a storage adapter is unsupported, or the runtime/proposal/audit/idempotency/repository connection identities do not match.
+- The scoped idempotency record and Activity Master mutation are written in the same authoritative DB transaction, keyed by the proposal ID and bound to a request fingerprint. An error rolls the business mutation and idempotency result back; the durable execution reservation then becomes `uncertain`, blocking ordinary replay.
+- The runtime reserves `approved → executing` before the business transaction and persists the final result in a subsequent transaction. If the process or DB fails between these phases, `executing` remains non-replayable and requires reconciliation; automatic recovery is **not** implemented yet.
+- Tests cover authenticated HTTP proposal → approval → execute, client identity/approval-policy spoofing, revoked-grant denial, invalid payloads, split-connection rejection, rollback/no replay after executor error, SQLite fresh-connection read-back, and a live PostgreSQL fresh-connection read-back.
+
+Exact current tested PR head: `46a6ab90abab49e887d73af2945a645ccd786d47`.
+
+- ConstructionPM CI: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475564 — PASS on Python 3.11, 3.12, 3.13.
+- PostgreSQL Integration: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475563 — PASS.
+- Client Typecheck: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475603 — PASS for Web, Desktop, Mobile and Client Sync.
+
+This is **one real Activity Master create slice**, not the whole assistant. No AI model/provider orchestration or natural-language tool selection is wired; no WBS, relationship, calendar, resource or cost mutation tool is yet registered; the tool does not itself publish/run a new Shared Core schedule calculation or ground a report in its resulting run identity; voice/document/Excel intake and preview, final assistant UI/report/chart/export, and operator reconciliation/recovery remain open.
+
 ## Current acceptance boundary
 
 The runtime and authenticated HTTP seam are implemented as an incremental integration, not a complete assistant. Until deployment wiring and the above integration tests pass on an exact merged main SHA, the following remain open: real project-creation/editing tools, model/provider orchestration, document/voice intake, authoritative result grounding/report generation, admin knowledge research/review/publication, generalization privacy review, and client UI wiring. The runtime does not silently infer or enable any of these.
