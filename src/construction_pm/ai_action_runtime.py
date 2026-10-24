@@ -418,6 +418,20 @@ class PostgresAIActionRuntimeStore(_SqlAIActionRuntimeStore):
     placeholder = "%s"
 
 
+class AIActionTransactionManager(Protocol):
+    """Application-owned transaction boundary for a shared authoritative connection."""
+
+    connection: object
+
+    def transaction(self): ...
+
+
+class _AIActionExecutionAbort(Exception):
+    def __init__(self, original: Exception) -> None:
+        super().__init__("AI action executor outcome requires reconciliation")
+        self.original = original
+
+
 class AIActionRuntime:
     """Server-side proposal/approval/execution path with scope, revision, and replay guards."""
 
@@ -429,6 +443,7 @@ class AIActionRuntime:
         audit_sink: AIActionRuntimeAuditSink,
         tools: Iterable[AIActionToolDefinition],
         clock: Callable[[], datetime] | None = None,
+        transaction_manager: AIActionTransactionManager | None = None,
     ) -> None:
         definitions: dict[str, AIActionToolDefinition] = {}
         for definition in tools:
@@ -441,6 +456,15 @@ class AIActionRuntime:
         self.audit_sink = audit_sink
         self.tools = definitions
         self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.transaction_manager = transaction_manager
+        if transaction_manager is not None:
+            connection = getattr(transaction_manager, "connection", None)
+            if connection is None:
+                raise AIActionRuntimeError("AI_ACTION_TRANSACTION_CONNECTION_REQUIRED")
+            store_connection = getattr(store, "connection", None)
+            audit_connection = getattr(audit_sink, "connection", None)
+            if store_connection is not connection or audit_connection is not connection:
+                raise AIActionRuntimeError("AI_ACTION_TRANSACTION_CONNECTION_MISMATCH")
 
     def propose(
         self,
@@ -742,6 +766,7 @@ __all__ = [
     "AIActionToolDefinition",
     "AIActionStoredProposal",
     "AIActionRuntimeStore",
+    "AIActionTransactionManager",
     "SQLiteAIActionRuntimeStore",
     "PostgresAIActionRuntimeStore",
     "AIActionRuntime",
