@@ -585,8 +585,7 @@ class AIActionRuntime:
             with self._transaction():
                 return self._decide_in_transaction(context, proposal_id, approved=approved)
         except AIActionRuntimeError as exc:
-            if self.transaction_manager is not None:
-                self._audit_decision_failure(context, proposal_id, str(exc))
+            self._audit_decision_failure(context, proposal_id, str(exc))
             raise
 
     def _decide_in_transaction(
@@ -600,7 +599,11 @@ class AIActionRuntime:
         if not isinstance(approved, bool):
             raise AIActionRuntimeError("AI_ACTION_APPROVAL_DECISION_INVALID")
         record = self._get_scoped(context, proposal_id)
-        self._assert_current_revision(record, context)
+        try:
+            self._assert_current_revision(record, context)
+        except AIActionRuntimeError as exc:
+            self._audit_execution_failure(context, proposal_id, str(exc))
+            raise
         proposal = record.proposal
         if record.status != "proposed" or not proposal.requires_human_approval:
             self.audit_sink.record_event(
@@ -1058,14 +1061,9 @@ class AIActionRuntime:
     def _assert_current_revision(
         self, record: AIActionStoredProposal, context: AIActionRuntimeContext
     ) -> None:
+        # Keep validation pure. The transaction-aware callers persist a denial audit
+        # only after rollback; writing audit here would be rolled back with the denial.
         if record.proposal.project_revision_id != context.project_revision_id:
-            self.audit_sink.record_event(
-                record.proposal, "stale_revision_blocked", actor_id=context.subject_id,
-                metadata={
-                    "proposal_revision": record.proposal.project_revision_id,
-                    "current_revision": context.project_revision_id,
-                }, happened_at=self._now(),
-            )
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_STALE_REVISION")
 
     def _require_permission(
