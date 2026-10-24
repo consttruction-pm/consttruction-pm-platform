@@ -346,6 +346,7 @@ def propose_forward_leveling_within_float(
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
     allow_beyond_float: bool = False,
     max_shift_working_days: int | None = None,
+    max_shift_working_days_by_activity: Mapping[str, int] | None = None,
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule.
 
@@ -367,6 +368,17 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("INVALID_MAX_LEVELING_SHIFT")
     if allow_beyond_float and max_shift_working_days is None:
         raise ResourceLevelingError("MAX_LEVELING_SHIFT_REQUIRED")
+    if max_shift_working_days_by_activity is not None:
+        if not isinstance(max_shift_working_days_by_activity, Mapping):
+            raise ResourceLevelingError("INVALID_ACTIVITY_LEVELING_SHIFT_LIMITS")
+        unknown_limits = set(max_shift_working_days_by_activity) - set(activity_ids)
+        if unknown_limits:
+            raise ResourceLevelingError("UNKNOWN_ACTIVITY_LEVELING_SHIFT_LIMIT")
+        for activity_id, limit in max_shift_working_days_by_activity.items():
+            if not isinstance(activity_id, str) or not activity_id.strip() or (
+                isinstance(limit, bool) or not isinstance(limit, int) or limit < 0
+            ):
+                raise ResourceLevelingError("INVALID_ACTIVITY_LEVELING_SHIFT_LIMIT")
     if not isinstance(resolver, WorkingTimeResolver):
         raise ResourceLevelingError("INVALID_WORKING_TIME_RESOLVER")
     if not isinstance(over_allocation_percentage, Decimal) or not over_allocation_percentage.is_finite() or not 0 <= over_allocation_percentage <= 100:
@@ -438,9 +450,16 @@ def propose_forward_leveling_within_float(
             for activity in activity_list:
                 current_shift = selected[activity.activity_id]
                 if allow_beyond_float:
+                    activity_shift_limit = (
+                        max_shift_working_days_by_activity.get(
+                            activity.activity_id, max_shift_working_days
+                        )
+                        if max_shift_working_days_by_activity is not None
+                        else max_shift_working_days
+                    )
                     if (
-                        max_shift_working_days is not None
-                        and current_shift >= max_shift_working_days
+                        activity_shift_limit is not None
+                        and current_shift >= activity_shift_limit
                     ):
                         continue
                 elif current_shift >= max(0, activity.total_float - min_float_to_preserve):
@@ -490,6 +509,7 @@ def propose_forward_leveling(
     priorities: tuple[LevelingPriority, ...] = (), level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (), max_shift_working_days: int = 10000,
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
+    max_shift_working_days_by_activity: Mapping[str, int] | None = None,
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward leveling, optionally unconstrained by float."""
     if not isinstance(level_within_float, bool):
@@ -510,6 +530,7 @@ def propose_forward_leveling(
             over_allocation_percentage=over_allocation_percentage, priorities=priorities,
             level_all_resources=level_all_resources, resource_ids=resource_ids,
             activity_resolvers=activity_resolvers,
+            max_shift_working_days_by_activity=max_shift_working_days_by_activity,
         )
     shifts = propose_forward_leveling_within_float(
         activities,
@@ -523,6 +544,7 @@ def propose_forward_leveling(
         activity_resolvers=activity_resolvers,
         allow_beyond_float=True,
         max_shift_working_days=max_shift_working_days,
+        max_shift_working_days_by_activity=max_shift_working_days_by_activity,
     )
     original_float = {a.activity_id: a.total_float for a in activities}
     return tuple(LevelingShift(s.activity_id, s.shift_working_days, s.new_start, s.new_finish,
