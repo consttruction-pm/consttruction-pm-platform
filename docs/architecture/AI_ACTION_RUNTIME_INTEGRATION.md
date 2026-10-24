@@ -47,19 +47,22 @@ The runtime code head was realigned to current main on 2026-10-25. New exact-hea
 The branch now includes an explicit first typed production tool, `activity.create`, in `src/construction_pm/ai_action_activity_tools.py`:
 
 - The tool validates a bounded payload and constructs the existing `ActivityMaster` domain record. It writes only through the authenticated `P6ActivityMasterAPI` and its configured Activity Master repository; it does not write directly around the application API.
-- Request identity, tenant, project, role and revision are passed from the authenticated `ProjectLifecycleHttpRoutes` context. Client-supplied identity or approval-policy fields are not accepted as authority.
+- Request identity, tenant, project, roles and revision are passed from the authenticated `ProjectLifecycleHttpRoutes` context. Client-supplied identity or approval-policy fields are not accepted as authority.
 - An explicitly composed runtime requires the real Activity Master repository, authorization policy, current-grant adapter and transaction manager. It fails closed if a dependency is absent, a storage adapter is unsupported, or the runtime/proposal/audit/idempotency/repository connection identities do not match.
-- The scoped idempotency record and Activity Master mutation are written in the same authoritative DB transaction, keyed by the proposal ID and bound to a request fingerprint. An error rolls the business mutation and idempotency result back; the durable execution reservation then becomes `uncertain`, blocking ordinary replay.
-- The runtime reserves `approved → executing` before the business transaction and persists the final result in a subsequent transaction. If the process or DB fails between these phases, `executing` remains non-replayable and requires reconciliation; automatic recovery is **not** implemented yet.
-- Tests cover authenticated HTTP proposal → approval → execute, client identity/approval-policy spoofing, revoked-grant denial, invalid payloads, split-connection rejection, rollback/no replay after executor error, SQLite fresh-connection read-back, and a live PostgreSQL fresh-connection read-back.
+- The scoped idempotency record and Activity Master mutation are written in the same authoritative DB transaction, keyed by proposal ID and bound to a request fingerprint.
+- The runtime reserves `approved → executing` before the business transaction and persists the final result in a subsequent transaction. A late handler/commit error rolls the business mutation and idempotency result back when the DB transaction aborts; the durable execution reservation becomes `uncertain`, blocking ordinary replay.
+- Current grants are checked before reservation and again immediately before the real handler. If a grant is revoked between those checks, the handler is not called; the proposal is moved to a terminal `denied` state and denial is audited.
+- A stale project revision is terminalized as `stale` after the denial audit is persisted outside the rolled-back transaction. Tests verify it cannot be approved again.
+- If recording the resulting state/audit fails, the existing `executing` reservation remains non-replayable and the HTTP error avoids suggesting an unsafe retry.
+- Tests cover authenticated HTTP proposal → approval → execute, client identity/approval-policy spoofing, grant revocation before and after reservation, stale revision, invalid payload, split-connection rejection, rollback/no replay after executor error, SQLite fresh-connection read-back, and a live PostgreSQL fresh-connection read-back.
 
-Exact current tested PR head: `46a6ab90abab49e887d73af2945a645ccd786d47`.
+Last verified code/test head before this documentation-only update: `bf110ac62b9ff88539ced03b6bd16952df83a4de`.
 
-- ConstructionPM CI: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475564 — PASS on Python 3.11, 3.12, 3.13.
-- PostgreSQL Integration: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475563 — PASS.
-- Client Typecheck: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139475603 — PASS for Web, Desktop, Mobile and Client Sync.
+- ConstructionPM CI: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930835 — PASS on Python 3.11, 3.12 and 3.13.
+- PostgreSQL Integration: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930827 — PASS.
+- Client Typecheck: https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40139930828 — PASS for Web, Desktop, Mobile and Client Sync.
 
-This is **one real Activity Master create slice**, not the whole assistant. No AI model/provider orchestration or natural-language tool selection is wired; no WBS, relationship, calendar, resource or cost mutation tool is yet registered; the tool does not itself publish/run a new Shared Core schedule calculation or ground a report in its resulting run identity; voice/document/Excel intake and preview, final assistant UI/report/chart/export, and operator reconciliation/recovery remain open.
+This is **one real Activity Master create slice**, not the whole assistant. No AI model/provider orchestration or natural-language tool selection is wired; no WBS, relationship, calendar, resource or cost mutation tool is registered; the tool does not itself run a new Shared Core schedule calculation or ground a report in its resulting run identity; voice/document/Excel intake and preview, final assistant UI/report/chart/export, and operator reconciliation/recovery remain open.
 
 ## Current acceptance boundary
 
