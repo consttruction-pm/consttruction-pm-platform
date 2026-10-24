@@ -37,6 +37,61 @@ def activity(revision: int = 7, duration: str = "2", expected_finish: date | Non
     )
 
 
+def test_activity_master_save_preserves_caller_owned_transaction():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    connection.execute("CREATE TABLE transaction_probe (probe_id INTEGER PRIMARY KEY)")
+    connection.execute("BEGIN")
+    connection.execute("INSERT INTO transaction_probe (probe_id) VALUES (1)")
+
+    stored = repo.save(activity())
+
+    assert connection.in_transaction
+    assert repo.get(scope(), "A-1") == stored
+    connection.rollback()
+
+    assert repo.get(scope(), "A-1") is None
+    assert connection.execute("SELECT COUNT(*) FROM transaction_probe").fetchone()[0] == 0
+
+
+def test_activity_master_revision_conflict_does_not_rollback_caller_transaction():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    original = repo.save(activity())
+    connection.execute("CREATE TABLE transaction_probe (probe_id INTEGER PRIMARY KEY)")
+    connection.execute("BEGIN")
+    connection.execute("INSERT INTO transaction_probe (probe_id) VALUES (1)")
+
+    with pytest.raises(ActivityPersistenceError, match="REVISION_CONFLICT"):
+        repo.save(activity(duration="4"), expected_revision=0)
+
+    # The caller still owns the transaction after the repository raises.
+    assert connection.in_transaction
+    assert connection.execute("SELECT COUNT(*) FROM transaction_probe").fetchone()[0] == 1
+    connection.rollback()
+
+    assert repo.get(scope(), "A-1") == original
+    assert connection.execute("SELECT COUNT(*) FROM transaction_probe").fetchone()[0] == 0
+
+
+def test_activity_master_owned_transaction_rolls_back_failed_insert():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    connection.execute(
+        """CREATE TRIGGER reject_activity_insert
+        BEFORE INSERT ON activity_master
+        BEGIN
+            SELECT RAISE(ABORT, 'injected activity insert failure');
+        END"""
+    )
+
+    with pytest.raises(sqlite3.IntegrityError, match="injected activity insert failure"):
+        repo.save(activity())
+
+    assert not connection.in_transaction
+    assert repo.get(scope(), "A-1") is None
+
+
 def test_activity_master_round_trip_and_revision():
     repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
     stored = repo.save(activity())
