@@ -1,5 +1,6 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
 import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
+import { translateWorkspaceText } from "./workspace-localization.js";
 
 type PanelLabels = {
   title: string; description: string; createTitle: string; activityId: string;
@@ -10,7 +11,7 @@ type PanelLabels = {
   proposalCreated: string; proposalFailed: string; listFailed: string;
   executionFailed: string; stale: string; noRetry: string; approve: string;
   reject: string; execute: string; required: string; invalidResponse: string;
-  action: string; projectRevision: string; result: string; operationFailed: string;
+  action: string; projectRevision: string; result: string; operationFailed: string; serverUnavailable: string;
 };
 
 const labels: Record<"en" | "fa", PanelLabels> = {
@@ -31,7 +32,7 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     noRetry: "The outcome is uncertain or execution was interrupted. Do not retry this action; it needs reconciliation.",
     approve: "Approve", reject: "Reject", execute: "Execute approved action",
     required: "This field is required.", invalidResponse: "The server returned an invalid action response.",
-    action: "Action", projectRevision: "Project revision", result: "Result", operationFailed: "Request failed",
+    action: "Action", projectRevision: "Project revision", result: "Result", operationFailed: "Request failed", serverUnavailable: "This server has not enabled AI action execution.",
   },
   fa: {
     title: "دستیار هوشمند · اقدامات",
@@ -50,12 +51,18 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     noRetry: "نتیجه نامطمئن است یا اجرا قطع شده؛ این اقدام را دوباره اجرا نکنید و ابتدا باید نتیجه تطبیق داده شود.",
     approve: "تأیید", reject: "رد", execute: "اجرای اقدام تأییدشده",
     required: "این فیلد الزامی است.", invalidResponse: "پاسخ سرور برای اقدام معتبر نیست.",
-    action: "اقدام", projectRevision: "نسخه پروژه", result: "نتیجه", operationFailed: "درخواست ناموفق بود",
+    action: "اقدام", projectRevision: "نسخه پروژه", result: "نتیجه", operationFailed: "درخواست ناموفق بود", serverUnavailable: "اجرای اقدامات دستیار در این سرور پیکربندی نشده است.",
   },
 };
 
 function localeLabels(locale: string): PanelLabels {
-  return labels[locale.toLowerCase().startsWith("fa") ? "fa" : "en"];
+  const baseline = labels[locale.toLowerCase().startsWith("fa") ? "fa" : "en"];
+  return Object.fromEntries(
+    Object.entries(baseline).map(([key, fallback]) => [
+      key,
+      translateWorkspaceText(locale, `aiAction.${key}`, fallback),
+    ]),
+  ) as PanelLabels;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -193,6 +200,7 @@ export function mountAIActionPanel(
         code === "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED" ||
         code === "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED") return t.noRetry;
     if (code === "INVALID_AI_ACTION_RESPONSE") return t.invalidResponse;
+    if (code === "ROUTE_NOT_FOUND") return t.serverUnavailable;
     return `${t.operationFailed}: ${code}`;
   };
 
