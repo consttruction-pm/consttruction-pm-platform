@@ -37,7 +37,7 @@ export type CreateActivityProposal = Readonly<{
   activity_id: string;
   name: string;
   duration_value: string;
-  duration_unit: "working-day" | "calendar-day" | "hour";
+  duration_unit: "working-day" | "working-hour";
 }>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -141,7 +141,7 @@ export class AIActionClient {
       ...data.proposal,
       status: data.status,
       result: null,
-      updated_at: data.proposal.created_at,
+      updated_at: data.proposal.updated_at ?? data.proposal.created_at,
       requested_by: data.proposal.requested_by ?? "",
       decided_by: null,
       is_stale: String(data.proposal.project_revision_id) !== String(context.revision),
