@@ -743,6 +743,179 @@ class AIActionRuntime:
             raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
         return fresh
 
+    def _execute_atomically(
+        self, context: AIActionRuntimeContext, proposal_id: str
+    ) -> AIActionStoredProposal:
+        # Phase 1: commit a durable execution reservation before running a tool.
+        # An interrupted process remains "executing" and cannot be blindly replayed.
+        try:
+            with self._transaction():
+                record = self._get_scoped(context, proposal_id)
+                self._assert_current_revision(record, context)
+                proposal = record.proposal
+                definition = self.tools.get(proposal.tool_name)
+                if definition is None:
+                    raise AIActionRuntimeError("AI_ACTION_TOOL_NOT_REGISTERED")
+                if record.status != "approved":
+                    raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_APPROVED")
+                self._require_permission(
+                    proposal, context.subject_id, actor_id=context.subject_id, record_audit=False
+                )
+                reserved_at = self._now()
+                if not self.store.transition(
+                    proposal, expected_status="approved", next_status="executing",
+                    updated_at=reserved_at,
+                ):
+                    raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_APPROVED")
+                self.audit_sink.record_event(
+                    proposal, "execution_started", actor_id=context.subject_id,
+                    metadata={"expected_revision": proposal.project_revision_id},
+                    happened_at=reserved_at,
+                )
+        except AIActionRuntimeError as exc:
+            self._audit_execution_failure(context, proposal_id, str(exc))
+            raise
+        except Exception as exc:
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESERVATION_FAILED") from exc
+
+        # Phase 2: the real use case, idempotency record, and its database mutation
+        # commit/roll back together on the shared authoritative connection.
+        try:
+            with self._transaction():
+                current = self._get_scoped(context, proposal_id)
+                if current.status != "executing":
+                    raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_EXECUTING")
+                self._assert_current_revision(current, context)
+                result = definition.execute(
+                    current.payload, current.proposal, current.proposal.proposal_id, context
+                )
+                if not isinstance(result, Mapping):
+                    raise TypeError("AI action executor must return a mapping")
+                _json_object(result, "AI_ACTION_EXECUTOR_RESULT_INVALID")
+                result = dict(result)
+        except Exception as exc:
+            # The authoritative transaction is rolled back first. The durable
+            # reservation then moves to uncertain in a separate transaction so
+            # a lost response cannot permit a second ordinary execution.
+            self._persist_uncertain_outcome(context, proposal_id, exc)
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN") from exc
+
+        # Phase 3: persist the returned result after the use-case transaction has
+        # committed. If this phase fails, the proposal stays "executing" and is
+        # still denied normal replay; recovery must reconcile via the idempotency key.
+        try:
+            with self._transaction():
+                completed_at = self._now()
+                persisted = self.store.transition(
+                    current.proposal, expected_status="executing", next_status="executed",
+                    updated_at=completed_at, result=result,
+                )
+                if not persisted:
+                    raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
+                self.audit_sink.record_event(
+                    current.proposal, "execution_succeeded", actor_id=context.subject_id,
+                    metadata={"result_keys": sorted(str(key) for key in result.keys())},
+                    happened_at=completed_at,
+                )
+                fresh = self._get_scoped(context, proposal_id)
+                if fresh.status != "executed" or fresh.result is None:
+                    raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED")
+                return fresh
+        except Exception as exc:
+            try:
+                with self._transaction():
+                    self.audit_sink.record_event(
+                        current.proposal, "execution_persistence_uncertain",
+                        actor_id=context.subject_id,
+                        metadata={
+                            "failure_type": type(exc).__name__,
+                            "proposal_status_remains_non_replayable": True,
+                        },
+                        happened_at=self._now(),
+                    )
+            except Exception:
+                pass
+            raise AIActionRuntimeError("AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED") from exc
+
+    def _persist_uncertain_outcome(
+        self, context: AIActionRuntimeContext, proposal_id: str, error: Exception
+    ) -> None:
+        with self._transaction():
+            record = self.store.get(
+                proposal_id, tenant_id=context.tenant_id, project_id=context.project_id
+            )
+            if record is None:
+                self.audit_sink.record_scope_event(
+                    tenant_id=context.tenant_id, project_id=context.project_id,
+                    actor_id=context.subject_id, event_type="execution_outcome_uncertain",
+                    metadata={
+                        "failure_type": type(error).__name__,
+                        "automatic_retry_allowed": False,
+                    },
+                    happened_at=self._now(), proposal_id=proposal_id,
+                )
+                return
+            proposal = record.proposal
+            if record.status == "executing":
+                self.store.transition(
+                    proposal, expected_status="executing", next_status="uncertain",
+                    updated_at=self._now(),
+                )
+            self.audit_sink.record_event(
+                proposal, "execution_outcome_uncertain", actor_id=context.subject_id,
+                metadata={
+                    "failure_type": type(error).__name__,
+                    "automatic_retry_allowed": False,
+                    "authoritative_result_requires_reconciliation": True,
+                },
+                happened_at=self._now(),
+            )
+
+    def _audit_execution_failure(
+        self, context: AIActionRuntimeContext, proposal_id: str, code: str
+    ) -> None:
+        with self._transaction():
+            record = self.store.get(
+                proposal_id, tenant_id=context.tenant_id, project_id=context.project_id
+            )
+            if record is None:
+                self.audit_sink.record_scope_event(
+                    tenant_id=context.tenant_id, project_id=context.project_id,
+                    actor_id=context.subject_id, event_type="execution_denied",
+                    metadata={"reason_code": code}, happened_at=self._now(),
+                    proposal_id=proposal_id,
+                )
+                return
+            proposal = record.proposal
+            if code == "AI_ACTION_PROPOSAL_STALE_REVISION":
+                event_type = "stale_revision_blocked"
+                metadata = {
+                    "proposal_revision": proposal.project_revision_id,
+                    "current_revision": context.project_revision_id,
+                }
+            elif code in {"AI_ACTION_PROPOSAL_NOT_APPROVED", "AI_ACTION_PROPOSAL_NOT_EXECUTING"}:
+                event_type = "execution_replay_or_race_blocked"
+                metadata = {"current_status": record.status, "reason_code": code}
+            elif code == "AI_TOOL_NOT_PERMITTED":
+                event_type = "permission_denied"
+                metadata = {"reason_code": code}
+                denied = AIActionDecision(
+                    proposal_id=proposal.proposal_id, decision="denied",
+                    actor_id=context.subject_id, audit_event="ai_action_decision",
+                )
+                denied.validate()
+                self.audit_sink.record(proposal, denied)
+            elif code == "AI_ACTION_PERMISSION_CHECK_FAILED":
+                event_type = "permission_check_failed"
+                metadata = {"reason_code": code}
+            else:
+                event_type = "execution_failed_before_mutation"
+                metadata = {"reason_code": code}
+            self.audit_sink.record_event(
+                proposal, event_type, actor_id=context.subject_id,
+                metadata=metadata, happened_at=self._now(),
+            )
+
     def _audit_decision_failure(
         self, context: AIActionRuntimeContext, proposal_id: str, code: str
     ) -> None:
