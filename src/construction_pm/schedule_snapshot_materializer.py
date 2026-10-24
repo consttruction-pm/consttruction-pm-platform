@@ -23,6 +23,9 @@ from .scheduling.authoritative_schedule import (
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
     RelationshipLagCalendarAssignment,
+    ResourceLevelingDemandSnapshot,
+    ResourceLevelingCapacitySnapshot,
+    ResourceLevelingInputSnapshot,
 )
 from .scheduling.calendar_context import (
     CalendarReference,
@@ -365,6 +368,71 @@ def _schedule_options(value: Any) -> ScheduleOptions:
     except (TypeError, ValueError) as exc:
         raise SnapshotMaterializationError("INVALID_SCHEDULE_OPTIONS") from exc
 
+def _resource_leveling_input_snapshot(value: Any) -> ResourceLevelingInputSnapshot | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUT_SNAPSHOT")
+    version = value.get("schema_version")
+    source_hash = value.get("source_data_hash")
+    if not isinstance(version, str) or not isinstance(source_hash, str):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUT_SNAPSHOT")
+    raw_demands = value.get("demands")
+    raw_capacities = value.get("capacities")
+    if not isinstance(raw_demands, list) or not isinstance(raw_capacities, list):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUT_SNAPSHOT")
+    demands: list[ResourceLevelingDemandSnapshot] = []
+    for item in raw_demands:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_DEMAND")
+        try:
+            demands.append(ResourceLevelingDemandSnapshot(
+                assignment_id=_required_string(item, "assignment_id"),
+                activity_id=_required_string(item, "activity_id"),
+                resource_id=_required_string(item, "resource_id"),
+                period=_date(_required(item, "period")),
+                units=_decimal(_required(item, "units")),
+                calendar_id=_required_string(item, "calendar_id"),
+                calendar_version=_required_string(item, "calendar_version"),
+            ))
+        except (TypeError, ValueError) as exc:
+            if isinstance(exc, SnapshotMaterializationError):
+                raise
+            raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_DEMAND") from exc
+    capacities: list[ResourceLevelingCapacitySnapshot] = []
+    for item in raw_capacities:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_CAPACITY")
+        try:
+            capacities.append(ResourceLevelingCapacitySnapshot(
+                resource_id=_required_string(item, "resource_id"),
+                period=_date(_required(item, "period")),
+                units=_decimal(_required(item, "units")),
+                calendar_id=_required_string(item, "calendar_id"),
+                calendar_version=_required_string(item, "calendar_version"),
+                calendar_snapshot_hash=_required_string(item, "calendar_snapshot_hash"),
+            ))
+        except (TypeError, ValueError) as exc:
+            if isinstance(exc, SnapshotMaterializationError):
+                raise
+            raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_CAPACITY") from exc
+    try:
+        return ResourceLevelingInputSnapshot(
+            schema_version=version,
+            source_data_hash=source_hash,
+            demands=tuple(demands),
+            capacities=tuple(capacities),
+            max_shift_working_days=_strict_integer(
+                value.get("max_shift_working_days"),
+                "INVALID_RESOURCE_LEVELING_SHIFT_HORIZON",
+            ),
+        )
+    except (TypeError, ValueError) as exc:
+        if isinstance(exc, SnapshotMaterializationError):
+            raise
+        raise SnapshotMaterializationError("INVALID_RESOURCE_LEVELING_INPUT_SNAPSHOT") from exc
+
+
 def _materialize_payload(
     payload: dict[str, Any],
     snapshot: ScheduleInputSnapshot,
@@ -666,4 +734,7 @@ def _materialize_payload(
             else None
         ),
         project_leveling_priority=raw_project_leveling_priority,
+        resource_leveling_input=_resource_leveling_input_snapshot(
+            payload.get("resource_leveling_input")
+        ),
     )
