@@ -139,6 +139,13 @@ def test_stale_revision_is_denied_before_approval_or_execution():
     )
     with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_STALE_REVISION"):
         runtime.decide(stale_context, record.proposal.proposal_id, approved=True)
+    stale_record = runtime.store.get(
+        record.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+    )
+    assert stale_record is not None
+    assert stale_record.status == "stale"
+    with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_NOT_PENDING"):
+        runtime.decide(context, record.proposal.proposal_id, approved=True)
     assert calls == []
 
 
