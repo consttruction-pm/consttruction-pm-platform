@@ -157,6 +157,61 @@ def test_activity_create_tool_denies_revoked_grant_before_mutation(tmp_path):
         connection.close()
 
 
+def test_activity_create_rechecks_revoked_grant_after_execution_reservation(tmp_path):
+    database_path = tmp_path / "activity-tool-revoked-after-reservation.sqlite"
+    connection = sqlite3.connect(str(database_path))
+    manager = SQLiteTransactionManager(connection)
+    repo = SQLiteActivityMasterRepository(connection)
+    grants = [
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="activities",
+            operation="create", tool_name="activity.create",
+        )
+    ]
+    grant_reads = {"count": 0}
+
+    def current_grants():
+        grant_reads["count"] += 1
+        # propose, approve, and durable execution reservation are allowed; the
+        # fourth read is the required check immediately before handler mutation.
+        return tuple(grants) if grant_reads["count"] <= 3 else ()
+
+    runtime = build_activity_create_runtime(
+        activity_master_repository=repo,
+        authorization_policy=default_project_policy(),
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(current_grants),
+        transaction_manager=manager,
+    )
+    context = AIActionRuntimeContext(
+        subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+        project_revision_id="12", roles=frozenset({"project_admin"}),
+    )
+    try:
+        proposal = runtime.propose(
+            context, tool_name="activity.create", payload=activity_payload()
+        )
+        runtime.decide(context, proposal.proposal.proposal_id, approved=True)
+
+        with pytest.raises(AIActionRuntimeError, match="AI_TOOL_NOT_PERMITTED"):
+            runtime.execute(context, proposal.proposal.proposal_id)
+
+        assert grant_reads["count"] == 4
+        assert repo.get(BackendScope("tenant-1", "project-1", 12), "A-100") is None
+        blocked = runtime.store.get(
+            proposal.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert blocked is not None
+        assert blocked.status == "denied"
+        assert connection.execute(
+            "SELECT COUNT(*) FROM ai_action_audit_events "
+            "WHERE proposal_id=? AND event_type='permission_denied'",
+            (proposal.proposal.proposal_id,),
+        ).fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
 def test_activity_create_payload_rejects_invalid_duration_and_unknown_fields(tmp_path):
     database_path = tmp_path / "activity-tool-validation.sqlite"
     connection, _, _, _, runtime, context, _ = build_runtime(database_path)
