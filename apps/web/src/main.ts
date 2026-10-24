@@ -21,6 +21,7 @@ import { getBootstrapLabels } from "./bootstrap-labels.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
+import { mountAIActionPanel } from "./ai-action-panel.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -52,6 +53,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   };
 
   status.replaceChildren(document.createTextNode(shellLabels.status), languageButton);
+  mountAIActionPanel(appShell, new FetchApiTransport(window.location.origin), state.context, state.locale);
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       renderApp(container, { ...state, activeMenu: menu }, persistence);
