@@ -4,6 +4,7 @@ import json
 import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from contextlib import nullcontext
 from typing import Callable, Iterable, Mapping, Protocol
 from uuid import uuid4
 
@@ -29,6 +30,7 @@ class AIActionRuntimeContext:
     tenant_id: str
     project_id: str
     project_revision_id: str
+    roles: frozenset[str] = frozenset()
 
     def validate(self) -> None:
         for name, value in (
@@ -39,11 +41,16 @@ class AIActionRuntimeContext:
         ):
             if not isinstance(value, str) or not value.strip():
                 raise AIActionRuntimeError(f"AI_ACTION_CONTEXT_{name.upper()}_REQUIRED")
+        if not isinstance(self.roles, frozenset) or any(
+            not isinstance(role, str) or not role.strip() for role in self.roles
+        ):
+            raise AIActionRuntimeError("AI_ACTION_CONTEXT_ROLES_INVALID")
 
 
 PayloadValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
 ToolExecutor = Callable[
-    [Mapping[str, object], AIActionProposal, str], Mapping[str, object]
+    [Mapping[str, object], AIActionProposal, str, AIActionRuntimeContext],
+    Mapping[str, object],
 ]
 
 
