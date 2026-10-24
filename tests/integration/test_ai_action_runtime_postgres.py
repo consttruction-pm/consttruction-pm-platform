@@ -8,8 +8,19 @@ import pytest
 
 psycopg = pytest.importorskip("psycopg")
 
-from construction_pm.ai_action_boundary import AIActionProposal
+from construction_pm.ai_action_activity_tools import build_activity_create_runtime
+from construction_pm.ai_action_boundary import (
+    AIActionPermissionGrant,
+    AIActionProposal,
+    UserConfiguredAIActionPermissionAdapter,
+)
+from construction_pm.application.authorization import default_project_policy
+from construction_pm.activity_master_repository import PostgresActivityMasterRepository
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.ai_action_runtime import (
+    AIActionRuntimeContext,
+    AIActionRuntimeError,
     AIActionStoredProposal,
     PostgresAIActionRuntimeStore,
 )
@@ -79,4 +90,108 @@ def test_postgres_action_proposal_and_audit_round_trip(postgres_connection):
             next_status="approved",
             updated_at=now,
             decided_by="user-1",
+        )
+
+
+
+def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fresh_readback(postgres_connection):
+    suffix = uuid4().hex
+    tenant_id = f"tenant-ai-act-{suffix}"
+    project_id = f"project-ai-act-{suffix}"
+    scope = BackendScope(tenant_id, project_id, 12)
+    transaction_manager = PostgresTransactionManager(postgres_connection)
+    activity_repository = PostgresActivityMasterRepository(postgres_connection)
+    activity_repository.initialize()
+
+    grant = AIActionPermissionGrant(
+        subject_id="user-1",
+        tenant_id=tenant_id,
+        project_id=project_id,
+        project_revision_id="12",
+        resource_domain="activities",
+        operation="create",
+        tool_name="activity.create",
+    )
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=default_project_policy(),
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
+        transaction_manager=transaction_manager,
+    )
+    # Commit schema initialization before the request-level transaction lifecycle.
+    postgres_connection.commit()
+
+    context = AIActionRuntimeContext(
+        subject_id="user-1",
+        tenant_id=tenant_id,
+        project_id=project_id,
+        project_revision_id="12",
+        roles=frozenset({"project_admin"}),
+    )
+    proposal = runtime.propose(
+        context,
+        tool_name="activity.create",
+        payload={
+            "activity_id": "A-POSTGRES-1",
+            "name": "Foundation excavation",
+            "duration_value": "2.5",
+            "duration_unit": "working-day",
+        },
+        evidence_refs=("import-row-3",),
+    )
+    assert proposal.status == "proposed"
+
+    approved = runtime.decide(context, proposal.proposal.proposal_id, approved=True)
+    assert approved.status == "approved"
+    result = runtime.execute(context, proposal.proposal.proposal_id)
+    assert result.status == "executed"
+    assert result.result is not None
+    assert result.result["activity"]["activity_id"] == "A-POSTGRES-1"
+
+    fresh_connection = psycopg.connect(
+        os.getenv("P6_TEST_POSTGRES_DSN") or os.environ["CONSTRUCTION_PM_POSTGRES_DSN"]
+    )
+    try:
+        fresh_activity_repository = PostgresActivityMasterRepository(fresh_connection)
+        persisted_activity = fresh_activity_repository.get(scope, "A-POSTGRES-1")
+        assert persisted_activity is not None
+        assert str(persisted_activity.duration_value) == "2.5"
+        assert persisted_activity.name == "Foundation excavation"
+
+        fresh_store = PostgresAIActionRuntimeStore(fresh_connection)
+        persisted_proposal = fresh_store.get(
+            proposal.proposal.proposal_id,
+            tenant_id=tenant_id,
+            project_id=project_id,
+        )
+        assert persisted_proposal is not None
+        assert persisted_proposal.status == "executed"
+        assert persisted_proposal.result == result.result
+
+        idem = fresh_connection.execute(
+            "SELECT fingerprint, result_json FROM ai_action_tool_idempotency "
+            "WHERE tenant_id=%s AND project_id=%s AND tool_name=%s AND idempotency_key=%s",
+            (tenant_id, project_id, "activity.create", proposal.proposal.proposal_id),
+        ).fetchone()
+        assert idem is not None
+        assert json.loads(idem[1]) == result.result
+    finally:
+        fresh_connection.close()
+
+    with transaction_manager.transaction():
+        postgres_connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
+            "DELETE FROM ai_action_tool_idempotency WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
+            "DELETE FROM ai_action_audit_events WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
+            "DELETE FROM ai_action_proposals WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
         )
