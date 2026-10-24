@@ -26,7 +26,7 @@ A web-ready construction project management platform designed as a structured re
 
 ## Mandatory continuity entrypoint
 
-Before starting any implementation, read [PROJECT_CONTINUITY_PROTOCOL.md](docs/governance/PROJECT_CONTINUITY_PROTOCOL.md) and [PROJECT_STATE_LEDGER.md](docs/governance/PROJECT_STATE_LEDGER.md). The protocol requires a current-main/exact-SHA check, the correct workstream schedule, evidence-based status, no scope reduction, and a ledger update at handoff. For website-only CUBISITE tasks use the standalone `cubisite.xlsx` Library schedule; do not substitute Jalal 5 or infer whole-product completion from the website plan.
+Before starting any implementation, read [PROJECT_CONTINUITY_PROTOCOL.md](docs/governance/PROJECT_CONTINUITY_PROTOCOL.md) and [PROJECT_STATE_LEDGER.md](docs/governance/PROJECT_STATE_LEDGER.md). The protocol requires a current-main/exact-SHA check, the correct workstream schedule, evidence-based status, no scope reduction, and a ledger update at handoff. For website-only CUBISITE work use the standalone `cubisite.xlsx` Library schedule; do not substitute Jalal 5 or infer whole-product completion from the website plan.
 
 ## Team responsibility model
 The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
