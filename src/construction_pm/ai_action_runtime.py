@@ -466,6 +466,9 @@ class AIActionRuntime:
             if store_connection is not connection or audit_connection is not connection:
                 raise AIActionRuntimeError("AI_ACTION_TRANSACTION_CONNECTION_MISMATCH")
 
+    def _transaction(self):
+        return self.transaction_manager.transaction() if self.transaction_manager is not None else nullcontext()
+
     def propose(
         self,
         context: AIActionRuntimeContext,
@@ -501,7 +504,6 @@ class AIActionRuntime:
             resource_domain=definition.resource_domain,
         )
         proposal.validate()
-        self._require_permission(proposal, context.subject_id, actor_id=context.subject_id)
         now = self._now()
         status = "proposed" if proposal.requires_human_approval else "approved"
         record = AIActionStoredProposal(
@@ -511,12 +513,25 @@ class AIActionRuntime:
             created_at=now,
             updated_at=now,
         )
-        self.store.create(record)
-        self.audit_sink.record_event(
-            proposal, "proposal_created", actor_id=context.subject_id,
-            metadata={"status": status, "requires_human_approval": proposal.requires_human_approval},
-            happened_at=now,
-        )
+        try:
+            with self._transaction():
+                self._require_permission(
+                    proposal, context.subject_id, actor_id=context.subject_id,
+                    record_audit=self.transaction_manager is None,
+                )
+                self.store.create(record)
+                self.audit_sink.record_event(
+                    proposal, "proposal_created", actor_id=context.subject_id,
+                    metadata={"status": status, "requires_human_approval": proposal.requires_human_approval},
+                    happened_at=now,
+                )
+        except AIActionRuntimeError as exc:
+            if self.transaction_manager is not None and str(exc) in {
+                "AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED"
+            }:
+                with self._transaction():
+                    self._record_permission_failure(proposal, context.subject_id, str(exc))
+            raise
         return record
 
     def record_request_event(
@@ -529,15 +544,16 @@ class AIActionRuntime:
     ) -> None:
         """Persist a scoped HTTP-level event that occurs before a proposal can be created."""
         context.validate()
-        self.audit_sink.record_scope_event(
-            tenant_id=context.tenant_id,
-            project_id=context.project_id,
-            actor_id=context.subject_id,
-            event_type=event_type,
-            metadata=metadata,
-            happened_at=self._now(),
-            proposal_id=proposal_id,
-        )
+        with self._transaction():
+            self.audit_sink.record_scope_event(
+                tenant_id=context.tenant_id,
+                project_id=context.project_id,
+                actor_id=context.subject_id,
+                event_type=event_type,
+                metadata=metadata,
+                happened_at=self._now(),
+                proposal_id=proposal_id,
+            )
 
     def list_proposals(
         self, context: AIActionRuntimeContext, *, limit: int = 100
@@ -730,17 +746,31 @@ class AIActionRuntime:
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_STALE_REVISION")
 
     def _require_permission(
-        self, proposal: AIActionProposal, subject_id: str, *, actor_id: str
+        self,
+        proposal: AIActionProposal,
+        subject_id: str,
+        *,
+        actor_id: str,
+        record_audit: bool = True,
     ) -> None:
         try:
             allowed = self.permission_adapter.allowed(proposal, subject_id=subject_id)
         except Exception as exc:
-            self.audit_sink.record_event(
-                proposal, "permission_check_failed", actor_id=actor_id,
-                metadata={"failure_type": type(exc).__name__}, happened_at=self._now(),
-            )
+            if record_audit:
+                self.audit_sink.record_event(
+                    proposal, "permission_check_failed", actor_id=actor_id,
+                    metadata={"failure_type": type(exc).__name__}, happened_at=self._now(),
+                )
             raise AIActionRuntimeError("AI_ACTION_PERMISSION_CHECK_FAILED") from exc
         if not allowed:
+            if record_audit:
+                self._record_permission_failure(proposal, actor_id, "AI_TOOL_NOT_PERMITTED")
+            raise AIActionRuntimeError("AI_TOOL_NOT_PERMITTED")
+
+    def _record_permission_failure(
+        self, proposal: AIActionProposal, actor_id: str, code: str
+    ) -> None:
+        if code == "AI_TOOL_NOT_PERMITTED":
             denied = AIActionDecision(
                 proposal_id=proposal.proposal_id, decision="denied",
                 actor_id=actor_id, audit_event="ai_action_decision",
@@ -749,9 +779,13 @@ class AIActionRuntime:
             self.audit_sink.record(proposal, denied)
             self.audit_sink.record_event(
                 proposal, "permission_denied", actor_id=actor_id,
-                metadata={"reason_code": "AI_TOOL_NOT_PERMITTED"}, happened_at=self._now(),
+                metadata={"reason_code": code}, happened_at=self._now(),
             )
-            raise AIActionRuntimeError("AI_TOOL_NOT_PERMITTED")
+        else:
+            self.audit_sink.record_event(
+                proposal, "permission_check_failed", actor_id=actor_id,
+                metadata={"reason_code": code}, happened_at=self._now(),
+            )
 
     def _now(self) -> datetime:
         value = self.clock()
