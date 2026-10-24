@@ -2183,11 +2183,15 @@ class ProjectLifecycleHttpRoutes:
                             "tool_name": record.proposal.tool_name,
                             "action": record.proposal.action,
                             "requires_human_approval": record.proposal.requires_human_approval,
+                            "requested_by": record.proposal.requested_by,
                             "evidence_refs": list(record.proposal.evidence_refs),
                             "project_revision_id": record.proposal.project_revision_id,
                             "resource_domain": record.proposal.resource_domain,
                             "payload": dict(record.payload),
                             "created_at": record.created_at.isoformat(),
+                            "updated_at": record.updated_at.isoformat(),
+                            "decided_by": record.decided_by,
+                            "is_stale": False,
                         },
                     })
                 if operation == "decision":

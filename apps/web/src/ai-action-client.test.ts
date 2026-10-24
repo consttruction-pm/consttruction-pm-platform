@@ -1,0 +1,81 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { AIActionClient, AI_ACTION_CONTRACT_VERSION } from "./ai-action-client.js";
+
+class FakeTransport implements ApiTransport {
+  calls: Array<{ method: string; path: string; request?: unknown }> = [];
+  responses: ApiResult<unknown>[] = [];
+  async get<T>(path: string, context: ProjectContext): Promise<ApiResult<T>> {
+    this.calls.push({ method: "GET", path });
+    return this.next<T>();
+  }
+  async post<I, O>(path: string, request: I, context: ProjectContext, idempotencyKey?: string): Promise<ApiResult<O>> {
+    this.calls.push({ method: "POST", path, request });
+    return this.next<O>();
+  }
+  private next<T>(): ApiResult<T> {
+    const item = this.responses.shift();
+    if (!item) throw new Error("TEST_RESPONSE_MISSING");
+    return item as ApiResult<T>;
+  }
+}
+const context = { tenant_id: "tenant-1", project_id: "project-1", revision: 7 };
+const validProposal = {
+  proposal_id: "prop-1", tool_name: "activity.create", action: "create",
+  status: "proposed", requires_human_approval: true, requested_by: "user-1",
+  evidence_refs: [], project_revision_id: "7", resource_domain: "activities",
+  payload: { activity_id: "A-17", name: "Excavation", duration_value: "2", duration_unit: "working-day" },
+  result: null, created_at: "2026-10-25T00:00:00Z", updated_at: "2026-10-25T00:00:00Z",
+  decided_by: null, is_stale: false,
+};
+
+test("lists proposals for current project", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: { contract_version: AI_ACTION_CONTRACT_VERSION, proposals: [validProposal] } });
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals");
+  if (result.ok) assert.equal(result.data.proposals[0]?.proposal_id, "prop-1");
+});
+
+test("creates activity proposal with expected revision and registered tool", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION, status: "proposed",
+    proposal: { ...validProposal, status: undefined },
+  }});
+  const result = await new AIActionClient(transport).proposeActivity(context, {
+    activity_id: "A-17", name: "Excavation", duration_value: "2", duration_unit: "working-day",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7, tool_name: "activity.create",
+    payload: { activity_id: "A-17", name: "Excavation", duration_value: "2", duration_unit: "working-day" },
+    evidence_refs: [],
+  });
+});
+
+test("approval and execution use separate explicit requests", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push(
+    { ok: true, data: { contract_version: AI_ACTION_CONTRACT_VERSION, proposal_id: "prop-1", status: "approved", decided_by: "user-1" } },
+    { ok: true, data: { contract_version: AI_ACTION_CONTRACT_VERSION, proposal_id: "prop-1", status: "executed", result: { activity_id: "A-17" } } },
+  );
+  const client = new AIActionClient(transport);
+  const approved = await client.decide(context, "prop-1", true);
+  const executed = await client.execute(context, "prop-1");
+  assert.equal(approved.ok && approved.data.status, "approved");
+  assert.equal(executed.ok && executed.data.status, "executed");
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals/prop-1/decision");
+  assert.equal(transport.calls[1]?.path, "/api/projects/project-1/ai/actions/proposals/prop-1/execute");
+});
+
+test("invalid action contract is rejected", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: { contract_version: "wrong", proposals: [] } });
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
+});

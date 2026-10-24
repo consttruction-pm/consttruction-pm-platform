@@ -1758,3 +1758,39 @@ th {
 .cubi-public-footer a{color:#fff}
 [dir=rtl] .cubi-public-page{font-family:'Vazirmatn',system-ui,sans-serif}
 @media(max-width:760px){.cubi-public-header{align-items:flex-start;flex-direction:column}.cubi-public-grid{grid-template-columns:1fr}.cubi-public-nav{gap:.75rem}}
+/* Approval-gated AI action panel: all mutation controls are explicit and status remains visible. */
+.cp-ai-action-panel{margin:1rem 0;padding:0;border:1px solid var(--cp-border);border-radius:.85rem;background:var(--cp-panel,#fff);color:var(--cp-text);box-shadow:0 6px 20px rgb(15 39 71 / 5%)}
+.cp-ai-action-summary{cursor:pointer;list-style:none;padding:1rem 1.2rem;font-weight:800;color:var(--cubi-deep-navy);display:flex;align-items:center;gap:.65rem}
+.cp-ai-action-summary::-webkit-details-marker{display:none}
+.cp-ai-action-summary:before{content:"+";display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--cubi-copper-orange);color:#1e2732;font-weight:900}
+.cp-ai-action-panel[open]>.cp-ai-action-summary:before{content:"−"}
+.cp-ai-action-content{border-top:1px solid var(--cp-border);padding:1rem 1.2rem 1.25rem;display:grid;gap:1rem}
+.cp-ai-action-description{margin:0;max-width:80ch;line-height:1.7;color:var(--cp-muted,#596676)}
+.cp-ai-action-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;align-items:end;padding:1rem;border:1px solid var(--cp-border);border-radius:.7rem;background:var(--cp-soft,#f7f9fb)}
+.cp-ai-action-form h3{grid-column:1/-1;margin:0;color:var(--cubi-deep-navy);font-size:1rem}
+.cp-ai-action-field{display:grid;gap:.35rem;font-size:.88rem;font-weight:650;color:var(--cp-text)}
+.cp-ai-action-field input,.cp-ai-action-field select{box-sizing:border-box;width:100%;min-height:2.65rem;padding:.6rem .7rem;border:1px solid var(--cp-border);border-radius:.45rem;background:#fff;color:var(--cp-text);font:inherit}
+.cp-ai-action-field input:focus-visible,.cp-ai-action-field select:focus-visible,.cp-ai-action-panel button:focus-visible{outline:3px solid var(--cubi-engineering-blue);outline-offset:2px}
+.cp-ai-action-primary,.cp-ai-action-secondary{min-height:2.55rem;padding:.6rem .9rem;border:1px solid transparent;border-radius:.45rem;font:inherit;font-weight:750;cursor:pointer}
+.cp-ai-action-primary{background:var(--cubi-engineering-blue);color:#fff}
+.cp-ai-action-secondary{background:#fff;border-color:var(--cp-border);color:var(--cubi-deep-navy)}
+.cp-ai-action-panel button:disabled{opacity:.55;cursor:wait}
+.cp-ai-action-message{margin:0;min-height:1.25rem;line-height:1.6}
+.cp-ai-action-message[data-kind=error],.cp-ai-action-warning{color:#9b2c2c}
+.cp-ai-action-message[data-kind=success]{color:#236846}
+.cp-ai-action-message[data-kind=warning]{color:#805500}
+.cp-ai-action-proposals{display:grid;gap:.75rem}
+.cp-ai-action-list-header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.cp-ai-action-list-header h3{margin:0;font-size:1rem;color:var(--cubi-deep-navy)}
+.cp-ai-action-list{display:grid;gap:.7rem;margin:0;padding:0;list-style:none}
+.cp-ai-action-proposal{min-width:0;padding:.9rem 1rem;border:1px solid var(--cp-border);border-radius:.65rem;background:var(--cp-panel,#fff);overflow-wrap:anywhere}
+.cp-ai-action-proposal h4{margin:0 0 .4rem;font-size:.98rem}
+.cp-ai-action-state,.cp-ai-action-metadata{margin:.25rem 0;color:var(--cp-muted,#596676);font-size:.86rem}
+.cp-ai-action-warning{margin:.55rem 0;font-size:.9rem;line-height:1.6}
+.cp-ai-action-controls{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.75rem}
+.cp-ai-action-result{margin:.55rem 0;font-family:ui-monospace,monospace;font-size:.82rem;white-space:pre-wrap}
+.cp-ai-action-empty{padding:.8rem;color:var(--cp-muted,#596676)}
+[dir=rtl] .cp-ai-action-panel{font-family:'Vazirmatn',system-ui,sans-serif}
+[dir=rtl] .cp-ai-action-summary{direction:rtl}
+@media(max-width:920px){.cp-ai-action-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.cp-ai-action-form{grid-template-columns:1fr}.cp-ai-action-list-header{align-items:flex-start;flex-direction:column}.cp-ai-action-content{padding:.8rem}}
