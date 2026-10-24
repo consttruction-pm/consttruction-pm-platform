@@ -4,7 +4,7 @@ import { AIActionClient, type AIActionProposal, type CreateActivityProposal } fr
 type PanelLabels = {
   title: string; description: string; createTitle: string; activityId: string;
   activityName: string; duration: string; durationUnit: string; workingDay: string;
-  calendarDay: string; hour: string; prepare: string; refresh: string; proposals: string;
+  workingHour: string; prepare: string; refresh: string; proposals: string;
   preparing: string; loading: string; proposalReady: string; rejected: string;
   approved: string; executing: string; executed: string; noProposals: string;
   proposalCreated: string; proposalFailed: string; listFailed: string;
@@ -19,8 +19,8 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     description: "Prepare an activity proposal, review it, then approve and execute it explicitly. No project change is made before approval.",
     createTitle: "Create activity proposal",
     activityId: "Activity ID", activityName: "Activity name", duration: "Duration",
-    durationUnit: "Duration unit", workingDay: "Working day", calendarDay: "Calendar day",
-    hour: "Hour", prepare: "Prepare proposal", refresh: "Refresh proposals",
+    durationUnit: "Duration unit", workingDay: "Working day", workingHour: "Working hour",
+    prepare: "Prepare proposal", refresh: "Refresh proposals",
     proposals: "Project proposals", preparing: "Preparing proposal…", loading: "Loading proposals…",
     proposalReady: "Proposal is ready for review.", rejected: "Proposal rejected.",
     approved: "Proposal approved.", executing: "Executing approved action…",
@@ -38,8 +38,8 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     description: "پیشنهاد ایجاد فعالیت را آماده و بررسی کنید؛ سپس آن را صریحاً تأیید و اجرا کنید. پیش از تأیید، تغییری در پروژه انجام نمی‌شود.",
     createTitle: "پیشنهاد ایجاد فعالیت",
     activityId: "شناسه فعالیت", activityName: "نام فعالیت", duration: "مدت",
-    durationUnit: "واحد مدت", workingDay: "روز کاری", calendarDay: "روز تقویمی",
-    hour: "ساعت", prepare: "تهیه پیشنهاد", refresh: "به‌روزرسانی پیشنهادها",
+    durationUnit: "واحد مدت", workingDay: "روز کاری", workingHour: "ساعت کاری",
+    prepare: "تهیه پیشنهاد", refresh: "به‌روزرسانی پیشنهادها",
     proposals: "پیشنهادهای پروژه", preparing: "در حال تهیه پیشنهاد…", loading: "در حال دریافت پیشنهادها…",
     proposalReady: "پیشنهاد برای بررسی آماده است.", rejected: "پیشنهاد رد شد.",
     approved: "پیشنهاد تأیید شد.", executing: "در حال اجرای اقدام تأییدشده…",
@@ -155,8 +155,7 @@ export function mountAIActionPanel(
   unit.name = "duration_unit";
   for (const [value, text] of [
     ["working-day", t.workingDay],
-    ["calendar-day", t.calendarDay],
-    ["hour", t.hour],
+    ["working-hour", t.workingHour],
   ] as const) {
     const option = element("option", "", text);
     option.value = value;
@@ -299,8 +298,7 @@ export function mountAIActionPanel(
 
   refresh.addEventListener("click", () => { void refreshProposals(); });
   details.addEventListener("toggle", () => {
-    if (details.open) void refreshProposals();
-  });
+    });
   if (details.open) void refreshProposals();
 }
 
