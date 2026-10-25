@@ -762,7 +762,9 @@ def resource_assignment_routes():
     assignment_service.save(P6ResourceAssignment(BackendScope("t1", "p1", 2), "A-R-1", "ACT-1", "RES-1", role_id="ROLE-1", units=Decimal("8"), planned_cost=Decimal("100")))
     spread_service = P6ResourceSpreadApplicationService(SQLiteP6ResourceSpreadRepository(connection), transaction_manager)
     read_api = P6ResourceReadAPI(assignment_service, period_service, spread_service, default_project_policy())
-    write_api = P6ResourceWriteAPI(period_service, default_project_policy())
+    write_api = P6ResourceWriteAPI(
+        period_service, default_project_policy(), assignment_service=assignment_service
+    )
     return ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service), clock=type("Clock", (), {"now": lambda self: now})(), p6_resource_read_api=read_api, p6_resource_write_api=write_api)
 
 
@@ -784,6 +786,76 @@ def test_authenticated_resource_assignment_http_boundary_reads_assignment_and_pe
     assert fetched["scope"] == period["scope"]
     assert fetched["period"] == period["period"]
 
+
+
+def test_authenticated_resource_assignment_write_persists_driving_and_rate_fields():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-DRIVING",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "units": "16",
+        "remaining_units": "12",
+        "unit": "labor-unit",
+        "calendar_id": "RES-CAL-1",
+        "calendar_version": "v2",
+        "is_driving": True,
+        "units_per_time": "4",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+
+    assert status == 200
+    saved = json.loads(raw)
+    assert saved["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
+    assert saved["kind"] == "resource_assignment"
+    assert saved["assignment"]["is_driving"] is True
+    assert saved["assignment"]["units_per_time"] == "4"
+    assert saved["assignment"]["units_per_time_period"] == "day"
+    assert saved["assignment"]["hours_per_units_time_period"] == "8"
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-assignments/A-R-DRIVING",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    reread = json.loads(raw)
+    assert reread["assignment"]["is_driving"] is True
+    assert reread["assignment"]["units_per_time"] == "4"
+    assert reread["assignment"]["hours_per_units_time_period"] == "8"
+
+
+def test_resource_assignment_write_rejects_ambiguous_driving_flag_and_missing_contract():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-INVALID",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "calendar_id": "RES-CAL-1",
+        "calendar_version": "v2",
+        "is_driving": "true",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
+
+    payload.pop("contract_version")
+    payload["is_driving"] = True
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
 
 def test_resource_assignment_http_boundary_enforces_scope_and_payload():
     r = resource_assignment_routes()
