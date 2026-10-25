@@ -21,6 +21,7 @@ from construction_pm.ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     OpenAICompatibleChatProvider,
+    _RejectProviderRedirects,
 )
 
 
@@ -336,3 +337,14 @@ def test_assistant_refuses_tools_without_mandatory_approval_before_creating_any_
         assert connection.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
     finally:
         connection.close()
+
+
+
+def test_provider_redirect_handler_refuses_redirects():
+    from urllib.request import Request
+
+    handler = _RejectProviderRedirects()
+    request = Request("https://provider.example/v1/chat/completions")
+    assert handler.redirect_request(
+        request, None, 302, "Found", {}, "http://untrusted.example/collect"
+    ) is None
