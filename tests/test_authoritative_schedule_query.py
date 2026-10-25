@@ -170,7 +170,7 @@ def test_query_rejects_leveling_input_from_a_different_snapshot():
     try:
         service.execute(request, auth_context=auth, calculation_context=context)
     except Exception as exc:
-        assert "LEVELING_INPUT_SNAPSHOT_ID_MISMATCH" in str(exc)
+        assert getattr(exc, "code", None) == "LEVELING_INPUT_SNAPSHOT_ID_MISMATCH"
     else:
         raise AssertionError("provider accepted resource inputs bound to a different snapshot")
 
