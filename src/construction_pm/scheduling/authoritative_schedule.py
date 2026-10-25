@@ -172,19 +172,29 @@ class AuthoritativeScheduleInput:
 
         if not isinstance(self.resource_dependent_assignment_facts, tuple):
             raise TypeError("resource_dependent_assignment_facts must be a tuple")
-        if not all(isinstance(item, ResourceDependentDriverFact) for item in self.resource_dependent_assignment_facts):
+        if not all(
+            isinstance(item, ResourceDependentDriverFact)
+            for item in self.resource_dependent_assignment_facts
+        ):
             raise TypeError("resource_dependent_assignment_facts must contain ResourceDependentDriverFact items")
         resource_fact_ids = [item.assignment_id for item in self.resource_dependent_assignment_facts]
         if len(resource_fact_ids) != len(set(resource_fact_ids)):
             raise ValueError("resource dependent assignment fact IDs must be unique")
         activity_id_set = set(activity_ids)
-        if any(not isinstance(item.assignment_id, str) or not item.assignment_id.strip()
-               or not isinstance(item.resource_id, str) or not item.resource_id.strip()
-               for item in self.resource_dependent_assignment_facts):
+        if any(
+            not isinstance(item.assignment_id, str)
+            or not item.assignment_id.strip()
+            or not isinstance(item.resource_id, str)
+            or not item.resource_id.strip()
+            for item in self.resource_dependent_assignment_facts
+        ):
             raise ValueError("resource dependent assignment fact identifiers must be non-empty")
         if any(item.activity_id not in activity_id_set for item in self.resource_dependent_assignment_facts):
             raise ValueError("resource dependent assignment fact references unknown activity")
-        if any(item.is_driving is not None and not isinstance(item.is_driving, bool) for item in self.resource_dependent_assignment_facts):
+        if any(
+            item.is_driving is not None and not isinstance(item.is_driving, bool)
+            for item in self.resource_dependent_assignment_facts
+        ):
             raise ValueError("resource dependent driving flag must be boolean or None")
 
         lag_assignment_ids = [
