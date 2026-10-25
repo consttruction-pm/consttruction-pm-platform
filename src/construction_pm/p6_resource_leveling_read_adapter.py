@@ -160,6 +160,8 @@ def build_scheduler_leveling_input(
                 period=period_date,
                 units=period["units"],
                 activity_id=activity_id,
+                assignment_id=assignment_id,
+                is_driving=assignment.get("is_driving"),
             )
         )
 
