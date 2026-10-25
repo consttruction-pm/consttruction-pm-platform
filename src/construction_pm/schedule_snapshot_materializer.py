@@ -656,11 +656,14 @@ def _materialize_payload(
             raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
         for field_name in ("assignment_id", "activity_id", "resource_id"):
             _required_string(item, field_name, "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
-        for field_name in ("calendar_id", "calendar_version", "unit_of_measure", "units_per_time_period"):
+        for field_name in (
+            "calendar_id", "calendar_version", "unit_of_measure", "units_per_time_period"
+        ):
             field_value = item.get(field_name)
             if field_value is not None and not isinstance(field_value, str):
                 raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
-        resource_facts.append(ResourceDependentDriverFact(
+        resource_facts.append(
+            ResourceDependentDriverFact(
             assignment_id=item["assignment_id"],
             activity_id=item["activity_id"],
             resource_id=item["resource_id"],
@@ -671,8 +674,13 @@ def _materialize_payload(
             is_driving=driving,
             units_per_time=None if item.get("units_per_time") is None else _decimal(item["units_per_time"]),
             units_per_time_period=item.get("units_per_time_period"),
-            hours_per_units_time_period=None if item.get("hours_per_units_time_period") is None else _decimal(item["hours_per_units_time_period"]),
-        ))
+                hours_per_units_time_period=(
+                    None
+                    if item.get("hours_per_units_time_period") is None
+                    else _decimal(item["hours_per_units_time_period"])
+                ),
+            )
+        )
 
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
