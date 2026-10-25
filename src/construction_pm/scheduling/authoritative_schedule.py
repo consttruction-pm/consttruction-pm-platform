@@ -130,18 +130,6 @@ class AuthoritativeScheduleInput:
             raise TypeError("activity_calendar_assignments must be a tuple")
         if not isinstance(self.relationship_lag_calendar_assignments, tuple):
             raise TypeError("relationship_lag_calendar_assignments must be a tuple")
-        if not isinstance(self.resource_dependent_assignment_facts, tuple):
-            raise TypeError("resource_dependent_assignment_facts must be a tuple")
-        if not all(isinstance(item, ResourceDependentDriverFact) for item in self.resource_dependent_assignment_facts):
-            raise TypeError("resource_dependent_assignment_facts must contain ResourceDependentDriverFact items")
-        resource_fact_ids = [item.assignment_id for item in self.resource_dependent_assignment_facts]
-        if len(resource_fact_ids) != len(set(resource_fact_ids)):
-            raise ValueError("resource dependent assignment fact IDs must be unique")
-        activity_id_set = {activity.id for activity in self.activities}
-        if any(item.activity_id not in activity_id_set for item in self.resource_dependent_assignment_facts):
-            raise ValueError("resource dependent assignment fact references unknown activity")
-        if any(item.is_driving is not None and not isinstance(item.is_driving, bool) for item in self.resource_dependent_assignment_facts):
-            raise ValueError("resource dependent driving flag must be boolean or None")
         if not all(
             isinstance(item, RelationshipLagCalendarAssignment)
             for item in self.relationship_lag_calendar_assignments
@@ -181,6 +169,23 @@ class AuthoritativeScheduleInput:
         activity_ids = [activity.id for activity in self.activities]
         if len(activity_ids) != len(set(activity_ids)):
             raise ValueError("activity ids must be unique")
+
+        if not isinstance(self.resource_dependent_assignment_facts, tuple):
+            raise TypeError("resource_dependent_assignment_facts must be a tuple")
+        if not all(isinstance(item, ResourceDependentDriverFact) for item in self.resource_dependent_assignment_facts):
+            raise TypeError("resource_dependent_assignment_facts must contain ResourceDependentDriverFact items")
+        resource_fact_ids = [item.assignment_id for item in self.resource_dependent_assignment_facts]
+        if len(resource_fact_ids) != len(set(resource_fact_ids)):
+            raise ValueError("resource dependent assignment fact IDs must be unique")
+        activity_id_set = set(activity_ids)
+        if any(not isinstance(item.assignment_id, str) or not item.assignment_id.strip()
+               or not isinstance(item.resource_id, str) or not item.resource_id.strip()
+               for item in self.resource_dependent_assignment_facts):
+            raise ValueError("resource dependent assignment fact identifiers must be non-empty")
+        if any(item.activity_id not in activity_id_set for item in self.resource_dependent_assignment_facts):
+            raise ValueError("resource dependent assignment fact references unknown activity")
+        if any(item.is_driving is not None and not isinstance(item.is_driving, bool) for item in self.resource_dependent_assignment_facts):
+            raise ValueError("resource dependent driving flag must be boolean or None")
 
         lag_assignment_ids = [
             item.relationship_id for item in self.relationship_lag_calendar_assignments
