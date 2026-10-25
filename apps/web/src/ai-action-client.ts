@@ -187,13 +187,17 @@ export class AIActionClient {
     if (!result.ok) return result;
     const value = result.data;
     if (!isRecord(value) || value.contract_version !== "ai-assistant-turn.v1" ||
-        !["message", "clarification", "action_proposal"].includes(String(value.kind)) ||
+        typeof value.kind !== "string" ||
+        !["message", "clarification", "action_proposal"].includes(value.kind) ||
         typeof value.message !== "string" ||
-        (value.proposal !== null && value.proposal !== undefined && !isRecord(value.proposal))) {
+        !value.message.trim() ||
+        value.message.length > 4000 ||
+        !("proposal" in value) ||
+        (value.proposal !== null && !isRecord(value.proposal))) {
       return invalidResponse<AIAssistantTurn>();
     }
     let proposal: AIActionProposal | null = null;
-    if (value.proposal !== null && value.proposal !== undefined) {
+    if (value.proposal !== null) {
       proposal = parseProposal(value.proposal);
       if (!proposal) return invalidResponse<AIAssistantTurn>();
     }
