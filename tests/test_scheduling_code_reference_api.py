@@ -6,6 +6,7 @@ from dataclasses import fields
 
 from construction_pm.p6_code_reference import FORMULA_REFERENCE, P6_CODE_REFERENCE
 from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling_option_code_reference import P6_OPTION_REFERENCE, validate_option_registry
 from construction_pm.scheduling_code_reference_api import (
     SCHEDULE_CODE_REFERENCE_VERSION,
     build_scheduling_code_reference_payload,
@@ -20,6 +21,10 @@ def test_web_projection_contains_all_current_requirement_and_formula_entries():
     assert payload["summary"]["formula_count"] == len(FORMULA_REFERENCE)
     assert len(payload["requirements"]) == len(P6_CODE_REFERENCE)
     assert len(payload["formulas"]) == len(FORMULA_REFERENCE)
+    assert payload["summary"]["option_count"] == len(P6_OPTION_REFERENCE) == 65
+    assert payload["summary"]["option_registry_valid"] is True
+    assert validate_option_registry() == ()
+    assert len(payload["options"]) == len(P6_OPTION_REFERENCE)
     assert payload["summary"]["parity_claimed_complete"] is False
     assert payload["requirements"]
     assert payload["formulas"]
@@ -41,6 +46,7 @@ def test_web_projection_does_not_leak_vendor_names_urls_or_internal_paths():
 
     assert "oracle" not in serialized
     assert "primavera" not in serialized
+    assert "option_reference_version" in payload
     assert "p6" not in serialized
     assert "docs." not in serialized
     assert "http://" not in serialized
