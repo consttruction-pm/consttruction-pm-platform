@@ -182,7 +182,6 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         or over_allocation != Decimal("0")
         or bool(resource_list)
         or bool(priority_list)
-        or bool(options.get("preserve_scheduled_early_and_late_dates", False))
     )
 
 
