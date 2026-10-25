@@ -332,7 +332,7 @@ def build_persisted_resource_leveling_input_resolver(
                     calendar_id=value.get("calendar_id"),
                     calendar_version=value.get("calendar_version"),
                     unit_of_measure=value.get("unit"),
-                    remaining_units=value.get("remaining_units"),
+                    planned_units=value.get("units"),
                     is_driving=value.get("is_driving"),
                     units_per_time=value.get("units_per_time"),
                     units_per_time_period=value.get("units_per_time_period"),
