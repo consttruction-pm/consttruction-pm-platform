@@ -206,4 +206,4 @@ def test_resource_leveling_registry_tracks_merged_persisted_production_path_with
     formula = get_formula_reference("FRM-LEVEL-001")
     assert formula.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
     assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in formula.cubi_code_paths
-    assert "tests/test_authoritative_schedule_batch.py" in formula.regression_tests
+    assert "tests/scheduling/test_authoritative_schedule_batch.py" in formula.regression_tests
