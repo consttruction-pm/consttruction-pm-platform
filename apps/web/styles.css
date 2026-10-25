@@ -1824,3 +1824,5 @@ th {
 [dir=rtl] .cp-ai-assistant-chat{font-family:'Vazirmatn',system-ui,sans-serif}
 [dir=rtl] .cp-ai-chat-summary{direction:rtl}
 @media(max-width:560px){.cp-ai-chat-content{padding:.8rem}.cp-ai-chat-form{grid-template-columns:1fr}.cp-ai-chat-message{max-width:100%}.cp-ai-chat-send{justify-self:stretch}}
+
+.cp-ai-chat-privacy{margin:0;font-size:.82rem;line-height:1.6;color:var(--cp-muted,#596676)}
