@@ -21,6 +21,13 @@ from .p6_code_reference import (
 )
 from .project_schedule_settings_repository import _schedule_options_payload
 from .scheduling.schedule_options import ScheduleOptions
+from .scheduling_option_code_reference import (
+    OPTION_REFERENCE_AS_OF,
+    OPTION_REFERENCE_VERSION,
+    P6_OPTION_REFERENCE,
+    option_coverage_summary,
+    validate_option_registry,
+)
 
 SCHEDULE_CODE_REFERENCE_VERSION: Final[str] = "schedule-code-reference.v1"
 
@@ -119,8 +126,27 @@ def build_scheduling_code_reference_payload() -> dict[str, object]:
             "known_gap": _safe_text(item.known_gap),
         })
 
+    option_items: list[dict[str, object]] = []
+    for item in P6_OPTION_REFERENCE:
+        option_items.append({
+            "id": _safe_text(item.id),
+            "requirement_id": _safe_text(item.requirement_id),
+            "area": _safe_text(item.area),
+            "menu_path": _safe_text(item.menu_path),
+            "name": _safe_text(item.option_name),
+            "values": [_safe_text(value) for value in item.selectable_values],
+            "behavior": _safe_text(item.behavior),
+            "inputs": [_safe_text(value) for value in item.inputs],
+            "outputs": [_safe_text(value) for value in item.outputs_or_effects],
+            "status": _COVERAGE_LABELS[item.coverage],
+            "known_gap": _safe_text(item.known_gap),
+            "implementation_mapping_count": len(item.cubi_code_paths),
+            "regression_test_count": len(item.regression_tests),
+        })
+
     raw_coverage = coverage_summary()
     raw_docs = documentation_audit_summary()
+    raw_option_coverage = option_coverage_summary()
     docs = {
         "reviewed_extract": raw_docs.get("CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN", 0),
         "index_only": raw_docs.get("INDEXED_NOT_LINE_REVIEWED", 0),
@@ -131,10 +157,19 @@ def build_scheduling_code_reference_payload() -> dict[str, object]:
     return {
         "contract_version": SCHEDULE_CODE_REFERENCE_VERSION,
         "reference_version": REFERENCE_VERSION,
+        "option_reference_version": OPTION_REFERENCE_VERSION,
+        "option_reference_as_of": OPTION_REFERENCE_AS_OF,
         "as_of": REFERENCE_AS_OF,
         "summary": {
             "requirement_count": len(requirement_items),
             "formula_count": len(formula_items),
+            "option_count": len(option_items),
+            "option_status": {
+                _COVERAGE_LABELS[key]: value
+                for key, value in raw_option_coverage.items()
+                if key in _COVERAGE_LABELS
+            },
+            "option_registry_valid": not validate_option_registry(),
             "requirement_status": {
                 _COVERAGE_LABELS[key]: value
                 for key, value in raw_coverage.items()
@@ -145,6 +180,7 @@ def build_scheduling_code_reference_payload() -> dict[str, object]:
         },
         "requirements": requirement_items,
         "formulas": formula_items,
+        "options": option_items,
         "schedule_options_schema": _safe_setting_schema(),
     }
 
