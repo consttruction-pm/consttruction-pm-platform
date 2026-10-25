@@ -145,6 +145,7 @@ def _evaluate_materialized(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
                 _canonical_result(result),
+                leveling_input_identity=_leveling_input_identity(leveling_input),
             )
             return ScheduleEvaluationResult(
                 snapshot_id=snapshot.snapshot_id,
@@ -240,12 +241,31 @@ def _canonical_result(value: object) -> object:
     return value
 
 
-def _run_identity(snapshot_hash: str, calculation_identity: str, result: object) -> str:
+def _leveling_input_identity(leveling_input: SchedulerLevelingInput | None) -> Mapping[str, str] | None:
+    if leveling_input is None or not leveling_input.has_bound_provenance:
+        return None
+    return {
+        "source_snapshot_id": str(leveling_input.source_snapshot_id),
+        "source_snapshot_hash": str(leveling_input.source_snapshot_hash),
+        "source_calculation_identity": str(leveling_input.source_calculation_identity),
+        "resource_facts_hash": str(leveling_input.resource_facts_hash),
+        "calendar_manifest_hash": str(leveling_input.calendar_manifest_hash),
+    }
+
+
+def _run_identity(
+    snapshot_hash: str,
+    calculation_identity: str,
+    result: object,
+    *,
+    leveling_input_identity: Mapping[str, str] | None = None,
+) -> str:
     payload = json.dumps(
         {
             "snapshot_hash": snapshot_hash,
             "calculation_identity": calculation_identity,
             "result": _canonical_result(result),
+            "leveling_input_identity": _canonical_result(leveling_input_identity),
         },
         ensure_ascii=False,
         sort_keys=True,
