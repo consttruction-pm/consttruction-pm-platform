@@ -83,12 +83,17 @@ def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
         derive(*facts)
 
 
-def test_nondriving_assignments_are_not_silently_folded_into_activity_duration():
-    with pytest.raises(
-        ResourceDependentCalculationError,
-        match="RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED",
-    ):
-        derive(driver("A-1"), driver("A-2", driving=False))
+def test_nondriving_assignment_does_not_determine_activity_duration():
+    result = derive(
+        driver("A-1", planned="8", rate="4", driving=True),
+        driver("A-2", planned="100", rate="1", driving=False),
+    )
+
+    # Activity duration follows the driving assignment only; the nondriving
+    # assignment is retained in the input hash for its separate placement path.
+    assert result.duration_working_days == 2
+    assert result.driving_assignment_ids == ("A-1",)
+    assert len(result.input_hash) == 64
 
 
 @pytest.mark.parametrize("driving", [1, 0, "true", "false"])
