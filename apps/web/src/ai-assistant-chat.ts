@@ -1,6 +1,6 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
 import { AIActionClient, type AIAssistantHistoryMessage } from "./ai-action-client.js";
-import { translateWorkspaceText } from "./workspace-localization.js";
+import { getWorkspaceLocaleDefinition, translateWorkspaceText } from "./workspace-localization.js";
 
 type ChatLabels = {
   title: string;
@@ -16,6 +16,8 @@ type ChatLabels = {
   serverUnavailable: string;
   staleRevision: string;
   empty: string;
+  privacyNotice: string;
+  translationsUnavailable: string;
 };
 
 type ChatMessage = AIAssistantHistoryMessage;
@@ -43,6 +45,8 @@ const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
     serverUnavailable: "The assistant provider is not configured or is temporarily unavailable.",
     staleRevision: "The project changed. Refresh the workspace before sending this request again.",
     empty: "Your conversation appears here.",
+    privacyNotice: "When enabled, your message and recent conversation context are sent to the server-configured AI provider. Do not include passwords, access tokens, or unrelated sensitive details.",
+    translationsUnavailable: "Assistant chat is unavailable in this language because required UI translations are missing. Switch to English or Persian.",
   },
   fa: {
     title: "دستیار هوشمند پروژه",
@@ -58,8 +62,26 @@ const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
     serverUnavailable: "ارائه‌دهنده دستیار پیکربندی نشده یا موقتاً در دسترس نیست.",
     staleRevision: "پروژه تغییر کرده است. فضای کار را تازه‌سازی کنید و سپس درخواست را دوباره بفرستید.",
     empty: "گفت‌وگو در این قسمت نمایش داده می‌شود.",
+    privacyNotice: "در صورت فعال بودن، پیام شما و بخش اخیر گفت‌وگو به ارائه‌دهنده هوش مصنوعی پیکربندی‌شده در سرور ارسال می‌شود. گذرواژه، کلید دسترسی یا اطلاعات حساس نامرتبط را وارد نکنید.",
+    translationsUnavailable: "ترجمه‌های لازم برای دستیار در این زبان کامل نیست. زبان انگلیسی یا فارسی را انتخاب کنید.",
   },
 };
+
+const requiredTranslationKeys = Object.keys(fallbackLabels.en).map(
+  (key) => `aiAssistantChat.${key}`,
+);
+
+export function isAIAssistantChatLocaleSupported(locale: string): boolean {
+  const normalized = locale.toLowerCase();
+  if (normalized === "en" || normalized.startsWith("en-") ||
+      normalized === "fa" || normalized.startsWith("fa-")) return true;
+  const definition = getWorkspaceLocaleDefinition(locale);
+  if (!definition) return false;
+  return requiredTranslationKeys.every((key) =>
+    typeof definition.translations[key] === "string" &&
+    definition.translations[key].trim().length > 0
+  );
+}
 
 function chatLabels(locale: string): ChatLabels {
   const base = fallbackLabels[locale.toLowerCase().startsWith("fa") ? "fa" : "en"];
@@ -116,7 +138,16 @@ export function mountAIAssistantChatPanel(
   const summary = element("summary", "cp-ai-chat-summary", t.title);
   details.append(summary);
   const content = element("div", "cp-ai-chat-content");
-  content.append(element("p", "cp-ai-chat-description", t.description));
+  if (!isAIAssistantChatLocaleSupported(locale)) {
+    content.append(element("p", "cp-ai-chat-status", t.translationsUnavailable));
+    details.append(content);
+    appShell.append(details);
+    return;
+  }
+  content.append(
+    element("p", "cp-ai-chat-description", t.description),
+    element("p", "cp-ai-chat-privacy", t.privacyNotice),
+  );
 
   const transcript = element("div", "cp-ai-chat-transcript");
   transcript.setAttribute("role", "log");
