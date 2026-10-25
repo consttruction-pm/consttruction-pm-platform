@@ -8,6 +8,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryApplicationService,
     AuthoritativeScheduleQueryProvider,
+    _snapshot_requests_resource_leveling,
 )
 from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
@@ -524,3 +525,43 @@ def test_query_ignores_client_calculation_metadata_when_persisted_context_exists
         calculation_context=spoofed,
     )
     assert answer.data["project_finish"] == "2026-09-22"
+
+
+
+def test_preserve_scheduled_dates_option_does_not_enable_resource_leveling_by_itself():
+    from types import SimpleNamespace
+    import json
+
+    snapshot = SimpleNamespace(
+        canonical_payload=json.dumps({
+            "mode": "DATE_BASED",
+            "schedule_options": {
+                "level_all_resources": False,
+                "level_within_float": False,
+                "preserve_scheduled_early_and_late_dates": True,
+                "min_float_to_preserve": 0,
+                "over_allocation_percentage": 0,
+                "resource_list": None,
+                "priority_list": None,
+            },
+        })
+    )
+
+    assert _snapshot_requests_resource_leveling(snapshot) is False
+
+
+def test_resource_leveling_activation_options_still_request_leveling():
+    from types import SimpleNamespace
+    import json
+
+    snapshot = SimpleNamespace(
+        canonical_payload=json.dumps({
+            "mode": "DATE_BASED",
+            "schedule_options": {
+                "level_all_resources": True,
+                "preserve_scheduled_early_and_late_dates": False,
+            },
+        })
+    )
+
+    assert _snapshot_requests_resource_leveling(snapshot) is True
