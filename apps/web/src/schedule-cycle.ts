@@ -30,6 +30,22 @@ export type ScheduleFormulaReference = {
   known_gap: string;
 };
 
+export type ScheduleMenuOptionReference = {
+  id: string;
+  requirement_id: string;
+  area: string;
+  menu_path: string;
+  name: string;
+  values: string[];
+  behavior: string;
+  inputs: string[];
+  outputs: string[];
+  status: ScheduleReferenceStatus;
+  known_gap: string;
+  implementation_mapping_count: number;
+  regression_test_count: number;
+};
+
 export type ScheduleOptionSchema = {
   name: string;
   kind: "enum" | "date" | "boolean" | "number" | "json" | "text";
@@ -44,12 +60,18 @@ export type ScheduleCodeReferenceCatalog = {
   summary: {
     requirement_count: number;
     formula_count: number;
+    option_count: number;
+    option_status: Record<string, number>;
+    option_registry_valid: boolean;
     requirement_status: Record<string, number>;
     documentation_review: Record<string, number>;
     parity_claimed_complete: false;
   };
   requirements: ScheduleRequirementReference[];
   formulas: ScheduleFormulaReference[];
+  options: ScheduleMenuOptionReference[];
+  option_reference_version: string;
+  option_reference_as_of: string;
   schedule_options_schema: ScheduleOptionSchema[];
 };
 
@@ -108,7 +130,7 @@ const LABELS = {
     mustSave: "Save project settings first. Use an existing calendar ID and version from this project.",
     refIntro: "Search the available requirement and formula catalogue. The status labels distinguish a code mapping from verified behavior; this catalogue does not certify complete parity.",
     search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "Requirements and formulas",
-    requirements: "Requirements", formulas: "Formula / algorithm references", noMatches: "No matching entries.", noGap: "No known gap is recorded for this entry.",
+    requirements: "Requirements", formulas: "Formula / algorithm references", menuOptions: "Menu options", noMatches: "No matching entries.", noGap: "No known gap is recorded for this entry.", menuPath: "Menu path", behavior: "Required behavior", outputs: "Outputs / effects", mappingEvidence: "Code mappings", testEvidence: "Regression tests", linkedRequirement: "Linked requirement",
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
     noReferenceApi: "The reference catalogue is not available in this running environment.", noRunApi: "The schedule service is not available in this running environment.",
@@ -126,7 +148,7 @@ const LABELS = {
     mustSave: "ابتدا تنظیمات پروژه را ذخیره کنید. از شناسه و نسخهٔ موجود تقویم پروژه استفاده کنید.",
     refIntro: "در فهرست الزامات و فرمول‌های موجود جست‌وجو کنید. وضعیت‌ها میان وجود مسیر کد و رفتار آزموده‌شده تفاوت می‌گذارند؛ این فهرست گواهی برابری کامل نیست.",
     search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "الزامات و فرمول‌ها",
-    requirements: "الزامات", formulas: "مراجع فرمول و الگوریتم", noMatches: "موردی مطابق جست‌وجو نیست.", noGap: "کمبود مشخصی برای این مورد ثبت نشده است.",
+    requirements: "الزامات", formulas: "مراجع فرمول و الگوریتم", menuOptions: "گزینه‌های منو", noMatches: "موردی مطابق جست‌وجو نیست.", noGap: "کمبود مشخصی برای این مورد ثبت نشده است.", menuPath: "مسیر منو", behavior: "رفتار لازم", outputs: "خروجی‌ها / اثرها", mappingEvidence: "نگاشت‌های کد", testEvidence: "آزمون‌های رگرسیون", linkedRequirement: "الزام مرتبط",
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
     noReferenceApi: "فهرست مرجع در این محیط اجرا در دسترس نیست.", noRunApi: "سرویس زمان‌بندی در این محیط اجرا در دسترس نیست.",
@@ -154,20 +176,24 @@ export function filterScheduleReferences(
   searchTerm: string,
   status: string,
   area: string,
-  kind: "all" | "requirements" | "formulas" = "all",
-): { requirements: ScheduleRequirementReference[]; formulas: ScheduleFormulaReference[] } {
+  kind: "all" | "requirements" | "formulas" | "options" = "all",
+): { requirements: ScheduleRequirementReference[]; formulas: ScheduleFormulaReference[]; options: ScheduleMenuOptionReference[] } {
   const query = searchTerm.trim().toLocaleLowerCase();
   const includesQuery = (values: unknown[]): boolean =>
     !query || values.some((value) => String(value ?? "").toLocaleLowerCase().includes(query));
   return {
-    requirements: kind === "formulas" ? [] : catalog.requirements.filter((item) =>
+    requirements: kind === "formulas" || kind === "options" ? [] : catalog.requirements.filter((item) =>
       (status === "all" || item.status === status) &&
       (area === "all" || item.area === area) &&
       includesQuery([item.id, item.area, item.feature, item.description, ...item.options, item.known_gap, ...item.acceptance_evidence])),
-    formulas: kind === "requirements" ? [] : catalog.formulas.filter((item) =>
+    formulas: kind === "requirements" || kind === "options" ? [] : catalog.formulas.filter((item) =>
       (status === "all" || item.status === status) &&
       (area === "all" || area === "formula") &&
       includesQuery([item.id, item.feature, item.algorithm, ...item.inputs, ...item.options, item.calendar_rules, ...item.edge_cases, item.known_gap])),
+    options: kind === "requirements" || kind === "formulas" ? [] : catalog.options.filter((item) =>
+      (status === "all" || item.status === status) &&
+      (area === "all" || area === "formula" ? area === "all" : item.area === area) &&
+      includesQuery([item.id, item.requirement_id, item.area, item.menu_path, item.name, ...item.values, item.behavior, ...item.inputs, ...item.outputs, item.known_gap])),
   };
 }
 
@@ -176,7 +202,7 @@ function renderReferenceEntries(
   query: string,
   status: string,
   area: string,
-  kind: "all" | "requirements" | "formulas",
+  kind: "all" | "requirements" | "formulas" | "options",
   locale: "fa" | "en",
   labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
 ): string {
@@ -201,10 +227,23 @@ function renderReferenceEntries(
       ${item.known_gap ? `<h4>${safe(labels.acceptance)}</h4><p>${safe(item.known_gap)}</p>` : ""}
       </div></details>`;
   }).join("");
-  const count = filtered.requirements.length + filtered.formulas.length;
+  const optionCards = filtered.options.map((item) => {
+    const statusLabel = STATUS_LABELS[item.status][locale];
+    return `<details class="cp-reference-entry"><summary><span class="cp-reference-id">${safe(item.id)}</span><span class="cp-reference-title">${safe(item.name)}</span><span class="cp-reference-status is-${safe(item.status)}">${safe(statusLabel)}</span></summary>
+      <div class="cp-reference-body"><p><b>${safe(labels.linkedRequirement)}:</b> ${safe(item.requirement_id)}</p>
+      <p><b>${safe(labels.menuPath)}:</b> ${safe(item.menu_path)}</p><p><b>${safe(labels.behavior)}:</b> ${safe(item.behavior)}</p>
+      ${item.values.length ? `<h4>${safe(labels.choices)}</h4><ul>${item.values.map((value) => `<li>${safe(value)}</li>`).join("")}</ul>` : ""}
+      ${item.inputs.length ? `<h4>${safe(labels.inputs)}</h4><ul>${item.inputs.map((value) => `<li>${safe(value)}</li>`).join("")}</ul>` : ""}
+      ${item.outputs.length ? `<h4>${safe(labels.outputs)}</h4><ul>${item.outputs.map((value) => `<li>${safe(value)}</li>`).join("")}</ul>` : ""}
+      <p class="cp-reference-meta"><span>${safe(labels.mappingEvidence)}: ${item.implementation_mapping_count}</span><span>${safe(labels.testEvidence)}: ${item.regression_test_count}</span></p>
+      ${item.known_gap ? `<h4>${safe(labels.acceptance)}</h4><p>${safe(item.known_gap)}</p>` : `<p class="cp-muted">${safe(labels.noGap)}</p>`}
+      </div></details>`;
+  }).join("");
+  const count = filtered.requirements.length + filtered.formulas.length + filtered.options.length;
   if (!count) return `<p class="cp-empty">${safe(labels.noMatches)}</p>`;
   return `${requirementCards ? `<h3>${safe(labels.requirements)} (${filtered.requirements.length})</h3>${requirementCards}` : ""}
-    ${formulaCards ? `<h3>${safe(labels.formulas)} (${filtered.formulas.length})</h3>${formulaCards}` : ""}`;
+    ${formulaCards ? `<h3>${safe(labels.formulas)} (${filtered.formulas.length})</h3>${formulaCards}` : ""}
+    ${optionCards ? `<h3>${safe(labels.menuOptions)} (${filtered.options.length})</h3>${optionCards}` : ""}`;
 }
 
 export async function mountScheduleCyclePanels(
@@ -240,13 +279,13 @@ function mountReferencePanel(
   }
   panel.innerHTML = `
     <p>${safe(labels.refIntro)}</p>
-    <div class="cp-reference-meta"><span>${safe(labels.referenceVersion)}: ${safe(catalog.reference_version)}</span><span>${safe(labels.sourceDate)}: ${safe(catalog.as_of)}</span>
-    <span>${safe(labels.requirements)}: ${catalog.summary.requirement_count}</span><span>${safe(labels.formulas)}: ${catalog.summary.formula_count}</span></div>
+    <div class="cp-reference-meta"><span>${safe(labels.referenceVersion)}: ${safe(catalog.reference_version)} / ${safe(catalog.option_reference_version)}</span><span>${safe(labels.sourceDate)}: ${safe(catalog.as_of)}</span>
+    <span>${safe(labels.requirements)}: ${catalog.summary.requirement_count}</span><span>${safe(labels.formulas)}: ${catalog.summary.formula_count}</span><span>${safe(labels.menuOptions)}: ${catalog.summary.option_count}</span></div>
     <div class="cp-reference-filters">
       <label>${safe(labels.search)}<input type="search" data-reference-search placeholder="${safe(labels.search)}" /></label>
       <label>${safe(labels.allStatuses)}<select data-reference-status><option value="all">${safe(labels.allStatuses)}</option>${Object.entries(STATUS_LABELS).map(([key, text]) => `<option value="${safe(key)}">${safe(text[locale])}</option>`).join("")}</select></label>
-      <label>${safe(labels.allAreas)}<select data-reference-area><option value="all">${safe(labels.allAreas)}</option>${[...new Set(catalog.requirements.map((item) => item.area))].sort().map((area) => `<option value="${safe(area)}">${safe(area)}</option>`).join("")}<option value="formula">${safe(labels.formulas)}</option></select></label>
-      <label>${safe(labels.allKinds)}<select data-reference-kind><option value="all">${safe(labels.allKinds)}</option><option value="requirements">${safe(labels.requirements)}</option><option value="formulas">${safe(labels.formulas)}</option></select></label>
+      <label>${safe(labels.allAreas)}<select data-reference-area><option value="all">${safe(labels.allAreas)}</option>${[...new Set([...catalog.requirements.map((item) => item.area), ...catalog.options.map((item) => item.area)])].sort().map((area) => `<option value="${safe(area)}">${safe(area)}</option>`).join("")}<option value="formula">${safe(labels.formulas)}</option></select></label>
+      <label>${safe(labels.allKinds)}<select data-reference-kind><option value="all">${safe(labels.allKinds)}</option><option value="requirements">${safe(labels.requirements)}</option><option value="formulas">${safe(labels.formulas)}</option><option value="options">${safe(labels.menuOptions)}</option></select></label>
     </div>
     <div class="cp-reference-results" data-reference-results></div>
     <p class="cp-muted">${safe(locale === "fa" ? "وضعیت «تأییدنشده» به معنی اثبات رفتار نیست؛ فقط مسیرهای ثبت‌شده در مرجع را نشان می‌دهد." : "An unverified status is not proof of implemented behavior; it reflects the evidence recorded in the catalogue.")}</p>`;
@@ -256,7 +295,7 @@ function mountReferencePanel(
   const kindInput = panel.querySelector<HTMLSelectElement>("[data-reference-kind]")!;
   const results = panel.querySelector<HTMLElement>("[data-reference-results]")!;
   const render = () => {
-    results.innerHTML = renderReferenceEntries(catalog!, searchInput.value, statusInput.value, areaInput.value, kindInput.value as "all" | "requirements" | "formulas", locale, labels);
+    results.innerHTML = renderReferenceEntries(catalog!, searchInput.value, statusInput.value, areaInput.value, kindInput.value as "all" | "requirements" | "formulas" | "options", locale, labels);
   };
   searchInput.addEventListener("input", render);
   statusInput.addEventListener("change", render);
