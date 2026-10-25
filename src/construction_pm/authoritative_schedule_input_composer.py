@@ -522,7 +522,9 @@ class AuthoritativeScheduleInputComposer:
             project_start=project_settings.project_start,
             project_finish=project_settings.project_finish,
             project_leveling_priority=project_settings.project_leveling_priority,
-            resource_dependent_assignment_facts=tuple(sorted(resource_dependent_assignment_facts, key=lambda fact: fact.assignment_id)),
+            resource_dependent_assignment_facts=tuple(
+                sorted(resource_dependent_assignment_facts, key=lambda fact: fact.assignment_id)
+            ),
         )
 
 
