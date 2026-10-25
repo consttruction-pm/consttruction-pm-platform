@@ -4,11 +4,20 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Current reconciliation checkpoint — 2026-10-25, after PR #1571 merge
+
+- **Current main SHA:** `f4b51292e8e61124e64ae11e756e8cbad27f66d9`; PR #1571 is merged at this commit. It integrates the generated public-safe schedule reference catalogue into the existing Web workspace without removing the schedule-cycle mountpoint. The catalogue exposes 72 requirement records, 18 formula contracts and 16 documentation-review tracks; its statuses explicitly distinguish mapped requirements from proven implementation.
+- **Exact PR-head checks on `27b774bc8b2b3dd2dfa2ae2f70976126cb81a600`:** [ConstructionPM CI #40156394018](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394018) — PASS on Python 3.11/3.12/3.13; [ConstructionPM Web CI #40156394020](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394020) — PASS; [Client Typecheck #40156394102](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394102) — PASS. The earlier PR-head generator/catalogue mismatch was corrected and these final-head checks passed before merge.
+- **Post-merge main checks on `f4b51292e8e61124e64ae11e756e8cbad27f66d9`:** Web CI, Client Typecheck and PostgreSQL Sync are PASS; Python 3.12 is PASS; Python 3.11 and 3.13 were still in progress at the last check. Recheck the exact main SHA's final status before making a full-green CI claim.
+- **Release deployment remains blocked:** [Deploy run #40156478651](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156478651) failed at the Pages preflight because the repository Pages site is not enabled/readable (HTTP 404 and no `PAGES_ADMIN_TOKEN`). The connection available for this task cannot change repository Settings or create repository secrets. An owner/admin must enable Settings → Pages → Build and deployment → Source = GitHub Actions or add the authorized `PAGES_ADMIN_TOKEN`; then rerun deploy and smoke-test the actual published URLs.
+- **Calculation gate remains open:** PR #1570 for the limited Resource Dependent duration subset is not merged. Passing tests do not replace the mandated independent semantic review. Requests are pending from Hasan and Farmj; do not claim full Resource Dependent / resource-calendar compatibility until the required review and accepted test evidence are present.
+- **CUBISITE accounting remains evidence-based:** merged reference UI is not scheduling-calculation completion; the Library workbook remains the website schedule of record, all seven AI-C01–AI-C07 activities remain zero earned completion until their own acceptance criteria are proven, and the overall production site E2E/release gate remains open.
+
 ## Current baseline
 
 | Item | Verified state |
 |---|---|
-| Latest source-code SHA inspected at reconciliation | `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172` (2026-10-25; PR #1555 merged) |
+| Latest source-code SHA inspected at reconciliation | `f4b51292e8e61124e64ae11e756e8cbad27f66d9` (2026-10-25; PR #1571 merged; post-merge Python 3.11/3.13 checks were still running at last inspection) |
 | Default branch | `main` |
 | CUBISITE schedule of record | Current ChatGPT Library search resolves `cubisite.xlsx` at 123,975 bytes (modified 2026-10-24); the Library result exposes `version_id=1`. The prior ledger's version-6 / 122,288-byte identity is not confirmed by the current Files result; verify whether the Library object/version metadata changed before declaring the mirrored workbook synchronized. |
 | CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
@@ -17,9 +26,9 @@
 | Forecast assumptions | One executor; half-day sequencing; Monday–Friday; excludes public holidays, leave and external waiting. Proposed base finish 2027-05-21; with 25-day risk reserve 2027-06-25. This is a forecast, not an approved contractual baseline. |
 | CUBISITE exit gate | Full production site E2E and release sign-off remain open |
 
-## Latest exact-main verification (2026-10-25)
+## Historical exact-main verification before PR #1571 merge (2026-10-25)
 
-The following code/test runs target the latest merged source SHA `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172`:
+The following code/test runs target earlier merged source SHA `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172`. They are historical and are superseded by the current reconciliation checkpoint above:
 
 - [ConstructionPM CI #40148225285](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148225285) — **PASS** on Python 3.11, 3.12 and 3.13.
 - [PostgreSQL Sync State Integration #40148225226](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148225226) — **PASS**.
