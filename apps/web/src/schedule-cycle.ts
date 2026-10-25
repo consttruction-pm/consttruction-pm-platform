@@ -331,10 +331,19 @@ export async function mountScheduleCyclePanels(
   if (!optionsPanel || !runPanel || !referencePanel) return;
   const languageCode = language(locale);
   const labels = LABELS[languageCode];
-  const referenceResult = await transport.get<ScheduleCodeReferenceCatalog>("/api/v1/schedule/code-reference", context);
-  let catalog: ScheduleCodeReferenceCatalog | null = referenceResult.ok ? referenceResult.data : null;
+  let catalog = scheduleReferenceCache;
+  let referenceError: string | null = null;
+  if (!catalog) {
+    const referenceResult = await transport.get<ScheduleCodeReferenceCatalog>("/api/v1/schedule/code-reference", context);
+    if (referenceResult.ok) {
+      catalog = referenceResult.data;
+      scheduleReferenceCache = catalog;
+    } else {
+      referenceError = referenceResult.error.code;
+    }
+  }
 
-  mountReferencePanel(referencePanel, catalog, referenceResult.ok ? null : referenceResult.error.code, labels, languageCode);
+  mountReferencePanel(referencePanel, catalog, referenceError, labels, languageCode);
   await mountSettingsPanel(optionsPanel, transport, context, catalog, labels, languageCode);
   mountRunPanel(runPanel, transport, context, locale, labels, languageCode);
 }
@@ -352,6 +361,7 @@ function mountReferencePanel(
   }
   panel.innerHTML = `
     <p>${safe(labels.refIntro)}</p>
+    ${catalog.summary.option_registry_valid ? "" : `<p role="alert">${safe(labels.optionValidationWarning)}</p>`}
     <div class="cp-reference-meta"><span>${safe(labels.referenceVersion)}: ${safe(catalog.reference_version)} / ${safe(catalog.option_reference_version)}</span><span>${safe(labels.sourceDate)}: ${safe(catalog.as_of)}</span>
     <span>${safe(labels.requirements)}: ${catalog.summary.requirement_count}</span><span>${safe(labels.formulas)}: ${catalog.summary.formula_count}</span><span>${safe(labels.menuOptions)}: ${catalog.summary.option_count}</span></div>
     <div class="cp-reference-filters">
