@@ -66,7 +66,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 
 ### PR #1550 — web action proposal/approval panel (merged)
 
-- Merge SHA / current main SHA: `7606c8cea841fd18455b7c263ef3148251d7246d`
+- Merge SHA: `7606c8cea841fd18455b7c263ef3148251d7246d` (historical; superseded by later merges)
 - Source: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1550
 - Tested PR head: `407b24dd4cc7b8417e850814dbfcdde384967877`.
 - Exact PR head checks: [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349490) — PASS on Python 3.11/3.12/3.13; [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349499) — PASS for Web/Desktop/Mobile/Client Sync; [ConstructionPM Web CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40142349497) — PASS.
@@ -90,7 +90,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 
 ## Canonical CUBISITE reconciliation
 
-- Workbook version 6 (both Library paths) includes AI-C01–AI-C07; original T01–T45 and BUF are preserved; weight sum verified at exactly 100.00%.
+- The latest recovered CUBISITE Library workbook is version 7; it includes AI-C01–AI-C07 while preserving original T01–T45 and BUF. The weight sum was verified at exactly 100.00% in the recovered workbook; repository/Library mirror synchronization remains unverified.
 - 52 capability IDs are unique; formula error scan found no `#REF!`, `#DIV/0!`, `#VALUE!`, `#NAME?` or `#N/A` matches.
 - The seven AI added activities remain proposed estimates with zero earned completion. Current 26.89% is a formula-derived forecast indicator only and is not QA-certified.
 - The schedule remains a Library artifact, not a committed workbook in the repository. Preserve both paths as synchronized mirrors and keep the version and snapshot SHA aligned with this ledger.
@@ -108,7 +108,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 ## Required next actions
 
 1. **Still blocked on repository administration:** the post-merge deploy run #40147792411 again failed at Pages preflight. Enable GitHub Pages with Source = GitHub Actions in repository Settings, or add the authorized `PAGES_ADMIN_TOKEN` secret; then rerun deploy and smoke-test the published site and `/app` routes. This connection cannot alter repository settings/secrets.
-2. **Completed:** post-merge exact-main ConstructionPM CI, PostgreSQL Sync State Integration, Client Typecheck and ConstructionPM Web CI all pass on `d54e4b55bb13b0cd941eeb15a319541b505c3045`; links and run IDs are recorded above.
+2. **Completed on the current source head:** ConstructionPM CI #40148225285, PostgreSQL Sync State Integration #40148225226 and Client Typecheck #40148225224 pass on `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172`. ConstructionPM Web CI #40147792425 passed on preceding Web SHA `d54e4b55bb13b0cd941eeb15a319541b505c3045`; PR #1555 changed only Python request parsing/tests. Deployment remains blocked as documented above.
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
