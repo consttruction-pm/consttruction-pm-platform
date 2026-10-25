@@ -193,5 +193,5 @@ def derive_resource_dependent_duration(
         calendar_id=first.calendar_id,
         calendar_version=first.calendar_version,
         input_hash=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
-        driving_assignment_ids=tuple(item.assignment_id for item in ordered),
+        driving_assignment_ids=tuple(item.assignment_id for item in driving),
     )
