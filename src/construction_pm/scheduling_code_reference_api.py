@@ -95,7 +95,7 @@ def build_scheduling_code_reference_payload() -> dict[str, object]:
     requirement_items: list[dict[str, object]] = []
     for item in P6_CODE_REFERENCE:
         requirement_items.append({
-            "id": item.id,
+            "id": _safe_text(item.id),
             "area": _safe_text(item.area),
             "feature": _safe_text(item.feature),
             "description": _safe_text(item.required_semantics),
