@@ -255,6 +255,7 @@ class AIAssistantTurnOrchestrator:
         user_message: str,
         language: str,
         history: tuple[Mapping[str, str], ...] = (),
+        allow_mutations: bool = True,
     ) -> AIAssistantTurnResult:
         context.validate()
         if (
@@ -267,7 +268,11 @@ class AIAssistantTurnOrchestrator:
         normalized_history = _normalize_history(history)
 
         enabled_tools: dict[str, dict[str, object]] = {}
+        if not isinstance(allow_mutations, bool):
+            raise AIAssistantProviderError("AI_ASSISTANT_REQUEST_INVALID")
         for definition in self._action_runtime.tools.values():
+            if not allow_mutations:
+                break
             schema = definition.input_schema
             if schema is None:
                 continue
@@ -314,11 +319,11 @@ class AIAssistantTurnOrchestrator:
 
         tool_name = response.get("tool_name")
         payload = response.get("payload")
-        if (
-            not isinstance(tool_name, str)
-            or tool_name not in enabled_tools
-            or not isinstance(payload, Mapping)
-        ):
+        if not isinstance(tool_name, str) or not isinstance(payload, Mapping):
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
+        if tool_name not in enabled_tools:
+            if not allow_mutations:
+                raise AIAssistantProviderError("AI_ASSISTANT_ACTION_NOT_ALLOWED")
             raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
         try:
             serialized_payload = json.dumps(
