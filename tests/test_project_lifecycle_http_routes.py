@@ -1989,3 +1989,29 @@ def test_authenticated_sync_mutation_requires_project_write_permission():
     assert json.loads(raw)["code"] == "authorization denied for permission=project.write"
     assert handler.calls == []
     assert handler.endpoint_factory_calls == 0
+
+
+def test_authenticated_schedule_code_reference_endpoint_returns_safe_catalogue():
+    import json
+
+    routes, _, _ = p6_routes()
+    status, headers, body = routes.handle(
+        "GET", "/api/v1/schedule/code-reference", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert headers["Content-Type"].startswith("application/json")
+    payload = json.loads(body)
+    assert payload["contract_version"] == "schedule-code-reference.v1"
+    assert payload["requirements"]
+    assert payload["formulas"]
+    assert payload["summary"]["parity_claimed_complete"] is False
+    serialized = body.decode("utf-8").lower()
+    assert "oracle" not in serialized
+    assert "primavera" not in serialized
+    assert "https://" not in serialized
+
+    unauthenticated_status, _, unauthenticated_body = routes.handle(
+        "GET", "/api/v1/schedule/code-reference"
+    )
+    assert unauthenticated_status == 401
+    assert json.loads(unauthenticated_body)["code"] == "SESSION_REQUIRED"
