@@ -6,15 +6,16 @@ import { renderMainWorkspace } from "./workspace-view.js";
 import { createWorkspaceState } from "./workspace-model.js";
 import { getWorkspaceNavigation } from "./workspace-navigation.js";
 
-function renderReference(locale = "en"): string {
+function renderReference(locale = "en", activeMenu: "schedule" | "reports" = "schedule"): string {
   let html = "";
   const container = {
     get innerHTML() { return html; },
     set innerHTML(value: string) { html = value; },
   };
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 7 }, locale);
   renderMainWorkspace(
     container as unknown as HTMLElement,
-    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 7 }, locale),
+    { ...state, activeMenu },
   );
   return html;
 }
@@ -62,6 +63,11 @@ testCase("schedule submenu entries have matching target sections in the referenc
     assert.ok(html.includes('href="' + target + '"'), "missing link to " + target);
     assert.ok(html.includes('id="' + target.slice(1) + '"'), "missing target " + target);
   }
+});
+
+testCase("the reference catalogue appears only inside the Schedule workspace", () => {
+  assert.match(renderReference("en", "schedule"), /id="cp-scheduling-reference"/);
+  assert.doesNotMatch(renderReference("en", "reports"), /id="cp-scheduling-reference"/);
 });
 
 testCase("the reference view is localized at the navigation and section-label level", () => {
