@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -109,8 +110,7 @@ def test_duplicate_assignment_ids_fail_closed():
 
 @pytest.mark.parametrize("field,value", [("assignment_id", None), ("assignment_id", 17), ("resource_id", None), ("resource_id", "")])
 def test_malformed_assignment_identifiers_fail_with_domain_error(field, value):
-    fact = driver("A-1")
-    object.__setattr__(fact, field, value)
+    fact = replace(driver("A-1"), **{field: value})
     with pytest.raises(
         ResourceDependentCalculationError,
         match="RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED",
