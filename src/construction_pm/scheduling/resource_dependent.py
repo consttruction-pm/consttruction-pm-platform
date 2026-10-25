@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-"""Deterministic, fail-closed duration derivation for a supported Resource Dependent subset.
+"""Deterministic Resource Dependent duration derivation for the supported subset.
 
-This module does not read persistence or calculate dates. It derives an integer
-working-day duration only when all assigned resources explicitly drive the
-activity, share one exact versioned calendar, and provide compatible daily
-Units/Time contracts. Assignment-specific nondriving placement, non-daily time
-periods, and fractional working-day durations remain explicit unsupported cases.
+Only driving assignments determine the activity duration. Driving assignments
+must share one exact versioned calendar and compatible daily Units/Time contracts.
+Nondriving assignment placement remains a separate, fail-closed production
+leveling operation; this module does not read persistence or calculate dates.
+Non-daily rates and fractional working-day durations remain unsupported.
 """
 
 import hashlib
@@ -78,11 +78,14 @@ def derive_resource_dependent_duration(
     activity_id: str,
     assignments: tuple[ResourceDependentDriverFact, ...],
 ) -> ResourceDependentDuration:
-    """Return a reproducible duration from explicit driving resource contracts.
+    """Return a reproducible duration controlled only by driving assignments.
 
-    The supported subset uses each not-started assignment's Planned Units, one
+    The supported subset uses each driving assignment's Planned Units, one
     exact calendar ID/version, one unit of measure, and an explicit daily rate.
-    The longest-to-complete driving assignment controls duration. Fractional duration is rejected, never rounded.
+    The longest-to-complete driving assignment controls duration. All assignment
+    facts remain in the input hash, including nondriving facts whose placement
+    must be resolved independently by the production leveling path. Fractional
+    duration is rejected, never rounded.
     """
     if not isinstance(activity_id, str) or not activity_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ACTIVITY_ID_REQUIRED")
@@ -90,45 +93,61 @@ def derive_resource_dependent_duration(
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
     if any(not isinstance(item, ResourceDependentDriverFact) for item in assignments):
         raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+    if any(
+        not isinstance(value, str)
+        for item in assignments
+        for value in (item.assignment_id, item.activity_id, item.resource_id)
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     ordered = tuple(sorted(assignments, key=lambda item: item.assignment_id))
+    if any(
+        not value.strip() or value != value.strip()
+        for item in ordered
+        for value in (item.assignment_id, item.activity_id, item.resource_id)
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
+    assignment_ids = tuple(item.assignment_id for item in ordered)
+    if len(set(assignment_ids)) != len(assignment_ids):
+        raise ResourceDependentCalculationError("DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_ID")
     if any(item.activity_id != activity_id for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ACTIVITY_MISMATCH")
-    if any(not item.assignment_id.strip() or not item.resource_id.strip() for item in ordered):
-        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     if any(item.is_driving is None for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_FLAG_REQUIRED")
+    if any(not isinstance(item.is_driving, bool) for item in ordered):
+        raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
     driving = tuple(item for item in ordered if item.is_driving is True)
     if not driving:
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
-    if any(item.is_driving is False for item in ordered):
-        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED")
-    if any(item.is_driving is not True for item in ordered):
+    if any(item.is_driving is not True and item.is_driving is not False for item in ordered):
         raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
 
-    first = ordered[0]
+    # Only driving assignments determine Resource Dependent activity duration.
+    # Nondriving assignment placement is a separate operation and remains
+    # fail-closed at the production leveling boundary until independently placed.
+    first = driving[0]
     if not isinstance(first.calendar_id, str) or not first.calendar_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVER_CALENDAR_REQUIRED")
     if not isinstance(first.calendar_version, str) or not first.calendar_version.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED")
     if any(
         (item.calendar_id, item.calendar_version) != (first.calendar_id, first.calendar_version)
-        for item in ordered
+        for item in driving
     ):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_CALENDAR_MISMATCH")
     if not isinstance(first.unit_of_measure, str) or not first.unit_of_measure.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_UNIT_OF_MEASURE_REQUIRED")
-    if any(item.unit_of_measure != first.unit_of_measure for item in ordered):
+    if any(item.unit_of_measure != first.unit_of_measure for item in driving):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_UNIT_MISMATCH")
-    if any(item.units_per_time_period != "day" for item in ordered):
+    if any(item.units_per_time_period != "day" for item in driving):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED")
     if any(
         item.hours_per_units_time_period != first.hours_per_units_time_period
-        for item in ordered
+        for item in driving
     ):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVER_RATE_CONVERSION_MISMATCH")
 
     durations: list[Decimal] = []
-    for item in ordered:
+    for item in driving:
         planned = _require_decimal(
             item.planned_units,
             "RESOURCE_DEPENDENT_PLANNED_UNITS_REQUIRED",
@@ -174,5 +193,5 @@ def derive_resource_dependent_duration(
         calendar_id=first.calendar_id,
         calendar_version=first.calendar_version,
         input_hash=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
-        driving_assignment_ids=tuple(item.assignment_id for item in ordered),
+        driving_assignment_ids=tuple(item.assignment_id for item in driving),
     )

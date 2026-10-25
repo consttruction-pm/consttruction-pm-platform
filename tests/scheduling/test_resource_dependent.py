@@ -83,12 +83,61 @@ def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
         derive(*facts)
 
 
-def test_nondriving_assignments_are_not_silently_folded_into_activity_duration():
+def test_nondriving_assignment_does_not_determine_duration_but_is_hash_bound():
+    driving = driver("A-1", planned="8", rate="4", driving=True)
+    nondriving = driver("A-2", planned="100", rate="1", driving=False)
+    changed_nondriving = driver(
+        "A-2", planned="200", rate="2", driving=False,
+        calendar_id="RC-NONDRIVING", calendar_version="v9", unit="equipment-unit",
+    )
+
+    result = derive(driving, nondriving)
+    changed = derive(driving, changed_nondriving)
+
+    # Activity duration follows driving assignments only, while every
+    # assignment fact remains bound to the immutable calculation input.
+    assert result.duration_working_days == changed.duration_working_days == 2
+    assert result.driving_assignment_ids == changed.driving_assignment_ids == ("A-1",)
+    assert result.input_hash != changed.input_hash
+
+
+@pytest.mark.parametrize("driving", [1, 0, "true", "false"])
+def test_driving_flag_requires_an_actual_boolean(driving):
     with pytest.raises(
         ResourceDependentCalculationError,
-        match="RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED",
+        match="INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG",
     ):
-        derive(driver("A-1"), driver("A-2", driving=False))
+        derive(driver("A-1", driving=driving))
+
+
+def test_duplicate_assignment_ids_are_rejected_before_duration_derivation():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_ID",
+    ):
+        derive(driver("A-1"), driver("A-1", resource_id="R-2"))
+
+
+def test_non_string_assignment_id_is_rejected_before_sorting():
+    from dataclasses import replace
+
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED",
+    ):
+        derive(replace(driver("A-1"), assignment_id=1), driver("A-2"))
+
+
+@pytest.mark.parametrize(
+    ("assignment_id", "resource_id"),
+    [(" A-1", "R-1"), ("A-1", " R-1"), ("A-1 ", "R-1"), ("A-1", "R-1 ")],
+)
+def test_noncanonical_assignment_and_resource_ids_are_rejected(assignment_id, resource_id):
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED",
+    ):
+        derive(driver(assignment_id, resource_id=resource_id))
 
 
 def test_driving_assignments_must_share_exact_calendar_version_and_unit():

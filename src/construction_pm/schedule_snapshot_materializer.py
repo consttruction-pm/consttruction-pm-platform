@@ -33,6 +33,7 @@ from .scheduling.calendar_context import (
 from .scheduling.constraints import ActivityConstraint, ConstraintType
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.relationships import Relationship, RelationshipType
+from .scheduling.resource_dependent import ResourceDependentDriverFact
 from .scheduling.schedule import (
     CriticalActivityPathType,
     ScheduleMode,
@@ -643,6 +644,76 @@ def _materialize_payload(
                 raise
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG_ASSIGNMENT") from exc
 
+    raw_resource_facts = payload.get("resource_dependent_assignment_facts", [])
+    if not isinstance(raw_resource_facts, list):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACTS")
+    resource_facts: list[ResourceDependentDriverFact] = []
+    resource_fact_ids: set[str] = set()
+    known_activity_ids = {
+        activity.get("id")
+        for activity in _required(payload, "activities")
+        if isinstance(activity, dict)
+    }
+    for item in raw_resource_facts:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+        driving = item.get("is_driving")
+        if driving is not None and not isinstance(driving, bool):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
+        for field_name in ("assignment_id", "activity_id", "resource_id"):
+            identifier = _required_string(
+                item, field_name, "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+            if identifier != identifier.strip():
+                raise SnapshotMaterializationError(
+                    "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+                )
+        assignment_id = item["assignment_id"]
+        if assignment_id in resource_fact_ids:
+            raise SnapshotMaterializationError(
+                "DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+        resource_fact_ids.add(assignment_id)
+        for field_name in (
+            "calendar_id", "calendar_version", "unit_of_measure", "units_per_time_period"
+        ):
+            field_value = item.get(field_name)
+            if field_value is not None and (
+                not isinstance(field_value, str) or field_value != field_value.strip()
+            ):
+                raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+        if item["activity_id"] not in known_activity_ids:
+            raise SnapshotMaterializationError(
+                "resource dependent assignment fact references unknown activity"
+            )
+        resource_facts.append(
+            ResourceDependentDriverFact(
+                assignment_id=item["assignment_id"],
+                activity_id=item["activity_id"],
+                resource_id=item["resource_id"],
+                calendar_id=item.get("calendar_id"),
+                calendar_version=item.get("calendar_version"),
+                unit_of_measure=item.get("unit_of_measure"),
+                planned_units=(
+                    None
+                    if item.get("planned_units") is None
+                    else _decimal(item["planned_units"])
+                ),
+                is_driving=driving,
+                units_per_time=(
+                    None
+                    if item.get("units_per_time") is None
+                    else _decimal(item["units_per_time"])
+                ),
+                units_per_time_period=item.get("units_per_time_period"),
+                hours_per_units_time_period=(
+                    None
+                    if item.get("hours_per_units_time_period") is None
+                    else _decimal(item["hours_per_units_time_period"])
+                ),
+            )
+        )
+
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
     raw_project_leveling_priority = payload.get("project_leveling_priority", 10)
@@ -674,4 +745,5 @@ def _materialize_payload(
             else None
         ),
         project_leveling_priority=raw_project_leveling_priority,
+        resource_dependent_assignment_facts=tuple(resource_facts),
     )

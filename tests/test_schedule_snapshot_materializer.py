@@ -2,6 +2,7 @@ import json
 import hashlib
 import sqlite3
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 import pytest
 
@@ -26,6 +27,7 @@ from construction_pm.scheduling.calendar_context import CalendarReference, Calen
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.resource_dependent import ResourceDependentDriverFact
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import TimeQuantity
@@ -141,6 +143,87 @@ def test_materializes_date_based_models():
     assert result.schedule_input.activities[0].duration == 2
     assert result.schedule_input.relationships[0].type.value == "FS"
     assert result.schedule_input.constraints[0].type is ConstraintType.START_NO_EARLIER_THAN
+
+
+def test_materializes_resource_dependent_assignment_facts_with_driving_flag():
+    cal = CalendarReference("CAL-1", "1")
+    fact = ResourceDependentDriverFact(
+        assignment_id="AS-1", activity_id="A", resource_id="R-1",
+        calendar_id="CAL-1", calendar_version="1", unit_of_measure="h",
+        planned_units=Decimal("16"), is_driving=True,
+        units_per_time=Decimal("8"), units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RESOURCE-FACT", tenant_id="T-1", project_id="P-1",
+        project_revision=3, mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=cal, activities=(Activity("A", 2, activity_type=ActivityType.RESOURCE_DEPENDENT),), relationships=(),
+        activity_calendar_assignments=(ActivityCalendarAssignment("A", cal),),
+        project_start=date(2026, 9, 21), resource_dependent_assignment_facts=(fact,),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=3, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-21T08:00:00+00:00",
+        input_snapshot_id="S-RESOURCE-FACT", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc))
+    result = materialize_schedule_snapshot(snapshot, CalendarResolverRegistry())
+    assert result.schedule_input.resource_dependent_assignment_facts == (fact,)
+    assert result.schedule_input.resource_dependent_assignment_facts[0].is_driving is True
+
+
+@pytest.mark.parametrize("value", [1, 0, "true", "false"])
+def test_materializer_rejects_non_boolean_resource_driving_flag(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = [{
+        "assignment_id": "AS-1",
+        "activity_id": "A",
+        "resource_id": "R-1",
+        "calendar_id": "CAL-1",
+        "calendar_version": "1",
+        "unit_of_measure": "h",
+        "planned_units": "16",
+        "is_driving": value,
+        "units_per_time": "8",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_resource_assignment_fact_for_unknown_activity():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = [{
+        "assignment_id": "AS-1",
+        "activity_id": "UNKNOWN",
+        "resource_id": "R-1",
+        "calendar_id": "CAL-1",
+        "calendar_version": "1",
+        "unit_of_measure": "h",
+        "planned_units": "16",
+        "is_driving": True,
+        "units_per_time": "8",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises((ValueError, SnapshotMaterializationError), match="resource dependent assignment fact references unknown activity"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
 
 
 def test_materializer_rejects_tampered_hash():
@@ -1036,4 +1119,38 @@ def test_materializer_rejects_invalid_original_duration(value):
         snapshot.calculation_identity, snapshot.created_at,
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_ORIGINAL_DURATION"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize(
+    ("facts", "error"),
+    [
+        (
+            [
+                {"assignment_id": "AS-1", "activity_id": "A", "resource_id": "R-1", "is_driving": True},
+                {"assignment_id": "AS-1", "activity_id": "B", "resource_id": "R-2", "is_driving": False},
+            ],
+            "DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+        (
+            [{"assignment_id": " AS-1", "activity_id": "A", "resource_id": "R-1", "is_driving": True}],
+            "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+        (
+            [{"assignment_id": "AS-1", "activity_id": "A", "resource_id": "R-1 ", "is_driving": True}],
+            "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+    ],
+)
+def test_materializer_rejects_duplicate_or_noncanonical_resource_assignment_facts(facts, error):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = facts
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match=error):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
