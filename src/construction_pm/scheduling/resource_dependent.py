@@ -12,7 +12,7 @@ periods, and fractional working-day durations remain explicit unsupported cases.
 import hashlib
 import json
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 
 class ResourceDependentCalculationError(ValueError):
@@ -97,6 +97,9 @@ def derive_resource_dependent_duration(
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     if any(item.is_driving is None for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_FLAG_REQUIRED")
+    driving = tuple(item for item in ordered if item.is_driving is True)
+    if not driving:
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
     if any(item.is_driving is False for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED")
     if any(item.is_driving is not True for item in ordered):
