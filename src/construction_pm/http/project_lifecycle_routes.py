@@ -2070,6 +2070,7 @@ class ProjectLifecycleHttpRoutes:
                     if (
                         not isinstance(entry, dict)
                         or set(entry) != {"role", "content"}
+                        or not isinstance(entry.get("role"), str)
                         or entry.get("role") not in {"user", "assistant"}
                         or not isinstance(entry.get("content"), str)
                         or not entry["content"].strip()
