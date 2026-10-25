@@ -51,6 +51,7 @@ def _normalize_history(value: object) -> tuple[Mapping[str, str], ...]:
         if (
             not isinstance(item, Mapping)
             or set(item) != {"role", "content"}
+            or not isinstance(item.get("role"), str)
             or item.get("role") not in {"user", "assistant"}
             or not isinstance(item.get("content"), str)
             or not item["content"].strip()
@@ -84,6 +85,8 @@ class OpenAICompatibleChatProvider:
         timeout_seconds: float = 20.0,
         opener: Callable[..., object] | None = None,
     ) -> None:
+        if not isinstance(base_url, str) or not base_url.strip():
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID")
         parsed = urlparse(base_url.strip())
         if (
             parsed.scheme != "https"
