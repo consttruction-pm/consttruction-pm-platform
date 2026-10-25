@@ -103,11 +103,14 @@ class _CapturedResourceReadAPI:
 # The canonical activity-leveling priority is deliberately mapped rather than
 # inferred from localized labels or activity IDs.
 _ACTIVITY_PRIORITY = {
-    ActivityLevelingPriority.TOP: 1,
-    ActivityLevelingPriority.HIGH: 2,
+    # The core sorts this numeric value in the configured direction. A lower
+    # value therefore represents the lower-priority enum: ascending puts
+    # Lowest/Low ahead of Top/High; descending reverses this order.
+    ActivityLevelingPriority.LOWEST: 1,
+    ActivityLevelingPriority.LOW: 2,
     ActivityLevelingPriority.NORMAL: 3,
-    ActivityLevelingPriority.LOW: 4,
-    ActivityLevelingPriority.LOWEST: 5,
+    ActivityLevelingPriority.HIGH: 4,
+    ActivityLevelingPriority.TOP: 5,
 }
 
 
