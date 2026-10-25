@@ -140,6 +140,7 @@ def _project_result(
                         "start": value.start.isoformat(),
                         "finish": value.finish.isoformat(),
                         "duration": value.duration,
+                        "critical": result.date_result.floats[key].critical,
                     }
                     for key, value in sorted(activities.items())
                 },
@@ -158,6 +159,7 @@ def _project_result(
                     "start": value.start.isoformat(),
                     "finish": value.finish.isoformat(),
                     "duration": value.duration,
+                    "critical": result.date_result.floats[key].critical,
                 }
                 for key, value in sorted(activities.items())
                 if key in selected_ids

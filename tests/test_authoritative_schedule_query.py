@@ -90,6 +90,7 @@ def test_filter_projection_selects_explicit_activity_ids():
     auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
     answer = service.execute(request, auth_context=auth, calculation_context=context)
     assert list(answer.data["activities"]) == ["B"]
+    assert isinstance(answer.data["activities"]["B"]["critical"], bool)
 
 
 def test_scenario_projection_does_not_invoke_scheduler():
