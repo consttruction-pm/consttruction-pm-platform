@@ -41,13 +41,14 @@ class AuthoritativeScheduleQueryProvider:
     snapshot_repository: ScheduleInputSnapshotRepository
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
     calculation_context_repository: CalculationContextRepository | None = None
-    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry], SchedulerLevelingInput | None] | None = None
+    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None
 
     def execute(
         self,
         request: ScheduleQueryRequest,
         *,
         calculation_context: CalculationContext | None = None,
+        auth_context: AuthorizationContext | None = None,
     ) -> ScheduleQueryAnswer:
         scope = BackendScope(
             request.scope.tenant_id,
@@ -96,8 +97,15 @@ class AuthoritativeScheduleQueryProvider:
                 self.leveling_input_resolver is not None
                 and _snapshot_requests_resource_leveling(snapshot)
             ):
+                if auth_context is None:
+                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_CONTEXT_REQUIRED")
+                if (
+                    auth_context.tenant_id != snapshot.scope.tenant_id
+                    or auth_context.project_id != snapshot.scope.project_id
+                ):
+                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_SCOPE_MISMATCH")
                 leveling_input = self.leveling_input_resolver(
-                    snapshot, calculation_context, calendar_registry
+                    snapshot, calculation_context, calendar_registry, auth_context
                 )
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
@@ -368,8 +376,14 @@ class _ContextBoundProvider:
     provider: AuthoritativeScheduleQueryProvider
     calculation_context: CalculationContext | None
 
-    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> ScheduleQueryAnswer:
         return self.provider.execute(
             request,
             calculation_context=self.calculation_context,
+            auth_context=auth_context,
         )
