@@ -64,6 +64,8 @@ class AIActionToolDefinition:
     requires_human_approval: bool
     validate_payload: PayloadValidator
     execute: ToolExecutor
+    description: str = ""
+    input_schema: Mapping[str, object] | None = None
 
     def validate(self) -> None:
         for name, value in (
@@ -75,6 +77,24 @@ class AIActionToolDefinition:
                 raise AIActionRuntimeError(f"AI_ACTION_TOOL_{name.upper()}_REQUIRED")
         if not isinstance(self.requires_human_approval, bool):
             raise AIActionRuntimeError("AI_ACTION_TOOL_APPROVAL_POLICY_INVALID")
+        if not isinstance(self.description, str) or len(self.description) > 500:
+            raise AIActionRuntimeError("AI_ACTION_TOOL_DESCRIPTION_INVALID")
+        if self.input_schema is not None:
+            schema = self.input_schema
+            if not isinstance(schema, Mapping) or schema.get("type") != "object":
+                raise AIActionRuntimeError("AI_ACTION_TOOL_INPUT_SCHEMA_INVALID")
+            properties = schema.get("properties")
+            required = schema.get("required", [])
+            if (
+                not isinstance(properties, Mapping)
+                or not isinstance(required, list)
+                or any(not isinstance(key, str) or key not in properties for key in required)
+            ):
+                raise AIActionRuntimeError("AI_ACTION_TOOL_INPUT_SCHEMA_INVALID")
+            try:
+                json.dumps(dict(schema), ensure_ascii=False, sort_keys=True)
+            except (TypeError, ValueError) as exc:
+                raise AIActionRuntimeError("AI_ACTION_TOOL_INPUT_SCHEMA_INVALID") from exc
         if not callable(self.validate_payload) or not callable(self.execute):
             raise AIActionRuntimeError("AI_ACTION_TOOL_HANDLER_REQUIRED")
 
