@@ -241,7 +241,8 @@ class AIAssistantTurnOrchestrator:
         kind = response.get("kind")
         message = response.get("message")
         if (
-            kind not in {"message", "clarification", "action_proposal"}
+            not isinstance(kind, str)
+            or kind not in {"message", "clarification", "action_proposal"}
             or not isinstance(message, str)
             or not message.strip()
             or len(message) > MAX_ASSISTANT_REPLY_CHARS
@@ -261,6 +262,11 @@ class AIAssistantTurnOrchestrator:
             or not isinstance(payload, Mapping)
         ):
             raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
+        definition = self._action_runtime.tools.get(tool_name)
+        if definition is None or not definition.requires_human_approval:
+            # Do not create an auto-approved proposal from model output, even if a future
+            # tool is accidentally registered without an explicit approval gate.
+            raise AIAssistantProviderError("AI_ASSISTANT_ACTION_APPROVAL_POLICY_INVALID")
         try:
             proposal = self._action_runtime.propose(
                 context,
