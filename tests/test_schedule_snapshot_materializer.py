@@ -173,6 +173,59 @@ def test_materializes_resource_dependent_assignment_facts_with_driving_flag():
     assert result.schedule_input.resource_dependent_assignment_facts[0].is_driving is True
 
 
+@pytest.mark.parametrize("value", [1, 0, "true", "false"])
+def test_materializer_rejects_non_boolean_resource_driving_flag(value):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = [{
+        "assignment_id": "AS-1",
+        "activity_id": "A",
+        "resource_id": "R-1",
+        "calendar_id": "CAL-1",
+        "calendar_version": "1",
+        "unit_of_measure": "h",
+        "planned_units": "16",
+        "is_driving": value,
+        "units_per_time": "8",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match="INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+def test_materializer_rejects_resource_assignment_fact_for_unknown_activity():
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = [{
+        "assignment_id": "AS-1",
+        "activity_id": "UNKNOWN",
+        "resource_id": "R-1",
+        "calendar_id": "CAL-1",
+        "calendar_version": "1",
+        "unit_of_measure": "h",
+        "planned_units": "16",
+        "is_driving": True,
+        "units_per_time": "8",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }]
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises((ValueError, SnapshotMaterializationError), match="resource dependent assignment fact references unknown activity"):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
 def test_materializer_rejects_tampered_hash():
     snapshot = make_snapshot()
     tampered = snapshot.__class__(
