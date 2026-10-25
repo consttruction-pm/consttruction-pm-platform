@@ -664,16 +664,24 @@ def _materialize_payload(
                 raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
         resource_facts.append(
             ResourceDependentDriverFact(
-            assignment_id=item["assignment_id"],
-            activity_id=item["activity_id"],
-            resource_id=item["resource_id"],
-            calendar_id=item.get("calendar_id"),
-            calendar_version=item.get("calendar_version"),
-            unit_of_measure=item.get("unit_of_measure"),
-            planned_units=None if item.get("planned_units") is None else _decimal(item["planned_units"]),
-            is_driving=driving,
-            units_per_time=None if item.get("units_per_time") is None else _decimal(item["units_per_time"]),
-            units_per_time_period=item.get("units_per_time_period"),
+                assignment_id=item["assignment_id"],
+                activity_id=item["activity_id"],
+                resource_id=item["resource_id"],
+                calendar_id=item.get("calendar_id"),
+                calendar_version=item.get("calendar_version"),
+                unit_of_measure=item.get("unit_of_measure"),
+                planned_units=(
+                    None
+                    if item.get("planned_units") is None
+                    else _decimal(item["planned_units"])
+                ),
+                is_driving=driving,
+                units_per_time=(
+                    None
+                    if item.get("units_per_time") is None
+                    else _decimal(item["units_per_time"])
+                ),
+                units_per_time_period=item.get("units_per_time_period"),
                 hours_per_units_time_period=(
                     None
                     if item.get("hours_per_units_time_period") is None
