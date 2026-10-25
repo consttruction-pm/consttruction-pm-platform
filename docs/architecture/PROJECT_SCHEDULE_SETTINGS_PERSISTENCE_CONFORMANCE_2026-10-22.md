@@ -1,7 +1,7 @@
 # Project Schedule Settings Persistence — Contract to Code/Test Map
 
 **Date:** 2026-10-22  
-**Status:** persistence sub-slice; production Activity Master → immutable schedule snapshot composition remains OPEN under Issue #1462. Resource-leveling input → authoritative Schedule Query remains OPEN under Issue #1468.
+**Status (2026-10-25):** PR #1566 is merged on main as `ad2e425255bb6d90e3c4ffc0d25a8024e7252acb`. The date-based persisted Activity Master → snapshot → resource-leveling Schedule Query slice has end-to-end coverage and all post-merge checks passed. Issues #1462 and #1468 remain OPEN for independent scope/revision and resource-capacity semantic review; this document does not claim full schedule conformance.
 
 ## Scope and invariants
 
@@ -39,15 +39,15 @@ Reference entry points used by adjacent scheduling contracts:
 - P6 Professional v26 relationship type/lag fields: https://docs.oracle.com/cd/G48902_01/client_help/en_US/relationships_tab_-_activity_details.htm
 - P6 Professional v26 resource-leveling priority definitions: https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_priority_definitions.htm
 
-## Implementation update — 2026-10-25 (PR #1566 pending merge)
+## Implementation update — 2026-10-25 (PR #1566 merged)
 
-The earlier two blockers have implementation coverage in the current branch, but not yet in `main`:
+PR [#1566](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1566) is merged to `main` at `ad2e425255bb6d90e3c4ffc0d25a8024e7252acb`.
 
-1. `src/construction_pm/authoritative_schedule_input_composer.py` no longer rejects valid date-based leveling settings or every non-empty resource assignment set. It validates persisted assignment/period scope, unique identities, cross-record activity/resource references and date keys while the immutable schedule snapshot preserves the authoritative activity, relationships, constraints, calendar assignments and schedule options.
-2. `src/construction_pm/p6_persisted_resource_leveling_resolver.py` reads the real authorized assignment/period repositories at the snapshot's exact tenant/project/revision, resolves each resource calendar by exact ID+version and hashes the source assignments, time-phased facts, calendar capacity manifest, snapshot and calculation identity. The production WSGI composition can construct this resolver from the real read API and calendar repositories.
-3. `tests/test_authoritative_schedule_snapshot_composer.py::test_activity_snapshot_publication_and_query_use_persisted_resource_leveling` covers authenticated activity writes → persisted schedule settings/relationships/constraints/calendar assignment/resource assignments and periods → explicit commit → published immutable snapshot → production Schedule Query → final leveling dates. The test asserts the non-empty resource overload is separated by the Shared Scheduling Core and the snapshot preserved the non-default activity-calendar, priority and constraint values.
+1. `src/construction_pm/authoritative_schedule_input_composer.py` no longer rejects valid date-based leveling settings or every non-empty resource assignment set. It validates persisted assignment/period scope, unique identities, cross-record activity/resource references and date keys while the immutable schedule snapshot preserves activities, relationships, constraints, activity-calendar assignments and schedule options.
+2. `src/construction_pm/p6_persisted_resource_leveling_resolver.py` reads authorized assignment/period repositories at the snapshot's exact tenant/project/revision, resolves each resource calendar by exact ID+version and hashes source assignments, time-phased facts, calendar capacity manifest, snapshot and calculation identity. Production WSGI composition constructs this resolver from the real read API and calendar repositories.
+3. `tests/test_authoritative_schedule_snapshot_composer.py::test_activity_snapshot_publication_and_query_use_persisted_resource_leveling` exercises authenticated activity writes → persisted schedule settings/relationships/constraints/activity-calendar assignment/resource assignments and periods → explicit commit → published immutable snapshot → production Schedule Query → final leveling dates. It asserts the overload is separated by the Shared Scheduling Core and that non-default calendar, priority and constraint values survive snapshot materialization.
 
-The exact head `12be1a8f2facaf527dc240b31e16bef8f9cfd0cc` passed ConstructionPM CI (Python 3.11/3.12/3.13), Client Typecheck (web/desktop/mobile/client-sync) and PostgreSQL Integration. This evidence applies to that SHA; any subsequent source change requires fresh checks. PR #1566 still must be merged before the implementation counts as current-main completion.
+Exact-head source/test SHA `a80946863236fdbf272c9a1d63daee85d7b2d2ba` passed [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154371809), [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154371973) and [PostgreSQL Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154371847). Post-merge SHA `ad2e425255bb6d90e3c4ffc0d25a8024e7252acb` then passed [post-merge ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154468193), [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154468088) and [PostgreSQL Sync State Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40154468094).
 
 ## Remaining certification gaps
 
